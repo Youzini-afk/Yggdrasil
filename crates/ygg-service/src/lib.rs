@@ -6,7 +6,8 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::Value;
 use tower_http::cors::CorsLayer;
-use ygg_core::{EventEnvelope, KernelSession, PackageId, SessionId};
+use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
+use ygg_runtime::PackageRecord;
 use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
@@ -48,6 +49,10 @@ pub fn app_with_state(state: AppState) -> Router {
         .route("/kernel/session.open", post(open_session))
         .route("/kernel/event.append/:session_id", post(append_event))
         .route("/kernel/event.list/:session_id", get(list_events))
+        .route("/kernel/package.load", post(load_package))
+        .route("/kernel/package.list", get(list_packages))
+        .route("/kernel/package.status/:namespace/:name", get(package_status))
+        .route("/kernel/package.unload/:namespace/:name", post(unload_package))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -96,6 +101,38 @@ async fn list_events(
     Path(session_id): Path<SessionId>,
 ) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError> {
     Ok(Json(state.runtime.store().list_session(&session_id).await?))
+}
+
+async fn load_package(
+    State(state): State<AppState>,
+    Json(manifest): Json<PackageManifest>,
+) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
+    Ok(Json(state.runtime.load_package(manifest).await?))
+}
+
+async fn list_packages(State(state): State<AppState>) -> Json<Vec<PackageRecord>> {
+    Json(state.runtime.list_packages().await)
+}
+
+async fn package_status(
+    State(state): State<AppState>,
+    Path((namespace, name)): Path<(String, String)>,
+) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
+    let package_id = format!("{namespace}/{name}");
+    state
+        .runtime
+        .package_status(&package_id)
+        .await
+        .map(Json)
+        .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded").into())
+}
+
+async fn unload_package(
+    State(state): State<AppState>,
+    Path((namespace, name)): Path<(String, String)>,
+) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
+    let package_id = format!("{namespace}/{name}");
+    Ok(Json(state.runtime.unload_package(&package_id).await?))
 }
 
 pub struct ServiceError(anyhow::Error);

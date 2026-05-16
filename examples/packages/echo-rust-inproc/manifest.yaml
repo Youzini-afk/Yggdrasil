@@ -1,0 +1,42 @@
+schema_version: 1
+id: example/echo-rust-inproc
+version: 0.1.0
+display_name: Echo Rust In-Process Example
+description: Conformance fixture manifest for the package registry.
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  symbol: register
+  abi_version: 1
+provides:
+  - id: example/echo-rust-inproc/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+permissions:
+  events:
+    read: true
+    append: true
+  capabilities:
+    invoke: []
+  packages:
+    call: []
+  assets:
+    read: false
+    write: false
+  network:
+    hosts: []
+  filesystem:
+    read: []
+    write: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

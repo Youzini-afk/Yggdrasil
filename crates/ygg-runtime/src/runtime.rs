@@ -3,20 +3,22 @@ use std::sync::Arc;
 use chrono::Utc;
 use serde_json::{json, Value};
 use ygg_core::{
-    new_id, EventEnvelope, EventKind, KernelSession, PackageId, SessionId, SessionStatus,
-    EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
+    new_id, EventEnvelope, EventKind, KernelSession, PackageId, PackageManifest, SessionId,
+    SessionStatus, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_SESSION_CLOSED,
+    EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
 };
 
-use crate::EventStore;
+use crate::{EventStore, HostPolicy, PackageRecord, PackageRegistry};
 
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
     pub default_labels: Vec<String>,
+    pub host_policy: HostPolicy,
 }
 
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        Self { default_labels: vec!["kernel".to_string()] }
+        Self { default_labels: vec!["kernel".to_string()], host_policy: HostPolicy::default() }
     }
 }
 
@@ -42,6 +44,7 @@ where
     S: EventStore,
 {
     store: Arc<S>,
+    packages: Arc<PackageRegistry>,
     config: RuntimeConfig,
 }
 
@@ -50,11 +53,15 @@ where
     S: EventStore,
 {
     pub fn new(store: Arc<S>, config: RuntimeConfig) -> Self {
-        Self { store, config }
+        Self { store, packages: Arc::new(PackageRegistry::default()), config }
     }
 
     pub fn store(&self) -> Arc<S> {
         self.store.clone()
+    }
+
+    pub fn packages(&self) -> Arc<PackageRegistry> {
+        self.packages.clone()
     }
 
     pub async fn open_session(&self, mut request: OpenSessionRequest) -> anyhow::Result<KernelSession> {
@@ -121,6 +128,51 @@ where
         self.store.list_session(session_id).await
     }
 
+    pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
+        let record = self.packages.load(manifest, &self.config.host_policy).await?;
+        let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
+        self.append_kernel_event(
+            &session_id,
+            EVENT_PACKAGE_LOADED,
+            json!({
+                "package_id": record.id,
+                "version": record.version,
+                "state": record.state,
+                "entry_kind": record.entry_kind,
+                "capability_count": record.capability_count,
+                "hook_count": record.hook_count,
+                "extension_point_count": record.extension_point_count,
+            }),
+        )
+        .await?;
+        Ok(record)
+    }
+
+    pub async fn unload_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
+        let record = self.packages.unload(package_id).await?;
+        let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
+        self.append_kernel_event(
+            &session_id,
+            EVENT_PACKAGE_UNLOADED,
+            json!({
+                "package_id": record.id,
+                "version": record.version,
+                "state": record.state,
+                "entry_kind": record.entry_kind,
+            }),
+        )
+        .await?;
+        Ok(record)
+    }
+
+    pub async fn list_packages(&self) -> Vec<PackageRecord> {
+        self.packages.list().await
+    }
+
+    pub async fn package_status(&self, package_id: &PackageId) -> Option<PackageRecord> {
+        self.packages.status(package_id).await
+    }
+
     async fn append_kernel_event(
         &self,
         session_id: &SessionId,
@@ -143,6 +195,7 @@ mod tests {
     use std::sync::Arc;
 
     use serde_json::json;
+    use ygg_core::{PackageContributions, PackageEntry, PermissionSet, SandboxPolicy};
 
     use super::*;
     use crate::InMemoryEventStore;
@@ -203,6 +256,40 @@ mod tests {
         assert_eq!(event.sequence, 1);
         let events = store.list_session(&session.id).await?;
         assert_eq!(events.len(), 2);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn package_load_records_kernel_lifecycle_event() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+
+        let record = runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "org/pkg".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "org-pkg".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        assert_eq!(record.id, "org/pkg");
+        let events = store.list_session(&"kernel_package_org_pkg".to_string()).await?;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, EVENT_PACKAGE_LOADED);
         Ok(())
     }
 }

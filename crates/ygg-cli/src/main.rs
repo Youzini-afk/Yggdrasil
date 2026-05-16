@@ -1,9 +1,11 @@
+use std::fs;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use serde_json::json;
-use ygg_core::KERNEL_PACKAGE_ID;
+use ygg_core::{KERNEL_PACKAGE_ID, PackageManifest};
 use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
 #[derive(Debug, Parser)]
@@ -23,6 +25,26 @@ enum Command {
         #[arg(long, default_value = "127.0.0.1:8787")]
         bind: SocketAddr,
     },
+    /// Validate a package manifest file.
+    Manifest {
+        #[command(subcommand)]
+        command: ManifestCommand,
+    },
+    /// Exercise the in-memory package registry.
+    Package {
+        #[command(subcommand)]
+        command: PackageCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ManifestCommand {
+    Validate { path: PathBuf },
+}
+
+#[derive(Debug, Subcommand)]
+enum PackageCommand {
+    Load { path: PathBuf },
 }
 
 #[tokio::main]
@@ -33,7 +55,38 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Demo => demo().await,
         Command::Serve { bind } => serve(bind).await,
+        Command::Manifest { command } => match command {
+            ManifestCommand::Validate { path } => validate_manifest(path).await,
+        },
+        Command::Package { command } => match command {
+            PackageCommand::Load { path } => package_load(path).await,
+        },
     }
+}
+
+async fn read_manifest(path: PathBuf) -> anyhow::Result<PackageManifest> {
+    let raw = fs::read_to_string(&path)?;
+    let manifest = match path.extension().and_then(|ext| ext.to_str()) {
+        Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)?,
+        _ => serde_json::from_str(&raw)?,
+    };
+    Ok(manifest)
+}
+
+async fn validate_manifest(path: PathBuf) -> anyhow::Result<()> {
+    let manifest = read_manifest(path).await?;
+    manifest.validate_basic()?;
+    println!("valid manifest: {}@{}", manifest.id, manifest.version);
+    Ok(())
+}
+
+async fn package_load(path: PathBuf) -> anyhow::Result<()> {
+    let manifest = read_manifest(path).await?;
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let record = runtime.load_package(manifest).await?;
+    println!("loaded package: {}@{} ({:?})", record.id, record.version, record.state);
+    Ok(())
 }
 
 async fn demo() -> anyhow::Result<()> {
