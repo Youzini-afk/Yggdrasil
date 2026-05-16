@@ -2,12 +2,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub type EventId = String;
-pub type StreamId = String;
 pub type SessionId = String;
-pub type TurnId = String;
-pub type ActorId = String;
-pub type PromptFrameId = String;
-pub type ModelCallId = String;
+pub type PackageId = String;
+pub type CapabilityId = String;
+pub type ExtensionPointId = String;
+pub type HookId = String;
+pub type AssetId = String;
+pub type InvocationId = String;
+pub type PrincipalId = String;
 
 pub fn new_id(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())

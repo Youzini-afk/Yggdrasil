@@ -1,75 +1,25 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-use crate::ids::{ActorId, PromptFrameId, SessionId, TurnId};
+use crate::ids::{PackageId, PrincipalId, SessionId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionStatus {
-    Active,
+    Open,
     Closed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Session {
+pub struct KernelSession {
     pub id: SessionId,
-    pub title: String,
-    pub runtime_profile: String,
-    pub actor_ids: Vec<ActorId>,
-    pub current_turn_id: Option<TurnId>,
+    pub labels: Vec<String>,
+    pub active_package_set: Vec<PackageId>,
+    pub principal_scope: Option<PrincipalId>,
+    pub status: SessionStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub status: SessionStatus,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum TurnStatus {
-    Pending,
-    Running,
-    Completed,
-    Cancelled,
-    Failed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Turn {
-    pub id: TurnId,
-    pub session_id: SessionId,
-    pub parent_turn_id: Option<TurnId>,
-    pub status: TurnStatus,
-    pub prompt_frame_id: Option<PromptFrameId>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum ActorKind {
-    User,
-    Character,
-    Narrator,
-    System,
-    Agent,
-    External,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Actor {
-    pub id: ActorId,
-    pub kind: ActorKind,
-    pub display_name: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum MessageRole {
-    User,
-    Assistant,
-    System,
-    Narrator,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Message {
-    pub role: MessageRole,
-    pub content: String,
+    #[serde(default)]
+    pub metadata: Value,
 }

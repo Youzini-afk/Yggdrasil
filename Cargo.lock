@@ -1531,6 +1531,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing-subscriber",
+ "ygg-core",
  "ygg-runtime",
  "ygg-service",
 ]
@@ -1571,6 +1572,7 @@ dependencies = [
  "axum",
  "futures",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-stream",
  "tower-http",

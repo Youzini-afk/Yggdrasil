@@ -1,14 +1,6 @@
-//! pi integration placeholders.
+//! Deferred pi package-family placeholder.
 //!
-//! pi should read events and produce proposals. Yggdrasil validates and commits
-//! proposals through events.
+//! pi integration is not a runtime/kernel concept. Future pi support should
+//! appear as ordinary capability packages governed by manifests.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentTaskStub {
-    pub id: String,
-    pub kind: String,
-    pub session_id: String,
-    pub status: String,
-}
+pub const PI_INTEGRATION_DEFERRED: &str = "pi is a future capability package family";

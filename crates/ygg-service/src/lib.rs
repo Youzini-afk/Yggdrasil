@@ -3,12 +3,13 @@ use std::sync::Arc;
 use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::Value;
 use tower_http::cors::CorsLayer;
-use ygg_core::{EventEnvelope, SessionId};
-use ygg_runtime::{EventStore, InMemoryEventStore, MockModelProvider, Runtime, RuntimeConfig};
+use ygg_core::{EventEnvelope, KernelSession, PackageId, SessionId};
+use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
-pub type AppRuntime = Runtime<InMemoryEventStore, MockModelProvider>;
+pub type AppRuntime = Runtime<InMemoryEventStore>;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -16,36 +17,37 @@ pub struct AppState {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CreateSessionRequest {
-    pub title: Option<String>,
+pub struct OpenSessionHttpRequest {
+    #[serde(default)]
+    pub labels: Vec<String>,
+    #[serde(default)]
+    pub active_package_set: Vec<PackageId>,
+    #[serde(default)]
+    pub metadata: Value,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SessionInputRequest {
-    pub content: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SessionInputResponse {
-    pub session_id: String,
-    pub turn_id: String,
-    pub output: String,
-    pub prompt_frame_id: String,
+pub struct AppendEventHttpRequest {
+    pub writer_package_id: PackageId,
+    pub kind: String,
+    #[serde(default)]
+    pub payload: Value,
+    #[serde(default)]
+    pub metadata: Value,
 }
 
 pub fn app() -> Router {
     let store = Arc::new(InMemoryEventStore::default());
-    let model = Arc::new(MockModelProvider::default());
-    let runtime = Arc::new(Runtime::new(store, model, RuntimeConfig::default()));
+    let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
     app_with_state(AppState { runtime })
 }
 
 pub fn app_with_state(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
-        .route("/sessions", post(create_session))
-        .route("/sessions/:session_id/input", post(session_input))
-        .route("/sessions/:session_id/events", get(list_events))
+        .route("/kernel/session.open", post(open_session))
+        .route("/kernel/event.append/:session_id", post(append_event))
+        .route("/kernel/event.list/:session_id", get(list_events))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -54,25 +56,39 @@ async fn health() -> &'static str {
     "ok"
 }
 
-async fn create_session(
+async fn open_session(
     State(state): State<AppState>,
-    Json(request): Json<CreateSessionRequest>,
-) -> anyhow::Result<Json<ygg_core::Session>, ServiceError> {
-    Ok(Json(state.runtime.create_session(request.title).await?))
+    Json(request): Json<OpenSessionHttpRequest>,
+) -> anyhow::Result<Json<KernelSession>, ServiceError> {
+    Ok(Json(
+        state
+            .runtime
+            .open_session(OpenSessionRequest {
+                labels: request.labels,
+                active_package_set: request.active_package_set,
+                metadata: request.metadata,
+            })
+            .await?,
+    ))
 }
 
-async fn session_input(
+async fn append_event(
     State(state): State<AppState>,
     Path(session_id): Path<SessionId>,
-    Json(request): Json<SessionInputRequest>,
-) -> anyhow::Result<Json<SessionInputResponse>, ServiceError> {
-    let output = state.runtime.input(session_id, request.content).await?;
-    Ok(Json(SessionInputResponse {
-        session_id: output.session_id,
-        turn_id: output.turn_id,
-        prompt_frame_id: output.prompt_frame.id,
-        output: output.output,
-    }))
+    Json(request): Json<AppendEventHttpRequest>,
+) -> anyhow::Result<Json<EventEnvelope>, ServiceError> {
+    Ok(Json(
+        state
+            .runtime
+            .append_event(AppendEventRequest {
+                session_id,
+                writer_package_id: request.writer_package_id,
+                kind: request.kind,
+                payload: request.payload,
+                metadata: request.metadata,
+            })
+            .await?,
+    ))
 }
 
 async fn list_events(

@@ -2,11 +2,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
-use ygg_runtime::{EventStore, InMemoryEventStore, MockModelProvider, Runtime, RuntimeConfig};
+use serde_json::json;
+use ygg_core::KERNEL_PACKAGE_ID;
+use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
 #[derive(Debug, Parser)]
 #[command(name = "ygg")]
-#[command(about = "Yggdrasil runtime CLI")]
+#[command(about = "Yggdrasil kernel CLI")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -14,13 +16,9 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Run an in-memory runtime demo turn.
-    Demo {
-        /// Input text for the mock runtime.
-        #[arg(default_value = "Hello from Yggdrasil")]
-        input: String,
-    },
-    /// Run the headless HTTP service.
+    /// Run a content-free kernel event demo.
+    Demo,
+    /// Run the headless kernel HTTP service.
     Serve {
         #[arg(long, default_value = "127.0.0.1:8787")]
         bind: SocketAddr,
@@ -33,37 +31,41 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Demo { input } => demo(input).await,
+        Command::Demo => demo().await,
         Command::Serve { bind } => serve(bind).await,
     }
 }
 
-async fn demo(input: String) -> anyhow::Result<()> {
+async fn demo() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
-    let model = Arc::new(MockModelProvider::default());
-    let runtime = Runtime::new(store.clone(), model, RuntimeConfig::default());
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
 
-    let session = runtime.create_session(Some("CLI Demo".to_string())).await?;
-    let output = runtime.input(session.id.clone(), input).await?;
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id.clone(),
+            writer_package_id: "example/echo".to_string(),
+            kind: "example/echo/event.demo".to_string(),
+            payload: json!({"message": "content-free kernel event"}),
+            metadata: json!({"created_by": "ygg-cli demo"}),
+        })
+        .await?;
+
     let events = store.list_session(&session.id).await?;
 
     println!("session_id: {}", session.id);
-    println!("turn_id: {}", output.turn_id);
-    println!("prompt_frame_id: {}", output.prompt_frame.id);
-    println!("output: {}", output.output);
+    println!("kernel_package_id: {KERNEL_PACKAGE_ID}");
     println!("\nevents:");
     for event in events {
-        println!("- {:?} {}", event.kind, event.id);
+        println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
     }
-    println!("\nprompt_frame:");
-    println!("{}", serde_json::to_string_pretty(&output.prompt_frame)?);
 
     Ok(())
 }
 
 async fn serve(bind: SocketAddr) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(bind).await?;
-    println!("Yggdrasil service listening on http://{bind}");
+    println!("Yggdrasil kernel service listening on http://{bind}");
     axum::serve(listener, ygg_service::app()).await?;
     Ok(())
 }

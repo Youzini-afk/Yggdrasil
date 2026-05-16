@@ -3,12 +3,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tokio::sync::{broadcast, RwLock};
-use ygg_core::{EventEnvelope, SessionId};
+use ygg_core::{EventEnvelope, EventSequence, SessionId};
 
 #[async_trait]
 pub trait EventStore: Send + Sync + 'static {
     async fn append(&self, event: EventEnvelope) -> anyhow::Result<()>;
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>>;
+    async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence>;
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope>;
 }
 
@@ -40,6 +41,10 @@ impl EventStore for InMemoryEventStore {
 
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
         Ok(self.events.read().await.get(session_id).cloned().unwrap_or_default())
+    }
+
+    async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence> {
+        Ok(self.events.read().await.get(session_id).map(|events| events.len() as EventSequence).unwrap_or(0))
     }
 
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {

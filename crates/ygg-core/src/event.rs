@@ -1,102 +1,69 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Map, Value};
 
-use crate::ids::{ActorId, EventId, SessionId, StreamId, TurnId};
-use crate::{ContextPlan, ModelCall, PromptFrame};
+use crate::ids::{EventId, PackageId, SessionId};
 
 pub type SchemaVersion = u16;
+pub type EventKind = String;
+pub type EventSequence = u64;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum EventKind {
-    SessionCreated,
-    UserInputReceived,
-    TurnStarted,
-    ContextPlanCreated,
-    PromptFrameCreated,
-    ModelCallStarted,
-    ModelStreamDelta,
-    ModelCallCompleted,
-    MessageCommitted,
-    TurnCompleted,
-    TurnCancelled,
-    ErrorOccurred,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum EventSource {
-    Runtime,
-    User,
-    ModelProvider,
-    Cli,
-    Service,
-    External,
-}
+pub const KERNEL_PACKAGE_ID: &str = "kernel";
+pub const EVENT_SESSION_OPENED: &str = "kernel/session.opened";
+pub const EVENT_SESSION_CLOSED: &str = "kernel/session.closed";
+pub const EVENT_PACKAGE_LOADED: &str = "kernel/package.loaded";
+pub const EVENT_PACKAGE_UNLOADED: &str = "kernel/package.unloaded";
+pub const EVENT_PACKAGE_DEGRADED: &str = "kernel/package.degraded";
+pub const EVENT_CAPABILITY_INVOKED: &str = "kernel/capability.invoked";
+pub const EVENT_CAPABILITY_COMPLETED: &str = "kernel/capability.completed";
+pub const EVENT_CAPABILITY_FAILED: &str = "kernel/capability.failed";
+pub const EVENT_PERMISSION_DENIED: &str = "kernel/permission.denied";
+pub const EVENT_ERROR: &str = "kernel/error";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventEnvelope {
     pub id: EventId,
-    pub stream_id: StreamId,
     pub session_id: SessionId,
-    pub turn_id: Option<TurnId>,
-    pub actor_id: Option<ActorId>,
+    pub sequence: EventSequence,
+    pub writer_package_id: PackageId,
     pub kind: EventKind,
     pub schema_version: SchemaVersion,
     pub timestamp: DateTime<Utc>,
-    pub causation_id: Option<EventId>,
-    pub correlation_id: Option<EventId>,
-    pub source: EventSource,
-    pub payload: EventPayload,
+    pub payload: Value,
     #[serde(default)]
     pub metadata: Value,
 }
 
 impl EventEnvelope {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: EventId,
-        stream_id: StreamId,
         session_id: SessionId,
-        turn_id: Option<TurnId>,
-        actor_id: Option<ActorId>,
-        kind: EventKind,
-        source: EventSource,
-        payload: EventPayload,
+        sequence: EventSequence,
+        writer_package_id: PackageId,
+        kind: impl Into<EventKind>,
+        payload: Value,
     ) -> Self {
         Self {
             id,
-            stream_id,
             session_id,
-            turn_id,
-            actor_id,
-            kind,
+            sequence,
+            writer_package_id,
+            kind: kind.into(),
             schema_version: 1,
             timestamp: Utc::now(),
-            causation_id: None,
-            correlation_id: None,
-            source,
             payload,
-            metadata: json!({}),
+            metadata: Value::Object(Map::new()),
         }
     }
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum EventPayload {
-    SessionCreated { title: String, runtime_profile: String },
-    UserInputReceived { content: String },
-    TurnStarted { parent_turn_id: Option<TurnId> },
-    ContextPlanCreated { context_plan: ContextPlan },
-    PromptFrameCreated { prompt_frame: PromptFrame },
-    ModelCallStarted { model_call: ModelCall },
-    ModelStreamDelta { model_call_id: String, delta: String },
-    ModelCallCompleted { model_call: ModelCall },
-    MessageCommitted { role: String, content: String },
-    TurnCompleted,
-    TurnCancelled { reason: Option<String> },
-    ErrorOccurred { message: String, recoverable: bool },
-    Json(Value),
+    pub fn is_kernel_event(&self) -> bool {
+        self.writer_package_id == KERNEL_PACKAGE_ID && self.kind.starts_with("kernel/")
+    }
+
+    pub fn writer_owns_kind(&self) -> bool {
+        if self.kind.starts_with("kernel/") {
+            return self.writer_package_id == KERNEL_PACKAGE_ID;
+        }
+        self.kind.starts_with(&format!("{}/", self.writer_package_id))
+    }
 }
