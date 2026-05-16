@@ -48,6 +48,16 @@ enum Command {
         #[command(subcommand)]
         command: CapabilityCommand,
     },
+    /// Generate package skeletons.
+    InitPackage {
+        path: PathBuf,
+        #[arg(long, default_value = "example/new-package")]
+        id: String,
+        #[arg(long, default_value = "rust_inproc")]
+        entry: String,
+    },
+    /// Run local kernel conformance checks.
+    Conformance,
 }
 
 #[derive(Debug, Subcommand)]
@@ -90,6 +100,8 @@ async fn main() -> anyhow::Result<()> {
                 capability_invoke(manifest, capability_id, input).await
             }
         },
+        Command::InitPackage { path, id, entry } => init_package(path, id, entry).await,
+        Command::Conformance => conformance().await,
     }
 }
 
@@ -128,6 +140,139 @@ async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input:
         .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, input: payload })
         .await?;
     println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
+async fn init_package(path: PathBuf, id: String, entry: String) -> anyhow::Result<()> {
+    fs::create_dir_all(&path)?;
+    let manifest = match entry.as_str() {
+        "wasm" => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: wasm
+  module: package.wasm
+  abi_version: 1
+  memory_limit_mb: 64
+provides: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 64
+  wall_clock_ms: 30000
+"#
+        ),
+        "remote" => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: remote
+  endpoint: https://example.invalid/ygg/package
+  auth:
+    scheme: none
+    config: null
+provides: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
+        "subprocess" => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: subprocess
+  command: ["./package"]
+  transport: json_rpc_stdio
+provides: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
+        _ => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: rust_inproc
+  crate_ref: package-crate
+  symbol: register
+  abi_version: 1
+provides: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
+    };
+    fs::write(path.join("manifest.yaml"), manifest)?;
+    fs::write(
+        path.join("README.md"),
+        format!("# {id}\n\nYggdrasil capability package skeleton.\n"),
+    )?;
+    println!("initialized package skeleton at {}", path.display());
+    Ok(())
+}
+
+async fn conformance() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(demo_event_writer_manifest()).await?;
+    runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id.clone(),
+            writer_package_id: "example/echo".to_string(),
+            kind: "example/echo/conformance.event".to_string(),
+            payload: json!({"conformance": true}),
+            metadata: json!({}),
+        })
+        .await?;
+    let events = store.list_session(&session.id).await?;
+    anyhow::ensure!(events.len() == 2, "expected session open + conformance event");
+
+    let manifest = read_manifest(PathBuf::from("examples/packages/echo-rust-inproc/manifest.yaml")).await?;
+    runtime.load_package(manifest).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/echo-rust-inproc/echo".to_string(),
+            caller_package_id: None,
+            input: json!({"ok": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"ok": true}), "echo output mismatch");
+
+    println!("conformance: ok");
     Ok(())
 }
 

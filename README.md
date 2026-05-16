@@ -47,8 +47,21 @@ docs/
   roadmap/
 ```
 
+## Current kernel commands
+
+```bash
+cargo test --workspace
+cargo run -p ygg-cli -- demo
+cargo run -p ygg-cli -- sqlite-demo /tmp/ygg.db
+cargo run -p ygg-cli -- manifest validate examples/packages/echo-rust-inproc/manifest.yaml
+cargo run -p ygg-cli -- package load examples/packages/echo-rust-inproc/manifest.yaml
+cargo run -p ygg-cli -- capability invoke examples/packages/echo-rust-inproc/manifest.yaml example/echo-rust-inproc/echo --input '{"hello":"world"}'
+cargo run -p ygg-cli -- init-package /tmp/ygg-package --id example/new-package --entry rust_inproc
+cargo run -p ygg-cli -- conformance
+```
+
 ## Status
 
-The docs are being aligned with the platform-as-framework direction first. The current Rust workspace contains conversational concepts inside what should be the kernel; that is a known deviation, and the refactor follows the docs.
+The Rust workspace now follows the platform-as-framework direction: kernel-only events/sessions, manifest-driven packages, capability fabric, hook registry, SQLite event store, permission audits, and conformance-oriented example packages. Content-shaped runtimes remain deferred packages.
 
 See `docs/roadmap/NEXT_STEPS.md`.
