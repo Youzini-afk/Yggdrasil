@@ -22,6 +22,10 @@ The conformance suite is the executable guardian of the charter. It should prove
 | capability | ambiguous provider rejected | implemented in unit tests |
 | official equality | official-looking package has no route precedence | implemented |
 | hooks | veto fixture reports veto | implemented in unit tests |
+| hooks | stable ordering by precedence/package/handler | implemented |
+| hooks | before event append veto blocks operation | implemented |
+| hooks | before event append metadata mutation is applied | implemented |
+| hooks | unload removes hook subscription | implemented |
 | storage | SQLite persists/replays events | implemented in unit tests |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
@@ -58,9 +62,9 @@ The conformance suite is the executable guardian of the charter. It should prove
 | events | sequence-range replay works | Platform Host Alpha |
 | protocol | HTTP `/rpc` and in-process runtime share authorization behavior | Platform Host Alpha |
 | protocol | host JSON-RPC stdio transport passes core conformance | Platform Host Alpha |
-| hooks | hook ordering is stable | Platform Host Alpha |
-| hooks | unload removes hook subscribers | Platform Host Alpha |
-| hooks | before/after lifecycle hooks are dispatched by kernel operations | Platform Host Alpha |
+| hooks | hook ordering is stable | implemented |
+| hooks | unload removes hook subscribers | implemented |
+| hooks | before/after lifecycle hooks are dispatched by kernel operations | partial |
 | schema | manifest schema refs are resolvable | future |
 | schema | capability input schema rejects invalid input | implemented |
 | schema | capability output schema rejects invalid output | implemented in runtime path |
@@ -97,6 +101,10 @@ subprocess.bad_handshake                   PASS
 subprocess.invoke_timeout                  PASS
 subprocess.invalid_output_schema           PASS
 subprocess.unload_removes_capability       PASS
+hook.ordering_stable                       PASS
+hook.veto_blocks_event_append              PASS
+hook.metadata_mutation_allowed             PASS
+hook.unload_removes_subscription           PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

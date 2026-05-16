@@ -107,7 +107,13 @@ impl ExtensionRegistry {
             });
         }
         for hooks in registry.values_mut() {
-            hooks.sort_by_key(|hook| hook.subscription.precedence);
+            hooks.sort_by(|a, b| {
+                a.subscription
+                    .precedence
+                    .cmp(&b.subscription.precedence)
+                    .then(a.subscriber_package_id.cmp(&b.subscriber_package_id))
+                    .then(a.subscription.handler.cmp(&b.subscription.handler))
+            });
         }
     }
 
@@ -123,12 +129,27 @@ impl ExtensionRegistry {
         self.hooks.read().await.get(extension_point).cloned().unwrap_or_default()
     }
 
+    pub async fn list_all_hooks(&self) -> Vec<RegisteredHook> {
+        self.hooks.read().await.values().flat_map(|hooks| hooks.iter().cloned()).collect()
+    }
+
     pub async fn dispatch(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
         let invoked = self.list_hooks(extension_point).await;
         let vetoed_by = invoked
             .iter()
             .find(|hook| hook.subscription.handler == "veto")
             .map(|hook| hook.subscriber_package_id.clone());
+        let mut payload = payload;
+        for hook in &invoked {
+            if hook.subscription.handler == "metadata_trace" {
+                if let Some(object) = payload.as_object_mut() {
+                    let metadata = object.entry("metadata").or_insert_with(|| Value::Object(Default::default()));
+                    if let Some(metadata) = metadata.as_object_mut() {
+                        metadata.insert("hook_trace".to_string(), Value::String(hook.subscriber_package_id.clone()));
+                    }
+                }
+            }
+        }
         ExtensionDispatchResult { extension_point: extension_point.to_string(), invoked, vetoed_by, payload }
     }
 }

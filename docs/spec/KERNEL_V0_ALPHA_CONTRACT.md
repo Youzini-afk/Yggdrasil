@@ -20,7 +20,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `PackageManifest` | implemented | Declares identity, entry form, provided capabilities, consumed capabilities, contributed schemas/hooks/extension points/assets, permissions, sandbox policy. |
 | `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Full lifecycle event sequencing and all entry forms remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
-| `HookSubscription` | partial | Manifest-declared subscription exists; real handler execution is not yet implemented. |
+| `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, veto fixture handlers, metadata mutation fixture handlers, and unload cleanup. Real package-owned handler execution remains next. |
 | `AssetRecord` | planned | Type exists, storage methods are protocol-planned but not implemented. |
 
 ## Protocol method matrix
@@ -46,7 +46,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
 | `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
-| `kernel.hook.list` | platform-host-alpha | Hook registry exists; protocol/service method not exposed yet. |
+| `kernel.hook.list` | partial | Protocol dispatcher can list registered hooks; public docs and richer filtering remain Platform Host Alpha work. |
 | `kernel.asset.put/get/list` | deferred | Asset types exist; storage is not implemented. |
 | `kernel.host.info` | implemented | Returns protocol version, advertised methods with statuses, and currently supported transport labels across in-process, HTTP `/rpc`, host stdio, and ad hoc HTTP. |
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
@@ -111,7 +111,7 @@ Next:
 1. Package lifecycle must run actual entry handshake/register/start/stop.
 2. Package load should expose explicit discovered/loading/starting/ready transitions rather than a direct ready record.
 3. Capability lifecycle must write invoked/completed/failed events.
-4. Kernel operations must dispatch before/after hooks according to the extension-point contract.
+4. Kernel operations must dispatch before/after hooks according to the extension-point contract; event append and capability invoke have the first executable slice.
 5. Session package sets must constrain routing.
 6. Schema validation must grow from the current practical subset into a published full schema dialect.
 

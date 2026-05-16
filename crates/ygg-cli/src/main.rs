@@ -8,7 +8,7 @@ use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_core::{
     CapabilityDescriptor, CapabilityPermissions, EventPermissions, KERNEL_PACKAGE_ID,
-    PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    HookSubscription, HookTiming, PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
 };
 use ygg_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
@@ -329,6 +329,10 @@ async fn conformance() -> anyhow::Result<()> {
         "protocol.call_capability_in_process",
         conformance_protocol_call_capability_in_process().await,
     );
+    record_case(&mut results, "hook.ordering_stable", conformance_hook_ordering_stable().await);
+    record_case(&mut results, "hook.veto_blocks_event_append", conformance_hook_veto_blocks_event_append().await);
+    record_case(&mut results, "hook.metadata_mutation_allowed", conformance_hook_metadata_mutation_allowed().await);
+    record_case(&mut results, "hook.unload_removes_subscription", conformance_hook_unload_removes_subscription().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -686,10 +690,97 @@ async fn conformance_protocol_call_capability_in_process() -> anyhow::Result<()>
     Ok(())
 }
 
+async fn conformance_hook_ordering_stable() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(hook_package("example/hook-b", "kernel/event.before_append", "observe", 0)).await?;
+    runtime.load_package(hook_package("example/hook-a", "kernel/event.before_append", "observe", 0)).await?;
+    let result = runtime.dispatch_extension("kernel/event.before_append", json!({})).await;
+    let invoked: Vec<_> = result.invoked.iter().map(|hook| hook.subscriber_package_id.as_str()).collect();
+    anyhow::ensure!(invoked == vec!["example/hook-a", "example/hook-b"], "hook order not stable: {invoked:?}");
+    Ok(())
+}
+
+async fn conformance_hook_veto_blocks_event_append() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime.load_package(hook_package("example/veto", "kernel/event.before_append", "veto", 0)).await?;
+    let denied = runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id,
+            writer_package_id: "example/writer".to_string(),
+            kind: "example/writer/event".to_string(),
+            payload: json!({}),
+            metadata: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "veto hook did not block append");
+    Ok(())
+}
+
+async fn conformance_hook_metadata_mutation_allowed() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime
+        .load_package(hook_package(
+            "example/tracer",
+            "kernel/event.before_append",
+            "metadata_trace",
+            0,
+        ))
+        .await?;
+    let event = runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id,
+            writer_package_id: "example/writer".to_string(),
+            kind: "example/writer/event".to_string(),
+            payload: json!({}),
+            metadata: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(event.metadata["hook_trace"] == "example/tracer", "metadata trace missing");
+    Ok(())
+}
+
+async fn conformance_hook_unload_removes_subscription() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime.load_package(hook_package("example/veto", "kernel/event.before_append", "veto", 0)).await?;
+    runtime.unload_package(&"example/veto".to_string()).await?;
+    runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id,
+            writer_package_id: "example/writer".to_string(),
+            kind: "example/writer/event".to_string(),
+            payload: json!({}),
+            metadata: json!({}),
+        })
+        .await?;
+    Ok(())
+}
+
 fn event_package(id: &str, read: bool, append: bool) -> PackageManifest {
     PackageManifest {
         id: id.to_string(),
         permissions: PermissionSet { events: EventPermissions { read, append }, ..PermissionSet::default() },
+        ..demo_event_writer_manifest()
+    }
+}
+
+fn hook_package(id: &str, extension_point: &str, handler: &str, precedence: i32) -> PackageManifest {
+    PackageManifest {
+        id: id.to_string(),
+        contributes: PackageContributions {
+            hooks: vec![HookSubscription {
+                extension_point: extension_point.to_string(),
+                handler: handler.to_string(),
+                timing: HookTiming::Sync,
+                precedence,
+            }],
+            ..PackageContributions::default()
+        },
         ..demo_event_writer_manifest()
     }
 }

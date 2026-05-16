@@ -166,7 +166,30 @@ where
             }
         }
 
-        self.append_event_unchecked(request).await
+        let mut request = request;
+        let before = self
+            .extensions
+            .dispatch(
+                "kernel/event.before_append",
+                json!({
+                    "session_id": request.session_id,
+                    "writer_package_id": request.writer_package_id,
+                    "kind": request.kind,
+                    "payload": request.payload,
+                    "metadata": request.metadata,
+                }),
+            )
+            .await;
+        if let Some(vetoed_by) = before.vetoed_by {
+            anyhow::bail!("event append vetoed by hook package '{vetoed_by}'");
+        }
+        request.metadata = before.payload.get("metadata").cloned().unwrap_or(request.metadata);
+        let event = self.append_event_unchecked(request).await?;
+        let _ = self
+            .extensions
+            .dispatch("kernel/event.after_append", serde_json::to_value(&event).unwrap_or_else(|_| json!({})))
+            .await;
+        Ok(event)
     }
 
     pub async fn append_event_with_context(
@@ -364,6 +387,21 @@ where
                 anyhow::bail!("package '{caller}' is not allowed to invoke '{}'", request.capability_id);
             }
         }
+        let before = self
+            .extensions
+            .dispatch(
+                "kernel/capability.before_invoke",
+                json!({
+                    "capability_id": request.capability_id,
+                    "caller_package_id": request.caller_package_id,
+                    "input": request.input,
+                }),
+            )
+            .await;
+        if let Some(vetoed_by) = before.vetoed_by {
+            anyhow::bail!("capability invoke vetoed by hook package '{vetoed_by}'");
+        }
+
         let provider = self.capabilities.resolve(&request.capability_id).await?;
         validate_json_schema_subset(&provider.descriptor.input_schema, &request.input)?;
         let output = match &provider.descriptor.id {
@@ -408,11 +446,16 @@ where
             },
         };
         validate_json_schema_subset(&provider.descriptor.output_schema, &output)?;
-        Ok(CapabilityInvocationResult {
+        let result = CapabilityInvocationResult {
             capability_id: provider.descriptor.id,
             provider_package_id: provider.provider_package_id,
             output,
-        })
+        };
+        let _ = self
+            .extensions
+            .dispatch("kernel/capability.after_invoke", serde_json::to_value(&result).unwrap_or_else(|_| json!({})))
+            .await;
+        Ok(result)
     }
 
     pub async fn invoke_capability_with_context(
@@ -494,7 +537,15 @@ where
             "kernel.capability.invoke" => Ok(serde_json::to_value(
                 self.invoke_capability_with_context(context, serde_json::from_value(params)?).await?,
             )?),
-            "kernel.extension_point.list" => Ok(json!([])),
+            "kernel.extension_point.list" => Ok(json!([
+                "kernel/event.before_append",
+                "kernel/event.after_append",
+                "kernel/capability.before_invoke",
+                "kernel/capability.after_invoke",
+                "kernel/package.loaded",
+                "kernel/package.unloaded"
+            ])),
+            "kernel.hook.list" => Ok(serde_json::to_value(self.extensions.list_all_hooks().await)?),
             other => anyhow::bail!("protocol method '{other}' is not implemented"),
         }
     }
