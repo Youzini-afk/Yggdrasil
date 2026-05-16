@@ -280,6 +280,16 @@ async fn conformance() -> anyhow::Result<()> {
         conformance_unload_removes_capability().await,
     );
     record_case(&mut results, "official.no_privilege", conformance_official_no_privilege().await);
+    record_case(
+        &mut results,
+        "schema.capability_input_rejects_invalid",
+        conformance_capability_schema_rejects_invalid().await,
+    );
+    record_case(
+        &mut results,
+        "schema.event_payload_rejects_invalid",
+        conformance_event_schema_rejects_invalid().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {
@@ -453,6 +463,44 @@ async fn conformance_official_no_privilege() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn conformance_capability_schema_rejects_invalid() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(schema_echo_package(
+            "example/schema-echo",
+            "example/schema-echo/echo",
+            json!({"type": "object", "required": ["ok"]}),
+            json!({"type": "object", "required": ["ok"]}),
+        ))
+        .await?;
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/schema-echo/echo".to_string(),
+            caller_package_id: None,
+            input: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "invalid capability input unexpectedly passed");
+    Ok(())
+}
+
+async fn conformance_event_schema_rejects_invalid() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_schema_package()).await?;
+    let denied = runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id,
+            writer_package_id: "example/schema-writer".to_string(),
+            kind: "example/schema-writer/event.checked".to_string(),
+            payload: json!({}),
+            metadata: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "invalid event payload unexpectedly passed");
+    Ok(())
+}
+
 fn event_package(id: &str, read: bool, append: bool) -> PackageManifest {
     PackageManifest {
         id: id.to_string(),
@@ -462,6 +510,15 @@ fn event_package(id: &str, read: bool, append: bool) -> PackageManifest {
 }
 
 fn echo_package(id: &str, capability_id: &str) -> PackageManifest {
+    schema_echo_package(id, capability_id, serde_json::Value::Null, serde_json::Value::Null)
+}
+
+fn schema_echo_package(
+    id: &str,
+    capability_id: &str,
+    input_schema: serde_json::Value,
+    output_schema: serde_json::Value,
+) -> PackageManifest {
     PackageManifest {
         schema_version: 1,
         id: id.to_string(),
@@ -478,8 +535,8 @@ fn echo_package(id: &str, capability_id: &str) -> PackageManifest {
         provides: vec![CapabilityDescriptor {
             id: capability_id.to_string(),
             version: "0.1.0".to_string(),
-            input_schema: serde_json::Value::Null,
-            output_schema: serde_json::Value::Null,
+            input_schema,
+            output_schema,
             streaming: false,
             side_effects: Vec::new(),
             description: None,
@@ -491,6 +548,25 @@ fn echo_package(id: &str, capability_id: &str) -> PackageManifest {
             ..PermissionSet::default()
         },
         sandbox_policy: SandboxPolicy::default(),
+    }
+}
+
+fn event_schema_package() -> PackageManifest {
+    PackageManifest {
+        id: "example/schema-writer".to_string(),
+        contributes: PackageContributions {
+            schemas: vec![ygg_core::SchemaContribution {
+                id: "example/schema-writer/event.checked".to_string(),
+                schema: json!({"type": "object", "required": ["ok"]}),
+            }],
+            hooks: Vec::new(),
+            extension_points: Vec::new(),
+        },
+        permissions: PermissionSet {
+            events: EventPermissions { read: false, append: true },
+            ..PermissionSet::default()
+        },
+        ..demo_event_writer_manifest()
     }
 }
 

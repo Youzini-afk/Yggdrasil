@@ -24,6 +24,8 @@ The conformance suite is the executable guardian of the charter. It should prove
 | hooks | veto fixture reports veto | implemented in unit tests |
 | storage | SQLite persists/replays events | implemented in unit tests |
 | protocol | method list contains no content methods | implemented in unit tests |
+| schema | capability input schema rejects invalid input | implemented |
+| schema | event payload schema rejects invalid payload | implemented |
 
 ## Required hostile conformance before official packages
 
@@ -42,10 +44,10 @@ The conformance suite is the executable guardian of the charter. It should prove
 | hooks | hook ordering is stable | C |
 | hooks | unload removes hook subscribers | C |
 | hooks | before/after lifecycle hooks are dispatched by kernel operations | C |
-| schema | manifest schema refs are resolvable | D |
-| schema | capability input schema rejects invalid input | D |
-| schema | capability output schema rejects invalid output | D |
-| schema | event payload schema rejects invalid payload when schema is declared | D |
+| schema | manifest schema refs are resolvable | future |
+| schema | capability input schema rejects invalid input | implemented |
+| schema | capability output schema rejects invalid output | implemented in runtime path |
+| schema | event payload schema rejects invalid payload when schema is declared | implemented |
 | official equality | an `official/...` package has no special routing or permissions | implemented |
 | official equality | kernel starts and conformance passes with no official packages loaded | implemented |
 
@@ -65,6 +67,8 @@ package.unload_removes_capabilities        PASS
 capability.invoke_rust_inproc              PASS
 capability.ambiguous_provider_denied       PASS
 official.no_privilege                      PASS
+schema.capability_input_rejects_invalid    PASS
+schema.event_payload_rejects_invalid       PASS
 ```
 
 The suite should fail closed: any unimplemented case listed as required for the current phase must fail CI.

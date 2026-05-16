@@ -141,6 +141,10 @@ impl PackageRegistry {
     pub async fn permissions(&self, package_id: &PackageId) -> Option<ygg_core::PermissionSet> {
         self.packages.read().await.get(package_id).map(|record| record.manifest.permissions.clone())
     }
+
+    pub async fn manifest(&self, package_id: &PackageId) -> Option<PackageManifest> {
+        self.packages.read().await.get(package_id).map(|record| record.manifest.clone())
+    }
 }
 
 pub fn entry_kind(entry: &PackageEntry) -> &'static str {

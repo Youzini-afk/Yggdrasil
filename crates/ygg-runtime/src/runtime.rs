@@ -13,7 +13,7 @@ use ygg_core::{
 use crate::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
     ExtensionDispatchResult, ExtensionRegistry, HostPolicy, InprocInvocation, InprocPackageCatalog,
-    PackageRecord, PackageRegistry,
+    PackageRecord, PackageRegistry, validate_json_schema_subset,
 };
 
 #[derive(Clone)]
@@ -186,6 +186,19 @@ where
 
         let mut event = event;
         event.metadata = request.metadata;
+        if event.writer_package_id != KERNEL_PACKAGE_ID {
+            if let Some(manifest) = self.packages.manifest(&event.writer_package_id).await {
+                if let Some(schema) = manifest
+                    .contributes
+                    .schemas
+                    .iter()
+                    .find(|schema| schema.id == event.kind)
+                    .map(|schema| &schema.schema)
+                {
+                    validate_json_schema_subset(schema, &event.payload)?;
+                }
+            }
+        }
         self.store.append(event.clone()).await?;
         Ok(event)
     }
@@ -299,6 +312,7 @@ where
             }
         }
         let provider = self.capabilities.resolve(&request.capability_id).await?;
+        validate_json_schema_subset(&provider.descriptor.input_schema, &request.input)?;
         let output = match &provider.descriptor.id {
             _ => match self.package_status(&provider.provider_package_id).await {
                 Some(record) => match record.manifest.entry {
@@ -324,6 +338,7 @@ where
                 None => anyhow::bail!("provider package '{}' is not loaded", provider.provider_package_id),
             },
         };
+        validate_json_schema_subset(&provider.descriptor.output_schema, &output)?;
         Ok(CapabilityInvocationResult {
             capability_id: provider.descriptor.id,
             provider_package_id: provider.provider_package_id,

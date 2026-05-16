@@ -40,7 +40,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.package.describe` | planned | Can be derived from status manifest, but not exposed as method yet. |
 | `kernel.capability.discover` | implemented | Lists registered descriptors. |
 | `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
-| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, and executes `rust_inproc` providers through the in-process package trait. Other entry forms are planned. |
+| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, validates capability input/output against the supported schema subset, and executes `rust_inproc` providers through the in-process package trait. Other entry forms are planned. |
 | `kernel.capability.stream` | planned | Descriptor flag exists; stream execution does not. |
 | `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
@@ -101,6 +101,7 @@ Implemented:
 4. Event append assigns sequence/timestamp/id and enforces namespace ownership.
 5. Permission denials write `kernel/permission.denied` audit events.
 6. Closed sessions reject non-kernel appends.
+7. Capability input/output and package-declared event payload schemas are validated against the current JSON Schema subset.
 
 Next:
 
@@ -109,6 +110,17 @@ Next:
 3. Capability lifecycle must write invoked/completed/failed events.
 4. Kernel operations must dispatch before/after hooks according to the extension-point contract.
 5. Session package sets must constrain routing.
+6. Schema validation must grow from the current practical subset into a published full schema dialect.
+
+## Schema validation subset
+
+The alpha validates a deliberately small JSON Schema-compatible subset:
+
+- `null` or `{}` means accept any JSON value.
+- `type` may be `object`, `array`, `string`, `number`, `integer`, `boolean`, or `null`.
+- `required` is enforced for object fields.
+
+This is enough to make schema declarations executable in conformance without freezing a full schema dialect too early.
 
 ## Content-free invariant
 

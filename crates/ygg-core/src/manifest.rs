@@ -214,12 +214,18 @@ impl PackageManifest {
         for capability in &self.provides {
             validate_namespaced_id(&capability.id)?;
             validate_semver_like(&capability.version)?;
+            validate_schema_shape(&capability.input_schema)?;
+            validate_schema_shape(&capability.output_schema)?;
         }
         for requirement in &self.consumes {
             validate_namespaced_id(&requirement.id)?;
             if requirement.version.trim().is_empty() {
                 return Err(ManifestError::InvalidVersion(requirement.version.clone()));
             }
+        }
+        for schema in &self.contributes.schemas {
+            validate_namespaced_id(&schema.id)?;
+            validate_schema_shape(&schema.schema)?;
         }
         Ok(())
     }
@@ -233,6 +239,8 @@ pub enum ManifestError {
     InvalidNamespacedId(String),
     #[error("invalid semver-like version: {0}")]
     InvalidVersion(String),
+    #[error("invalid schema shape: {0}")]
+    InvalidSchema(String),
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -253,6 +261,14 @@ fn validate_semver_like(version: &str) -> Result<(), ManifestError> {
         return Err(ManifestError::InvalidVersion(version.to_string()));
     }
     Ok(())
+}
+
+fn validate_schema_shape(schema: &Value) -> Result<(), ManifestError> {
+    if schema.is_null() || schema.is_object() {
+        Ok(())
+    } else {
+        Err(ManifestError::InvalidSchema(schema.to_string()))
+    }
 }
 
 #[cfg(test)]
