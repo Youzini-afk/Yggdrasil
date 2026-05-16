@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
 use serde_json::{json, Value};
+use tokio::sync::RwLock;
 use ygg_core::{
     new_id, EventEnvelope, EventKind, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
     SessionStatus, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
@@ -56,6 +58,7 @@ where
     packages: Arc<PackageRegistry>,
     capabilities: Arc<CapabilityFabric>,
     extensions: Arc<ExtensionRegistry>,
+    sessions: Arc<RwLock<HashMap<SessionId, KernelSession>>>,
     config: RuntimeConfig,
 }
 
@@ -69,6 +72,7 @@ where
             packages: Arc::new(PackageRegistry::default()),
             capabilities: Arc::new(CapabilityFabric::default()),
             extensions: Arc::new(ExtensionRegistry::default()),
+            sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
     }
@@ -106,6 +110,8 @@ where
             metadata: request.metadata,
         };
 
+        self.sessions.write().await.insert(session.id.clone(), session.clone());
+
         self.append_kernel_event(
             &session.id,
             EVENT_SESSION_OPENED,
@@ -121,10 +127,26 @@ where
     }
 
     pub async fn close_session(&self, session_id: SessionId) -> anyhow::Result<EventEnvelope> {
+        let mut sessions = self.sessions.write().await;
+        match sessions.get_mut(&session_id) {
+            Some(session) if session.status == SessionStatus::Open => {
+                session.status = SessionStatus::Closed;
+                session.updated_at = Utc::now();
+            }
+            Some(_) => anyhow::bail!("session '{session_id}' is already closed"),
+            None => anyhow::bail!("session '{session_id}' is not open"),
+        }
+        drop(sessions);
         self.append_kernel_event(&session_id, EVENT_SESSION_CLOSED, json!({})).await
     }
 
     pub async fn append_event(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
+        match self.sessions.read().await.get(&request.session_id) {
+            Some(session) if session.status == SessionStatus::Open => {}
+            Some(_) => anyhow::bail!("session '{}' is closed", request.session_id),
+            None => anyhow::bail!("session '{}' is not open", request.session_id),
+        }
+
         if request.writer_package_id != KERNEL_PACKAGE_ID {
             match self.packages.permissions(&request.writer_package_id).await {
                 Some(permissions) if permissions.events.append => {}
@@ -170,6 +192,23 @@ where
 
     pub async fn list_events(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
         self.store.list_session(session_id).await
+    }
+
+    pub async fn list_events_for(
+        &self,
+        session_id: &SessionId,
+        caller_package_id: Option<&PackageId>,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        if let Some(caller) = caller_package_id {
+            match self.packages.permissions(caller).await {
+                Some(permissions) if permissions.events.read => {}
+                _ => {
+                    self.audit_permission_denied(session_id, caller, "events.read").await?;
+                    anyhow::bail!("package '{caller}' is not allowed to read events");
+                }
+            }
+        }
+        self.list_events(session_id).await
     }
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {

@@ -31,7 +31,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.session.get` | planned | Not exposed in service/CLI yet. |
 | `kernel.session.list` | planned | Not exposed in service/CLI yet. |
 | `kernel.event.append` | implemented | Enforces writer namespace and `events.append` for non-kernel writers. |
-| `kernel.event.list` | partial | Lists whole session; sequence range and read-permission caller checks are next. |
+| `kernel.event.list` | partial | Lists whole session; runtime has caller-aware `events.read` gating, while HTTP/CLI host-level list remains unauthenticated for local administration. Sequence-range replay is next. |
 | `kernel.event.subscribe` | planned | Declared as streaming method; no live stream implementation yet. |
 | `kernel.package.load` | partial | Validates manifest, host policy, resolves `rust_inproc` host entries for capability providers, registers declared capabilities/hooks, writes lifecycle event. Full entry handshake/start is still planned. |
 | `kernel.package.unload` | partial | Removes registry record and declared capabilities/hooks, writes lifecycle event. No real process/module teardown yet. |
@@ -84,7 +84,7 @@ Manifest support means the schema can describe the entry and host policy can acc
 | Permission | Status | Current enforcement |
 |---|---:|---|
 | `events.append` | implemented | Required for non-kernel `event.append`. |
-| `events.read` | next | Must gate event list/subscribe by caller package/principal. |
+| `events.read` | partial | Runtime supports caller-aware read checks; transport-level principal plumbing and subscribe checks remain planned. |
 | `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed for CLI/dev. |
 | `packages.call` | planned | Package-to-package control plane not implemented. |
 | `assets.read/write` | planned | Asset store not implemented. |
@@ -100,6 +100,7 @@ Implemented:
 3. Package unload removes registry declarations and writes a kernel event.
 4. Event append assigns sequence/timestamp/id and enforces namespace ownership.
 5. Permission denials write `kernel/permission.denied` audit events.
+6. Closed sessions reject non-kernel appends.
 
 Next:
 
