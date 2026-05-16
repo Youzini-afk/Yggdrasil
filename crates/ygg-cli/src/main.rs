@@ -8,7 +8,7 @@ use serde_json::json;
 use ygg_core::{KERNEL_PACKAGE_ID, PackageManifest};
 use ygg_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
-    OpenSessionRequest, Runtime, RuntimeConfig,
+    OpenSessionRequest, Runtime, RuntimeConfig, SqliteEventStore,
 };
 
 #[derive(Debug, Parser)]
@@ -23,6 +23,8 @@ struct Cli {
 enum Command {
     /// Run a content-free kernel event demo.
     Demo,
+    /// Run a durable SQLite-backed kernel event demo.
+    SqliteDemo { path: PathBuf },
     /// Run the headless kernel HTTP service.
     Serve {
         #[arg(long, default_value = "127.0.0.1:8787")]
@@ -72,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Demo => demo().await,
+        Command::SqliteDemo { path } => sqlite_demo(path).await,
         Command::Serve { bind } => serve(bind).await,
         Command::Manifest { command } => match command {
             ManifestCommand::Validate { path } => validate_manifest(path).await,
@@ -149,6 +152,32 @@ async fn demo() -> anyhow::Result<()> {
         println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
     }
 
+    Ok(())
+}
+
+async fn sqlite_demo(path: PathBuf) -> anyhow::Result<()> {
+    let store = Arc::new(SqliteEventStore::open(&path)?);
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id.clone(),
+            writer_package_id: "example/sqlite".to_string(),
+            kind: "example/sqlite/event.demo".to_string(),
+            payload: json!({"durable": true}),
+            metadata: json!({}),
+        })
+        .await?;
+    drop(runtime);
+    drop(store);
+
+    let reopened = SqliteEventStore::open(&path)?;
+    let events = reopened.list_session(&session.id).await?;
+    println!("sqlite_path: {}", path.display());
+    println!("session_id: {}", session.id);
+    for event in events {
+        println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
+    }
     Ok(())
 }
 
