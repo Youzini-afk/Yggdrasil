@@ -143,7 +143,7 @@ pub fn host_info() -> HostInfo {
     HostInfo {
         protocol_version: KERNEL_PROTOCOL_VERSION,
         methods: KERNEL_METHODS,
-        supported_transports: vec!["in_process", "http_ad_hoc"],
+        supported_transports: vec!["in_process", "http_rpc", "host_stdio", "http_ad_hoc"],
     }
 }
 

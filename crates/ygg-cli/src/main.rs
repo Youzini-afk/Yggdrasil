@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use serde_json::json;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_core::{
     CapabilityDescriptor, CapabilityPermissions, EventPermissions, KERNEL_PACKAGE_ID,
     PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
@@ -33,6 +34,8 @@ enum Command {
         #[arg(long, default_value = "127.0.0.1:8787")]
         bind: SocketAddr,
     },
+    /// Run a JSON-RPC-like kernel protocol loop over stdio.
+    HostStdio,
     /// Validate a package manifest file.
     Manifest {
         #[command(subcommand)]
@@ -89,6 +92,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Demo => demo().await,
         Command::SqliteDemo { path } => sqlite_demo(path).await,
         Command::Serve { bind } => serve(bind).await,
+        Command::HostStdio => host_stdio().await,
         Command::Manifest { command } => match command {
             ManifestCommand::Validate { path } => validate_manifest(path).await,
         },
@@ -318,6 +322,12 @@ async fn conformance() -> anyhow::Result<()> {
         &mut results,
         "subprocess.unload_removes_capability",
         conformance_subprocess_unload_removes_capability().await,
+    );
+    record_case(&mut results, "protocol.call_host_info", conformance_protocol_call_host_info().await);
+    record_case(
+        &mut results,
+        "protocol.call_capability_in_process",
+        conformance_protocol_call_capability_in_process().await,
     );
 
     let mut failed = false;
@@ -651,6 +661,31 @@ async fn conformance_subprocess_unload_removes_capability() -> anyhow::Result<()
     Ok(())
 }
 
+async fn conformance_protocol_call_host_info() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let value = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.host.info", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(value.get("supported_transports").is_some(), "host.info missing transports");
+    Ok(())
+}
+
+async fn conformance_protocol_call_capability_in_process() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/protocol", "example/protocol/echo")).await?;
+    let value = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.capability.invoke",
+            json!({"capability_id": "example/protocol/echo", "input": {"via": "protocol"}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(value.get("output") == Some(&json!({"via": "protocol"})), "protocol invoke mismatch");
+    Ok(())
+}
+
 fn event_package(id: &str, read: bool, append: bool) -> PackageManifest {
     PackageManifest {
         id: id.to_string(),
@@ -811,5 +846,34 @@ async fn serve(bind: SocketAddr) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(bind).await?;
     println!("Yggdrasil kernel service listening on http://{bind}");
     axum::serve(listener, ygg_service::app()).await?;
+    Ok(())
+}
+
+async fn host_stdio() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let context = ProtocolContext::host_dev("host_stdio");
+    let stdin = BufReader::new(tokio::io::stdin());
+    let mut lines = stdin.lines();
+    let mut stdout = tokio::io::stdout();
+    while let Some(line) = lines.next_line().await? {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let response = match serde_json::from_str::<ygg_runtime::ProtocolRequest>(&line) {
+            Ok(request) => match runtime.call_protocol(&context, &request.method, request.params).await {
+                Ok(result) => ygg_runtime::ProtocolResponse { id: request.id, result: Some(result), error: None },
+                Err(error) => ygg_runtime::ProtocolResponse { id: request.id, result: None, error: Some(error) },
+            },
+            Err(error) => ygg_runtime::ProtocolResponse {
+                id: "invalid".to_string(),
+                result: None,
+                error: Some(ygg_runtime::ProtocolError::invalid_request(error.to_string())),
+            },
+        };
+        stdout.write_all(serde_json::to_string(&response)?.as_bytes()).await?;
+        stdout.write_all(b"\n").await?;
+        stdout.flush().await?;
+    }
     Ok(())
 }

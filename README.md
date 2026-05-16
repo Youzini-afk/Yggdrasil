@@ -60,6 +60,7 @@ cargo run -p ygg-cli -- manifest validate examples/packages/echo-rust-inproc/man
 cargo run -p ygg-cli -- package load examples/packages/echo-rust-inproc/manifest.yaml
 cargo run -p ygg-cli -- capability invoke examples/packages/echo-rust-inproc/manifest.yaml example/echo-rust-inproc/echo --input '{"hello":"world"}'
 cargo run -p ygg-cli -- init-package /tmp/ygg-package --id example/new-package --entry rust_inproc
+cargo run -p ygg-cli -- host-stdio
 cargo run -p ygg-cli -- conformance
 ```
 

@@ -25,6 +25,10 @@ The conformance suite is the executable guardian of the charter. It should prove
 | storage | SQLite persists/replays events | implemented in unit tests |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
+| protocol | in-process protocol dispatcher calls host.info | implemented |
+| protocol | in-process protocol dispatcher invokes capability | implemented |
+| protocol | HTTP `/rpc` returns protocol envelope | implemented in service tests |
+| protocol | host stdio responds to protocol envelope | implemented by CLI validation |
 | principal | package context overrides caller-supplied event writer | implemented |
 | principal | package context overrides caller-supplied capability caller | implemented |
 | schema | capability input schema rejects invalid input | implemented |
@@ -83,6 +87,8 @@ official.no_privilege                      PASS
 schema.capability_input_rejects_invalid    PASS
 schema.event_payload_rejects_invalid       PASS
 protocol.structured_permission_error       PASS
+protocol.call_host_info                    PASS
+protocol.call_capability_in_process        PASS
 principal.package_cannot_self_assert_writer PASS
 principal.package_cannot_self_assert_capability_caller PASS
 subprocess.load_ready                      PASS

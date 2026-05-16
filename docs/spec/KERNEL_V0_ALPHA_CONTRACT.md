@@ -48,7 +48,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
 | `kernel.hook.list` | platform-host-alpha | Hook registry exists; protocol/service method not exposed yet. |
 | `kernel.asset.put/get/list` | deferred | Asset types exist; storage is not implemented. |
-| `kernel.host.info` | implemented | Returns protocol version, advertised methods with statuses, and currently supported transport labels. |
+| `kernel.host.info` | implemented | Returns protocol version, advertised methods with statuses, and currently supported transport labels across in-process, HTTP `/rpc`, host stdio, and ad hoc HTTP. |
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
 
@@ -104,6 +104,7 @@ Implemented:
 6. Closed sessions reject non-kernel appends.
 7. Capability input/output and package-declared event payload schemas are validated against the current JSON Schema subset.
 8. Protocol contexts distinguish host/dev calls from package-principal calls, and package-principal operations ignore caller-supplied package identity fields.
+9. Canonical protocol envelopes can be dispatched in-process and through HTTP `/rpc`; `ygg host-stdio` exposes the same envelope over stdin/stdout for automation.
 
 Next:
 

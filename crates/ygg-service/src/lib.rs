@@ -10,7 +10,7 @@ use tower_http::cors::CorsLayer;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
     host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
-    PackageRecord, ProtocolContext, ProtocolError, RegisteredCapability,
+    PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResponse, RegisteredCapability,
 };
 use ygg_runtime::{AppendEventRequest, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
@@ -60,6 +60,7 @@ pub fn app_with_state(state: AppState) -> Router {
         .route("/kernel/capability.discover", get(discover_capabilities))
         .route("/kernel/capability.invoke", post(invoke_capability))
         .route("/kernel/host.info", get(host_info))
+        .route("/rpc", post(rpc))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -167,6 +168,17 @@ async fn host_info() -> Json<serde_json::Value> {
     Json(serde_json::to_value(runtime_host_info()).expect("host info serializes"))
 }
 
+async fn rpc(
+    State(state): State<AppState>,
+    Json(request): Json<ProtocolRequest>,
+) -> Json<ProtocolResponse> {
+    let context = ProtocolContext::host_dev("http_rpc");
+    match state.runtime.call_protocol(&context, &request.method, request.params).await {
+        Ok(result) => Json(ProtocolResponse { id: request.id, result: Some(result), error: None }),
+        Err(error) => Json(ProtocolResponse { id: request.id, result: None, error: Some(error) }),
+    }
+}
+
 pub struct ServiceError(anyhow::Error);
 
 impl<E> From<E> for ServiceError
@@ -189,5 +201,56 @@ impl axum::response::IntoResponse for ServiceError {
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (status, Json(serde_json::json!({ "error": error }))).into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::{to_bytes, Body};
+    use axum::http::{Request, StatusCode};
+    use serde_json::json;
+    use tower::ServiceExt;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn rpc_host_info_returns_protocol_envelope() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({"id": "1", "method": "kernel.host.info", "params": {}}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(value["id"], "1");
+        assert!(value["result"]["supported_transports"].is_array());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rpc_returns_structured_error() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({"id": "1", "method": "kernel.event.list", "params": {}}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(value["error"]["code"], "kernel/error/internal");
+        Ok(())
     }
 }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
@@ -34,14 +35,14 @@ impl Default for RuntimeConfig {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct OpenSessionRequest {
     pub labels: Vec<String>,
     pub active_package_set: Vec<PackageId>,
     pub metadata: Value,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppendEventRequest {
     pub session_id: SessionId,
     pub writer_package_id: PackageId,
@@ -434,6 +435,68 @@ where
 
     pub async fn dispatch_extension(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
         self.extensions.dispatch(extension_point, payload).await
+    }
+
+    pub async fn call_protocol(
+        &self,
+        context: &ProtocolContext,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, crate::ProtocolError> {
+        self.call_protocol_inner(context, method, params)
+            .await
+            .map_err(crate::ProtocolError::from_anyhow)
+    }
+
+    async fn call_protocol_inner(&self, context: &ProtocolContext, method: &str, params: Value) -> anyhow::Result<Value> {
+        match method {
+            "kernel.host.info" => Ok(serde_json::to_value(crate::host_info())?),
+            "kernel.host.ping" => Ok(json!({"ok": true})),
+            "kernel.session.open" => Ok(serde_json::to_value(
+                self.open_session(serde_json::from_value(params)?).await?,
+            )?),
+            "kernel.event.append" => Ok(serde_json::to_value(
+                self.append_event_with_context(context, serde_json::from_value(params)?).await?,
+            )?),
+            "kernel.event.list" => {
+                let session_id = params
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.event.list requires session_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.list_events_with_context(context, &session_id).await?)?)
+            }
+            "kernel.package.load" => Ok(serde_json::to_value(
+                self.load_package(serde_json::from_value(params)?).await?,
+            )?),
+            "kernel.package.list" => Ok(serde_json::to_value(self.list_packages().await)?),
+            "kernel.package.status" => {
+                let package_id = params
+                    .get("package_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.package.status requires package_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(
+                    self.package_status(&package_id)
+                        .await
+                        .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?,
+                )?)
+            }
+            "kernel.package.unload" => {
+                let package_id = params
+                    .get("package_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.package.unload requires package_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.unload_package(&package_id).await?)?)
+            }
+            "kernel.capability.discover" => Ok(serde_json::to_value(self.discover_capabilities().await)?),
+            "kernel.capability.invoke" => Ok(serde_json::to_value(
+                self.invoke_capability_with_context(context, serde_json::from_value(params)?).await?,
+            )?),
+            "kernel.extension_point.list" => Ok(json!([])),
+            other => anyhow::bail!("protocol method '{other}' is not implemented"),
+        }
     }
 
     async fn append_kernel_event(
