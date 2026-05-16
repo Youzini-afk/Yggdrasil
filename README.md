@@ -24,6 +24,8 @@ The platform's job is to make radical AI-native creation possible without privil
 - `docs/architecture/EVENT_MODEL.md` — opaque event log model.
 - `docs/architecture/RUNTIME_LIFECYCLE.md` — kernel session/event/package lifecycles.
 - `docs/protocol/PROTOCOL_V0.md` — the public protocol.
+- `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` — executable alpha contract matrix.
+- `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
 
 ## Deferred
 

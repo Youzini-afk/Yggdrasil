@@ -87,7 +87,7 @@ Each of these is appropriate as a capability package. None is appropriate as ker
 
 ## Stance toward today's code
 
-The current Rust workspace contains conversational concepts (`Turn`, `PromptFrame`, `ModelCall`, message commit) inside what should be a content-free kernel. This is a known deviation. The first refactor lands the kernel/package separation. Until then, today's code is treated as a working spike, not as the final shape.
+The Rust workspace has already removed the initial conversational spike from the kernel crates. From here on, any reintroduction of content-shaped concepts into kernel crates is a charter regression. Conversational, model, memory, agent, world, Tavern, and Studio behavior must arrive as packages.
 
 ## Stability commitment
 

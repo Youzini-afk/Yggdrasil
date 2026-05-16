@@ -1,0 +1,114 @@
+# Kernel v0 Alpha Contract
+
+This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents: if this matrix says a behavior is `implemented`, code and conformance must prove it; if it says `planned`, no caller may depend on it yet.
+
+The alpha goal is not a playable experience. The goal is a falsifiable, content-free kernel where packages, capabilities, events, permissions, and protocols can be tested without privileged official paths.
+
+## Contract status language
+
+- `implemented`: present in code and covered by tests or CLI conformance.
+- `partial`: type or API exists, but behavior is incomplete or conformance is thin.
+- `planned`: documented target; not yet part of the executable alpha contract.
+
+## Kernel object contract
+
+| Object | Alpha status | Contract |
+|---|---:|---|
+| `KernelSession` | implemented | Holds identity, labels, active package set, principal scope, status, timestamps, metadata. It does not hold messages, turns, prompts, actors, worlds, or memory. |
+| `EventEnvelope` | implemented | Append-only opaque JSON payload with per-session sequence, writer package id, namespaced kind, schema version, timestamp, metadata. |
+| `PackageManifest` | implemented | Declares identity, entry form, provided capabilities, consumed capabilities, contributed schemas/hooks/extension points/assets, permissions, sandbox policy. |
+| `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle currently validates and registers manifest declarations; real entry execution is next. |
+| `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
+| `HookSubscription` | partial | Manifest-declared subscription exists; real handler execution is not yet implemented. |
+| `AssetRecord` | planned | Type exists, storage methods are protocol-planned but not implemented. |
+
+## Protocol method matrix
+
+| Method | Status | Notes |
+|---|---:|---|
+| `kernel.session.open` | implemented | Opens content-free session and writes `kernel/session.opened`. |
+| `kernel.session.close` | implemented | Closes session and writes `kernel/session.closed`. |
+| `kernel.session.get` | planned | Not exposed in service/CLI yet. |
+| `kernel.session.list` | planned | Not exposed in service/CLI yet. |
+| `kernel.event.append` | implemented | Enforces writer namespace and `events.append` for non-kernel writers. |
+| `kernel.event.list` | partial | Lists whole session; sequence range and read-permission caller checks are next. |
+| `kernel.event.subscribe` | planned | Declared as streaming method; no live stream implementation yet. |
+| `kernel.package.load` | partial | Validates manifest, host policy, registers declared capabilities/hooks, writes lifecycle event. Does not execute entry code yet. |
+| `kernel.package.unload` | partial | Removes registry record and declared capabilities/hooks, writes lifecycle event. No real process/module teardown yet. |
+| `kernel.package.list` | implemented | Lists in-memory package records. |
+| `kernel.package.status` | implemented | Returns registry record for package id. |
+| `kernel.package.describe` | planned | Can be derived from status manifest, but not exposed as method yet. |
+| `kernel.capability.discover` | implemented | Lists registered descriptors. |
+| `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
+| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied and detects ambiguous providers. Real provider execution boundary is next. |
+| `kernel.capability.stream` | planned | Descriptor flag exists; stream execution does not. |
+| `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
+| `kernel.extension_point.list` | implemented | Lists registered extension points. |
+| `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
+| `kernel.hook.list` | planned | Hook registry exists; protocol/service method not exposed yet. |
+| `kernel.asset.put/get/list` | planned | Asset types exist; storage is not implemented. |
+| `kernel.host.info` | implemented | Returns protocol version and advertised method ids. |
+| `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
+| `kernel.host.principal` | planned | Identity provider integration deferred. |
+
+## Kernel event kind matrix
+
+| Event kind | Writer | Status | Trigger |
+|---|---|---:|---|
+| `kernel/session.opened` | kernel | implemented | Session open. |
+| `kernel/session.closed` | kernel | implemented | Session close. |
+| `kernel/package.loaded` | kernel | implemented | Manifest accepted and registered. |
+| `kernel/package.unloaded` | kernel | implemented | Package removed from registry. |
+| `kernel/package.degraded` | kernel | planned | Real package execution failure/health loss. |
+| `kernel/capability.invoked` | kernel | planned | Invocation lifecycle event. |
+| `kernel/capability.completed` | kernel | planned | Invocation success event. |
+| `kernel/capability.failed` | kernel | planned | Invocation failure event. |
+| `kernel/permission.denied` | kernel | implemented | Permission denial audit. |
+| `kernel/error` | kernel | planned | General structured kernel error event. |
+
+Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/...` or another package's namespace.
+
+## Package entry matrix
+
+| Entry form | Manifest status | Execution status | Trust level |
+|---|---:|---:|---|
+| `rust_inproc` | implemented | next | `trusted_inproc` |
+| `subprocess` | implemented | planned | `process_isolated` |
+| `wasm` | implemented | planned | `wasm_sandbox` |
+| `remote` | implemented | planned | `remote_boundary` |
+
+Manifest support means the schema can describe the entry and host policy can accept/reject it. Execution support means the kernel actually calls across that boundary. Only manifest support exists today; `rust_inproc` execution is the next hardening phase.
+
+## Permission matrix
+
+| Permission | Status | Current enforcement |
+|---|---:|---|
+| `events.append` | implemented | Required for non-kernel `event.append`. |
+| `events.read` | next | Must gate event list/subscribe by caller package/principal. |
+| `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed for CLI/dev. |
+| `packages.call` | planned | Package-to-package control plane not implemented. |
+| `assets.read/write` | planned | Asset store not implemented. |
+| `network.hosts` | planned | Applies when subprocess/remote execution exists. |
+| `filesystem.read/write` | planned | Applies when subprocess/WASM execution exists. |
+
+## Lifecycle rules
+
+Implemented:
+
+1. Session open/close writes kernel events.
+2. Package load validates manifest and host policy, registers manifest-declared capabilities/hooks/extension points, writes a kernel event.
+3. Package unload removes registry declarations and writes a kernel event.
+4. Event append assigns sequence/timestamp/id and enforces namespace ownership.
+5. Permission denials write `kernel/permission.denied` audit events.
+
+Next:
+
+1. Package lifecycle must run actual entry handshake/register/start/stop.
+2. Capability invoke must call provider execution, not a fixture.
+3. Capability lifecycle must write invoked/completed/failed events.
+4. Kernel operations must dispatch before/after hooks according to the extension-point contract.
+5. Session package sets must constrain routing.
+
+## Content-free invariant
+
+The kernel crates must not define or require content-shaped concepts such as `Turn`, `Message`, `PromptFrame`, `ModelCall`, `Agent`, `World`, `Scene`, `Director`, or `Memory`. Any such concept belongs to a package.

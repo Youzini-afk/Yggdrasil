@@ -74,7 +74,7 @@ Each of these is appropriate as a capability package. None is appropriate as ker
 
 ## Stance toward today's code
 
-The current Rust workspace contains conversational concepts (`Turn`, `PromptFrame`, `ModelCall`, message commit) inside what should be a content-free kernel. This is a known deviation. The first refactor lands the kernel/package separation and migrates today's conversational shape into an official capability package.
+The current Rust workspace has removed the initial conversational spike from the kernel crates. The active risk is now contract drift: package manifests, capability routing, permissions, hooks, protocol methods, and conformance must stay aligned until package execution is real enough that official and third-party packages are indistinguishable.
 
 ## What success looks like
 

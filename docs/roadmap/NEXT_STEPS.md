@@ -1,10 +1,12 @@
 # Next Steps
 
-The current center of gravity is making Yggdrasil a true kernel-and-packages platform. Docs come first; the Rust workspace follows.
+The current center of gravity is hardening Yggdrasil's kernel-and-packages alpha until the platform contract is executable and falsifiable.
 
-## Current deviation
+## Current status
 
-The bootstrapped Rust workspace put conversational concepts (`Turn`, `PromptFrame`, `ModelCall`, message commit) inside what should be a content-free kernel. This violates the charter. The first refactor removes the deviation by moving those concepts into an official capability package and reducing the kernel to its declared responsibilities.
+The initial conversational runtime spike has been removed from the kernel crates. The workspace now contains content-free sessions, opaque events, package manifests, a manifest registry, a capability registry, a hook registry, SQLite event persistence, permission audit events, preview manifests for all entry forms, and a small CLI conformance command.
+
+The new risk is no longer chat-shaped kernel pollution. The risk is a facade kernel: manifests load, but package execution is not yet real; protocol documents list methods that are not all executable; conformance is still too friendly.
 
 ## Phase A — Charter-aligned documentation
 
@@ -19,24 +21,21 @@ Done in this round:
 - `docs/architecture/PI_INTEGRATION.md` and `docs/tavern/TAVERN_COMPAT.md` reframed as deferred package families.
 - Updated `README.md`.
 
-## Phase B — Kernel skeleton in code (next)
+## Phase B — Kernel v0 alpha contract hardening (current)
 
-Code goal: bring `ygg-core` and `ygg-runtime` in line with the kernel doc set, before any conversational logic comes back.
+Code and documentation goal: make the existing alpha contract precise, executable, and hostile to privilege leaks.
 
-Targets, not yet implemented:
+Immediate targets:
 
-- Manifest schema: `PackageManifest` with `id`, `version`, `entry`, `provides`, `consumes`, `contributes`, `permissions`, `sandbox_policy`.
-- Package registry: load/validate/start/stop, state machine, kernel events.
-- Capability fabric: registration, discovery, version-constrained routing, ambiguous-route error, invocation lifecycle, streaming.
-- Extension-point dispatch: kernel-emitted points first; subscriber registry; sync/async timing; modifiable/short_circuit semantics.
-- Opaque event log: envelope with `writer_package_id`, namespaced kinds, schema validation against writer-declared schemas, kernel-only kinds reserved.
-- Permission gate: enforce `events.append`, `events.read`, `network`, `filesystem`, `packages.call` declarations.
-- Public protocol surface: `kernel.session.*`, `kernel.event.*`, `kernel.package.*`, `kernel.capability.*`, `kernel.extension_point.*`, `kernel.asset.*`, `kernel.host.*`.
-- Entry forms: `rust_inproc` first, with the manifest already typed for `subprocess`, `wasm`, and `remote` so they can be added without a schema change.
+- Freeze `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` as the implemented/partial/planned matrix.
+- Keep `docs/spec/CONFORMANCE_MATRIX.md`, `docs/protocol/PROTOCOL_V0.md`, `README.md`, and `crates/ygg-runtime/src/protocol.rs` aligned.
+- Implement real `rust_inproc` package execution so capability invocation crosses a package boundary.
+- Replace friendly smoke conformance with hostile conformance cases: denied reads/writes/invokes, namespace violations, ambiguous providers, closed sessions, unload behavior, and official no-privilege checks.
+- Add practical schema enforcement for manifests, events, and capability input/output.
 
-Conversational types (`Turn`, `PromptFrame`, `ModelCall`, `MessageCommitted`, `ContextPlan`) leave the kernel during this phase. They will return as the first official capability package, not as kernel types.
+Conversational types may return only after this phase, and only as a normal package.
 
-## Phase C — First official package: conversational runtime
+## Phase C — First official package: conversational runtime (deferred)
 
 Once the kernel skeleton is in place, an official package implements the chat-shaped runtime that today's code prototypes:
 
