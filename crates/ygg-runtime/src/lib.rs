@@ -6,7 +6,10 @@ pub mod runtime;
 pub mod storage;
 pub mod tavern;
 
-pub use capability::CapabilityDescriptor;
+pub use capability::{
+    CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, ExtensionDispatchResult,
+    ExtensionRegistry, RegisteredCapability, RegisteredHook,
+};
 pub use event_store::{EventStore, InMemoryEventStore};
 pub use package::{entry_kind, HostPolicy, PackageRecord, PackageRegistry, PackageState};
 pub use pi::PI_INTEGRATION_DEFERRED;

@@ -8,7 +8,10 @@ use ygg_core::{
     EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
 };
 
-use crate::{EventStore, HostPolicy, PackageRecord, PackageRegistry};
+use crate::{
+    CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
+    ExtensionDispatchResult, ExtensionRegistry, HostPolicy, PackageRecord, PackageRegistry,
+};
 
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
@@ -45,6 +48,8 @@ where
 {
     store: Arc<S>,
     packages: Arc<PackageRegistry>,
+    capabilities: Arc<CapabilityFabric>,
+    extensions: Arc<ExtensionRegistry>,
     config: RuntimeConfig,
 }
 
@@ -53,7 +58,13 @@ where
     S: EventStore,
 {
     pub fn new(store: Arc<S>, config: RuntimeConfig) -> Self {
-        Self { store, packages: Arc::new(PackageRegistry::default()), config }
+        Self {
+            store,
+            packages: Arc::new(PackageRegistry::default()),
+            capabilities: Arc::new(CapabilityFabric::default()),
+            extensions: Arc::new(ExtensionRegistry::default()),
+            config,
+        }
     }
 
     pub fn store(&self) -> Arc<S> {
@@ -62,6 +73,14 @@ where
 
     pub fn packages(&self) -> Arc<PackageRegistry> {
         self.packages.clone()
+    }
+
+    pub fn capabilities(&self) -> Arc<CapabilityFabric> {
+        self.capabilities.clone()
+    }
+
+    pub fn extensions(&self) -> Arc<ExtensionRegistry> {
+        self.extensions.clone()
     }
 
     pub async fn open_session(&self, mut request: OpenSessionRequest) -> anyhow::Result<KernelSession> {
@@ -130,6 +149,8 @@ where
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
         let record = self.packages.load(manifest, &self.config.host_policy).await?;
+        self.capabilities.register_package(&record.id, &record.manifest.provides).await;
+        self.extensions.register_package(&record.id, &record.manifest.contributes.hooks).await;
         let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
         self.append_kernel_event(
             &session_id,
@@ -150,6 +171,8 @@ where
 
     pub async fn unload_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
         let record = self.packages.unload(package_id).await?;
+        self.capabilities.unregister_package(package_id).await;
+        self.extensions.unregister_package(package_id).await;
         let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
         self.append_kernel_event(
             &session_id,
@@ -171,6 +194,21 @@ where
 
     pub async fn package_status(&self, package_id: &PackageId) -> Option<PackageRecord> {
         self.packages.status(package_id).await
+    }
+
+    pub async fn discover_capabilities(&self) -> Vec<crate::RegisteredCapability> {
+        self.capabilities.discover().await
+    }
+
+    pub async fn invoke_capability(
+        &self,
+        request: CapabilityInvocationRequest,
+    ) -> anyhow::Result<CapabilityInvocationResult> {
+        self.capabilities.invoke(request).await
+    }
+
+    pub async fn dispatch_extension(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
+        self.extensions.dispatch(extension_point, payload).await
     }
 
     async fn append_kernel_event(
@@ -290,6 +328,50 @@ mod tests {
         let events = store.list_session(&"kernel_package_org_pkg".to_string()).await?;
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].kind, EVENT_PACKAGE_LOADED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn loaded_package_registers_capability() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store, RuntimeConfig::default());
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/echo".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-echo".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: vec![ygg_core::CapabilityDescriptor {
+                    id: "example/echo/echo".to_string(),
+                    version: "0.1.0".to_string(),
+                    input_schema: Value::Null,
+                    output_schema: Value::Null,
+                    streaming: false,
+                    side_effects: Vec::new(),
+                    description: None,
+                }],
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let result = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: "example/echo/echo".to_string(),
+                input: json!({"ping": true}),
+            })
+            .await?;
+        assert_eq!(result.output, json!({"ping": true}));
         Ok(())
     }
 }

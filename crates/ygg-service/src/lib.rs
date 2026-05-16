@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tower_http::cors::CorsLayer;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
-use ygg_runtime::PackageRecord;
+use ygg_runtime::{CapabilityInvocationRequest, CapabilityInvocationResult, PackageRecord, RegisteredCapability};
 use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
@@ -53,6 +53,8 @@ pub fn app_with_state(state: AppState) -> Router {
         .route("/kernel/package.list", get(list_packages))
         .route("/kernel/package.status/:namespace/:name", get(package_status))
         .route("/kernel/package.unload/:namespace/:name", post(unload_package))
+        .route("/kernel/capability.discover", get(discover_capabilities))
+        .route("/kernel/capability.invoke", post(invoke_capability))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -133,6 +135,17 @@ async fn unload_package(
 ) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
     let package_id = format!("{namespace}/{name}");
     Ok(Json(state.runtime.unload_package(&package_id).await?))
+}
+
+async fn discover_capabilities(State(state): State<AppState>) -> Json<Vec<RegisteredCapability>> {
+    Json(state.runtime.discover_capabilities().await)
+}
+
+async fn invoke_capability(
+    State(state): State<AppState>,
+    Json(request): Json<CapabilityInvocationRequest>,
+) -> anyhow::Result<Json<CapabilityInvocationResult>, ServiceError> {
+    Ok(Json(state.runtime.invoke_capability(request).await?))
 }
 
 pub struct ServiceError(anyhow::Error);

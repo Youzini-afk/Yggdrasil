@@ -6,7 +6,10 @@ use std::sync::Arc;
 use clap::{Parser, Subcommand};
 use serde_json::json;
 use ygg_core::{KERNEL_PACKAGE_ID, PackageManifest};
-use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
+use ygg_runtime::{
+    AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
+    OpenSessionRequest, Runtime, RuntimeConfig,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "ygg")]
@@ -35,6 +38,11 @@ enum Command {
         #[command(subcommand)]
         command: PackageCommand,
     },
+    /// Exercise capability discovery and invocation against a manifest.
+    Capability {
+        #[command(subcommand)]
+        command: CapabilityCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -45,6 +53,16 @@ enum ManifestCommand {
 #[derive(Debug, Subcommand)]
 enum PackageCommand {
     Load { path: PathBuf },
+}
+
+#[derive(Debug, Subcommand)]
+enum CapabilityCommand {
+    Invoke {
+        manifest: PathBuf,
+        capability_id: String,
+        #[arg(long, default_value = "{}")]
+        input: String,
+    },
 }
 
 #[tokio::main]
@@ -60,6 +78,11 @@ async fn main() -> anyhow::Result<()> {
         },
         Command::Package { command } => match command {
             PackageCommand::Load { path } => package_load(path).await,
+        },
+        Command::Capability { command } => match command {
+            CapabilityCommand::Invoke { manifest, capability_id, input } => {
+                capability_invoke(manifest, capability_id, input).await
+            }
         },
     }
 }
@@ -86,6 +109,19 @@ async fn package_load(path: PathBuf) -> anyhow::Result<()> {
     let runtime = Runtime::new(store, RuntimeConfig::default());
     let record = runtime.load_package(manifest).await?;
     println!("loaded package: {}@{} ({:?})", record.id, record.version, record.state);
+    Ok(())
+}
+
+async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input: String) -> anyhow::Result<()> {
+    let manifest = read_manifest(manifest_path).await?;
+    let payload: serde_json::Value = serde_json::from_str(&input)?;
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    runtime.load_package(manifest).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest { capability_id, input: payload })
+        .await?;
+    println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
 }
 
