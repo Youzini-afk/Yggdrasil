@@ -15,7 +15,7 @@ The conformance suite is the executable guardian of the charter. It should prove
 | package | host policy rejects disallowed entry | implemented in unit tests |
 | package | unload removes registry record | implemented in unit tests |
 | capability | discover registered capability | implemented |
-| capability | invoke echo fixture | implemented |
+| capability | invoke rust_inproc echo through package trait | implemented |
 | capability | ambiguous provider rejected | implemented in unit tests |
 | hooks | veto fixture reports veto | implemented in unit tests |
 | storage | SQLite persists/replays events | implemented in unit tests |
@@ -25,7 +25,7 @@ The conformance suite is the executable guardian of the charter. It should prove
 
 | Area | Required case | Target phase |
 |---|---|---|
-| package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | B |
+| package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | implemented |
 | package execution | package load goes through handshake/register/start states | B |
 | capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | C |
 | capability | package caller without declared invoke permission is denied | C |

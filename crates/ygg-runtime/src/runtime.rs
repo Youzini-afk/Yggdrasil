@@ -3,25 +3,31 @@ use std::sync::Arc;
 use chrono::Utc;
 use serde_json::{json, Value};
 use ygg_core::{
-    new_id, EventEnvelope, EventKind, KernelSession, PackageId, PackageManifest, SessionId,
+    new_id, EventEnvelope, EventKind, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
     SessionStatus, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
     EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
 };
 
 use crate::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
-    ExtensionDispatchResult, ExtensionRegistry, HostPolicy, PackageRecord, PackageRegistry,
+    ExtensionDispatchResult, ExtensionRegistry, HostPolicy, InprocInvocation, InprocPackageCatalog,
+    PackageRecord, PackageRegistry,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RuntimeConfig {
     pub default_labels: Vec<String>,
     pub host_policy: HostPolicy,
+    pub inproc_packages: InprocPackageCatalog,
 }
 
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        Self { default_labels: vec!["kernel".to_string()], host_policy: HostPolicy::default() }
+        Self {
+            default_labels: vec!["kernel".to_string()],
+            host_policy: HostPolicy::default(),
+            inproc_packages: InprocPackageCatalog::with_default_examples(),
+        }
     }
 }
 
@@ -167,6 +173,15 @@ where
     }
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
+        if let PackageEntry::RustInproc { crate_ref, symbol, .. } = &manifest.entry {
+            if !manifest.provides.is_empty() && self.config.inproc_packages.lookup(crate_ref, symbol).is_none() {
+                anyhow::bail!(
+                    "rust_inproc entry '{}::{}' is not available in this host",
+                    crate_ref,
+                    symbol
+                );
+            }
+        }
         let record = self.packages.load(manifest, &self.config.host_policy).await?;
         self.capabilities.register_package(&record.id, &record.manifest.provides).await;
         self.extensions.register_package(&record.id, &record.manifest.contributes.hooks).await;
@@ -244,7 +259,37 @@ where
                 anyhow::bail!("package '{caller}' is not allowed to invoke '{}'", request.capability_id);
             }
         }
-        self.capabilities.invoke(request).await
+        let provider = self.capabilities.resolve(&request.capability_id).await?;
+        let output = match &provider.descriptor.id {
+            _ => match self.package_status(&provider.provider_package_id).await {
+                Some(record) => match record.manifest.entry {
+                    PackageEntry::RustInproc { crate_ref, symbol, .. } => {
+                        let package = self
+                            .config
+                            .inproc_packages
+                            .lookup(&crate_ref, &symbol)
+                            .ok_or_else(|| anyhow::anyhow!("rust_inproc entry '{crate_ref}::{symbol}' is not available"))?;
+                        package
+                            .invoke(InprocInvocation {
+                                capability_id: request.capability_id.clone(),
+                                provider_package_id: provider.provider_package_id.clone(),
+                                input: request.input,
+                            })
+                            .await?
+                    }
+                    other => anyhow::bail!(
+                        "entry kind '{}' cannot execute capabilities yet",
+                        crate::entry_kind(&other)
+                    ),
+                },
+                None => anyhow::bail!("provider package '{}' is not loaded", provider.provider_package_id),
+            },
+        };
+        Ok(CapabilityInvocationResult {
+            capability_id: provider.descriptor.id,
+            provider_package_id: provider.provider_package_id,
+            output,
+        })
     }
 
     pub async fn dispatch_extension(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
@@ -426,7 +471,7 @@ mod tests {
                 author: None,
                 license: None,
                 entry: PackageEntry::RustInproc {
-                    crate_ref: "example-echo".to_string(),
+                    crate_ref: "example-echo-rust-inproc".to_string(),
                     symbol: "register".to_string(),
                     abi_version: 1,
                 },
@@ -454,6 +499,45 @@ mod tests {
             })
             .await?;
         assert_eq!(result.output, json!({"ping": true}));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rust_inproc_provider_must_exist_in_host_catalog() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store, RuntimeConfig::default());
+
+        let result = runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/missing".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "missing-crate".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: vec![ygg_core::CapabilityDescriptor {
+                    id: "example/missing/echo".to_string(),
+                    version: "0.1.0".to_string(),
+                    input_schema: Value::Null,
+                    output_schema: Value::Null,
+                    streaming: false,
+                    side_effects: Vec::new(),
+                    description: None,
+                }],
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await;
+
+        assert!(result.is_err());
         Ok(())
     }
 
@@ -493,7 +577,7 @@ mod tests {
                 author: None,
                 license: None,
                 entry: PackageEntry::RustInproc {
-                    crate_ref: "example-echo".to_string(),
+                    crate_ref: "example-echo-rust-inproc".to_string(),
                     symbol: "register".to_string(),
                     abi_version: 1,
                 },

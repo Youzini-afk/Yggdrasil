@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use tokio::sync::RwLock;
 use ygg_core::{CapabilityDescriptor, CapabilityId, HookSubscription, PackageId};
 
@@ -67,32 +67,15 @@ impl CapabilityFabric {
         self.providers.read().await.get(capability_id).cloned().unwrap_or_default()
     }
 
-    pub async fn invoke(&self, request: CapabilityInvocationRequest) -> anyhow::Result<CapabilityInvocationResult> {
-        let providers = self.describe(&request.capability_id).await;
-        let provider = match providers.as_slice() {
-            [] => anyhow::bail!("capability '{}' has no provider", request.capability_id),
-            [provider] => provider.clone(),
-            _ => anyhow::bail!("capability '{}' has ambiguous providers", request.capability_id),
-        };
-
-        // Phase 3 conformance executor: echo returns input unchanged. Real entry
-        // form execution arrives in later phases and uses the same fabric API.
-        let output = if provider.descriptor.id.ends_with("/echo") {
-            request.input
-        } else {
-            json!({
-                "capability": provider.descriptor.id,
-                "provider": provider.provider_package_id,
-                "input": request.input,
-            })
-        };
-
-        Ok(CapabilityInvocationResult {
-            capability_id: provider.descriptor.id,
-            provider_package_id: provider.provider_package_id,
-            output,
-        })
+    pub async fn resolve(&self, capability_id: &CapabilityId) -> anyhow::Result<RegisteredCapability> {
+        let providers = self.describe(capability_id).await;
+        match providers.as_slice() {
+            [] => anyhow::bail!("capability '{}' has no provider", capability_id),
+            [provider] => Ok(provider.clone()),
+            _ => anyhow::bail!("capability '{}' has ambiguous providers", capability_id),
+        }
     }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,6 +135,7 @@ impl ExtensionRegistry {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
     use ygg_core::{CapabilityDescriptor, HookSubscription, HookTiming};
 
     use super::*;
@@ -171,13 +155,7 @@ mod tests {
         fabric.register_package(&"example/a".to_string(), &[descriptor.clone()]).await;
         fabric.register_package(&"example/b".to_string(), &[descriptor]).await;
 
-        let result = fabric
-            .invoke(CapabilityInvocationRequest {
-                capability_id: "example/echo/echo".to_string(),
-                caller_package_id: None,
-                input: json!({"hello": "world"}),
-            })
-            .await;
+        let result = fabric.resolve(&"example/echo/echo".to_string()).await;
         assert!(result.is_err());
     }
 
