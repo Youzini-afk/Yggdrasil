@@ -43,6 +43,7 @@ The conformance suite is the executable guardian of the charter. It should prove
 | subprocess | invoke timeout degrades package | implemented |
 | subprocess | invalid subprocess output schema is rejected | implemented |
 | subprocess | unload removes subprocess capability | implemented |
+| package authoring | generated Python subprocess package passes local conformance | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -105,6 +106,7 @@ hook.ordering_stable                       PASS
 hook.veto_blocks_event_append              PASS
 hook.metadata_mutation_allowed             PASS
 hook.unload_removes_subscription           PASS
+package.generated_subprocess_conformance   PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

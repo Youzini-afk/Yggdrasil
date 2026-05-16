@@ -58,6 +58,8 @@ enum Command {
         id: String,
         #[arg(long, default_value = "rust_inproc")]
         entry: String,
+        #[arg(long, default_value = "python")]
+        language: String,
     },
     /// Run local kernel conformance checks.
     Conformance,
@@ -71,6 +73,15 @@ enum ManifestCommand {
 #[derive(Debug, Subcommand)]
 enum PackageCommand {
     Load { path: PathBuf },
+    Check { path: PathBuf },
+    RunFixture { path: PathBuf },
+    InvokeLocal {
+        path: PathBuf,
+        capability_id: String,
+        #[arg(long, default_value = "{}")]
+        input: String,
+    },
+    Conformance { path: PathBuf },
 }
 
 #[derive(Debug, Subcommand)]
@@ -98,13 +109,17 @@ async fn main() -> anyhow::Result<()> {
         },
         Command::Package { command } => match command {
             PackageCommand::Load { path } => package_load(path).await,
+            PackageCommand::Check { path } => package_check(path).await,
+            PackageCommand::RunFixture { path } => package_run_fixture(path).await,
+            PackageCommand::InvokeLocal { path, capability_id, input } => package_invoke_local(path, capability_id, input).await,
+            PackageCommand::Conformance { path } => package_conformance(path).await,
         },
         Command::Capability { command } => match command {
             CapabilityCommand::Invoke { manifest, capability_id, input } => {
                 capability_invoke(manifest, capability_id, input).await
             }
         },
-        Command::InitPackage { path, id, entry } => init_package(path, id, entry).await,
+        Command::InitPackage { path, id, entry, language } => init_package(path, id, entry, language).await,
         Command::Conformance => conformance().await,
     }
 }
@@ -134,6 +149,59 @@ async fn package_load(path: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn package_check(path: PathBuf) -> anyhow::Result<()> {
+    let manifest = read_manifest(path).await?;
+    manifest.validate_basic()?;
+    println!("package check: {}@{} ok", manifest.id, manifest.version);
+    Ok(())
+}
+
+async fn package_run_fixture(path: PathBuf) -> anyhow::Result<()> {
+    let manifest = read_manifest(path).await?;
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let record = runtime.load_package(manifest).await?;
+    println!("package fixture ready: {} ({:?})", record.id, record.state);
+    Ok(())
+}
+
+async fn package_invoke_local(path: PathBuf, capability_id: String, input: String) -> anyhow::Result<()> {
+    let manifest = read_manifest(path).await?;
+    let payload: serde_json::Value = serde_json::from_str(&input)?;
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    runtime.load_package(manifest).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, input: payload })
+        .await?;
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
+async fn package_conformance(path: PathBuf) -> anyhow::Result<()> {
+    let manifest = read_manifest(path).await?;
+    manifest.validate_basic()?;
+    let capability = manifest
+        .provides
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("package conformance requires at least one provided capability"))?
+        .id
+        .clone();
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    runtime.load_package(manifest).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: capability,
+            caller_package_id: None,
+            input: json!({"package_conformance": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"package_conformance": true}), "package did not echo conformance payload");
+    println!("package conformance: ok");
+    Ok(())
+}
+
 async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input: String) -> anyhow::Result<()> {
     let manifest = read_manifest(manifest_path).await?;
     let payload: serde_json::Value = serde_json::from_str(&input)?;
@@ -147,8 +215,9 @@ async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input:
     Ok(())
 }
 
-async fn init_package(path: PathBuf, id: String, entry: String) -> anyhow::Result<()> {
+async fn init_package(path: PathBuf, id: String, entry: String, language: String) -> anyhow::Result<()> {
     fs::create_dir_all(&path)?;
+    let package_py = path.join("package.py").display().to_string();
     let manifest = match entry.as_str() {
         "wasm" => format!(
             r#"schema_version: 1
@@ -201,9 +270,16 @@ id: {id}
 version: 0.1.0
 entry:
   kind: subprocess
-  command: ["./package"]
+  command:
+    - python3
+    - {package_py}
   transport: json_rpc_stdio
-provides: []
+provides:
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
 consumes: []
 contributes:
   schemas: []
@@ -240,13 +316,38 @@ sandbox_policy:
         ),
     };
     fs::write(path.join("manifest.yaml"), manifest)?;
+    if entry == "subprocess" && language == "python" {
+        fs::write(path.join("package.py"), PYTHON_SUBPROCESS_TEMPLATE)?;
+    }
     fs::write(
         path.join("README.md"),
-        format!("# {id}\n\nYggdrasil capability package skeleton.\n"),
+        format!("# {id}\n\nYggdrasil capability package skeleton.\n\nRun `ygg package conformance manifest.yaml` from this directory.\n"),
     )?;
     println!("initialized package skeleton at {}", path.display());
     Ok(())
 }
+
+const PYTHON_SUBPROCESS_TEMPLATE: &str = r#"#!/usr/bin/env python3
+import json
+import sys
+
+
+def respond(payload):
+    sys.stdout.write(json.dumps(payload) + "\n")
+    sys.stdout.flush()
+
+
+for line in sys.stdin:
+    request = json.loads(line)
+    method = request.get("method")
+    if method == "package.handshake":
+        respond({"jsonrpc": "2.0", "id": request.get("id"), "result": {"ready": True, "package_protocol_version": "0.1.0"}})
+    elif method == "capability.invoke":
+        params = request.get("params", {})
+        respond({"jsonrpc": "2.0", "id": request.get("id"), "result": {"output": params.get("input")}})
+    else:
+        respond({"jsonrpc": "2.0", "id": request.get("id"), "error": {"code": "unknown_method", "message": method}})
+"#;
 
 async fn conformance() -> anyhow::Result<()> {
     let mut results = Vec::new();
@@ -333,6 +434,11 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "hook.veto_blocks_event_append", conformance_hook_veto_blocks_event_append().await);
     record_case(&mut results, "hook.metadata_mutation_allowed", conformance_hook_metadata_mutation_allowed().await);
     record_case(&mut results, "hook.unload_removes_subscription", conformance_hook_unload_removes_subscription().await);
+    record_case(
+        &mut results,
+        "package.generated_subprocess_conformance",
+        conformance_generated_subprocess_package().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {
@@ -758,6 +864,24 @@ async fn conformance_hook_unload_removes_subscription() -> anyhow::Result<()> {
             metadata: json!({}),
         })
         .await?;
+    Ok(())
+}
+
+async fn conformance_generated_subprocess_package() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-package-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    init_package(
+        path.clone(),
+        "example/generated-subprocess".to_string(),
+        "subprocess".to_string(),
+        "python".to_string(),
+    )
+    .await?;
+    package_check(path.join("manifest.yaml")).await?;
+    package_conformance(path.join("manifest.yaml")).await?;
+    fs::remove_dir_all(path)?;
     Ok(())
 }
 

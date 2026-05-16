@@ -20,7 +20,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 2. Subprocess package execution: JSON-RPC stdio start, handshake, invoke, timeout, degraded state, and unload kill.
 3. Public transports: canonical HTTP `/rpc`, host JSON-RPC stdio mode, and event replay before live subscribe.
 4. Hook fabric completion: event, capability, and package lifecycle hooks with ordering, veto, timeout, and unload cleanup.
-5. Package authoring harness: thin Node/Python subprocess templates and local package conformance.
+5. Package authoring harness: thin Python subprocess template and local package conformance first; Node can follow once the subprocess protocol settles further.
 6. Release-gate conformance: hostile cases define the milestone; documentation status must match executable coverage.
 
 ## Non-goals for this milestone
