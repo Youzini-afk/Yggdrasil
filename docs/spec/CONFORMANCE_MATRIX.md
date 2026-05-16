@@ -29,6 +29,12 @@ The conformance suite is the executable guardian of the charter. It should prove
 | principal | package context overrides caller-supplied capability caller | implemented |
 | schema | capability input schema rejects invalid input | implemented |
 | schema | event payload schema rejects invalid payload | implemented |
+| subprocess | JSON-RPC stdio package loads and reports ready | implemented |
+| subprocess | JSON-RPC stdio capability invoke works | implemented |
+| subprocess | bad handshake is rejected | implemented |
+| subprocess | invoke timeout degrades package | implemented |
+| subprocess | invalid subprocess output schema is rejected | implemented |
+| subprocess | unload removes subprocess capability | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -37,7 +43,7 @@ The conformance suite is the executable guardian of the charter. It should prove
 | package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | implemented |
 | package execution | subprocess package completes JSON-RPC stdio handshake | Platform Host Alpha |
 | package execution | subprocess timeout/crash/degraded behavior is enforced | Platform Host Alpha |
-| package execution | package load goes through handshake/register/start states | Platform Host Alpha |
+| package execution | package load goes through handshake/register/start states | partial |
 | capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | Platform Host Alpha |
 | capability | package caller without declared invoke permission is denied | Platform Host Alpha |
 | capability | version mismatch fails | Platform Host Alpha |
@@ -79,6 +85,12 @@ schema.event_payload_rejects_invalid       PASS
 protocol.structured_permission_error       PASS
 principal.package_cannot_self_assert_writer PASS
 principal.package_cannot_self_assert_capability_caller PASS
+subprocess.load_ready                      PASS
+subprocess.invoke_echo                     PASS
+subprocess.bad_handshake                   PASS
+subprocess.invoke_timeout                  PASS
+subprocess.invalid_output_schema           PASS
+subprocess.unload_removes_capability       PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

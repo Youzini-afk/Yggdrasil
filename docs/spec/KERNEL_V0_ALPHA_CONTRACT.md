@@ -18,7 +18,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `KernelSession` | implemented | Holds identity, labels, active package set, principal scope, status, timestamps, metadata. It does not hold messages, turns, prompts, actors, worlds, or memory. |
 | `EventEnvelope` | implemented | Append-only opaque JSON payload with per-session sequence, writer package id, namespaced kind, schema version, timestamp, metadata. |
 | `PackageManifest` | implemented | Declares identity, entry form, provided capabilities, consumed capabilities, contributed schemas/hooks/extension points/assets, permissions, sandbox policy. |
-| `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load. Full start/stop handshakes for all entry forms remain next. |
+| `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Full lifecycle event sequencing and all entry forms remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
 | `HookSubscription` | partial | Manifest-declared subscription exists; real handler execution is not yet implemented. |
 | `AssetRecord` | planned | Type exists, storage methods are protocol-planned but not implemented. |
@@ -34,14 +34,14 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.event.append` | implemented | Enforces writer namespace and `events.append` for non-kernel writers. |
 | `kernel.event.list` | partial | Lists whole session; runtime has caller-aware `events.read` gating, while HTTP/CLI host-level list remains unauthenticated for local administration. Sequence-range replay is next. |
 | `kernel.event.subscribe` | platform-host-alpha | Declared as streaming method; sequence replay and cursor behavior are required before live subscription is considered complete. |
-| `kernel.package.load` | partial | Validates manifest, host policy, resolves `rust_inproc` host entries for capability providers, registers declared capabilities/hooks, writes lifecycle event. Subprocess handshake/start is Platform Host Alpha work. |
-| `kernel.package.unload` | partial | Removes registry record and declared capabilities/hooks, writes lifecycle event. Subprocess stop/kill is Platform Host Alpha work. |
+| `kernel.package.load` | partial | Validates manifest, host policy, resolves `rust_inproc` host entries for capability providers, starts subprocess JSON-RPC stdio entries, registers declared capabilities/hooks, writes lifecycle event. Full transition events remain Platform Host Alpha work. |
+| `kernel.package.unload` | partial | Stops subprocess handles when present, removes registry record and declared capabilities/hooks, writes lifecycle event. |
 | `kernel.package.list` | implemented | Lists in-memory package records. |
 | `kernel.package.status` | implemented | Returns registry record for package id. |
 | `kernel.package.describe` | planned | Can be derived from status manifest, but not exposed as method yet. |
 | `kernel.capability.discover` | implemented | Lists registered descriptors. |
 | `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
-| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, validates capability input/output against the supported schema subset, and executes `rust_inproc` providers through the in-process package trait. Subprocess execution is Platform Host Alpha work. |
+| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, validates capability input/output against the supported schema subset, executes `rust_inproc` providers through the in-process package trait, and executes subprocess JSON-RPC stdio providers with timeout/degraded handling. |
 | `kernel.capability.stream` | planned | Descriptor flag exists; stream execution does not. |
 | `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
@@ -74,11 +74,11 @@ Non-kernel event kinds must start with the writer package id followed by `/`. Th
 | Entry form | Manifest status | Execution status | Trust level |
 |---|---:|---:|---|
 | `rust_inproc` | implemented | partial | `trusted_inproc` |
-| `subprocess` | implemented | platform-host-alpha | `process_isolated` |
+| `subprocess` | implemented | partial | `process_isolated` |
 | `wasm` | implemented | deferred | `wasm_sandbox` |
 | `remote` | implemented | deferred | `remote_boundary` |
 
-Manifest support means the schema can describe the entry and host policy can accept/reject it. Execution support means the kernel actually calls across that boundary. `rust_inproc` now executes through a host-provided package trait and catalog; subprocess execution is required for Platform Host Alpha; WASM and remote execution remain deferred.
+Manifest support means the schema can describe the entry and host policy can accept/reject it. Execution support means the kernel actually calls across that boundary. `rust_inproc` now executes through a host-provided package trait and catalog. Subprocess JSON-RPC stdio execution now supports handshake/invoke/timeout/unload kill; fuller lifecycle event sequencing is still Platform Host Alpha work. WASM and remote execution remain deferred.
 
 ## Permission matrix
 

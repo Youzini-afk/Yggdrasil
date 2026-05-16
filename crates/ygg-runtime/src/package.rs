@@ -138,6 +138,14 @@ impl PackageRegistry {
         self.packages.read().await.get(package_id).cloned()
     }
 
+    pub async fn set_state(&self, package_id: &PackageId, state: PackageState) -> Option<PackageRecord> {
+        let mut packages = self.packages.write().await;
+        let record = packages.get_mut(package_id)?;
+        record.state = state;
+        record.updated_at = Utc::now();
+        Some(record.clone())
+    }
+
     pub async fn permissions(&self, package_id: &PackageId) -> Option<ygg_core::PermissionSet> {
         self.packages.read().await.get(package_id).map(|record| record.manifest.permissions.clone())
     }

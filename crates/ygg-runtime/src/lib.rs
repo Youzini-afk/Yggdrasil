@@ -7,6 +7,7 @@ pub mod protocol;
 pub mod runtime;
 pub mod schema;
 pub mod storage;
+pub mod subprocess;
 pub mod tavern;
 
 pub use capability::{
@@ -23,4 +24,5 @@ pub use protocol::{
 };
 pub use runtime::{AppendEventRequest, OpenSessionRequest, Runtime, RuntimeConfig};
 pub use schema::validate_json_schema_subset;
+pub use subprocess::SubprocessSupervisor;
 pub use tavern::TAVERN_COMPAT_DEFERRED;

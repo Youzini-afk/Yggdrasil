@@ -6,14 +6,15 @@ use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
     new_id, EventEnvelope, EventKind, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
-    SessionStatus, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
+    SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
     EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
 };
 
 use crate::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
     ExtensionDispatchResult, ExtensionRegistry, HostPolicy, InprocInvocation, InprocPackageCatalog,
-    PackageRecord, PackageRegistry, ProtocolContext, ProtocolPrincipal, validate_json_schema_subset,
+    PackageRecord, PackageRegistry, PackageState, ProtocolContext, ProtocolPrincipal, SubprocessSupervisor,
+    validate_json_schema_subset,
 };
 
 #[derive(Clone)]
@@ -58,6 +59,7 @@ where
     packages: Arc<PackageRegistry>,
     capabilities: Arc<CapabilityFabric>,
     extensions: Arc<ExtensionRegistry>,
+    subprocesses: Arc<SubprocessSupervisor>,
     sessions: Arc<RwLock<HashMap<SessionId, KernelSession>>>,
     config: RuntimeConfig,
 }
@@ -72,6 +74,7 @@ where
             packages: Arc::new(PackageRegistry::default()),
             capabilities: Arc::new(CapabilityFabric::default()),
             extensions: Arc::new(ExtensionRegistry::default()),
+            subprocesses: Arc::new(SubprocessSupervisor::default()),
             sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
@@ -261,7 +264,28 @@ where
                 );
             }
         }
-        let record = self.packages.load(manifest, &self.config.host_policy).await?;
+        let mut record = self.packages.load(manifest, &self.config.host_policy).await?;
+        if matches!(record.manifest.entry, PackageEntry::Subprocess { .. }) {
+            record = self
+                .packages
+                .set_state(&record.id, PackageState::Starting)
+                .await
+                .unwrap_or(record);
+            if let Err(error) = self.subprocesses.start(&record.manifest).await {
+                let degraded = self
+                    .packages
+                    .set_state(&record.id, PackageState::Degraded)
+                    .await
+                    .unwrap_or_else(|| record.clone());
+                self.append_package_degraded_event(&degraded, &error.to_string()).await?;
+                return Err(error);
+            }
+            record = self
+                .packages
+                .set_state(&record.id, PackageState::Ready)
+                .await
+                .unwrap_or(record);
+        }
         self.capabilities.register_package(&record.id, &record.manifest.provides).await;
         self.extensions.register_package(&record.id, &record.manifest.contributes.hooks).await;
         let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
@@ -283,6 +307,7 @@ where
     }
 
     pub async fn unload_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
+        self.subprocesses.stop(package_id).await;
         let record = self.packages.unload(package_id).await?;
         self.capabilities.unregister_package(package_id).await;
         self.extensions.unregister_package(package_id).await;
@@ -357,10 +382,26 @@ where
                             })
                             .await?
                     }
-                    other => anyhow::bail!(
-                        "entry kind '{}' cannot execute capabilities yet",
-                        crate::entry_kind(&other)
-                    ),
+                    PackageEntry::Subprocess { .. } => {
+                        match self
+                            .subprocesses
+                            .invoke(&provider.provider_package_id, &request.capability_id, request.input)
+                            .await
+                        {
+                            Ok(output) => output,
+                            Err(error) => {
+                                if let Some(record) = self
+                                    .packages
+                                    .set_state(&provider.provider_package_id, PackageState::Degraded)
+                                    .await
+                                {
+                                    self.append_package_degraded_event(&record, &error.to_string()).await?;
+                                }
+                                return Err(error);
+                            }
+                        }
+                    }
+                    other => anyhow::bail!("entry kind '{}' cannot execute capabilities yet", crate::entry_kind(&other)),
                 },
                 None => anyhow::bail!("provider package '{}' is not loaded", provider.provider_package_id),
             },
@@ -408,6 +449,22 @@ where
             payload,
             metadata: json!({}),
         })
+        .await
+    }
+
+    async fn append_package_degraded_event(&self, record: &PackageRecord, reason: &str) -> anyhow::Result<EventEnvelope> {
+        let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
+        self.append_kernel_event(
+            &session_id,
+            EVENT_PACKAGE_DEGRADED,
+            json!({
+                "package_id": record.id,
+                "version": record.version,
+                "state": record.state,
+                "entry_kind": record.entry_kind,
+                "reason": reason,
+            }),
+        )
         .await
     }
 

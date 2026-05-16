@@ -305,6 +305,20 @@ async fn conformance() -> anyhow::Result<()> {
         "principal.package_cannot_self_assert_capability_caller",
         conformance_principal_cannot_self_assert_capability_caller().await,
     );
+    record_case(&mut results, "subprocess.load_ready", conformance_subprocess_load_ready().await);
+    record_case(&mut results, "subprocess.invoke_echo", conformance_subprocess_invoke_echo().await);
+    record_case(&mut results, "subprocess.bad_handshake", conformance_subprocess_bad_handshake().await);
+    record_case(&mut results, "subprocess.invoke_timeout", conformance_subprocess_timeout().await);
+    record_case(
+        &mut results,
+        "subprocess.invalid_output_schema",
+        conformance_subprocess_invalid_output_schema().await,
+    );
+    record_case(
+        &mut results,
+        "subprocess.unload_removes_capability",
+        conformance_subprocess_unload_removes_capability().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {
@@ -557,6 +571,83 @@ async fn conformance_principal_cannot_self_assert_capability_caller() -> anyhow:
         )
         .await;
     anyhow::ensure!(denied.is_err(), "caller self-assertion bypassed invoke permission");
+    Ok(())
+}
+
+async fn conformance_subprocess_load_ready() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let record = runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    anyhow::ensure!(record.id == "example/echo-subprocess-python", "wrong package loaded");
+    Ok(())
+}
+
+async fn conformance_subprocess_invoke_echo() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/echo-subprocess-python/echo".to_string(),
+            caller_package_id: None,
+            input: json!({"subprocess": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"subprocess": true}), "subprocess echo mismatch");
+    Ok(())
+}
+
+async fn conformance_subprocess_bad_handshake() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let denied = runtime
+        .load_package(read_manifest(PathBuf::from("examples/packages/bad-handshake-subprocess-python/manifest.yaml")).await?)
+        .await;
+    anyhow::ensure!(denied.is_err(), "bad handshake unexpectedly loaded");
+    Ok(())
+}
+
+async fn conformance_subprocess_timeout() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/slow-subprocess-python/manifest.yaml")).await?).await?;
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/slow-subprocess-python/echo".to_string(),
+            caller_package_id: None,
+            input: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "slow subprocess did not time out");
+    let status = runtime.package_status(&"example/slow-subprocess-python".to_string()).await;
+    anyhow::ensure!(matches!(status.map(|record| record.state), Some(ygg_runtime::PackageState::Degraded)), "timeout did not degrade package");
+    Ok(())
+}
+
+async fn conformance_subprocess_invalid_output_schema() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(read_manifest(PathBuf::from("examples/packages/invalid-output-subprocess-python/manifest.yaml")).await?)
+        .await?;
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/invalid-output-subprocess-python/echo".to_string(),
+            caller_package_id: None,
+            input: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "invalid subprocess output schema passed");
+    Ok(())
+}
+
+async fn conformance_subprocess_unload_removes_capability() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.unload_package(&"example/echo-subprocess-python".to_string()).await?;
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/echo-subprocess-python/echo".to_string(),
+            caller_package_id: None,
+            input: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "unloaded subprocess capability remained invokable");
     Ok(())
 }
 
