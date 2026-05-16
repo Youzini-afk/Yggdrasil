@@ -1,6 +1,15 @@
 # Conformance Matrix
 
-The conformance suite is the executable guardian of the charter. It should prove both positive behavior and hostile rejection behavior.
+The conformance suite is the executable guardian of the charter. It proves both positive behavior and hostile rejection behavior. Platform Host Alpha is not complete until every case marked required for the milestone is either implemented or deliberately reclassified as deferred with a documented reason.
+
+## Current release-gate command
+
+```bash
+cargo test --workspace
+cargo run -p ygg-cli -- conformance
+```
+
+Current named conformance coverage: 28 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 

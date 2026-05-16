@@ -105,6 +105,16 @@ Implemented:
 7. Capability input/output and package-declared event payload schemas are validated against the current JSON Schema subset.
 8. Protocol contexts distinguish host/dev calls from package-principal calls, and package-principal operations ignore caller-supplied package identity fields.
 9. Canonical protocol envelopes can be dispatched in-process and through HTTP `/rpc`; `ygg host-stdio` exposes the same envelope over stdin/stdout for automation.
+10. Subprocess JSON-RPC stdio packages can handshake, invoke capabilities, time out, degrade, and unload with process kill.
+11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, veto fixtures, metadata mutation fixtures, and unload cleanup.
+
+Still partial for Platform Host Alpha:
+
+1. Event list lacks sequence-range replay and live resumable subscribe.
+2. Hook handlers are not yet real package-owned callable handlers.
+3. Package lifecycle does not yet emit each transition as a distinct event.
+4. Capability routing has no version constraints or explicit provider selection policy.
+5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
 
 Next:
 
