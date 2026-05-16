@@ -1,64 +1,114 @@
 # Architecture
 
-Yggdrasil is organized around a small stable kernel and flexible outer layers.
+Yggdrasil has two architectural strata: a kernel that hosts capability packages, and the packages themselves. The kernel is small and content-free. Everything meaningful lives in packages.
 
 ```text
-┌──────────────────────────────────────────────┐
-│ Studio / App Layer                            │
-│ official UI, editors, inspector, creator UX   │
-├──────────────────────────────────────────────┤
-│ External Engine Integration Layer             │
-│ UE5 / Godot / Unity / Web / custom clients    │
-├──────────────────────────────────────────────┤
-│ Tavern Runtime Layer                          │
-│ built-in SillyTavern-compatible runtime       │
-├──────────────────────────────────────────────┤
-│ pi Agent Layer                                │
-│ agent tasks, proposals, planners, tools       │
-├──────────────────────────────────────────────┤
-│ Runtime Layer                                 │
-│ sessions, turns, actors, context, model flow  │
-├──────────────────────────────────────────────┤
-│ Capability Fabric                             │
-│ discover, describe, invoke, stream, authorize │
-├──────────────────────────────────────────────┤
-│ Protocol Layer                                │
-│ HTTP/JSON-RPC, WebSocket, event streams       │
-├──────────────────────────────────────────────┤
-│ Core Layer                                    │
-│ events, assets, state contracts, IDs, schemas │
-└──────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ Capability Packages (every meaningful concept lives here)        │
+│                                                                  │
+│   official packages          third-party packages                │
+│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐ │
+│   │ conversation │ │ tavern compat│ │ world sim    │ │  ...   │ │
+│   │ runtime      │ │ (future)     │ │ (community)  │ │        │ │
+│   └──────────────┘ └──────────────┘ └──────────────┘ └────────┘ │
+│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐ │
+│   │ memory pack  │ │ agent pack   │ │ inspector ui │ │  ...   │ │
+│   └──────────────┘ └──────────────┘ └──────────────┘ └────────┘ │
+│                                                                  │
+│   no privilege difference between official and third-party       │
+└─────────────────────────────────────────────────────────────────┘
+                          ▲    same contract    ▲
+                          │                     │
+┌─────────────────────────────────────────────────────────────────┐
+│ Yggdrasil Kernel (content-free)                                  │
+│                                                                  │
+│   sessions      events       packages       capabilities         │
+│   permissions   sandbox      hooks          assets               │
+│                                                                  │
+│   schemas, IDs, ordering, replay, transports                     │
+└─────────────────────────────────────────────────────────────────┘
+                          ▲    public protocol    ▲
+                          │                       │
+┌─────────────────────────────────────────────────────────────────┐
+│ Transports                                                       │
+│   in-process • stdio JSON-RPC • TCP JSON-RPC • HTTP • WebSocket  │
+│   (WASM host • remote endpoint)                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+## The two strata
+
+### Kernel
+
+The kernel hosts capability packages and nothing else. See `PLATFORM_KERNEL.md` for the exhaustive list of responsibilities. In short: identity, sessions, opaque event log, package registry, capability fabric, extension-point dispatch, permissions, transports.
+
+### Capability packages
+
+Capability packages provide every meaningful concept on the platform: characters, prompts, models, agents, worlds, rules, memory, presentation, anything. See `CAPABILITY_PACKAGE.md`.
+
+Packages can be Rust in-process, subprocess, WASM, or remote. The kernel treats all four the same way.
 
 ## Boundary rules
 
-1. **Core does not depend on Studio.**
-   Core types must be usable by a CLI, a service, a game engine, or tests.
+These are not preferences. They are invariants.
 
-2. **Core does not depend on Tavern.**
-   SillyTavern resources are imported into native assets/events/projections.
+### 1. The kernel knows nothing about content
 
-3. **Runtime does not depend on pi internals.**
-   pi is integrated through agent tasks/capabilities/proposals.
+No characters, scenes, worlds, prompts, models, turns, chats, agents, memories, games, rules, dice, inventories, or genres are part of the kernel. If a concept is meaningful to a creator or a player, it lives in a package.
 
-4. **Studio does not become the kernel.**
-   The official Studio should consume the public runtime/protocol boundary.
+### 2. Official packages have no privileges
 
-5. **External engines are not second-class plugins.**
-   A game engine may consume Yggdrasil capabilities or provide capabilities to Yggdrasil through protocols.
+Anything an official package can do, a third-party package can do. Same manifest, same fabric, same hooks, same permission gate. There is no kernel shortcut based on package id.
 
-6. **Agents propose; runtime commits.**
-   Memory and state changes are validated and persisted through events.
+### 3. Protocol-first
 
-## First implementation slice
+The kernel exposes one public contract. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services use the same contract. No private bypass.
 
-The first slice intentionally avoids the full final crate graph. It starts with four Rust crates:
+### 4. Many entry forms, equal status
+
+A package can be `rust_inproc`, `subprocess`, `wasm`, or `remote`. Packaging form is implementation detail. The fabric treats them identically.
+
+### 5. Events are the truth, but opaque to the kernel
+
+The kernel orders and persists events. It does not interpret payloads. Packages own meaning.
+
+### 6. Sandbox by declaration
+
+Side effects, network reach, filesystem reach, and cross-package calls are declared in manifest. The kernel enforces. Undeclared effects are violations.
+
+### 7. Composition over containment
+
+Multiple packages can coexist in a session. There is no canonical "main experience." Conflicts are resolved by host-configured precedence, not by kernel defaults.
+
+## What is not in this picture
+
+Tavern is not a kernel layer. It will be a future capability package family.
+
+pi is not a kernel layer. It would ship as a capability package.
+
+Studio is not a kernel layer. It is a client of the public protocol, just like any other client. It may ship as official packages plus a UI shell.
+
+External game engines are not a kernel layer. They participate as remote-entry packages or as protocol clients.
+
+## Crate map (current)
+
+The current Rust workspace was bootstrapped with a conversational shape inside what should be the kernel. Migration target:
 
 ```text
-crates/ygg-core     domain types and event envelopes
-crates/ygg-runtime  runtime lifecycle, event store, model provider traits
-crates/ygg-service  headless service adapter
-crates/ygg-cli      CLI proof path
+crates/ygg-core      kernel-only types: ids, schemas, manifests, opaque events
+crates/ygg-runtime   kernel scheduler: sessions, registry, fabric, hooks, sandbox
+crates/ygg-service   protocol surface over the kernel
+crates/ygg-cli       operations against a manifest set
 ```
 
-Future modules such as memory, model, capability, tavern, protocol, and pi adapter start as modules inside these crates and split out only after the boundaries stabilize.
+Conversational concepts (`Turn`, `PromptFrame`, `ModelCall`, message commit) move out of `ygg-core` and `ygg-runtime` into an official capability package. That migration is tracked in `docs/roadmap/NEXT_STEPS.md`.
+
+## How to read the rest of the docs
+
+- `CHARTER.md` for the principles.
+- `PLATFORM_KERNEL.md` for what the kernel does and does not do.
+- `CAPABILITY_PACKAGE.md` for the package contract.
+- `EXTENSION_POINTS.md` for the hook contract.
+- `EVENT_MODEL.md` for the opaque event log.
+- `RUNTIME_LIFECYCLE.md` for kernel-side lifecycles.
+- `protocol/PROTOCOL_V0.md` for the public protocol.

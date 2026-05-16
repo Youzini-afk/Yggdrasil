@@ -1,69 +1,45 @@
-# Tavern Compatibility Plan
+# Tavern Compatibility (deferred)
 
-Tavern compatibility is implemented as a built-in runtime profile, not as the Yggdrasil kernel.
+This document is reserved for a future capability package family that imports SillyTavern resources and reproduces enough Tavern behavior for community content to run on Yggdrasil. It is not on the near-term path.
 
-## Compatibility layers
+## Position
 
-### 1. Resource compatibility
+Tavern compatibility is not part of the kernel. The kernel ships zero opinion about character cards, world books, presets, prompt rendering, or any other content-shaped concern.
 
-Import and preserve community resources.
+When Tavern compatibility is built, it will ship as one or more capability packages, governed by the same manifest, fabric, permission, and sandbox rules as any third-party package. It will receive no kernel privileges.
 
-P0:
+## Likely shape (sketch only)
 
-- Character Card V2,
-- PNG metadata,
-- World Info / Lorebook basics,
-- first message,
-- basic chat history later,
-- prompt preset basics later.
+A future Tavern package family might include, as separate packages:
 
-P1:
+- A resource importer that parses Character Card V2, PNG-embedded metadata, world books, presets, and chat history.
+- A native projection package that converts those into package-defined assets and events.
+- A behavior layer that reproduces Tavern-like prompt rendering and lorebook activation, used by an official conversational runtime package or by Tavern-shaped runtime packages.
+- An extension shim, where applicable, mapping Tavern extension concepts onto Yggdrasil capabilities.
 
-- group chat,
-- user persona,
-- author's note,
-- advanced world info options,
-- regex/replacement basics,
-- generation settings.
+The kernel will see this only as: packages that declare event kinds, capabilities, and assets in their own namespaces, no different from any other package.
 
-P2:
+## Lossless import principle (carried forward)
 
-- extension-specific metadata,
-- UI presets,
-- third-party variants,
-- stronger export compatibility.
-
-### 2. Behavior compatibility
-
-Make imported resources feel familiar enough to play.
-
-Priority behavior:
-
-- `{{char}}` / `{{user}}` replacement,
-- description/personality/scenario/first_mes/mes_example,
-- lorebook key matching,
-- insertion order and depth basics,
-- author note/system prompt concepts,
-- stop strings,
-- regenerate/edit/delete basics.
-
-Yggdrasil should aim for compatible-enough behavior, not bug-for-bug compatibility.
-
-### 3. Extension/shim compatibility
-
-Extensions should be categorized:
-
-1. Capability-like extensions: migrate to Yggdrasil capabilities.
-2. UI-only extensions: later Studio contribution points.
-3. Deep ST-internal extensions: migration guide or selective shim only.
-
-## Import principle
-
-Use lossless storage plus native projection:
+When the work happens, imported resources keep their original payload alongside any native projection. Old schemas do not get to define what the platform can express, but they also do not get destroyed on import.
 
 ```text
-original_payload: original SillyTavern data
-native_projection: Yggdrasil-native Asset/Actor/Memory/PromptProfile view
+original_payload   the original SillyTavern data, untouched
+native_projection  package-defined views derived from it
 ```
 
-This preserves old resources without letting old schemas define the platform ceiling.
+This principle belongs to the importer package, not to the kernel.
+
+## Non-goals for the kernel
+
+The kernel will never:
+
+- ship a SillyTavern parser,
+- model character cards or world books,
+- hardcode `{{char}}` / `{{user}}` substitution,
+- offer Tavern-specific hooks or methods,
+- treat Tavern packages differently from any other package.
+
+## Status
+
+Work on Tavern compatibility begins after the kernel/package separation is complete and the official conversational runtime package is in place to consume Tavern-shaped content. Until then, this document only fixes the position: Tavern compatibility is a future package family, not a platform layer.

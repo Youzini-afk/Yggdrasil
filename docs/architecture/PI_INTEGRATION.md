@@ -1,75 +1,35 @@
-# pi Integration Plan
+# pi Integration (deferred)
 
-pi is integrated as an agent/capability layer. It should not own Yggdrasil's session state.
+This document is reserved for a future capability package family that integrates the `pi` agent framework with Yggdrasil. It is not on the near-term path.
 
-## Ownership boundary
+## Position
 
-Yggdrasil owns:
+pi is not part of the kernel. The kernel ships zero opinion about agents, planners, proposals, memory curation, or any other content-shaped concern.
 
-- sessions,
-- turns,
-- event commits,
-- state projections,
-- validation,
-- prompt/model traces.
+When pi integration is built, it will ship as one or more capability packages, governed by the same manifest, fabric, permission, and sandbox rules as any third-party package. It will receive no kernel privileges.
 
-pi owns:
+## Likely shape (sketch only)
 
-- agent reasoning,
-- task execution,
-- tool orchestration,
-- analysis,
-- proposal generation.
+The platform contract gives every package the tools it would need:
 
-## Integration stages
+- Subscribe to events via `kernel.event.subscribe`.
+- Append package-namespaced events under the writer's own kind set (e.g., `pi/<...>/proposal.created`).
+- Provide capabilities other packages can invoke (e.g., `pi/<...>/curate`, `pi/<...>/extract`).
+- Define its own extension points so other packages can subscribe to pi-internal stages.
+- Declare permissions, sandbox limits, and side effects in manifest.
 
-### Stage 1: capability provider
+A "proposal then commit" pattern, if pi adopts it, is implemented as ordinary events and capability calls between pi packages and other packages. The kernel does not need to know about it.
 
-pi exposes capabilities such as:
+## Non-goals for the kernel
 
-```text
-agent.memory_curate
-agent.state_extract
-agent.consistency_check
-```
+The kernel will never:
 
-Yggdrasil invokes them and receives proposals.
+- model "agents" as a first-class concept,
+- model "proposals" as a first-class concept,
+- model memory taxonomy,
+- offer pi-specific hooks or methods,
+- treat pi packages differently from any other package.
 
-### Stage 2: event subscriber
+## Status
 
-pi subscribes to events such as:
-
-```text
-TurnCompleted
-MessageCommitted
-StatePatchCommitted
-```
-
-It asynchronously returns:
-
-```text
-MemoryProposal
-StatePatchProposal
-NarrativeThreadProposal
-```
-
-### Stage 3: agent-in-the-loop runtime
-
-Specific runtime profiles may call pi during:
-
-```text
-before_context_plan
-after_context_plan
-before_model_call
-after_turn
-```
-
-Every hook needs timeout, cancellation, permission, tracing, and fallback behavior.
-
-## Commit rule
-
-pi never directly mutates Yggdrasil state.
-
-```text
-AgentResult -> Proposal -> Validation -> Event append -> Projection
-```
+Work on pi integration begins after the kernel/package separation is complete and the official conversational runtime package is the first end-to-end demonstration. Until then, this document only fixes the position: pi is a future package family, not a platform layer.

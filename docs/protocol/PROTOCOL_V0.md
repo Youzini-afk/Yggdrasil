@@ -1,83 +1,152 @@
-# Protocol v0 Draft
+# Public Protocol v0
 
-The first protocol must be small and stable enough for the official Studio, CLI clients, and external engine experiments to share.
+The kernel exposes one public protocol. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services use the same contract.
 
-## Transport
+There is no private bypass. Official clients use this protocol; third parties use this protocol.
 
-Initial transports:
+## Transports
 
-- HTTP/JSON for control requests.
-- WebSocket for event streaming.
+All transports surface the same protocol.
 
-Future transports may include local IPC, gRPC/ConnectRPC, C ABI, and WASM bindings.
+- In-process: a Rust API that mirrors the wire shape one-to-one.
+- Subprocess: JSON-RPC over stdio.
+- TCP: JSON-RPC over a local socket.
+- HTTP: request/response for non-streaming methods.
+- WebSocket: subscriptions and streaming methods.
+- Remote endpoint: HTTP and WebSocket against a declared URL.
+- WASM host: marshalled calls into the kernel-provided ABI.
 
-## Session API
+Transport selection is a host concern. The protocol is identical.
 
-```text
-session.create
-session.get
-session.list
-session.input
-session.close
-```
+## Method shape
 
-## Turn API
+Every method has:
 
-```text
-turn.get
-turn.list
-turn.cancel
-turn.regenerate later
-```
+- `id`: namespaced under `kernel/...` for kernel methods, or under a package id for package methods.
+- `input`: a JSON value validated against a published schema.
+- `output`: a JSON value, possibly a stream.
+- `errors`: a structured error model with `code`, `message`, `details`.
 
-## Event API
+## Kernel methods
 
-```text
-event.list
-event.subscribe
-```
+The kernel exposes a minimal set. Anything not listed is owned by a package.
 
-External systems should not receive unrestricted authority to append trusted internal events. External writes should usually enter as input events, requests, or proposals.
-
-## Prompt inspection API
+### Sessions
 
 ```text
-prompt_frame.get
-context_plan.get
-model_call.get
+kernel.session.open      open a session with labels and a package set
+kernel.session.close     close a session
+kernel.session.get       get session metadata
+kernel.session.list      list sessions visible to the caller
 ```
 
-## Asset API, later in MVP
+The kernel stores no content-level session state. Labels and package set are the only opinions.
+
+### Events
 
 ```text
-asset.import
-asset.get
-asset.list
-asset.export
+kernel.event.append      append an event under the caller's namespace
+kernel.event.list        list events for a session by sequence range
+kernel.event.subscribe   stream events as they are appended (resumable)
 ```
 
-## Capability API, later in MVP
+`event.append` requires `events.append` in the caller's manifest. `event.list` and `event.subscribe` require `events.read`.
+
+### Packages
 
 ```text
-capability.discover
-capability.describe
-capability.invoke
-capability.register_provider
+kernel.package.list      list packages visible in the host
+kernel.package.describe  fetch a manifest snapshot
+kernel.package.load      load a package from a manifest reference
+kernel.package.unload    stop and remove a package
+kernel.package.status    current state and health
 ```
 
-## Streaming events
+Loading a package may be host-policy-restricted.
 
-The event stream should carry runtime events, not chat-specific deltas only:
+### Capabilities
 
 ```text
-event.created
-turn.started
-context_plan.created
-prompt_frame.created
-model.delta
-message.committed
-turn.completed
-error
+kernel.capability.discover    enumerate capabilities, optionally filtered
+kernel.capability.describe    fetch input/output schemas and metadata
+kernel.capability.invoke      invoke a capability with input
+kernel.capability.stream      invoke a capability that streams
+kernel.capability.cancel      cancel an in-flight invocation
 ```
 
-Chat UI is a projection over this stream.
+`invoke` resolves to a provider by id, version constraint, and session package set. If multiple providers match and the host has not configured precedence, the kernel returns an ambiguous-route error.
+
+### Extension points and hooks
+
+```text
+kernel.extension_point.list        list live extension points
+kernel.extension_point.describe    fetch payload schema and timing
+kernel.hook.list                   list subscribers to a point
+```
+
+The kernel does not expose a method to inject hooks at runtime; subscriptions are declared in manifests. Live registration is allowed only through package lifecycle.
+
+### Assets
+
+```text
+kernel.asset.put         store an asset blob under the caller's namespace
+kernel.asset.get         fetch an asset by id
+kernel.asset.list        list assets visible to the caller
+```
+
+The kernel records `mime`, `hash`, `size`, and `origin_package`. It does not parse or interpret asset content.
+
+### Health and identity
+
+```text
+kernel.host.info         host version, kernel ABI, transports
+kernel.host.principal    the calling principal (user, package, remote)
+kernel.host.ping         liveness
+```
+
+## Package methods
+
+Each package contributes its own protocol methods through capability registrations and extension-point declarations. Their schemas are discoverable via `kernel.capability.describe` and `kernel.extension_point.describe`.
+
+The kernel does not predefine methods like `session.input`, `prompt_frame.get`, `model.call`, `memory.search`. If those exist, they belong to specific packages.
+
+## Errors
+
+```text
+kernel/error/transport
+kernel/error/schema_validation
+kernel/error/manifest
+kernel/error/permission_denied
+kernel/error/ambiguous_route
+kernel/error/not_found
+kernel/error/timeout
+kernel/error/cancelled
+kernel/error/capacity
+kernel/error/package_state
+```
+
+Package errors travel inside `capability.invoke` responses as `package_error` with provider-defined details.
+
+## Streaming
+
+Streaming flows over WebSocket or transport-equivalent. Streams carry typed frames whose schema is published with the method.
+
+For `event.subscribe`, frames are event envelopes plus a `cursor` for resume.
+
+For `capability.stream`, frames are provider-defined chunks plus a terminal status frame.
+
+## Authentication and principals
+
+A host enforces authentication at the transport layer. Each connection is associated with a principal: a user, a package, or a remote system. The kernel checks permissions against the principal on every operation.
+
+The kernel does not ship an identity provider. Hosts plug one in.
+
+## Versioning
+
+The protocol carries `protocol_version`. The kernel publishes the schema set per version. Breaking changes require a new version; the kernel may serve multiple concurrently.
+
+Method schemas may evolve in backward-compatible ways within a version (additive fields). Breaking method changes require a new method id.
+
+## Stability
+
+Anything resembling `session.input`, `prompt_frame.get`, `model.call`, or any other content method is out of scope for kernel protocol forever. Adding such methods to the kernel is a charter violation.
