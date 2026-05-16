@@ -5,7 +5,10 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use serde_json::json;
-use ygg_core::{KERNEL_PACKAGE_ID, PackageManifest};
+use ygg_core::{
+    EventPermissions, KERNEL_PACKAGE_ID, PackageContributions, PackageEntry, PackageManifest,
+    PermissionSet, SandboxPolicy,
+};
 use ygg_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
     OpenSessionRequest, Runtime, RuntimeConfig, SqliteEventStore,
@@ -122,7 +125,7 @@ async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input:
     let runtime = Runtime::new(store, RuntimeConfig::default());
     runtime.load_package(manifest).await?;
     let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { capability_id, input: payload })
+        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, input: payload })
         .await?;
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
@@ -133,6 +136,7 @@ async fn demo() -> anyhow::Result<()> {
     let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
 
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(demo_event_writer_manifest()).await?;
     runtime
         .append_event(AppendEventRequest {
             session_id: session.id.clone(),
@@ -155,10 +159,36 @@ async fn demo() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn demo_event_writer_manifest() -> PackageManifest {
+    PackageManifest {
+        schema_version: 1,
+        id: "example/echo".to_string(),
+        version: "0.1.0".to_string(),
+        display_name: Some("Demo Event Writer".to_string()),
+        description: None,
+        author: None,
+        license: None,
+        entry: PackageEntry::RustInproc {
+            crate_ref: "example-echo".to_string(),
+            symbol: "register".to_string(),
+            abi_version: 1,
+        },
+        provides: Vec::new(),
+        consumes: Vec::new(),
+        contributes: PackageContributions::default(),
+        permissions: PermissionSet {
+            events: EventPermissions { read: false, append: true },
+            ..PermissionSet::default()
+        },
+        sandbox_policy: SandboxPolicy::default(),
+    }
+}
+
 async fn sqlite_demo(path: PathBuf) -> anyhow::Result<()> {
     let store = Arc::new(SqliteEventStore::open(&path)?);
     let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(sqlite_event_writer_manifest()).await?;
     runtime
         .append_event(AppendEventRequest {
             session_id: session.id.clone(),
@@ -179,6 +209,13 @@ async fn sqlite_demo(path: PathBuf) -> anyhow::Result<()> {
         println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
     }
     Ok(())
+}
+
+fn sqlite_event_writer_manifest() -> PackageManifest {
+    PackageManifest {
+        id: "example/sqlite".to_string(),
+        ..demo_event_writer_manifest()
+    }
 }
 
 async fn serve(bind: SocketAddr) -> anyhow::Result<()> {

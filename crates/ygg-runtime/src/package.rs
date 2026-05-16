@@ -24,6 +24,7 @@ pub struct PackageRecord {
     pub version: String,
     pub state: PackageState,
     pub entry_kind: String,
+    pub trust_level: TrustLevel,
     pub capability_count: usize,
     pub hook_count: usize,
     pub extension_point_count: usize,
@@ -40,6 +41,7 @@ impl PackageRecord {
             version: manifest.version.clone(),
             state: PackageState::Ready,
             entry_kind: entry_kind(&manifest.entry).to_string(),
+            trust_level: trust_level(&manifest.entry),
             capability_count: manifest.provides.len(),
             hook_count: manifest.contributes.hooks.len(),
             extension_point_count: manifest.contributes.extension_points.len(),
@@ -48,6 +50,15 @@ impl PackageRecord {
             manifest,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TrustLevel {
+    TrustedInproc,
+    ProcessIsolated,
+    WasmSandbox,
+    RemoteBoundary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +137,10 @@ impl PackageRegistry {
     pub async fn status(&self, package_id: &PackageId) -> Option<PackageRecord> {
         self.packages.read().await.get(package_id).cloned()
     }
+
+    pub async fn permissions(&self, package_id: &PackageId) -> Option<ygg_core::PermissionSet> {
+        self.packages.read().await.get(package_id).map(|record| record.manifest.permissions.clone())
+    }
 }
 
 pub fn entry_kind(entry: &PackageEntry) -> &'static str {
@@ -134,6 +149,15 @@ pub fn entry_kind(entry: &PackageEntry) -> &'static str {
         PackageEntry::Subprocess { .. } => "subprocess",
         PackageEntry::Wasm { .. } => "wasm",
         PackageEntry::Remote { .. } => "remote",
+    }
+}
+
+pub fn trust_level(entry: &PackageEntry) -> TrustLevel {
+    match entry {
+        PackageEntry::RustInproc { .. } => TrustLevel::TrustedInproc,
+        PackageEntry::Subprocess { .. } => TrustLevel::ProcessIsolated,
+        PackageEntry::Wasm { .. } => TrustLevel::WasmSandbox,
+        PackageEntry::Remote { .. } => TrustLevel::RemoteBoundary,
     }
 }
 
@@ -196,5 +220,6 @@ mod tests {
             auth: ygg_core::RemoteAuth { scheme: "none".to_string(), config: Value::Null },
         };
         assert_eq!(entry_kind(&entry), "remote");
+        assert_eq!(trust_level(&entry), TrustLevel::RemoteBoundary);
     }
 }

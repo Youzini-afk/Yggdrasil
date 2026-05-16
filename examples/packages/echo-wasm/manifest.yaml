@@ -1,15 +1,15 @@
 schema_version: 1
-id: example/echo-rust-inproc
+id: example/echo-wasm
 version: 0.1.0
-display_name: Echo Rust In-Process Example
-description: Conformance fixture manifest for the package registry.
+display_name: Echo WASM Preview Example
+description: Manifest-only preview for the WASM entry form.
 entry:
-  kind: rust_inproc
-  crate_ref: example-echo-rust-inproc
-  symbol: register
+  kind: wasm
+  module: echo_wasm_preview.wasm
   abi_version: 1
+  memory_limit_mb: 32
 provides:
-  - id: example/echo-rust-inproc/echo
+  - id: example/echo-wasm/echo
     version: 0.1.0
     input_schema: {}
     output_schema: {}
@@ -22,11 +22,10 @@ contributes:
   extension_points: []
 permissions:
   events:
-    read: true
-    append: true
+    read: false
+    append: false
   capabilities:
-    invoke:
-      - example/echo-rust-inproc/echo
+    invoke: []
   packages:
     call: []
   assets:
@@ -38,6 +37,6 @@ permissions:
     read: []
     write: []
 sandbox_policy:
-  cpu_quota_ms_per_invoke: 5000
-  memory_mb: 128
-  wall_clock_ms: 30000
+  cpu_quota_ms_per_invoke: 1000
+  memory_mb: 32
+  wall_clock_ms: 5000

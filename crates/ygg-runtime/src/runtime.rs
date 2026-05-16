@@ -4,8 +4,8 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use ygg_core::{
     new_id, EventEnvelope, EventKind, KernelSession, PackageId, PackageManifest, SessionId,
-    SessionStatus, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_SESSION_CLOSED,
-    EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
+    SessionStatus, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
+    EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
 };
 
 use crate::{
@@ -119,6 +119,25 @@ where
     }
 
     pub async fn append_event(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
+        if request.writer_package_id != KERNEL_PACKAGE_ID {
+            match self.packages.permissions(&request.writer_package_id).await {
+                Some(permissions) if permissions.events.append => {}
+                _ => {
+                    self.audit_permission_denied(
+                        &request.session_id,
+                        &request.writer_package_id,
+                        "events.append",
+                    )
+                    .await?;
+                    anyhow::bail!("package '{}' is not allowed to append events", request.writer_package_id);
+                }
+            }
+        }
+
+        self.append_event_unchecked(request).await
+    }
+
+    async fn append_event_unchecked(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
         let sequence = self.store.next_sequence(&request.session_id).await?;
         let event = EventEnvelope::new(
             new_id("evt"),
@@ -204,6 +223,27 @@ where
         &self,
         request: CapabilityInvocationRequest,
     ) -> anyhow::Result<CapabilityInvocationResult> {
+        if let Some(caller) = &request.caller_package_id {
+            let allowed = self
+                .packages
+                .permissions(caller)
+                .await
+                .map(|permissions| {
+                    permissions.capabilities.invoke.iter().any(|pattern| {
+                        pattern == "*" || pattern == &request.capability_id || request.capability_id.starts_with(pattern.trim_end_matches('*'))
+                    })
+                })
+                .unwrap_or(false);
+            if !allowed {
+                self.audit_permission_denied(
+                    &format!("kernel_capability_{}", request.capability_id.replace('/', "_")),
+                    caller,
+                    "capabilities.invoke",
+                )
+                .await?;
+                anyhow::bail!("package '{caller}' is not allowed to invoke '{}'", request.capability_id);
+            }
+        }
         self.capabilities.invoke(request).await
     }
 
@@ -217,13 +257,30 @@ where
         kind: &'static str,
         payload: Value,
     ) -> anyhow::Result<EventEnvelope> {
-        self.append_event(AppendEventRequest {
+        self.append_event_unchecked(AppendEventRequest {
             session_id: session_id.clone(),
             writer_package_id: KERNEL_PACKAGE_ID.to_string(),
             kind: kind.to_string(),
             payload,
             metadata: json!({}),
         })
+        .await
+    }
+
+    async fn audit_permission_denied(
+        &self,
+        session_id: &SessionId,
+        package_id: &PackageId,
+        operation: &str,
+    ) -> anyhow::Result<EventEnvelope> {
+        self.append_kernel_event(
+            session_id,
+            EVENT_PERMISSION_DENIED,
+            json!({
+                "package_id": package_id,
+                "operation": operation,
+            }),
+        )
         .await
     }
 }
@@ -280,6 +337,30 @@ mod tests {
         let store = Arc::new(InMemoryEventStore::default());
         let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
         let session = runtime.open_session(OpenSessionRequest::default()).await?;
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "org/a".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "org-a".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet {
+                    events: ygg_core::EventPermissions { read: false, append: true },
+                    ..PermissionSet::default()
+                },
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
 
         let event = runtime
             .append_event(AppendEventRequest {
@@ -368,10 +449,102 @@ mod tests {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 capability_id: "example/echo/echo".to_string(),
+                caller_package_id: None,
                 input: json!({"ping": true}),
             })
             .await?;
         assert_eq!(result.output, json!({"ping": true}));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn denied_event_append_records_audit_event() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+        let session = runtime.open_session(OpenSessionRequest::default()).await?;
+
+        let denied = runtime
+            .append_event(AppendEventRequest {
+                session_id: session.id.clone(),
+                writer_package_id: "org/unauthorized".to_string(),
+                kind: "org/unauthorized/event".to_string(),
+                payload: json!({}),
+                metadata: json!({}),
+            })
+            .await;
+        assert!(denied.is_err());
+
+        let events = store.list_session(&session.id).await?;
+        assert_eq!(events.last().expect("audit event").kind, EVENT_PERMISSION_DENIED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn denied_capability_invoke_records_audit_event() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/echo".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-echo".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: vec![ygg_core::CapabilityDescriptor {
+                    id: "example/echo/echo".to_string(),
+                    version: "0.1.0".to_string(),
+                    input_schema: Value::Null,
+                    output_schema: Value::Null,
+                    streaming: false,
+                    side_effects: Vec::new(),
+                    description: None,
+                }],
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/caller".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-caller".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let denied = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: "example/echo/echo".to_string(),
+                caller_package_id: Some("example/caller".to_string()),
+                input: json!({}),
+            })
+            .await;
+        assert!(denied.is_err());
+
+        let events = store.list_session(&"kernel_capability_example_echo_echo".to_string()).await?;
+        assert_eq!(events.last().expect("audit event").kind, EVENT_PERMISSION_DENIED);
         Ok(())
     }
 }

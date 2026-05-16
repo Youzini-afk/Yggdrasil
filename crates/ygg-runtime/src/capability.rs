@@ -15,6 +15,8 @@ pub struct RegisteredCapability {
 pub struct CapabilityInvocationRequest {
     pub capability_id: CapabilityId,
     #[serde(default)]
+    pub caller_package_id: Option<PackageId>,
+    #[serde(default)]
     pub input: Value,
 }
 
@@ -172,6 +174,7 @@ mod tests {
         let result = fabric
             .invoke(CapabilityInvocationRequest {
                 capability_id: "example/echo/echo".to_string(),
+                caller_package_id: None,
                 input: json!({"hello": "world"}),
             })
             .await;
