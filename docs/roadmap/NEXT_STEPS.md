@@ -1,12 +1,12 @@
 # Next Steps
 
-The current center of gravity is hardening Yggdrasil's kernel-and-packages alpha until the platform contract is executable and falsifiable.
+The current center of gravity is moving from a credible kernel alpha to **Platform Host Alpha**: a host that can run unprivileged external packages through the public protocol and prove the boundary with hostile conformance.
 
 ## Current status
 
 The initial conversational runtime spike has been removed from the kernel crates. The workspace now contains content-free sessions, opaque events, package manifests, a manifest registry, a capability registry, a hook registry, SQLite event persistence, permission audit events, preview manifests for all entry forms, and a small CLI conformance command.
 
-The new risk is no longer chat-shaped kernel pollution. The risk is a facade kernel: manifests load, but package execution is not yet real; protocol documents list methods that are not all executable; conformance is still too friendly.
+The new risk is no longer chat-shaped kernel pollution. The risk is a facade host: manifests load, but external package execution, protocol transports, lifecycle, hooks, and conformance are not yet strong enough for third-party package authors.
 
 ## Phase A — Charter-aligned documentation
 
@@ -21,7 +21,7 @@ Done in this round:
 - `docs/architecture/PI_INTEGRATION.md` and `docs/tavern/TAVERN_COMPAT.md` reframed as deferred package families.
 - Updated `README.md`.
 
-## Phase B — Kernel v0 alpha contract hardening (current)
+## Phase B — Kernel v0 alpha contract hardening (completed baseline)
 
 Code and documentation goal: make the existing alpha contract precise, executable, and hostile to privilege leaks.
 
@@ -33,9 +33,22 @@ Immediate targets:
 - Replace friendly smoke conformance with hostile conformance cases: denied reads/writes/invokes, namespace violations, ambiguous providers, closed sessions, unload behavior, and official no-privilege checks.
 - Add practical schema enforcement for manifests, events, and capability input/output.
 
-Conversational types may return only after this phase, and only as a normal package.
+Conversational types may return only after Platform Host Alpha, and only as a normal package.
 
-## Phase C — First official package: conversational runtime (deferred)
+## Phase C — Platform Host Alpha (current)
+
+The next milestone is defined in `docs/roadmap/PLATFORM_HOST_ALPHA.md`.
+
+Immediate targets:
+
+- Add protocol context and structured errors so transports cannot spoof package identity.
+- Implement real subprocess JSON-RPC-over-stdio package execution.
+- Add canonical public transports (`/rpc` HTTP first, host stdio after that) that call the same runtime paths as in-process tests.
+- Complete the first hook fabric slice for event, capability, and package lifecycle points.
+- Provide thin package authoring templates and local package conformance.
+- Promote hostile conformance to the release gate.
+
+## Phase D — First official package: conversational runtime (deferred)
 
 Once the kernel skeleton is in place, an official package implements the chat-shaped runtime that today's code prototypes:
 
@@ -47,7 +60,7 @@ Once the kernel skeleton is in place, an official package implements the chat-sh
 
 The kernel will not gain anything to support this package. The package will work the same way a third-party package would.
 
-## Phase D — Demonstrate the equality rule
+## Phase E — Demonstrate the equality rule
 
 Ship at least one minimal third-party-style package that reuses the conversational runtime's extension points (e.g., a tiny memory/curator package), to prove on the running platform that nothing the official package does requires kernel privilege.
 

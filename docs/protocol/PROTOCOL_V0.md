@@ -6,17 +6,54 @@ There is no private bypass. Official clients use this protocol; third parties us
 
 ## Transports
 
-All transports surface the same protocol.
+All transports eventually surface the same protocol. Platform Host Alpha implements a minimal public subset first and marks the rest deferred until conformance covers them.
 
 - In-process: a Rust API that mirrors the wire shape one-to-one.
-- Subprocess: JSON-RPC over stdio.
-- TCP: JSON-RPC over a local socket.
-- HTTP: request/response for non-streaming methods.
-- WebSocket: subscriptions and streaming methods.
-- Remote endpoint: HTTP and WebSocket against a declared URL.
-- WASM host: marshalled calls into the kernel-provided ABI.
+- Subprocess: JSON-RPC over stdio. Required for Platform Host Alpha.
+- HTTP: request/response for non-streaming methods. Required for Platform Host Alpha.
+- Host stdio: JSON-RPC for automation and conformance. Required for Platform Host Alpha.
+- WebSocket: subscriptions and streaming methods. Planned after sequence-range replay.
+- TCP: JSON-RPC over a local socket. Deferred.
+- Remote endpoint: HTTP and WebSocket against a declared URL. Deferred.
+- WASM host: marshalled calls into the kernel-provided ABI. Deferred.
 
-Transport selection is a host concern. The protocol is identical.
+Transport selection is a host concern. A method is not considered implemented for public callers until at least one public transport path and conformance case exercise it without bypassing runtime permission checks.
+
+## Protocol envelope
+
+Canonical request/response transports use this shape:
+
+```json
+{
+  "id": "request-1",
+  "method": "kernel.capability.invoke",
+  "params": {}
+}
+```
+
+The host attaches principal and transport context. Callers do not self-assert package/admin identity through request JSON.
+
+Success:
+
+```json
+{
+  "id": "request-1",
+  "result": {}
+}
+```
+
+Failure:
+
+```json
+{
+  "id": "request-1",
+  "error": {
+    "code": "kernel/error/permission_denied",
+    "message": "...",
+    "details": {}
+  }
+}
+```
 
 ## Method shape
 

@@ -26,6 +26,7 @@ The platform's job is to make radical AI-native creation possible without privil
 - `docs/protocol/PROTOCOL_V0.md` — the public protocol.
 - `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` — executable alpha contract matrix.
 - `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
+- `docs/roadmap/PLATFORM_HOST_ALPHA.md` — current milestone for external package hosting.
 
 ## Deferred
 
@@ -64,6 +65,6 @@ cargo run -p ygg-cli -- conformance
 
 ## Status
 
-The Rust workspace now follows the platform-as-framework direction: kernel-only events/sessions, manifest-driven packages, capability fabric, hook registry, SQLite event store, permission audits, and conformance-oriented example packages. Content-shaped runtimes remain deferred packages.
+The Rust workspace now follows the platform-as-framework direction: kernel-only events/sessions, manifest-driven packages, capability fabric, hook registry, SQLite event store, permission audits, real `rust_inproc` execution, and conformance-oriented example packages. The current milestone is Platform Host Alpha: subprocess execution, public protocol transports, hook completion, package authoring harnesses, and hostile conformance. Content-shaped runtimes remain deferred packages.
 
 See `docs/roadmap/NEXT_STEPS.md`.

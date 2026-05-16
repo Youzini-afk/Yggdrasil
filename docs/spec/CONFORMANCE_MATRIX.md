@@ -27,23 +27,27 @@ The conformance suite is the executable guardian of the charter. It should prove
 | schema | capability input schema rejects invalid input | implemented |
 | schema | event payload schema rejects invalid payload | implemented |
 
-## Required hostile conformance before official packages
+## Required hostile conformance for Platform Host Alpha
 
 | Area | Required case | Target phase |
 |---|---|---|
 | package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | implemented |
-| package execution | package load goes through handshake/register/start states | future |
-| capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | C |
-| capability | package caller without declared invoke permission is denied | C |
-| capability | version mismatch fails | C |
+| package execution | subprocess package completes JSON-RPC stdio handshake | Platform Host Alpha |
+| package execution | subprocess timeout/crash/degraded behavior is enforced | Platform Host Alpha |
+| package execution | package load goes through handshake/register/start states | Platform Host Alpha |
+| capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | Platform Host Alpha |
+| capability | package caller without declared invoke permission is denied | Platform Host Alpha |
+| capability | version mismatch fails | Platform Host Alpha |
 | capability | duplicate providers produce ambiguous route unless policy selects one | implemented |
 | capability | unloaded provider cannot be invoked | implemented |
 | events | package without `events.read` cannot list events | implemented |
 | events | closed session rejects append | implemented |
-| events | sequence-range replay works | C |
-| hooks | hook ordering is stable | C |
-| hooks | unload removes hook subscribers | C |
-| hooks | before/after lifecycle hooks are dispatched by kernel operations | C |
+| events | sequence-range replay works | Platform Host Alpha |
+| protocol | HTTP `/rpc` and in-process runtime share authorization behavior | Platform Host Alpha |
+| protocol | host JSON-RPC stdio transport passes core conformance | Platform Host Alpha |
+| hooks | hook ordering is stable | Platform Host Alpha |
+| hooks | unload removes hook subscribers | Platform Host Alpha |
+| hooks | before/after lifecycle hooks are dispatched by kernel operations | Platform Host Alpha |
 | schema | manifest schema refs are resolvable | future |
 | schema | capability input schema rejects invalid input | implemented |
 | schema | capability output schema rejects invalid output | implemented in runtime path |
@@ -71,4 +75,4 @@ schema.capability_input_rejects_invalid    PASS
 schema.event_payload_rejects_invalid       PASS
 ```
 
-The suite should fail closed: any unimplemented case listed as required for the current phase must fail CI.
+The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

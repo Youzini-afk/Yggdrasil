@@ -1,6 +1,6 @@
 # Kernel v0 Alpha Contract
 
-This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents: if this matrix says a behavior is `implemented`, code and conformance must prove it; if it says `planned`, no caller may depend on it yet.
+This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents: if this matrix says a behavior is `implemented`, code and conformance must prove it; if it says `platform-host-alpha`, it is required for the next Platform Host Alpha milestone but no caller may depend on it yet.
 
 The alpha goal is not a playable experience. The goal is a falsifiable, content-free kernel where packages, capabilities, events, permissions, and protocols can be tested without privileged official paths.
 
@@ -8,7 +8,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 
 - `implemented`: present in code and covered by tests or CLI conformance.
 - `partial`: type or API exists, but behavior is incomplete or conformance is thin.
-- `planned`: documented target; not yet part of the executable alpha contract.
+- `platform-host-alpha`: required for Platform Host Alpha, not yet complete.
+- `deferred`: documented target outside the current milestone.
 
 ## Kernel object contract
 
@@ -32,21 +33,21 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.session.list` | planned | Not exposed in service/CLI yet. |
 | `kernel.event.append` | implemented | Enforces writer namespace and `events.append` for non-kernel writers. |
 | `kernel.event.list` | partial | Lists whole session; runtime has caller-aware `events.read` gating, while HTTP/CLI host-level list remains unauthenticated for local administration. Sequence-range replay is next. |
-| `kernel.event.subscribe` | planned | Declared as streaming method; no live stream implementation yet. |
-| `kernel.package.load` | partial | Validates manifest, host policy, resolves `rust_inproc` host entries for capability providers, registers declared capabilities/hooks, writes lifecycle event. Full entry handshake/start is still planned. |
-| `kernel.package.unload` | partial | Removes registry record and declared capabilities/hooks, writes lifecycle event. No real process/module teardown yet. |
+| `kernel.event.subscribe` | platform-host-alpha | Declared as streaming method; sequence replay and cursor behavior are required before live subscription is considered complete. |
+| `kernel.package.load` | partial | Validates manifest, host policy, resolves `rust_inproc` host entries for capability providers, registers declared capabilities/hooks, writes lifecycle event. Subprocess handshake/start is Platform Host Alpha work. |
+| `kernel.package.unload` | partial | Removes registry record and declared capabilities/hooks, writes lifecycle event. Subprocess stop/kill is Platform Host Alpha work. |
 | `kernel.package.list` | implemented | Lists in-memory package records. |
 | `kernel.package.status` | implemented | Returns registry record for package id. |
 | `kernel.package.describe` | planned | Can be derived from status manifest, but not exposed as method yet. |
 | `kernel.capability.discover` | implemented | Lists registered descriptors. |
 | `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
-| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, validates capability input/output against the supported schema subset, and executes `rust_inproc` providers through the in-process package trait. Other entry forms are planned. |
+| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, validates capability input/output against the supported schema subset, and executes `rust_inproc` providers through the in-process package trait. Subprocess execution is Platform Host Alpha work. |
 | `kernel.capability.stream` | planned | Descriptor flag exists; stream execution does not. |
 | `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
 | `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
-| `kernel.hook.list` | planned | Hook registry exists; protocol/service method not exposed yet. |
-| `kernel.asset.put/get/list` | planned | Asset types exist; storage is not implemented. |
+| `kernel.hook.list` | platform-host-alpha | Hook registry exists; protocol/service method not exposed yet. |
+| `kernel.asset.put/get/list` | deferred | Asset types exist; storage is not implemented. |
 | `kernel.host.info` | implemented | Returns protocol version and advertised method ids. |
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
@@ -73,19 +74,19 @@ Non-kernel event kinds must start with the writer package id followed by `/`. Th
 | Entry form | Manifest status | Execution status | Trust level |
 |---|---:|---:|---|
 | `rust_inproc` | implemented | partial | `trusted_inproc` |
-| `subprocess` | implemented | planned | `process_isolated` |
-| `wasm` | implemented | planned | `wasm_sandbox` |
-| `remote` | implemented | planned | `remote_boundary` |
+| `subprocess` | implemented | platform-host-alpha | `process_isolated` |
+| `wasm` | implemented | deferred | `wasm_sandbox` |
+| `remote` | implemented | deferred | `remote_boundary` |
 
-Manifest support means the schema can describe the entry and host policy can accept/reject it. Execution support means the kernel actually calls across that boundary. `rust_inproc` now executes through a host-provided package trait and catalog; subprocess, WASM, and remote execution remain planned.
+Manifest support means the schema can describe the entry and host policy can accept/reject it. Execution support means the kernel actually calls across that boundary. `rust_inproc` now executes through a host-provided package trait and catalog; subprocess execution is required for Platform Host Alpha; WASM and remote execution remain deferred.
 
 ## Permission matrix
 
 | Permission | Status | Current enforcement |
 |---|---:|---|
 | `events.append` | implemented | Required for non-kernel `event.append`. |
-| `events.read` | partial | Runtime supports caller-aware read checks; transport-level principal plumbing and subscribe checks remain planned. |
-| `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed for CLI/dev. |
+| `events.read` | partial | Runtime supports caller-aware read checks; transport-level principal plumbing and subscribe checks are Platform Host Alpha work. |
+| `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed only as host/dev operations and must not become package privilege. |
 | `packages.call` | planned | Package-to-package control plane not implemented. |
 | `assets.read/write` | planned | Asset store not implemented. |
 | `network.hosts` | planned | Applies when subprocess/remote execution exists. |
