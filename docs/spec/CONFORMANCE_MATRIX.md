@@ -24,6 +24,9 @@ The conformance suite is the executable guardian of the charter. It should prove
 | hooks | veto fixture reports veto | implemented in unit tests |
 | storage | SQLite persists/replays events | implemented in unit tests |
 | protocol | method list contains no content methods | implemented in unit tests |
+| protocol | structured permission error code | implemented |
+| principal | package context overrides caller-supplied event writer | implemented |
+| principal | package context overrides caller-supplied capability caller | implemented |
 | schema | capability input schema rejects invalid input | implemented |
 | schema | event payload schema rejects invalid payload | implemented |
 
@@ -73,6 +76,9 @@ capability.ambiguous_provider_denied       PASS
 official.no_privilege                      PASS
 schema.capability_input_rejects_invalid    PASS
 schema.event_payload_rejects_invalid       PASS
+protocol.structured_permission_error       PASS
+principal.package_cannot_self_assert_writer PASS
+principal.package_cannot_self_assert_capability_caller PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

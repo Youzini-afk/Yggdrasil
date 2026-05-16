@@ -13,7 +13,7 @@ use ygg_core::{
 use crate::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
     ExtensionDispatchResult, ExtensionRegistry, HostPolicy, InprocInvocation, InprocPackageCatalog,
-    PackageRecord, PackageRegistry, validate_json_schema_subset,
+    PackageRecord, PackageRegistry, ProtocolContext, ProtocolPrincipal, validate_json_schema_subset,
 };
 
 #[derive(Clone)]
@@ -165,6 +165,21 @@ where
         self.append_event_unchecked(request).await
     }
 
+    pub async fn append_event_with_context(
+        &self,
+        context: &ProtocolContext,
+        mut request: AppendEventRequest,
+    ) -> anyhow::Result<EventEnvelope> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.append_event(request).await,
+            ProtocolPrincipal::Package { package_id } => {
+                request.writer_package_id = package_id.clone();
+                self.append_event(request).await
+            }
+            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to append events"),
+        }
+    }
+
     async fn append_event_unchecked(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
         let sequence = self.store.next_sequence(&request.session_id).await?;
         let event = EventEnvelope::new(
@@ -222,6 +237,18 @@ where
             }
         }
         self.list_events(session_id).await
+    }
+
+    pub async fn list_events_with_context(
+        &self,
+        context: &ProtocolContext,
+        session_id: &SessionId,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.list_events(session_id).await,
+            ProtocolPrincipal::Package { package_id } => self.list_events_for(session_id, Some(package_id)).await,
+            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to read events"),
+        }
     }
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
@@ -344,6 +371,24 @@ where
             provider_package_id: provider.provider_package_id,
             output,
         })
+    }
+
+    pub async fn invoke_capability_with_context(
+        &self,
+        context: &ProtocolContext,
+        mut request: CapabilityInvocationRequest,
+    ) -> anyhow::Result<CapabilityInvocationResult> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
+                request.caller_package_id = None;
+                self.invoke_capability(request).await
+            }
+            ProtocolPrincipal::Package { package_id } => {
+                request.caller_package_id = Some(package_id.clone());
+                self.invoke_capability(request).await
+            }
+            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to invoke capabilities"),
+        }
     }
 
     pub async fn dispatch_extension(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
@@ -683,6 +728,123 @@ mod tests {
 
         let events = store.list_session(&"kernel_capability_example_echo_echo".to_string()).await?;
         assert_eq!(events.last().expect("audit event").kind, EVENT_PERMISSION_DENIED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn package_context_overrides_spoofed_event_writer() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store, RuntimeConfig::default());
+        let session = runtime.open_session(OpenSessionRequest::default()).await?;
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/caller".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-caller".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet {
+                    events: ygg_core::EventPermissions { read: false, append: true },
+                    ..PermissionSet::default()
+                },
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let event = runtime
+            .append_event_with_context(
+                &ProtocolContext::package("example/caller", "test"),
+                AppendEventRequest {
+                    session_id: session.id,
+                    writer_package_id: "example/spoofed".to_string(),
+                    kind: "example/caller/event".to_string(),
+                    payload: json!({}),
+                    metadata: json!({}),
+                },
+            )
+            .await?;
+
+        assert_eq!(event.writer_package_id, "example/caller");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn package_context_overrides_spoofed_capability_caller() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store, RuntimeConfig::default());
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/echo".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-echo-rust-inproc".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: vec![ygg_core::CapabilityDescriptor {
+                    id: "example/echo/echo".to_string(),
+                    version: "0.1.0".to_string(),
+                    input_schema: Value::Null,
+                    output_schema: Value::Null,
+                    streaming: false,
+                    side_effects: Vec::new(),
+                    description: None,
+                }],
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+        runtime
+            .load_package(PackageManifest {
+                schema_version: 1,
+                id: "example/caller".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-caller".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let denied = runtime
+            .invoke_capability_with_context(
+                &ProtocolContext::package("example/caller", "test"),
+                CapabilityInvocationRequest {
+                    capability_id: "example/echo/echo".to_string(),
+                    caller_package_id: None,
+                    input: json!({}),
+                },
+            )
+            .await;
+
+        assert!(denied.is_err());
         Ok(())
     }
 }

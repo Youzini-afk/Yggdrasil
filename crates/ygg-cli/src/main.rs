@@ -11,7 +11,7 @@ use ygg_core::{
 };
 use ygg_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
-    OpenSessionRequest, Runtime, RuntimeConfig, SqliteEventStore,
+    OpenSessionRequest, ProtocolContext, ProtocolError, Runtime, RuntimeConfig, SqliteEventStore,
 };
 
 #[derive(Debug, Parser)]
@@ -290,6 +290,21 @@ async fn conformance() -> anyhow::Result<()> {
         "schema.event_payload_rejects_invalid",
         conformance_event_schema_rejects_invalid().await,
     );
+    record_case(
+        &mut results,
+        "protocol.structured_permission_error",
+        conformance_structured_permission_error().await,
+    );
+    record_case(
+        &mut results,
+        "principal.package_cannot_self_assert_writer",
+        conformance_principal_cannot_self_assert_writer().await,
+    );
+    record_case(
+        &mut results,
+        "principal.package_cannot_self_assert_capability_caller",
+        conformance_principal_cannot_self_assert_capability_caller().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {
@@ -498,6 +513,50 @@ async fn conformance_event_schema_rejects_invalid() -> anyhow::Result<()> {
         })
         .await;
     anyhow::ensure!(denied.is_err(), "invalid event payload unexpectedly passed");
+    Ok(())
+}
+
+async fn conformance_structured_permission_error() -> anyhow::Result<()> {
+    let error = ProtocolError::from_anyhow(anyhow::anyhow!("package 'example/nope' is not allowed to read events"));
+    anyhow::ensure!(error.code == "kernel/error/permission_denied", "wrong error code: {}", error.code);
+    Ok(())
+}
+
+async fn conformance_principal_cannot_self_assert_writer() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/actual", true, true)).await?;
+    let event = runtime
+        .append_event_with_context(
+            &ProtocolContext::package("example/actual", "conformance"),
+            AppendEventRequest {
+                session_id: session.id,
+                writer_package_id: "example/spoofed".to_string(),
+                kind: "example/actual/event".to_string(),
+                payload: json!({}),
+                metadata: json!({}),
+            },
+        )
+        .await?;
+    anyhow::ensure!(event.writer_package_id == "example/actual", "writer spoof was accepted");
+    Ok(())
+}
+
+async fn conformance_principal_cannot_self_assert_capability_caller() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/echo", "example/echo/echo")).await?;
+    runtime.load_package(event_package("example/actual", false, false)).await?;
+    let denied = runtime
+        .invoke_capability_with_context(
+            &ProtocolContext::package("example/actual", "conformance"),
+            CapabilityInvocationRequest {
+                capability_id: "example/echo/echo".to_string(),
+                caller_package_id: None,
+                input: json!({}),
+            },
+        )
+        .await;
+    anyhow::ensure!(denied.is_err(), "caller self-assertion bypassed invoke permission");
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -8,10 +9,10 @@ use serde_json::Value;
 use tower_http::cors::CorsLayer;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
-    method_ids, CapabilityInvocationRequest, CapabilityInvocationResult, PackageRecord,
-    RegisteredCapability, KERNEL_PROTOCOL_VERSION,
+    host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
+    PackageRecord, ProtocolContext, ProtocolError, RegisteredCapability,
 };
-use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
+use ygg_runtime::{AppendEventRequest, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -91,7 +92,7 @@ async fn append_event(
     Ok(Json(
         state
             .runtime
-            .append_event(AppendEventRequest {
+            .append_event_with_context(&ProtocolContext::host_dev("http_ad_hoc"), AppendEventRequest {
                 session_id,
                 writer_package_id: request.writer_package_id,
                 kind: request.kind,
@@ -106,7 +107,12 @@ async fn list_events(
     State(state): State<AppState>,
     Path(session_id): Path<SessionId>,
 ) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError> {
-    Ok(Json(state.runtime.store().list_session(&session_id).await?))
+    Ok(Json(
+        state
+            .runtime
+            .list_events_with_context(&ProtocolContext::host_dev("http_ad_hoc"), &session_id)
+            .await?,
+    ))
 }
 
 async fn load_package(
@@ -149,14 +155,16 @@ async fn invoke_capability(
     State(state): State<AppState>,
     Json(request): Json<CapabilityInvocationRequest>,
 ) -> anyhow::Result<Json<CapabilityInvocationResult>, ServiceError> {
-    Ok(Json(state.runtime.invoke_capability(request).await?))
+    Ok(Json(
+        state
+            .runtime
+            .invoke_capability_with_context(&ProtocolContext::host_dev("http_ad_hoc"), request)
+            .await?,
+    ))
 }
 
 async fn host_info() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
-        "protocol_version": KERNEL_PROTOCOL_VERSION,
-        "methods": method_ids(),
-    }))
+    Json(serde_json::to_value(runtime_host_info()).expect("host info serializes"))
 }
 
 pub struct ServiceError(anyhow::Error);
@@ -172,6 +180,14 @@ where
 
 impl axum::response::IntoResponse for ServiceError {
     fn into_response(self) -> axum::response::Response {
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, self.0.to_string()).into_response()
+        let error = ProtocolError::from_anyhow(self.0);
+        let status = match error.code.as_str() {
+            "kernel/error/permission_denied" => StatusCode::FORBIDDEN,
+            "kernel/error/not_found" => StatusCode::NOT_FOUND,
+            "kernel/error/schema_invalid" | "kernel/error/invalid_request" => StatusCode::BAD_REQUEST,
+            "kernel/error/ambiguous_route" | "kernel/error/package_state" => StatusCode::CONFLICT,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (status, Json(serde_json::json!({ "error": error }))).into_response()
     }
 }

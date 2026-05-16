@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProtocolMethod {
@@ -13,6 +14,94 @@ pub enum MethodStatus {
     Implemented,
     Partial,
     Planned,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ProtocolPrincipal {
+    HostAdmin,
+    HostDev,
+    Package { package_id: String },
+    Anonymous,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProtocolContext {
+    pub principal: ProtocolPrincipal,
+    pub transport: String,
+}
+
+impl ProtocolContext {
+    pub fn host_dev(transport: impl Into<String>) -> Self {
+        Self { principal: ProtocolPrincipal::HostDev, transport: transport.into() }
+    }
+
+    pub fn package(package_id: impl Into<String>, transport: impl Into<String>) -> Self {
+        Self {
+            principal: ProtocolPrincipal::Package { package_id: package_id.into() },
+            transport: transport.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProtocolRequest {
+    pub id: String,
+    pub method: String,
+    #[serde(default)]
+    pub params: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProtocolResponse {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<ProtocolError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProtocolError {
+    pub code: String,
+    pub message: String,
+    #[serde(default)]
+    pub details: Value,
+}
+
+impl ProtocolError {
+    pub fn new(code: impl Into<String>, message: impl Into<String>, details: Value) -> Self {
+        Self { code: code.into(), message: message.into(), details }
+    }
+
+    pub fn invalid_request(message: impl Into<String>) -> Self {
+        Self::new("kernel/error/invalid_request", message, Value::Null)
+    }
+
+    pub fn from_anyhow(error: anyhow::Error) -> Self {
+        let message = error.to_string();
+        let code = if message.contains("not allowed") || message.contains("permission") {
+            "kernel/error/permission_denied"
+        } else if message.contains("ambiguous") {
+            "kernel/error/ambiguous_route"
+        } else if message.contains("schema") || message.contains("required") || message.contains("does not match") {
+            "kernel/error/schema_invalid"
+        } else if message.contains("not loaded") || message.contains("not found") || message.contains("no provider") {
+            "kernel/error/not_found"
+        } else if message.contains("closed") || message.contains("not ready") || message.contains("cannot execute") {
+            "kernel/error/package_state"
+        } else {
+            "kernel/error/internal"
+        };
+        Self::new(code, message, Value::Null)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct HostInfo {
+    pub protocol_version: &'static str,
+    pub methods: &'static [ProtocolMethod],
+    pub supported_transports: Vec<&'static str>,
 }
 
 pub const KERNEL_PROTOCOL_VERSION: &str = "0.1.0";
@@ -48,6 +137,14 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
 
 pub fn method_ids() -> Vec<&'static str> {
     KERNEL_METHODS.iter().map(|method| method.id).collect()
+}
+
+pub fn host_info() -> HostInfo {
+    HostInfo {
+        protocol_version: KERNEL_PROTOCOL_VERSION,
+        methods: KERNEL_METHODS,
+        supported_transports: vec!["in_process", "http_ad_hoc"],
+    }
 }
 
 #[cfg(test)]
