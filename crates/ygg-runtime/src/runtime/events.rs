@@ -1,0 +1,372 @@
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use tokio::sync::broadcast;
+use ygg_core::{EventEnvelope, EventKind, EventSequence, PackageId, SessionId, KERNEL_PACKAGE_ID};
+
+use super::Runtime;
+use crate::{EventStore, ProtocolContext, ProtocolPrincipal, validate_json_schema_subset};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppendEventRequest {
+    pub session_id: SessionId,
+    pub writer_package_id: PackageId,
+    pub kind: EventKind,
+    pub payload: Value,
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EventListRequest {
+    pub session_id: SessionId,
+    #[serde(default)]
+    pub after_sequence: Option<EventSequence>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub kind_prefix: Option<String>,
+    #[serde(default)]
+    pub writer_package_id: Option<PackageId>,
+}
+
+impl<S> Runtime<S>
+where
+    S: EventStore,
+{
+    pub async fn append_event(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
+        match self.sessions.read().await.get(&request.session_id) {
+            Some(session) if session.status == ygg_core::SessionStatus::Open => {}
+            Some(_) => anyhow::bail!("session '{}' is closed", request.session_id),
+            None => anyhow::bail!("session '{}' is not open", request.session_id),
+        }
+
+        if request.writer_package_id != KERNEL_PACKAGE_ID {
+            match self.packages.permissions(&request.writer_package_id).await {
+                Some(permissions) if permissions.events.append => {}
+                _ => {
+                    self.audit_permission_denied(
+                        &request.session_id,
+                        &request.writer_package_id,
+                        "events.append",
+                    )
+                    .await?;
+                    anyhow::bail!("package '{}' is not allowed to append events", request.writer_package_id);
+                }
+            }
+        }
+
+        let mut request = request;
+        let before = self
+            .dispatch_extension_handlers(
+                "kernel/event.before_append",
+                json!({
+                    "session_id": request.session_id,
+                    "writer_package_id": request.writer_package_id,
+                    "kind": request.kind,
+                    "payload": request.payload,
+                    "metadata": request.metadata,
+                }),
+            )
+            .await;
+        if let Some(vetoed_by) = before.vetoed_by {
+            anyhow::bail!("event append vetoed by hook package '{vetoed_by}'");
+        }
+        request.metadata = before.payload.get("metadata").cloned().unwrap_or(request.metadata);
+        let event = self.append_event_unchecked(request).await?;
+        let _ = self
+            .dispatch_extension_handlers("kernel/event.after_append", serde_json::to_value(&event).unwrap_or_else(|_| json!({})))
+            .await;
+        Ok(event)
+    }
+
+    pub async fn append_event_with_context(
+        &self,
+        context: &ProtocolContext,
+        mut request: AppendEventRequest,
+    ) -> anyhow::Result<EventEnvelope> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.append_event(request).await,
+            ProtocolPrincipal::Package { package_id } => {
+                request.writer_package_id = package_id.clone();
+                self.append_event(request).await
+            }
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                anyhow::bail!("principal is not allowed to append events directly")
+            }
+        }
+    }
+
+    pub(crate) async fn append_event_unchecked(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
+        let sequence = self.store.next_sequence(&request.session_id).await?;
+        let mut event = EventEnvelope::new(
+            ygg_core::new_id("evt"),
+            request.session_id,
+            sequence,
+            request.writer_package_id,
+            request.kind,
+            request.payload,
+        );
+
+        if !event.writer_owns_kind() {
+            anyhow::bail!(
+                "package '{}' cannot write event kind '{}'",
+                event.writer_package_id,
+                event.kind
+            );
+        }
+
+        event.metadata = request.metadata;
+        if event.writer_package_id != KERNEL_PACKAGE_ID {
+            if let Some(manifest) = self.packages.manifest(&event.writer_package_id).await {
+                if let Some(schema) = manifest
+                    .contributes
+                    .schemas
+                    .iter()
+                    .find(|schema| schema.id == event.kind)
+                    .map(|schema| &schema.schema)
+                {
+                    validate_json_schema_subset(schema, &event.payload)?;
+                }
+            }
+        }
+        self.store.append(event.clone()).await?;
+        Ok(event)
+    }
+
+    pub async fn list_events(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
+        self.store.list_session(session_id).await
+    }
+
+    pub async fn list_events_range(&self, request: &EventListRequest) -> anyhow::Result<Vec<EventEnvelope>> {
+        let mut events = self
+            .store
+            .list_session_range(&request.session_id, request.after_sequence, request.limit)
+            .await?;
+        if let Some(kind_prefix) = &request.kind_prefix {
+            events.retain(|event| event.kind.starts_with(kind_prefix));
+        }
+        if let Some(writer_package_id) = &request.writer_package_id {
+            events.retain(|event| &event.writer_package_id == writer_package_id);
+        }
+        Ok(events)
+    }
+
+    pub async fn list_events_for(
+        &self,
+        session_id: &SessionId,
+        caller_package_id: Option<&PackageId>,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        if let Some(caller) = caller_package_id {
+            match self.packages.permissions(caller).await {
+                Some(permissions) if permissions.events.read => {}
+                _ => {
+                    self.audit_permission_denied(session_id, caller, "events.read").await?;
+                    anyhow::bail!("package '{caller}' is not allowed to read events");
+                }
+            }
+        }
+        self.list_events(session_id).await
+    }
+
+    pub async fn list_events_range_for(
+        &self,
+        request: &EventListRequest,
+        caller_package_id: Option<&PackageId>,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        if let Some(caller) = caller_package_id {
+            match self.packages.permissions(caller).await {
+                Some(permissions) if permissions.events.read => {}
+                _ => {
+                    self.audit_permission_denied(&request.session_id, caller, "events.read").await?;
+                    anyhow::bail!("package '{caller}' is not allowed to read events");
+                }
+            }
+        }
+        self.list_events_range(request).await
+    }
+
+    pub async fn list_events_with_context(
+        &self,
+        context: &ProtocolContext,
+        session_id: &SessionId,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.list_events(session_id).await,
+            ProtocolPrincipal::Package { package_id } => self.list_events_for(session_id, Some(package_id)).await,
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                if self.principal_has_grant(&context.principal, "events.read", Some(session_id)).await {
+                    self.list_events(session_id).await
+                } else {
+                    anyhow::bail!("principal is not allowed to read events")
+                }
+            }
+        }
+    }
+
+    pub async fn list_events_range_with_context(
+        &self,
+        context: &ProtocolContext,
+        request: &EventListRequest,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.list_events_range(request).await,
+            ProtocolPrincipal::Package { package_id } => self.list_events_range_for(request, Some(package_id)).await,
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                if self.principal_has_grant(&context.principal, "events.read", Some(&request.session_id)).await {
+                    self.list_events_range(request).await
+                } else {
+                    anyhow::bail!("principal is not allowed to read events")
+                }
+            }
+        }
+    }
+
+    pub fn subscribe_events(&self) -> broadcast::Receiver<EventEnvelope> {
+        self.store.subscribe()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use serde_json::json;
+    use ygg_core::{PackageContributions, PackageEntry, PermissionSet, SandboxPolicy, EVENT_PERMISSION_DENIED};
+
+    use super::*;
+    use crate::{InMemoryEventStore, RuntimeConfig};
+
+    #[tokio::test]
+    async fn package_cannot_write_another_namespace() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store, RuntimeConfig::default());
+        let session = runtime.open_session(super::super::OpenSessionRequest::default()).await?;
+
+        let result = runtime
+            .append_event(AppendEventRequest {
+                session_id: session.id,
+                writer_package_id: "org/a".to_string(),
+                kind: "org/b/event".to_string(),
+                payload: json!({}),
+                metadata: json!({}),
+            })
+            .await;
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn package_can_write_its_own_namespace() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+        let session = runtime.open_session(super::super::OpenSessionRequest::default()).await?;
+        runtime
+            .load_package(ygg_core::PackageManifest {
+                schema_version: 1,
+                id: "org/a".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "org-a".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet {
+                    events: ygg_core::EventPermissions { read: false, append: true },
+                    ..PermissionSet::default()
+                },
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let event = runtime
+            .append_event(AppendEventRequest {
+                session_id: session.id.clone(),
+                writer_package_id: "org/a".to_string(),
+                kind: "org/a/event".to_string(),
+                payload: json!({"ok": true}),
+                metadata: json!({}),
+            })
+            .await?;
+
+        assert_eq!(event.sequence, 1);
+        let events = store.list_session(&session.id).await?;
+        assert_eq!(events.len(), 2);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn denied_event_append_records_audit_event() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+        let session = runtime.open_session(super::super::OpenSessionRequest::default()).await?;
+
+        let denied = runtime
+            .append_event(AppendEventRequest {
+                session_id: session.id.clone(),
+                writer_package_id: "org/unauthorized".to_string(),
+                kind: "org/unauthorized/event".to_string(),
+                payload: json!({}),
+                metadata: json!({}),
+            })
+            .await;
+        assert!(denied.is_err());
+
+        let events = store.list_session(&session.id).await?;
+        assert_eq!(events.last().expect("audit event").kind, EVENT_PERMISSION_DENIED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn package_context_overrides_spoofed_event_writer() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store, RuntimeConfig::default());
+        let session = runtime.open_session(super::super::OpenSessionRequest::default()).await?;
+        runtime
+            .load_package(ygg_core::PackageManifest {
+                schema_version: 1,
+                id: "example/caller".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: PackageEntry::RustInproc {
+                    crate_ref: "example-caller".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                },
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet {
+                    events: ygg_core::EventPermissions { read: false, append: true },
+                    ..PermissionSet::default()
+                },
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let event = runtime
+            .append_event_with_context(
+                &ProtocolContext::package("example/caller", "test"),
+                AppendEventRequest {
+                    session_id: session.id,
+                    writer_package_id: "example/spoofed".to_string(),
+                    kind: "example/caller/event".to_string(),
+                    payload: json!({}),
+                    metadata: json!({}),
+                },
+            )
+            .await?;
+
+        assert_eq!(event.writer_package_id, "example/caller");
+        Ok(())
+    }
+}
