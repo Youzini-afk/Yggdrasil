@@ -1,0 +1,52 @@
+schema_version: 1
+id: example/faux-model-readiness
+version: 0.1.0
+display_name: Faux Model Readiness
+description: >
+  No-network readiness proof for model-like capability packages.
+  Does NOT perform real model inference or network calls.
+  Demonstrates: secret_ref usage, network declaration, redaction_state,
+  discovery plan output, and streaming faux frames.
+entry:
+  kind: subprocess
+  command:
+    - python3
+    - package.py
+  transport: json_rpc_stdio
+provides:
+  - id: example/faux-model-readiness/discover
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - network
+    description: >
+      Returns a discovery plan for a hypothetical model provider.
+      No real network call is made. Uses secret_ref for credentials.
+  - id: example/faux-model-readiness/stream-faux
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: true
+    description: >
+      Returns faux streaming frames to prove the streaming substrate shape.
+      No real model inference. Uses secret_ref and redaction_state.
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
+permissions:
+  network:
+    declarations:
+      - host: api.hypothetical-model.example.com
+        methods:
+          - POST
+        purpose: model inference discovery
+    hosts: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

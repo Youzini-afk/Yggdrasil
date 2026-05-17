@@ -57,17 +57,26 @@ Non-goals:
 - No model streaming API. **Met.**
 - No agent turn API. **Met.**
 
-## Phase S4 — SDK/templates and no-network readiness proof
+## Phase S4 — SDK/templates and no-network readiness proof ✅
 
 Goals:
 
-- Add TypeScript package-authoring helpers/templates for secret refs, network permission metadata, audit/redaction, and streaming fixtures.
-- Add no-network faux model/agent readiness examples that prove the substrate shape without real inference or pi runtime coupling.
+- Add TypeScript package-authoring helpers/templates for secret refs, network permission metadata, audit/redaction, and streaming fixtures. **Done.**
+- Add no-network faux model/agent readiness examples that prove the substrate shape without real inference or pi runtime coupling. **Done.**
+
+Deliverables:
+
+- `sdk/typescript/secure-execution/index.ts`: Secret reference construction/validation (`secretRef`, `isValidSecretRef`, `looksLikeRawSecret`, `isSecretFieldName`), network declaration helper (`NetworkDeclaration` class with manifest entry and host/method matching), outbound audit/redaction helper (`OutboundAuditHelper` with audit-safe request payload builder that rejects raw secrets), and stream frame client (`StreamFrameClient` with full start/chunk/progress/end/error/cancel/timeout lifecycle). All helpers wrap only public protocol and types — no private internals, no protocol bypass.
+- `--template networked`: Generates a subprocess package with network permission declarations (`host`, `methods`, `purpose`), a `fetch` capability with `network` side effect, and an `echo` capability. The TypeScript template imports secure-execution helpers and demonstrates `secretRef`, `NetworkDeclaration`, and `OutboundAuditHelper` usage. Manifest includes `permissions.network.declarations`. No raw secrets, no implicit network access.
+- `--template streaming`: Generates a subprocess package with a streaming capability (`streaming: true`) and an echo capability. The TypeScript template imports `StreamFrameClient` and demonstrates faux streaming frame lifecycle (start, chunk, end). No real model inference.
+- `examples/packages/faux-model-readiness/`: No-network readiness proof for model-like capability packages. Declares network permissions, provides `discover` and `stream-faux` capabilities, uses `secret_ref` for credentials, returns discovery plans (not real API responses), produces faux streaming frames. No real inference or network calls.
+- `examples/packages/faux-agent-readiness/`: No-network readiness proof for agent-like capability packages. Provides `propose` and `stream-trace` capabilities, produces proposals/traces/plans only (no real agent loop), emphasizes public protocol/capability/proposal patterns, no network permissions needed. No connection to pi runtime or model inference.
+- Conformance: 5 new cases covering generated networked template, generated streaming template, faux-model-readiness manifest structure, and faux-agent-readiness manifest structure. All verify no raw secrets, proper network declarations, streaming capabilities, and substrate shape.
 
 Non-goals:
 
-- No real `pi-agent-core` integration yet.
-- No real model inference.
+- No real `pi-agent-core` integration yet. **Met.**
+- No real model inference. **Met.**
 
 ## Phase T1 — Pretext-inspired text surface proof
 

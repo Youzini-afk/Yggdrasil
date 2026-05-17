@@ -150,12 +150,56 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "package.generated_typescript_subprocess_conformance",
         generated::generated_typescript_subprocess_package().await,
     );
-    record_case(&mut results, "package.generated_experience_template", generated::generated_experience_template().await);
-    record_case(&mut results, "package.generated_basic_template", generated::generated_basic_template().await);
-    record_case(&mut results, "package.generated_explicit_experience_template", generated::generated_explicit_experience_template().await);
-    record_case(&mut results, "package.generated_assistant_action_template", generated::generated_assistant_action_template().await);
-    record_case(&mut results, "package.generated_asset_editor_template", generated::generated_asset_editor_template().await);
-    record_case(&mut results, "package.generated_full_surface_template", generated::generated_full_surface_template().await);
+    record_case(
+        &mut results,
+        "package.generated_experience_template",
+        generated::generated_experience_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_basic_template",
+        generated::generated_basic_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_explicit_experience_template",
+        generated::generated_explicit_experience_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_assistant_action_template",
+        generated::generated_assistant_action_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_asset_editor_template",
+        generated::generated_asset_editor_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_full_surface_template",
+        generated::generated_full_surface_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_networked_template",
+        generated::generated_networked_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_streaming_template",
+        generated::generated_streaming_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.faux_model_readiness",
+        generated::faux_model_readiness_package().await,
+    );
+    record_case(
+        &mut results,
+        "package.faux_agent_readiness",
+        generated::faux_agent_readiness_package().await,
+    );
     record_case(&mut results, "composition.check_descriptor", generated::composition_descriptor().await);
     record_case(&mut results, "composition.check_descriptor_v2", generated::composition_descriptor_v2().await);
     record_case(&mut results, "official.composition_lab", official_labs::composition_lab().await);

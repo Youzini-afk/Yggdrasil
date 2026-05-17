@@ -105,3 +105,92 @@ serveSubprocessPackage({
   onInvoke: ({ input }) => input ?? null,
 });
 "#;
+
+/// TypeScript subprocess template for a networked capability package.
+/// Demonstrates: network declarations, secret_ref usage, outbound audit.
+pub(crate) fn typescript_networked_template(id: &str) -> String {
+    format!(
+        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
+import {{ secretRef, isValidSecretRef, NetworkDeclaration, OutboundAuditHelper }} from "../../sdk/typescript/secure-execution/index.js";
+
+// Example network declaration — package declares which hosts/methods it needs.
+const networkDeclarations = [
+  new NetworkDeclaration({{
+    host: "api.example.com",
+    methods: ["GET", "POST"],
+    purpose: "model inference",
+  }}),
+];
+
+// Example outbound audit helper
+const auditHelper = new OutboundAuditHelper({{
+  packageId: "{id}",
+  capabilityId: "{id}/fetch",
+}});
+
+serveSubprocessPackage({{
+  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
+  onInvoke: ({{ capability_id, input }}) => {{
+    if (capability_id === "{id}/fetch") {{
+      // Build an audit-safe request payload — no raw secrets
+      const payload = auditHelper.buildRequestPayload({{
+        destinationHost: "api.example.com",
+        method: "POST",
+        secretRefsUsed: [secretRef("env", "MY_API_KEY")],
+        purpose: "model inference",
+      }});
+      // Return the plan — no real network call
+      return {{
+        plan: "would request api.example.com",
+        network_declarations: networkDeclarations.map(d => d.toManifestEntry()),
+        audit_payload: payload,
+        // NOTE: This package does NOT make real network calls.
+        // It returns a plan/discovery result only.
+      }};
+    }}
+    if (capability_id === "{id}/echo") {{
+      return input ?? null;
+    }}
+    throw new Error(`unsupported capability: ${{capability_id}}`);
+  }},
+}});
+"#
+    )
+}
+
+/// TypeScript subprocess template for a streaming capability package.
+/// Demonstrates: streaming lifecycle, faux frame sequence, no real inference.
+pub(crate) fn typescript_streaming_template(id: &str) -> String {
+    format!(
+        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
+import {{ StreamFrameClient, secretRef }} from "../../sdk/typescript/secure-execution/index.js";
+
+serveSubprocessPackage({{
+  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
+  onInvoke: ({{ capability_id, input }}) => {{
+    if (capability_id === "{id}/stream-plan") {{
+      // Faux streaming lifecycle — no real model inference
+      const client = new StreamFrameClient();
+      const startFrame = client.start("{id}/stream-plan", {{ prompt_plan: true }});
+      const chunk1 = client.chunk({{ token: "faux_1" }});
+      const chunk2 = client.chunk({{ token: "faux_2" }});
+      const endFrame = client.end();
+
+      return {{
+        plan: "streaming capability readiness proof",
+        frames: [startFrame, chunk1, chunk2, endFrame],
+        secret_ref_example: secretRef("env", "MY_KEY"),
+        // NOTE: No real model inference. Frames are faux/demonstration only.
+        // This proves the substrate shape (invocation lifecycle, redaction_state,
+        // sequence ordering) without coupling to pi runtime or model APIs.
+      }};
+    }}
+    if (capability_id === "{id}/echo") {{
+      return input ?? null;
+    }}
+    throw new Error(`unsupported capability: ${{capability_id}}`);
+  }},
+}});
+"#
+    )
+}

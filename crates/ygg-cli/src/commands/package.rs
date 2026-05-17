@@ -298,6 +298,8 @@ enum EffectiveTemplate {
     AssetEditor,
     FullSurface,
     LegacyExperience,
+    Networked,
+    Streaming,
 }
 
 impl std::fmt::Debug for EffectiveTemplate {
@@ -311,6 +313,8 @@ impl std::fmt::Debug for EffectiveTemplate {
             EffectiveTemplate::AssetEditor => write!(f, "AssetEditor"),
             EffectiveTemplate::FullSurface => write!(f, "FullSurface"),
             EffectiveTemplate::LegacyExperience => write!(f, "Experience (legacy)"),
+            EffectiveTemplate::Networked => write!(f, "Networked"),
+            EffectiveTemplate::Streaming => write!(f, "Streaming"),
         }
     }
 }
@@ -327,6 +331,8 @@ fn resolve_template(template: &Option<PackageTemplate>, language: &str) -> Effec
         Some(PackageTemplate::AssistantAction) => EffectiveTemplate::AssistantAction,
         Some(PackageTemplate::AssetEditor) => EffectiveTemplate::AssetEditor,
         Some(PackageTemplate::FullSurface) => EffectiveTemplate::FullSurface,
+        Some(PackageTemplate::Networked) => EffectiveTemplate::Networked,
+        Some(PackageTemplate::Streaming) => EffectiveTemplate::Streaming,
         None => {
             if language.contains("experience") {
                 EffectiveTemplate::LegacyExperience
@@ -471,6 +477,8 @@ fn build_surfaces_yaml(template: &EffectiveTemplate, id: &str) -> String {
       approval_policy: fork_then_approve
 "#
         ),
+        EffectiveTemplate::Networked => "  surfaces: []\n".to_string(),
+        EffectiveTemplate::Streaming => "  surfaces: []\n".to_string(),
     }
 }
 
@@ -541,6 +549,80 @@ sandbox_policy:
   wall_clock_ms: 30000
 "#
         ),
+        "subprocess" if matches!(effective_template, EffectiveTemplate::Networked) => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: subprocess
+  command:
+{subprocess_command}
+  transport: json_rpc_stdio
+provides:
+  - id: {id}/fetch
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects:
+      - network
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+{surfaces}permissions:
+  network:
+    declarations:
+      - host: api.example.com
+        methods:
+          - GET
+          - POST
+        purpose: model inference
+    hosts: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
+        "subprocess" if matches!(effective_template, EffectiveTemplate::Streaming) => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: subprocess
+  command:
+{subprocess_command}
+  transport: json_rpc_stdio
+provides:
+  - id: {id}/stream-plan
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: true
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+{surfaces}permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
         "subprocess" => format!(
             r#"schema_version: 1
 id: {id}
@@ -596,7 +678,13 @@ sandbox_policy:
     if entry == "subprocess" && language.starts_with("python") {
         fs::write(path.join("package.py"), templates::PYTHON_SUBPROCESS_TEMPLATE)?;
     } else if entry == "subprocess" && is_typescript {
-        fs::write(path.join("package.ts"), templates::typescript_subprocess_template(&id))?;
+        if matches!(effective_template, EffectiveTemplate::Networked) {
+            fs::write(path.join("package.ts"), templates::typescript_networked_template(&id))?;
+        } else if matches!(effective_template, EffectiveTemplate::Streaming) {
+            fs::write(path.join("package.ts"), templates::typescript_streaming_template(&id))?;
+        } else {
+            fs::write(path.join("package.ts"), templates::typescript_subprocess_template(&id))?;
+        }
         fs::write(path.join("package.mjs"), templates::TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE)?;
         fs::write(path.join("tsconfig.json"), templates::TYPESCRIPT_TSCONFIG)?;
         fs::write(path.join("package.json"), templates::typescript_package_json(&id))?;

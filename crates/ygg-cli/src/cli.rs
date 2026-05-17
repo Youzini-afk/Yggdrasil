@@ -13,6 +13,10 @@ pub(crate) enum PackageTemplate {
     AssistantAction,
     AssetEditor,
     FullSurface,
+    /// Networked capability template with declared network permissions, secret_ref usage, and outbound audit.
+    Networked,
+    /// Streaming capability template with stream frame lifecycle and faux frame examples.
+    Streaming,
 }
 
 #[derive(Debug, Parser)]
@@ -65,7 +69,7 @@ pub(crate) enum Command {
         entry: String,
         #[arg(long, default_value = "python")]
         language: String,
-        /// Template controlling generated surfaces: basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface.
+        /// Template controlling generated surfaces: basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming.
         /// Defaults to auto-detected from --language (experience if language contains "experience", otherwise basic).
         #[arg(long, value_enum)]
         template: Option<PackageTemplate>,

@@ -206,6 +206,126 @@ pub(crate) async fn generated_full_surface_template() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Test that the networked template generates network declarations and passes check/conformance.
+pub(crate) async fn generated_networked_template() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-networked-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    package::init_package(
+        path.clone(),
+        "example/generated-networked".to_string(),
+        "subprocess".to_string(),
+        "typescript".to_string(),
+        Some(PackageTemplate::Networked),
+    )
+    .await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
+    let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
+    // Networked template should have 2 capabilities: fetch and echo
+    anyhow::ensure!(manifest.provides.len() == 2, "networked template should have 2 capabilities, got {}", manifest.provides.len());
+    // Verify at least one capability has network side effect
+    let has_network_side_effect = manifest.provides.iter().any(|c| c.side_effects.contains(&"network".to_string()));
+    anyhow::ensure!(has_network_side_effect, "networked template should have a capability with network side_effect");
+    // Verify network declarations exist
+    anyhow::ensure!(!manifest.permissions.network.declarations.is_empty(), "networked template should have network declarations");
+    // Verify declared network metadata is present and structured
+    let decl = &manifest.permissions.network.declarations[0];
+    anyhow::ensure!(!decl.host.is_empty(), "network declaration should have a host");
+    anyhow::ensure!(!decl.methods.is_empty(), "network declaration should specify methods");
+    anyhow::ensure!(decl.purpose.is_some(), "network declaration should have a purpose");
+    // Verify no surfaces (networked template is capability-focused)
+    anyhow::ensure!(manifest.contributes.surfaces.is_empty(), "networked template should have 0 surfaces, got {}", manifest.contributes.surfaces.len());
+    fs::remove_dir_all(path)?;
+    Ok(())
+}
+
+/// Test that the streaming template generates a streaming capability and passes check/conformance.
+pub(crate) async fn generated_streaming_template() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-streaming-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    package::init_package(
+        path.clone(),
+        "example/generated-streaming".to_string(),
+        "subprocess".to_string(),
+        "typescript".to_string(),
+        Some(PackageTemplate::Streaming),
+    )
+    .await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
+    let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
+    // Streaming template should have 2 capabilities: stream-plan and echo
+    anyhow::ensure!(manifest.provides.len() == 2, "streaming template should have 2 capabilities, got {}", manifest.provides.len());
+    // Verify at least one capability has streaming=true
+    let has_streaming = manifest.provides.iter().any(|c| c.streaming);
+    anyhow::ensure!(has_streaming, "streaming template should have a streaming capability");
+    // Verify no surfaces (streaming template is capability-focused)
+    anyhow::ensure!(manifest.contributes.surfaces.is_empty(), "streaming template should have 0 surfaces, got {}", manifest.contributes.surfaces.len());
+    fs::remove_dir_all(path)?;
+    Ok(())
+}
+
+/// Test that the faux-model-readiness example package passes check/conformance.
+/// Proves the no-network readiness substrate shape without real model inference.
+pub(crate) async fn faux_model_readiness_package() -> anyhow::Result<()> {
+    let manifest_path = std::path::PathBuf::from("examples/packages/faux-model-readiness/manifest.yaml");
+    anyhow::ensure!(manifest_path.exists(), "faux-model-readiness manifest not found");
+    package::package_check(manifest_path.clone()).await?;
+    let manifest = manifest::read_manifest(manifest_path.clone()).await?;
+    // Verify it has network declarations
+    anyhow::ensure!(!manifest.permissions.network.declarations.is_empty(), "faux-model-readiness should declare network permissions");
+    // Verify at least one capability has network side effect
+    let has_network_side_effect = manifest.provides.iter().any(|c| c.side_effects.contains(&"network".to_string()));
+    anyhow::ensure!(has_network_side_effect, "faux-model-readiness should have a capability with network side_effect");
+    // Verify at least one streaming capability
+    let has_streaming = manifest.provides.iter().any(|c| c.streaming);
+    anyhow::ensure!(has_streaming, "faux-model-readiness should have a streaming capability");
+    // Verify no raw secrets in manifest metadata
+    let manifest_json = serde_json::to_value(&manifest)?;
+    let manifest_str = serde_json::to_string(&manifest_json)?;
+    anyhow::ensure!(
+        !ygg_core::looks_like_raw_secret(&manifest_str),
+        "faux-model-readiness manifest must not contain raw secrets"
+    );
+    // Verify declared network metadata has proper structure
+    let decl = &manifest.permissions.network.declarations[0];
+    anyhow::ensure!(!decl.host.is_empty(), "network declaration should have a host");
+    anyhow::ensure!(!decl.methods.is_empty(), "network declaration should specify methods");
+    anyhow::ensure!(decl.purpose.is_some(), "network declaration should have a purpose");
+    Ok(())
+}
+
+/// Test that the faux-agent-readiness example package passes check/conformance.
+/// Proves the proposal/trace substrate shape without real agent loop or model inference.
+pub(crate) async fn faux_agent_readiness_package() -> anyhow::Result<()> {
+    let manifest_path = std::path::PathBuf::from("examples/packages/faux-agent-readiness/manifest.yaml");
+    anyhow::ensure!(manifest_path.exists(), "faux-agent-readiness manifest not found");
+    package::package_check(manifest_path.clone()).await?;
+    let manifest = manifest::read_manifest(manifest_path.clone()).await?;
+    // Verify it has proposal/trace capabilities
+    anyhow::ensure!(manifest.provides.len() >= 2, "faux-agent-readiness should have at least 2 capabilities, got {}", manifest.provides.len());
+    // Verify at least one streaming capability
+    let has_streaming = manifest.provides.iter().any(|c| c.streaming);
+    anyhow::ensure!(has_streaming, "faux-agent-readiness should have a streaming capability");
+    // Verify no network permissions (agent readiness does not need network)
+    anyhow::ensure!(
+        manifest.permissions.network.declarations.is_empty() && manifest.permissions.network.hosts.is_empty(),
+        "faux-agent-readiness should not declare network permissions (no-network proof)"
+    );
+    // Verify no raw secrets in manifest
+    let manifest_json = serde_json::to_value(&manifest)?;
+    let manifest_str = serde_json::to_string(&manifest_json)?;
+    anyhow::ensure!(
+        !ygg_core::looks_like_raw_secret(&manifest_str),
+        "faux-agent-readiness manifest must not contain raw secrets"
+    );
+    Ok(())
+}
+
 pub(crate) async fn composition_descriptor() -> anyhow::Result<()> {
     let root = std::env::temp_dir().join(format!("ygg-composition-{}", std::process::id()));
     let package_path = root.join("package");

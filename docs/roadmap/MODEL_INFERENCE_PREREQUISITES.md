@@ -10,11 +10,13 @@ Model Connectivity Kit Alpha deliberately stops before real model execution. A f
     - Profile assets may reference secrets, but raw secrets must not appear in events, projections, logs, UI, or assistant proposals.
     - Hosts need a public secret-reference capability or policy surface.
     - **Phase S1 progress**: `SecretRef` type with `secret_ref:`, `secretRef:`, `secret-ref:`, `host:` patterns. `HostSecretResolver` trait and `DenyAllSecretResolver` placeholder. Raw-secret blocking in proposals and asset metadata. Official packages have no bypass. Permission grants survive rehydrate. Production vault integration remains host-level.
+    - **Phase S4 progress**: TypeScript `secretRef()`, `isValidSecretRef()`, `looksLikeRawSecret()`, `isSecretFieldName()` helpers in `sdk/typescript/secure-execution`. `--template networked` demonstrates `secretRef` usage. `examples/packages/faux-model-readiness/` uses `secret_ref` for credentials.
 
 2. **Network permission**
     - Packages need explicit network permissions by destination, method, and purpose.
     - No package should infer network permission from being official.
     - **Phase S2 progress**: Manifest `permissions.network` supports structured `declarations` (host, methods, purpose) and flat `hosts` for backward compat. Runtime `check_network_policy` and `check_and_audit_outbound` enforce allowlists. Official packages have no bypass. Denied requests write `kernel/outbound.denied`; allowed requests write `kernel/outbound.request` with redacted audit.
+    - **Phase S4 progress**: TypeScript `NetworkDeclaration` class and `OutboundAuditHelper` in `sdk/typescript/secure-execution`. `--template networked` generates package skeleton with network declarations and audit helper usage. `examples/packages/faux-model-readiness/` declares network permissions and returns discovery plans.
 
 3. **Request/response audit**
     - Every outbound request needs principal, package id, capability id, provider family, route id, redaction state, and cost/usage placeholders.
@@ -25,6 +27,7 @@ Model Connectivity Kit Alpha deliberately stops before real model execution. A f
    - Streaming chunks need a public protocol shape.
    - Cancellation/timeout behavior must be deterministic and tested.
    - **Phase S3 progress**: `StreamFrameEnvelope` defines generic content-free frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. `StreamRegistry` tracks in-flight invocations with start/append/end/cancel/timeout lifecycle. `kernel.capability.stream` and `kernel.capability.cancel` are partial dispatched. Ordered kernel events emitted. Cancel/timeout block further chunks. Non-streaming capabilities (streaming=false) are rejected. No model/agent methods added.
+   - **Phase S4 progress**: TypeScript `StreamFrameClient` helper in `sdk/typescript/secure-execution` provides client-side faux frame construction with full lifecycle. `--template streaming` generates a package skeleton demonstrating `StreamFrameClient` usage. `examples/packages/faux-model-readiness/` and `examples/packages/faux-agent-readiness/` prove the streaming substrate shape with faux frames — no real model inference.
 
 5. **Usage accounting**
    - Provider usage units must normalize without losing provider-specific details.

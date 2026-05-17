@@ -57,17 +57,26 @@
 - 不做 model streaming API。**满足。**
 - 不做 agent turn API。**满足。**
 
-## Phase S4 — SDK/templates 与 no-network readiness proof
+## Phase S4 — SDK/templates 与 no-network readiness proof ✅
 
 目标：
 
-- 增加 TypeScript package-authoring helpers/templates，用于 secret refs、network permission metadata、audit/redaction 与 streaming fixtures。
-- 增加 no-network faux model/agent readiness examples，证明 substrate shape，而不做真实 inference 或 pi runtime coupling。
+- 增加 TypeScript package-authoring helpers/templates，用于 secret refs、network permission metadata、audit/redaction 与 streaming fixtures。**已完成。**
+- 增加 no-network faux model/agent readiness examples，证明 substrate shape，而不做真实 inference 或 pi runtime coupling。**已完成。**
+
+交付物：
+
+- `sdk/typescript/secure-execution/index.ts`：Secret reference 构造/验证（`secretRef`、`isValidSecretRef`、`looksLikeRawSecret`、`isSecretFieldName`），network declaration helper（`NetworkDeclaration` 类，支持 manifest entry 和 host/method 匹配），outbound audit/redaction helper（`OutboundAuditHelper`，构建审计安全请求 payload，拒绝 raw secrets），以及 stream frame client（`StreamFrameClient`，完整 start/chunk/progress/end/error/cancel/timeout 生命周期）。所有 helper 只包装公开协议和类型——无私有内部、无协议绕过。
+- `--template networked`：生成带网络权限声明的 subprocess package（`host`、`methods`、`purpose`），包含带 `network` side effect 的 `fetch` capability 和 `echo` capability。TypeScript 模板导入 secure-execution helpers，演示 `secretRef`、`NetworkDeclaration` 和 `OutboundAuditHelper` 用法。Manifest 包含 `permissions.network.declarations`。无 raw secrets、无隐式 network 访问。
+- `--template streaming`：生成带 streaming capability（`streaming: true`）的 subprocess package。TypeScript 模板导入 `StreamFrameClient`，演示 faux streaming frame 生命周期（start、chunk、end）。不做真实 model inference。
+- `examples/packages/faux-model-readiness/`：面向 model-like capability packages 的 no-network readiness proof。声明网络权限，提供 `discover` 和 `stream-faux` capabilities，使用 `secret_ref` 引用凭证，返回 discovery plans（非真实 API 响应），产生 faux streaming frames。不做真实 inference 或 network 调用。
+- `examples/packages/faux-agent-readiness/`：面向 agent-like capability packages 的 no-network readiness proof。提供 `propose` 和 `stream-trace` capabilities，仅产出 proposals/traces/plans（无真实 agent loop），强调公开 protocol/capability/proposal 模式，无需网络权限。不连接 pi runtime 或 model inference。
+- Conformance：5 个新用例，覆盖生成的 networked 模板、streaming 模板、faux-model-readiness manifest 结构、faux-agent-readiness manifest 结构。全部验证无 raw secrets、正确的网络声明、streaming capabilities 与 substrate shape。
 
 非目标：
 
-- 暂不真实接入 `pi-agent-core`。
-- 不做真实 model inference。
+- 暂不真实接入 `pi-agent-core`。**满足。**
+- 不做真实 model inference。**满足。**
 
 ## Phase T1 — Pretext-inspired text surface proof
 

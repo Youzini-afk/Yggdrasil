@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3。
-- **Conformance：** 94 个具名 CLI 用例，加上 crate 和 service 单元测试。
-- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4。
+- **Conformance：** 98 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** Secure Execution Substrate Phase S4（SDK/templates 与 no-network readiness proof）。
+- **下一阶段：** Secure Execution Substrate Phase T1（Pretext-inspired text surface proof）。
 
 ## 已实现
 
@@ -36,6 +36,9 @@
 - **Streaming invocation registry**：内存中的 `StreamRegistry` 追踪进行中的 streaming capability 调用，支持 start/append/end/cancel/timeout 生命周期。`StreamFrameEnvelope` 定义通用内容无关的 stream frame 类型（start/chunk/progress/end/error/cancelled/timeout），包含 invocation_id、stream_id、sequence、redaction_state 和 timestamp/metadata。不包含 model/prompt/agent 语义。
 - **Streaming capability 生命周期**：`kernel.capability.stream` 启动 streaming invocation（验证 descriptor 中 `streaming=true`），`kernel.capability.cancel` 取消进行中的 invocation。Runtime 方法按序发出 kernel 事件：`kernel/stream.started`、`kernel/stream.chunk`、`kernel/stream.progress`、`kernel/stream.ended`、`kernel/stream.error`、`kernel/stream.cancelled`、`kernel/stream.timeout`。Cancel 和 timeout 阻断后续 chunk。非 streaming 能力（descriptor `streaming=false`）被拒绝。
 - **Streaming invocation 记录**：`StreamInvocationRecord` 追踪 invocation_id、stream_id、capability_id、provider_package_id、session_id、状态（active/ended/error/cancelled/timeout）、frame_count、时间戳和 metadata。终态阻断后续 frame 追加。
+- **Secure-execution TypeScript helpers**（`sdk/typescript/secure-execution/index.ts`）：`secretRef()`/`isValidSecretRef()`/`looksLikeRawSecret()`/`isSecretFieldName()` 用于 secret reference 构造和验证。`NetworkDeclaration` 类用于构建 manifest 兼容的网络权限条目，支持 host/method 匹配。`OutboundAuditHelper` 类用于构建审计安全的出站请求 payload，拒绝 raw secrets，仅包含 `secret_ref` 标识符。`StreamFrameClient` 类用于构建 faux stream frame envelope，支持完整生命周期（start/chunk/progress/end/error/cancel/timeout）。所有 helper 只包装公开协议和类型——无私有内部、无协议绕过。
+- **包模板**：`--template networked` 生成带网络权限声明的 subprocess package（`host`、`methods`、`purpose`），包含带 `network` side effect 的 `fetch` capability 和 `echo` capability。演示 `secretRef`、`NetworkDeclaration` 和 `OutboundAuditHelper` 用法。`--template streaming` 生成带 streaming capability（`streaming: true`）的 subprocess package，演示 `StreamFrameClient` faux frame 生命周期。两个模板默认安全：无 raw secrets、无隐式 network 访问。
+- **No-network readiness proof 示例**：`examples/packages/faux-model-readiness/` 证明 model-like 包的 substrate shape（网络声明、secret_ref 用法、discovery plans、faux streaming frames——不做真实 inference）。`examples/packages/faux-agent-readiness/` 证明 agent-like 包的 substrate shape（proposal/trace 模式、无网络权限、faux streaming trace——不做真实 agent loop 或 pi runtime coupling）。
 
 ### 公开协议与传输
 
@@ -93,7 +96,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 ### 创作
 
 - `ygg init-package` 生成 Python 或 TypeScript subprocess 包骨架。TypeScript 变体使用 `sdk/typescript/subprocess` 下的 SDK runtime。
-- `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface` 控制生成的 surface 描述符。未指定 `--template` 时，`--language *-experience` 自动检测为 legacy 4-surface 体验模式以兼容旧行为；否则默认 basic。
+- `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming` 控制生成的 surface 描述符。未指定 `--template` 时，`--language *-experience` 自动检测为 legacy 4-surface 体验模式以兼容旧行为；否则默认 basic。`networked` 模板增加网络权限声明，演示 `secretRef`/`NetworkDeclaration`/`OutboundAuditHelper` 用法。`streaming` 模板增加 streaming capability，演示 `StreamFrameClient` faux frame 生命周期。
 - `--language typescript-experience`（未指定 `--template`）仍生成原始 4-surface 体验描述符以兼容旧行为。
 - `ygg init-composition` 和 `ygg composition check` 提供本地 composition descriptor 流程，支持 v2 字段（title、description、optional packages、required capabilities、default activation、permission expectations、replacement candidates、compatibility notes）。`composition check` 输出结构化诊断：已加载的 required/optional 包、surfaces 按 slot 归类、capabilities、entry activation、缺失的 required surfaces/capabilities（失败）、以及 optional 包缺失警告。
 - `ygg package check` 和 `ygg package conformance` 在本地验证生成的包。`ygg package check` 输出结构化诊断信息：entry kind、trust level、capability 数量、surfaces 按 slot 归类、permissions 摘要、sandbox policy 摘要，以及对无 capability 或无 surface 的包发出警告。
@@ -112,7 +115,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 94 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**、**official-package no-secret-bypass**、**无网络权限的包被拒绝出站并产生 outbound.denied 审计**、**allowlisted host+method 允许并记录 redacted audit**、**host/method 不匹配拒绝**、**official-package 无 network bypass**、**审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state**，**网络策略检查器纯函数测试**，以及**streaming/cancellation 生命周期（normal end、cancel、timeout、error、non-streaming 拒绝、无 model/agent 方法、protocol dispatch）**。
+- `cargo run -p ygg-cli -- conformance` 运行 98 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface、**networked**、**streaming** 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**、**official-package no-secret-bypass**、**无网络权限的包被拒绝出站并产生 outbound.denied 审计**、**allowlisted host+method 允许并记录 redacted audit**、**host/method 不匹配拒绝**、**official-package 无 network bypass**、**审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state**，**网络策略检查器纯函数测试**，**streaming/cancellation 生命周期（normal end、cancel、timeout、error、non-streaming 拒绝、无 model/agent 方法、protocol dispatch）**，**生成的 networked 模板 conformance（网络声明、无 raw secrets）**，**生成的 streaming 模板 conformance（streaming capability）**，**faux-model-readiness manifest 结构（网络声明、secret_ref、streaming、无 raw secrets）**，以及 **faux-agent-readiness manifest 结构（无网络权限、streaming、proposal/trace 模式、无 raw secrets）**。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 
@@ -128,7 +131,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - 包拥有的 projection 执行。
 - 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。
 - 更广泛的传输一致性覆盖（超出当前核心协议 dispatcher 和 service 测试）。
-- 更丰富的 TypeScript SDK 打包（超出当前薄 subprocess 辅助层）。
+- 更丰富的 TypeScript SDK 打包（超出当前薄 subprocess 辅助层和 secure-execution helpers）。
 - 完整的 `kernel.session.get|list`、`kernel.package.describe`、`kernel.capability.describe`、`kernel.extension_point.describe`、`kernel.host.principal`、`kernel.host.ping` 路由暴露。
 
 ## 延后事项

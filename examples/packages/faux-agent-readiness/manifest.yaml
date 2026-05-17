@@ -1,0 +1,43 @@
+schema_version: 1
+id: example/faux-agent-readiness
+version: 0.1.0
+display_name: Faux Agent Readiness
+description: >
+  No-network readiness proof for agent-like capability packages.
+  Does NOT connect to any pi runtime or perform real model inference.
+  Produces proposals/traces/plans only, emphasizing public protocol,
+  capability, and proposal patterns. No agent/model semantics in kernel.
+entry:
+  kind: subprocess
+  command:
+    - python3
+    - package.py
+  transport: json_rpc_stdio
+provides:
+  - id: example/faux-agent-readiness/propose
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    description: >
+      Returns a faux agent proposal/trace. No real agent loop or model call.
+      Uses public protocol proposal patterns with secret_ref and redaction_state.
+  - id: example/faux-agent-readiness/stream-trace
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: true
+    description: >
+      Returns faux streaming trace frames. No real agent turn or model output.
+      Proves the streaming substrate shape for agent-like capabilities.
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
+permissions: {}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
