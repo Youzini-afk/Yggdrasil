@@ -76,7 +76,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 - Skeletal Home/Play, Forge, and Assist surfaces over the public protocol.
 - Home discovers `experience_entry` surfaces, launches sessions through the package-declared launch capability, supports session fork.
-- Forge inspects events, capabilities, assets, projections, proposals, and Forge-panel surface contributions, with approve/apply controls for proposals.
+- Forge inspects packages, capabilities, assets, projections, proposals, events, and surface contributions, with package/capability inventory by provider, surface descriptor inventory by slot, composition/authoring diagnostics, manifest/template CLI guidance, and approve/apply controls for proposals.
 - No official-package hardcoding. The shell is a public-protocol client like any other.
 
 ### Authoring

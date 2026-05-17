@@ -1,5 +1,5 @@
 import { renderAssistantDrawer } from "./drawer/assistant";
-import { YggProtocolClient, type KernelEvent, type SurfaceContributionRecord } from "./protocol/client";
+import { YggProtocolClient, type KernelEvent, type PackageRecord, type SurfaceContributionRecord } from "./protocol/client";
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { renderPlaySurface } from "./surfaces/play";
@@ -25,24 +25,26 @@ async function render(error?: string) {
       client.capabilities().catch(() => []),
       client.diagnostics().catch(() => ({})),
     ]);
-    const [assets, projections, proposals, forgeSurfaces] = route === "forge"
+    const [assets, projections, proposals, forgeSurfaces, packages, allSurfaces] = route === "forge"
       ? await Promise.all([
           client.assets().catch(() => []),
           client.projections().catch(() => []),
           client.proposals().catch(() => []),
           client.surfaceContributions("forge_panel").catch(() => []),
+          client.packages().catch(() => []),
+          client.surfaceContributions().catch(() => []),
         ])
-      : [[], [], [], []];
+      : [[], [], [], [], [], []];
     surfaceEntries = entries;
     diagnostics = hostDiagnostics;
     body = route === "play"
       ? renderPlaySurface(surfaceEntries, sessionId)
-      : renderForgeSurface({ capabilities, events, assets, projections, proposals, forgeSurfaces, sessionId });
+      : renderForgeSurface({ capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId });
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
     body = route === "play"
       ? renderPlaySurface([], sessionId)
-      : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], sessionId });
+      : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], packages: [], allSurfaces: [], sessionId });
   }
   app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen), error);
   wireEvents();

@@ -49,6 +49,7 @@ Constraints carried into this phase:
 
 Goal: turn the current authoring slice (`init-package`, `init-composition`, `composition check`, generated experience template) into a real authoring loop someone outside this repo can use to ship a package.
 
+- H4: Forge authoring surface improvements — package/capability inventory, surface descriptor inventory by slot, composition diagnostics, and manifest/template CLI guidance.
 - Richer composition descriptors (multi-package bundles, optional capabilities, default activation).
 - Template variants per surface slot (play renderer, forge panel, assistant action) beyond the current "experience template."
 - Local dev-loop ergonomics: watch mode, fast reload, manifest diff, surface preview.
