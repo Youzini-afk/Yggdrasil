@@ -11,6 +11,7 @@ use ygg_core::{EventEnvelope, EventSequence, PackageId, SessionId};
 #[async_trait]
 pub trait EventStore: Send + Sync + 'static {
     async fn append(&self, event: EventEnvelope) -> anyhow::Result<()>;
+    async fn list_all(&self) -> anyhow::Result<Vec<EventEnvelope>>;
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>>;
     async fn list_session_range(
         &self,
@@ -86,6 +87,16 @@ impl EventStore for SqliteEventStore {
         self.list_session_range(session_id, None, None).await
     }
 
+    async fn list_all(&self) -> anyhow::Result<Vec<EventEnvelope>> {
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare(
+            "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+             FROM events ORDER BY timestamp ASC, session_id ASC, sequence ASC",
+        )?;
+        let rows = stmt.query_map([], row_to_event)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
     async fn list_session_range(
         &self,
         session_id: &SessionId,
@@ -99,28 +110,7 @@ impl EventStore for SqliteEventStore {
             "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
              FROM events WHERE session_id = ?1 AND sequence > ?2 ORDER BY sequence ASC LIMIT ?3",
         )?;
-        let rows = stmt.query_map(params![session_id, after_sequence, limit], |row| {
-            let timestamp: String = row.get(3)?;
-            let payload_json: String = row.get(7)?;
-            let metadata_json: String = row.get(8)?;
-            let sequence: i64 = row.get(2)?;
-            let schema_version: i64 = row.get(6)?;
-            Ok(EventEnvelope {
-                id: row.get(0)?,
-                session_id: row.get(1)?,
-                sequence: sequence as EventSequence,
-                timestamp: chrono::DateTime::parse_from_rfc3339(&timestamp)
-                    .map(|dt| dt.with_timezone(&chrono::Utc))
-                    .map_err(|err| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(err)))?,
-                writer_package_id: row.get::<_, PackageId>(4)?,
-                kind: row.get(5)?,
-                schema_version: schema_version as u16,
-                payload: serde_json::from_str(&payload_json)
-                    .map_err(|err| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(err)))?,
-                metadata: serde_json::from_str(&metadata_json)
-                    .map_err(|err| rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(err)))?,
-            })
-        })?;
+        let rows = stmt.query_map(params![session_id, after_sequence, limit], row_to_event)?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
@@ -136,6 +126,29 @@ impl EventStore for SqliteEventStore {
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {
         self.tx.subscribe()
     }
+}
+
+fn row_to_event(row: &rusqlite::Row<'_>) -> rusqlite::Result<EventEnvelope> {
+    let timestamp: String = row.get(3)?;
+    let payload_json: String = row.get(7)?;
+    let metadata_json: String = row.get(8)?;
+    let sequence: i64 = row.get(2)?;
+    let schema_version: i64 = row.get(6)?;
+    Ok(EventEnvelope {
+        id: row.get(0)?,
+        session_id: row.get(1)?,
+        sequence: sequence as EventSequence,
+        timestamp: chrono::DateTime::parse_from_rfc3339(&timestamp)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .map_err(|err| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(err)))?,
+        writer_package_id: row.get::<_, PackageId>(4)?,
+        kind: row.get(5)?,
+        schema_version: schema_version as u16,
+        payload: serde_json::from_str(&payload_json)
+            .map_err(|err| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(err)))?,
+        metadata: serde_json::from_str(&metadata_json)
+            .map_err(|err| rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(err)))?,
+    })
 }
 
 #[cfg(test)]
@@ -200,6 +213,12 @@ impl EventStore for InMemoryEventStore {
 
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
         self.list_session_range(session_id, None, None).await
+    }
+
+    async fn list_all(&self) -> anyhow::Result<Vec<EventEnvelope>> {
+        let mut events: Vec<_> = self.events.read().await.values().flat_map(|events| events.clone()).collect();
+        events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp).then(a.session_id.cmp(&b.session_id)).then(a.sequence.cmp(&b.sequence)));
+        Ok(events)
     }
 
     async fn list_session_range(

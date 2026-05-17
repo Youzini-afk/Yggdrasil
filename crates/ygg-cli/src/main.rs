@@ -552,6 +552,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
     record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
     record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
+    record_case(&mut results, "substrate.sqlite_rehydrate", conformance_sqlite_substrate_rehydrate().await);
     record_case(&mut results, "subprocess.bad_handshake", conformance_subprocess_bad_handshake().await);
     record_case(&mut results, "subprocess.invoke_timeout", conformance_subprocess_timeout().await);
     record_case(
@@ -1053,6 +1054,46 @@ async fn conformance_projection_rebuild() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(rebuilt["state"]["event_count"] == json!(1), "projection event count mismatch");
+    Ok(())
+}
+
+async fn conformance_sqlite_substrate_rehydrate() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-substrate-{}.db", std::process::id()));
+    if path.exists() {
+        fs::remove_file(&path)?;
+    }
+    let store = Arc::new(SqliteEventStore::open(&path)?);
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    let asset = runtime
+        .put_asset(ygg_runtime::runtime::AssetPutRequest {
+            origin_package_id: None,
+            mime: "text/plain".to_string(),
+            content: "durable".to_string(),
+            metadata: json!({"phase": "A"}),
+        })
+        .await?;
+    let branch = runtime.fork_session(session.id.clone(), 0, json!({"durable": true})).await?;
+    runtime
+        .projection_register(ygg_runtime::runtime::ProjectionDefinition {
+            id: "example/durable/projection".to_string(),
+            session_id: session.id.clone(),
+            source_kind_prefix: Some("kernel/session".to_string()),
+            state: json!({}),
+        })
+        .await?;
+    runtime.projection_rebuild("example/durable/projection").await?;
+    drop(runtime);
+    drop(store);
+
+    let reopened = Arc::new(SqliteEventStore::open(&path)?);
+    let hydrated = Runtime::new(reopened, RuntimeConfig::default());
+    hydrated.hydrate_substrate_from_events().await?;
+    anyhow::ensure!(hydrated.get_asset(&asset.id).await?.content == "durable", "asset did not rehydrate");
+    anyhow::ensure!(hydrated.list_branches(&session.id).await.iter().any(|item| item.id == branch.id), "branch did not rehydrate");
+    let projection = hydrated.projection_get("example/durable/projection").await?;
+    anyhow::ensure!(projection.state["event_count"].as_u64().unwrap_or(0) >= 1, "projection did not rehydrate");
+    let _ = fs::remove_file(path);
     Ok(())
 }
 

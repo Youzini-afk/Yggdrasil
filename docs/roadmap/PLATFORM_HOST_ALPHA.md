@@ -27,7 +27,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 7. Event range replay and host-dev HTTP SSE tailing.
 8. Explicit capability provider selection with simple version constraints.
 9. Package lifecycle timeline, subprocess restart, stderr log capture, and host diagnostics.
-10. In-memory asset, projection, and session branch substrate for host-dev protocol callers.
+10. Event-log-rehydratable asset, projection, and session branch substrate for host-dev protocol callers.
 11. Profile-backed `ygg host serve` with autoloaded packages, HTTP `/rpc`, and SSE routes.
 12. A public-protocol web shell skeleton with Play, Forge, and Assist surfaces under `clients/web`.
 

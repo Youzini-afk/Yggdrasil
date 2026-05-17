@@ -152,6 +152,35 @@ where
         self.store.clone()
     }
 
+    pub async fn hydrate_substrate_from_events(&self) -> anyhow::Result<()> {
+        let events = self.store.list_all().await?;
+        let mut assets = HashMap::new();
+        let mut branches = HashMap::new();
+        let mut projections = HashMap::new();
+        for event in events {
+            match event.kind.as_str() {
+                EVENT_ASSET_PUT => {
+                    let record: AssetRecord = serde_json::from_value(event.payload.clone())?;
+                    let content = event.metadata.get("content").and_then(Value::as_str).unwrap_or_default().to_string();
+                    assets.insert(record.id.clone(), StoredAsset { record, content });
+                }
+                EVENT_SESSION_FORKED => {
+                    let branch: BranchRecord = serde_json::from_value(event.payload.clone())?;
+                    branches.insert(branch.id.clone(), branch);
+                }
+                EVENT_PROJECTION_UPDATED => {
+                    let projection: ProjectionDefinition = serde_json::from_value(event.payload.clone())?;
+                    projections.insert(projection.id.clone(), projection);
+                }
+                _ => {}
+            }
+        }
+        *self.assets.write().await = assets;
+        *self.branches.write().await = branches;
+        *self.projections.write().await = projections;
+        Ok(())
+    }
+
     pub fn packages(&self) -> Arc<PackageRegistry> {
         self.packages.clone()
     }
@@ -449,8 +478,14 @@ where
             created_at: Utc::now(),
             metadata: request.metadata,
         };
-        self.assets.write().await.insert(record.id.clone(), StoredAsset { record: record.clone(), content: request.content });
-        self.append_kernel_event(&format!("kernel_asset_{}", record.id), EVENT_ASSET_PUT, serde_json::to_value(&record)?).await?;
+        self.assets.write().await.insert(record.id.clone(), StoredAsset { record: record.clone(), content: request.content.clone() });
+        self.append_kernel_event_with_metadata(
+            &format!("kernel_asset_{}", record.id),
+            EVENT_ASSET_PUT,
+            serde_json::to_value(&record)?,
+            json!({"content": request.content}),
+        )
+        .await?;
         Ok(record)
     }
 
@@ -937,12 +972,22 @@ where
         kind: &'static str,
         payload: Value,
     ) -> anyhow::Result<EventEnvelope> {
+        self.append_kernel_event_with_metadata(session_id, kind, payload, json!({})).await
+    }
+
+    async fn append_kernel_event_with_metadata(
+        &self,
+        session_id: &SessionId,
+        kind: &'static str,
+        payload: Value,
+        metadata: Value,
+    ) -> anyhow::Result<EventEnvelope> {
         self.append_event_unchecked(AppendEventRequest {
             session_id: session_id.clone(),
             writer_package_id: KERNEL_PACKAGE_ID.to_string(),
             kind: kind.to_string(),
             payload,
-            metadata: json!({}),
+            metadata,
         })
         .await
     }

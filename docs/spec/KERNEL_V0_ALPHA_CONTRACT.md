@@ -21,7 +21,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Loading/starting/ready/stopping/stopped/unloaded/degraded events are emitted for implemented entry forms. WASM/remote remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
 | `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, legacy fixture handlers, package-owned handler capabilities, metadata mutation, and unload cleanup. Rich timeout/error audit remains next. |
-| `AssetRecord` | partial | In-memory opaque asset put/get/list exists with id, origin package, mime, hash, size, metadata, and `kernel/asset.put` audit event. Durable asset storage and permission enforcement remain next. |
+| `AssetRecord` | partial | Opaque asset put/get/list exists with id, origin package, mime, hash, size, metadata, and `kernel/asset.put` audit event. Asset state can be rehydrated from the durable event log; binary/blob storage and permission enforcement remain next. |
 
 ## Protocol method matrix
 
@@ -51,8 +51,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
 | `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
 | `kernel.hook.list` | partial | Protocol dispatcher can list registered hooks; public docs and richer filtering remain Platform Host Alpha work. |
-| `kernel.asset.put/get/list` | partial | In-memory opaque asset substrate exists for host-dev protocol callers. Durable storage and package-principal permission checks remain next. |
-| `kernel.projection.register/rebuild/get` | partial | Generic in-memory projection registry exists; rebuild currently computes event count/last sequence from filtered event streams. Package-owned projection execution remains next. |
+| `kernel.asset.put/get/list` | partial | Opaque asset substrate exists for host-dev protocol callers and can be rehydrated from SQLite-backed events. Package-principal permission checks and content-addressed blob storage remain next. |
+| `kernel.projection.register/rebuild/get` | partial | Generic projection registry exists and can be rehydrated from SQLite-backed events; rebuild currently computes event count/last sequence from filtered event streams. Package-owned projection execution remains next. |
 | `kernel.host.info` | implemented | Returns protocol version, advertised methods with statuses, and currently supported transport labels across in-process, HTTP `/rpc`, host stdio, and ad hoc HTTP. |
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
 | `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
@@ -125,7 +125,7 @@ Implemented:
 11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, legacy veto fixtures, package-owned handler capabilities, metadata mutation, and unload cleanup.
 12. Event range replay is implemented for in-process protocol and HTTP ad hoc list; HTTP SSE can replay from `after_sequence` and tail new events.
 13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
-14. In-memory asset, branch, and generic projection substrate exists for host-dev protocol callers.
+14. Asset, branch, and generic projection substrate exists for host-dev protocol callers and can rehydrate from the durable event log.
 
 Still partial for Platform Host Alpha:
 
@@ -134,7 +134,7 @@ Still partial for Platform Host Alpha:
 3. Package lifecycle emits transitions for implemented entry forms; lifecycle health checks and richer crash monitoring remain partial.
 4. Capability routing has simple explicit provider/version constraints but no persisted provider selection policy.
 5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
-6. Asset/projection/branch substrate is not durable yet and does not yet enforce package-principal permissions.
+6. Asset/projection/branch substrate persists through the event log, but does not yet enforce package-principal permissions or use dedicated blob storage.
 
 Next:
 

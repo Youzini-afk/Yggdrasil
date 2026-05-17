@@ -9,7 +9,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 40 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 41 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -46,6 +46,7 @@ Current named conformance coverage: 40 CLI cases plus crate/service unit tests.
 | assets | put/get/list opaque assets | implemented |
 | sessions | fork session and list branch lineage | implemented |
 | projections | register and rebuild generic event-count projection | implemented |
+| substrate | SQLite event log rehydrates assets, branches, and projections | implemented |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
@@ -132,6 +133,7 @@ host.profile_autoload                      PASS
 asset.put_get_list                         PASS
 session.fork_branch                        PASS
 projection.rebuild                         PASS
+substrate.sqlite_rehydrate                 PASS
 subprocess.bad_handshake                   PASS
 subprocess.invoke_timeout                  PASS
 subprocess.invalid_output_schema           PASS
