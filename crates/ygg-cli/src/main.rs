@@ -67,6 +67,17 @@ enum Command {
         #[arg(long, default_value = "python")]
         language: String,
     },
+    /// Generate a local composition descriptor.
+    InitComposition {
+        path: PathBuf,
+        #[arg(long, default_value = "example/composition")]
+        id: String,
+    },
+    /// Validate composition descriptors.
+    Composition {
+        #[command(subcommand)]
+        command: CompositionCommand,
+    },
     /// Run local kernel conformance checks.
     Conformance,
     /// Run the first blank play-creation loop demo.
@@ -103,12 +114,28 @@ enum HostCommand {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum CompositionCommand {
+    Check { path: PathBuf },
+}
+
 #[derive(Debug, Default, Deserialize)]
 struct HostProfile {
     #[serde(default)]
     title: Option<String>,
     #[serde(default)]
     autoload: Vec<PathBuf>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompositionDescriptor {
+    id: String,
+    version: String,
+    entry_surface_id: String,
+    #[serde(default)]
+    packages: Vec<PathBuf>,
+    #[serde(default)]
+    required_surfaces: Vec<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -150,6 +177,10 @@ async fn main() -> anyhow::Result<()> {
             }
         },
         Command::InitPackage { path, id, entry, language } => init_package(path, id, entry, language).await,
+        Command::InitComposition { path, id } => init_composition(path, id).await,
+        Command::Composition { command } => match command {
+            CompositionCommand::Check { path } => composition_check(path).await,
+        },
         Command::Conformance => conformance().await,
         Command::PlayCreateDemo => play_create_demo().await,
     }
@@ -235,6 +266,57 @@ async fn package_conformance(path: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn init_composition(path: PathBuf, id: String) -> anyhow::Result<()> {
+    fs::create_dir_all(&path)?;
+    fs::write(
+        path.join("composition.yaml"),
+        format!(
+            r#"id: {id}
+version: 0.1.0
+entry_surface_id: {id}/entry
+packages:
+  - ../package/manifest.yaml
+required_surfaces:
+  - experience_entry
+  - play_renderer
+  - forge_panel
+"#
+        ),
+    )?;
+    println!("initialized composition descriptor at {}", path.join("composition.yaml").display());
+    Ok(())
+}
+
+async fn composition_check(path: PathBuf) -> anyhow::Result<()> {
+    let raw = fs::read_to_string(&path)?;
+    let composition: CompositionDescriptor = match path.extension().and_then(|ext| ext.to_str()) {
+        Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)?,
+        _ => serde_json::from_str(&raw)?,
+    };
+    anyhow::ensure!(!composition.id.trim().is_empty(), "composition id is required");
+    anyhow::ensure!(!composition.version.trim().is_empty(), "composition version is required");
+    anyhow::ensure!(!composition.entry_surface_id.trim().is_empty(), "composition entry_surface_id is required");
+    let base = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let mut surface_ids = Vec::new();
+    let mut slots = Vec::new();
+    for package_path in &composition.packages {
+        let resolved = if package_path.is_absolute() { package_path.clone() } else { base.join(package_path) };
+        let manifest = read_manifest(resolved).await?;
+        manifest.validate_basic()?;
+        for surface in manifest.contributes.surfaces {
+            let slot = serde_json::to_value(&surface.slot)?.as_str().unwrap_or_default().to_string();
+            surface_ids.push(surface.id);
+            slots.push(slot);
+        }
+    }
+    anyhow::ensure!(surface_ids.iter().any(|id| id == &composition.entry_surface_id), "entry surface not provided by composition packages");
+    for required in &composition.required_surfaces {
+        anyhow::ensure!(slots.iter().any(|slot| slot == required), "required surface slot '{required}' missing");
+    }
+    println!("composition check: {}@{} ok", composition.id, composition.version);
+    Ok(())
+}
+
 async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input: String) -> anyhow::Result<()> {
     let manifest = read_manifest(manifest_path).await?;
     let payload: serde_json::Value = serde_json::from_str(&input)?;
@@ -252,10 +334,46 @@ async fn init_package(path: PathBuf, id: String, entry: String, language: String
     fs::create_dir_all(&path)?;
     let package_py = path.join("package.py").display().to_string();
     let package_mjs = path.join("package.mjs").display().to_string();
-    let subprocess_command = if language == "typescript" {
+    let is_typescript = language.starts_with("typescript");
+    let subprocess_command = if is_typescript {
         format!("    - node\n    - {package_mjs}")
     } else {
         format!("    - python3\n    - {package_py}")
+    };
+    let surfaces = if language.contains("experience") {
+        format!(
+            r#"  surfaces:
+    - id: {id}/entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Generated Experience
+      description: Launchable package entry generated by ygg init-package.
+      capability_id: {id}/echo
+      activation:
+        launch_capability_id: {id}/echo
+        session_template:
+          labels: [generated, experience]
+      approval_policy: user_approval
+    - id: {id}/play
+      version: 0.1.0
+      slot: play_renderer
+      title: Generated Play Renderer
+      capability_id: {id}/echo
+    - id: {id}/forge
+      version: 0.1.0
+      slot: forge_panel
+      title: Generated Forge Panel
+      capability_id: {id}/echo
+    - id: {id}/assist
+      version: 0.1.0
+      slot: assistant_action
+      title: Generated Assistant Action
+      capability_id: {id}/echo
+      approval_policy: fork_then_approve
+"#
+        )
+    } else {
+        "  surfaces: []\n".to_string()
     };
     let manifest = match entry.as_str() {
         "wasm" => format!(
@@ -273,6 +391,7 @@ contributes:
   schemas: []
   hooks: []
   extension_points: []
+  surfaces: []
 permissions: {{}}
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
@@ -296,6 +415,7 @@ contributes:
   schemas: []
   hooks: []
   extension_points: []
+  surfaces: []
 permissions: {{}}
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
@@ -323,6 +443,7 @@ contributes:
   schemas: []
   hooks: []
   extension_points: []
+{surfaces}
 permissions: {{}}
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
@@ -345,6 +466,7 @@ contributes:
   schemas: []
   hooks: []
   extension_points: []
+  surfaces: []
 permissions: {{}}
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
@@ -354,9 +476,9 @@ sandbox_policy:
         ),
     };
     fs::write(path.join("manifest.yaml"), manifest)?;
-    if entry == "subprocess" && language == "python" {
+    if entry == "subprocess" && language.starts_with("python") {
         fs::write(path.join("package.py"), PYTHON_SUBPROCESS_TEMPLATE)?;
-    } else if entry == "subprocess" && language == "typescript" {
+    } else if entry == "subprocess" && is_typescript {
         fs::write(path.join("package.ts"), typescript_subprocess_template(&id))?;
         fs::write(path.join("package.mjs"), TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE)?;
         fs::write(path.join("tsconfig.json"), TYPESCRIPT_TSCONFIG)?;
@@ -597,6 +719,8 @@ async fn conformance() -> anyhow::Result<()> {
         "package.generated_typescript_subprocess_conformance",
         conformance_generated_typescript_subprocess_package().await,
     );
+    record_case(&mut results, "package.generated_experience_template", conformance_generated_experience_template().await);
+    record_case(&mut results, "composition.check_descriptor", conformance_composition_descriptor().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1667,6 +1791,47 @@ async fn conformance_generated_typescript_subprocess_package() -> anyhow::Result
     package_check(path.join("manifest.yaml")).await?;
     package_conformance(path.join("manifest.yaml")).await?;
     fs::remove_dir_all(path)?;
+    Ok(())
+}
+
+async fn conformance_generated_experience_template() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-experience-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    init_package(
+        path.clone(),
+        "example/generated-experience".to_string(),
+        "subprocess".to_string(),
+        "typescript-experience".to_string(),
+    )
+    .await?;
+    package_check(path.join("manifest.yaml")).await?;
+    package_conformance(path.join("manifest.yaml")).await?;
+    let manifest = read_manifest(path.join("manifest.yaml")).await?;
+    anyhow::ensure!(manifest.contributes.surfaces.len() >= 4, "experience template did not generate surface descriptors");
+    fs::remove_dir_all(path)?;
+    Ok(())
+}
+
+async fn conformance_composition_descriptor() -> anyhow::Result<()> {
+    let root = std::env::temp_dir().join(format!("ygg-composition-{}", std::process::id()));
+    let package_path = root.join("package");
+    let composition_path = root.join("composition");
+    if root.exists() {
+        fs::remove_dir_all(&root)?;
+    }
+    fs::create_dir_all(&root)?;
+    init_package(
+        package_path,
+        "example/composed-experience".to_string(),
+        "subprocess".to_string(),
+        "typescript-experience".to_string(),
+    )
+    .await?;
+    init_composition(composition_path.clone(), "example/composed-experience".to_string()).await?;
+    composition_check(composition_path.join("composition.yaml")).await?;
+    fs::remove_dir_all(root)?;
     Ok(())
 }
 
