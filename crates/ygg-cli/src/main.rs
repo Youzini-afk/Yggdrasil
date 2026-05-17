@@ -727,6 +727,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.playable_seed", conformance_official_playable_seed().await);
     record_case(&mut results, "official.persona_lab", conformance_official_persona_lab().await);
     record_case(&mut results, "official.knowledge_lab", conformance_official_knowledge_lab().await);
+    record_case(&mut results, "official.context_lab", conformance_official_context_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -2028,6 +2029,33 @@ async fn conformance_official_knowledge_lab() -> anyhow::Result<()> {
         .await?;
     anyhow::ensure!(plan.output["kind"] == json!("knowledge_injection_plan"), "knowledge plan returned wrong kind");
     anyhow::ensure!(plan.output["plan_only"] == json!(true), "knowledge injection must be plan-only");
+    Ok(())
+}
+
+async fn conformance_official_context_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/context-lab/manifest.yaml")).await?).await?;
+    let preview = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/context-lab/assemble_preview".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/context-lab".to_string()),
+            version: None,
+            input: json!({"budget": 20, "sources": [{"id": "short", "text": "fits"}, {"id": "long", "text": "this source should be omitted by budget"}]}),
+        })
+        .await?;
+    anyhow::ensure!(preview.output["kind"] == json!("context_preview"), "context preview returned wrong kind");
+    anyhow::ensure!(preview.output["omitted"].as_array().map(|o| !o.is_empty()).unwrap_or(false), "context preview should report omitted sources");
+    let rendered = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/context-lab/render_template".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/context-lab".to_string()),
+            version: None,
+            input: json!({"template": "Hello {{name}}", "variables": {"name": "Yggdrasil"}}),
+        })
+        .await?;
+    anyhow::ensure!(rendered.output["rendered"] == json!("Hello Yggdrasil"), "context template render failed");
     Ok(())
 }
 

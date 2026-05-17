@@ -10,6 +10,7 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/projection-lab`
 - `official/persona-lab`
 - `official/knowledge-lab`
+- `official/context-lab`
 - `official/assistant-lab`
 - `official/blank-experience`
 - `official/playable-seed`
@@ -25,6 +26,8 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 `official/persona-lab` imports and normalizes persona-like profiles without making chat characters or Tavern cards canonical.
 
 `official/knowledge-lab` normalizes structured knowledge collections, matches entries deterministically, and drafts injection plans without making lorebooks canonical.
+
+`official/context-lab` assembles generic bounded context blocks, reports omissions and budget accounting, and renders templates without model calls or chat ontology.
 
 `official/assistant-lab` intentionally produces proposals that require user approval. It is not a privileged mutation path.
 

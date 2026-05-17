@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 57 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 58 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -79,6 +79,7 @@ Current named conformance coverage: 57 CLI cases plus crate/service unit tests.
 | official packages | playable-seed exposes reference entry/play/Forge/assistant surfaces and approval-gated edits | implemented |
 | official packages | persona-lab imports and renders persona profiles with provenance without kernel ontology | implemented |
 | official packages | knowledge-lab normalizes collections, matches entries, and returns plan-only injection output | implemented |
+| official packages | context-lab assembles generic blocks with budget omissions and template rendering | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
 | proposals | approved proposals can apply generic asset/projection operations | implemented |
@@ -180,6 +181,7 @@ official.projection_lab                    PASS
 official.playable_seed                     PASS
 official.persona_lab                       PASS
 official.knowledge_lab                     PASS
+official.context_lab                       PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
