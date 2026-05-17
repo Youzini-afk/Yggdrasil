@@ -1701,6 +1701,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "serde",
  "serde_json",
  "serde_yaml",
  "tempfile",

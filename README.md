@@ -38,10 +38,12 @@ The platform's job is to make radical AI-native creation possible without privil
 
 ```text
 crates/
-  ygg-core/      Will be repurposed as kernel-only types.
-  ygg-runtime/   Will be repurposed as the scheduler.
-  ygg-service/   Will speak the kernel public protocol.
-  ygg-cli/       Will exercise kernel operations against a manifest set.
+  ygg-core/      Kernel-only contracts and content-free types.
+  ygg-runtime/   Runtime host, event store, packages, capabilities.
+  ygg-service/   Thin HTTP public protocol surface.
+  ygg-cli/       Demos, package tools, host modes, conformance.
+clients/
+  web/           Play / Forge / Assist shell over public protocol.
 docs/
   CHARTER.md
   architecture/
@@ -66,6 +68,7 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-ts-package --id example/new-ts-pac
 cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 cargo run -p ygg-cli -- host-stdio
 cargo run -p ygg-cli -- conformance
+tsc -p clients/web/tsconfig.json --noEmit
 ```
 
 ## Status

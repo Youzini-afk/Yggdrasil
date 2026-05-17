@@ -29,6 +29,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 9. Package lifecycle timeline, subprocess restart, stderr log capture, and host diagnostics.
 10. In-memory asset, projection, and session branch substrate for host-dev protocol callers.
 11. Profile-backed `ygg host serve` with autoloaded packages, HTTP `/rpc`, and SSE routes.
+12. A public-protocol web shell skeleton with Play, Forge, and Assist surfaces under `clients/web`.
 
 ## Remaining Platform Host Alpha work
 
@@ -46,6 +47,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 - SillyTavern compatibility,
 - pi integration,
 - Studio / Prompt Inspector UI,
+- final UI visual design or content runtime behavior,
 - game, world, actor, director, memory, or agent semantics,
 - marketplace or package dependency resolution,
 - remote package execution,
