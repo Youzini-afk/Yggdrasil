@@ -9,6 +9,7 @@ autoload:
   - ../packages/official/asset-lab/manifest.yaml
   - ../packages/official/projection-lab/manifest.yaml
   - ../packages/official/persona-lab/manifest.yaml
+  - ../packages/official/knowledge-lab/manifest.yaml
   - ../packages/official/assistant-lab/manifest.yaml
   - ../packages/official/blank-experience/manifest.yaml
   - ../packages/official/playable-seed/manifest.yaml

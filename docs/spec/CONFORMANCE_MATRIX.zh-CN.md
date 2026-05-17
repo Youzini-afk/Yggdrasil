@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前具名 conformance 覆盖：56 个 CLI 用例 + crate/service 单元测试。
+当前具名 conformance 覆盖：57 个 CLI 用例 + crate/service 单元测试。
 
 ## 当前 conformance 覆盖
 
@@ -78,6 +78,7 @@ cargo run -p ygg-cli -- conformance
 | official packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
 | official packages | playable-seed 暴露 reference entry/play/Forge/assistant surfaces 以及需要审批的 edits | implemented |
 | official packages | persona-lab 以无 kernel ontology 的方式 import 并 render persona profiles，且带 provenance | implemented |
+| official packages | knowledge-lab normalize collections、match entries，并返回 plan-only injection output | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
 | play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
 | proposals | 已批准的 proposal 可以执行通用 asset/projection 操作 | implemented |
@@ -178,6 +179,7 @@ official.asset_lab                         PASS
 official.projection_lab                    PASS
 official.playable_seed                     PASS
 official.persona_lab                       PASS
+official.knowledge_lab                     PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

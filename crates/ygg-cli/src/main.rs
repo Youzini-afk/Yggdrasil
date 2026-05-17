@@ -726,6 +726,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.projection_lab", conformance_official_projection_lab().await);
     record_case(&mut results, "official.playable_seed", conformance_official_playable_seed().await);
     record_case(&mut results, "official.persona_lab", conformance_official_persona_lab().await);
+    record_case(&mut results, "official.knowledge_lab", conformance_official_knowledge_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1989,6 +1990,44 @@ async fn conformance_official_persona_lab() -> anyhow::Result<()> {
         .await?;
     anyhow::ensure!(fragment.output["kind"] == json!("persona_fragment"), "persona render returned wrong kind");
     anyhow::ensure!(fragment.output.get("provenance").is_some(), "persona render missing provenance");
+    Ok(())
+}
+
+async fn conformance_official_knowledge_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/knowledge-lab/manifest.yaml")).await?).await?;
+    let imported = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/knowledge-lab/import_collection".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/knowledge-lab".to_string()),
+            version: None,
+            input: json!({"format": "worldbook-like", "data": {"name": "Dream City", "entries": {"1": {"key": ["bell"], "content": "Alleys rotate."}}}}),
+        })
+        .await?;
+    anyhow::ensure!(imported.output["kind"] == json!("knowledge_collection"), "knowledge import returned wrong kind");
+    let matched = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/knowledge-lab/match_entries".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/knowledge-lab".to_string()),
+            version: None,
+            input: json!({"query": "the bell rings", "entries": imported.output["entries"]}),
+        })
+        .await?;
+    anyhow::ensure!(matched.output["kind"] == json!("knowledge_match_result"), "knowledge match returned wrong kind");
+    anyhow::ensure!(matched.output["matches"].as_array().map(|m| !m.is_empty()).unwrap_or(false), "knowledge match missed keyword");
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/knowledge-lab/injection_plan".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/knowledge-lab".to_string()),
+            version: None,
+            input: json!({"matches": matched.output["matches"]}),
+        })
+        .await?;
+    anyhow::ensure!(plan.output["kind"] == json!("knowledge_injection_plan"), "knowledge plan returned wrong kind");
+    anyhow::ensure!(plan.output["plan_only"] == json!(true), "knowledge injection must be plan-only");
     Ok(())
 }
 
