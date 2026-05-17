@@ -233,6 +233,21 @@ Initial slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel
 
 Surface descriptors may include a version, launch capability, session template, input schema, permission UX metadata, and an approval policy. These remain descriptors; the kernel does not turn them into built-in experience/game semantics.
 
+## Proposal lifecycle
+
+Assistant and package-driven changes use generic proposal envelopes rather than privileged mutation paths:
+
+```text
+kernel.proposal.create
+kernel.proposal.get
+kernel.proposal.list
+kernel.proposal.approve
+kernel.proposal.reject
+kernel.proposal.apply
+```
+
+Proposal statuses are `created`, `approved`, `rejected`, `applied`, and `failed`. Initial operation support is intentionally generic (`asset.put`, `projection.rebuild`) and must produce kernel audit/proposal events.
+
 ## Versioning
 
 The protocol carries `protocol_version`. The kernel publishes the schema set per version. Breaking changes require a new version; the kernel may serve multiple concurrently.

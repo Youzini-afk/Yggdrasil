@@ -58,6 +58,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
 | `kernel.permission.grant/revoke/list/audit` | partial | Host-dev callers can grant/revoke scoped permissions to human or assistant principals, list grants, and inspect grant/revoke audit events. Durable grant rehydration and full resource policy coverage remain next. |
+| `kernel.proposal.create/get/list/approve/reject/apply` | partial | Generic proposal lifecycle for approval-gated play-creation changes. Initial apply support covers `asset.put` and `projection.rebuild`; broader transactions and revert/compensation remain next. |
 | `kernel.surface.contribution.list` | partial | Lists typed package-declared surface descriptors for experience entry, Home/Play, Forge, asset editor, and assistant slots. The kernel stores descriptors only; UI rendering and content semantics remain package/client work. |
 | `kernel.surface.contribution.describe` | partial | Describes one declared surface contribution by id. |
 
@@ -85,6 +86,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel/permission.denied` | kernel | implemented | Permission denial audit. |
 | `kernel/permission.granted` | kernel | implemented | Permission grant audit. |
 | `kernel/permission.revoked` | kernel | implemented | Permission revoke audit. |
+| `kernel/proposal.*` | kernel | partial | Proposal lifecycle audit events. |
 | `kernel/error` | kernel | planned | General structured kernel error event. |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/...` or another package's namespace.
@@ -135,6 +137,7 @@ Implemented:
 16. First official foundation packages (`official/package-lab`, `official/schema-tools`, `official/event-tools`) load through ordinary manifests and route through ordinary capabilities/surface descriptors.
 17. `official/assistant-lab` is an ordinary assistant capability package that returns approval-gated proposals rather than mutating trusted state directly.
 18. The first blank play-creation loop demo proves package launch, assistant proposal, branch fork, asset write, and projection rebuild without adding content semantics to the kernel.
+19. Generic proposal lifecycle methods gate assistant/package changes behind explicit approval and append audit events.
 
 Still partial for Platform Host Alpha:
 

@@ -147,6 +147,12 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.permission.revoke", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.permission.list", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.permission.audit", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.proposal.create", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.proposal.get", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.proposal.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.proposal.approve", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.proposal.reject", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.proposal.apply", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.surface.contribution.list", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.surface.contribution.describe", streaming: false, status: MethodStatus::Partial },
 ];

@@ -12,6 +12,8 @@ use ygg_core::{
     SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG,
     EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING,
     EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
+    EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED, EVENT_PROPOSAL_CREATED, EVENT_PROPOSAL_FAILED,
+    EVENT_PROPOSAL_REJECTED,
     EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED,
     EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID, EVENT_ASSET_PUT, EVENT_PROJECTION_UPDATED,
 };
@@ -121,6 +123,69 @@ pub struct PermissionGrantRecord {
     pub reason: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProposalStatus {
+    Created,
+    Approved,
+    Rejected,
+    Applied,
+    Failed,
+}
+
+impl Default for ProposalStatus {
+    fn default() -> Self {
+        Self::Created
+    }
+}
+
+fn anonymous_principal() -> ProtocolPrincipal {
+    ProtocolPrincipal::Anonymous
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProposalRecord {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub status: ProposalStatus,
+    #[serde(default = "anonymous_principal")]
+    pub created_by: ProtocolPrincipal,
+    #[serde(default = "Utc::now")]
+    pub created_at: chrono::DateTime<Utc>,
+    #[serde(default)]
+    pub target_session_id: Option<SessionId>,
+    #[serde(default)]
+    pub target_branch_id: Option<String>,
+    #[serde(default)]
+    pub operations: Vec<ProposalOperation>,
+    #[serde(default)]
+    pub required_permissions: Vec<String>,
+    #[serde(default)]
+    pub expected_effects: Value,
+    #[serde(default)]
+    pub approval: Option<ProposalApproval>,
+    #[serde(default)]
+    pub result: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProposalOperation {
+    pub op: String,
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub payload: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProposalApproval {
+    pub principal: ProtocolPrincipal,
+    pub decided_at: chrono::DateTime<Utc>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 struct StoredAsset {
     record: AssetRecord,
@@ -142,6 +207,7 @@ where
     projections: Arc<RwLock<HashMap<String, ProjectionDefinition>>>,
     branches: Arc<RwLock<HashMap<String, BranchRecord>>>,
     grants: Arc<RwLock<HashMap<String, PermissionGrantRecord>>>,
+    proposals: Arc<RwLock<HashMap<String, ProposalRecord>>>,
     config: RuntimeConfig,
 }
 
@@ -161,6 +227,7 @@ where
             projections: Arc::new(RwLock::new(HashMap::new())),
             branches: Arc::new(RwLock::new(HashMap::new())),
             grants: Arc::new(RwLock::new(HashMap::new())),
+            proposals: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
     }
@@ -983,6 +1050,94 @@ where
         ExtensionDispatchResult { extension_point: extension_point.to_string(), invoked, vetoed_by, payload }
     }
 
+    pub async fn create_proposal(&self, context: &ProtocolContext, mut proposal: ProposalRecord) -> anyhow::Result<ProposalRecord> {
+        proposal.id = if proposal.id.trim().is_empty() { new_id("prp") } else { proposal.id };
+        proposal.status = ProposalStatus::Created;
+        proposal.created_by = context.principal.clone();
+        proposal.created_at = Utc::now();
+        self.proposals.write().await.insert(proposal.id.clone(), proposal.clone());
+        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_CREATED, serde_json::to_value(&proposal)?).await?;
+        Ok(proposal)
+    }
+
+    pub async fn get_proposal(&self, proposal_id: &str) -> anyhow::Result<ProposalRecord> {
+        self.proposals.read().await.get(proposal_id).cloned().ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))
+    }
+
+    pub async fn list_proposals(&self) -> Vec<ProposalRecord> {
+        let mut proposals: Vec<_> = self.proposals.read().await.values().cloned().collect();
+        proposals.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        proposals
+    }
+
+    pub async fn approve_proposal(&self, context: &ProtocolContext, proposal_id: &str, reason: Option<String>) -> anyhow::Result<ProposalRecord> {
+        let mut proposals = self.proposals.write().await;
+        let proposal = proposals.get_mut(proposal_id).ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
+        if proposal.status != ProposalStatus::Created {
+            anyhow::bail!("proposal '{proposal_id}' is not awaiting approval");
+        }
+        proposal.status = ProposalStatus::Approved;
+        proposal.approval = Some(ProposalApproval { principal: context.principal.clone(), decided_at: Utc::now(), reason });
+        let proposal = proposal.clone();
+        drop(proposals);
+        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_APPROVED, serde_json::to_value(&proposal)?).await?;
+        Ok(proposal)
+    }
+
+    pub async fn reject_proposal(&self, context: &ProtocolContext, proposal_id: &str, reason: Option<String>) -> anyhow::Result<ProposalRecord> {
+        let mut proposals = self.proposals.write().await;
+        let proposal = proposals.get_mut(proposal_id).ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
+        if proposal.status != ProposalStatus::Created {
+            anyhow::bail!("proposal '{proposal_id}' is not awaiting review");
+        }
+        proposal.status = ProposalStatus::Rejected;
+        proposal.approval = Some(ProposalApproval { principal: context.principal.clone(), decided_at: Utc::now(), reason });
+        let proposal = proposal.clone();
+        drop(proposals);
+        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_REJECTED, serde_json::to_value(&proposal)?).await?;
+        Ok(proposal)
+    }
+
+    pub async fn apply_proposal(&self, proposal_id: &str) -> anyhow::Result<ProposalRecord> {
+        let mut proposal = self.get_proposal(proposal_id).await?;
+        if proposal.status != ProposalStatus::Approved {
+            anyhow::bail!("proposal '{proposal_id}' must be approved before apply");
+        }
+        let mut results = Vec::new();
+        for operation in &proposal.operations {
+            match operation.op.as_str() {
+                "asset.put" => {
+                    let content = operation.payload.get("content").and_then(Value::as_str).unwrap_or("{}").to_string();
+                    let mime = operation.payload.get("mime").and_then(Value::as_str).unwrap_or("application/json").to_string();
+                    let asset = self.put_asset(AssetPutRequest { origin_package_id: Some(KERNEL_PACKAGE_ID.to_string()), mime, content, metadata: json!({"proposal_id": proposal.id}) }).await?;
+                    results.push(json!({"op": operation.op, "asset_id": asset.id}));
+                }
+                "projection.rebuild" => {
+                    let projection_id = operation.target.as_deref().ok_or_else(|| anyhow::anyhow!("projection.rebuild operation requires target"))?;
+                    let projection = self.projection_rebuild(projection_id).await?;
+                    results.push(json!({"op": operation.op, "projection_id": projection.id}));
+                }
+                other => anyhow::bail!("unsupported proposal operation '{other}'"),
+            }
+        }
+        proposal.status = ProposalStatus::Applied;
+        proposal.result = Some(json!({"operations": results}));
+        self.proposals.write().await.insert(proposal.id.clone(), proposal.clone());
+        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_APPLIED, serde_json::to_value(&proposal)?).await?;
+        Ok(proposal)
+    }
+
+    pub async fn fail_proposal(&self, proposal_id: &str, error: String) -> anyhow::Result<ProposalRecord> {
+        let mut proposals = self.proposals.write().await;
+        let proposal = proposals.get_mut(proposal_id).ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
+        proposal.status = ProposalStatus::Failed;
+        proposal.result = Some(json!({"error": error}));
+        let proposal = proposal.clone();
+        drop(proposals);
+        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_FAILED, serde_json::to_value(&proposal)?).await?;
+        Ok(proposal)
+    }
+
     pub async fn call_protocol(
         &self,
         context: &ProtocolContext,
@@ -1048,6 +1203,41 @@ where
                     .filter(|event| event.kind.starts_with("kernel/permission"))
                     .collect();
                 Ok(serde_json::to_value(events)?)
+            }
+            "kernel.proposal.create" => {
+                let proposal: ProposalRecord = serde_json::from_value(params)?;
+                Ok(serde_json::to_value(self.create_proposal(context, proposal).await?)?)
+            }
+            "kernel.proposal.get" => {
+                let proposal_id = params
+                    .get("proposal_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.proposal.get requires proposal_id"))?;
+                Ok(serde_json::to_value(self.get_proposal(proposal_id).await?)?)
+            }
+            "kernel.proposal.list" => Ok(serde_json::to_value(self.list_proposals().await)?),
+            "kernel.proposal.approve" => {
+                let proposal_id = params
+                    .get("proposal_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.proposal.approve requires proposal_id"))?;
+                let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
+                Ok(serde_json::to_value(self.approve_proposal(context, proposal_id, reason).await?)?)
+            }
+            "kernel.proposal.reject" => {
+                let proposal_id = params
+                    .get("proposal_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.proposal.reject requires proposal_id"))?;
+                let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
+                Ok(serde_json::to_value(self.reject_proposal(context, proposal_id, reason).await?)?)
+            }
+            "kernel.proposal.apply" => {
+                let proposal_id = params
+                    .get("proposal_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.proposal.apply requires proposal_id"))?;
+                Ok(serde_json::to_value(self.apply_proposal(proposal_id).await?)?)
             }
             "kernel.session.open" => Ok(serde_json::to_value(
                 self.open_session(serde_json::from_value(params)?).await?,
