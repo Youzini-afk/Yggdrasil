@@ -520,6 +520,9 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "package.logs_capture", conformance_package_logs_capture().await);
     record_case(&mut results, "package.restart_subprocess", conformance_package_restart_subprocess().await);
     record_case(&mut results, "host.diagnostics", conformance_host_diagnostics().await);
+    record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
+    record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
+    record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
     record_case(&mut results, "subprocess.bad_handshake", conformance_subprocess_bad_handshake().await);
     record_case(&mut results, "subprocess.invoke_timeout", conformance_subprocess_timeout().await);
     record_case(
@@ -934,6 +937,83 @@ async fn conformance_host_diagnostics() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(diagnostics["package_count"] == json!(1), "diagnostics package count mismatch");
+    Ok(())
+}
+
+async fn conformance_asset_put_get_list() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let record_value = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.asset.put",
+            json!({"mime": "application/json", "content": "{\"hello\":true}", "metadata": {"purpose": "conformance"}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let asset_id = record_value["id"].as_str().ok_or_else(|| anyhow::anyhow!("asset put returned no id"))?;
+    let get_value = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.asset.get", json!({"asset_id": asset_id}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(get_value["content"] == json!("{\"hello\":true}"), "asset get content mismatch");
+    let list_value = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.asset.list", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(list_value.as_array().map(|items| items.len()).unwrap_or(0) == 1, "asset list missing record");
+    Ok(())
+}
+
+async fn conformance_session_fork_branch() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    let branch_value = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.session.fork",
+            json!({"parent_session_id": session.id, "forked_from_sequence": 0, "metadata": {"why": "try"}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(branch_value["parent_session_id"] == json!(session.id), "branch parent mismatch");
+    let branches = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.session.branch.list", json!({"session_id": session.id}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(branches.as_array().map(|items| items.len()).unwrap_or(0) == 1, "branch list missing fork");
+    Ok(())
+}
+
+async fn conformance_projection_rebuild() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/projection", true, true)).await?;
+    runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id.clone(),
+            writer_package_id: "example/projection".to_string(),
+            kind: "example/projection/event".to_string(),
+            payload: json!({"ok": true}),
+            metadata: json!({}),
+        })
+        .await?;
+    runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.projection.register",
+            json!({"id": "example/projection/state", "session_id": session.id, "source_kind_prefix": "example/projection", "state": {}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let rebuilt = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.projection.rebuild",
+            json!({"projection_id": "example/projection/state"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(rebuilt["state"]["event_count"] == json!(1), "projection event count mismatch");
     Ok(())
 }
 

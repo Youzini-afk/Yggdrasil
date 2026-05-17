@@ -27,6 +27,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 7. Event range replay and host-dev HTTP SSE tailing.
 8. Explicit capability provider selection with simple version constraints.
 9. Package lifecycle timeline, subprocess restart, stderr log capture, and host diagnostics.
+10. In-memory asset, projection, and session branch substrate for host-dev protocol callers.
 
 ## Remaining Platform Host Alpha work
 

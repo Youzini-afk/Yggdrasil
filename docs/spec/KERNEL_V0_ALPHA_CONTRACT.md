@@ -21,7 +21,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Loading/starting/ready/stopping/stopped/unloaded/degraded events are emitted for implemented entry forms. WASM/remote remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
 | `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, legacy fixture handlers, package-owned handler capabilities, metadata mutation, and unload cleanup. Rich timeout/error audit remains next. |
-| `AssetRecord` | planned | Type exists, storage methods are protocol-planned but not implemented. |
+| `AssetRecord` | partial | In-memory opaque asset put/get/list exists with id, origin package, mime, hash, size, metadata, and `kernel/asset.put` audit event. Durable asset storage and permission enforcement remain next. |
 
 ## Protocol method matrix
 
@@ -29,6 +29,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 |---|---:|---|
 | `kernel.session.open` | implemented | Opens content-free session and writes `kernel/session.opened`. |
 | `kernel.session.close` | implemented | Closes session and writes `kernel/session.closed`. |
+| `kernel.session.fork` | partial | Creates a child session from a parent sequence and records branch lineage without interpreting content. |
+| `kernel.session.branch.list` | partial | Lists in-memory branch records related to a session. |
 | `kernel.session.get` | planned | Not exposed in service/CLI yet. |
 | `kernel.session.list` | planned | Not exposed in service/CLI yet. |
 | `kernel.event.append` | implemented | Enforces writer namespace and `events.append` for non-kernel writers. |
@@ -49,7 +51,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
 | `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
 | `kernel.hook.list` | partial | Protocol dispatcher can list registered hooks; public docs and richer filtering remain Platform Host Alpha work. |
-| `kernel.asset.put/get/list` | deferred | Asset types exist; storage is not implemented. |
+| `kernel.asset.put/get/list` | partial | In-memory opaque asset substrate exists for host-dev protocol callers. Durable storage and package-principal permission checks remain next. |
+| `kernel.projection.register/rebuild/get` | partial | Generic in-memory projection registry exists; rebuild currently computes event count/last sequence from filtered event streams. Package-owned projection execution remains next. |
 | `kernel.host.info` | implemented | Returns protocol version, advertised methods with statuses, and currently supported transport labels across in-process, HTTP `/rpc`, host stdio, and ad hoc HTTP. |
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
 | `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
@@ -61,6 +64,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 |---|---|---:|---|
 | `kernel/session.opened` | kernel | implemented | Session open. |
 | `kernel/session.closed` | kernel | implemented | Session close. |
+| `kernel/session.forked` | kernel | implemented | Session fork creates branch lineage. |
 | `kernel/package.loaded` | kernel | implemented | Manifest accepted and registered. |
 | `kernel/package.loading` | kernel | implemented | Package record enters loading. |
 | `kernel/package.starting` | kernel | implemented | Subprocess package process is about to start/handshake. |
@@ -70,6 +74,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel/package.unloaded` | kernel | implemented | Package removed from registry. |
 | `kernel/package.degraded` | kernel | implemented | Real package execution failure/health loss. |
 | `kernel/package.log` | kernel | implemented | Captured subprocess stderr log line. |
+| `kernel/asset.put` | kernel | implemented | Opaque asset stored. |
+| `kernel/projection.updated` | kernel | implemented | Generic projection state rebuilt. |
 | `kernel/capability.invoked` | kernel | planned | Invocation lifecycle event. |
 | `kernel/capability.completed` | kernel | planned | Invocation success event. |
 | `kernel/capability.failed` | kernel | planned | Invocation failure event. |
@@ -98,6 +104,7 @@ Manifest support means the schema can describe the entry and host policy can acc
 | `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed only as host/dev operations and must not become package privilege. |
 | `packages.call` | planned | Package-to-package control plane not implemented. |
 | `assets.read/write` | planned | Asset store not implemented. |
+| `projections` | planned | Projection registration is host-dev only; package permission model remains next. |
 | `network.hosts` | planned | Applies when subprocess/remote execution exists. |
 | `filesystem.read/write` | planned | Applies when subprocess/WASM execution exists. |
 
@@ -118,6 +125,7 @@ Implemented:
 11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, legacy veto fixtures, package-owned handler capabilities, metadata mutation, and unload cleanup.
 12. Event range replay is implemented for in-process protocol and HTTP ad hoc list; HTTP SSE can replay from `after_sequence` and tail new events.
 13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
+14. In-memory asset, branch, and generic projection substrate exists for host-dev protocol callers.
 
 Still partial for Platform Host Alpha:
 
@@ -126,6 +134,7 @@ Still partial for Platform Host Alpha:
 3. Package lifecycle emits transitions for implemented entry forms; lifecycle health checks and richer crash monitoring remain partial.
 4. Capability routing has simple explicit provider/version constraints but no persisted provider selection policy.
 5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
+6. Asset/projection/branch substrate is not durable yet and does not yet enforce package-principal permissions.
 
 Next:
 

@@ -73,6 +73,8 @@ The kernel exposes a minimal set. Anything not listed is owned by a package.
 ```text
 kernel.session.open      open a session with labels and a package set
 kernel.session.close     close a session
+kernel.session.fork      fork a session at an event sequence
+kernel.session.branch.list list branch lineage records
 kernel.session.get       get session metadata
 kernel.session.list      list sessions visible to the caller
 ```
@@ -140,6 +142,16 @@ kernel.asset.list        list assets visible to the caller
 ```
 
 The kernel records `mime`, `hash`, `size`, and `origin_package`. It does not parse or interpret asset content.
+
+### Projections
+
+```text
+kernel.projection.register  register a generic projection definition
+kernel.projection.rebuild   rebuild projection state from event filters
+kernel.projection.get       fetch projection state
+```
+
+The kernel manages projection records and rebuild lifecycle, but does not interpret content-specific state semantics. Package-owned projection execution belongs to packages.
 
 ### Health and identity
 

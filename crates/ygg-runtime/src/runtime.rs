@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -7,11 +8,11 @@ use serde_json::{json, Value};
 use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 use ygg_core::{
-    new_id, EventEnvelope, EventKind, EventSequence, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
+    new_id, AssetRecord, EventEnvelope, EventKind, EventSequence, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
     SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG,
     EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING,
-    EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED, EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED,
-    KERNEL_PACKAGE_ID,
+    EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED, EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED,
+    EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID, EVENT_ASSET_PUT, EVENT_PROJECTION_UPDATED,
 };
 
 use crate::{
@@ -68,6 +69,49 @@ pub struct EventListRequest {
     pub writer_package_id: Option<PackageId>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetPutRequest {
+    #[serde(default)]
+    pub origin_package_id: Option<PackageId>,
+    pub mime: String,
+    pub content: String,
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetGetResponse {
+    pub record: AssetRecord,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectionDefinition {
+    pub id: String,
+    pub session_id: SessionId,
+    #[serde(default)]
+    pub source_kind_prefix: Option<String>,
+    #[serde(default)]
+    pub state: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BranchRecord {
+    pub id: String,
+    pub parent_session_id: SessionId,
+    pub child_session_id: SessionId,
+    pub forked_from_sequence: EventSequence,
+    pub created_at: chrono::DateTime<Utc>,
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone)]
+struct StoredAsset {
+    record: AssetRecord,
+    content: String,
+}
+
 #[derive(Clone)]
 pub struct Runtime<S>
 where
@@ -79,6 +123,9 @@ where
     extensions: Arc<ExtensionRegistry>,
     subprocesses: Arc<SubprocessSupervisor>,
     sessions: Arc<RwLock<HashMap<SessionId, KernelSession>>>,
+    assets: Arc<RwLock<HashMap<String, StoredAsset>>>,
+    projections: Arc<RwLock<HashMap<String, ProjectionDefinition>>>,
+    branches: Arc<RwLock<HashMap<String, BranchRecord>>>,
     config: RuntimeConfig,
 }
 
@@ -94,6 +141,9 @@ where
             extensions: Arc::new(ExtensionRegistry::default()),
             subprocesses: Arc::new(SubprocessSupervisor::default()),
             sessions: Arc::new(RwLock::new(HashMap::new())),
+            assets: Arc::new(RwLock::new(HashMap::new())),
+            projections: Arc::new(RwLock::new(HashMap::new())),
+            branches: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
     }
@@ -159,6 +209,52 @@ where
         }
         drop(sessions);
         self.append_kernel_event(&session_id, EVENT_SESSION_CLOSED, json!({})).await
+    }
+
+    pub async fn fork_session(
+        &self,
+        parent_session_id: SessionId,
+        forked_from_sequence: EventSequence,
+        metadata: Value,
+    ) -> anyhow::Result<BranchRecord> {
+        let parent = self
+            .sessions
+            .read()
+            .await
+            .get(&parent_session_id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("parent session '{parent_session_id}' is not open"))?;
+        let child = self
+            .open_session(OpenSessionRequest {
+                labels: parent.labels.clone(),
+                active_package_set: parent.active_package_set.clone(),
+                metadata: json!({"forked_from": parent_session_id, "forked_from_sequence": forked_from_sequence}),
+            })
+            .await?;
+        let branch = BranchRecord {
+            id: new_id("br"),
+            parent_session_id: parent_session_id.clone(),
+            child_session_id: child.id.clone(),
+            forked_from_sequence,
+            created_at: Utc::now(),
+            metadata,
+        };
+        self.branches.write().await.insert(branch.id.clone(), branch.clone());
+        self.append_kernel_event(&parent_session_id, EVENT_SESSION_FORKED, serde_json::to_value(&branch)?).await?;
+        Ok(branch)
+    }
+
+    pub async fn list_branches(&self, session_id: &SessionId) -> Vec<BranchRecord> {
+        let mut branches: Vec<_> = self
+            .branches
+            .read()
+            .await
+            .values()
+            .filter(|branch| &branch.parent_session_id == session_id || &branch.child_session_id == session_id)
+            .cloned()
+            .collect();
+        branches.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        branches
     }
 
     pub async fn append_event(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
@@ -338,6 +434,80 @@ where
 
     pub fn subscribe_events(&self) -> broadcast::Receiver<EventEnvelope> {
         self.store.subscribe()
+    }
+
+    pub async fn put_asset(&self, mut request: AssetPutRequest) -> anyhow::Result<AssetRecord> {
+        let origin_package_id = request.origin_package_id.take().unwrap_or_else(|| KERNEL_PACKAGE_ID.to_string());
+        let mut hasher = DefaultHasher::new();
+        request.content.hash(&mut hasher);
+        let record = AssetRecord {
+            id: new_id("ast"),
+            origin_package_id,
+            mime: request.mime,
+            hash: format!("{:016x}", hasher.finish()),
+            size_bytes: request.content.len() as u64,
+            created_at: Utc::now(),
+            metadata: request.metadata,
+        };
+        self.assets.write().await.insert(record.id.clone(), StoredAsset { record: record.clone(), content: request.content });
+        self.append_kernel_event(&format!("kernel_asset_{}", record.id), EVENT_ASSET_PUT, serde_json::to_value(&record)?).await?;
+        Ok(record)
+    }
+
+    pub async fn get_asset(&self, asset_id: &str) -> anyhow::Result<AssetGetResponse> {
+        self.assets
+            .read()
+            .await
+            .get(asset_id)
+            .cloned()
+            .map(|stored| AssetGetResponse { record: stored.record, content: stored.content })
+            .ok_or_else(|| anyhow::anyhow!("asset '{asset_id}' not found"))
+    }
+
+    pub async fn list_assets(&self) -> Vec<AssetRecord> {
+        let mut assets: Vec<_> = self.assets.read().await.values().map(|stored| stored.record.clone()).collect();
+        assets.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        assets
+    }
+
+    pub async fn projection_register(&self, definition: ProjectionDefinition) -> anyhow::Result<ProjectionDefinition> {
+        self.projections.write().await.insert(definition.id.clone(), definition.clone());
+        Ok(definition)
+    }
+
+    pub async fn projection_rebuild(&self, projection_id: &str) -> anyhow::Result<ProjectionDefinition> {
+        let mut projections = self.projections.write().await;
+        let projection = projections
+            .get_mut(projection_id)
+            .ok_or_else(|| anyhow::anyhow!("projection '{projection_id}' not found"))?;
+        let events = self
+            .list_events_range(&EventListRequest {
+                session_id: projection.session_id.clone(),
+                after_sequence: None,
+                limit: None,
+                kind_prefix: projection.source_kind_prefix.clone(),
+                writer_package_id: None,
+            })
+            .await?;
+        projection.state = json!({"event_count": events.len(), "last_sequence": events.last().map(|event| event.sequence)});
+        let projection = projection.clone();
+        drop(projections);
+        self.append_kernel_event(
+            &format!("kernel_projection_{}", projection.id.replace('/', "_")),
+            EVENT_PROJECTION_UPDATED,
+            serde_json::to_value(&projection)?,
+        )
+        .await?;
+        Ok(projection)
+    }
+
+    pub async fn projection_get(&self, projection_id: &str) -> anyhow::Result<ProjectionDefinition> {
+        self.projections
+            .read()
+            .await
+            .get(projection_id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("projection '{projection_id}' not found"))
     }
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
@@ -652,6 +822,27 @@ where
             "kernel.session.open" => Ok(serde_json::to_value(
                 self.open_session(serde_json::from_value(params)?).await?,
             )?),
+            "kernel.session.fork" => {
+                let parent_session_id = params
+                    .get("parent_session_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.session.fork requires parent_session_id"))?
+                    .to_string();
+                let forked_from_sequence = params
+                    .get("forked_from_sequence")
+                    .and_then(Value::as_u64)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.session.fork requires forked_from_sequence"))?;
+                let metadata = params.get("metadata").cloned().unwrap_or_else(|| json!({}));
+                Ok(serde_json::to_value(self.fork_session(parent_session_id, forked_from_sequence, metadata).await?)?)
+            }
+            "kernel.session.branch.list" => {
+                let session_id = params
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.session.branch.list requires session_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.list_branches(&session_id).await)?)
+            }
             "kernel.event.append" => Ok(serde_json::to_value(
                 self.append_event_with_context(context, serde_json::from_value(params)?).await?,
             )?),
@@ -712,6 +903,30 @@ where
                 "kernel/package.unloaded"
             ])),
             "kernel.hook.list" => Ok(serde_json::to_value(self.extensions.list_all_hooks().await)?),
+            "kernel.asset.put" => Ok(serde_json::to_value(self.put_asset(serde_json::from_value(params)?).await?)?),
+            "kernel.asset.get" => {
+                let asset_id = params
+                    .get("asset_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.asset.get requires asset_id"))?;
+                Ok(serde_json::to_value(self.get_asset(asset_id).await?)?)
+            }
+            "kernel.asset.list" => Ok(serde_json::to_value(self.list_assets().await)?),
+            "kernel.projection.register" => Ok(serde_json::to_value(self.projection_register(serde_json::from_value(params)?).await?)?),
+            "kernel.projection.rebuild" => {
+                let projection_id = params
+                    .get("projection_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.projection.rebuild requires projection_id"))?;
+                Ok(serde_json::to_value(self.projection_rebuild(projection_id).await?)?)
+            }
+            "kernel.projection.get" => {
+                let projection_id = params
+                    .get("projection_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.projection.get requires projection_id"))?;
+                Ok(serde_json::to_value(self.projection_get(projection_id).await?)?)
+            }
             other => anyhow::bail!("protocol method '{other}' is not implemented"),
         }
     }
