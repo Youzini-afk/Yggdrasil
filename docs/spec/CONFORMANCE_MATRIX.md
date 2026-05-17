@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 51 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 52 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -73,6 +73,7 @@ Current named conformance coverage: 51 CLI cases plus crate/service unit tests.
 | host | profile autoload loads configured packages | implemented |
 | surfaces | package-contributed typed surface descriptors can be listed, described, and filtered | implemented |
 | official packages | foundation packages load and invoke without privilege | implemented |
+| official packages | composition-lab exposes launch-plan and surface-graph capabilities without privilege | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
 | proposals | approved proposals can apply generic asset/projection operations | implemented |
@@ -168,6 +169,7 @@ package.generated_subprocess_conformance   PASS
 package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
 composition.check_descriptor               PASS
+official.composition_lab                   PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

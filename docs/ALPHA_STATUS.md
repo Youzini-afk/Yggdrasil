@@ -9,7 +9,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 ## Headline
 
 - **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
-- **Conformance:** 51 named CLI cases plus crate and service unit tests.
+- **Conformance:** 52 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
 - **Next stage:** Foundation Alpha Consolidation, then Playable Experience Alpha (see `docs/roadmap/NEXT_STEPS.md`).
 
@@ -56,6 +56,7 @@ All ordinary packages. No kernel privilege. They live under `packages/official/`
 - `official/package-lab` — package-authoring helpers exposed as ordinary capabilities and surfaces.
 - `official/schema-tools` — schema-validation helpers.
 - `official/event-tools` — event filtering and inspection helpers.
+- `official/composition-lab` — composition validation, launch-plan, permission-preview, and surface-graph helpers.
 - `official/assistant-lab` — assistant-action capability that returns approval-gated proposals.
 - `official/blank-experience` — minimal experience used by `ygg play-create-demo` to exercise the play-creation loop.
 
@@ -78,7 +79,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 51 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, blank play-creation loop, asset/branch/projection substrate, generated package authoring, and composition descriptors.
+- `cargo run -p ygg-cli -- conformance` runs 52 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab, blank play-creation loop, asset/branch/projection substrate, generated package authoring, and composition descriptors.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 

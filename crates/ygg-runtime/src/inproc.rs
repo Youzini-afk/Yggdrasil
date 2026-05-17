@@ -89,6 +89,27 @@ impl InprocPackage for OfficialFoundationPackage {
         } else if id.ends_with("/summarize") {
             let count = request.input.get("events").and_then(Value::as_array).map(|events| events.len()).unwrap_or(0);
             Ok(serde_json::json!({"event_count": count}))
+        } else if id.ends_with("/launch_plan") {
+            Ok(serde_json::json!({
+                "kind": "composition_launch_plan",
+                "composition_id": request.input.get("id").cloned().unwrap_or(Value::Null),
+                "entry_surface_id": request.input.get("entry_surface_id").cloned().unwrap_or(Value::Null),
+                "packages": request.input.get("packages").cloned().unwrap_or_else(|| serde_json::json!([])),
+                "steps": ["validate manifest set", "resolve entry surface", "preview required permissions", "open session", "invoke launch capability"],
+            }))
+        } else if id.ends_with("/permission_preview") {
+            Ok(serde_json::json!({
+                "kind": "composition_permission_preview",
+                "required_permissions": request.input.get("required_permissions").cloned().unwrap_or_else(|| serde_json::json!([])),
+                "risk": request.input.get("risk").cloned().unwrap_or_else(|| serde_json::json!("medium")),
+            }))
+        } else if id.ends_with("/surface_graph") {
+            Ok(serde_json::json!({
+                "kind": "composition_surface_graph",
+                "entry_surface_id": request.input.get("entry_surface_id").cloned().unwrap_or(Value::Null),
+                "surfaces": request.input.get("surfaces").cloned().unwrap_or_else(|| serde_json::json!([])),
+                "edges": request.input.get("edges").cloned().unwrap_or_else(|| serde_json::json!([])),
+            }))
         } else if id.ends_with("/explain") {
             Ok(serde_json::json!({
                 "kind": "assistant_explanation",

@@ -721,6 +721,7 @@ async fn conformance() -> anyhow::Result<()> {
     );
     record_case(&mut results, "package.generated_experience_template", conformance_generated_experience_template().await);
     record_case(&mut results, "composition.check_descriptor", conformance_composition_descriptor().await);
+    record_case(&mut results, "official.composition_lab", conformance_official_composition_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1832,6 +1833,36 @@ async fn conformance_composition_descriptor() -> anyhow::Result<()> {
     init_composition(composition_path.clone(), "example/composed-experience".to_string()).await?;
     composition_check(composition_path.join("composition.yaml")).await?;
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+async fn conformance_official_composition_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/composition-lab/manifest.yaml")).await?).await?;
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/composition-lab/launch_plan".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/composition-lab".to_string()),
+            version: None,
+            input: json!({
+                "id": "example/composed-experience",
+                "entry_surface_id": "example/composed-experience/entry",
+                "packages": ["example/composed-experience"]
+            }),
+        })
+        .await?;
+    anyhow::ensure!(plan.output["kind"] == json!("composition_launch_plan"), "composition lab launch_plan returned wrong kind");
+    let graph = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/composition-lab/surface_graph".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/composition-lab".to_string()),
+            version: None,
+            input: json!({"entry_surface_id": "example/composed-experience/entry", "surfaces": [{"slot": "experience_entry"}]}),
+        })
+        .await?;
+    anyhow::ensure!(graph.output["kind"] == json!("composition_surface_graph"), "composition lab surface_graph returned wrong kind");
     Ok(())
 }
 

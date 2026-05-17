@@ -9,7 +9,7 @@
 ## 概要
 
 - **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta。
-- **Conformance：** 51 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Conformance：** 52 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等。
 - **下一阶段：** Foundation Alpha Consolidation，然后 Playable Experience Alpha（见 `docs/roadmap/NEXT_STEPS.md`）。
 
@@ -56,6 +56,7 @@
 - `official/package-lab` —— 包创作辅助，以普通能力和 surface 暴露。
 - `official/schema-tools` —— schema 验证辅助。
 - `official/event-tools` —— 事件过滤与检查辅助。
+- `official/composition-lab` —— composition 验证、launch-plan、permission-preview 与 surface-graph 辅助。
 - `official/assistant-lab` —— assistant-action 能力，返回需要审批的 proposal。
 - `official/blank-experience` —— 最小体验，被 `ygg play-create-demo` 用来跑通游创循环。
 
@@ -78,7 +79,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 51 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、空白游创循环、asset/branch/projection 底座、生成包创作和 composition descriptor。
+- `cargo run -p ygg-cli -- conformance` 运行 52 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab、空白游创循环、asset/branch/projection 底座、生成包创作和 composition descriptor。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 
