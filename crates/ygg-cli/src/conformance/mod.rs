@@ -9,6 +9,7 @@ mod official_play_creation;
 mod permissions;
 mod proposals;
 mod protocol;
+mod replacement;
 mod subprocess;
 mod substrate;
 mod surfaces;
@@ -167,6 +168,26 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     record_case(&mut results, "official.model_routing_lab", official_labs::model_routing_lab().await);
     record_case(&mut results, "inproc.non_official_preview_rejected", inproc::non_official_preview_rejected().await);
     record_case(&mut results, "inproc.unknown_capability_errors", inproc::unknown_inproc_capability_errors().await);
+    record_case(
+        &mut results,
+        "replacement.thirdparty_seed_surfaces",
+        replacement::thirdparty_seed_surfaces().await,
+    );
+    record_case(
+        &mut results,
+        "replacement.thirdparty_seed_invocation",
+        replacement::thirdparty_seed_invocation().await,
+    );
+    record_case(
+        &mut results,
+        "replacement.ambiguous_no_official_priority",
+        replacement::ambiguous_no_official_priority().await,
+    );
+    record_case(
+        &mut results,
+        "replacement.composition_thirdparty",
+        replacement::composition_thirdparty().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

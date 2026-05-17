@@ -1,0 +1,91 @@
+schema_version: 1
+id: thirdparty/playable-seed
+version: 0.1.0
+display_name: Community Playable Seed
+description: "Third-party playable package proving official seed is replaceable: launch, render, Forge inspection, assistant proposals, and asset editing without kernel privilege or official namespace."
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  symbol: register
+  abi_version: 1
+provides:
+  - id: thirdparty/playable-seed/create
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/playable-seed/launch
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/playable-seed/describe_state
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/playable-seed/render_payload
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/playable-seed/propose_change
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/playable-seed/edit_asset
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: thirdparty/playable-seed/entry
+      slot: experience_entry
+      title: Community Seed
+      description: Launch a community-maintained playable seed that is fully interchangeable with the official seed.
+      capability_id: thirdparty/playable-seed/launch
+      activation:
+        launch_capability_id: thirdparty/playable-seed/launch
+        session_template:
+          labels: [community-seed, replacement-proof]
+      approval_policy: none
+    - id: thirdparty/playable-seed/play-renderer
+      slot: play_renderer
+      title: Community Seed Renderer
+      description: Protocol-visible render payload for the community playable seed.
+      capability_id: thirdparty/playable-seed/render_payload
+    - id: thirdparty/playable-seed/forge-panel
+      slot: forge_panel
+      title: Community Seed Inspector
+      description: Inspect the community seed state and draft edit proposals.
+      capability_id: thirdparty/playable-seed/describe_state
+    - id: thirdparty/playable-seed/assistant-action
+      slot: assistant_action
+      title: Propose Community Change
+      description: Draft a user-approved edit proposal for the community playable seed.
+      capability_id: thirdparty/playable-seed/propose_change
+      approval_policy: fork_then_approve
+    - id: thirdparty/playable-seed/asset-editor
+      slot: asset_editor
+      title: Community Asset Editor
+      description: Edit assets associated with the community playable seed.
+      capability_id: thirdparty/playable-seed/edit_asset
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

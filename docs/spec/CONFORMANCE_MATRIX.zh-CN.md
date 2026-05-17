@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前具名 conformance 覆盖：65 个 CLI 用例 + crate/service 单元测试。
+当前具名 conformance 覆盖：69 个 CLI 用例 + crate/service 单元测试。
 
 ## 当前 conformance 覆盖
 
@@ -95,6 +95,10 @@ cargo run -p ygg-cli -- conformance
 | composition | 本地 composition 描述符验证包提供的 surface | implemented |
 | composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
 | official packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
+| replacement | 第三方 playable-seed surface 通过 kernel.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
+| replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
+| replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -196,6 +200,10 @@ official.model_connector_lab               PASS
 official.model_routing_lab                 PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
+replacement.thirdparty_seed_surfaces         PASS
+replacement.thirdparty_seed_invocation       PASS
+replacement.ambiguous_no_official_priority   PASS
+replacement.composition_thirdparty           PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

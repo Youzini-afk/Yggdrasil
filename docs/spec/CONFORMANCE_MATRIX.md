@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 65 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 69 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -95,6 +95,10 @@ Current named conformance coverage: 65 CLI cases plus crate/service unit tests.
 | composition | local composition descriptor validates package-provided surfaces | implemented |
 | composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
 | official packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
+| replacement | third-party playable-seed surfaces discoverable through kernel.surface.contribution.list | implemented |
+| replacement | third-party playable-seed capability invocation works through normal routing | implemented |
+| replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
+| replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -196,6 +200,10 @@ official.model_connector_lab               PASS
 official.model_routing_lab                 PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
+replacement.thirdparty_seed_surfaces         PASS
+replacement.thirdparty_seed_invocation       PASS
+replacement.ambiguous_no_official_priority   PASS
+replacement.composition_thirdparty           PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
