@@ -69,6 +69,8 @@ enum Command {
     },
     /// Run local kernel conformance checks.
     Conformance,
+    /// Run the first blank play-creation loop demo.
+    PlayCreateDemo,
 }
 
 #[derive(Debug, Subcommand)]
@@ -149,6 +151,7 @@ async fn main() -> anyhow::Result<()> {
         },
         Command::InitPackage { path, id, entry, language } => init_package(path, id, entry, language).await,
         Command::Conformance => conformance().await,
+        Command::PlayCreateDemo => play_create_demo().await,
     }
 }
 
@@ -554,6 +557,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "surface.contribution_list", conformance_surface_contribution_list().await);
     record_case(&mut results, "official.foundation_packages", conformance_official_foundation_packages().await);
     record_case(&mut results, "official.assistant_lab_proposal", conformance_official_assistant_lab_proposal().await);
+    record_case(&mut results, "play_creation.blank_loop", conformance_blank_play_creation_loop().await);
     record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
     record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
     record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
@@ -1168,6 +1172,11 @@ async fn conformance_official_assistant_lab_proposal() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn conformance_blank_play_creation_loop() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    run_blank_play_creation_loop(&runtime).await.map(|_| ())
+}
+
 async fn conformance_asset_put_get_list() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let record_value = runtime
@@ -1189,6 +1198,90 @@ async fn conformance_asset_put_get_list() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(list_value.as_array().map(|items| items.len()).unwrap_or(0) == 1, "asset list missing record");
+    Ok(())
+}
+
+#[derive(Debug)]
+struct BlankLoopResult {
+    session_id: String,
+    branch_id: String,
+    asset_id: String,
+    projection_id: String,
+}
+
+async fn run_blank_play_creation_loop<S: EventStore>(runtime: &Runtime<S>) -> anyhow::Result<BlankLoopResult> {
+    for manifest in [
+        "packages/official/assistant-lab/manifest.yaml",
+        "packages/official/blank-experience/manifest.yaml",
+    ] {
+        runtime.load_package(read_manifest(PathBuf::from(manifest)).await?).await?;
+    }
+    let session = runtime
+        .open_session(OpenSessionRequest {
+            labels: vec!["play-create".to_string()],
+            active_package_set: vec!["official/blank-experience".to_string(), "official/assistant-lab".to_string()],
+            metadata: json!({"surface": "play"}),
+        })
+        .await?;
+    let seed = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/blank-experience/create_seed".to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"title": "Blank Loop", "intent": "prove play-create substrate"}),
+        })
+        .await?;
+    let assistant = json!({"kind": "assistant", "assistant_id": "assistant/blank-loop", "delegated_user_id": "user/demo"});
+    runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("demo"),
+            "kernel.permission.grant",
+            json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant)?, transport: "demo".to_string() };
+    let proposal = runtime
+        .call_protocol(
+            &assistant_context,
+            "kernel.capability.invoke",
+            json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"seed": seed.output, "change": "try a first branch"}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(proposal["output"]["requires_user_approval"] == json!(true), "assistant proposal must require approval");
+    let branch = runtime.fork_session(session.id.clone(), 0, json!({"proposal": proposal["output"].clone()})).await?;
+    let asset = runtime
+        .put_asset(ygg_runtime::runtime::AssetPutRequest {
+            origin_package_id: Some("official/blank-experience".to_string()),
+            mime: "application/json".to_string(),
+            content: serde_json::to_string(&json!({"seed": seed.output, "branch_id": branch.id}))?,
+            metadata: json!({"kind": "blank_experience_seed"}),
+        })
+        .await?;
+    let projection_id = "official/blank-experience/projection/demo".to_string();
+    runtime
+        .projection_register(ygg_runtime::runtime::ProjectionDefinition {
+            id: projection_id.clone(),
+            session_id: session.id.clone(),
+            source_kind_prefix: Some("kernel/session".to_string()),
+            state: json!({}),
+        })
+        .await?;
+    runtime.projection_rebuild(&projection_id).await?;
+    Ok(BlankLoopResult { session_id: session.id, branch_id: branch.id, asset_id: asset.id, projection_id })
+}
+
+async fn play_create_demo() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let result = run_blank_play_creation_loop(&runtime).await?;
+    println!("blank play-creation loop ok");
+    println!("session_id: {}", result.session_id);
+    println!("branch_id: {}", result.branch_id);
+    println!("asset_id: {}", result.asset_id);
+    println!("projection_id: {}", result.projection_id);
     Ok(())
 }
 

@@ -133,6 +133,7 @@ Implemented:
 15. Human and assistant principals can receive scoped grants for event reads and capability invocation, with grant/revoke audit events.
 16. First official foundation packages (`official/package-lab`, `official/schema-tools`, `official/event-tools`) load through ordinary manifests and route through ordinary capabilities/surface descriptors.
 17. `official/assistant-lab` is an ordinary assistant capability package that returns approval-gated proposals rather than mutating trusted state directly.
+18. The first blank play-creation loop demo proves package launch, assistant proposal, branch fork, asset write, and projection rebuild without adding content semantics to the kernel.
 
 Still partial for Platform Host Alpha:
 

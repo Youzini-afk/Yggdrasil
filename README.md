@@ -70,6 +70,7 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-ts-package --id example/new-ts-pac
 cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 cargo run -p ygg-cli -- host-stdio
 cargo run -p ygg-cli -- conformance
+cargo run -p ygg-cli -- play-create-demo
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 

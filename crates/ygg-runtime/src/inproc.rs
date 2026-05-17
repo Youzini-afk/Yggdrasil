@@ -107,6 +107,17 @@ impl InprocPackage for OfficialFoundationPackage {
                 "recommended_operation": "kernel.session.fork",
                 "proposal": request.input,
             }))
+        } else if id.ends_with("/create_seed") {
+            Ok(serde_json::json!({
+                "kind": "blank_experience_seed",
+                "title": request.input.get("title").and_then(Value::as_str).unwrap_or("Blank Experience"),
+                "seed": request.input,
+            }))
+        } else if id.ends_with("/project") {
+            Ok(serde_json::json!({
+                "kind": "blank_experience_projection",
+                "state": request.input,
+            }))
         } else {
             Ok(serde_json::json!({"ok": true, "capability_id": request.capability_id}))
         }

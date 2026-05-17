@@ -6,7 +6,10 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/schema-tools`
 - `official/event-tools`
 - `official/assistant-lab`
+- `official/blank-experience`
 
 They load through ordinary manifests, provide ordinary capabilities, and contribute ordinary surface descriptors.
 
 `official/assistant-lab` intentionally produces proposals that require user approval. It is not a privileged mutation path.
+
+`official/blank-experience` is a loop fixture, not a canonical game/runtime model.
