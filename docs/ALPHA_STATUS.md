@@ -11,7 +11,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
 - **Conformance:** 63 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
-- **Code health:** CLI commands/templates/conformance and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
+- **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
 - **Next stage:** Authoring & Composition Beta+ (see `docs/roadmap/NEXT_STEPS.md`).
 
 ## What is implemented
@@ -90,7 +90,10 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 ### Code organization
 
 - `crates/ygg-cli/src/main.rs` is a thin entry point. CLI types live in `cli.rs`; commands live under `commands/`; package generation templates live under `templates/`; conformance cases live under `conformance/` domain modules.
+- `crates/ygg-runtime/src/runtime/` owns runtime domain behavior across session, events, packages, capabilities, hooks, permissions, assets, branches, projections, proposals, and protocol dispatch modules; `runtime/mod.rs` preserves the public `Runtime<S>` API and re-exports moved public request/record types.
+- Protocol method metadata and dispatch share the `KernelMethod` source of truth, with unit coverage for registry/dispatch consistency.
 - `crates/ygg-runtime/src/inproc.rs` retains the in-process package API and delegates official lab behavior to focused modules under `crates/ygg-runtime/src/inproc/`.
+- `crates/ygg-runtime/src/inproc/common.rs` routes shared official in-process handlers by provider package and local capability name rather than suffix-only fallback.
 - This split is behavior-preserving and exists to keep future package, conformance, and handler growth reviewable.
 
 ### Conformance
