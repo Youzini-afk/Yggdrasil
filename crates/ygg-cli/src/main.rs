@@ -1,152 +1,31 @@
+mod cli;
+mod commands;
+mod templates;
+
 use std::fs;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use clap::{Parser, Subcommand};
-use serde::Deserialize;
+use clap::Parser;
 use serde_json::json;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_core::{
-    CapabilityDescriptor, CapabilityPermissions, EventPermissions, KERNEL_PACKAGE_ID,
-    HookSubscription, HookTiming, PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    CapabilityDescriptor, CapabilityPermissions, EventPermissions, HookSubscription,
+    HookTiming, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
+    SandboxPolicy,
 };
 use ygg_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
-    OpenSessionRequest, ProtocolContext, ProtocolError, Runtime, RuntimeConfig, SqliteEventStore,
+    OpenSessionRequest, ProtocolContext, ProtocolError, Runtime, RuntimeConfig,
+    SqliteEventStore,
 };
 
-#[derive(Debug, Parser)]
-#[command(name = "ygg")]
-#[command(about = "Yggdrasil kernel CLI")]
-struct Cli {
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Debug, Subcommand)]
-enum Command {
-    /// Run a content-free kernel event demo.
-    Demo,
-    /// Run a durable SQLite-backed kernel event demo.
-    SqliteDemo { path: PathBuf },
-    /// Run the headless kernel HTTP service.
-    Serve {
-        #[arg(long, default_value = "127.0.0.1:8787")]
-        bind: SocketAddr,
-    },
-    /// Run host modes.
-    Host {
-        #[command(subcommand)]
-        command: HostCommand,
-    },
-    /// Run a JSON-RPC-like kernel protocol loop over stdio.
-    HostStdio,
-    /// Validate a package manifest file.
-    Manifest {
-        #[command(subcommand)]
-        command: ManifestCommand,
-    },
-    /// Exercise the in-memory package registry.
-    Package {
-        #[command(subcommand)]
-        command: PackageCommand,
-    },
-    /// Exercise capability discovery and invocation against a manifest.
-    Capability {
-        #[command(subcommand)]
-        command: CapabilityCommand,
-    },
-    /// Generate package skeletons.
-    InitPackage {
-        path: PathBuf,
-        #[arg(long, default_value = "example/new-package")]
-        id: String,
-        #[arg(long, default_value = "rust_inproc")]
-        entry: String,
-        #[arg(long, default_value = "python")]
-        language: String,
-    },
-    /// Generate a local composition descriptor.
-    InitComposition {
-        path: PathBuf,
-        #[arg(long, default_value = "example/composition")]
-        id: String,
-    },
-    /// Validate composition descriptors.
-    Composition {
-        #[command(subcommand)]
-        command: CompositionCommand,
-    },
-    /// Run local kernel conformance checks.
-    Conformance,
-    /// Run the first blank play-creation loop demo.
-    PlayCreateDemo,
-}
-
-#[derive(Debug, Subcommand)]
-enum ManifestCommand {
-    Validate { path: PathBuf },
-}
-
-#[derive(Debug, Subcommand)]
-enum PackageCommand {
-    Load { path: PathBuf },
-    Check { path: PathBuf },
-    RunFixture { path: PathBuf },
-    InvokeLocal {
-        path: PathBuf,
-        capability_id: String,
-        #[arg(long, default_value = "{}")]
-        input: String,
-    },
-    Conformance { path: PathBuf },
-}
-
-#[derive(Debug, Subcommand)]
-enum HostCommand {
-    /// Serve a profile-backed host with HTTP /rpc and event SSE.
-    Serve {
-        #[arg(long, default_value = "127.0.0.1:8787")]
-        http: SocketAddr,
-        #[arg(long)]
-        profile: Option<PathBuf>,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum CompositionCommand {
-    Check { path: PathBuf },
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct HostProfile {
-    #[serde(default)]
-    title: Option<String>,
-    #[serde(default)]
-    autoload: Vec<PathBuf>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CompositionDescriptor {
-    id: String,
-    version: String,
-    entry_surface_id: String,
-    #[serde(default)]
-    packages: Vec<PathBuf>,
-    #[serde(default)]
-    required_surfaces: Vec<String>,
-}
-
-#[derive(Debug, Subcommand)]
-enum CapabilityCommand {
-    Invoke {
-        manifest: PathBuf,
-        capability_id: String,
-        #[arg(long, default_value = "{}")]
-        input: String,
-    },
-}
+use cli::{
+    CapabilityCommand, Cli, Command, CompositionCommand, HostCommand, ManifestCommand,
+    PackageCommand,
+};
+use commands::{
+    capability, composition, demo, host, manifest, package,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -154,451 +33,41 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Demo => demo().await,
-        Command::SqliteDemo { path } => sqlite_demo(path).await,
-        Command::Serve { bind } => serve(bind).await,
+        Command::Demo => demo::demo().await,
+        Command::SqliteDemo { path } => demo::sqlite_demo(path).await,
+        Command::Serve { bind } => demo::serve(bind).await,
         Command::Host { command } => match command {
-            HostCommand::Serve { http, profile } => host_serve(http, profile).await,
+            HostCommand::Serve { http, profile } => host::host_serve(http, profile).await,
         },
-        Command::HostStdio => host_stdio().await,
+        Command::HostStdio => host::host_stdio().await,
         Command::Manifest { command } => match command {
-            ManifestCommand::Validate { path } => validate_manifest(path).await,
+            ManifestCommand::Validate { path } => manifest::validate_manifest(path).await,
         },
         Command::Package { command } => match command {
-            PackageCommand::Load { path } => package_load(path).await,
-            PackageCommand::Check { path } => package_check(path).await,
-            PackageCommand::RunFixture { path } => package_run_fixture(path).await,
-            PackageCommand::InvokeLocal { path, capability_id, input } => package_invoke_local(path, capability_id, input).await,
-            PackageCommand::Conformance { path } => package_conformance(path).await,
+            PackageCommand::Load { path } => package::package_load(path).await,
+            PackageCommand::Check { path } => package::package_check(path).await,
+            PackageCommand::RunFixture { path } => package::package_run_fixture(path).await,
+            PackageCommand::InvokeLocal { path, capability_id, input } => package::package_invoke_local(path, capability_id, input).await,
+            PackageCommand::Conformance { path } => package::package_conformance(path).await,
         },
         Command::Capability { command } => match command {
             CapabilityCommand::Invoke { manifest, capability_id, input } => {
-                capability_invoke(manifest, capability_id, input).await
+                capability::capability_invoke(manifest, capability_id, input).await
             }
         },
-        Command::InitPackage { path, id, entry, language } => init_package(path, id, entry, language).await,
-        Command::InitComposition { path, id } => init_composition(path, id).await,
+        Command::InitPackage { path, id, entry, language } => package::init_package(path, id, entry, language).await,
+        Command::InitComposition { path, id } => composition::init_composition(path, id).await,
         Command::Composition { command } => match command {
-            CompositionCommand::Check { path } => composition_check(path).await,
+            CompositionCommand::Check { path } => composition::composition_check(path).await,
         },
         Command::Conformance => conformance().await,
-        Command::PlayCreateDemo => play_create_demo().await,
+        Command::PlayCreateDemo => demo::play_create_demo().await,
     }
 }
 
-async fn read_manifest(path: PathBuf) -> anyhow::Result<PackageManifest> {
-    let raw = fs::read_to_string(&path)?;
-    let manifest = match path.extension().and_then(|ext| ext.to_str()) {
-        Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)?,
-        _ => serde_json::from_str(&raw)?,
-    };
-    Ok(manifest)
-}
-
-async fn validate_manifest(path: PathBuf) -> anyhow::Result<()> {
-    let manifest = read_manifest(path).await?;
-    manifest.validate_basic()?;
-    println!("valid manifest: {}@{}", manifest.id, manifest.version);
-    Ok(())
-}
-
-async fn package_load(path: PathBuf) -> anyhow::Result<()> {
-    let manifest = read_manifest(path).await?;
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    let record = runtime.load_package(manifest).await?;
-    println!("loaded package: {}@{} ({:?})", record.id, record.version, record.state);
-    Ok(())
-}
-
-async fn package_check(path: PathBuf) -> anyhow::Result<()> {
-    let manifest = read_manifest(path).await?;
-    manifest.validate_basic()?;
-    println!("package check: {}@{} ok", manifest.id, manifest.version);
-    Ok(())
-}
-
-async fn package_run_fixture(path: PathBuf) -> anyhow::Result<()> {
-    let manifest = read_manifest(path).await?;
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    let record = runtime.load_package(manifest).await?;
-    println!("package fixture ready: {} ({:?})", record.id, record.state);
-    Ok(())
-}
-
-async fn package_invoke_local(path: PathBuf, capability_id: String, input: String) -> anyhow::Result<()> {
-    let manifest = read_manifest(path).await?;
-    let payload: serde_json::Value = serde_json::from_str(&input)?;
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    runtime.load_package(manifest).await?;
-    let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, provider_package_id: None, version: None, input: payload })
-        .await?;
-    println!("{}", serde_json::to_string_pretty(&result)?);
-    Ok(())
-}
-
-async fn package_conformance(path: PathBuf) -> anyhow::Result<()> {
-    let manifest = read_manifest(path).await?;
-    manifest.validate_basic()?;
-    let capability = manifest
-        .provides
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("package conformance requires at least one provided capability"))?
-        .id
-        .clone();
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    runtime.load_package(manifest).await?;
-    let result = runtime
-        .invoke_capability(CapabilityInvocationRequest {
-            capability_id: capability,
-            caller_package_id: None,
-            provider_package_id: None,
-            version: None,
-            input: json!({"package_conformance": true}),
-        })
-        .await?;
-    anyhow::ensure!(result.output == json!({"package_conformance": true}), "package did not echo conformance payload");
-    println!("package conformance: ok");
-    Ok(())
-}
-
-async fn init_composition(path: PathBuf, id: String) -> anyhow::Result<()> {
-    fs::create_dir_all(&path)?;
-    fs::write(
-        path.join("composition.yaml"),
-        format!(
-            r#"id: {id}
-version: 0.1.0
-entry_surface_id: {id}/entry
-packages:
-  - ../package/manifest.yaml
-required_surfaces:
-  - experience_entry
-  - play_renderer
-  - forge_panel
-"#
-        ),
-    )?;
-    println!("initialized composition descriptor at {}", path.join("composition.yaml").display());
-    Ok(())
-}
-
-async fn composition_check(path: PathBuf) -> anyhow::Result<()> {
-    let raw = fs::read_to_string(&path)?;
-    let composition: CompositionDescriptor = match path.extension().and_then(|ext| ext.to_str()) {
-        Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)?,
-        _ => serde_json::from_str(&raw)?,
-    };
-    anyhow::ensure!(!composition.id.trim().is_empty(), "composition id is required");
-    anyhow::ensure!(!composition.version.trim().is_empty(), "composition version is required");
-    anyhow::ensure!(!composition.entry_surface_id.trim().is_empty(), "composition entry_surface_id is required");
-    let base = path.parent().unwrap_or_else(|| std::path::Path::new("."));
-    let mut surface_ids = Vec::new();
-    let mut slots = Vec::new();
-    for package_path in &composition.packages {
-        let resolved = if package_path.is_absolute() { package_path.clone() } else { base.join(package_path) };
-        let manifest = read_manifest(resolved).await?;
-        manifest.validate_basic()?;
-        for surface in manifest.contributes.surfaces {
-            let slot = serde_json::to_value(&surface.slot)?.as_str().unwrap_or_default().to_string();
-            surface_ids.push(surface.id);
-            slots.push(slot);
-        }
-    }
-    anyhow::ensure!(surface_ids.iter().any(|id| id == &composition.entry_surface_id), "entry surface not provided by composition packages");
-    for required in &composition.required_surfaces {
-        anyhow::ensure!(slots.iter().any(|slot| slot == required), "required surface slot '{required}' missing");
-    }
-    println!("composition check: {}@{} ok", composition.id, composition.version);
-    Ok(())
-}
-
-async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input: String) -> anyhow::Result<()> {
-    let manifest = read_manifest(manifest_path).await?;
-    let payload: serde_json::Value = serde_json::from_str(&input)?;
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    runtime.load_package(manifest).await?;
-    let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, provider_package_id: None, version: None, input: payload })
-        .await?;
-    println!("{}", serde_json::to_string_pretty(&result)?);
-    Ok(())
-}
-
-async fn init_package(path: PathBuf, id: String, entry: String, language: String) -> anyhow::Result<()> {
-    fs::create_dir_all(&path)?;
-    let package_py = path.join("package.py").display().to_string();
-    let package_mjs = path.join("package.mjs").display().to_string();
-    let is_typescript = language.starts_with("typescript");
-    let subprocess_command = if is_typescript {
-        format!("    - node\n    - {package_mjs}")
-    } else {
-        format!("    - python3\n    - {package_py}")
-    };
-    let surfaces = if language.contains("experience") {
-        format!(
-            r#"  surfaces:
-    - id: {id}/entry
-      version: 0.1.0
-      slot: experience_entry
-      title: Generated Experience
-      description: Launchable package entry generated by ygg init-package.
-      capability_id: {id}/echo
-      activation:
-        launch_capability_id: {id}/echo
-        session_template:
-          labels: [generated, experience]
-      approval_policy: user_approval
-    - id: {id}/play
-      version: 0.1.0
-      slot: play_renderer
-      title: Generated Play Renderer
-      capability_id: {id}/echo
-    - id: {id}/forge
-      version: 0.1.0
-      slot: forge_panel
-      title: Generated Forge Panel
-      capability_id: {id}/echo
-    - id: {id}/assist
-      version: 0.1.0
-      slot: assistant_action
-      title: Generated Assistant Action
-      capability_id: {id}/echo
-      approval_policy: fork_then_approve
-"#
-        )
-    } else {
-        "  surfaces: []\n".to_string()
-    };
-    let manifest = match entry.as_str() {
-        "wasm" => format!(
-            r#"schema_version: 1
-id: {id}
-version: 0.1.0
-entry:
-  kind: wasm
-  module: package.wasm
-  abi_version: 1
-  memory_limit_mb: 64
-provides: []
-consumes: []
-contributes:
-  schemas: []
-  hooks: []
-  extension_points: []
-  surfaces: []
-permissions: {{}}
-sandbox_policy:
-  cpu_quota_ms_per_invoke: 5000
-  memory_mb: 64
-  wall_clock_ms: 30000
-"#
-        ),
-        "remote" => format!(
-            r#"schema_version: 1
-id: {id}
-version: 0.1.0
-entry:
-  kind: remote
-  endpoint: https://example.invalid/ygg/package
-  auth:
-    scheme: none
-    config: null
-provides: []
-consumes: []
-contributes:
-  schemas: []
-  hooks: []
-  extension_points: []
-  surfaces: []
-permissions: {{}}
-sandbox_policy:
-  cpu_quota_ms_per_invoke: 5000
-  memory_mb: 128
-  wall_clock_ms: 30000
-"#
-        ),
-        "subprocess" => format!(
-            r#"schema_version: 1
-id: {id}
-version: 0.1.0
-entry:
-  kind: subprocess
-  command:
-{subprocess_command}
-  transport: json_rpc_stdio
-provides:
-  - id: {id}/echo
-    version: 0.1.0
-    input_schema: {{}}
-    output_schema: {{}}
-    streaming: false
-consumes: []
-contributes:
-  schemas: []
-  hooks: []
-  extension_points: []
-{surfaces}
-permissions: {{}}
-sandbox_policy:
-  cpu_quota_ms_per_invoke: 5000
-  memory_mb: 128
-  wall_clock_ms: 30000
-"#
-        ),
-        _ => format!(
-            r#"schema_version: 1
-id: {id}
-version: 0.1.0
-entry:
-  kind: rust_inproc
-  crate_ref: package-crate
-  symbol: register
-  abi_version: 1
-provides: []
-consumes: []
-contributes:
-  schemas: []
-  hooks: []
-  extension_points: []
-  surfaces: []
-permissions: {{}}
-sandbox_policy:
-  cpu_quota_ms_per_invoke: 5000
-  memory_mb: 128
-  wall_clock_ms: 30000
-"#
-        ),
-    };
-    fs::write(path.join("manifest.yaml"), manifest)?;
-    if entry == "subprocess" && language.starts_with("python") {
-        fs::write(path.join("package.py"), PYTHON_SUBPROCESS_TEMPLATE)?;
-    } else if entry == "subprocess" && is_typescript {
-        fs::write(path.join("package.ts"), typescript_subprocess_template(&id))?;
-        fs::write(path.join("package.mjs"), TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE)?;
-        fs::write(path.join("tsconfig.json"), TYPESCRIPT_TSCONFIG)?;
-        fs::write(path.join("package.json"), typescript_package_json(&id))?;
-    }
-    fs::write(
-        path.join("README.md"),
-        format!("# {id}\n\nYggdrasil capability package skeleton.\n\nRun `ygg package conformance manifest.yaml` from this directory.\n"),
-    )?;
-    println!("initialized package skeleton at {}", path.display());
-    Ok(())
-}
-
-const PYTHON_SUBPROCESS_TEMPLATE: &str = r#"#!/usr/bin/env python3
-import json
-import sys
-
-
-def respond(payload):
-    sys.stdout.write(json.dumps(payload) + "\n")
-    sys.stdout.flush()
-
-
-for line in sys.stdin:
-    request = json.loads(line)
-    method = request.get("method")
-    if method == "package.handshake":
-        respond({"jsonrpc": "2.0", "id": request.get("id"), "result": {"ready": True, "package_protocol_version": "0.1.0"}})
-    elif method == "capability.invoke":
-        params = request.get("params", {})
-        respond({"jsonrpc": "2.0", "id": request.get("id"), "result": {"output": params.get("input")}})
-    else:
-        respond({"jsonrpc": "2.0", "id": request.get("id"), "error": {"code": "unknown_method", "message": method}})
-"#;
-
-fn typescript_subprocess_template(id: &str) -> String {
-    format!(
-        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
-
-serveSubprocessPackage({{
-  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
-  onInvoke: ({{ capability_id, input }}) => {{
-    if (capability_id !== "{id}/echo") {{
-      throw new Error(`unsupported capability: ${{capability_id}}`);
-    }}
-    return input ?? null;
-  }},
-}});
-"#
-    )
-}
-
-fn typescript_package_json(id: &str) -> String {
-    format!(
-        r#"{{
-  "name": "{}",
-  "version": "0.1.0",
-  "type": "module",
-  "private": true,
-  "scripts": {{
-    "check": "tsc --noEmit"
-  }},
-  "devDependencies": {{}}
-}}
-"#,
-        id.replace('/', "-")
-    )
-}
-
-const TYPESCRIPT_TSCONFIG: &str = r#"{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "skipLibCheck": true,
-    "types": ["node"]
-  },
-  "include": ["package.ts"]
-}
-"#;
-
-const TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE: &str = r#"import readline from "node:readline";
-
-function respond(id, payload) {
-  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, ...payload }) + "\n");
-}
-
-export function serveSubprocessPackage(options) {
-  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-  rl.on("line", async (line) => {
-    let request;
-    try {
-      request = JSON.parse(line);
-    } catch (error) {
-      respond(null, { error: { code: "invalid_json", message: String(error) } });
-      return;
-    }
-    try {
-      if (request.method === "package.handshake") {
-        const result = options.onHandshake
-          ? await options.onHandshake(request.params ?? {})
-          : { ready: true, package_protocol_version: "0.1.0" };
-        respond(request.id, { result });
-      } else if (request.method === "capability.invoke") {
-        const output = await options.onInvoke(request.params ?? {});
-        respond(request.id, { result: { output } });
-      } else {
-        respond(request.id, { error: { code: "unknown_method", message: request.method ?? "<missing>" } });
-      }
-    } catch (error) {
-      respond(request.id, { error: { code: "package_error", message: String(error) } });
-    }
-  });
-}
-
-serveSubprocessPackage({
-  onInvoke: ({ input }) => input ?? null,
-});
-"#;
+// ---------------------------------------------------------------------------
+// Conformance test suite (Phase B will split these into a separate module)
+// ---------------------------------------------------------------------------
 
 async fn conformance() -> anyhow::Result<()> {
     let mut results = Vec::new();
@@ -1124,14 +593,14 @@ async fn conformance_principal_cannot_self_assert_capability_caller() -> anyhow:
 
 async fn conformance_subprocess_load_ready() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    let record = runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    let record = runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     anyhow::ensure!(record.id == "example/echo-subprocess-python", "wrong package loaded");
     Ok(())
 }
 
 async fn conformance_subprocess_invoke_echo() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/echo-subprocess-python/echo".to_string(),
@@ -1147,7 +616,7 @@ async fn conformance_subprocess_invoke_echo() -> anyhow::Result<()> {
 
 async fn conformance_package_lifecycle_timeline() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     let session_id = "kernel_package_example_echo-subprocess-python".to_string();
     let events = store.list_session(&session_id).await?;
     for expected in ["kernel/package.loading", "kernel/package.starting", "kernel/package.ready", "kernel/package.loaded"] {
@@ -1158,7 +627,7 @@ async fn conformance_package_lifecycle_timeline() -> anyhow::Result<()> {
 
 async fn conformance_package_logs_capture() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/logging-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/logging-subprocess-python/manifest.yaml")).await?).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/logging-subprocess-python/echo".to_string(),
@@ -1176,7 +645,7 @@ async fn conformance_package_logs_capture() -> anyhow::Result<()> {
 
 async fn conformance_package_restart_subprocess() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     let record = runtime.restart_package(&"example/echo-subprocess-python".to_string()).await?;
     anyhow::ensure!(matches!(record.state, ygg_runtime::PackageState::Ready), "restart did not return ready package");
     Ok(())
@@ -1196,7 +665,7 @@ async fn conformance_host_diagnostics() -> anyhow::Result<()> {
 async fn conformance_host_profile_autoload() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
-    load_host_profile(runtime.clone(), PathBuf::from("profiles/forge-alpha.yaml")).await?;
+    host::load_host_profile(runtime.clone(), PathBuf::from("profiles/forge-alpha.yaml")).await?;
     let packages = runtime.list_packages().await;
     anyhow::ensure!(packages.iter().any(|package| package.id == "example/echo-rust-inproc"), "profile did not autoload rust package");
     anyhow::ensure!(packages.iter().any(|package| package.id == "example/echo-subprocess-python"), "profile did not autoload subprocess package");
@@ -1205,8 +674,8 @@ async fn conformance_host_profile_autoload() -> anyhow::Result<()> {
 
 async fn conformance_surface_contribution_list() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-rust-inproc/manifest.yaml")).await?).await?;
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/thirdparty-surface-fixture/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-rust-inproc/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-surface-fixture/manifest.yaml")).await?).await?;
     let all = runtime
         .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({}))
         .await
@@ -1241,7 +710,7 @@ async fn conformance_official_foundation_packages() -> anyhow::Result<()> {
         "packages/official/schema-tools/manifest.yaml",
         "packages/official/event-tools/manifest.yaml",
     ] {
-        runtime.load_package(read_manifest(PathBuf::from(manifest)).await?).await?;
+        runtime.load_package(manifest::read_manifest(PathBuf::from(manifest)).await?).await?;
     }
     let echo = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -1283,7 +752,7 @@ async fn conformance_official_foundation_packages() -> anyhow::Result<()> {
 
 async fn conformance_official_assistant_lab_proposal() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/assistant-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/assistant-lab/manifest.yaml")).await?).await?;
     let assistant = json!({"kind": "assistant", "assistant_id": "assistant/lab", "delegated_user_id": "user/conformance"});
     let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string() };
     let denied = runtime
@@ -1321,7 +790,7 @@ async fn conformance_official_assistant_lab_proposal() -> anyhow::Result<()> {
 
 async fn conformance_blank_play_creation_loop() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    run_blank_play_creation_loop(&runtime).await.map(|_| ())
+    demo::run_blank_play_creation_loop(&runtime).await.map(|_| ())
 }
 
 async fn conformance_asset_put_get_list() -> anyhow::Result<()> {
@@ -1412,90 +881,6 @@ async fn conformance_proposal_reject_and_apply_denied() -> anyhow::Result<()> {
         .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.proposal.apply", json!({"proposal_id": proposal_id}))
         .await;
     anyhow::ensure!(denied.is_err(), "rejected proposal should not apply");
-    Ok(())
-}
-
-#[derive(Debug)]
-struct BlankLoopResult {
-    session_id: String,
-    branch_id: String,
-    asset_id: String,
-    projection_id: String,
-}
-
-async fn run_blank_play_creation_loop<S: EventStore>(runtime: &Runtime<S>) -> anyhow::Result<BlankLoopResult> {
-    for manifest in [
-        "packages/official/assistant-lab/manifest.yaml",
-        "packages/official/blank-experience/manifest.yaml",
-    ] {
-        runtime.load_package(read_manifest(PathBuf::from(manifest)).await?).await?;
-    }
-    let session = runtime
-        .open_session(OpenSessionRequest {
-            labels: vec!["play-create".to_string()],
-            active_package_set: vec!["official/blank-experience".to_string(), "official/assistant-lab".to_string()],
-            metadata: json!({"surface": "play"}),
-        })
-        .await?;
-    let seed = runtime
-        .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/blank-experience/create_seed".to_string(),
-            caller_package_id: None,
-            provider_package_id: None,
-            version: None,
-            input: json!({"title": "Blank Loop", "intent": "prove play-create substrate"}),
-        })
-        .await?;
-    let assistant = json!({"kind": "assistant", "assistant_id": "assistant/blank-loop", "delegated_user_id": "user/demo"});
-    runtime
-        .call_protocol(
-            &ProtocolContext::host_dev("demo"),
-            "kernel.permission.grant",
-            json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
-        )
-        .await
-        .map_err(|error| anyhow::anyhow!(error.message))?;
-    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant)?, transport: "demo".to_string() };
-    let proposal = runtime
-        .call_protocol(
-            &assistant_context,
-            "kernel.capability.invoke",
-            json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"seed": seed.output, "change": "try a first branch"}}),
-        )
-        .await
-        .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(proposal["output"]["requires_user_approval"] == json!(true), "assistant proposal must require approval");
-    let branch = runtime.fork_session(session.id.clone(), 0, json!({"proposal": proposal["output"].clone()})).await?;
-    let asset = runtime
-        .put_asset(ygg_runtime::runtime::AssetPutRequest {
-            origin_package_id: Some("official/blank-experience".to_string()),
-            mime: "application/json".to_string(),
-            content: serde_json::to_string(&json!({"seed": seed.output, "branch_id": branch.id}))?,
-            metadata: json!({"kind": "blank_experience_seed"}),
-        })
-        .await?;
-    let projection_id = "official/blank-experience/projection/demo".to_string();
-    runtime
-        .projection_register(ygg_runtime::runtime::ProjectionDefinition {
-            id: projection_id.clone(),
-            session_id: session.id.clone(),
-            source_kind_prefix: Some("kernel/session".to_string()),
-            state: json!({}),
-        })
-        .await?;
-    runtime.projection_rebuild(&projection_id).await?;
-    Ok(BlankLoopResult { session_id: session.id, branch_id: branch.id, asset_id: asset.id, projection_id })
-}
-
-async fn play_create_demo() -> anyhow::Result<()> {
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    let result = run_blank_play_creation_loop(&runtime).await?;
-    println!("blank play-creation loop ok");
-    println!("session_id: {}", result.session_id);
-    println!("branch_id: {}", result.branch_id);
-    println!("asset_id: {}", result.asset_id);
-    println!("projection_id: {}", result.projection_id);
     Ok(())
 }
 
@@ -1595,7 +980,7 @@ async fn conformance_sqlite_substrate_rehydrate() -> anyhow::Result<()> {
 async fn conformance_subprocess_bad_handshake() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let denied = runtime
-        .load_package(read_manifest(PathBuf::from("examples/packages/bad-handshake-subprocess-python/manifest.yaml")).await?)
+        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/bad-handshake-subprocess-python/manifest.yaml")).await?)
         .await;
     anyhow::ensure!(denied.is_err(), "bad handshake unexpectedly loaded");
     Ok(())
@@ -1603,7 +988,7 @@ async fn conformance_subprocess_bad_handshake() -> anyhow::Result<()> {
 
 async fn conformance_subprocess_timeout() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/slow-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/slow-subprocess-python/manifest.yaml")).await?).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/slow-subprocess-python/echo".to_string(),
@@ -1622,7 +1007,7 @@ async fn conformance_subprocess_timeout() -> anyhow::Result<()> {
 async fn conformance_subprocess_invalid_output_schema() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(read_manifest(PathBuf::from("examples/packages/invalid-output-subprocess-python/manifest.yaml")).await?)
+        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/invalid-output-subprocess-python/manifest.yaml")).await?)
         .await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -1639,7 +1024,7 @@ async fn conformance_subprocess_invalid_output_schema() -> anyhow::Result<()> {
 
 async fn conformance_subprocess_unload_removes_capability() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     runtime.unload_package(&"example/echo-subprocess-python".to_string()).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -1773,15 +1158,15 @@ async fn conformance_generated_subprocess_package() -> anyhow::Result<()> {
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
-    init_package(
+    package::init_package(
         path.clone(),
         "example/generated-subprocess".to_string(),
         "subprocess".to_string(),
         "python".to_string(),
     )
     .await?;
-    package_check(path.join("manifest.yaml")).await?;
-    package_conformance(path.join("manifest.yaml")).await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
     fs::remove_dir_all(path)?;
     Ok(())
 }
@@ -1791,15 +1176,15 @@ async fn conformance_generated_typescript_subprocess_package() -> anyhow::Result
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
-    init_package(
+    package::init_package(
         path.clone(),
         "example/generated-typescript-subprocess".to_string(),
         "subprocess".to_string(),
         "typescript".to_string(),
     )
     .await?;
-    package_check(path.join("manifest.yaml")).await?;
-    package_conformance(path.join("manifest.yaml")).await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
     fs::remove_dir_all(path)?;
     Ok(())
 }
@@ -1809,16 +1194,16 @@ async fn conformance_generated_experience_template() -> anyhow::Result<()> {
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
-    init_package(
+    package::init_package(
         path.clone(),
         "example/generated-experience".to_string(),
         "subprocess".to_string(),
         "typescript-experience".to_string(),
     )
     .await?;
-    package_check(path.join("manifest.yaml")).await?;
-    package_conformance(path.join("manifest.yaml")).await?;
-    let manifest = read_manifest(path.join("manifest.yaml")).await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
+    let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
     anyhow::ensure!(manifest.contributes.surfaces.len() >= 4, "experience template did not generate surface descriptors");
     fs::remove_dir_all(path)?;
     Ok(())
@@ -1832,22 +1217,22 @@ async fn conformance_composition_descriptor() -> anyhow::Result<()> {
         fs::remove_dir_all(&root)?;
     }
     fs::create_dir_all(&root)?;
-    init_package(
+    package::init_package(
         package_path,
         "example/composed-experience".to_string(),
         "subprocess".to_string(),
         "typescript-experience".to_string(),
     )
     .await?;
-    init_composition(composition_path.clone(), "example/composed-experience".to_string()).await?;
-    composition_check(composition_path.join("composition.yaml")).await?;
+    composition::init_composition(composition_path.clone(), "example/composed-experience".to_string()).await?;
+    composition::composition_check(composition_path.join("composition.yaml")).await?;
     fs::remove_dir_all(root)?;
     Ok(())
 }
 
 async fn conformance_official_composition_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/composition-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/composition-lab/manifest.yaml")).await?).await?;
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/composition-lab/launch_plan".to_string(),
@@ -1877,7 +1262,7 @@ async fn conformance_official_composition_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_asset_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;
     let preview = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/asset-lab/preview".to_string(),
@@ -1903,7 +1288,7 @@ async fn conformance_official_asset_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_projection_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/projection-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/projection-lab/manifest.yaml")).await?).await?;
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/projection-lab/rebuild_plan".to_string(),
@@ -1929,7 +1314,7 @@ async fn conformance_official_projection_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_playable_seed() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/playable-seed/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/playable-seed/manifest.yaml")).await?).await?;
     let launch = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/playable-seed/launch".to_string(),
@@ -1971,7 +1356,7 @@ async fn conformance_official_playable_seed() -> anyhow::Result<()> {
 
 async fn conformance_official_persona_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/persona-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/persona-lab/manifest.yaml")).await?).await?;
     let imported = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/persona-lab/import_profile".to_string(),
@@ -1999,7 +1384,7 @@ async fn conformance_official_persona_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_knowledge_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/knowledge-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/knowledge-lab/manifest.yaml")).await?).await?;
     let imported = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/knowledge-lab/import_collection".to_string(),
@@ -2037,7 +1422,7 @@ async fn conformance_official_knowledge_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_context_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/context-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/context-lab/manifest.yaml")).await?).await?;
     let preview = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/context-lab/assemble_preview".to_string(),
@@ -2064,7 +1449,7 @@ async fn conformance_official_context_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_text_transform_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/text-transform-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/text-transform-lab/manifest.yaml")).await?).await?;
     let preview = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/text-transform-lab/apply_preview".to_string(),
@@ -2092,7 +1477,7 @@ async fn conformance_official_text_transform_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_model_connector_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/model-connector-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/model-connector-lab/manifest.yaml")).await?).await?;
     let families = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/model-connector-lab/describe_families".to_string(),
@@ -2140,7 +1525,7 @@ async fn conformance_official_model_connector_lab() -> anyhow::Result<()> {
 
 async fn conformance_official_model_routing_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(read_manifest(PathBuf::from("packages/official/model-routing-lab/manifest.yaml")).await?).await?;
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/model-routing-lab/manifest.yaml")).await?).await?;
     let bindings = json!([
         {"profile_id": "profile/low", "priority": 1, "fallback": true},
         {"profile_id": "profile/high", "priority": 10, "fallback": false}
@@ -2172,11 +1557,15 @@ async fn conformance_official_model_routing_lab() -> anyhow::Result<()> {
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Conformance helper functions (shared between conformance tests)
+// ---------------------------------------------------------------------------
+
 fn event_package(id: &str, read: bool, append: bool) -> PackageManifest {
     PackageManifest {
         id: id.to_string(),
         permissions: PermissionSet { events: EventPermissions { read, append }, ..PermissionSet::default() },
-        ..demo_event_writer_manifest()
+        ..demo::demo_event_writer_manifest()
     }
 }
 
@@ -2192,7 +1581,7 @@ fn hook_package(id: &str, extension_point: &str, handler: &str, precedence: i32)
             }],
             ..PackageContributions::default()
         },
-        ..demo_event_writer_manifest()
+        ..demo::demo_event_writer_manifest()
     }
 }
 
@@ -2292,160 +1681,6 @@ fn event_schema_package() -> PackageManifest {
             events: EventPermissions { read: false, append: true },
             ..PermissionSet::default()
         },
-        ..demo_event_writer_manifest()
+        ..demo::demo_event_writer_manifest()
     }
-}
-
-async fn demo() -> anyhow::Result<()> {
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
-
-    let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(demo_event_writer_manifest()).await?;
-    runtime
-        .append_event(AppendEventRequest {
-            session_id: session.id.clone(),
-            writer_package_id: "example/echo".to_string(),
-            kind: "example/echo/event.demo".to_string(),
-            payload: json!({"message": "content-free kernel event"}),
-            metadata: json!({"created_by": "ygg-cli demo"}),
-        })
-        .await?;
-
-    let events = store.list_session(&session.id).await?;
-
-    println!("session_id: {}", session.id);
-    println!("kernel_package_id: {KERNEL_PACKAGE_ID}");
-    println!("\nevents:");
-    for event in events {
-        println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
-    }
-
-    Ok(())
-}
-
-fn demo_event_writer_manifest() -> PackageManifest {
-    PackageManifest {
-        schema_version: 1,
-        id: "example/echo".to_string(),
-        version: "0.1.0".to_string(),
-        display_name: Some("Demo Event Writer".to_string()),
-        description: None,
-        author: None,
-        license: None,
-        entry: PackageEntry::RustInproc {
-            crate_ref: "example-echo".to_string(),
-            symbol: "register".to_string(),
-            abi_version: 1,
-        },
-        provides: Vec::new(),
-        consumes: Vec::new(),
-        contributes: PackageContributions::default(),
-        permissions: PermissionSet {
-            events: EventPermissions { read: false, append: true },
-            ..PermissionSet::default()
-        },
-        sandbox_policy: SandboxPolicy::default(),
-    }
-}
-
-async fn sqlite_demo(path: PathBuf) -> anyhow::Result<()> {
-    let store = Arc::new(SqliteEventStore::open(&path)?);
-    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
-    let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(sqlite_event_writer_manifest()).await?;
-    runtime
-        .append_event(AppendEventRequest {
-            session_id: session.id.clone(),
-            writer_package_id: "example/sqlite".to_string(),
-            kind: "example/sqlite/event.demo".to_string(),
-            payload: json!({"durable": true}),
-            metadata: json!({}),
-        })
-        .await?;
-    drop(runtime);
-    drop(store);
-
-    let reopened = SqliteEventStore::open(&path)?;
-    let events = reopened.list_session(&session.id).await?;
-    println!("sqlite_path: {}", path.display());
-    println!("session_id: {}", session.id);
-    for event in events {
-        println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
-    }
-    Ok(())
-}
-
-fn sqlite_event_writer_manifest() -> PackageManifest {
-    PackageManifest {
-        id: "example/sqlite".to_string(),
-        ..demo_event_writer_manifest()
-    }
-}
-
-async fn serve(bind: SocketAddr) -> anyhow::Result<()> {
-    let listener = tokio::net::TcpListener::bind(bind).await?;
-    println!("Yggdrasil kernel service listening on http://{bind}");
-    axum::serve(listener, ygg_service::app()).await?;
-    Ok(())
-}
-
-async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> anyhow::Result<()> {
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
-    if let Some(profile_path) = profile {
-        load_host_profile(runtime.clone(), profile_path).await?;
-    }
-    let listener = tokio::net::TcpListener::bind(http).await?;
-    println!("Yggdrasil host serving http://{http}");
-    println!("  RPC: POST http://{http}/rpc");
-    println!("  SSE: GET  http://{http}/kernel/event.subscribe/:session_id");
-    let app = ygg_service::app_with_state(ygg_service::AppState { runtime });
-    axum::serve(listener, app).await?;
-    Ok(())
-}
-
-async fn load_host_profile(runtime: Arc<Runtime<InMemoryEventStore>>, profile_path: PathBuf) -> anyhow::Result<()> {
-    let raw = fs::read_to_string(&profile_path)?;
-    let profile: HostProfile = serde_yaml::from_str(&raw)?;
-    if let Some(title) = &profile.title {
-        println!("loading host profile: {title}");
-    }
-    let base = profile_path.parent().map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    for manifest_path in profile.autoload {
-        let resolved = if manifest_path.is_absolute() { manifest_path } else { base.join(manifest_path) };
-        let manifest = read_manifest(resolved).await?;
-        let record = runtime.load_package(manifest).await?;
-        println!("autoloaded package: {}@{} ({:?})", record.id, record.version, record.state);
-    }
-    Ok(())
-}
-
-async fn host_stdio() -> anyhow::Result<()> {
-    let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
-    let context = ProtocolContext::host_dev("host_stdio");
-    let stdin = BufReader::new(tokio::io::stdin());
-    let mut lines = stdin.lines();
-    let mut stdout = tokio::io::stdout();
-    while let Some(line) = lines.next_line().await? {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let response = match serde_json::from_str::<ygg_runtime::ProtocolRequest>(&line) {
-            Ok(request) => match runtime.call_protocol(&context, &request.method, request.params).await {
-                Ok(result) => ygg_runtime::ProtocolResponse { id: request.id, result: Some(result), error: None },
-                Err(error) => ygg_runtime::ProtocolResponse { id: request.id, result: None, error: Some(error) },
-            },
-            Err(error) => ygg_runtime::ProtocolResponse {
-                id: "invalid".to_string(),
-                result: None,
-                error: Some(ygg_runtime::ProtocolError::invalid_request(error.to_string())),
-            },
-        };
-        stdout.write_all(serde_json::to_string(&response)?.as_bytes()).await?;
-        stdout.write_all(b"\n").await?;
-        stdout.flush().await?;
-    }
-    Ok(())
 }

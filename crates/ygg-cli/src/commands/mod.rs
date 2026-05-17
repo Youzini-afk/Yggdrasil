@@ -1,0 +1,6 @@
+pub(crate) mod capability;
+pub(crate) mod composition;
+pub(crate) mod demo;
+pub(crate) mod host;
+pub(crate) mod manifest;
+pub(crate) mod package;

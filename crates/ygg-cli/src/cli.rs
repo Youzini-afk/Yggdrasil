@@ -1,0 +1,137 @@
+use std::net::SocketAddr;
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
+use serde::Deserialize;
+
+#[derive(Debug, Parser)]
+#[command(name = "ygg")]
+#[command(about = "Yggdrasil kernel CLI")]
+pub(crate) struct Cli {
+    #[command(subcommand)]
+    pub(crate) command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum Command {
+    /// Run a content-free kernel event demo.
+    Demo,
+    /// Run a durable SQLite-backed kernel event demo.
+    SqliteDemo { path: PathBuf },
+    /// Run the headless kernel HTTP service.
+    Serve {
+        #[arg(long, default_value = "127.0.0.1:8787")]
+        bind: SocketAddr,
+    },
+    /// Run host modes.
+    Host {
+        #[command(subcommand)]
+        command: HostCommand,
+    },
+    /// Run a JSON-RPC-like kernel protocol loop over stdio.
+    HostStdio,
+    /// Validate a package manifest file.
+    Manifest {
+        #[command(subcommand)]
+        command: ManifestCommand,
+    },
+    /// Exercise the in-memory package registry.
+    Package {
+        #[command(subcommand)]
+        command: PackageCommand,
+    },
+    /// Exercise capability discovery and invocation against a manifest.
+    Capability {
+        #[command(subcommand)]
+        command: CapabilityCommand,
+    },
+    /// Generate package skeletons.
+    InitPackage {
+        path: PathBuf,
+        #[arg(long, default_value = "example/new-package")]
+        id: String,
+        #[arg(long, default_value = "rust_inproc")]
+        entry: String,
+        #[arg(long, default_value = "python")]
+        language: String,
+    },
+    /// Generate a local composition descriptor.
+    InitComposition {
+        path: PathBuf,
+        #[arg(long, default_value = "example/composition")]
+        id: String,
+    },
+    /// Validate composition descriptors.
+    Composition {
+        #[command(subcommand)]
+        command: CompositionCommand,
+    },
+    /// Run local kernel conformance checks.
+    Conformance,
+    /// Run the first blank play-creation loop demo.
+    PlayCreateDemo,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum ManifestCommand {
+    Validate { path: PathBuf },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum PackageCommand {
+    Load { path: PathBuf },
+    Check { path: PathBuf },
+    RunFixture { path: PathBuf },
+    InvokeLocal {
+        path: PathBuf,
+        capability_id: String,
+        #[arg(long, default_value = "{}")]
+        input: String,
+    },
+    Conformance { path: PathBuf },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum HostCommand {
+    /// Serve a profile-backed host with HTTP /rpc and event SSE.
+    Serve {
+        #[arg(long, default_value = "127.0.0.1:8787")]
+        http: SocketAddr,
+        #[arg(long)]
+        profile: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum CompositionCommand {
+    Check { path: PathBuf },
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub(crate) struct HostProfile {
+    #[serde(default)]
+    pub(crate) title: Option<String>,
+    #[serde(default)]
+    pub(crate) autoload: Vec<PathBuf>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct CompositionDescriptor {
+    pub(crate) id: String,
+    pub(crate) version: String,
+    pub(crate) entry_surface_id: String,
+    #[serde(default)]
+    pub(crate) packages: Vec<PathBuf>,
+    #[serde(default)]
+    pub(crate) required_surfaces: Vec<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum CapabilityCommand {
+    Invoke {
+        manifest: PathBuf,
+        capability_id: String,
+        #[arg(long, default_value = "{}")]
+        input: String,
+    },
+}
