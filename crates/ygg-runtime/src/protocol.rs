@@ -147,6 +147,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.permission.revoke", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.permission.list", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.permission.audit", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.surface.contribution.list", streaming: false, status: MethodStatus::Partial },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {

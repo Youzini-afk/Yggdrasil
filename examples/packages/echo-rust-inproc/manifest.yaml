@@ -20,6 +20,14 @@ contributes:
   schemas: []
   hooks: []
   extension_points: []
+  surfaces:
+    - id: example/echo-rust-inproc/home-card
+      slot: home_card
+      title: Echo Package Playground
+      description: Launcher card contributed by a package manifest.
+      capability_id: example/echo-rust-inproc/echo
+      metadata:
+        accent: violet
 permissions:
   events:
     read: true

@@ -677,6 +677,27 @@ where
         })
     }
 
+    pub async fn list_surface_contributions(&self, slot: Option<String>) -> Value {
+        let packages = self.list_packages().await;
+        let mut contributions = Vec::new();
+        for package in packages {
+            for contribution in &package.manifest.contributes.surfaces {
+                let slot_name = serde_json::to_value(&contribution.slot)
+                    .ok()
+                    .and_then(|value| value.as_str().map(str::to_string))
+                    .unwrap_or_else(|| "unknown".to_string());
+                if slot.as_ref().map(|slot| slot == &slot_name).unwrap_or(true) {
+                    contributions.push(json!({
+                        "package_id": package.id,
+                        "entry_kind": package.entry_kind,
+                        "surface": contribution,
+                    }));
+                }
+            }
+        }
+        json!(contributions)
+    }
+
     pub async fn grant_permission(
         &self,
         principal: ProtocolPrincipal,
@@ -960,6 +981,10 @@ where
             "kernel.host.info" => Ok(serde_json::to_value(crate::host_info())?),
             "kernel.host.ping" => Ok(json!({"ok": true})),
             "kernel.host.diagnostics" => Ok(self.host_diagnostics().await),
+            "kernel.surface.contribution.list" => {
+                let slot = params.get("slot").and_then(Value::as_str).map(str::to_string);
+                Ok(self.list_surface_contributions(slot).await)
+            }
             "kernel.permission.grant" => {
                 let principal = params
                     .get("principal")

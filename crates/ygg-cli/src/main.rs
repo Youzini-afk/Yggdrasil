@@ -551,6 +551,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "package.restart_subprocess", conformance_package_restart_subprocess().await);
     record_case(&mut results, "host.diagnostics", conformance_host_diagnostics().await);
     record_case(&mut results, "host.profile_autoload", conformance_host_profile_autoload().await);
+    record_case(&mut results, "surface.contribution_list", conformance_surface_contribution_list().await);
     record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
     record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
     record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
@@ -1060,6 +1061,26 @@ async fn conformance_host_profile_autoload() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn conformance_surface_contribution_list() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-rust-inproc/manifest.yaml")).await?).await?;
+    let all = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(all.as_array().map(|items| items.len()).unwrap_or(0) == 1, "surface contribution was not listed");
+    let home = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.surface.contribution.list",
+            json!({"slot": "home_card"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(home[0]["surface"]["id"] == json!("example/echo-rust-inproc/home-card"), "surface slot filter failed");
+    Ok(())
+}
+
 async fn conformance_asset_put_get_list() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let record_value = runtime
@@ -1503,6 +1524,7 @@ fn event_schema_package() -> PackageManifest {
             }],
             hooks: Vec::new(),
             extension_points: Vec::new(),
+            surfaces: Vec::new(),
         },
         permissions: PermissionSet {
             events: EventPermissions { read: false, append: true },

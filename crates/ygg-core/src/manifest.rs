@@ -82,6 +82,31 @@ pub struct PackageContributions {
     pub hooks: Vec<HookSubscription>,
     #[serde(default)]
     pub extension_points: Vec<ExtensionPointDescriptor>,
+    #[serde(default)]
+    pub surfaces: Vec<SurfaceContribution>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SurfaceContribution {
+    pub id: String,
+    pub slot: SurfaceSlot,
+    pub title: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub capability_id: Option<CapabilityId>,
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceSlot {
+    HomeCard,
+    PlayRenderer,
+    ForgePanel,
+    AssetEditor,
+    AssistantAction,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -226,6 +251,12 @@ impl PackageManifest {
         for schema in &self.contributes.schemas {
             validate_namespaced_id(&schema.id)?;
             validate_schema_shape(&schema.schema)?;
+        }
+        for surface in &self.contributes.surfaces {
+            validate_namespaced_id(&surface.id)?;
+            if let Some(capability_id) = &surface.capability_id {
+                validate_namespaced_id(capability_id)?;
+            }
         }
         Ok(())
     }

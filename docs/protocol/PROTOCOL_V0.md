@@ -220,6 +220,16 @@ kernel.permission.list
 kernel.permission.audit
 ```
 
+## Surface contributions
+
+Packages may declare UI surface descriptors in their manifests. The kernel does not render or interpret these descriptors as content; it only exposes them for public clients:
+
+```text
+kernel.surface.contribution.list
+```
+
+Initial slots are `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
+
 ## Versioning
 
 The protocol carries `protocol_version`. The kernel publishes the schema set per version. Breaking changes require a new version; the kernel may serve multiple concurrently.
