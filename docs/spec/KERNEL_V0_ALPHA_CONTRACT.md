@@ -57,6 +57,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
 | `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
+| `kernel.permission.grant/revoke/list/audit` | partial | Host-dev callers can grant/revoke scoped permissions to human or assistant principals, list grants, and inspect grant/revoke audit events. Durable grant rehydration and full resource policy coverage remain next. |
 
 ## Kernel event kind matrix
 
@@ -80,6 +81,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel/capability.completed` | kernel | planned | Invocation success event. |
 | `kernel/capability.failed` | kernel | planned | Invocation failure event. |
 | `kernel/permission.denied` | kernel | implemented | Permission denial audit. |
+| `kernel/permission.granted` | kernel | implemented | Permission grant audit. |
+| `kernel/permission.revoked` | kernel | implemented | Permission revoke audit. |
 | `kernel/error` | kernel | planned | General structured kernel error event. |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/...` or another package's namespace.
@@ -100,8 +103,8 @@ Manifest support means the schema can describe the entry and host policy can acc
 | Permission | Status | Current enforcement |
 |---|---:|---|
 | `events.append` | implemented | Required for non-kernel `event.append`. |
-| `events.read` | partial | Runtime supports caller-aware read checks for list; SSE subscribe is currently host-dev only and package-principal subscribe checks are Platform Host Alpha work. |
-| `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed only as host/dev operations and must not become package privilege. |
+| `events.read` | partial | Runtime supports package manifest checks and scoped grants for human/assistant principals. SSE subscribe is currently host-dev only. |
+| `capabilities.invoke` | partial | Runtime supports package manifest checks and scoped grants for human/assistant principals. Anonymous host calls are allowed only as host/dev operations and must not become package privilege. |
 | `packages.call` | planned | Package-to-package control plane not implemented. |
 | `assets.read/write` | planned | Asset store not implemented. |
 | `projections` | planned | Projection registration is host-dev only; package permission model remains next. |
@@ -126,6 +129,7 @@ Implemented:
 12. Event range replay is implemented for in-process protocol and HTTP ad hoc list; HTTP SSE can replay from `after_sequence` and tail new events.
 13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
 14. Asset, branch, and generic projection substrate exists for host-dev protocol callers and can rehydrate from the durable event log.
+15. Human and assistant principals can receive scoped grants for event reads and capability invocation, with grant/revoke audit events.
 
 Still partial for Platform Host Alpha:
 

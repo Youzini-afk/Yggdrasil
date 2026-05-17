@@ -27,6 +27,8 @@ pub const EVENT_CAPABILITY_INVOKED: &str = "kernel/capability.invoked";
 pub const EVENT_CAPABILITY_COMPLETED: &str = "kernel/capability.completed";
 pub const EVENT_CAPABILITY_FAILED: &str = "kernel/capability.failed";
 pub const EVENT_PERMISSION_DENIED: &str = "kernel/permission.denied";
+pub const EVENT_PERMISSION_GRANTED: &str = "kernel/permission.granted";
+pub const EVENT_PERMISSION_REVOKED: &str = "kernel/permission.revoked";
 pub const EVENT_ERROR: &str = "kernel/error";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

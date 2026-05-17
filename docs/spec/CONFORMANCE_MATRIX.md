@@ -9,7 +9,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 41 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 43 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -55,6 +55,9 @@ Current named conformance coverage: 41 CLI cases plus crate/service unit tests.
 | protocol | host stdio responds to protocol envelope | implemented by CLI validation |
 | principal | package context overrides caller-supplied event writer | implemented |
 | principal | package context overrides caller-supplied capability caller | implemented |
+| principal | human and assistant protocol principals exist | implemented |
+| permissions | grant/revoke/list/audit protocol | implemented |
+| permissions | assistant capability invoke requires explicit grant | implemented |
 | schema | capability input schema rejects invalid input | implemented |
 | schema | event payload schema rejects invalid payload | implemented |
 | subprocess | JSON-RPC stdio package loads and reports ready | implemented |
@@ -119,6 +122,8 @@ official.no_privilege                      PASS
 schema.capability_input_rejects_invalid    PASS
 schema.event_payload_rejects_invalid       PASS
 protocol.structured_permission_error       PASS
+permission.grant_revoke_audit              PASS
+permission.assistant_capability_grant      PASS
 protocol.call_host_info                    PASS
 protocol.call_capability_in_process        PASS
 principal.package_cannot_self_assert_writer PASS

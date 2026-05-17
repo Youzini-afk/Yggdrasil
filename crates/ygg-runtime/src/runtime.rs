@@ -11,7 +11,8 @@ use ygg_core::{
     new_id, AssetRecord, EventEnvelope, EventKind, EventSequence, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
     SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG,
     EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING,
-    EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED, EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED,
+    EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
+    EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED,
     EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID, EVENT_ASSET_PUT, EVENT_PROJECTION_UPDATED,
 };
 
@@ -106,6 +107,20 @@ pub struct BranchRecord {
     pub metadata: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PermissionGrantRecord {
+    pub id: String,
+    pub principal: ProtocolPrincipal,
+    pub permission: String,
+    #[serde(default)]
+    pub scope: Option<String>,
+    pub granted_at: chrono::DateTime<Utc>,
+    #[serde(default)]
+    pub revoked_at: Option<chrono::DateTime<Utc>>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 struct StoredAsset {
     record: AssetRecord,
@@ -126,6 +141,7 @@ where
     assets: Arc<RwLock<HashMap<String, StoredAsset>>>,
     projections: Arc<RwLock<HashMap<String, ProjectionDefinition>>>,
     branches: Arc<RwLock<HashMap<String, BranchRecord>>>,
+    grants: Arc<RwLock<HashMap<String, PermissionGrantRecord>>>,
     config: RuntimeConfig,
 }
 
@@ -144,6 +160,7 @@ where
             assets: Arc::new(RwLock::new(HashMap::new())),
             projections: Arc::new(RwLock::new(HashMap::new())),
             branches: Arc::new(RwLock::new(HashMap::new())),
+            grants: Arc::new(RwLock::new(HashMap::new())),
             config,
         }
     }
@@ -343,7 +360,9 @@ where
                 request.writer_package_id = package_id.clone();
                 self.append_event(request).await
             }
-            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to append events"),
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                anyhow::bail!("principal is not allowed to append events directly")
+            }
         }
     }
 
@@ -445,7 +464,13 @@ where
         match &context.principal {
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.list_events(session_id).await,
             ProtocolPrincipal::Package { package_id } => self.list_events_for(session_id, Some(package_id)).await,
-            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to read events"),
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                if self.principal_has_grant(&context.principal, "events.read", Some(session_id)).await {
+                    self.list_events(session_id).await
+                } else {
+                    anyhow::bail!("principal is not allowed to read events")
+                }
+            }
         }
     }
 
@@ -457,7 +482,13 @@ where
         match &context.principal {
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.list_events_range(request).await,
             ProtocolPrincipal::Package { package_id } => self.list_events_range_for(request, Some(package_id)).await,
-            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to read events"),
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                if self.principal_has_grant(&context.principal, "events.read", Some(&request.session_id)).await {
+                    self.list_events_range(request).await
+                } else {
+                    anyhow::bail!("principal is not allowed to read events")
+                }
+            }
         }
     }
 
@@ -646,6 +677,74 @@ where
         })
     }
 
+    pub async fn grant_permission(
+        &self,
+        principal: ProtocolPrincipal,
+        permission: String,
+        scope: Option<String>,
+        reason: Option<String>,
+    ) -> anyhow::Result<PermissionGrantRecord> {
+        let record = PermissionGrantRecord {
+            id: new_id("gr"),
+            principal,
+            permission,
+            scope,
+            granted_at: Utc::now(),
+            revoked_at: None,
+            reason,
+        };
+        self.grants.write().await.insert(record.id.clone(), record.clone());
+        self.append_kernel_event(
+            &format!("kernel_permission_{}", record.id),
+            EVENT_PERMISSION_GRANTED,
+            serde_json::to_value(&record)?,
+        )
+        .await?;
+        Ok(record)
+    }
+
+    pub async fn revoke_permission(&self, grant_id: &str) -> anyhow::Result<PermissionGrantRecord> {
+        let mut grants = self.grants.write().await;
+        let record = grants
+            .get_mut(grant_id)
+            .ok_or_else(|| anyhow::anyhow!("grant '{grant_id}' not found"))?;
+        record.revoked_at = Some(Utc::now());
+        let record = record.clone();
+        drop(grants);
+        self.append_kernel_event(
+            &format!("kernel_permission_{}", record.id),
+            EVENT_PERMISSION_REVOKED,
+            serde_json::to_value(&record)?,
+        )
+        .await?;
+        Ok(record)
+    }
+
+    pub async fn list_permission_grants(&self, principal: Option<ProtocolPrincipal>) -> Vec<PermissionGrantRecord> {
+        let mut grants: Vec<_> = self
+            .grants
+            .read()
+            .await
+            .values()
+            .filter(|grant| principal.as_ref().map(|principal| &grant.principal == principal).unwrap_or(true))
+            .cloned()
+            .collect();
+        grants.sort_by(|a, b| a.granted_at.cmp(&b.granted_at));
+        grants
+    }
+
+    pub async fn principal_has_grant(&self, principal: &ProtocolPrincipal, permission: &str, scope: Option<&str>) -> bool {
+        if matches!(principal, ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev) {
+            return true;
+        }
+        self.grants.read().await.values().any(|grant| {
+            grant.revoked_at.is_none()
+                && &grant.principal == principal
+                && grant.permission == permission
+                && grant.scope.as_deref().map(|grant_scope| scope.map(|scope| scope.starts_with(grant_scope)).unwrap_or(false)).unwrap_or(true)
+        })
+    }
+
     pub async fn list_packages(&self) -> Vec<PackageRecord> {
         self.packages.list().await
     }
@@ -779,7 +878,14 @@ where
                 request.caller_package_id = Some(package_id.clone());
                 self.invoke_capability(request).await
             }
-            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to invoke capabilities"),
+            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
+                if self.principal_has_grant(&context.principal, "capabilities.invoke", Some(&request.capability_id)).await {
+                    request.caller_package_id = None;
+                    self.invoke_capability(request).await
+                } else {
+                    anyhow::bail!("principal is not allowed to invoke capabilities")
+                }
+            }
         }
     }
 
@@ -854,6 +960,45 @@ where
             "kernel.host.info" => Ok(serde_json::to_value(crate::host_info())?),
             "kernel.host.ping" => Ok(json!({"ok": true})),
             "kernel.host.diagnostics" => Ok(self.host_diagnostics().await),
+            "kernel.permission.grant" => {
+                let principal = params
+                    .get("principal")
+                    .cloned()
+                    .ok_or_else(|| anyhow::anyhow!("kernel.permission.grant requires principal"))?;
+                let principal: ProtocolPrincipal = serde_json::from_value(principal)?;
+                let permission = params
+                    .get("permission")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.permission.grant requires permission"))?
+                    .to_string();
+                let scope = params.get("scope").and_then(Value::as_str).map(str::to_string);
+                let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
+                Ok(serde_json::to_value(self.grant_permission(principal, permission, scope, reason).await?)?)
+            }
+            "kernel.permission.revoke" => {
+                let grant_id = params
+                    .get("grant_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.permission.revoke requires grant_id"))?;
+                Ok(serde_json::to_value(self.revoke_permission(grant_id).await?)?)
+            }
+            "kernel.permission.list" => {
+                let principal = match params.get("principal") {
+                    Some(value) => Some(serde_json::from_value(value.clone())?),
+                    None => None,
+                };
+                Ok(serde_json::to_value(self.list_permission_grants(principal).await)?)
+            }
+            "kernel.permission.audit" => {
+                let events: Vec<_> = self
+                    .store
+                    .list_all()
+                    .await?
+                    .into_iter()
+                    .filter(|event| event.kind.starts_with("kernel/permission"))
+                    .collect();
+                Ok(serde_json::to_value(events)?)
+            }
             "kernel.session.open" => Ok(serde_json::to_value(
                 self.open_session(serde_json::from_value(params)?).await?,
             )?),

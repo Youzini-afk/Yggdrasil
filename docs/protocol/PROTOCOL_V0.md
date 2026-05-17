@@ -196,9 +196,29 @@ For `capability.stream`, frames are provider-defined chunks plus a terminal stat
 
 ## Authentication and principals
 
-A host enforces authentication at the transport layer. Each connection is associated with a principal: a user, a package, or a remote system. The kernel checks permissions against the principal on every operation.
+A host enforces authentication at the transport layer. Each connection is associated with a principal: a user, assistant, package, host tool, anonymous caller, or remote system. The kernel checks permissions against the principal on every operation.
 
 The kernel does not ship an identity provider. Hosts plug one in.
+
+Alpha principal kinds:
+
+```text
+host_admin
+host_dev
+package { package_id }
+human { user_id }
+assistant { assistant_id, delegated_user_id? }
+anonymous
+```
+
+Human and assistant principals require explicit scoped grants for sensitive operations:
+
+```text
+kernel.permission.grant
+kernel.permission.revoke
+kernel.permission.list
+kernel.permission.audit
+```
 
 ## Versioning
 

@@ -22,6 +22,8 @@ pub enum ProtocolPrincipal {
     HostAdmin,
     HostDev,
     Package { package_id: String },
+    Human { user_id: String },
+    Assistant { assistant_id: String, delegated_user_id: Option<String> },
     Anonymous,
 }
 
@@ -141,6 +143,10 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.host.ping", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.host.diagnostics", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.host.principal", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.permission.grant", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.permission.revoke", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.permission.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.permission.audit", streaming: false, status: MethodStatus::Partial },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {
