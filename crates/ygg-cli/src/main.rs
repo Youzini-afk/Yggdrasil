@@ -725,6 +725,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.asset_lab", conformance_official_asset_lab().await);
     record_case(&mut results, "official.projection_lab", conformance_official_projection_lab().await);
     record_case(&mut results, "official.playable_seed", conformance_official_playable_seed().await);
+    record_case(&mut results, "official.persona_lab", conformance_official_persona_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1960,6 +1961,34 @@ async fn conformance_official_playable_seed() -> anyhow::Result<()> {
         .map(|records| records.iter().any(|record| record["package_id"] == json!("official/playable-seed")))
         .unwrap_or(false);
     anyhow::ensure!(has_entry, "playable seed entry surface missing");
+    Ok(())
+}
+
+async fn conformance_official_persona_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/persona-lab/manifest.yaml")).await?).await?;
+    let imported = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/persona-lab/import_profile".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/persona-lab".to_string()),
+            version: None,
+            input: json!({"source": "conformance", "data": {"spec": "chara_card_v2", "data": {"name": "Mira", "description": "Maps dream cities", "extensions": {"unknown": true}}}}),
+        })
+        .await?;
+    anyhow::ensure!(imported.output["kind"] == json!("persona_profile"), "persona import returned wrong kind");
+    anyhow::ensure!(imported.output["core"]["name"] == json!("Mira"), "persona import lost name");
+    let fragment = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/persona-lab/render_fragment".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/persona-lab".to_string()),
+            version: None,
+            input: json!({"profile": imported.output}),
+        })
+        .await?;
+    anyhow::ensure!(fragment.output["kind"] == json!("persona_fragment"), "persona render returned wrong kind");
+    anyhow::ensure!(fragment.output.get("provenance").is_some(), "persona render missing provenance");
     Ok(())
 }
 
