@@ -13,7 +13,6 @@ The next center of gravity is **not** more substrate. It is making the first ref
 - First Real Capability Package Track: complete seed (`composition-lab`, `asset-lab`, `projection-lab`, `playable-seed`; 55 conformance cases).
 - Platform Host Alpha: implemented slice complete; remaining items (streaming dispatch, hook timeout audit, persisted provider policy, broader transport parity, richer SDK packaging) are tracked below in Phase I.
 - Code Health Split Alpha: complete; CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain.
-- Runtime Split Alpha: complete; `Runtime<S>` public API is preserved while protocol registry/dispatch drift and suffix-only in-process fallback were hardened.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
