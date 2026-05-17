@@ -56,7 +56,7 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
             input: json!({
                 "id": "example/composed-experience",
                 "entry_surface_id": "example/composed-experience/entry",
-                "packages": ["example/composed-experience"]
+                "packages": ["example/composed-experience"],
             }),
         })
         .await?;
@@ -71,6 +71,87 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(graph.output["kind"] == json!("composition_surface_graph"), "composition lab surface_graph returned wrong kind");
+    Ok(())
+}
+
+/// Test composition-lab diagnostics output with v2 fields (capabilities, permissions, replacements, compatibility).
+pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/composition-lab/manifest.yaml")).await?).await?;
+
+    // launch_plan with v2 fields
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/composition-lab/launch_plan".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/composition-lab".to_string()),
+            version: None,
+            input: json!({
+                "id": "example/diag-comp",
+                "entry_surface_id": "example/diag-comp/entry",
+                "packages": ["example/diag-comp"],
+                "required_capabilities": ["example/diag-comp/echo"],
+                "optional_packages": ["example/optional-extra"],
+                "permission_expectations": ["capabilities.invoke"],
+                "replacement_candidates": ["example/diag-comp-alt"],
+                "compatibility_notes": ["Requires kernel v0.1.0"],
+                "surfaces": [{"slot": "experience_entry"}],
+            }),
+        })
+        .await?;
+    anyhow::ensure!(plan.output["kind"] == json!("composition_launch_plan"), "composition lab launch_plan v2 returned wrong kind");
+    anyhow::ensure!(plan.output.get("required_capabilities").is_some(), "launch_plan missing required_capabilities");
+    anyhow::ensure!(plan.output.get("permission_expectations").is_some(), "launch_plan missing permission_expectations");
+    anyhow::ensure!(plan.output.get("replacement_candidates").is_some(), "launch_plan missing replacement_candidates");
+    anyhow::ensure!(plan.output.get("compatibility_notes").is_some(), "launch_plan missing compatibility_notes");
+
+    // surface_graph with v2 fields
+    let graph = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/composition-lab/surface_graph".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/composition-lab".to_string()),
+            version: None,
+            input: json!({
+                "entry_surface_id": "example/diag-comp/entry",
+                "surfaces": [{"slot": "experience_entry"}],
+                "required_capabilities": ["example/diag-comp/echo"],
+                "permission_expectations": ["capabilities.invoke"],
+                "replacement_candidates": ["example/diag-comp-alt"],
+                "compatibility_notes": ["Requires kernel v0.1.0"],
+            }),
+        })
+        .await?;
+    anyhow::ensure!(graph.output["kind"] == json!("composition_surface_graph"), "composition lab surface_graph v2 returned wrong kind");
+    anyhow::ensure!(graph.output.get("required_capabilities").is_some(), "surface_graph missing required_capabilities");
+    anyhow::ensure!(graph.output.get("permission_expectations").is_some(), "surface_graph missing permission_expectations");
+    anyhow::ensure!(graph.output.get("replacement_candidates").is_some(), "surface_graph missing replacement_candidates");
+    anyhow::ensure!(graph.output.get("compatibility_notes").is_some(), "surface_graph missing compatibility_notes");
+
+    // compat_report capability
+    let report = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/composition-lab/compat_report".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/composition-lab".to_string()),
+            version: None,
+            input: json!({
+                "id": "example/diag-comp",
+                "required_capabilities": ["example/diag-comp/echo", "example/missing/cap"],
+                "available_capabilities": ["example/diag-comp/echo"],
+                "permission_expectations": ["capabilities.invoke"],
+                "replacement_candidates": ["example/diag-comp-alt"],
+                "compatibility_notes": ["Requires kernel v0.1.0"],
+                "surfaces": [{"slot": "experience_entry"}],
+            }),
+        })
+        .await?;
+    anyhow::ensure!(report.output["kind"] == json!("composition_compat_report"), "composition lab compat_report returned wrong kind");
+    anyhow::ensure!(report.output.get("missing_required_capabilities").is_some(), "compat_report missing missing_required_capabilities");
+    let missing = report.output["missing_required_capabilities"].as_array().unwrap();
+    anyhow::ensure!(missing.len() == 1, "compat_report should report exactly 1 missing capability");
+    anyhow::ensure!(missing[0] == json!("example/missing/cap"), "compat_report wrong missing capability");
+
     Ok(())
 }
 

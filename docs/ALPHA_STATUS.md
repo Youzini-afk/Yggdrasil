@@ -9,7 +9,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 ## Headline
 
 - **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
-- **Conformance:** 70 named CLI cases plus crate and service unit tests.
+- **Conformance:** 72 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
 - **Next stage:** Authoring & Composition Beta+ (see `docs/roadmap/NEXT_STEPS.md`).
@@ -57,7 +57,7 @@ All ordinary packages. No kernel privilege. They live under `packages/official/`
 - `official/package-lab` — package-authoring helpers exposed as ordinary capabilities and surfaces.
 - `official/schema-tools` — schema-validation helpers.
 - `official/event-tools` — event filtering and inspection helpers.
-- `official/composition-lab` — composition validation, launch-plan, permission-preview, and surface-graph helpers.
+- `official/composition-lab` — composition validation, launch-plan, permission-preview, surface-graph, and compat-report helpers with v2 descriptor diagnostics (capabilities, permissions, replacements, compatibility notes).
 - `official/asset-lab` — generic asset preview, diff, export, and import-plan helpers.
 - `official/projection-lab` — projection describe, diff, rebuild-plan, and source-event helpers.
 - `official/persona-lab` — persona profile import, normalization, rendering, and compatibility diagnostics.
@@ -84,7 +84,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - `ygg init-package` generates Python or TypeScript subprocess package skeletons. The TypeScript variant uses the SDK runtime under `sdk/typescript/subprocess`.
 - `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface` controls generated surface descriptors. Without `--template`, `--language *-experience` auto-detects a legacy 4-surface experience mode for backward compatibility; otherwise defaults to basic.
 - `--language typescript-experience` (without `--template`) still generates the original 4-surface experience descriptors for backward compatibility.
-- `ygg init-composition` and `ygg composition check` provide a local composition descriptor flow.
+- `ygg init-composition` and `ygg composition check` provide a local composition descriptor flow with v2 fields (title, description, optional packages, required capabilities, default activation, permission expectations, replacement candidates, compatibility notes). `composition check` prints structured diagnostics: loaded required/optional packages, surfaces by slot, capabilities, entry activation, missing required surfaces/capabilities (fail), and warnings for missing optional packages.
 - `ygg package check` and `ygg package conformance` validate generated packages locally. `ygg package check` prints structured diagnostics: entry kind, trust level, capability count, surfaces by slot, permissions summary, sandbox policy summary, and warnings for packages with no capabilities or no surfaces.
 - `ygg package reload <manifest>` loads a package into an in-memory runtime, restarts it (subprocess only), prints before/after status and logs count, then unloads. Uses existing Runtime::restart_package path; no new protocol methods.
 - `ygg package run-fixture` invokes all declared non-streaming capabilities with deterministic canned inputs and prints a structured JSON summary.
@@ -101,7 +101,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 70 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab, asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors, package check diagnostics, and package reload smoke.
+- `cargo run -p ygg-cli -- conformance` runs 72 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, and package reload smoke.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 

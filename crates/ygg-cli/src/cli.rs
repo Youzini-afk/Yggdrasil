@@ -141,6 +141,23 @@ pub(crate) struct CompositionDescriptor {
     pub(crate) packages: Vec<PathBuf>,
     #[serde(default)]
     pub(crate) required_surfaces: Vec<String>,
+    // v2 optional fields (backwards compatible — all defaulted)
+    #[serde(default)]
+    pub(crate) title: Option<String>,
+    #[serde(default)]
+    pub(crate) description: Option<String>,
+    #[serde(default)]
+    pub(crate) optional_packages: Vec<PathBuf>,
+    #[serde(default)]
+    pub(crate) required_capabilities: Vec<String>,
+    #[serde(default)]
+    pub(crate) default_activation: Option<serde_json::Value>,
+    #[serde(default)]
+    pub(crate) permission_expectations: Vec<String>,
+    #[serde(default)]
+    pub(crate) replacement_candidates: Vec<String>,
+    #[serde(default)]
+    pub(crate) compatibility_notes: Vec<String>,
 }
 
 #[derive(Debug, Subcommand)]

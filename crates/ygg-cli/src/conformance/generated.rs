@@ -227,3 +227,82 @@ pub(crate) async fn composition_descriptor() -> anyhow::Result<()> {
     fs::remove_dir_all(root)?;
     Ok(())
 }
+
+/// Test composition descriptor v2 fields: required capabilities pass,
+/// optional missing only warning, required missing fails.
+pub(crate) async fn composition_descriptor_v2() -> anyhow::Result<()> {
+    let root = std::env::temp_dir().join(format!("ygg-composition-v2-{}", std::process::id()));
+    let package_path = root.join("package");
+    let composition_path = root.join("composition");
+    if root.exists() {
+        fs::remove_dir_all(&root)?;
+    }
+    fs::create_dir_all(&root)?;
+
+    // Create a package with experience surfaces
+    package::init_package(
+        package_path.clone(),
+        "example/composed-v2".to_string(),
+        "subprocess".to_string(),
+        "typescript-experience".to_string(),
+        None,
+    )
+    .await?;
+
+    // Create v2 composition with all new fields
+    fs::create_dir_all(&composition_path)?;
+    let manifest_yaml = package_path.join("manifest.yaml");
+    fs::write(
+        composition_path.join("composition.yaml"),
+        format!(
+            r#"id: example/composed-v2
+version: 0.1.0
+entry_surface_id: example/composed-v2/entry
+title: "V2 Test Composition"
+description: "A composition descriptor with v2 fields"
+packages:
+  - {}
+required_surfaces:
+  - experience_entry
+optional_packages:
+  - /nonexistent/optional-package/manifest.yaml
+required_capabilities:
+  - example/composed-v2/echo
+permission_expectations:
+  - capabilities.invoke
+replacement_candidates:
+  - example/experience-alt
+compatibility_notes:
+  - "Requires kernel v0.1.0 or later"
+"#,
+            manifest_yaml.display()
+        ),
+    )?;
+
+    // This should succeed: required capabilities are provided, optional missing only warns
+    composition::composition_check(composition_path.join("composition.yaml")).await?;
+
+    // Now test that missing required capability fails
+    let fail_path = composition_path.join("composition-fail.yaml");
+    fs::write(
+        &fail_path,
+        format!(
+            r#"id: example/composed-v2-fail
+version: 0.1.0
+entry_surface_id: example/composed-v2/entry
+packages:
+  - {}
+required_surfaces:
+  - experience_entry
+required_capabilities:
+  - nonexistent/missing-capability
+"#,
+            manifest_yaml.display()
+        ),
+    )?;
+    let result = composition::composition_check(fail_path).await;
+    anyhow::ensure!(result.is_err(), "composition check should fail when required capability is missing");
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}

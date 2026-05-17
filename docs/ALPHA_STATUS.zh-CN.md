@@ -9,7 +9,7 @@
 ## 概要
 
 - **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta。
-- **Conformance：** 70 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Conformance：** 72 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
 - **下一阶段：** Authoring & Composition Beta+（见 `docs/roadmap/NEXT_STEPS.md`）。
@@ -57,7 +57,7 @@
 - `official/package-lab` —— 包创作辅助，以普通能力和 surface 暴露。
 - `official/schema-tools` —— schema 验证辅助。
 - `official/event-tools` —— 事件过滤与检查辅助。
-- `official/composition-lab` —— composition 验证、launch-plan、permission-preview 与 surface-graph 辅助。
+- `official/composition-lab` —— composition 验证、launch-plan、permission-preview、surface-graph 与 compat-report 辅助，支持 v2 descriptor 诊断（capabilities、permissions、replacements、compatibility notes）。
 - `official/asset-lab` —— 通用 asset preview、diff、export 与 import-plan 辅助。
 - `official/projection-lab` —— projection describe、diff、rebuild-plan 与 source-event 辅助。
 - `official/persona-lab` —— persona profile import、normalization、rendering 与 compatibility diagnostics。
@@ -84,7 +84,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - `ygg init-package` 生成 Python 或 TypeScript subprocess 包骨架。TypeScript 变体使用 `sdk/typescript/subprocess` 下的 SDK runtime。
 - `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface` 控制生成的 surface 描述符。未指定 `--template` 时，`--language *-experience` 自动检测为 legacy 4-surface 体验模式以兼容旧行为；否则默认 basic。
 - `--language typescript-experience`（未指定 `--template`）仍生成原始 4-surface 体验描述符以兼容旧行为。
-- `ygg init-composition` 和 `ygg composition check` 提供本地 composition descriptor 流程。
+- `ygg init-composition` 和 `ygg composition check` 提供本地 composition descriptor 流程，支持 v2 字段（title、description、optional packages、required capabilities、default activation、permission expectations、replacement candidates、compatibility notes）。`composition check` 输出结构化诊断：已加载的 required/optional 包、surfaces 按 slot 归类、capabilities、entry activation、缺失的 required surfaces/capabilities（失败）、以及 optional 包缺失警告。
 - `ygg package check` 和 `ygg package conformance` 在本地验证生成的包。`ygg package check` 输出结构化诊断信息：entry kind、trust level、capability 数量、surfaces 按 slot 归类、permissions 摘要、sandbox policy 摘要，以及对无 capability 或无 surface 的包发出警告。
 - `ygg package reload <manifest>` 将包加载到内存 runtime，重启（仅 subprocess），输出重启前后状态和日志数量，然后卸载。使用现有 Runtime::restart_package 路径；不新增协议方法。
 - `ygg package run-fixture` 使用确定性 canned 输入调用所有声明的非 streaming 能力，并输出结构化 JSON 摘要。
@@ -101,7 +101,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 70 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor、package check 诊断和 package reload 冒烟测试。
+- `cargo run -p ygg-cli -- conformance` 运行 72 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断和 package reload 冒烟测试。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 

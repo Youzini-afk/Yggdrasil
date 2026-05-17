@@ -39,6 +39,12 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/composition-lab/compat_report
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []

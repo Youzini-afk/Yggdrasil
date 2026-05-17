@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前具名 conformance 覆盖：63 个 CLI 用例 + crate/service 单元测试。
+当前具名 conformance 覆盖：65 个 CLI 用例 + crate/service 单元测试。
 
 ## 当前 conformance 覆盖
 
@@ -73,7 +73,7 @@ cargo run -p ygg-cli -- conformance
 | host | profile 自动加载配置的包 | implemented |
 | surfaces | 包贡献的类型化 surface 描述符可以列出、描述和过滤 | implemented |
 | official packages | 基础包无特权加载和调用 | implemented |
-| official packages | composition-lab 以无特权方式暴露 launch-plan 与 surface-graph capabilities | implemented |
+| official packages | composition-lab 以无特权方式暴露 launch-plan、surface-graph 与 compat-report capabilities，支持 v2 descriptor 诊断 | implemented |
 | official packages | asset-lab 以无特权方式 preview assets 并生成需要审批的 import plans | implemented |
 | official packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
 | official packages | playable-seed 暴露 reference entry/play/Forge/assistant surfaces 以及需要审批的 edits | implemented |
@@ -93,6 +93,8 @@ cargo run -p ygg-cli -- conformance
 | package authoring | 生成的 TypeScript subprocess 包通过本地 conformance | implemented |
 | package authoring | 生成的 experience 包 surface 通过本地 conformance | implemented |
 | composition | 本地 composition 描述符验证包提供的 surface | implemented |
+| composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
+| official packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -180,7 +182,9 @@ package.generated_subprocess_conformance   PASS
 package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
 composition.check_descriptor               PASS
+composition.check_descriptor_v2             PASS
 official.composition_lab                   PASS
+official.composition_lab_diagnostics       PASS
 official.asset_lab                         PASS
 official.projection_lab                    PASS
 official.playable_seed                     PASS

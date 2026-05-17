@@ -153,7 +153,9 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     record_case(&mut results, "package.generated_asset_editor_template", generated::generated_asset_editor_template().await);
     record_case(&mut results, "package.generated_full_surface_template", generated::generated_full_surface_template().await);
     record_case(&mut results, "composition.check_descriptor", generated::composition_descriptor().await);
+    record_case(&mut results, "composition.check_descriptor_v2", generated::composition_descriptor_v2().await);
     record_case(&mut results, "official.composition_lab", official_labs::composition_lab().await);
+    record_case(&mut results, "official.composition_lab_diagnostics", official_labs::composition_lab_diagnostics().await);
     record_case(&mut results, "official.asset_lab", official_labs::asset_lab().await);
     record_case(&mut results, "official.projection_lab", official_labs::projection_lab().await);
     record_case(&mut results, "official.playable_seed", official_labs::playable_seed().await);

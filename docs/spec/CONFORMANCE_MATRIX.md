@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 63 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 65 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -73,7 +73,7 @@ Current named conformance coverage: 63 CLI cases plus crate/service unit tests.
 | host | profile autoload loads configured packages | implemented |
 | surfaces | package-contributed typed surface descriptors can be listed, described, and filtered | implemented |
 | official packages | foundation packages load and invoke without privilege | implemented |
-| official packages | composition-lab exposes launch-plan and surface-graph capabilities without privilege | implemented |
+| official packages | composition-lab exposes launch-plan, surface-graph, and compat-report capabilities with v2 descriptor diagnostics without privilege | implemented |
 | official packages | asset-lab previews assets and drafts approval-gated import plans without privilege | implemented |
 | official packages | projection-lab drafts rebuild plans and explains source events without privilege | implemented |
 | official packages | playable-seed exposes reference entry/play/Forge/assistant surfaces and approval-gated edits | implemented |
@@ -93,6 +93,8 @@ Current named conformance coverage: 63 CLI cases plus crate/service unit tests.
 | package authoring | generated TypeScript subprocess package passes local conformance | implemented |
 | package authoring | generated experience package surfaces pass local conformance | implemented |
 | composition | local composition descriptor validates package-provided surfaces | implemented |
+| composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
+| official packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -180,7 +182,9 @@ package.generated_subprocess_conformance   PASS
 package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
 composition.check_descriptor               PASS
-official.composition_lab                   PASS
+composition.check_descriptor_v2             PASS
+official.composition_lab                    PASS
+official.composition_lab_diagnostics         PASS
 official.asset_lab                         PASS
 official.projection_lab                    PASS
 official.playable_seed                     PASS
