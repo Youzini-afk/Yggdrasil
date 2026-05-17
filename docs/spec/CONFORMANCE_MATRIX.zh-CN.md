@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前具名 conformance 覆盖：61 个 CLI 用例 + crate/service 单元测试。
+当前具名 conformance 覆盖：63 个 CLI 用例 + crate/service 单元测试。
 
 ## 当前 conformance 覆盖
 
@@ -83,6 +83,8 @@ cargo run -p ygg-cli -- conformance
 | official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
 | official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
+| in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
+| in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
 | play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
 | proposals | 已批准的 proposal 可以执行通用 asset/projection 操作 | implemented |
@@ -188,6 +190,8 @@ official.context_lab                       PASS
 official.text_transform_lab                PASS
 official.model_connector_lab               PASS
 official.model_routing_lab                 PASS
+inproc.non_official_preview_rejected       PASS
+inproc.unknown_capability_errors           PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

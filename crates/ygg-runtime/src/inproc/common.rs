@@ -1,62 +1,77 @@
 //! Generic/foundation capability handlers shared across official packages.
 //!
-//! These handlers match on `capability_id` suffix only, without requiring
-//! a specific `provider_package_id`. They serve as the fallback layer
-//! after all package-specific handlers have been tried.
+//! These handlers match on `(provider_package_id, local_capability_name)` pairs,
+//! requiring the capability_id to be under the provider_package_id namespace.
+//! Only `official/` packages are served by these handlers; non-official packages
+//! are rejected to prevent accidental fallback behavior.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
+/// Extract the local capability name when `capability_id` is under
+/// `provider_package_id` namespace.
+///
+/// Returns `None` when `capability_id` does not start with
+/// `"<provider_package_id>/"`.
+///
+/// Example: provider `official/asset-lab`, capability `official/asset-lab/preview`
+///          => local name `preview`.
+fn extract_local_name<'a>(capability_id: &'a str, provider_package_id: &str) -> Option<&'a str> {
+    if !capability_id.starts_with(provider_package_id) {
+        return None;
+    }
+    let rest = capability_id.get(provider_package_id.len()..)?;
+    if !rest.starts_with('/') {
+        return None;
+    }
+    Some(&rest[1..])
+}
+
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
-    let id = request.capability_id.as_str();
-    if id.ends_with("/echo") {
-        Some(Ok(request.input.clone()))
-    } else if id.ends_with("/fail") {
-        Some(Err(anyhow::anyhow!("official package-lab requested failure")))
-    } else if id.ends_with("/describe") {
-        Some(describe(request))
-    } else if id.ends_with("/validate") {
-        Some(validate())
-    } else if id.ends_with("/sample") {
-        Some(sample(request))
-    } else if id.ends_with("/summarize") {
-        Some(summarize(request))
-    } else if id.ends_with("/launch_plan") {
-        Some(launch_plan(request))
-    } else if id.ends_with("/permission_preview") {
-        Some(permission_preview(request))
-    } else if id.ends_with("/surface_graph") {
-        Some(surface_graph(request))
-    } else if id.ends_with("/preview") {
-        Some(preview(request))
-    } else if id.ends_with("/diff") {
-        Some(diff(request))
-    } else if id.ends_with("/export") {
-        Some(export(request))
-    } else if id.ends_with("/import_plan") {
-        Some(import_plan(request))
-    } else if id.ends_with("/rebuild_plan") {
-        Some(rebuild_plan(request))
-    } else if id.ends_with("/explain_source_events") {
-        Some(explain_source_events(request))
-    } else if id.ends_with("/explain") {
-        Some(explain(request))
-    } else if id.ends_with("/suggest") {
-        Some(suggest())
-    } else if id.ends_with("/draft_branch_change") {
-        Some(draft_branch_change(request))
-    } else if id.ends_with("/create_seed") {
-        Some(create_seed(request))
-    } else if id.ends_with("/project") {
-        Some(project(request))
-    } else {
-        None
+    // Only serve official/ packages through the shared handlers.
+    if !request.provider_package_id.starts_with("official/") {
+        return None;
+    }
+
+    let local_name = extract_local_name(&request.capability_id, &request.provider_package_id)?;
+
+    match local_name {
+        "echo" => Some(Ok(request.input.clone())),
+        "fail" => Some(Err(anyhow::anyhow!("official package-lab requested failure"))),
+        "describe" => Some(describe(request)),
+        "validate" => Some(validate()),
+        "sample" => Some(sample(request)),
+        "summarize" => Some(summarize(request)),
+        "launch_plan" => Some(launch_plan(request)),
+        "permission_preview" => Some(permission_preview(request)),
+        "surface_graph" => Some(surface_graph(request)),
+        "preview" => Some(preview(request)),
+        "diff" => Some(diff(request)),
+        "export" => Some(export(request)),
+        "import_plan" => Some(import_plan(request)),
+        "rebuild_plan" => Some(rebuild_plan(request)),
+        "explain_source_events" => Some(explain_source_events(request)),
+        "explain" => Some(explain(request)),
+        "suggest" => Some(suggest()),
+        "draft_branch_change" => Some(draft_branch_change(request)),
+        "create_seed" => Some(create_seed(request)),
+        "project" => Some(project(request)),
+        _ => None,
     }
 }
 
-pub fn fallback(request: &InprocInvocation) -> anyhow::Result<Value> {
-    Ok(serde_json::json!({"ok": true, "capability_id": request.capability_id}))
+/// Returns an error for unhandled/unknown inproc capabilities.
+///
+/// Replaces the former permissive `fallback` that returned generic `{"ok": true}`
+/// success for any unrecognized capability. Unknown capabilities must now fail
+/// loudly so that callers receive a clear error instead of a misleading success.
+pub fn unhandled_capability(request: &InprocInvocation) -> anyhow::Result<Value> {
+    Err(anyhow::anyhow!(
+        "no handler for inproc capability '{}' in package '{}'",
+        request.capability_id,
+        request.provider_package_id,
+    ))
 }
 
 fn describe(request: &InprocInvocation) -> anyhow::Result<Value> {
@@ -203,4 +218,69 @@ fn project(request: &InprocInvocation) -> anyhow::Result<Value> {
         "kind": "blank_experience_projection",
         "state": request.input,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_request(provider: &str, cap: &str) -> InprocInvocation {
+        InprocInvocation {
+            capability_id: cap.to_string(),
+            provider_package_id: provider.to_string(),
+            input: serde_json::json!({}),
+        }
+    }
+
+    #[test]
+    fn extract_local_name_matches_namespace() {
+        assert_eq!(extract_local_name("official/asset-lab/preview", "official/asset-lab"), Some("preview"));
+        assert_eq!(extract_local_name("official/package-lab/echo", "official/package-lab"), Some("echo"));
+    }
+
+    #[test]
+    fn extract_local_name_rejects_wrong_namespace() {
+        assert_eq!(extract_local_name("thirdparty/pkg/preview", "official/asset-lab"), None);
+        assert_eq!(extract_local_name("official/asset-lab/preview", "official/other"), None);
+    }
+
+    #[test]
+    fn extract_local_name_rejects_partial_prefix() {
+        // "official/asset" is a prefix of "official/asset-lab" but not a valid namespace
+        assert_eq!(extract_local_name("official/asset-lab/preview", "official/asset"), None);
+    }
+
+    #[test]
+    fn try_handle_official_preview() {
+        let request = make_request("official/asset-lab", "official/asset-lab/preview");
+        let result = try_handle(&request);
+        assert!(result.is_some(), "official package preview should be handled");
+        let output = result.unwrap().unwrap();
+        assert_eq!(output["kind"], "asset_preview");
+    }
+
+    #[test]
+    fn try_handle_rejects_non_official() {
+        let request = make_request("thirdparty/pkg", "thirdparty/pkg/preview");
+        assert!(try_handle(&request).is_none(), "non-official package should not be handled by common");
+    }
+
+    #[test]
+    fn try_handle_rejects_wrong_namespace() {
+        let request = make_request("official/other", "official/asset-lab/preview");
+        assert!(try_handle(&request).is_none(), "wrong namespace should not be handled");
+    }
+
+    #[test]
+    fn try_handle_unknown_local_name_returns_none() {
+        let request = make_request("official/package-lab", "official/package-lab/nonexistent");
+        assert!(try_handle(&request).is_none(), "unknown local name should return None");
+    }
+
+    #[test]
+    fn unhandled_capability_returns_error() {
+        let request = make_request("official/package-lab", "official/package-lab/unknown");
+        let result = unhandled_capability(&request);
+        assert!(result.is_err(), "unhandled capability should return an error");
+    }
 }

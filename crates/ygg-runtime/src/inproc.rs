@@ -108,11 +108,11 @@ impl InprocPackage for OfficialFoundationPackage {
         if let Some(result) = playable_seed::try_handle(&request) {
             return result;
         }
-        // Generic capability handlers (suffix-based matching)
+        // Package-aware generic capability handlers (namespace-scoped matching)
         if let Some(result) = common::try_handle(&request) {
             return result;
         }
-        // Final fallback
-        common::fallback(&request)
+        // No handler matched — fail loudly instead of returning permissive success
+        common::unhandled_capability(&request)
     }
 }

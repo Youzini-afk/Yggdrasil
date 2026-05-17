@@ -2,6 +2,7 @@ mod core;
 mod fixtures;
 mod generated;
 mod hooks;
+mod inproc;
 mod official_foundation;
 mod official_labs;
 mod official_play_creation;
@@ -147,6 +148,8 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     record_case(&mut results, "official.text_transform_lab", official_labs::text_transform_lab().await);
     record_case(&mut results, "official.model_connector_lab", official_labs::model_connector_lab().await);
     record_case(&mut results, "official.model_routing_lab", official_labs::model_routing_lab().await);
+    record_case(&mut results, "inproc.non_official_preview_rejected", inproc::non_official_preview_rejected().await);
+    record_case(&mut results, "inproc.unknown_capability_errors", inproc::unknown_inproc_capability_errors().await);
 
     let mut failed = false;
     for (name, result) in &results {
