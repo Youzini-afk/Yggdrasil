@@ -23,9 +23,9 @@ Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱
 
 ## 当前状态
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta。**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed。**
 
-当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、官方基础包、作为能力包存在的 assistant、空白游创循环、以及一个完全走公开协议的 Home/Play + Forge 的 Web shell。51 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
+当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、作为能力包存在的 assistant、`official/playable-seed`、空白游创循环、以及一个完全走公开协议的 Home/Play + Forge 的 Web shell。55 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
 
 可执行快照见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。
 后续阶段见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
@@ -126,6 +126,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 - [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.zh-CN.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.zh-CN.md) —— 可执行的 alpha 契约矩阵。
 - [`docs/spec/CONFORMANCE_MATRIX.zh-CN.md`](docs/spec/CONFORMANCE_MATRIX.zh-CN.md) —— hostile conformance 路线图。
 - [`docs/product/PLAY_CREATION_MODEL.zh-CN.md`](docs/product/PLAY_CREATION_MODEL.zh-CN.md) —— 游创一体的产品立场。
+- [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.zh-CN.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.zh-CN.md) —— 第三方能力包创作 walkthrough。
 - [`docs/ALPHA_STATUS.zh-CN.md`](docs/ALPHA_STATUS.zh-CN.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
 - [`docs/roadmap/NEXT_STEPS.zh-CN.md`](docs/roadmap/NEXT_STEPS.zh-CN.md) —— 当前与下一阶段。
 - [`docs/roadmap/PLATFORM_HOST_ALPHA.zh-CN.md`](docs/roadmap/PLATFORM_HOST_ALPHA.zh-CN.md) —— Host Alpha + Play/Forge Surface Beta 阶段成果。

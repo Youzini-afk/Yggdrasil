@@ -26,18 +26,39 @@ export function renderPlaySurface(entries: SurfaceContributionRecord[], sessionI
 
 function experienceCard(entry: SurfaceContributionRecord) {
   const surface = entry.surface;
+  const policy = surface.approval_policy ?? "none";
+  const permissionCount = surface.required_permissions.length;
+  const official = entry.package_id.startsWith("official/");
+  const hasConfig = surface.activation.input_schema ? "Has config" : "No config";
   return `
     <article class="experience-card">
       <div class="card-glow"></div>
-      <p class="eyebrow">${escapeHtml(entry.package_id)} · ${escapeHtml(entry.entry_kind)} · ${escapeHtml(entry.package_state)}</p>
+      <div class="card-header-row">
+        <p class="eyebrow">${packageIcon(entry.package_id)} ${escapeHtml(entry.package_id)} · ${escapeHtml(entry.entry_kind)}</p>
+        <span class="approval-policy policy-${escapeHtml(policy)}">${escapeHtml(policy)}</span>
+      </div>
       <h3>${escapeHtml(surface.title)} <small>${escapeHtml(surface.version)}</small></h3>
       <p>${escapeHtml(surface.description ?? "No package description supplied.")}</p>
-      <span class="approval-policy">${escapeHtml(surface.approval_policy ?? "none")}</span>
-      <div class="permission-strip">${surface.required_permissions.map(permissionBadge).join("")}</div>
-      <details class="surface-metadata"><summary>Surface metadata</summary><pre>${escapeHtml(JSON.stringify(surface.metadata ?? {}, null, 2))}</pre></details>
-      <button type="button" data-action="launch-surface" data-surface-id="${escapeHtml(surface.id)}">Launch</button>
+      <div class="surface-chip-row">
+        ${official ? `<span class="surface-chip official">official</span>` : `<span class="surface-chip">third-party</span>`}
+        <span class="surface-chip">${escapeHtml(entry.package_state)}</span>
+        <span class="surface-chip">${escapeHtml(hasConfig)}</span>
+        <span class="surface-chip">${permissionCount} permission${permissionCount === 1 ? "" : "s"}</span>
+      </div>
+      ${permissionCount ? `<div class="permission-strip">${surface.required_permissions.slice(0, 3).map(permissionBadge).join("")}${permissionCount > 3 ? `<span class="permission-badge">+${permissionCount - 3}</span>` : ""}</div>` : ""}
+      <details class="surface-metadata"><summary>Inspect surface descriptor</summary><pre>${escapeHtml(JSON.stringify(surface, null, 2))}</pre></details>
+      <button type="button" data-action="launch-surface" data-surface-id="${escapeHtml(surface.id)}">Start · ${escapeHtml(entry.package_id)}</button>
     </article>
   `;
+}
+
+function packageIcon(packageId: string) {
+  if (packageId.includes("playable")) return "🧬";
+  if (packageId.includes("asset")) return "🎨";
+  if (packageId.includes("projection")) return "📈";
+  if (packageId.includes("composition")) return "🧩";
+  if (packageId.startsWith("official/")) return "✦";
+  return "□";
 }
 
 function permissionBadge(requirement: SurfaceContributionRecord["surface"]["required_permissions"][number]) {
