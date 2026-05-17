@@ -18,13 +18,23 @@ button.active, button:hover { background: #7c5cff; }
 .surface { min-height: calc(100vh - 7rem); }
 .hero-panel { max-width: 860px; min-height: 280px; display: grid; align-content: end; padding: 2rem; border-radius: 2rem; background: linear-gradient(135deg, rgba(124,92,255,0.32), rgba(42,167,255,0.12)); box-shadow: 0 24px 80px rgba(0,0,0,0.35); }
 .hero-panel h1, .surface h1 { margin: 0; font-size: clamp(2.4rem, 6vw, 5.5rem); line-height: 0.95; }
+.hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.7rem; margin-top: 1rem; }
 .rail { margin-top: 1.5rem; }
 .rail-header { display: flex; justify-content: space-between; align-items: center; color: #c9c2e8; }
 .experience-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
 .experience-card { position: relative; min-height: 220px; overflow: hidden; padding: 1.25rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 1.4rem; background: rgba(255,255,255,0.08); }
 .experience-card h3 { margin-top: 4.5rem; }
+.experience-card small { color: #a79fc8; font-size: 0.8rem; }
 .experience-card.muted { opacity: 0.65; }
 .card-glow { position: absolute; inset: -30% -20% auto auto; width: 180px; height: 180px; border-radius: 999px; background: #7c5cff; filter: blur(50px); opacity: 0.6; }
+.permission-strip { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.65rem 0; }
+.permission-badge { padding: 0.25rem 0.6rem; border-radius: 999px; background: rgba(255,255,255,0.1); font-size: 0.72rem; }
+.permission-badge.risk-low { background: rgba(100,255,180,0.15); color: #a0ffd0; }
+.permission-badge.risk-medium { background: rgba(255,220,100,0.15); color: #ffe8a0; }
+.permission-badge.risk-high { background: rgba(255,100,100,0.15); color: #ffb0b0; }
+.approval-policy { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; background: rgba(124,92,255,0.2); font-size: 0.72rem; color: #c9c2e8; }
+.surface-metadata { margin: 0.5rem 0; font-size: 0.75rem; color: #a79fc8; }
+.surface-metadata pre { margin: 0.4rem 0 0; white-space: pre-wrap; }
 
 .surface-forge { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1rem; }
 .workspace-column { padding: 1.25rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 1.4rem; background: rgba(7,8,18,0.72); }

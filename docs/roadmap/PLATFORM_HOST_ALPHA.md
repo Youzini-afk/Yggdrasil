@@ -33,6 +33,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 13. First official foundation packages are ordinary package manifests under `packages/official` and autoload through the Forge profile.
 14. The first assistant package is an ordinary package that contributes an assistant action and returns approval-gated branch proposals.
 15. `ygg play-create-demo` demonstrates the first blank play-creation loop over ordinary packages and public substrate.
+16. The web shell Home route discovers `experience_entry` surfaces over public protocol, launches package-backed sessions, and supports branch forking without official-package hardcoding.
 
 ## Remaining Platform Host Alpha work
 

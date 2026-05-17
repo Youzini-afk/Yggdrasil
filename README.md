@@ -43,7 +43,7 @@ crates/
   ygg-service/   Thin HTTP public protocol surface.
   ygg-cli/       Demos, package tools, host modes, conformance.
 clients/
-  web/           Play / Forge / Assist shell over public protocol.
+  web/           Home / Play, Forge, and Assist shell over public protocol.
 packages/
   official/      Foundation capability packages loaded through ordinary manifests.
 docs/

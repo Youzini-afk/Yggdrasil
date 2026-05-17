@@ -1,5 +1,5 @@
 import { renderAssistantDrawer } from "./drawer/assistant";
-import { YggProtocolClient, type KernelEvent } from "./protocol/client";
+import { YggProtocolClient, type KernelEvent, type SurfaceContributionRecord } from "./protocol/client";
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { renderPlaySurface } from "./surfaces/play";
@@ -10,6 +10,8 @@ const client = new YggProtocolClient(location.origin === "null" ? "http://127.0.
 let route: RouteName = "play";
 let sessionId: string | undefined;
 let events: KernelEvent[] = [];
+let surfaceEntries: SurfaceContributionRecord[] = [];
+let latestSequence = 0;
 let closeEvents: (() => void) | undefined;
 let assistOpen = false;
 
@@ -18,16 +20,17 @@ async function render(error?: string) {
   let body = "";
   let diagnostics: Record<string, unknown> = {};
   try {
-    const [packages, capabilities, hostDiagnostics] = await Promise.all([
-      client.packages().catch(() => []),
+    const [entries, capabilities, hostDiagnostics] = await Promise.all([
+      client.surfaceContributions("experience_entry").catch(() => []),
       client.capabilities().catch(() => []),
       client.diagnostics().catch(() => ({})),
     ]);
+    surfaceEntries = entries;
     diagnostics = hostDiagnostics;
-    body = route === "play" ? renderPlaySurface(packages) : renderForgeSurface(capabilities, events, sessionId);
+    body = route === "play" ? renderPlaySurface(surfaceEntries, sessionId) : renderForgeSurface(capabilities, events, sessionId);
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
-    body = route === "play" ? renderPlaySurface([]) : renderForgeSurface([], events, sessionId);
+    body = route === "play" ? renderPlaySurface([], sessionId) : renderForgeSurface([], events, sessionId);
   }
   app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen), error);
   wireEvents();
@@ -52,6 +55,52 @@ function wireEvents() {
       closeEvents?.();
       closeEvents = client.subscribeEvents(session.id, (event) => {
         events = [...events, event].slice(-50);
+        latestSequence = event.sequence;
+        render();
+      });
+      render();
+    } catch (caught) {
+      render(caught instanceof Error ? caught.message : String(caught));
+    }
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-action='launch-surface']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const surfaceId = button.dataset.surfaceId;
+        const record = surfaceEntries.find((entry) => entry.surface.id === surfaceId);
+        if (!record) return;
+        const template = record.surface.activation.session_template ?? {};
+        const labels = Array.isArray(template.labels) ? template.labels.filter((item): item is string => typeof item === "string") : [record.surface.id];
+        const session = await client.openSession(labels, { ...template, surface_id: record.surface.id, package_id: record.package_id });
+        sessionId = session.id;
+        if (record.surface.activation.launch_capability_id) {
+          await client.invokeCapability(record.surface.activation.launch_capability_id, {}, record.package_id);
+        }
+        events = await client.listEvents(session.id);
+        latestSequence = events.at(-1)?.sequence ?? 0;
+        closeEvents?.();
+        closeEvents = client.subscribeEvents(session.id, (event) => {
+          events = [...events, event].slice(-50);
+          latestSequence = event.sequence;
+          render();
+        });
+        render();
+      } catch (caught) {
+        render(caught instanceof Error ? caught.message : String(caught));
+      }
+    });
+  });
+  document.querySelector<HTMLButtonElement>("[data-action='fork-session']")?.addEventListener("click", async () => {
+    if (!sessionId) return;
+    try {
+      const forked = await client.forkSession(sessionId, latestSequence || events.at(-1)?.sequence || 0, { forked_from: sessionId });
+      sessionId = forked.id;
+      events = await client.listEvents(forked.id);
+      latestSequence = events.at(-1)?.sequence ?? 0;
+      closeEvents?.();
+      closeEvents = client.subscribeEvents(forked.id, (event) => {
+        events = [...events, event].slice(-50);
+        latestSequence = event.sequence;
         render();
       });
       render();

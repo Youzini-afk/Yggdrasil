@@ -31,6 +31,39 @@ export interface KernelEvent {
   created_at: string;
 }
 
+export interface SurfaceActivation {
+  launch_capability_id?: string;
+  session_template?: Record<string, unknown>;
+  input_schema?: unknown;
+}
+
+export interface SurfacePermissionRequirement {
+  permission: string;
+  scope?: string;
+  reason?: string;
+  risk: "low" | "medium" | "high";
+}
+
+export interface SurfaceContribution {
+  id: string;
+  version: string;
+  slot: string;
+  title: string;
+  description?: string;
+  capability_id?: string;
+  activation: SurfaceActivation;
+  required_permissions: SurfacePermissionRequirement[];
+  approval_policy?: "none" | "user_approval" | "fork_then_approve";
+  metadata: Record<string, unknown>;
+}
+
+export interface SurfaceContributionRecord {
+  package_id: string;
+  entry_kind: string;
+  package_state: string;
+  surface: SurfaceContribution;
+}
+
 export class YggProtocolClient {
   constructor(private readonly baseUrl = "http://127.0.0.1:8787") {}
 
@@ -59,10 +92,31 @@ export class YggProtocolClient {
     return this.call<Record<string, unknown>>("kernel.host.diagnostics");
   }
 
-  openSession() {
-    return this.call<{ id: string }>("kernel.session.open", {
-      labels: ["forge-shell"],
-      metadata: { surface: "forge" },
+  surfaceContributions(slot?: string) {
+    return this.call<SurfaceContributionRecord[]>("kernel.surface.contribution.list", slot ? { slot } : {});
+  }
+
+  describeSurface(surfaceId: string) {
+    return this.call<SurfaceContributionRecord>("kernel.surface.contribution.describe", { surface_id: surfaceId });
+  }
+
+  openSession(labels: string[] = [], metadata: Record<string, unknown> = {}) {
+    return this.call<{ id: string }>("kernel.session.open", { labels, metadata });
+  }
+
+  forkSession(parentSessionId: string, forkedFromSequence: number, metadata: Record<string, unknown> = {}) {
+    return this.call<{ id: string }>("kernel.session.fork", {
+      parent_session_id: parentSessionId,
+      forked_from_sequence: forkedFromSequence,
+      metadata,
+    });
+  }
+
+  invokeCapability(capabilityId: string, input: unknown, providerPackageId?: string) {
+    return this.call("kernel.capability.invoke", {
+      capability_id: capabilityId,
+      input,
+      ...(providerPackageId ? { provider_package_id: providerPackageId } : {}),
     });
   }
 
