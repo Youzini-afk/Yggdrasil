@@ -4,7 +4,7 @@
 
 本文档是当前 Yggdrasil 内核 alpha 的实现契约。它有意比长期架构文档更窄：如果本矩阵说某行为是 `implemented`，代码和 conformance 必须证明它；如果说 `partial`，则类型或 API 存在但行为不完整；如果说 `planned` 或 `deferred`，则任何调用者不得依赖它。
 
-关于当前运行内容的可执行快照，见 `docs/ALPHA_STATUS.md`。关于后续阶段，见 `docs/roadmap/NEXT_STEPS.md` 和 `docs/roadmap/PLATFORM_HOST_ALPHA.md`。
+关于当前运行内容的可执行快照，见 `docs/ALPHA_STATUS.md`。关于后续阶段，见 `docs/roadmap/NEXT_STEPS.md`。
 
 Alpha 的目标不是可游玩体验。目标是可证伪的、内容无关的内核，使得包、capability、事件、权限和协议可以在没有特权官方路径的情况下被测试。Play/Forge Surface Contract Beta 建立在本契约之上；它不会放宽本契约。
 

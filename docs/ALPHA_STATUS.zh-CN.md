@@ -146,4 +146,3 @@ tsc -p clients/web/tsconfig.json --noEmit
 - `docs/spec/CONFORMANCE_MATRIX.md` —— hostile conformance 路线图。
 - `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
 - `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。
-- `docs/roadmap/PLATFORM_HOST_ALPHA.md` —— Host Alpha + Play/Forge Surface Beta 阶段成果。

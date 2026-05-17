@@ -129,7 +129,6 @@ tsc -p clients/web/tsconfig.json --noEmit
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) — no-network model provider profile and route planning kit.
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) — living snapshot of what is done, partial, and deferred.
 - [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) — current and upcoming phases.
-- [`docs/roadmap/PLATFORM_HOST_ALPHA.md`](docs/roadmap/PLATFORM_HOST_ALPHA.md) — Host Alpha + Play/Forge Surface Beta result.
 
 ## Deferred
 

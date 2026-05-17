@@ -1,10 +1,10 @@
 # Yggdrasil web shell
 
-Phase F skeleton for the play-creation surface.
+Public-protocol Home/Play, Forge, and Assist shell for the current Platform Foundation Alpha surface.
 
-- `Play` is the launcher-first surface for experiences.
-- `Forge` is the agentic creation surface for sessions, events, and capabilities.
-- `Assist` is a drawer that bridges lightweight play edits and deeper forge work.
+- `Home/Play` is the launcher-first surface for package-discovered experiences.
+- `Forge` is the creation and inspection surface for sessions, events, proposals, capabilities, surfaces, assets, projections, and package labs.
+- `Assist` is a drawer that bridges lightweight play edits and deeper Forge work through approval-gated proposals.
 
 This client uses only public host APIs:
 

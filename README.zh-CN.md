@@ -131,7 +131,6 @@ tsc -p clients/web/tsconfig.json --noEmit
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.zh-CN.md`](docs/guides/MODEL_CONNECTIVITY_KIT.zh-CN.md) —— no-network model provider profile 与 route planning kit。
 - [`docs/ALPHA_STATUS.zh-CN.md`](docs/ALPHA_STATUS.zh-CN.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
 - [`docs/roadmap/NEXT_STEPS.zh-CN.md`](docs/roadmap/NEXT_STEPS.zh-CN.md) —— 当前与下一阶段。
-- [`docs/roadmap/PLATFORM_HOST_ALPHA.zh-CN.md`](docs/roadmap/PLATFORM_HOST_ALPHA.zh-CN.md) —— Host Alpha + Play/Forge Surface Beta 阶段成果。
 
 ## 延后事项
 

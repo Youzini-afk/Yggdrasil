@@ -11,7 +11,7 @@ The next center of gravity is **not** more substrate. It is making the first ref
 - Platform Foundation Alpha: complete.
 - Play/Forge Surface Contract Beta: complete.
 - First Real Capability Package Track: complete seed (`composition-lab`, `asset-lab`, `projection-lab`, `playable-seed`; 55 conformance cases).
-- Platform Host Alpha: implemented slice complete; remaining items (streaming dispatch, hook timeout audit, persisted provider policy, broader transport parity, richer SDK packaging) are tracked in `PLATFORM_HOST_ALPHA.md`.
+- Platform Host Alpha: implemented slice complete; remaining items (streaming dispatch, hook timeout audit, persisted provider policy, broader transport parity, richer SDK packaging) are tracked below in Phase I.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 

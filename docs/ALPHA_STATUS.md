@@ -146,4 +146,3 @@ If any of the above fails, this document is wrong; the code is right. Update thi
 - `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
 - `docs/product/PLAY_CREATION_MODEL.md` — play-creation product stance.
 - `docs/roadmap/NEXT_STEPS.md` — current and upcoming phases.
-- `docs/roadmap/PLATFORM_HOST_ALPHA.md` — Host Alpha + Play/Forge Surface Beta result.

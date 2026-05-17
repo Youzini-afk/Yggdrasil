@@ -4,7 +4,7 @@
 
 This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents: if this matrix says a behavior is `implemented`, code and conformance must prove it; if it says `partial`, the type or API exists but behavior is incomplete; if it says `planned` or `deferred`, no caller may depend on it yet.
 
-For the executable snapshot of what runs today, see `docs/ALPHA_STATUS.md`. For the upcoming phases, see `docs/roadmap/NEXT_STEPS.md` and `docs/roadmap/PLATFORM_HOST_ALPHA.md`.
+For the executable snapshot of what runs today, see `docs/ALPHA_STATUS.md`. For the upcoming phases, see `docs/roadmap/NEXT_STEPS.md`.
 
 The alpha goal is not a playable experience. The goal is a falsifiable, content-free kernel where packages, capabilities, events, permissions, and protocols can be tested without privileged official paths. The Play/Forge Surface Contract Beta builds on this contract; it does not loosen it.
 
