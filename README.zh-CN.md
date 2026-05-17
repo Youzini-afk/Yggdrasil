@@ -142,4 +142,4 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 ## 协议
 
-待定（TBD）。
+Yggdrasil 以 GNU Affero General Public License v3.0（AGPLv3）发布，详见 [`LICENSE`](LICENSE)。

@@ -140,4 +140,4 @@ These are valuable directions but not part of the kernel. They will arrive as or
 
 ## License
 
-TBD.
+Yggdrasil is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See [`LICENSE`](LICENSE).
