@@ -172,7 +172,7 @@ async fn package_invoke_local(path: PathBuf, capability_id: String, input: Strin
     let runtime = Runtime::new(store, RuntimeConfig::default());
     runtime.load_package(manifest).await?;
     let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, input: payload })
+        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, provider_package_id: None, version: None, input: payload })
         .await?;
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
@@ -194,6 +194,8 @@ async fn package_conformance(path: PathBuf) -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: capability,
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({"package_conformance": true}),
         })
         .await?;
@@ -209,7 +211,7 @@ async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input:
     let runtime = Runtime::new(store, RuntimeConfig::default());
     runtime.load_package(manifest).await?;
     let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, input: payload })
+        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, provider_package_id: None, version: None, input: payload })
         .await?;
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
@@ -373,11 +375,17 @@ async fn conformance() -> anyhow::Result<()> {
         "event.closed_session_rejects_append",
         conformance_closed_session_rejects_append().await,
     );
+    record_case(&mut results, "event.range_replay", conformance_event_range_replay().await);
     record_case(&mut results, "capability.invoke_rust_inproc", conformance_capability_invoke().await);
     record_case(
         &mut results,
         "capability.ambiguous_provider_denied",
         conformance_ambiguous_provider_denied().await,
+    );
+    record_case(
+        &mut results,
+        "capability.explicit_provider_selected",
+        conformance_explicit_provider_selected().await,
     );
     record_case(
         &mut results,
@@ -433,6 +441,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "hook.ordering_stable", conformance_hook_ordering_stable().await);
     record_case(&mut results, "hook.veto_blocks_event_append", conformance_hook_veto_blocks_event_append().await);
     record_case(&mut results, "hook.metadata_mutation_allowed", conformance_hook_metadata_mutation_allowed().await);
+    record_case(&mut results, "hook.package_owned_handler", conformance_hook_package_owned_handler().await);
     record_case(&mut results, "hook.unload_removes_subscription", conformance_hook_unload_removes_subscription().await);
     record_case(
         &mut results,
@@ -553,6 +562,35 @@ async fn conformance_closed_session_rejects_append() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn conformance_event_range_replay() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/range", true, true)).await?;
+    for idx in 0..3 {
+        runtime
+            .append_event(AppendEventRequest {
+                session_id: session.id.clone(),
+                writer_package_id: "example/range".to_string(),
+                kind: "example/range/event".to_string(),
+                payload: json!({"idx": idx}),
+                metadata: json!({}),
+            })
+            .await?;
+    }
+    let value = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.event.list",
+            json!({"session_id": session.id, "after_sequence": 1, "limit": 2, "kind_prefix": "example/range"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let events = value.as_array().ok_or_else(|| anyhow::anyhow!("event list did not return array"))?;
+    anyhow::ensure!(events.len() == 2, "expected two ranged events, got {}", events.len());
+    anyhow::ensure!(events[0]["sequence"] == json!(2), "range did not resume after sequence");
+    Ok(())
+}
+
 async fn conformance_capability_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(echo_package("example/echo-rust-inproc", "example/echo-rust-inproc/echo")).await?;
@@ -560,6 +598,8 @@ async fn conformance_capability_invoke() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/echo-rust-inproc/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({"ok": true}),
         })
         .await?;
@@ -575,10 +615,29 @@ async fn conformance_ambiguous_provider_denied() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/shared/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
     anyhow::ensure!(denied.is_err(), "ambiguous route unexpectedly succeeded");
+    Ok(())
+}
+
+async fn conformance_explicit_provider_selected() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/provider-a", "example/shared/selected")).await?;
+    runtime.load_package(echo_package("example/provider-b", "example/shared/selected")).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/shared/selected".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("example/provider-b".to_string()),
+            version: Some("^0.1".to_string()),
+            input: json!({"selected": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.provider_package_id == "example/provider-b", "explicit provider was ignored");
     Ok(())
 }
 
@@ -590,6 +649,8 @@ async fn conformance_unload_removes_capability() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/temp/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
@@ -605,6 +666,8 @@ async fn conformance_official_no_privilege() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/shared/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
@@ -626,6 +689,8 @@ async fn conformance_capability_schema_rejects_invalid() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/schema-echo/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
@@ -686,6 +751,8 @@ async fn conformance_principal_cannot_self_assert_capability_caller() -> anyhow:
             CapabilityInvocationRequest {
                 capability_id: "example/echo/echo".to_string(),
                 caller_package_id: None,
+                provider_package_id: None,
+                version: None,
                 input: json!({}),
             },
         )
@@ -708,6 +775,8 @@ async fn conformance_subprocess_invoke_echo() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/echo-subprocess-python/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({"subprocess": true}),
         })
         .await?;
@@ -731,6 +800,8 @@ async fn conformance_subprocess_timeout() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/slow-subprocess-python/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
@@ -749,6 +820,8 @@ async fn conformance_subprocess_invalid_output_schema() -> anyhow::Result<()> {
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/invalid-output-subprocess-python/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
@@ -764,6 +837,8 @@ async fn conformance_subprocess_unload_removes_capability() -> anyhow::Result<()
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "example/echo-subprocess-python/echo".to_string(),
             caller_package_id: None,
+            provider_package_id: None,
+            version: None,
             input: json!({}),
         })
         .await;
@@ -849,6 +924,24 @@ async fn conformance_hook_metadata_mutation_allowed() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn conformance_hook_package_owned_handler() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime.load_package(hook_handler_package("example/hook-owner", "kernel/event.before_append", "example/hook-owner/trace")).await?;
+    let event = runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id,
+            writer_package_id: "example/writer".to_string(),
+            kind: "example/writer/event".to_string(),
+            payload: json!({}),
+            metadata: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(event.metadata.get("hook_trace") == Some(&json!("example/hook-owner")), "package-owned hook handler did not patch metadata");
+    Ok(())
+}
+
 async fn conformance_hook_unload_removes_subscription() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
@@ -906,6 +999,44 @@ fn hook_package(id: &str, extension_point: &str, handler: &str, precedence: i32)
             ..PackageContributions::default()
         },
         ..demo_event_writer_manifest()
+    }
+}
+
+fn hook_handler_package(id: &str, extension_point: &str, handler: &str) -> PackageManifest {
+    PackageManifest {
+        schema_version: 1,
+        id: id.to_string(),
+        version: "0.1.0".to_string(),
+        display_name: None,
+        description: None,
+        author: None,
+        license: None,
+        entry: PackageEntry::RustInproc {
+            crate_ref: "example-hook-inproc".to_string(),
+            symbol: "register".to_string(),
+            abi_version: 1,
+        },
+        provides: vec![CapabilityDescriptor {
+            id: handler.to_string(),
+            version: "0.1.0".to_string(),
+            input_schema: serde_json::Value::Null,
+            output_schema: serde_json::Value::Null,
+            streaming: false,
+            side_effects: Vec::new(),
+            description: None,
+        }],
+        consumes: Vec::new(),
+        contributes: PackageContributions {
+            hooks: vec![HookSubscription {
+                extension_point: extension_point.to_string(),
+                handler: handler.to_string(),
+                timing: HookTiming::Sync,
+                precedence: 0,
+            }],
+            ..PackageContributions::default()
+        },
+        permissions: PermissionSet::default(),
+        sandbox_policy: SandboxPolicy::default(),
     }
 }
 

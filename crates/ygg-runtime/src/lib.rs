@@ -22,7 +22,7 @@ pub use protocol::{
     host_info, method_ids, HostInfo, MethodStatus, ProtocolContext, ProtocolError, ProtocolMethod,
     ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS, KERNEL_PROTOCOL_VERSION,
 };
-pub use runtime::{AppendEventRequest, OpenSessionRequest, Runtime, RuntimeConfig};
+pub use runtime::{AppendEventRequest, EventListRequest, OpenSessionRequest, Runtime, RuntimeConfig};
 pub use schema::validate_json_schema_subset;
 pub use subprocess::SubprocessSupervisor;
 pub use tavern::TAVERN_COMPAT_DEFERRED;

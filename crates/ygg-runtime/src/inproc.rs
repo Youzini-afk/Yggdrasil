@@ -28,6 +28,7 @@ impl InprocPackageCatalog {
     pub fn with_default_examples() -> Self {
         let mut entries: HashMap<String, Arc<dyn InprocPackage>> = HashMap::new();
         entries.insert(entry_key("example-echo-rust-inproc", "register"), Arc::new(EchoInprocPackage));
+        entries.insert(entry_key("example-hook-inproc", "register"), Arc::new(HookInprocPackage));
         Self { entries: Arc::new(entries) }
     }
 
@@ -46,5 +47,20 @@ struct EchoInprocPackage;
 impl InprocPackage for EchoInprocPackage {
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
         Ok(request.input)
+    }
+}
+
+struct HookInprocPackage;
+
+#[async_trait]
+impl InprocPackage for HookInprocPackage {
+    async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
+        if request.capability_id.ends_with("/veto") {
+            Ok(serde_json::json!({"decision": "veto", "reason": "hook package veto"}))
+        } else if request.capability_id.ends_with("/trace") {
+            Ok(serde_json::json!({"decision": "allow", "metadata_patch": {"hook_trace": request.provider_package_id}}))
+        } else {
+            Ok(serde_json::json!({"decision": "allow"}))
+        }
     }
 }

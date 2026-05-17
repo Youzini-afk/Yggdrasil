@@ -12,6 +12,12 @@ use ygg_core::{EventEnvelope, EventSequence, PackageId, SessionId};
 pub trait EventStore: Send + Sync + 'static {
     async fn append(&self, event: EventEnvelope) -> anyhow::Result<()>;
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>>;
+    async fn list_session_range(
+        &self,
+        session_id: &SessionId,
+        after_sequence: Option<EventSequence>,
+        limit: Option<usize>,
+    ) -> anyhow::Result<Vec<EventEnvelope>>;
     async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence>;
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope>;
 }
@@ -77,12 +83,23 @@ impl EventStore for SqliteEventStore {
     }
 
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
+        self.list_session_range(session_id, None, None).await
+    }
+
+    async fn list_session_range(
+        &self,
+        session_id: &SessionId,
+        after_sequence: Option<EventSequence>,
+        limit: Option<usize>,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
         let conn = self.conn.lock().await;
+        let after_sequence = after_sequence.map(|sequence| sequence as i64).unwrap_or(-1);
+        let limit = limit.unwrap_or(1_000).min(10_000) as i64;
         let mut stmt = conn.prepare(
             "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
-             FROM events WHERE session_id = ?1 ORDER BY sequence ASC",
+             FROM events WHERE session_id = ?1 AND sequence > ?2 ORDER BY sequence ASC LIMIT ?3",
         )?;
-        let rows = stmt.query_map(params![session_id], |row| {
+        let rows = stmt.query_map(params![session_id, after_sequence, limit], |row| {
             let timestamp: String = row.get(3)?;
             let payload_json: String = row.get(7)?;
             let metadata_json: String = row.get(8)?;
@@ -182,7 +199,30 @@ impl EventStore for InMemoryEventStore {
     }
 
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
-        Ok(self.events.read().await.get(session_id).cloned().unwrap_or_default())
+        self.list_session_range(session_id, None, None).await
+    }
+
+    async fn list_session_range(
+        &self,
+        session_id: &SessionId,
+        after_sequence: Option<EventSequence>,
+        limit: Option<usize>,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        let after_sequence = after_sequence;
+        let mut events: Vec<_> = self
+            .events
+            .read()
+            .await
+            .get(session_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|event| after_sequence.map(|sequence| event.sequence > sequence).unwrap_or(true))
+            .collect();
+        if let Some(limit) = limit {
+            events.truncate(limit);
+        }
+        Ok(events)
     }
 
     async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence> {

@@ -1,15 +1,19 @@
+use std::collections::VecDeque;
+use std::convert::Infallible;
 use std::sync::Arc;
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use futures::Stream;
 use serde::Deserialize;
 use serde_json::Value;
 use tower_http::cors::CorsLayer;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
-    host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
+    host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest,
     PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResponse, RegisteredCapability,
 };
 use ygg_runtime::{AppendEventRequest, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
@@ -41,6 +45,18 @@ pub struct AppendEventHttpRequest {
     pub metadata: Value,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct EventListQuery {
+    #[serde(default)]
+    pub after_sequence: Option<u64>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub kind_prefix: Option<String>,
+    #[serde(default)]
+    pub writer_package_id: Option<PackageId>,
+}
+
 pub fn app() -> Router {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
@@ -53,6 +69,7 @@ pub fn app_with_state(state: AppState) -> Router {
         .route("/kernel/session.open", post(open_session))
         .route("/kernel/event.append/:session_id", post(append_event))
         .route("/kernel/event.list/:session_id", get(list_events))
+        .route("/kernel/event.subscribe/:session_id", get(subscribe_events))
         .route("/kernel/package.load", post(load_package))
         .route("/kernel/package.list", get(list_packages))
         .route("/kernel/package.status/:namespace/:name", get(package_status))
@@ -107,13 +124,80 @@ async fn append_event(
 async fn list_events(
     State(state): State<AppState>,
     Path(session_id): Path<SessionId>,
+    Query(query): Query<EventListQuery>,
 ) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError> {
+    let request = EventListRequest {
+        session_id,
+        after_sequence: query.after_sequence,
+        limit: query.limit,
+        kind_prefix: query.kind_prefix,
+        writer_package_id: query.writer_package_id,
+    };
     Ok(Json(
         state
             .runtime
-            .list_events_with_context(&ProtocolContext::host_dev("http_ad_hoc"), &session_id)
+            .list_events_range_with_context(&ProtocolContext::host_dev("http_ad_hoc"), &request)
             .await?,
     ))
+}
+
+async fn subscribe_events(
+    State(state): State<AppState>,
+    Path(session_id): Path<SessionId>,
+    Query(query): Query<EventListQuery>,
+) -> anyhow::Result<Sse<impl Stream<Item = Result<SseEvent, Infallible>>>, ServiceError> {
+    let request = EventListRequest {
+        session_id: session_id.clone(),
+        after_sequence: query.after_sequence,
+        limit: query.limit,
+        kind_prefix: query.kind_prefix.clone(),
+        writer_package_id: query.writer_package_id.clone(),
+    };
+    let replay = state
+        .runtime
+        .list_events_range_with_context(&ProtocolContext::host_dev("http_sse"), &request)
+        .await?;
+    let replay = VecDeque::from(replay);
+    let rx = state.runtime.subscribe_events();
+    let stream = futures::stream::unfold((replay, rx, session_id, query), |(mut replay, mut rx, session_id, query)| async move {
+        if let Some(event) = replay.pop_front() {
+            let sse = SseEvent::default().event("kernel.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.error"));
+            return Some((Ok(sse), (replay, rx, session_id, query)));
+        }
+        loop {
+            match rx.recv().await {
+                Ok(event) if event_matches_query(&event, &session_id, &query) => {
+                    let sse = SseEvent::default().event("kernel.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.error"));
+                    return Some((Ok(sse), (replay, rx, session_id, query)));
+                }
+                Ok(_) => continue,
+                Err(_) => return None,
+            }
+        }
+    });
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+}
+
+fn event_matches_query(event: &EventEnvelope, session_id: &str, query: &EventListQuery) -> bool {
+    if event.session_id != session_id {
+        return false;
+    }
+    if let Some(after_sequence) = query.after_sequence {
+        if event.sequence <= after_sequence {
+            return false;
+        }
+    }
+    if let Some(kind_prefix) = &query.kind_prefix {
+        if !event.kind.starts_with(kind_prefix) {
+            return false;
+        }
+    }
+    if let Some(writer_package_id) = &query.writer_package_id {
+        if &event.writer_package_id != writer_package_id {
+            return false;
+        }
+    }
+    true
 }
 
 async fn load_package(

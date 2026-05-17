@@ -20,7 +20,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `PackageManifest` | implemented | Declares identity, entry form, provided capabilities, consumed capabilities, contributed schemas/hooks/extension points/assets, permissions, sandbox policy. |
 | `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Full lifecycle event sequencing and all entry forms remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
-| `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, veto fixture handlers, metadata mutation fixture handlers, and unload cleanup. Real package-owned handler execution remains next. |
+| `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, legacy fixture handlers, package-owned handler capabilities, metadata mutation, and unload cleanup. Rich timeout/error audit remains next. |
 | `AssetRecord` | planned | Type exists, storage methods are protocol-planned but not implemented. |
 
 ## Protocol method matrix
@@ -32,8 +32,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.session.get` | planned | Not exposed in service/CLI yet. |
 | `kernel.session.list` | planned | Not exposed in service/CLI yet. |
 | `kernel.event.append` | implemented | Enforces writer namespace and `events.append` for non-kernel writers. |
-| `kernel.event.list` | partial | Lists whole session; runtime has caller-aware `events.read` gating, while HTTP/CLI host-level list remains unauthenticated for local administration. Sequence-range replay is next. |
-| `kernel.event.subscribe` | platform-host-alpha | Declared as streaming method; sequence replay and cursor behavior are required before live subscription is considered complete. |
+| `kernel.event.list` | implemented | Lists events by session with `after_sequence`, `limit`, `kind_prefix`, and `writer_package_id`; runtime has caller-aware `events.read` gating, while HTTP/CLI host-level list remains host-dev local administration. |
+| `kernel.event.subscribe` | partial | HTTP SSE endpoint replays from `after_sequence` and tails live events. Protocol method dispatch and package-principal subscribe permissions remain next. |
 | `kernel.package.load` | partial | Validates manifest, host policy, resolves `rust_inproc` host entries for capability providers, starts subprocess JSON-RPC stdio entries, registers declared capabilities/hooks, writes lifecycle event. Full transition events remain Platform Host Alpha work. |
 | `kernel.package.unload` | partial | Stops subprocess handles when present, removes registry record and declared capabilities/hooks, writes lifecycle event. |
 | `kernel.package.list` | implemented | Lists in-memory package records. |
@@ -41,7 +41,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.package.describe` | planned | Can be derived from status manifest, but not exposed as method yet. |
 | `kernel.capability.discover` | implemented | Lists registered descriptors. |
 | `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
-| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers, validates capability input/output against the supported schema subset, executes `rust_inproc` providers through the in-process package trait, and executes subprocess JSON-RPC stdio providers with timeout/degraded handling. |
+| `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers unless `provider_package_id` is supplied, supports simple exact/major version constraints, validates capability input/output against the supported schema subset, executes `rust_inproc` providers through the in-process package trait, and executes subprocess JSON-RPC stdio providers with timeout/degraded handling. |
 | `kernel.capability.stream` | planned | Descriptor flag exists; stream execution does not. |
 | `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
@@ -85,7 +85,7 @@ Manifest support means the schema can describe the entry and host policy can acc
 | Permission | Status | Current enforcement |
 |---|---:|---|
 | `events.append` | implemented | Required for non-kernel `event.append`. |
-| `events.read` | partial | Runtime supports caller-aware read checks; transport-level principal plumbing and subscribe checks are Platform Host Alpha work. |
+| `events.read` | partial | Runtime supports caller-aware read checks for list; SSE subscribe is currently host-dev only and package-principal subscribe checks are Platform Host Alpha work. |
 | `capabilities.invoke` | partial | Required when `caller_package_id` is present. Anonymous host calls are allowed only as host/dev operations and must not become package privilege. |
 | `packages.call` | planned | Package-to-package control plane not implemented. |
 | `assets.read/write` | planned | Asset store not implemented. |
@@ -106,14 +106,16 @@ Implemented:
 8. Protocol contexts distinguish host/dev calls from package-principal calls, and package-principal operations ignore caller-supplied package identity fields.
 9. Canonical protocol envelopes can be dispatched in-process and through HTTP `/rpc`; `ygg host-stdio` exposes the same envelope over stdin/stdout for automation.
 10. Subprocess JSON-RPC stdio packages can handshake, invoke capabilities, time out, degrade, and unload with process kill.
-11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, veto fixtures, metadata mutation fixtures, and unload cleanup.
+11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, legacy veto fixtures, package-owned handler capabilities, metadata mutation, and unload cleanup.
+12. Event range replay is implemented for in-process protocol and HTTP ad hoc list; HTTP SSE can replay from `after_sequence` and tail new events.
+13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
 
 Still partial for Platform Host Alpha:
 
-1. Event list lacks sequence-range replay and live resumable subscribe.
-2. Hook handlers are not yet real package-owned callable handlers.
+1. Event subscribe lacks protocol-dispatch streaming and package-principal subscribe permissions.
+2. Hook handler timeout/error audit is thin.
 3. Package lifecycle does not yet emit each transition as a distinct event.
-4. Capability routing has no version constraints or explicit provider selection policy.
+4. Capability routing has simple explicit provider/version constraints but no persisted provider selection policy.
 5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
 
 Next:

@@ -21,16 +21,18 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 1. Protocol and principal foundation: method envelopes, runtime context, structured errors, and no caller-supplied package identity spoofing for package-principal paths.
 2. Subprocess package execution: JSON-RPC stdio start, handshake, invoke, invoke timeout, degraded state, and unload kill.
 3. Public transports: canonical HTTP `/rpc` and host JSON-RPC stdio mode for non-streaming methods.
-4. Hook fabric slice: event append and capability invoke before/after dispatch, stable ordering, veto fixture, metadata mutation fixture, and unload cleanup.
+4. Hook fabric slice: event append and capability invoke before/after dispatch, stable ordering, legacy veto fixture, package-owned handler capabilities, metadata mutation, and unload cleanup.
 5. Package authoring harness: Python subprocess template, package check, local fixture run, local invoke, and package conformance.
 6. Release-gate conformance: named hostile cases with docs matrix coverage.
+7. Event range replay and host-dev HTTP SSE tailing.
+8. Explicit capability provider selection with simple version constraints.
 
 ## Remaining Platform Host Alpha work
 
-1. Sequence-range event replay and resumable subscribe.
-2. Real package-owned hook handler execution instead of fixture handler names.
+1. Protocol-dispatched streaming and package-principal subscribe permission checks.
+2. Hook timeout/error audit for package-owned handlers.
 3. Explicit lifecycle transition events for loading/starting/ready/stopping/stopped/degraded.
-4. Version-constraint routing and provider selection policy.
+4. Persisted provider selection policy beyond per-invocation explicit provider selection.
 5. Broader transport parity cases beyond the current core protocol dispatcher/service tests.
 6. Node package template once the subprocess helper boundary is stable enough to duplicate.
 

@@ -4,9 +4,10 @@ use std::sync::Arc;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 use ygg_core::{
-    new_id, EventEnvelope, EventKind, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
+    new_id, EventEnvelope, EventKind, EventSequence, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
     SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
     EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
 };
@@ -14,6 +15,7 @@ use ygg_core::{
 use crate::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
     ExtensionDispatchResult, ExtensionRegistry, HostPolicy, InprocInvocation, InprocPackageCatalog,
+    RegisteredCapability,
     PackageRecord, PackageRegistry, PackageState, ProtocolContext, ProtocolPrincipal, SubprocessSupervisor,
     validate_json_schema_subset,
 };
@@ -49,6 +51,19 @@ pub struct AppendEventRequest {
     pub kind: EventKind,
     pub payload: Value,
     pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EventListRequest {
+    pub session_id: SessionId,
+    #[serde(default)]
+    pub after_sequence: Option<EventSequence>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub kind_prefix: Option<String>,
+    #[serde(default)]
+    pub writer_package_id: Option<PackageId>,
 }
 
 #[derive(Clone)]
@@ -168,8 +183,7 @@ where
 
         let mut request = request;
         let before = self
-            .extensions
-            .dispatch(
+            .dispatch_extension_handlers(
                 "kernel/event.before_append",
                 json!({
                     "session_id": request.session_id,
@@ -186,8 +200,7 @@ where
         request.metadata = before.payload.get("metadata").cloned().unwrap_or(request.metadata);
         let event = self.append_event_unchecked(request).await?;
         let _ = self
-            .extensions
-            .dispatch("kernel/event.after_append", serde_json::to_value(&event).unwrap_or_else(|_| json!({})))
+            .dispatch_extension_handlers("kernel/event.after_append", serde_json::to_value(&event).unwrap_or_else(|_| json!({})))
             .await;
         Ok(event)
     }
@@ -249,6 +262,20 @@ where
         self.store.list_session(session_id).await
     }
 
+    pub async fn list_events_range(&self, request: &EventListRequest) -> anyhow::Result<Vec<EventEnvelope>> {
+        let mut events = self
+            .store
+            .list_session_range(&request.session_id, request.after_sequence, request.limit)
+            .await?;
+        if let Some(kind_prefix) = &request.kind_prefix {
+            events.retain(|event| event.kind.starts_with(kind_prefix));
+        }
+        if let Some(writer_package_id) = &request.writer_package_id {
+            events.retain(|event| &event.writer_package_id == writer_package_id);
+        }
+        Ok(events)
+    }
+
     pub async fn list_events_for(
         &self,
         session_id: &SessionId,
@@ -266,6 +293,23 @@ where
         self.list_events(session_id).await
     }
 
+    pub async fn list_events_range_for(
+        &self,
+        request: &EventListRequest,
+        caller_package_id: Option<&PackageId>,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        if let Some(caller) = caller_package_id {
+            match self.packages.permissions(caller).await {
+                Some(permissions) if permissions.events.read => {}
+                _ => {
+                    self.audit_permission_denied(&request.session_id, caller, "events.read").await?;
+                    anyhow::bail!("package '{caller}' is not allowed to read events");
+                }
+            }
+        }
+        self.list_events_range(request).await
+    }
+
     pub async fn list_events_with_context(
         &self,
         context: &ProtocolContext,
@@ -276,6 +320,22 @@ where
             ProtocolPrincipal::Package { package_id } => self.list_events_for(session_id, Some(package_id)).await,
             ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to read events"),
         }
+    }
+
+    pub async fn list_events_range_with_context(
+        &self,
+        context: &ProtocolContext,
+        request: &EventListRequest,
+    ) -> anyhow::Result<Vec<EventEnvelope>> {
+        match &context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => self.list_events_range(request).await,
+            ProtocolPrincipal::Package { package_id } => self.list_events_range_for(request, Some(package_id)).await,
+            ProtocolPrincipal::Anonymous => anyhow::bail!("anonymous principal is not allowed to read events"),
+        }
+    }
+
+    pub fn subscribe_events(&self) -> broadcast::Receiver<EventEnvelope> {
+        self.store.subscribe()
     }
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
@@ -388,8 +448,7 @@ where
             }
         }
         let before = self
-            .extensions
-            .dispatch(
+            .dispatch_extension_handlers(
                 "kernel/capability.before_invoke",
                 json!({
                     "capability_id": request.capability_id,
@@ -402,60 +461,72 @@ where
             anyhow::bail!("capability invoke vetoed by hook package '{vetoed_by}'");
         }
 
-        let provider = self.capabilities.resolve(&request.capability_id).await?;
+        let provider = self
+            .capabilities
+            .resolve(
+                &request.capability_id,
+                request.provider_package_id.as_ref(),
+                request.version.as_deref(),
+            )
+            .await?;
         validate_json_schema_subset(&provider.descriptor.input_schema, &request.input)?;
-        let output = match &provider.descriptor.id {
-            _ => match self.package_status(&provider.provider_package_id).await {
-                Some(record) => match record.manifest.entry {
-                    PackageEntry::RustInproc { crate_ref, symbol, .. } => {
-                        let package = self
-                            .config
-                            .inproc_packages
-                            .lookup(&crate_ref, &symbol)
-                            .ok_or_else(|| anyhow::anyhow!("rust_inproc entry '{crate_ref}::{symbol}' is not available"))?;
-                        package
-                            .invoke(InprocInvocation {
-                                capability_id: request.capability_id.clone(),
-                                provider_package_id: provider.provider_package_id.clone(),
-                                input: request.input,
-                            })
-                            .await?
-                    }
-                    PackageEntry::Subprocess { .. } => {
-                        match self
-                            .subprocesses
-                            .invoke(&provider.provider_package_id, &request.capability_id, request.input)
-                            .await
-                        {
-                            Ok(output) => output,
-                            Err(error) => {
-                                if let Some(record) = self
-                                    .packages
-                                    .set_state(&provider.provider_package_id, PackageState::Degraded)
-                                    .await
-                                {
-                                    self.append_package_degraded_event(&record, &error.to_string()).await?;
-                                }
-                                return Err(error);
-                            }
-                        }
-                    }
-                    other => anyhow::bail!("entry kind '{}' cannot execute capabilities yet", crate::entry_kind(&other)),
-                },
-                None => anyhow::bail!("provider package '{}' is not loaded", provider.provider_package_id),
-            },
-        };
-        validate_json_schema_subset(&provider.descriptor.output_schema, &output)?;
+        let output = self.execute_registered_capability(&provider, &request.capability_id, request.input).await?;
         let result = CapabilityInvocationResult {
             capability_id: provider.descriptor.id,
             provider_package_id: provider.provider_package_id,
             output,
         };
         let _ = self
-            .extensions
-            .dispatch("kernel/capability.after_invoke", serde_json::to_value(&result).unwrap_or_else(|_| json!({})))
+            .dispatch_extension_handlers("kernel/capability.after_invoke", serde_json::to_value(&result).unwrap_or_else(|_| json!({})))
             .await;
         Ok(result)
+    }
+
+    async fn execute_registered_capability(
+        &self,
+        provider: &RegisteredCapability,
+        capability_id: &str,
+        input: Value,
+    ) -> anyhow::Result<Value> {
+        let output = match self.package_status(&provider.provider_package_id).await {
+            Some(record) => match record.manifest.entry {
+                PackageEntry::RustInproc { crate_ref, symbol, .. } => {
+                    let package = self
+                        .config
+                        .inproc_packages
+                        .lookup(&crate_ref, &symbol)
+                        .ok_or_else(|| anyhow::anyhow!("rust_inproc entry '{crate_ref}::{symbol}' is not available"))?;
+                    package
+                        .invoke(InprocInvocation {
+                            capability_id: capability_id.to_string(),
+                            provider_package_id: provider.provider_package_id.clone(),
+                            input,
+                        })
+                        .await?
+                }
+                PackageEntry::Subprocess { .. } => match self
+                    .subprocesses
+                    .invoke(&provider.provider_package_id, capability_id, input)
+                    .await
+                {
+                    Ok(output) => output,
+                    Err(error) => {
+                        if let Some(record) = self
+                            .packages
+                            .set_state(&provider.provider_package_id, PackageState::Degraded)
+                            .await
+                        {
+                            self.append_package_degraded_event(&record, &error.to_string()).await?;
+                        }
+                        return Err(error);
+                    }
+                },
+                other => anyhow::bail!("entry kind '{}' cannot execute capabilities yet", crate::entry_kind(&other)),
+            },
+            None => anyhow::bail!("provider package '{}' is not loaded", provider.provider_package_id),
+        };
+        validate_json_schema_subset(&provider.descriptor.output_schema, &output)?;
+        Ok(output)
     }
 
     pub async fn invoke_capability_with_context(
@@ -480,6 +551,57 @@ where
         self.extensions.dispatch(extension_point, payload).await
     }
 
+    async fn dispatch_extension_handlers(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
+        let invoked = self.extensions.list_hooks(extension_point).await;
+        let mut payload = payload;
+        let mut vetoed_by = None;
+        for hook in &invoked {
+            match hook.subscription.handler.as_str() {
+                "veto" => {
+                    vetoed_by = Some(hook.subscriber_package_id.clone());
+                    break;
+                }
+                "metadata_trace" => merge_metadata_patch(&mut payload, json!({"hook_trace": hook.subscriber_package_id})),
+                handler if handler.contains('/') => {
+                    let handler_id = handler.to_string();
+                    let provider = match self
+                        .capabilities
+                        .resolve(&handler_id, Some(&hook.subscriber_package_id), None)
+                        .await {
+                        Ok(provider) => provider,
+                        Err(_) => {
+                            vetoed_by = Some(hook.subscriber_package_id.clone());
+                            break;
+                        }
+                    };
+                    if validate_json_schema_subset(&provider.descriptor.input_schema, &payload).is_err() {
+                        vetoed_by = Some(hook.subscriber_package_id.clone());
+                        break;
+                    }
+                    let output = match self
+                        .execute_registered_capability(&provider, &handler_id, payload.clone())
+                        .await
+                    {
+                        Ok(output) => output,
+                        Err(_) => {
+                            vetoed_by = Some(hook.subscriber_package_id.clone());
+                            break;
+                        }
+                    };
+                    if output.get("decision").and_then(Value::as_str) == Some("veto") {
+                        vetoed_by = Some(hook.subscriber_package_id.clone());
+                        break;
+                    }
+                    if let Some(patch) = output.get("metadata_patch") {
+                        merge_metadata_patch(&mut payload, patch.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+        ExtensionDispatchResult { extension_point: extension_point.to_string(), invoked, vetoed_by, payload }
+    }
+
     pub async fn call_protocol(
         &self,
         context: &ProtocolContext,
@@ -502,12 +624,8 @@ where
                 self.append_event_with_context(context, serde_json::from_value(params)?).await?,
             )?),
             "kernel.event.list" => {
-                let session_id = params
-                    .get("session_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| anyhow::anyhow!("kernel.event.list requires session_id"))?
-                    .to_string();
-                Ok(serde_json::to_value(self.list_events_with_context(context, &session_id).await?)?)
+                let request: EventListRequest = serde_json::from_value(params)?;
+                Ok(serde_json::to_value(self.list_events_range_with_context(context, &request).await?)?)
             }
             "kernel.package.load" => Ok(serde_json::to_value(
                 self.load_package(serde_json::from_value(params)?).await?,
@@ -597,6 +715,16 @@ where
             }),
         )
         .await
+    }
+}
+
+fn merge_metadata_patch(payload: &mut Value, patch: Value) {
+    let Some(patch) = patch.as_object() else { return };
+    let Some(object) = payload.as_object_mut() else { return };
+    let metadata = object.entry("metadata").or_insert_with(|| Value::Object(Default::default()));
+    let Some(metadata) = metadata.as_object_mut() else { return };
+    for (key, value) in patch {
+        metadata.insert(key.clone(), value.clone());
     }
 }
 
@@ -765,6 +893,8 @@ mod tests {
             .invoke_capability(CapabilityInvocationRequest {
                 capability_id: "example/echo/echo".to_string(),
                 caller_package_id: None,
+                provider_package_id: None,
+                version: None,
                 input: json!({"ping": true}),
             })
             .await?;
@@ -892,6 +1022,8 @@ mod tests {
             .invoke_capability(CapabilityInvocationRequest {
                 capability_id: "example/echo/echo".to_string(),
                 caller_package_id: Some("example/caller".to_string()),
+                provider_package_id: None,
+                version: None,
                 input: json!({}),
             })
             .await;
@@ -1010,6 +1142,8 @@ mod tests {
                 CapabilityInvocationRequest {
                     capability_id: "example/echo/echo".to_string(),
                     caller_package_id: None,
+                    provider_package_id: None,
+                    version: None,
                     input: json!({}),
                 },
             )

@@ -17,6 +17,10 @@ pub struct CapabilityInvocationRequest {
     #[serde(default)]
     pub caller_package_id: Option<PackageId>,
     #[serde(default)]
+    pub provider_package_id: Option<PackageId>,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
     pub input: Value,
 }
 
@@ -67,15 +71,36 @@ impl CapabilityFabric {
         self.providers.read().await.get(capability_id).cloned().unwrap_or_default()
     }
 
-    pub async fn resolve(&self, capability_id: &CapabilityId) -> anyhow::Result<RegisteredCapability> {
-        let providers = self.describe(capability_id).await;
+    pub async fn resolve(
+        &self,
+        capability_id: &CapabilityId,
+        provider_package_id: Option<&PackageId>,
+        version: Option<&str>,
+    ) -> anyhow::Result<RegisteredCapability> {
+        let mut providers = self.describe(capability_id).await;
+        if let Some(provider_package_id) = provider_package_id {
+            providers.retain(|provider| &provider.provider_package_id == provider_package_id);
+        }
+        if let Some(version) = version {
+            providers.retain(|provider| version_matches(version, &provider.descriptor.version));
+        }
         match providers.as_slice() {
             [] => anyhow::bail!("capability '{}' has no provider", capability_id),
             [provider] => Ok(provider.clone()),
-            _ => anyhow::bail!("capability '{}' has ambiguous providers", capability_id),
+            _ => anyhow::bail!("capability '{}' has ambiguous providers; specify provider_package_id", capability_id),
         }
     }
 
+}
+
+fn version_matches(requirement: &str, provided: &str) -> bool {
+    if requirement == "*" || requirement == provided {
+        return true;
+    }
+    if let Some(major) = requirement.strip_prefix('^').and_then(|req| req.split('.').next()) {
+        return provided.split('.').next() == Some(major);
+    }
+    false
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,8 +201,30 @@ mod tests {
         fabric.register_package(&"example/a".to_string(), &[descriptor.clone()]).await;
         fabric.register_package(&"example/b".to_string(), &[descriptor]).await;
 
-        let result = fabric.resolve(&"example/echo/echo".to_string()).await;
+        let result = fabric.resolve(&"example/echo/echo".to_string(), None, None).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn explicit_provider_resolves_conflict() -> anyhow::Result<()> {
+        let fabric = CapabilityFabric::default();
+        let descriptor = CapabilityDescriptor {
+            id: "example/echo/echo".to_string(),
+            version: "0.1.0".to_string(),
+            input_schema: Value::Null,
+            output_schema: Value::Null,
+            streaming: false,
+            side_effects: Vec::new(),
+            description: None,
+        };
+        fabric.register_package(&"example/a".to_string(), &[descriptor.clone()]).await;
+        fabric.register_package(&"example/b".to_string(), &[descriptor]).await;
+
+        let result = fabric
+            .resolve(&"example/echo/echo".to_string(), Some(&"example/b".to_string()), Some("^0.1"))
+            .await?;
+        assert_eq!(result.provider_package_id, "example/b");
+        Ok(())
     }
 
     #[tokio::test]

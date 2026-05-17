@@ -87,7 +87,13 @@ kernel.event.list        list events for a session by sequence range
 kernel.event.subscribe   stream events as they are appended (resumable)
 ```
 
-`event.append` requires `events.append` in the caller's manifest. `event.list` and `event.subscribe` require `events.read`.
+`event.append` requires `events.append` in the caller's manifest. `event.list` and `event.subscribe` require `events.read` for package principals. The current Host Alpha slice exposes HTTP SSE as a host-dev stream:
+
+```text
+GET /kernel/event.subscribe/:session_id?after_sequence=42&kind_prefix=kernel/&writer_package_id=kernel
+```
+
+`kernel.event.list` accepts `session_id`, `after_sequence`, `limit`, `kind_prefix`, and `writer_package_id`.
 
 ### Packages
 
@@ -111,7 +117,7 @@ kernel.capability.stream      invoke a capability that streams
 kernel.capability.cancel      cancel an in-flight invocation
 ```
 
-`invoke` resolves to a provider by id, version constraint, and session package set. If multiple providers match and the host has not configured precedence, the kernel returns an ambiguous-route error.
+`invoke` resolves to a provider by id, optional `provider_package_id`, optional version constraint, and eventually session package set. If multiple providers match and the caller did not specify `provider_package_id`, the kernel returns an ambiguous-route error. Host Alpha currently supports exact version or same-major `^x.y` constraints.
 
 ### Extension points and hooks
 
