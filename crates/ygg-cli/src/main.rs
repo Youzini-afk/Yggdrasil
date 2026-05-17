@@ -723,6 +723,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "composition.check_descriptor", conformance_composition_descriptor().await);
     record_case(&mut results, "official.composition_lab", conformance_official_composition_lab().await);
     record_case(&mut results, "official.asset_lab", conformance_official_asset_lab().await);
+    record_case(&mut results, "official.projection_lab", conformance_official_projection_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1890,6 +1891,32 @@ async fn conformance_official_asset_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(import_plan.output["requires_user_approval"] == json!(true), "asset import plan must require approval");
+    Ok(())
+}
+
+async fn conformance_official_projection_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/projection-lab/manifest.yaml")).await?).await?;
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/projection-lab/rebuild_plan".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/projection-lab".to_string()),
+            version: None,
+            input: json!({"projection_id": "example/projection/state", "source_kind_prefix": "example/projection"}),
+        })
+        .await?;
+    anyhow::ensure!(plan.output["kind"] == json!("projection_rebuild_plan"), "projection lab rebuild_plan returned wrong kind");
+    let source = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/projection-lab/explain_source_events".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/projection-lab".to_string()),
+            version: None,
+            input: json!({"projection_id": "example/projection/state", "events": [{"sequence": 1}], "source_kind_prefix": "example/projection"}),
+        })
+        .await?;
+    anyhow::ensure!(source.output["event_count"] == json!(1), "projection lab source event count mismatch");
     Ok(())
 }
 

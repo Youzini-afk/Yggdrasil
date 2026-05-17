@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前具名 conformance 覆盖：53 个 CLI 用例 + crate/service 单元测试。
+当前具名 conformance 覆盖：54 个 CLI 用例 + crate/service 单元测试。
 
 ## 当前 conformance 覆盖
 
@@ -75,6 +75,7 @@ cargo run -p ygg-cli -- conformance
 | official packages | 基础包无特权加载和调用 | implemented |
 | official packages | composition-lab 以无特权方式暴露 launch-plan 与 surface-graph capabilities | implemented |
 | official packages | asset-lab 以无特权方式 preview assets 并生成需要审批的 import plans | implemented |
+| official packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
 | play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
 | proposals | 已批准的 proposal 可以执行通用 asset/projection 操作 | implemented |
@@ -172,6 +173,7 @@ package.generated_experience_template      PASS
 composition.check_descriptor               PASS
 official.composition_lab                   PASS
 official.asset_lab                         PASS
+official.projection_lab                    PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

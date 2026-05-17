@@ -119,6 +119,13 @@ impl InprocPackage for OfficialFoundationPackage {
                 "content_length": content.len(),
                 "preview": content.chars().take(120).collect::<String>(),
             }))
+        } else if request.provider_package_id == "official/projection-lab" && id.ends_with("/diff") {
+            Ok(serde_json::json!({
+                "kind": "projection_diff",
+                "before": request.input.get("before").cloned().unwrap_or(Value::Null),
+                "after": request.input.get("after").cloned().unwrap_or(Value::Null),
+                "projection_id": request.input.get("projection_id").cloned().unwrap_or(Value::Null),
+            }))
         } else if id.ends_with("/diff") {
             Ok(serde_json::json!({
                 "kind": "asset_diff",
@@ -140,6 +147,22 @@ impl InprocPackage for OfficialFoundationPackage {
                 "recommended_operation": "asset.put",
                 "mime": request.input.get("mime").and_then(Value::as_str).unwrap_or("application/json"),
                 "metadata": request.input.get("metadata").cloned().unwrap_or_else(|| serde_json::json!({})),
+            }))
+        } else if id.ends_with("/rebuild_plan") {
+            Ok(serde_json::json!({
+                "kind": "projection_rebuild_plan",
+                "projection_id": request.input.get("projection_id").cloned().unwrap_or(Value::Null),
+                "requires_user_approval": true,
+                "recommended_operation": "projection.rebuild",
+                "source_kind_prefix": request.input.get("source_kind_prefix").cloned().unwrap_or(Value::Null),
+            }))
+        } else if id.ends_with("/explain_source_events") {
+            let event_count = request.input.get("events").and_then(Value::as_array).map(|events| events.len()).unwrap_or(0);
+            Ok(serde_json::json!({
+                "kind": "projection_source_events",
+                "projection_id": request.input.get("projection_id").cloned().unwrap_or(Value::Null),
+                "event_count": event_count,
+                "source_kind_prefix": request.input.get("source_kind_prefix").cloned().unwrap_or(Value::Null),
             }))
         } else if id.ends_with("/explain") {
             Ok(serde_json::json!({
