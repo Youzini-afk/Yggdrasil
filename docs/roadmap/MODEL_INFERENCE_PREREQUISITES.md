@@ -7,16 +7,19 @@ Model Connectivity Kit Alpha deliberately stops before real model execution. A f
 ## Required platform contracts
 
 1. **Secret resolution**
-   - Profile assets may reference secrets, but raw secrets must not appear in events, projections, logs, UI, or assistant proposals.
-   - Hosts need a public secret-reference capability or policy surface.
+    - Profile assets may reference secrets, but raw secrets must not appear in events, projections, logs, UI, or assistant proposals.
+    - Hosts need a public secret-reference capability or policy surface.
+    - **Phase S1 progress**: `SecretRef` type with `secret_ref:`, `secretRef:`, `secret-ref:`, `host:` patterns. `HostSecretResolver` trait and `DenyAllSecretResolver` placeholder. Raw-secret blocking in proposals and asset metadata. Official packages have no bypass. Permission grants survive rehydrate. Production vault integration remains host-level.
 
 2. **Network permission**
-   - Packages need explicit network permissions by destination, method, and purpose.
-   - No package should infer network permission from being official.
+    - Packages need explicit network permissions by destination, method, and purpose.
+    - No package should infer network permission from being official.
+    - **Phase S2 target**.
 
 3. **Request/response audit**
-   - Every outbound request needs principal, package id, capability id, provider family, route id, redaction state, and cost/usage placeholders.
-   - Raw prompts/responses require redaction policy before audit persistence.
+    - Every outbound request needs principal, package id, capability id, provider family, route id, redaction state, and cost/usage placeholders.
+    - Raw prompts/responses require redaction policy before audit persistence.
+    - **Phase S2 target** for outbound audit/redaction skeleton. Phase S1 provides the redaction scanner for trusted payload paths (proposals, asset metadata).
 
 4. **Streaming and cancellation**
    - Streaming chunks need a public protocol shape.
@@ -30,8 +33,9 @@ Model Connectivity Kit Alpha deliberately stops before real model execution. A f
    - Authentication, rate limit, quota, timeout, model not found, malformed request, and provider outage errors must map to stable package-level diagnostics.
 
 7. **Data redaction and approval**
-   - Assistant-mediated inference must be approval-gated when sending user or project data outside the host boundary.
-   - Redaction policies must be inspectable through public surfaces.
+    - Assistant-mediated inference must be approval-gated when sending user or project data outside the host boundary.
+    - Redaction policies must be inspectable through public surfaces.
+    - **Phase S1 progress**: Conservative redaction scanner for known secret field names and value patterns in trusted paths (proposal payloads, asset metadata). Excludes content/description/title/reason to avoid false positives.
 
 ## Deferred capabilities
 

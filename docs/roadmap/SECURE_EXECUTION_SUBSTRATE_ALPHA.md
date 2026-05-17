@@ -17,19 +17,19 @@ This plan is intentionally substrate-first. It does not add model, prompt, agent
 - Official packages receive no special permission or routing priority.
 - UI proofs use public protocol/client-side infrastructure only.
 
-## Phase S1 — Persistent permissions and secret references
+## Phase S1 — Persistent permissions and secret references ✅
 
 Goals:
 
-- Persist scoped permission grants through the event log so host restarts can rehydrate grants.
-- Add a generic `secret_ref` contract and host resolver placeholder.
-- Add hostile conformance for durable grants and raw-secret blocking in known trusted paths.
+- Persist scoped permission grants through the event log so host restarts can rehydrate grants. **Done.**
+- Add a generic `secret_ref` contract and host resolver placeholder. **Done.**
+- Add hostile conformance for durable grants and raw-secret blocking in known trusted paths. **Done.**
 
 Non-goals:
 
-- No production secret vault.
-- No provider-specific key handling.
-- No real network/model calls.
+- No production secret vault. **Met: `DenyAllSecretResolver` is the default.**
+- No provider-specific key handling. **Met.**
+- No real network/model calls. **Met.**
 
 ## Phase S2 — Network permissions, outbound audit, and redaction skeleton
 

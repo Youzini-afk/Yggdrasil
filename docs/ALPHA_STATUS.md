@@ -8,21 +8,25 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 
 ## Headline
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
-- **Conformance:** 76 named CLI cases plus crate and service unit tests.
-- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
+- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1.
+- **Conformance:** 81 named CLI cases plus crate and service unit tests.
+- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** background substrate hardening and package ecosystem readiness (see `docs/roadmap/NEXT_STEPS.md`).
+- **Next stage:** Secure Execution Substrate Phase S2 (network permissions, outbound audit/redaction skeleton).
 
 ## What is implemented
 
 ### Kernel
 
 - Content-free sessions, append-only opaque events, manifest-driven packages, capability fabric, hook fabric slice, surface contributions, proposal lifecycle, asset/branch/projection substrate.
-- SQLite-backed durable event log with per-session monotonic sequencing and rehydratable substrate.
+- SQLite-backed durable event log with per-session monotonic sequencing and rehydratable substrate including assets, branches, projections, and **permission grants**.
 - JSON Schema subset for capability input/output and package-declared event payloads.
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Scoped grants for human and assistant principals.
+- **Persistent permission grants**: grants are rehydrated from the event log on runtime reconstruction. A grant issued before a host restart remains effective after rehydrate.
 - Permission audit events: `kernel/permission.granted`, `kernel/permission.revoked`, `kernel/permission.denied`.
+- **Secret reference contract**: `SecretRef` type with `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` reference patterns. Packages reference secrets via `secret_ref` identifiers; raw secrets must never appear in events, proposals, logs, or audit records.
+- **Host secret resolver**: `HostSecretResolver` trait and `DenyAllSecretResolver` placeholder. Resolution is only permitted at runtime during capability invocation; resolved raw secrets must never be written back to the event log or any audit/proposal path. `SecretResolverConfig` on `RuntimeConfig`.
+- **Raw-secret blocking**: Conservative scanner checks proposal payloads, asset metadata, and audit-like payloads for known secret field names (`api_key`, `secret`, `token`, `password`, etc.) and value patterns (`Bearer ...`, `sk-...`, high-entropy strings). Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text. Official packages have no bypass.
 - Package lifecycle events: `kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`.
 - Proposal lifecycle events: `kernel/proposal.created|approved|rejected|applied|failed`.
 
@@ -47,6 +51,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - Asset registry: opaque `id`/`mime`/`hash`/`size`/`origin_package_id`/`metadata`, rehydratable from SQLite. Permission enforcement and content-addressed blob storage are next.
 - Session fork/branch lineage records, rehydratable from the event log.
 - Generic projection registry. Rebuild filters events by `kind_prefix` and `writer_package_id` and writes `kernel/projection.updated`. Package-owned projection execution is next.
+- **Permission grant rehydration**: `kernel/permission.granted` and `kernel/permission.revoked` events are replayed during `hydrate_substrate_from_events` so that grants survive runtime reconstruction against the same SQLite store.
 - Surface contributions: typed descriptors with version, slot, activation, required permissions, approval policy, metadata. Slots: `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable through `kernel.surface.contribution.list` and `.describe`.
 - Proposal lifecycle: `kernel.proposal.create|get|list|approve|reject|apply`. Apply currently executes generic `asset.put` and `projection.rebuild` operations. Broader transactions and revert/compensation are next.
 
@@ -101,7 +106,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 76 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, and third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check).
+- `cargo run -p ygg-cli -- conformance` runs 81 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check), **permission grant rehydrate through SQLite**, **secret_ref validation**, **raw-secret blocking in proposals and asset metadata**, and **official-package no-secret-bypass**.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 
@@ -111,13 +116,15 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - Streaming protocol dispatch and package-principal `event.subscribe` permissions.
 - Hook handler timeout/error audit for package-owned handlers.
 - Persisted capability provider selection policy beyond per-invocation explicit selection.
-- Persisted permission grant rehydration and richer resource policy coverage (network/filesystem/packages/projections enforcement matrices).
+- Richer resource policy coverage (network/filesystem/packages/projections enforcement matrices) — Phase S2 target.
 - Content-addressed asset blob storage and package-principal asset permission checks.
 - Package-owned projection execution.
 - Richer crash monitoring and health-check beyond lifecycle events.
 - Broader transport parity coverage in conformance beyond the current core protocol dispatcher and service tests.
 - Richer TypeScript SDK packaging beyond the current thin subprocess helper.
 - Full `kernel.session.get|list`, `kernel.package.describe`, `kernel.capability.describe`, `kernel.extension_point.describe`, `kernel.host.principal`, `kernel.host.ping` route exposure.
+- Production secret vault integration (Phase S1 provides the contract and `DenyAllSecretResolver` only).
+- Network permission declarations and outbound audit/redaction records (Phase S2 target).
 
 ## What is deferred
 

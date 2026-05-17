@@ -9,8 +9,8 @@
 ## 概要
 
 - **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta。
-- **Conformance：** 76 个具名 CLI 用例，加上 crate 和 service 单元测试。
-- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等。
+- **Conformance：** 81 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
 - **下一阶段：** 后台 substrate hardening 与 package ecosystem readiness（见 `docs/roadmap/NEXT_STEPS.md`）。
 
@@ -25,6 +25,10 @@
 - 权限审计事件：`kernel/permission.granted`、`kernel/permission.revoked`、`kernel/permission.denied`。
 - 包 lifecycle 事件：`kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`。
 - Proposal lifecycle 事件：`kernel/proposal.created|approved|rejected|applied|failed`。
+- 持久权限授权：`kernel/permission.granted|revoked` 事件可在 SQLite-backed runtime 中重新水化，重启后授权仍可用于 human/assistant principal 的作用域检查。
+- **Secret reference contract**：`SecretRef` 类型支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:` 和 `host:` reference patterns。包通过 `secret_ref` identifier 引用 secret；raw secrets 不得出现在 events、proposals、logs 或 audit records 中。
+- **Host secret resolver placeholder**：`HostSecretResolver` trait 和 deny-all resolver 已存在，用于未来 host-level secret store。当前不做生产级 vault 或 provider-specific key handling。
+- **Raw-secret blocking**：Proposal operations/expected effects 与 asset metadata 会被保守扫描；明显 raw API keys、token/password fields 会被拒绝。Asset content 和普通 prose 字段不扫描，以避免误伤用户内容。
 
 ### 公开协议与传输
 
@@ -101,7 +105,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 76 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试，以及第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）。
+- `cargo run -p ygg-cli -- conformance` 运行 81 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**，以及 **official-package no-secret-bypass**。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 
@@ -111,7 +115,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - Streaming 协议分发和 package-principal 的 `event.subscribe` 权限。
 - Hook handler 超时/错误审计，面向包拥有的 handler。
 - 持久化的能力 provider 选择策略（超越单次调用显式选择）。
-- 持久化的权限授权重新水化和更丰富的资源策略覆盖（网络/文件系统/包/projection 强制矩阵）。
+- 更丰富的资源策略覆盖（网络/文件系统/包/projection 强制矩阵）。
 - 内容寻址的 asset blob 存储和 package-principal asset 权限检查。
 - 包拥有的 projection 执行。
 - 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。

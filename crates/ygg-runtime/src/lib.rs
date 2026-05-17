@@ -4,8 +4,10 @@ pub mod inproc;
 pub mod package;
 pub mod pi;
 pub mod protocol;
+pub mod redaction;
 pub mod runtime;
 pub mod schema;
+pub mod secret;
 pub mod storage;
 pub mod subprocess;
 pub mod tavern;
@@ -23,7 +25,9 @@ pub use protocol::{
     ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS,
     KERNEL_PROTOCOL_VERSION,
 };
+pub use redaction::{redact_secrets_in_value, scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult};
 pub use runtime::{AppendEventRequest, EventListRequest, OpenSessionRequest, Runtime, RuntimeConfig};
 pub use schema::validate_json_schema_subset;
+pub use secret::{DenyAllSecretResolver, HostSecretResolver, SecretResolverConfig};
 pub use subprocess::{SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;

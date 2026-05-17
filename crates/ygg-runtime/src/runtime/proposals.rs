@@ -8,7 +8,7 @@ use ygg_core::{
 };
 
 use super::Runtime;
-use crate::{EventStore, ProtocolContext, ProtocolPrincipal};
+use crate::{EventStore, ProtocolContext, ProtocolPrincipal, redaction};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -78,6 +78,19 @@ where
     S: EventStore,
 {
     pub async fn create_proposal(&self, context: &ProtocolContext, mut proposal: ProposalRecord) -> anyhow::Result<ProposalRecord> {
+        // Scan for raw secrets in proposal operations and expected_effects
+        let proposal_value = serde_json::to_value(&proposal)?;
+        let scan = redaction::scan_value_for_raw_secrets(&proposal_value, "");
+        if scan.has_findings() {
+            let findings: Vec<String> = scan.findings.iter()
+                .map(|f| format!("{} ({:?})", f.path, f.detection))
+                .collect();
+            anyhow::bail!(
+                "proposal contains raw secret(s) in field(s): {}; use secret_ref references instead",
+                findings.join(", ")
+            );
+        }
+
         proposal.id = if proposal.id.trim().is_empty() { new_id("prp") } else { proposal.id };
         proposal.status = ProposalStatus::Created;
         proposal.created_by = context.principal.clone();

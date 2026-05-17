@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前具名 conformance 覆盖：69 个 CLI 用例 + crate/service 单元测试。
+当前矩阵覆盖：74 个 implemented rows，由 81 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -49,6 +49,11 @@ cargo run -p ygg-cli -- conformance
 | sessions | fork session 并列出 branch 族系 | implemented |
 | projections | 注册并 rebuild 通用事件计数 projection | implemented |
 | substrate | SQLite 事件日志 rehydrate asset、branch 和 projection | implemented |
+| substrate | permission grant 在 SQLite-backed runtime rehydrate 后仍存在 | implemented |
+| secret refs | `secret_ref:`、`secretRef:`、`secret-ref:`、`host:` reference pattern validation | implemented |
+| secret refs | proposal payload 中的 raw secret 会被拒绝 | implemented |
+| secret refs | asset metadata 中的 raw secret 会被拒绝 | implemented |
+| secret refs | 官方包没有 secret-scanning bypass | implemented |
 | protocol | 方法列表不包含内容方法 | implemented in unit tests |
 | protocol | 结构化权限错误码 | implemented |
 | protocol | in-process 协议分发器调用 host.info | implemented |
@@ -204,6 +209,11 @@ replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_official_priority   PASS
 replacement.composition_thirdparty           PASS
+substrate.permission_grant_rehydrate         PASS
+secret.ref_validation                        PASS
+secret.raw_blocked_in_proposal               PASS
+secret.raw_blocked_in_asset_metadata         PASS
+official.no_secret_bypass                    PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

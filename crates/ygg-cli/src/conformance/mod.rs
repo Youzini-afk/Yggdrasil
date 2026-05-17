@@ -10,6 +10,7 @@ mod permissions;
 mod proposals;
 mod protocol;
 mod replacement;
+mod secret_conformance;
 mod subprocess;
 mod substrate;
 mod surfaces;
@@ -187,6 +188,31 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "replacement.composition_thirdparty",
         replacement::composition_thirdparty().await,
+    );
+    record_case(
+        &mut results,
+        "substrate.permission_grant_rehydrate",
+        secret_conformance::permission_grant_rehydrate().await,
+    );
+    record_case(
+        &mut results,
+        "secret.ref_validation",
+        secret_conformance::secret_ref_validation().await,
+    );
+    record_case(
+        &mut results,
+        "secret.raw_blocked_in_proposal",
+        secret_conformance::raw_secret_blocked_in_proposal().await,
+    );
+    record_case(
+        &mut results,
+        "secret.raw_blocked_in_asset_metadata",
+        secret_conformance::raw_secret_blocked_in_asset_metadata().await,
+    );
+    record_case(
+        &mut results,
+        "official.no_secret_bypass",
+        secret_conformance::no_secret_bypass().await,
     );
 
     let mut failed = false;

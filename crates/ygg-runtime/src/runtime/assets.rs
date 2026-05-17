@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use ygg_core::{new_id, AssetRecord, PackageId, KERNEL_PACKAGE_ID, EVENT_ASSET_PUT};
 
 use super::{Runtime, StoredAsset};
-use crate::EventStore;
+use crate::{EventStore, redaction};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetPutRequest {
@@ -30,6 +30,18 @@ where
     S: EventStore,
 {
     pub async fn put_asset(&self, mut request: AssetPutRequest) -> anyhow::Result<AssetRecord> {
+        // Scan asset metadata for raw secrets (content is arbitrary user data — excluded)
+        let metadata_scan = redaction::scan_value_for_raw_secrets(&request.metadata, "metadata");
+        if metadata_scan.has_findings() {
+            let findings: Vec<String> = metadata_scan.findings.iter()
+                .map(|f| format!("{} ({:?})", f.path, f.detection))
+                .collect();
+            anyhow::bail!(
+                "asset metadata contains raw secret(s) in field(s): {}; use secret_ref references instead",
+                findings.join(", ")
+            );
+        }
+
         let origin_package_id = request.origin_package_id.take().unwrap_or_else(|| KERNEL_PACKAGE_ID.to_string());
         let mut hasher = DefaultHasher::new();
         request.content.hash(&mut hasher);

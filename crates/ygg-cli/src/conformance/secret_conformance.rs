@@ -1,0 +1,178 @@
+use serde_json::json;
+use ygg_runtime::{OpenSessionRequest, ProtocolContext};
+
+use super::fixtures::*;
+
+/// Permission grants survive SQLite-backed runtime rehydrate.
+pub(crate) async fn permission_grant_rehydrate() -> anyhow::Result<()> {
+    use std::fs;
+    use std::sync::Arc;
+    use ygg_runtime::{Runtime, RuntimeConfig, SqliteEventStore};
+
+    let path = std::env::temp_dir().join(format!("ygg-grant-rehydrate-{}.db", std::process::id()));
+    if path.exists() {
+        fs::remove_file(&path)?;
+    }
+    let store = Arc::new(SqliteEventStore::open(&path)?);
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let _session = runtime.open_session(OpenSessionRequest::default()).await?;
+
+    // Grant a permission to a human principal
+    let human = json!({"kind": "human", "user_id": "user/rehydrate-test"});
+    let grant = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.permission.grant",
+            json!({"principal": human, "permission": "events.read", "scope": "test-scope", "reason": "rehydrate conformance"}),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!(e.message))?;
+    let grant_id = grant["id"].as_str().ok_or_else(|| anyhow::anyhow!("grant missing id"))?.to_string();
+
+    // Verify the grant is effective before drop
+    let grants_before = runtime.list_permission_grants(None).await;
+    anyhow::ensure!(grants_before.iter().any(|g| g.id == grant_id && g.revoked_at.is_none()), "grant not found before drop");
+
+    drop(runtime);
+    drop(store);
+
+    // Rehydrate from the same SQLite store
+    let reopened = Arc::new(SqliteEventStore::open(&path)?);
+    let hydrated = Runtime::new(reopened, RuntimeConfig::default());
+    hydrated.hydrate_substrate_from_events().await?;
+
+    // Verify the grant survived rehydrate
+    let grants_after = hydrated.list_permission_grants(None).await;
+    anyhow::ensure!(grants_after.iter().any(|g| g.id == grant_id && g.revoked_at.is_none()), "grant did not survive rehydrate");
+
+    // Revoke and rehydrate again
+    hydrated
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.permission.revoke", json!({"grant_id": grant_id}))
+        .await
+        .map_err(|e| anyhow::anyhow!(e.message))?;
+    drop(hydrated);
+
+    let reopened2 = Arc::new(SqliteEventStore::open(&path)?);
+    let hydrated2 = Runtime::new(reopened2, RuntimeConfig::default());
+    hydrated2.hydrate_substrate_from_events().await?;
+    let grants_final = hydrated2.list_permission_grants(None).await;
+    let revived_grant = grants_final.iter().find(|g| g.id == grant_id);
+    anyhow::ensure!(revived_grant.is_some(), "revoked grant not found after rehydrate");
+    anyhow::ensure!(revived_grant.unwrap().revoked_at.is_some(), "revoked grant should have revoked_at after rehydrate");
+
+    let _ = fs::remove_file(path);
+    Ok(())
+}
+
+/// Secret ref type validation works.
+pub(crate) async fn secret_ref_validation() -> anyhow::Result<()> {
+    use ygg_core::SecretRef;
+
+    // Valid references
+    assert!(SecretRef::is_valid_ref("secret_ref:env:MY_KEY"));
+    assert!(SecretRef::is_valid_ref("secretRef:vault:prod/key"));
+    assert!(SecretRef::is_valid_ref("secret-ref:file:path"));
+    assert!(SecretRef::is_valid_ref("host:my_secret"));
+
+    // Invalid references
+    assert!(!SecretRef::is_valid_ref("not_a_ref"));
+    assert!(!SecretRef::is_valid_ref("secret_ref:"));
+    assert!(!SecretRef::is_valid_ref(""));
+
+    Ok(())
+}
+
+/// Raw secret in proposal payload is rejected.
+pub(crate) async fn raw_secret_blocked_in_proposal() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+
+    // Proposal with raw secret in operation payload should be rejected
+    let denied = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.proposal.create",
+            json!({
+                "operations": [
+                    {"op": "asset.put", "payload": {"api_key": "sk-abc123def456ghi789jkl012mno345"}}
+                ]
+            }),
+        )
+        .await;
+    anyhow::ensure!(denied.is_err(), "proposal with raw secret should be rejected");
+    anyhow::ensure!(denied.unwrap_err().message.contains("raw secret"), "error should mention raw secret");
+
+    // Proposal with secret_ref should be accepted
+    let accepted = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.proposal.create",
+            json!({
+                "operations": [
+                    {"op": "asset.put", "payload": {"secret": "secret_ref:env:MY_KEY"}}
+                ]
+            }),
+        )
+        .await;
+    anyhow::ensure!(accepted.is_ok(), "proposal with secret_ref should be accepted");
+
+    Ok(())
+}
+
+/// Raw secret in asset metadata is rejected.
+pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+
+    // Asset with raw secret in metadata should be rejected
+    let denied = runtime
+        .put_asset(ygg_runtime::runtime::AssetPutRequest {
+            origin_package_id: None,
+            mime: "application/json".to_string(),
+            content: "normal content".to_string(),
+            metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "asset with raw secret in metadata should be rejected");
+    anyhow::ensure!(denied.unwrap_err().to_string().contains("raw secret"), "error should mention raw secret");
+
+    // Asset with secret_ref in metadata should be accepted
+    let accepted = runtime
+        .put_asset(ygg_runtime::runtime::AssetPutRequest {
+            origin_package_id: None,
+            mime: "application/json".to_string(),
+            content: "normal content".to_string(),
+            metadata: json!({"secret": "secret_ref:env:MY_KEY"}),
+        })
+        .await;
+    anyhow::ensure!(accepted.is_ok(), "asset with secret_ref in metadata should be accepted");
+
+    // Asset with arbitrary content (no secret field names) should be accepted
+    let content_ok = runtime
+        .put_asset(ygg_runtime::runtime::AssetPutRequest {
+            origin_package_id: None,
+            mime: "text/plain".to_string(),
+            content: "sk-abc123def456ghi789jkl012mno345 this looks like a key but it's in content".to_string(),
+            metadata: json!({"purpose": "conformance"}),
+        })
+        .await;
+    anyhow::ensure!(content_ok.is_ok(), "asset with non-secret metadata and arbitrary content should be accepted");
+
+    Ok(())
+}
+
+/// Official packages have no secret bypass.
+pub(crate) async fn no_secret_bypass() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+
+    // Even an official-looking package cannot bypass secret scanning
+    let denied = runtime
+        .put_asset(ygg_runtime::runtime::AssetPutRequest {
+            origin_package_id: Some("official/some-lab".to_string()),
+            mime: "application/json".to_string(),
+            content: "data".to_string(),
+            metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "official package must not bypass secret scanning");
+
+    Ok(())
+}

@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
-use ygg_core::{AssetRecord, EventEnvelope, KernelSession, SessionId, EVENT_ASSET_PUT, EVENT_SESSION_FORKED, EVENT_PROJECTION_UPDATED};
+use ygg_core::{AssetRecord, EventEnvelope, KernelSession, SessionId, EVENT_ASSET_PUT, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED, EVENT_SESSION_FORKED};
 
-use crate::{EventStore, HostPolicy, InprocPackageCatalog};
+use crate::{EventStore, HostPolicy, InprocPackageCatalog, SecretResolverConfig};
 
 mod session;
 mod events;
@@ -37,6 +37,7 @@ pub struct RuntimeConfig {
     pub default_labels: Vec<String>,
     pub host_policy: HostPolicy,
     pub inproc_packages: InprocPackageCatalog,
+    pub secret_resolver: SecretResolverConfig,
 }
 
 impl Default for RuntimeConfig {
@@ -45,6 +46,7 @@ impl Default for RuntimeConfig {
             default_labels: vec!["kernel".to_string()],
             host_policy: HostPolicy::default(),
             inproc_packages: InprocPackageCatalog::with_default_examples(),
+            secret_resolver: SecretResolverConfig::default(),
         }
     }
 }
@@ -124,6 +126,7 @@ where
         let mut assets = HashMap::new();
         let mut branches = HashMap::new();
         let mut projections = HashMap::new();
+        let mut grants = HashMap::new();
         for event in events {
             match event.kind.as_str() {
                 EVENT_ASSET_PUT => {
@@ -139,12 +142,22 @@ where
                     let projection: ProjectionDefinition = serde_json::from_value(event.payload.clone())?;
                     projections.insert(projection.id.clone(), projection);
                 }
+                EVENT_PERMISSION_GRANTED => {
+                    let record: PermissionGrantRecord = serde_json::from_value(event.payload.clone())?;
+                    grants.insert(record.id.clone(), record);
+                }
+                EVENT_PERMISSION_REVOKED => {
+                    let record: PermissionGrantRecord = serde_json::from_value(event.payload.clone())?;
+                    // Overwrite with revoked version (revoked_at is set)
+                    grants.insert(record.id.clone(), record);
+                }
                 _ => {}
             }
         }
         *self.assets.write().await = assets;
         *self.branches.write().await = branches;
         *self.projections.write().await = projections;
+        *self.grants.write().await = grants;
         Ok(())
     }
 

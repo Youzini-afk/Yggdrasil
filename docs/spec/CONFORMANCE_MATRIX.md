@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 69 CLI cases plus crate/service unit tests.
+Current matrix coverage: 74 implemented rows, backed by 81 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -49,6 +49,11 @@ Current named conformance coverage: 69 CLI cases plus crate/service unit tests.
 | sessions | fork session and list branch lineage | implemented |
 | projections | register and rebuild generic event-count projection | implemented |
 | substrate | SQLite event log rehydrates assets, branches, and projections | implemented |
+| substrate | permission grant survives SQLite-backed runtime rehydrate | implemented |
+| secret refs | `secret_ref:`, `secretRef:`, `secret-ref:`, `host:` reference pattern validation | implemented |
+| secret refs | raw secret in proposal payload is rejected | implemented |
+| secret refs | raw secret in asset metadata is rejected | implemented |
+| secret refs | official package has no secret-scanning bypass | implemented |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
@@ -204,6 +209,11 @@ replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_official_priority   PASS
 replacement.composition_thirdparty           PASS
+substrate.permission_grant_rehydrate          PASS
+secret.ref_validation                        PASS
+secret.raw_blocked_in_proposal               PASS
+secret.raw_blocked_in_asset_metadata         PASS
+official.no_secret_bypass                    PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

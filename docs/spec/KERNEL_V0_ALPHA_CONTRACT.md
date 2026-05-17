@@ -25,7 +25,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Loading/starting/ready/stopping/stopped/unloaded/degraded events are emitted for implemented entry forms. WASM/remote remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
 | `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, legacy fixture handlers, package-owned handler capabilities, metadata mutation, and unload cleanup. Rich timeout/error audit remains next. |
-| `AssetRecord` | partial | Opaque asset put/get/list exists with id, origin package, mime, hash, size, metadata, and `kernel/asset.put` audit event. Asset state can be rehydrated from the durable event log; binary/blob storage and permission enforcement remain next. |
+| `AssetRecord` | partial | Opaque asset put/get/list exists with id, origin package, mime, hash, size, metadata, and `kernel/asset.put` audit event. Asset state can be rehydrated from the durable event log; **raw-secret scanning is enforced on asset metadata**. Binary/blob storage and permission enforcement remain next. |
 
 ## Protocol method matrix
 
@@ -61,8 +61,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
 | `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
-| `kernel.permission.grant/revoke/list/audit` | partial | Host-dev callers can grant/revoke scoped permissions to human or assistant principals, list grants, and inspect grant/revoke audit events. Durable grant rehydration and full resource policy coverage remain next. |
-| `kernel.proposal.create/get/list/approve/reject/apply` | partial | Generic proposal lifecycle for approval-gated play-creation changes. Initial apply support covers `asset.put` and `projection.rebuild`; broader transactions and revert/compensation remain next. |
+| `kernel.permission.grant/revoke/list/audit` | partial | Host-dev callers can grant/revoke scoped permissions to human or assistant principals, list grants, and inspect grant/revoke audit events. **Permission grants now survive rehydrate** from the SQLite event log. Full resource policy coverage remains next. |
+| `kernel.proposal.create/get/list/approve/reject/apply` | partial | Generic proposal lifecycle for approval-gated play-creation changes. Initial apply support covers `asset.put` and `projection.rebuild`. **Raw secret scanning is enforced**: proposals containing raw secrets in operation payloads or expected_effects are rejected. Broader transactions and revert/compensation remain next. |
 | `kernel.surface.contribution.list` | partial | Lists typed package-declared surface descriptors for experience entry, Home/Play, Forge, asset editor, and assistant slots. The kernel stores descriptors only; UI rendering and content semantics remain package/client work. |
 | `kernel.surface.contribution.describe` | partial | Describes one declared surface contribution by id. |
 
@@ -109,7 +109,7 @@ Manifest support means the schema can describe the entry and host policy can acc
 ## Permission matrix
 
 | Permission | Status | Current enforcement |
-|---|---:|---|
+|---|---|---:|
 | `events.append` | implemented | Required for non-kernel `event.append`. |
 | `events.read` | partial | Runtime supports package manifest checks and scoped grants for human/assistant principals. SSE subscribe is currently host-dev only. |
 | `capabilities.invoke` | partial | Runtime supports package manifest checks and scoped grants for human/assistant principals. Anonymous host calls are allowed only as host/dev operations and must not become package privilege. |
@@ -118,6 +118,19 @@ Manifest support means the schema can describe the entry and host policy can acc
 | `projections` | planned | Projection registration is host-dev only; package permission model remains next. |
 | `network.hosts` | planned | Applies when subprocess/remote execution exists. |
 | `filesystem.read/write` | planned | Applies when subprocess/WASM execution exists. |
+
+## Secret reference contract (Phase S1)
+
+| Contract element | Status | Notes |
+|---|---|---:|
+| `SecretRef` type and validation | implemented | Recognizes `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` patterns. |
+| `HostSecretResolver` trait | implemented | Async trait for runtime secret resolution. `DenyAllSecretResolver` placeholder rejects all. Production vault integrations are host-level packages, not kernel. |
+| `SecretResolverConfig` on `RuntimeConfig` | implemented | Default uses `DenyAllSecretResolver`; hosts can provide custom resolver. |
+| Raw-secret blocking in proposals | implemented | Proposals with raw secrets in operation payloads or expected_effects are rejected. `secret_ref` references are accepted. |
+| Raw-secret blocking in asset metadata | implemented | Asset metadata with raw secrets is rejected. Asset content is excluded from scanning (arbitrary user data). `secret_ref` references are accepted. |
+| Official-package no-secret-bypass | implemented | Secret scanning applies uniformly; official packages have no bypass. |
+| Permission grant rehydrate | implemented | `kernel/permission.granted` and `kernel/permission.revoked` events are replayed during `hydrate_substrate_from_events`. Grants survive runtime reconstruction against the same SQLite store. |
+| Resolved secrets never written to event log | implemented by contract | The `HostSecretResolver` trait is only used at runtime; no kernel path writes resolved secrets back to events/proposals/logs/audit. |
 
 ## Lifecycle rules
 
@@ -142,6 +155,9 @@ Implemented:
 17. `official/assistant-lab` is an ordinary assistant capability package that returns approval-gated proposals rather than mutating trusted state directly.
 18. The first blank play-creation loop demo proves package launch, assistant proposal, branch fork, asset write, and projection rebuild without adding content semantics to the kernel.
 19. Generic proposal lifecycle methods gate assistant/package changes behind explicit approval and append audit events.
+20. Permission grants are persisted through `kernel/permission.granted` and `kernel/permission.revoked` events and rehydrated during `hydrate_substrate_from_events`.
+21. Secret references follow the `secret_ref:<vault>:<key>` contract. Raw secrets in proposal payloads and asset metadata are rejected by the kernel. Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text.
+22. The `HostSecretResolver` trait provides runtime-only secret resolution. Resolved raw secrets must never be written back to events, proposals, logs, or audit records. Official packages have no bypass.
 
 Still partial for Platform Host Alpha:
 
@@ -151,6 +167,7 @@ Still partial for Platform Host Alpha:
 4. Capability routing has simple explicit provider/version constraints but no persisted provider selection policy.
 5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
 6. Asset/projection/branch substrate persists through the event log, but does not yet enforce package-principal permissions or use dedicated blob storage.
+7. Production secret vault integration is deferred to host-level packages; `DenyAllSecretResolver` is the default.
 
 Next:
 

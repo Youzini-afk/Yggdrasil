@@ -21,15 +21,15 @@
 
 目标：
 
-- 通过 event log 持久化 scoped permission grants，让 host 重启后可以 rehydrate grants。
-- 增加通用 `secret_ref` 契约与 host resolver placeholder。
-- 为 durable grants 和 trusted paths 中的 raw-secret blocking 增加 hostile conformance。
+- 通过 event log 持久化 scoped permission grants，让 host 重启后可以 rehydrate grants。**已完成。**
+- 增加通用 `secret_ref` 契约与 host resolver placeholder。**已完成。**
+- 为 durable grants 和 trusted paths 中的 raw-secret blocking 增加 hostile conformance。**已完成。**
 
 非目标：
 
-- 不做生产级 secret vault。
-- 不做 provider-specific key handling。
-- 不做真实 network/model calls。
+- 不做生产级 secret vault。**仍为非目标。**
+- 不做 provider-specific key handling。**仍为非目标。**
+- 不做真实 network/model calls。**仍为非目标。**
 
 ## Phase S2 — 网络权限、outbound audit 与 redaction skeleton
 

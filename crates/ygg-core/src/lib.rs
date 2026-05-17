@@ -2,6 +2,7 @@ pub mod asset;
 pub mod event;
 pub mod ids;
 pub mod manifest;
+pub mod secret_ref;
 pub mod session;
 
 pub use asset::AssetRecord;
@@ -27,4 +28,5 @@ pub use manifest::{
     SubprocessTransport, SurfaceActivation, SurfaceApprovalPolicy, SurfaceContribution,
     SurfacePermissionRequirement, SurfaceRisk, SurfaceSlot,
 };
+pub use secret_ref::{is_secret_field_name, looks_like_raw_secret, SecretRef, SECRET_REF_PREFIX, SECRET_FIELD_NAMES};
 pub use session::{KernelSession, SessionStatus};
