@@ -44,18 +44,18 @@
 - 不声称实现完整 OS-level subprocess sandbox。**满足。**
 - 不做 provider-specific audit schema。**满足。**
 
-## Phase S3 — 通用 streaming 与 cancellation lifecycle
+## Phase S3 — 通用 streaming 与 cancellation lifecycle ✅
 
 目标：
 
-- 定义通用 capability output stream frames。
-- 增加 cancellation/timeout lifecycle records。
-- 增加 normal end、error、cancel、timeout 的 fixture/conformance 覆盖。
+- 定义通用 capability output stream frames。**已完成。**
+- 增加 cancellation/timeout lifecycle records。**已完成。**
+- 增加 normal end、error、cancel、timeout 的 fixture/conformance 覆盖。**已完成。**
 
 非目标：
 
-- 不做 model streaming API。
-- 不做 agent turn API。
+- 不做 model streaming API。**满足。**
+- 不做 agent turn API。**满足。**
 
 ## Phase S4 — SDK/templates 与 no-network readiness proof
 

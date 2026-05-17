@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：80 个 implemented rows，由 87 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：87 个 implemented rows，由 94 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -110,6 +110,13 @@ cargo run -p ygg-cli -- conformance
 | network | 官方包无 network bypass | implemented |
 | network | 审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state | implemented |
 | network | check_network_policy 纯函数测试 | implemented |
+| stream | 正常生命周期发出有序 frame/event | implemented |
+| stream | cancel 标记 invocation 为 cancelled 并阻断后续 chunk | implemented |
+| stream | timeout 标记 invocation 为 timeout 并阻断后续 chunk | implemented |
+| stream | error 终端 frame 正常工作 | implemented |
+| stream | 非 streaming 能力（streaming=false）被拒绝 | implemented |
+| stream | 协议中无 model/agent 方法 | implemented |
+| stream | capability.stream 和 capability.cancel 可通过协议分发 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -226,6 +233,13 @@ network.host_method_mismatch_denied           PASS
 network.official_no_network_bypass            PASS
 network.audit_no_raw_secrets                  PASS
 network.policy_pure_function                  PASS
+stream.normal_lifecycle                       PASS
+stream.cancel_blocks_chunks                   PASS
+stream.timeout_blocks_chunks                  PASS
+stream.error_terminal                         PASS
+stream.non_streaming_rejected                 PASS
+stream.no_model_agent_methods                 PASS
+stream.protocol_dispatch                      PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

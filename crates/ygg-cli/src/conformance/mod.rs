@@ -12,6 +12,7 @@ mod proposals;
 mod protocol;
 mod replacement;
 mod secret_conformance;
+mod streaming;
 mod subprocess;
 mod substrate;
 mod surfaces;
@@ -244,6 +245,42 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "network.policy_pure_function",
         network::network_policy_pure_function().await,
+    );
+    // Phase S3 — streaming and cancellation lifecycle
+    record_case(
+        &mut results,
+        "stream.normal_lifecycle",
+        streaming::stream_normal_lifecycle().await,
+    );
+    record_case(
+        &mut results,
+        "stream.cancel_blocks_chunks",
+        streaming::stream_cancel_blocks_chunks().await,
+    );
+    record_case(
+        &mut results,
+        "stream.timeout_blocks_chunks",
+        streaming::stream_timeout_blocks_chunks().await,
+    );
+    record_case(
+        &mut results,
+        "stream.error_terminal",
+        streaming::stream_error_terminal().await,
+    );
+    record_case(
+        &mut results,
+        "stream.non_streaming_rejected",
+        streaming::stream_non_streaming_rejected().await,
+    );
+    record_case(
+        &mut results,
+        "stream.no_model_agent_methods",
+        streaming::stream_no_model_agent_methods().await,
+    );
+    record_case(
+        &mut results,
+        "stream.protocol_dispatch",
+        streaming::stream_protocol_dispatch().await,
     );
 
     let mut failed = false;

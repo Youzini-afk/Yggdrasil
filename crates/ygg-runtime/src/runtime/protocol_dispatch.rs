@@ -202,6 +202,48 @@ where
             KernelMethod::CapabilityInvoke => Ok(serde_json::to_value(
                 self.invoke_capability_with_context(context, serde_json::from_value(params)?).await?,
             )?),
+            KernelMethod::CapabilityStream => {
+                let capability_id = params
+                    .get("capability_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.stream requires capability_id"))?
+                    .to_string();
+                let session_id = params
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.stream requires session_id"))?
+                    .to_string();
+                let provider_package_id: Option<String> = params.get("provider_package_id").and_then(Value::as_str).map(String::from);
+                let version: Option<String> = params.get("version").and_then(Value::as_str).map(String::from);
+                let metadata = params.get("metadata").cloned().unwrap_or_else(|| serde_json::json!({}));
+                let (frame, record) = self
+                    .stream_capability_start(
+                        &session_id,
+                        &capability_id,
+                        provider_package_id.as_ref().map(|x| x.as_str()),
+                        version.as_ref().map(|s| s.as_str()),
+                        metadata,
+                    )
+                    .await?;
+                Ok(serde_json::json!({
+                    "frame": frame,
+                    "invocation": record,
+                }))
+            }
+            KernelMethod::CapabilityCancel => {
+                let invocation_id = params
+                    .get("invocation_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires invocation_id"))?
+                    .to_string();
+                let session_id = params
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires session_id"))?
+                    .to_string();
+                let frame = self.stream_capability_cancel(&session_id, &invocation_id).await?;
+                Ok(serde_json::to_value(frame)?)
+            },
             KernelMethod::ExtensionPointList => Ok(json!([
                 "kernel/event.before_append",
                 "kernel/event.after_append",
@@ -242,8 +284,6 @@ where
             | KernelMethod::EventSubscribe
             | KernelMethod::PackageDescribe
             | KernelMethod::CapabilityDescribe
-            | KernelMethod::CapabilityStream
-            | KernelMethod::CapabilityCancel
             | KernelMethod::ExtensionPointDescribe
             | KernelMethod::HostPrincipal => {
                 anyhow::bail!("protocol method '{}' is not yet implemented", kernel_method)

@@ -37,6 +37,13 @@ pub const EVENT_PERMISSION_REVOKED: &str = "kernel/permission.revoked";
 pub const EVENT_ERROR: &str = "kernel/error";
 pub const EVENT_OUTBOUND_REQUEST: &str = "kernel/outbound.request";
 pub const EVENT_OUTBOUND_DENIED: &str = "kernel/outbound.denied";
+pub const EVENT_STREAM_STARTED: &str = "kernel/stream.started";
+pub const EVENT_STREAM_CHUNK: &str = "kernel/stream.chunk";
+pub const EVENT_STREAM_PROGRESS: &str = "kernel/stream.progress";
+pub const EVENT_STREAM_ENDED: &str = "kernel/stream.ended";
+pub const EVENT_STREAM_ERROR: &str = "kernel/stream.error";
+pub const EVENT_STREAM_CANCELLED: &str = "kernel/stream.cancelled";
+pub const EVENT_STREAM_TIMEOUT: &str = "kernel/stream.timeout";
 
 // ---------------------------------------------------------------------------
 // Outbound audit / redaction types (Phase S2)
@@ -128,6 +135,125 @@ pub struct EventEnvelope {
     pub payload: Value,
     #[serde(default)]
     pub metadata: Value,
+}
+
+// ---------------------------------------------------------------------------
+// Stream frame envelope types (Phase S3)
+// ---------------------------------------------------------------------------
+
+/// The type of a stream frame — content-free, no model/prompt semantics.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamFrameType {
+    /// First frame of a streaming invocation.
+    Start,
+    /// A data chunk in the stream.
+    Chunk,
+    /// Progress indication (no data payload).
+    Progress,
+    /// Normal terminal frame.
+    End,
+    /// Error terminal frame.
+    Error,
+    /// Cancelled terminal frame.
+    Cancelled,
+    /// Timeout terminal frame.
+    Timeout,
+}
+
+/// Generic stream frame envelope — the unit of streaming capability output.
+///
+/// This is a content-free protocol shape. It carries invocation/stream
+/// identifiers, sequencing, and redaction state, but no model, prompt,
+/// agent, or message semantics. The `payload` field is opaque JSON
+/// controlled by the capability provider.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamFrameEnvelope {
+    /// The invocation this frame belongs to.
+    pub invocation_id: crate::ids::InvocationId,
+    /// Unique stream id (may differ from invocation_id if a capability
+    /// produces multiple concurrent streams).
+    pub stream_id: String,
+    /// Frame type discriminant.
+    pub frame_type: StreamFrameType,
+    /// Monotonically increasing sequence within this stream.
+    pub sequence: u64,
+    /// Redaction state applied to the payload.
+    #[serde(default)]
+    pub redaction_state: RedactionState,
+    /// Timestamp of frame emission.
+    #[serde(default = "default_timestamp")]
+    pub timestamp: DateTime<Utc>,
+    /// Opaque payload — capability-provider-defined; no kernel content
+    /// semantics. May be `Null` for progress/end/cancelled/timeout frames.
+    #[serde(default)]
+    pub payload: Value,
+    /// Opaque metadata — capability-provider-defined.
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+fn default_timestamp() -> DateTime<Utc> {
+    Utc::now()
+}
+
+// ---------------------------------------------------------------------------
+// Streaming invocation record (Phase S3 — in-memory registry)
+// ---------------------------------------------------------------------------
+
+/// The terminal state of a streaming invocation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamInvocationState {
+    /// Streaming is actively producing frames.
+    Active,
+    /// Stream ended normally.
+    Ended,
+    /// Stream terminated with an error.
+    Error,
+    /// Stream was cancelled by caller.
+    Cancelled,
+    /// Stream timed out.
+    Timeout,
+}
+
+/// A record in the ongoing streaming invocation registry.
+///
+/// This tracks the lifecycle of a streaming capability invocation.
+/// It is content-free — it records state, identifiers, and audit
+/// metadata, but no model/prompt/message semantics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamInvocationRecord {
+    /// Unique invocation id.
+    pub invocation_id: crate::ids::InvocationId,
+    /// Unique stream id.
+    pub stream_id: String,
+    /// The capability being streamed.
+    pub capability_id: crate::ids::CapabilityId,
+    /// The package providing the capability.
+    pub provider_package_id: crate::ids::PackageId,
+    /// The session this invocation belongs to.
+    pub session_id: crate::ids::SessionId,
+    /// Current state of the invocation.
+    pub state: StreamInvocationState,
+    /// Number of frames emitted so far.
+    #[serde(default)]
+    pub frame_count: u64,
+    /// Timestamp of invocation start.
+    pub started_at: DateTime<Utc>,
+    /// Timestamp of terminal state, if ended.
+    #[serde(default)]
+    pub ended_at: Option<DateTime<Utc>>,
+    /// Opaque metadata — capability-provider-defined.
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+impl StreamInvocationRecord {
+    /// Whether further frames can be appended to this invocation.
+    pub fn is_terminal(&self) -> bool {
+        !matches!(self.state, StreamInvocationState::Active)
+    }
 }
 
 impl EventEnvelope {

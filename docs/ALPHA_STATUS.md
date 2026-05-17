@@ -8,11 +8,11 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 
 ## Headline
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2.
-- **Conformance:** 87 named CLI cases plus crate and service unit tests.
-- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction.
+- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3.
+- **Conformance:** 94 named CLI cases plus crate and service unit tests.
+- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Secure Execution Substrate Phase S3 (generic streaming and cancellation lifecycle).
+- **Next stage:** Secure Execution Substrate Phase S4 (SDK/templates and no-network readiness proof).
 
 ## What is implemented
 
@@ -29,8 +29,11 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Raw-secret blocking**: Conservative scanner checks proposal payloads, asset metadata, and audit-like payloads for known secret field names (`api_key`, `secret`, `token`, `password`, etc.) and value patterns (`Bearer ...`, `sk-...`, high-entropy strings). Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text. Official packages have no bypass.
 - **Network permission declarations**: Manifest `permissions.network` supports both flat `hosts` (backward compat) and structured `declarations` with `host`, `methods`, and `purpose`. The runtime policy checker matches outbound requests against declared entries. Packages with no network declarations are denied outbound access. Official packages have no bypass.
 - **Outbound audit/redaction records**: `OutboundAuditRecord` records principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, status/error. Raw body/header/prompt/response is never saved — only `secret_ref` identifiers and the `redaction_state` enum (`not_captured`, `redacted`, `policy_ref`, `unsafe_blocked`, `explicitly_approved`) are recorded. Default is `redacted`.
-- **Network policy checker**: `check_network_policy` pure function and `check_and_audit_outbound` runtime method. Supports exact host match, wildcard prefix (`*.example.com`), method allowlists (empty = any), and flat `hosts` backward compat. Denied requests produce `kernel/outbound.denied` audit events; allowed requests produce `kernel/outbound.request` events.
+    - **Network policy checker**: `check_network_policy` pure function and `check_and_audit_outbound` runtime method. Supports exact host match, wildcard prefix (`*.example.com`), method allowlists (empty = any), and flat `hosts` backward compat. Denied requests produce `kernel/outbound.denied` audit events; allowed requests produce `kernel/outbound.request` events.
 - **Protocol method**: `kernel.outbound.audit` lists outbound audit events for a given package.
+- **Streaming invocation registry**: In-memory `StreamRegistry` tracks ongoing streaming capability invocations with start/append/end/cancel/timeout lifecycle. `StreamFrameEnvelope` defines generic content-free stream frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. No model/prompt/agent semantics.
+- **Streaming capability lifecycle**: `kernel.capability.stream` starts a streaming invocation (validates `streaming=true` in descriptor), `kernel.capability.cancel` cancels an in-flight invocation. Runtime methods emit ordered kernel events: `kernel/stream.started`, `kernel/stream.chunk`, `kernel/stream.progress`, `kernel/stream.ended`, `kernel/stream.error`, `kernel/stream.cancelled`, `kernel/stream.timeout`. Cancel and timeout block further chunks. Non-streaming capabilities (descriptor `streaming=false`) are rejected from streaming.
+- **Streaming invocation record**: `StreamInvocationRecord` tracks invocation_id, stream_id, capability_id, provider_package_id, session_id, state (active/ended/error/cancelled/timeout), frame_count, timestamps, and metadata. Terminal states block further frame appends.
 - Package lifecycle events: `kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`.
 - Proposal lifecycle events: `kernel/proposal.created|approved|rejected|applied|failed`.
 
@@ -110,17 +113,18 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 87 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check), **permission grant rehydrate through SQLite**, **secret_ref validation**, **raw-secret blocking in proposals and asset metadata**, **official-package no-secret-bypass**, **network permission denied for undeclared packages with outbound.denied audit**, **allowlisted host+method allowed with redacted audit**, **host/method mismatch denied**, **official-package no-network bypass**, **audit records contain no raw secrets/bodies — only secret_ref and redaction_state**, and **network policy checker pure function tests**.
+- `cargo run -p ygg-cli -- conformance` runs 94 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check), **permission grant rehydrate through SQLite**, **secret_ref validation**, **raw-secret blocking in proposals and asset metadata**, **official-package no-secret-bypass**, **network permission denied for undeclared packages with outbound.denied audit**, **allowlisted host+method allowed with redacted audit**, **host/method mismatch denied**, **official-package no-network bypass**, **audit records contain no raw secrets/bodies — only secret_ref and redaction_state**, **network policy checker pure function tests**, and **streaming/cancellation lifecycle (normal end, cancel, timeout, error, non-streaming rejection, no model/agent methods, protocol dispatch)**.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 
 ## What is partial
 
 - Capability invocation lifecycle events (`kernel/capability.invoked|completed|failed`) reserved in contract; not emitted yet.
-- Streaming protocol dispatch and package-principal `event.subscribe` permissions.
+- Streaming protocol dispatch is partial (stream start/cancel lifecycle works; real network streaming deferred).
+- Package-principal `event.subscribe` permissions.
 - Hook handler timeout/error audit for package-owned handlers.
 - Persisted capability provider selection policy beyond per-invocation explicit selection.
-- Richer resource policy coverage (filesystem enforcement matrices) — Phase S3+ target.
+- Richer resource policy coverage (filesystem enforcement matrices) — Phase S4+ target.
 - Content-addressed asset blob storage and package-principal asset permission checks.
 - Package-owned projection execution.
 - Richer crash monitoring and health-check beyond lifecycle events.

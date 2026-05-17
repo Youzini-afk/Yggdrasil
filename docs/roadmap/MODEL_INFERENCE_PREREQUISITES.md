@@ -24,6 +24,7 @@ Model Connectivity Kit Alpha deliberately stops before real model execution. A f
 4. **Streaming and cancellation**
    - Streaming chunks need a public protocol shape.
    - Cancellation/timeout behavior must be deterministic and tested.
+   - **Phase S3 progress**: `StreamFrameEnvelope` defines generic content-free frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. `StreamRegistry` tracks in-flight invocations with start/append/end/cancel/timeout lifecycle. `kernel.capability.stream` and `kernel.capability.cancel` are partial dispatched. Ordered kernel events emitted. Cancel/timeout block further chunks. Non-streaming capabilities (streaming=false) are rejected. No model/agent methods added.
 
 5. **Usage accounting**
    - Provider usage units must normalize without losing provider-specific details.

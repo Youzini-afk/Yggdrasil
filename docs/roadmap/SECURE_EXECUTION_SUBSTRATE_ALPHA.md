@@ -44,18 +44,18 @@ Non-goals:
 - No claim of full OS-level subprocess sandboxing. **Met.**
 - No provider-specific audit schema. **Met.**
 
-## Phase S3 — Generic streaming and cancellation lifecycle
+## Phase S3 — Generic streaming and cancellation lifecycle ✅
 
 Goals:
 
-- Define generic stream frames for capability output.
-- Add cancellation/timeout lifecycle records.
-- Add fixture/conformance coverage for normal end, error, cancel, and timeout.
+- Define generic stream frames for capability output. **Done.**
+- Add cancellation/timeout lifecycle records. **Done.**
+- Add fixture/conformance coverage for normal end, error, cancel, and timeout. **Done.**
 
 Non-goals:
 
-- No model streaming API.
-- No agent turn API.
+- No model streaming API. **Met.**
+- No agent turn API. **Met.**
 
 ## Phase S4 — SDK/templates and no-network readiness proof
 

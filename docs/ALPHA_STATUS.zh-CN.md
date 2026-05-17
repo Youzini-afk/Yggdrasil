@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2。
-- **Conformance：** 87 个具名 CLI 用例，加上 crate 和 service 单元测试。
-- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3。
+- **Conformance：** 94 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** Secure Execution Substrate Phase S3（通用 streaming 与 cancellation lifecycle）。
+- **下一阶段：** Secure Execution Substrate Phase S4（SDK/templates 与 no-network readiness proof）。
 
 ## 已实现
 
@@ -33,6 +33,9 @@
 - **Outbound audit/redaction records**：`OutboundAuditRecord` 记录 principal、package_id、capability_id、destination_host、method、purpose、redaction_state、secret_refs_used、usage/cost 占位符、status/error。Raw body/header/prompt/response 不会被保存——仅记录 `secret_ref` 标识符和 `redaction_state` 枚举（`not_captured`、`redacted`、`policy_ref`、`unsafe_blocked`、`explicitly_approved`）。默认为 `redacted`。
 - **网络策略检查器**：`check_network_policy` 纯函数和 `check_and_audit_outbound` runtime 方法。支持精确 host 匹配、通配符前缀（`*.example.com`）、method 白名单（空 = 任意）和扁平 `hosts` 向后兼容。被拒绝的请求产生 `kernel/outbound.denied` 审计事件；被允许的请求产生 `kernel/outbound.request` 事件。
 - **协议方法**：`kernel.outbound.audit` 列出给定包的出站审计事件。
+- **Streaming invocation registry**：内存中的 `StreamRegistry` 追踪进行中的 streaming capability 调用，支持 start/append/end/cancel/timeout 生命周期。`StreamFrameEnvelope` 定义通用内容无关的 stream frame 类型（start/chunk/progress/end/error/cancelled/timeout），包含 invocation_id、stream_id、sequence、redaction_state 和 timestamp/metadata。不包含 model/prompt/agent 语义。
+- **Streaming capability 生命周期**：`kernel.capability.stream` 启动 streaming invocation（验证 descriptor 中 `streaming=true`），`kernel.capability.cancel` 取消进行中的 invocation。Runtime 方法按序发出 kernel 事件：`kernel/stream.started`、`kernel/stream.chunk`、`kernel/stream.progress`、`kernel/stream.ended`、`kernel/stream.error`、`kernel/stream.cancelled`、`kernel/stream.timeout`。Cancel 和 timeout 阻断后续 chunk。非 streaming 能力（descriptor `streaming=false`）被拒绝。
+- **Streaming invocation 记录**：`StreamInvocationRecord` 追踪 invocation_id、stream_id、capability_id、provider_package_id、session_id、状态（active/ended/error/cancelled/timeout）、frame_count、时间戳和 metadata。终态阻断后续 frame 追加。
 
 ### 公开协议与传输
 
@@ -109,17 +112,18 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 87 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**、**official-package no-secret-bypass**、**无网络权限的包被拒绝出站并产生 outbound.denied 审计**、**allowlisted host+method 允许并记录 redacted audit**、**host/method 不匹配拒绝**、**official-package 无 network bypass**、**审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state**，以及**网络策略检查器纯函数测试**。
+- `cargo run -p ygg-cli -- conformance` 运行 94 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**、**official-package no-secret-bypass**、**无网络权限的包被拒绝出站并产生 outbound.denied 审计**、**allowlisted host+method 允许并记录 redacted audit**、**host/method 不匹配拒绝**、**official-package 无 network bypass**、**审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state**，**网络策略检查器纯函数测试**，以及**streaming/cancellation 生命周期（normal end、cancel、timeout、error、non-streaming 拒绝、无 model/agent 方法、protocol dispatch）**。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 
 ## 部分实现
 
 - 能力调用 lifecycle 事件（`kernel/capability.invoked|completed|failed`）已在契约中预留；尚未发出。
-- Streaming 协议分发和 package-principal 的 `event.subscribe` 权限。
+- Streaming 协议分发自 partial（stream start/cancel 生命周期可用；真实网络 streaming 延后）。
+- Package-principal 的 `event.subscribe` 权限。
 - Hook handler 超时/错误审计，面向包拥有的 handler。
 - 持久化的能力 provider 选择策略（超越单次调用显式选择）。
-- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Phase S3+ 目标。
+- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Phase S4+ 目标。
 - 内容寻址的 asset blob 存储和 package-principal asset 权限检查。
 - 包拥有的 projection 执行。
 - 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。

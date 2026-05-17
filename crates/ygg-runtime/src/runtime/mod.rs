@@ -19,6 +19,7 @@ mod projections;
 mod proposals;
 mod protocol_dispatch;
 mod network;
+mod streaming;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
 pub use self::assets::{AssetGetResponse, AssetPutRequest};
@@ -29,6 +30,7 @@ pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};
 pub use self::session::OpenSessionRequest;
+pub use self::streaming::StreamRegistry;
 
 // ---------------------------------------------------------------------------
 // RuntimeConfig
@@ -83,6 +85,7 @@ where
     pub(crate) branches: Arc<RwLock<HashMap<String, BranchRecord>>>,
     pub(crate) grants: Arc<RwLock<HashMap<String, PermissionGrantRecord>>>,
     pub(crate) proposals: Arc<RwLock<HashMap<String, ProposalRecord>>>,
+    pub(crate) streams: Arc<StreamRegistry>,
     pub(crate) config: RuntimeConfig,
 }
 
@@ -103,6 +106,7 @@ where
             branches: Arc::new(RwLock::new(HashMap::new())),
             grants: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
+            streams: Arc::new(StreamRegistry::default()),
             config,
         }
     }

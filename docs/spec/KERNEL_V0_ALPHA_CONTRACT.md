@@ -50,8 +50,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.capability.discover` | implemented | Lists registered descriptors. |
 | `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
 | `kernel.capability.invoke` | partial | Enforces caller capability permission when a caller package id is supplied, detects ambiguous providers unless `provider_package_id` is supplied, supports simple exact/major version constraints, validates capability input/output against the supported schema subset, executes `rust_inproc` providers through the in-process package trait, and executes subprocess JSON-RPC stdio providers with timeout/degraded handling. |
-| `kernel.capability.stream` | planned | Descriptor flag exists; stream execution does not. |
-| `kernel.capability.cancel` | planned | No in-flight invocation table yet. |
+| `kernel.capability.stream` | partial | Descriptor flag exists; stream start/cancel lifecycle works with in-memory registry and ordered events. Real network streaming deferred. |
+| `kernel.capability.cancel` | partial | In-memory invocation registry tracks in-flight streams; cancel marks invocation cancelled and blocks further chunks. |
 | `kernel.extension_point.list` | implemented | Lists registered extension points. |
 | `kernel.extension_point.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
 | `kernel.hook.list` | partial | Protocol dispatcher can list registered hooks; public docs and richer filtering remain Platform Host Alpha work. |
@@ -87,6 +87,13 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel/capability.invoked` | kernel | planned | Invocation lifecycle event. |
 | `kernel/capability.completed` | kernel | planned | Invocation success event. |
 | `kernel/capability.failed` | kernel | planned | Invocation failure event. |
+| `kernel/stream.started` | kernel | partial | Streaming invocation started. |
+| `kernel/stream.chunk` | kernel | partial | Streaming chunk frame emitted. |
+| `kernel/stream.progress` | kernel | partial | Streaming progress indication. |
+| `kernel/stream.ended` | kernel | partial | Streaming invocation ended normally. |
+| `kernel/stream.error` | kernel | partial | Streaming invocation errored. |
+| `kernel/stream.cancelled` | kernel | partial | Streaming invocation cancelled by caller. |
+| `kernel/stream.timeout` | kernel | partial | Streaming invocation timed out. |
 | `kernel/permission.denied` | kernel | implemented | Permission denial audit. |
 | `kernel/permission.granted` | kernel | implemented | Permission grant audit. |
 | `kernel/permission.revoked` | kernel | implemented | Permission revoke audit. |
@@ -163,6 +170,11 @@ Implemented:
 23. Network permission declarations: packages declare allowed outbound destinations in `permissions.network` (structured `declarations` with host, methods, purpose; or flat `hosts` for backward compat). The runtime policy checker enforces allowlists for Ygg-provided network helpers. Official packages have no bypass.
 24. Outbound audit records: `OutboundAuditRecord` captures principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, and status/error. Raw body/header/prompt/response is never saved. `redaction_state` defaults to `redacted`.
 25. Denied outbound requests write `kernel/outbound.denied` events; allowed requests write `kernel/outbound.request` events. Both are inspectable via `kernel.outbound.audit`.
+26. Streaming invocation registry: `StreamRegistry` tracks in-flight streaming capability invocations with start/append/end/cancel/timeout lifecycle. `StreamFrameEnvelope` defines generic content-free frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. No model/prompt/agent semantics.
+27. `kernel.capability.stream` validates `streaming=true` in the capability descriptor before starting a streaming invocation; non-streaming capabilities (descriptor `streaming=false`) are rejected.
+28. Cancel marks an active streaming invocation `Cancelled` and blocks further chunk/progress frames. Timeout marks an invocation `Timeout` and blocks further frames. Error terminal frame sets state to `Error` and blocks further frames. Normal end sets state to `Ended`.
+29. Streaming lifecycle emits ordered kernel events: `kernel/stream.started` on start, `kernel/stream.chunk` on chunk, `kernel/stream.progress` on progress, `kernel/stream.ended` on normal end, `kernel/stream.error` on error, `kernel/stream.cancelled` on cancel, `kernel/stream.timeout` on timeout.
+30. `StreamInvocationRecord` tracks invocation_id, stream_id, capability_id, provider_package_id, session_id, state, frame_count, timestamps, and metadata. Terminal states block further frame appends.
 
 Still partial for Platform Host Alpha:
 

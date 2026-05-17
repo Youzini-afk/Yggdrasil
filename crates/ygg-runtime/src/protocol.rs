@@ -141,8 +141,8 @@ impl KernelMethod {
             Self::CapabilityDiscover => MethodStatus::Implemented,
             Self::CapabilityDescribe => MethodStatus::Planned,
             Self::CapabilityInvoke => MethodStatus::Partial,
-            Self::CapabilityStream => MethodStatus::Planned,
-            Self::CapabilityCancel => MethodStatus::Planned,
+            Self::CapabilityStream => MethodStatus::Partial,
+            Self::CapabilityCancel => MethodStatus::Partial,
             Self::ExtensionPointList => MethodStatus::Implemented,
             Self::ExtensionPointDescribe => MethodStatus::Planned,
             Self::HookList => MethodStatus::Partial,
@@ -258,8 +258,10 @@ impl KernelMethod {
             | Self::PackageLogs
             | Self::PackageList
             | Self::PackageStatus
-            | Self::CapabilityDiscover
+            |             Self::CapabilityDiscover
             | Self::CapabilityInvoke
+            | Self::CapabilityStream
+            | Self::CapabilityCancel
             | Self::ExtensionPointList
             | Self::HookList
             | Self::AssetPut
@@ -291,8 +293,6 @@ impl KernelMethod {
             | Self::EventSubscribe
             | Self::PackageDescribe
             | Self::CapabilityDescribe
-            | Self::CapabilityStream
-            | Self::CapabilityCancel
             | Self::ExtensionPointDescribe
             | Self::HostPrincipal => false,
         }
@@ -497,8 +497,8 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.capability.discover", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.capability.describe", streaming: false, status: MethodStatus::Planned },
     ProtocolMethod { id: "kernel.capability.invoke", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.capability.stream", streaming: true, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.capability.cancel", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.capability.stream", streaming: true, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.capability.cancel", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.extension_point.list", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.extension_point.describe", streaming: false, status: MethodStatus::Planned },
     ProtocolMethod { id: "kernel.hook.list", streaming: false, status: MethodStatus::Partial },

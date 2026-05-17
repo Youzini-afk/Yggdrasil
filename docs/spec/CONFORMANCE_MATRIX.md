@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 80 implemented rows, backed by 87 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 87 implemented rows, backed by 94 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -110,6 +110,13 @@ Current matrix coverage: 80 implemented rows, backed by 87 named CLI conformance
 | network | official package has no network bypass | implemented |
 | network | audit records contain no raw secrets/bodies, only secret_ref and redaction_state | implemented |
 | network | check_network_policy pure function tests | implemented |
+| stream | normal lifecycle emits ordered frames/events | implemented |
+| stream | cancel marks invocation cancelled and blocks further chunks | implemented |
+| stream | timeout marks invocation timeout and blocks further chunks | implemented |
+| stream | error terminal frame works | implemented |
+| stream | non-streaming capability (streaming=false) rejected from stream | implemented |
+| stream | no model/agent methods added to protocol | implemented |
+| stream | capability.stream and capability.cancel dispatchable through protocol | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -226,6 +233,13 @@ network.host_method_mismatch_denied           PASS
 network.official_no_network_bypass            PASS
 network.audit_no_raw_secrets                  PASS
 network.policy_pure_function                  PASS
+stream.normal_lifecycle                       PASS
+stream.cancel_blocks_chunks                   PASS
+stream.timeout_blocks_chunks                  PASS
+stream.error_terminal                         PASS
+stream.non_streaming_rejected                 PASS
+stream.no_model_agent_methods                 PASS
+stream.protocol_dispatch                      PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
