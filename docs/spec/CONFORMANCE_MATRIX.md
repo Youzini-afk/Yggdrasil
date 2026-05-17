@@ -9,7 +9,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 39 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 40 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -64,6 +64,7 @@ Current named conformance coverage: 39 CLI cases plus crate/service unit tests.
 | subprocess | unload removes subprocess capability | implemented |
 | service | SSE event subscribe endpoint replays and tails events | implemented |
 | host | diagnostics reports packages/capabilities/hooks | implemented |
+| host | profile autoload loads configured packages | implemented |
 | package authoring | generated Python subprocess package passes local conformance | implemented |
 | package authoring | generated TypeScript subprocess package passes local conformance | implemented |
 
@@ -127,6 +128,7 @@ package.lifecycle_timeline                 PASS
 package.logs_capture                       PASS
 package.restart_subprocess                 PASS
 host.diagnostics                           PASS
+host.profile_autoload                      PASS
 asset.put_get_list                         PASS
 session.fork_branch                        PASS
 projection.rebuild                         PASS

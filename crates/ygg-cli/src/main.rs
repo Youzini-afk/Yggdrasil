@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
+use serde::Deserialize;
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_core::{
@@ -33,6 +34,11 @@ enum Command {
     Serve {
         #[arg(long, default_value = "127.0.0.1:8787")]
         bind: SocketAddr,
+    },
+    /// Run host modes.
+    Host {
+        #[command(subcommand)]
+        command: HostCommand,
     },
     /// Run a JSON-RPC-like kernel protocol loop over stdio.
     HostStdio,
@@ -85,6 +91,25 @@ enum PackageCommand {
 }
 
 #[derive(Debug, Subcommand)]
+enum HostCommand {
+    /// Serve a profile-backed host with HTTP /rpc and event SSE.
+    Serve {
+        #[arg(long, default_value = "127.0.0.1:8787")]
+        http: SocketAddr,
+        #[arg(long)]
+        profile: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct HostProfile {
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    autoload: Vec<PathBuf>,
+}
+
+#[derive(Debug, Subcommand)]
 enum CapabilityCommand {
     Invoke {
         manifest: PathBuf,
@@ -103,6 +128,9 @@ async fn main() -> anyhow::Result<()> {
         Command::Demo => demo().await,
         Command::SqliteDemo { path } => sqlite_demo(path).await,
         Command::Serve { bind } => serve(bind).await,
+        Command::Host { command } => match command {
+            HostCommand::Serve { http, profile } => host_serve(http, profile).await,
+        },
         Command::HostStdio => host_stdio().await,
         Command::Manifest { command } => match command {
             ManifestCommand::Validate { path } => validate_manifest(path).await,
@@ -520,6 +548,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "package.logs_capture", conformance_package_logs_capture().await);
     record_case(&mut results, "package.restart_subprocess", conformance_package_restart_subprocess().await);
     record_case(&mut results, "host.diagnostics", conformance_host_diagnostics().await);
+    record_case(&mut results, "host.profile_autoload", conformance_host_profile_autoload().await);
     record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
     record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
     record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
@@ -937,6 +966,16 @@ async fn conformance_host_diagnostics() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(diagnostics["package_count"] == json!(1), "diagnostics package count mismatch");
+    Ok(())
+}
+
+async fn conformance_host_profile_autoload() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+    load_host_profile(runtime.clone(), PathBuf::from("profiles/forge-alpha.yaml")).await?;
+    let packages = runtime.list_packages().await;
+    anyhow::ensure!(packages.iter().any(|package| package.id == "example/echo-rust-inproc"), "profile did not autoload rust package");
+    anyhow::ensure!(packages.iter().any(|package| package.id == "example/echo-subprocess-python"), "profile did not autoload subprocess package");
     Ok(())
 }
 
@@ -1443,6 +1482,37 @@ async fn serve(bind: SocketAddr) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(bind).await?;
     println!("Yggdrasil kernel service listening on http://{bind}");
     axum::serve(listener, ygg_service::app()).await?;
+    Ok(())
+}
+
+async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+    if let Some(profile_path) = profile {
+        load_host_profile(runtime.clone(), profile_path).await?;
+    }
+    let listener = tokio::net::TcpListener::bind(http).await?;
+    println!("Yggdrasil host serving http://{http}");
+    println!("  RPC: POST http://{http}/rpc");
+    println!("  SSE: GET  http://{http}/kernel/event.subscribe/:session_id");
+    let app = ygg_service::app_with_state(ygg_service::AppState { runtime });
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+async fn load_host_profile(runtime: Arc<Runtime<InMemoryEventStore>>, profile_path: PathBuf) -> anyhow::Result<()> {
+    let raw = fs::read_to_string(&profile_path)?;
+    let profile: HostProfile = serde_yaml::from_str(&raw)?;
+    if let Some(title) = &profile.title {
+        println!("loading host profile: {title}");
+    }
+    let base = profile_path.parent().map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+    for manifest_path in profile.autoload {
+        let resolved = if manifest_path.is_absolute() { manifest_path } else { base.join(manifest_path) };
+        let manifest = read_manifest(resolved).await?;
+        let record = runtime.load_package(manifest).await?;
+        println!("autoloaded package: {}@{} ({:?})", record.id, record.version, record.state);
+    }
     Ok(())
 }
 

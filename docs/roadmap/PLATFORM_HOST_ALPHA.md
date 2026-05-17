@@ -28,6 +28,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 8. Explicit capability provider selection with simple version constraints.
 9. Package lifecycle timeline, subprocess restart, stderr log capture, and host diagnostics.
 10. In-memory asset, projection, and session branch substrate for host-dev protocol callers.
+11. Profile-backed `ygg host serve` with autoloaded packages, HTTP `/rpc`, and SSE routes.
 
 ## Remaining Platform Host Alpha work
 

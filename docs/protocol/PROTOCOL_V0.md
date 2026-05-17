@@ -11,6 +11,7 @@ All transports eventually surface the same protocol. Platform Host Alpha impleme
 - In-process: a Rust API that mirrors the wire shape one-to-one.
 - Subprocess: JSON-RPC over stdio. Required for Platform Host Alpha.
 - HTTP: request/response for non-streaming methods. Required for Platform Host Alpha.
+- Profile-backed HTTP host: `ygg host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` starts `/rpc` plus ad hoc SSE routes after autoloading profile packages.
 - Host stdio: JSON-RPC for automation and conformance. Required for Platform Host Alpha.
 - WebSocket: subscriptions and streaming methods. Planned after sequence-range replay.
 - TCP: JSON-RPC over a local socket. Deferred.
