@@ -22,7 +22,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 2. Subprocess package execution: JSON-RPC stdio start, handshake, invoke, invoke timeout, degraded state, and unload kill.
 3. Public transports: canonical HTTP `/rpc` and host JSON-RPC stdio mode for non-streaming methods.
 4. Hook fabric slice: event append and capability invoke before/after dispatch, stable ordering, legacy veto fixture, package-owned handler capabilities, metadata mutation, and unload cleanup.
-5. Package authoring harness: Python subprocess template, package check, local fixture run, local invoke, and package conformance.
+5. Package authoring harness: Python and TypeScript subprocess templates, package check, local fixture run, local invoke, and package conformance.
 6. Release-gate conformance: named hostile cases with docs matrix coverage.
 7. Event range replay and host-dev HTTP SSE tailing.
 8. Explicit capability provider selection with simple version constraints.
@@ -35,7 +35,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 3. Health checks and richer crash monitoring beyond lifecycle transition events.
 4. Persisted provider selection policy beyond per-invocation explicit provider selection.
 5. Broader transport parity cases beyond the current core protocol dispatcher/service tests.
-6. Node package template once the subprocess helper boundary is stable enough to duplicate.
+6. Richer TypeScript SDK packaging beyond the current thin subprocess helper/template.
 
 ## Non-goals for this milestone
 

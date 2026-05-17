@@ -62,12 +62,13 @@ cargo run -p ygg-cli -- package check examples/packages/echo-subprocess-python/m
 cargo run -p ygg-cli -- package conformance examples/packages/echo-subprocess-python/manifest.yaml
 cargo run -p ygg-cli -- capability invoke examples/packages/echo-rust-inproc/manifest.yaml example/echo-rust-inproc/echo --input '{"hello":"world"}'
 cargo run -p ygg-cli -- init-package /tmp/ygg-package --id example/new-package --entry subprocess --language python
+cargo run -p ygg-cli -- init-package /tmp/ygg-ts-package --id example/new-ts-package --entry subprocess --language typescript
 cargo run -p ygg-cli -- host-stdio
 cargo run -p ygg-cli -- conformance
 ```
 
 ## Status
 
-The Rust workspace now follows the platform-as-framework direction: kernel-only events/sessions, manifest-driven packages, capability fabric, hook registry, SQLite event store, permission audits, real `rust_inproc` execution, and conformance-oriented example packages. The current milestone is Platform Host Alpha: subprocess execution, public protocol transports, hook completion, package authoring harnesses, and hostile conformance. Content-shaped runtimes remain deferred packages.
+The Rust workspace now follows the platform-as-framework direction: kernel-only events/sessions, manifest-driven packages, capability fabric, hook registry, SQLite event store, permission audits, real `rust_inproc` execution, and conformance-oriented example packages. The current milestone is Platform Host Alpha: subprocess execution, public protocol transports, hook completion, TypeScript/Python package authoring harnesses, and hostile conformance. Content-shaped runtimes remain deferred packages.
 
 See `docs/roadmap/NEXT_STEPS.md`.

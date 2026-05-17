@@ -9,7 +9,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 35 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 36 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -62,6 +62,7 @@ Current named conformance coverage: 35 CLI cases plus crate/service unit tests.
 | service | SSE event subscribe endpoint replays and tails events | implemented |
 | host | diagnostics reports packages/capabilities/hooks | implemented |
 | package authoring | generated Python subprocess package passes local conformance | implemented |
+| package authoring | generated TypeScript subprocess package passes local conformance | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -133,6 +134,7 @@ hook.metadata_mutation_allowed             PASS
 hook.package_owned_handler                 PASS
 hook.unload_removes_subscription           PASS
 package.generated_subprocess_conformance   PASS
+package.generated_typescript_subprocess_conformance PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

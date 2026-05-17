@@ -220,6 +220,12 @@ async fn capability_invoke(manifest_path: PathBuf, capability_id: String, input:
 async fn init_package(path: PathBuf, id: String, entry: String, language: String) -> anyhow::Result<()> {
     fs::create_dir_all(&path)?;
     let package_py = path.join("package.py").display().to_string();
+    let package_mjs = path.join("package.mjs").display().to_string();
+    let subprocess_command = if language == "typescript" {
+        format!("    - node\n    - {package_mjs}")
+    } else {
+        format!("    - python3\n    - {package_py}")
+    };
     let manifest = match entry.as_str() {
         "wasm" => format!(
             r#"schema_version: 1
@@ -273,8 +279,7 @@ version: 0.1.0
 entry:
   kind: subprocess
   command:
-    - python3
-    - {package_py}
+{subprocess_command}
   transport: json_rpc_stdio
 provides:
   - id: {id}/echo
@@ -320,6 +325,11 @@ sandbox_policy:
     fs::write(path.join("manifest.yaml"), manifest)?;
     if entry == "subprocess" && language == "python" {
         fs::write(path.join("package.py"), PYTHON_SUBPROCESS_TEMPLATE)?;
+    } else if entry == "subprocess" && language == "typescript" {
+        fs::write(path.join("package.ts"), typescript_subprocess_template(&id))?;
+        fs::write(path.join("package.mjs"), TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE)?;
+        fs::write(path.join("tsconfig.json"), TYPESCRIPT_TSCONFIG)?;
+        fs::write(path.join("package.json"), typescript_package_json(&id))?;
     }
     fs::write(
         path.join("README.md"),
@@ -349,6 +359,92 @@ for line in sys.stdin:
         respond({"jsonrpc": "2.0", "id": request.get("id"), "result": {"output": params.get("input")}})
     else:
         respond({"jsonrpc": "2.0", "id": request.get("id"), "error": {"code": "unknown_method", "message": method}})
+"#;
+
+fn typescript_subprocess_template(id: &str) -> String {
+    format!(
+        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
+
+serveSubprocessPackage({{
+  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
+  onInvoke: ({{ capability_id, input }}) => {{
+    if (capability_id !== "{id}/echo") {{
+      throw new Error(`unsupported capability: ${{capability_id}}`);
+    }}
+    return input ?? null;
+  }},
+}});
+"#
+    )
+}
+
+fn typescript_package_json(id: &str) -> String {
+    format!(
+        r#"{{
+  "name": "{}",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {{
+    "check": "tsc --noEmit"
+  }},
+  "devDependencies": {{}}
+}}
+"#,
+        id.replace('/', "-")
+    )
+}
+
+const TYPESCRIPT_TSCONFIG: &str = r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["package.ts"]
+}
+"#;
+
+const TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE: &str = r#"import readline from "node:readline";
+
+function respond(id, payload) {
+  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, ...payload }) + "\n");
+}
+
+export function serveSubprocessPackage(options) {
+  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  rl.on("line", async (line) => {
+    let request;
+    try {
+      request = JSON.parse(line);
+    } catch (error) {
+      respond(null, { error: { code: "invalid_json", message: String(error) } });
+      return;
+    }
+    try {
+      if (request.method === "package.handshake") {
+        const result = options.onHandshake
+          ? await options.onHandshake(request.params ?? {})
+          : { ready: true, package_protocol_version: "0.1.0" };
+        respond(request.id, { result });
+      } else if (request.method === "capability.invoke") {
+        const output = await options.onInvoke(request.params ?? {});
+        respond(request.id, { result: { output } });
+      } else {
+        respond(request.id, { error: { code: "unknown_method", message: request.method ?? "<missing>" } });
+      }
+    } catch (error) {
+      respond(request.id, { error: { code: "package_error", message: String(error) } });
+    }
+  });
+}
+
+serveSubprocessPackage({
+  onInvoke: ({ input }) => input ?? null,
+});
 "#;
 
 async fn conformance() -> anyhow::Result<()> {
@@ -451,6 +547,11 @@ async fn conformance() -> anyhow::Result<()> {
         &mut results,
         "package.generated_subprocess_conformance",
         conformance_generated_subprocess_package().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_typescript_subprocess_conformance",
+        conformance_generated_typescript_subprocess_package().await,
     );
 
     let mut failed = false;
@@ -1022,6 +1123,24 @@ async fn conformance_generated_subprocess_package() -> anyhow::Result<()> {
         "example/generated-subprocess".to_string(),
         "subprocess".to_string(),
         "python".to_string(),
+    )
+    .await?;
+    package_check(path.join("manifest.yaml")).await?;
+    package_conformance(path.join("manifest.yaml")).await?;
+    fs::remove_dir_all(path)?;
+    Ok(())
+}
+
+async fn conformance_generated_typescript_subprocess_package() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-ts-package-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    init_package(
+        path.clone(),
+        "example/generated-typescript-subprocess".to_string(),
+        "subprocess".to_string(),
+        "typescript".to_string(),
     )
     .await?;
     package_check(path.join("manifest.yaml")).await?;
