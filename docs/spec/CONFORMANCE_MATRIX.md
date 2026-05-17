@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 60 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 61 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -82,6 +82,7 @@ Current named conformance coverage: 60 CLI cases plus crate/service unit tests.
 | official packages | context-lab assembles generic blocks with budget omissions and template rendering | implemented |
 | official packages | text-transform-lab previews deterministic text transforms with trace and validation diagnostics | implemented |
 | official packages | model-connector-lab validates profiles, rejects raw secrets, and returns no-network discovery plans | implemented |
+| official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
 | proposals | approved proposals can apply generic asset/projection operations | implemented |
@@ -186,6 +187,7 @@ official.knowledge_lab                     PASS
 official.context_lab                       PASS
 official.text_transform_lab                PASS
 official.model_connector_lab               PASS
+official.model_routing_lab                 PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

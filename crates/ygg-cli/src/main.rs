@@ -730,6 +730,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.context_lab", conformance_official_context_lab().await);
     record_case(&mut results, "official.text_transform_lab", conformance_official_text_transform_lab().await);
     record_case(&mut results, "official.model_connector_lab", conformance_official_model_connector_lab().await);
+    record_case(&mut results, "official.model_routing_lab", conformance_official_model_routing_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -2134,6 +2135,40 @@ async fn conformance_official_model_connector_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(plan.output["network_performed"] == json!(false), "discovery plan must not perform network");
+    Ok(())
+}
+
+async fn conformance_official_model_routing_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/model-routing-lab/manifest.yaml")).await?).await?;
+    let bindings = json!([
+        {"profile_id": "profile/low", "priority": 1, "fallback": true},
+        {"profile_id": "profile/high", "priority": 10, "fallback": false}
+    ]);
+    let resolved = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-routing-lab/resolve_binding".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-routing-lab".to_string()),
+            version: None,
+            input: json!({"consumer_slot": "play.primary", "bindings": bindings}),
+        })
+        .await?;
+    anyhow::ensure!(resolved.output["kind"] == json!("model_route_resolution"), "model routing resolution wrong kind");
+    anyhow::ensure!(resolved.output["selected"]["profile_id"] == json!("profile/high"), "model routing did not select highest priority");
+    anyhow::ensure!(resolved.output["inference_performed"] == json!(false), "model routing must not invoke inference");
+    let params = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-routing-lab/params_normalize".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-routing-lab".to_string()),
+            version: None,
+            input: json!({"params": {"temperature": 0.2, "max_tokens": 128, "provider_options": {"openai": {"reasoning_effort": "low"}}}}),
+        })
+        .await?;
+    anyhow::ensure!(params.output["kind"] == json!("model_params_normalized"), "model params normalization wrong kind");
+    anyhow::ensure!(params.output["params"]["max_output_tokens"] == json!(128), "model params did not normalize max_tokens");
+    anyhow::ensure!(params.output["provider_specific_namespaced"] == json!(true), "provider-specific params must stay namespaced");
     Ok(())
 }
 
