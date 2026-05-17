@@ -7,6 +7,12 @@ export type TextProofView = {
   height: number;
   chunkIndex: number;
   totalChunks: number;
+  /** Active engine name (new in T2). */
+  engineName?: string;
+  /** Active engine version (new in T2). */
+  engineVersion?: string;
+  /** Active engine state (new in T2). */
+  engineState?: string;
 };
 
 export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open = false, textProof?: TextProofView) {
@@ -17,7 +23,13 @@ export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open
     height: 0,
     chunkIndex: 0,
     totalChunks: 0,
+    engineName: "fallback",
+    engineVersion: "0.2.0",
+    engineState: "active",
   };
+  const engineBadge = proof.engineName
+    ? `<span class="text-proof-badge engine-badge">engine ${escapeHtml(proof.engineName)} v${escapeHtml(proof.engineVersion ?? "?")} <span class="engine-state state-${proof.engineState}">${proof.engineState}</span></span>`
+    : "";
   return `
     <aside class="assistant-drawer ${open ? "open" : ""}" aria-label="Assist drawer">
       <button type="button" class="assist-toggle" data-action="toggle-assist">Assistant</button>
@@ -37,6 +49,7 @@ export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open
           <summary>Text Surface Proof (mock streaming)</summary>
           <div class="text-proof-panel">
             <div class="text-proof-meta">
+              ${engineBadge}
               <span class="text-proof-badge state-${proof.state}">${proof.state}</span>
               <span class="text-proof-badge">lines ${proof.lineCount}</span>
               <span class="text-proof-badge">height ${Math.round(proof.height)}px</span>

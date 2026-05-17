@@ -12,7 +12,7 @@ This temporary execution plan turns the current Text Surface Proof into an optio
 - Pretext, if used, is behind a Web client engine abstraction and dynamic selection.
 - Assistant/Forge/Play consume generic stream/text surfaces, not model/agent semantics.
 
-## Phase T2 — Engine abstraction and fallback registry
+## Phase T2 — Engine abstraction and fallback registry ✅ COMPLETE
 
 Goals:
 
@@ -20,10 +20,21 @@ Goals:
 - Refactor the existing text-layout adapter so current Assistant proof behavior is preserved.
 - Add stream-frame-to-text-buffer adapter helpers for generic stream frames.
 
+Delivered:
+
+- **`engine.ts`**: `TextEngine` interface, `EngineConfig`/`TextEngineConfig`/`TextEngineName`/`TextEngineState`/`TextEngineDiagnostics` types.
+- **`fallback-engine.ts`**: `FallbackTextEngine implements TextEngine` wrapping the original canvas adapter. Backward-compatible function exports (`prepareText`, `layoutPreparedText`, `createStreamingBuffer`, etc.) preserved. Bounded width cache (default 4096 entries, FIFO eviction).
+- **`registry.ts`**: `registerTextEngine`/`activateTextEngine`/`getActiveTextEngine`/`selectTextEngine`/`getTextEngineState`/`getTextEngineDiagnostics`/`unregisterTextEngine`. Default is fallback. Supports localStorage/URL param/env string preference resolution (T3 will wire to Pretext feature flags).
+- **`stream-adapter.ts`**: `feedStreamFrame(buffer, frame)` generic adapter supporting `start`/`chunk`/`progress`/`end`/`error`/`cancelled`/`timeout`. No model/agent semantics. Convenience frame constructors provided.
+- **`index.ts`**: Updated re-exports — all original function names unchanged; new types and functions exported alongside.
+- **Assistant Drawer**: Shows active engine name, version, and state badge in the Text Proof metadata row.
+- **`clients/web/README.md`**, **`integrations/pretext/ui-map.yaml`**: Updated to document T2 additions.
+
 Validation:
 
-- `tsc -p clients/web/tsconfig.json --noEmit`
+- `tsc -p clients/web/tsconfig.json --noEmit` passes.
 - Existing Rust/conformance checks unaffected.
+- No kernel/package/protocol changes.
 
 ## Phase T3 — Optional Pretext engine and feature flags
 

@@ -1,11 +1,11 @@
 # UI-Map: Pretext → Yggdrasil Web Shell Text Surface Proof
-
+#
 # This file is a ledger, not a build artifact. It maps Pretext API concepts to
 # the lightweight adapter/fallback skeleton in clients/web/src/text-layout.
 
 ledger:
-  version: "T1-alpha-1"
-  status: "ui-proof"
+  version: "T2-alpha-1"
+  status: "engine-abstraction"
   kernel_scope: "none"
   package_scope: "none"
   protocol_scope: "none"
@@ -13,45 +13,75 @@ ledger:
 api_mappings:
   - pretext_api: "prepare(text, font, options?)"
     adapter_api: "prepareText(text, font, options?)"
-    adapter_path: "clients/web/src/text-layout/adapter.ts"
-    note: "Opaque handle. Fallback uses canvas measureText or DOM span probe."
+    adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Opaque handle. FallbackTextEngine uses canvas measureText."
 
   - pretext_api: "layout(prepared, maxWidth, lineHeight)"
     adapter_api: "layoutPreparedText(prepared, maxWidth, lineHeight)"
-    adapter_path: "clients/web/src/text-layout/adapter.ts"
-    note: "Resize hot path. Fallback does simple word-split arithmetic."
+    adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Resize hot path. FallbackTextEngine does simple word-split arithmetic."
 
   - pretext_api: "prepareWithSegments(text, font, options?)"
     adapter_api: "prepareTextWithSegments(text, font, options?)"
-    adapter_path: "clients/web/src/text-layout/adapter.ts"
-    note: "Rich path for manual line layout. Fallback returns basic segments."
+    adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Rich path for manual line layout. FallbackTextEngine returns basic segments."
 
   - pretext_api: "layoutWithLines(prepared, maxWidth, lineHeight)"
     adapter_api: "layoutPreparedTextWithLines(prepared, maxWidth, lineHeight)"
-    adapter_path: "clients/web/src/text-layout/adapter.ts"
-    note: "Materializes lines. Fallback builds lines from split words."
+    adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Materializes lines. FallbackTextEngine builds lines from split words."
 
   - pretext_api: "measureLineStats(prepared, maxWidth)"
     adapter_api: "measureLineStats(prepared, maxWidth)"
-    adapter_path: "clients/web/src/text-layout/adapter.ts"
-    note: "Non-allocating stats. Fallback computes lineCount and maxLineWidth."
+    adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Non-allocating stats. FallbackTextEngine computes lineCount and maxLineWidth."
 
   - pretext_api: "walkLineRanges(prepared, maxWidth, onLine)"
     adapter_api: "walkLineRanges(prepared, maxWidth, onLine)"
-    adapter_path: "clients/web/src/text-layout/adapter.ts"
-    note: "Non-materializing walker. Fallback iterates split lines."
+    adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Non-materializing walker. FallbackTextEngine iterates split lines."
+
+engine_abstraction:
+  - interface: "TextEngine"
+    path: "clients/web/src/text-layout/engine.ts"
+    note: "Abstract interface for text layout engines. Includes EngineConfig, TextEngineConfig, TextEngineName, TextEngineState, TextEngineDiagnostics."
+
+  - implementation: "FallbackTextEngine"
+    path: "clients/web/src/text-layout/fallback-engine.ts"
+    note: "Canvas-based fallback. Always available. Bounded cache (4096 entries). Backward-compatible function exports."
+
+  - registry: "registry.ts"
+    path: "clients/web/src/text-layout/registry.ts"
+    note: "registerTextEngine, activateTextEngine, getActiveTextEngine, selectTextEngine, getTextEngineState, getTextEngineDiagnostics. Supports localStorage/URL/env preference."
+
+stream_adapter:
+  - adapter: "feedStreamFrame"
+    path: "clients/web/src/text-layout/stream-adapter.ts"
+    note: "Generic frame-to-buffer adapter. Supports start/chunk/progress/end/error/cancelled/timeout. No model/agent semantics."
+    frame_kinds:
+      - "start"
+      - "chunk"
+      - "progress"
+      - "end"
+      - "error"
+      - "cancelled"
+      - "timeout"
 
 streaming_proof:
   - component: "MockStreamingTextProof"
     location: "Assistant Drawer"
     path: "clients/web/src/drawer/assistant.ts"
-    purpose: "Demonstrate progressive text, line/height estimates, and stream lifecycle badges without real model/agent calls."
+    purpose: "Demonstrate progressive text, line/height estimates, stream lifecycle badges, and active engine diagnostics without real model/agent calls."
     redaction_states:
       - "idle"
       - "streaming"
       - "ended"
       - "reset"
     mock_source: "clients/web/src/text-layout/mock.ts"
+    engine_diagnostics:
+      - "engine name"
+      - "engine version"
+      - "engine state"
 
 font_policy:
   - variable: "--font-text-surface"
@@ -66,3 +96,5 @@ constraints:
   - "Adapter must compile and run without Pretext installed."
   - "Pretext can be wired later by replacing the fallback implementations."
   - "Proof stays inside Assistant Drawer; does not rewrite Play/Forge surfaces."
+  - "FallbackTextEngine cache is bounded (default 4096 entries, FIFO eviction)."
+  - "Stream adapter has no model/agent coupling."

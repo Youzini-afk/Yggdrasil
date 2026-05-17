@@ -3,7 +3,7 @@ import { YggProtocolClient, type KernelEvent, type PackageRecord, type SurfaceCo
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { renderPlaySurface } from "./surfaces/play";
-import { buildMockChunks, createStreamingBuffer } from "./text-layout/index.js";
+import { buildMockChunks, createStreamingBuffer, getActiveTextEngine, getActiveTextEngineName, getTextEngineDiagnostics } from "./text-layout/index.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 const client = new YggProtocolClient(location.origin === "null" ? "http://127.0.0.1:8787" : location.origin);
@@ -33,10 +33,14 @@ let textProofView: TextProofView = {
   height: 0,
   chunkIndex: 0,
   totalChunks: MOCK_CHUNKS.length,
+  engineName: getActiveTextEngineName(),
+  engineVersion: getActiveTextEngine().config.version,
+  engineState: getActiveTextEngine().state,
 };
 
 function syncTextProof() {
   const measured = streamBuffer.measure();
+  const engine = getActiveTextEngine();
   textProofView = {
     text: streamBuffer.text,
     state: streamBuffer.state,
@@ -44,6 +48,9 @@ function syncTextProof() {
     height: measured.height,
     chunkIndex: streamChunkCursor,
     totalChunks: MOCK_CHUNKS.length,
+    engineName: getActiveTextEngineName(),
+    engineVersion: engine.config.version,
+    engineState: engine.state,
   };
 }
 
@@ -61,6 +68,7 @@ function updateTextProofDOM() {
     ? `<p class="text-proof-content">${escaped}</p>`
     : `<p class="text-proof-placeholder">Tap replay to start mock stream…</p>`;
   meta.innerHTML = `
+    ${textProofView.engineName ? `<span class="text-proof-badge engine-badge">engine ${textProofView.engineName} v${textProofView.engineVersion ?? "?"} <span class="engine-state state-${textProofView.engineState}">${textProofView.engineState}</span></span>` : ""}
     <span class="text-proof-badge state-${textProofView.state}">${textProofView.state}</span>
     <span class="text-proof-badge">lines ${textProofView.lineCount}</span>
     <span class="text-proof-badge">height ${Math.round(textProofView.height)}px</span>
