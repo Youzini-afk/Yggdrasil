@@ -3,6 +3,7 @@ mod fixtures;
 mod generated;
 mod hooks;
 mod inproc;
+mod network;
 mod official_foundation;
 mod official_labs;
 mod official_play_creation;
@@ -213,6 +214,36 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "official.no_secret_bypass",
         secret_conformance::no_secret_bypass().await,
+    );
+    record_case(
+        &mut results,
+        "network.no_permission_denied",
+        network::no_network_permission_denied().await,
+    );
+    record_case(
+        &mut results,
+        "network.allowlisted_host_method_allowed",
+        network::allowlisted_host_method_allowed().await,
+    );
+    record_case(
+        &mut results,
+        "network.host_method_mismatch_denied",
+        network::host_method_mismatch_denied().await,
+    );
+    record_case(
+        &mut results,
+        "network.official_no_network_bypass",
+        network::official_no_network_bypass().await,
+    );
+    record_case(
+        &mut results,
+        "network.audit_no_raw_secrets",
+        network::audit_no_raw_secrets().await,
+    );
+    record_case(
+        &mut results,
+        "network.policy_pure_function",
+        network::network_policy_pure_function().await,
     );
 
     let mut failed = false;

@@ -18,11 +18,13 @@ mod branches;
 mod projections;
 mod proposals;
 mod protocol_dispatch;
+mod network;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
 pub use self::assets::{AssetGetResponse, AssetPutRequest};
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
+pub use self::network::{NetworkPolicyDecision, OutboundRequest, check_network_policy};
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};

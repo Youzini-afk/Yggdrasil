@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：74 个 implemented rows，由 81 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：80 个 implemented rows，由 87 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -104,6 +104,12 @@ cargo run -p ygg-cli -- conformance
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
 | replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
 | replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
+| network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
+| network | allowlisted host+method 允许，产生 redacted outbound.request 审计 | implemented |
+| network | host/method 不匹配被拒绝 | implemented |
+| network | 官方包无 network bypass | implemented |
+| network | 审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state | implemented |
+| network | check_network_policy 纯函数测试 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -214,6 +220,12 @@ secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
 official.no_secret_bypass                    PASS
+network.no_permission_denied                  PASS
+network.allowlisted_host_method_allowed       PASS
+network.host_method_mismatch_denied           PASS
+network.official_no_network_bypass            PASS
+network.audit_no_raw_secrets                  PASS
+network.policy_pure_function                  PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 74 implemented rows, backed by 81 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 80 implemented rows, backed by 87 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -104,6 +104,12 @@ Current matrix coverage: 74 implemented rows, backed by 81 named CLI conformance
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
 | replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
 | replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
+| network | package without network permission denied outbound, produces outbound.denied audit | implemented |
+| network | allowlisted host+method allowed, produces redacted outbound.request audit | implemented |
+| network | host/method mismatch denied | implemented |
+| network | official package has no network bypass | implemented |
+| network | audit records contain no raw secrets/bodies, only secret_ref and redaction_state | implemented |
+| network | check_network_policy pure function tests | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -214,6 +220,12 @@ secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
 official.no_secret_bypass                    PASS
+network.no_permission_denied                  PASS
+network.allowlisted_host_method_allowed       PASS
+network.host_method_mismatch_denied           PASS
+network.official_no_network_bypass            PASS
+network.audit_no_raw_secrets                  PASS
+network.policy_pure_function                  PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

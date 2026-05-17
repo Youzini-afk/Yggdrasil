@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta。
-- **Conformance：** 81 个具名 CLI 用例，加上 crate 和 service 单元测试。
-- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2。
+- **Conformance：** 87 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** 后台 substrate hardening 与 package ecosystem readiness（见 `docs/roadmap/NEXT_STEPS.md`）。
+- **下一阶段：** Secure Execution Substrate Phase S3（通用 streaming 与 cancellation lifecycle）。
 
 ## 已实现
 
@@ -29,6 +29,10 @@
 - **Secret reference contract**：`SecretRef` 类型支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:` 和 `host:` reference patterns。包通过 `secret_ref` identifier 引用 secret；raw secrets 不得出现在 events、proposals、logs 或 audit records 中。
 - **Host secret resolver placeholder**：`HostSecretResolver` trait 和 deny-all resolver 已存在，用于未来 host-level secret store。当前不做生产级 vault 或 provider-specific key handling。
 - **Raw-secret blocking**：Proposal operations/expected effects 与 asset metadata 会被保守扫描；明显 raw API keys、token/password fields 会被拒绝。Asset content 和普通 prose 字段不扫描，以避免误伤用户内容。
+- **网络权限声明**：Manifest `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（含 `host`、`methods`、`purpose`）。Runtime 策略检查器根据声明的条目匹配出站请求。无网络声明的包被拒绝出站访问。官方包无绕过。
+- **Outbound audit/redaction records**：`OutboundAuditRecord` 记录 principal、package_id、capability_id、destination_host、method、purpose、redaction_state、secret_refs_used、usage/cost 占位符、status/error。Raw body/header/prompt/response 不会被保存——仅记录 `secret_ref` 标识符和 `redaction_state` 枚举（`not_captured`、`redacted`、`policy_ref`、`unsafe_blocked`、`explicitly_approved`）。默认为 `redacted`。
+- **网络策略检查器**：`check_network_policy` 纯函数和 `check_and_audit_outbound` runtime 方法。支持精确 host 匹配、通配符前缀（`*.example.com`）、method 白名单（空 = 任意）和扁平 `hosts` 向后兼容。被拒绝的请求产生 `kernel/outbound.denied` 审计事件；被允许的请求产生 `kernel/outbound.request` 事件。
+- **协议方法**：`kernel.outbound.audit` 列出给定包的出站审计事件。
 
 ### 公开协议与传输
 
@@ -105,7 +109,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 81 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**，以及 **official-package no-secret-bypass**。
+- `cargo run -p ygg-cli -- conformance` 运行 87 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**、**official-package no-secret-bypass**、**无网络权限的包被拒绝出站并产生 outbound.denied 审计**、**allowlisted host+method 允许并记录 redacted audit**、**host/method 不匹配拒绝**、**official-package 无 network bypass**、**审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state**，以及**网络策略检查器纯函数测试**。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 
@@ -115,7 +119,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - Streaming 协议分发和 package-principal 的 `event.subscribe` 权限。
 - Hook handler 超时/错误审计，面向包拥有的 handler。
 - 持久化的能力 provider 选择策略（超越单次调用显式选择）。
-- 更丰富的资源策略覆盖（网络/文件系统/包/projection 强制矩阵）。
+- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Phase S3+ 目标。
 - 内容寻址的 asset blob 存储和 package-principal asset 权限检查。
 - 包拥有的 projection 执行。
 - 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。

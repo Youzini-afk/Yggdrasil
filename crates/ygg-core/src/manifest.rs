@@ -233,10 +233,34 @@ pub struct AssetPermissions {
     pub write: bool,
 }
 
+/// A single network access declaration in a package manifest.
+///
+/// Each entry describes an allowed outbound destination with host,
+/// permitted HTTP methods, and a human-readable purpose. The runtime
+/// / host policy checker matches outbound requests against declared
+/// entries. Packages with no `network` declarations must not make
+/// any outbound network requests.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkDeclaration {
+    /// Destination host (e.g. `"api.openai.com"` or `"*.example.org"`).
+    pub host: String,
+    /// Permitted HTTP methods (e.g. `["GET", "POST"]`). Empty means all.
+    #[serde(default)]
+    pub methods: Vec<String>,
+    /// Human-readable purpose for this network access.
+    #[serde(default)]
+    pub purpose: Option<String>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct NetworkPermissions {
+    /// Flat host list for backward compatibility. Packages using the
+    /// structured form should populate `declarations` instead.
     #[serde(default)]
     pub hosts: Vec<String>,
+    /// Structured network declarations (host, methods, purpose).
+    #[serde(default)]
+    pub declarations: Vec<NetworkDeclaration>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

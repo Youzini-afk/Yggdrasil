@@ -7,13 +7,15 @@ pub mod session;
 
 pub use asset::AssetRecord;
 pub use event::{
-    EventEnvelope, EventKind, EventSequence, SchemaVersion, EVENT_CAPABILITY_COMPLETED,
-    EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED, EVENT_ERROR, EVENT_PACKAGE_DEGRADED,
-    EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG, EVENT_PACKAGE_READY,
-    EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING, EVENT_PACKAGE_UNLOADED,
-    EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED,
-    EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED, EVENT_PROPOSAL_CREATED, EVENT_PROPOSAL_FAILED,
-    EVENT_PROPOSAL_REJECTED, EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED, EVENT_SESSION_OPENED,
+    EventEnvelope, EventKind, EventSequence, OutboundAuditRecord, RedactionState, SchemaVersion,
+    EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED, EVENT_ERROR,
+    EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG,
+    EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING,
+    EVENT_PACKAGE_UNLOADED, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_REQUEST,
+    EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
+    EVENT_PROJECTION_UPDATED, EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED,
+    EVENT_PROPOSAL_CREATED, EVENT_PROPOSAL_FAILED, EVENT_PROPOSAL_REJECTED,
+    EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED, EVENT_SESSION_OPENED,
     KERNEL_PACKAGE_ID, EVENT_ASSET_PUT,
 };
 pub use ids::{
@@ -23,10 +25,10 @@ pub use ids::{
 pub use manifest::{
     AssetPermissions, CapabilityDescriptor, CapabilityPermissions, CapabilityRequirement,
     EventPermissions, ExtensionPointDescriptor, FilesystemPermissions, HookSubscription, HookTiming,
-    ManifestError, NetworkPermissions, PackageContributions, PackageEntry, PackageManifest,
-    PackagePermissions, PermissionSet, RemoteAuth, SandboxPolicy, SchemaContribution,
-    SubprocessTransport, SurfaceActivation, SurfaceApprovalPolicy, SurfaceContribution,
-    SurfacePermissionRequirement, SurfaceRisk, SurfaceSlot,
+    ManifestError, NetworkDeclaration, NetworkPermissions, PackageContributions, PackageEntry,
+    PackageManifest, PackagePermissions, PermissionSet, RemoteAuth, SandboxPolicy,
+    SchemaContribution, SubprocessTransport, SurfaceActivation, SurfaceApprovalPolicy,
+    SurfaceContribution, SurfacePermissionRequirement, SurfaceRisk, SurfaceSlot,
 };
 pub use secret_ref::{is_secret_field_name, looks_like_raw_secret, SecretRef, SECRET_REF_PREFIX, SECRET_FIELD_NAMES};
 pub use session::{KernelSession, SessionStatus};

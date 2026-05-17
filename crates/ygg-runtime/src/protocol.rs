@@ -61,6 +61,7 @@ pub enum KernelMethod {
     ProposalApply,
     SurfaceContributionList,
     SurfaceContributionDescribe,
+    OutboundAudit,
 }
 
 impl KernelMethod {
@@ -114,6 +115,7 @@ impl KernelMethod {
             Self::ProposalApply => "kernel.proposal.apply",
             Self::SurfaceContributionList => "kernel.surface.contribution.list",
             Self::SurfaceContributionDescribe => "kernel.surface.contribution.describe",
+            Self::OutboundAudit => "kernel.outbound.audit",
         }
     }
 
@@ -167,6 +169,7 @@ impl KernelMethod {
             Self::ProposalApply => MethodStatus::Partial,
             Self::SurfaceContributionList => MethodStatus::Partial,
             Self::SurfaceContributionDescribe => MethodStatus::Partial,
+            Self::OutboundAudit => MethodStatus::Partial,
         }
     }
 
@@ -228,6 +231,7 @@ impl KernelMethod {
             Self::ProposalApply,
             Self::SurfaceContributionList,
             Self::SurfaceContributionDescribe,
+            Self::OutboundAudit,
         ]
     }
 
@@ -278,8 +282,9 @@ impl KernelMethod {
             | Self::ProposalApprove
             | Self::ProposalReject
             | Self::ProposalApply
-            | Self::SurfaceContributionList
-            | Self::SurfaceContributionDescribe => true,
+            |             Self::SurfaceContributionList
+            | Self::SurfaceContributionDescribe
+            | Self::OutboundAudit => true,
             // Planned methods with no dispatch yet
             Self::SessionGet
             | Self::SessionList
@@ -352,6 +357,7 @@ impl FromStr for KernelMethod {
             "kernel.proposal.apply" => Ok(Self::ProposalApply),
             "kernel.surface.contribution.list" => Ok(Self::SurfaceContributionList),
             "kernel.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
+            "kernel.outbound.audit" => Ok(Self::OutboundAudit),
             other => Err(format!("unknown kernel method: {other}")),
         }
     }
@@ -519,6 +525,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.proposal.apply", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.surface.contribution.list", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.surface.contribution.describe", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.outbound.audit", streaming: false, status: MethodStatus::Partial },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {

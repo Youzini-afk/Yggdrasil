@@ -31,18 +31,18 @@
 - 不做 provider-specific key handling。**仍为非目标。**
 - 不做真实 network/model calls。**仍为非目标。**
 
-## Phase S2 — 网络权限、outbound audit 与 redaction skeleton
+## Phase S2 — 网络权限、outbound audit 与 redaction skeleton ✅
 
 目标：
 
-- 扩展 manifest permission metadata，加入 network declarations。
-- 增加通用 outbound audit/redaction records 与 helpers。
-- 通过 package capabilities 或 host helpers 增加 no-network/allowlisted-network conformance fixtures。
+- 扩展 manifest permission metadata，加入 network declarations。**已完成。**
+- 增加通用 outbound audit/redaction records 与 helpers。**已完成。**
+- 通过 package capabilities 或 host helpers 增加 no-network/allowlisted-network conformance fixtures。**已完成。**
 
 非目标：
 
-- 不声称实现完整 OS-level subprocess sandbox。
-- 不做 provider-specific audit schema。
+- 不声称实现完整 OS-level subprocess sandbox。**满足。**
+- 不做 provider-specific audit schema。**满足。**
 
 ## Phase S3 — 通用 streaming 与 cancellation lifecycle
 

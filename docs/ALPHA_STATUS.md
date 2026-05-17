@@ -8,11 +8,11 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 
 ## Headline
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1.
-- **Conformance:** 81 named CLI cases plus crate and service unit tests.
-- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate.
+- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2.
+- **Conformance:** 87 named CLI cases plus crate and service unit tests.
+- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Secure Execution Substrate Phase S2 (network permissions, outbound audit/redaction skeleton).
+- **Next stage:** Secure Execution Substrate Phase S3 (generic streaming and cancellation lifecycle).
 
 ## What is implemented
 
@@ -27,6 +27,10 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Secret reference contract**: `SecretRef` type with `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` reference patterns. Packages reference secrets via `secret_ref` identifiers; raw secrets must never appear in events, proposals, logs, or audit records.
 - **Host secret resolver**: `HostSecretResolver` trait and `DenyAllSecretResolver` placeholder. Resolution is only permitted at runtime during capability invocation; resolved raw secrets must never be written back to the event log or any audit/proposal path. `SecretResolverConfig` on `RuntimeConfig`.
 - **Raw-secret blocking**: Conservative scanner checks proposal payloads, asset metadata, and audit-like payloads for known secret field names (`api_key`, `secret`, `token`, `password`, etc.) and value patterns (`Bearer ...`, `sk-...`, high-entropy strings). Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text. Official packages have no bypass.
+- **Network permission declarations**: Manifest `permissions.network` supports both flat `hosts` (backward compat) and structured `declarations` with `host`, `methods`, and `purpose`. The runtime policy checker matches outbound requests against declared entries. Packages with no network declarations are denied outbound access. Official packages have no bypass.
+- **Outbound audit/redaction records**: `OutboundAuditRecord` records principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, status/error. Raw body/header/prompt/response is never saved — only `secret_ref` identifiers and the `redaction_state` enum (`not_captured`, `redacted`, `policy_ref`, `unsafe_blocked`, `explicitly_approved`) are recorded. Default is `redacted`.
+- **Network policy checker**: `check_network_policy` pure function and `check_and_audit_outbound` runtime method. Supports exact host match, wildcard prefix (`*.example.com`), method allowlists (empty = any), and flat `hosts` backward compat. Denied requests produce `kernel/outbound.denied` audit events; allowed requests produce `kernel/outbound.request` events.
+- **Protocol method**: `kernel.outbound.audit` lists outbound audit events for a given package.
 - Package lifecycle events: `kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`.
 - Proposal lifecycle events: `kernel/proposal.created|approved|rejected|applied|failed`.
 
@@ -106,7 +110,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 81 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check), **permission grant rehydrate through SQLite**, **secret_ref validation**, **raw-secret blocking in proposals and asset metadata**, and **official-package no-secret-bypass**.
+- `cargo run -p ygg-cli -- conformance` runs 87 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check), **permission grant rehydrate through SQLite**, **secret_ref validation**, **raw-secret blocking in proposals and asset metadata**, **official-package no-secret-bypass**, **network permission denied for undeclared packages with outbound.denied audit**, **allowlisted host+method allowed with redacted audit**, **host/method mismatch denied**, **official-package no-network bypass**, **audit records contain no raw secrets/bodies — only secret_ref and redaction_state**, and **network policy checker pure function tests**.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 
@@ -116,7 +120,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - Streaming protocol dispatch and package-principal `event.subscribe` permissions.
 - Hook handler timeout/error audit for package-owned handlers.
 - Persisted capability provider selection policy beyond per-invocation explicit selection.
-- Richer resource policy coverage (network/filesystem/packages/projections enforcement matrices) — Phase S2 target.
+- Richer resource policy coverage (filesystem enforcement matrices) — Phase S3+ target.
 - Content-addressed asset blob storage and package-principal asset permission checks.
 - Package-owned projection execution.
 - Richer crash monitoring and health-check beyond lifecycle events.
@@ -124,7 +128,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - Richer TypeScript SDK packaging beyond the current thin subprocess helper.
 - Full `kernel.session.get|list`, `kernel.package.describe`, `kernel.capability.describe`, `kernel.extension_point.describe`, `kernel.host.principal`, `kernel.host.ping` route exposure.
 - Production secret vault integration (Phase S1 provides the contract and `DenyAllSecretResolver` only).
-- Network permission declarations and outbound audit/redaction records (Phase S2 target).
+- Network permission declarations and outbound audit/redaction records (Phase S2 — implemented).
 
 ## What is deferred
 

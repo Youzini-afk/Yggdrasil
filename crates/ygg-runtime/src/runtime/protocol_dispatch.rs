@@ -37,6 +37,14 @@ where
                     .ok_or_else(|| anyhow::anyhow!("kernel.surface.contribution.describe requires surface_id"))?;
                 self.describe_surface_contribution(surface_id).await
             }
+            KernelMethod::OutboundAudit => {
+                let package_id = params
+                    .get("package_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.outbound.audit requires package_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.list_outbound_audit(&package_id).await?)?)
+            }
             KernelMethod::PermissionGrant => {
                 let principal = params
                     .get("principal")

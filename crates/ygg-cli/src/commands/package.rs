@@ -65,6 +65,7 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         "packages_call": perm.packages.call.len(),
         "assets": {"read": perm.assets.read, "write": perm.assets.write},
         "network_hosts": perm.network.hosts.len(),
+        "network_declarations": perm.network.declarations.len(),
         "filesystem_read": perm.filesystem.read.len(),
         "filesystem_write": perm.filesystem.write.len(),
     });
@@ -83,6 +84,9 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     if manifest.contributes.surfaces.is_empty() {
         warnings.push("package contributes no surfaces".to_string());
     }
+    if !perm.network.declarations.is_empty() || !perm.network.hosts.is_empty() {
+        warnings.push("package requests network access — ensure allowlist is minimal".to_string());
+    }
 
     println!("package check: {}@{} ok", manifest.id, manifest.version);
     println!("  entry_kind:   {}", entry_kind);
@@ -97,6 +101,16 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         }
     }
     println!("  permissions:  {}", serde_json::to_string(&permissions_summary)?);
+    if !perm.network.declarations.is_empty() {
+        println!("  network declarations:");
+        for decl in &perm.network.declarations {
+            let methods = if decl.methods.is_empty() { "*".to_string() } else { decl.methods.join(", ") };
+            let purpose = decl.purpose.as_deref().unwrap_or("(none)");
+            println!("    {}: methods=[{}] purpose={}", decl.host, methods, purpose);
+        }
+    } else if !perm.network.hosts.is_empty() {
+        println!("  network hosts: {}", perm.network.hosts.join(", "));
+    }
     println!("  sandbox:      {}", serde_json::to_string(&sandbox_summary)?);
     if !warnings.is_empty() {
         println!("  warnings:");

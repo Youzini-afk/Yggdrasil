@@ -91,6 +91,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel/permission.granted` | kernel | implemented | Permission grant audit. |
 | `kernel/permission.revoked` | kernel | implemented | Permission revoke audit. |
 | `kernel/proposal.*` | kernel | partial | Proposal lifecycle audit events. |
+| `kernel/outbound.request` | kernel | partial | Outbound network request allowed and audited. |
+| `kernel/outbound.denied` | kernel | partial | Outbound network request denied. |
 | `kernel/error` | kernel | planned | General structured kernel error event. |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/...` or another package's namespace.
@@ -116,7 +118,7 @@ Manifest support means the schema can describe the entry and host policy can acc
 | `packages.call` | planned | Package-to-package control plane not implemented. |
 | `assets.read/write` | planned | Asset store not implemented. |
 | `projections` | planned | Projection registration is host-dev only; package permission model remains next. |
-| `network.hosts` | planned | Applies when subprocess/remote execution exists. |
+| `network.hosts` | partial | Packages declare allowed outbound hosts in manifest; runtime `check_network_policy` and `check_and_audit_outbound` enforce allowlists for Ygg-provided network helpers. Flat `hosts` list and structured `declarations` (host, methods, purpose) are supported. Official packages have no bypass. Denied requests write `kernel/outbound.denied`; allowed requests write `kernel/outbound.request` with redacted audit. |
 | `filesystem.read/write` | planned | Applies when subprocess/WASM execution exists. |
 
 ## Secret reference contract (Phase S1)
@@ -158,6 +160,9 @@ Implemented:
 20. Permission grants are persisted through `kernel/permission.granted` and `kernel/permission.revoked` events and rehydrated during `hydrate_substrate_from_events`.
 21. Secret references follow the `secret_ref:<vault>:<key>` contract. Raw secrets in proposal payloads and asset metadata are rejected by the kernel. Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text.
 22. The `HostSecretResolver` trait provides runtime-only secret resolution. Resolved raw secrets must never be written back to events, proposals, logs, or audit records. Official packages have no bypass.
+23. Network permission declarations: packages declare allowed outbound destinations in `permissions.network` (structured `declarations` with host, methods, purpose; or flat `hosts` for backward compat). The runtime policy checker enforces allowlists for Ygg-provided network helpers. Official packages have no bypass.
+24. Outbound audit records: `OutboundAuditRecord` captures principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, and status/error. Raw body/header/prompt/response is never saved. `redaction_state` defaults to `redacted`.
+25. Denied outbound requests write `kernel/outbound.denied` events; allowed requests write `kernel/outbound.request` events. Both are inspectable via `kernel.outbound.audit`.
 
 Still partial for Platform Host Alpha:
 
@@ -168,6 +173,7 @@ Still partial for Platform Host Alpha:
 5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
 6. Asset/projection/branch substrate persists through the event log, but does not yet enforce package-principal permissions or use dedicated blob storage.
 7. Production secret vault integration is deferred to host-level packages; `DenyAllSecretResolver` is the default.
+8. Network permission enforcement covers Ygg-provided network/request helpers; arbitrary subprocess OS-level outbound interception is not claimed.
 
 Next:
 

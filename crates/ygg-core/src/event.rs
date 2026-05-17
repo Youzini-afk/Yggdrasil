@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::ids::{EventId, PackageId, SessionId};
+use crate::ids::{CapabilityId, EventId, PackageId, SessionId};
 
 pub type SchemaVersion = u16;
 pub type EventKind = String;
@@ -35,6 +35,86 @@ pub const EVENT_PERMISSION_DENIED: &str = "kernel/permission.denied";
 pub const EVENT_PERMISSION_GRANTED: &str = "kernel/permission.granted";
 pub const EVENT_PERMISSION_REVOKED: &str = "kernel/permission.revoked";
 pub const EVENT_ERROR: &str = "kernel/error";
+pub const EVENT_OUTBOUND_REQUEST: &str = "kernel/outbound.request";
+pub const EVENT_OUTBOUND_DENIED: &str = "kernel/outbound.denied";
+
+// ---------------------------------------------------------------------------
+// Outbound audit / redaction types (Phase S2)
+// ---------------------------------------------------------------------------
+
+/// Redaction state for an outbound audit record.
+///
+/// Every outbound request carries one of these states to indicate
+/// whether raw body/header/prompt/response data was preserved.
+/// The default is `NotCaptured` — raw data is never saved unless
+/// explicitly approved.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RedactionState {
+    /// Raw data was not captured (default).
+    NotCaptured,
+    /// Raw data was redacted before recording.
+    Redacted,
+    /// Only a policy reference is stored; no data captured.
+    PolicyRef,
+    /// Request was blocked as unsafe; no data recorded.
+    UnsafeBlocked,
+    /// Explicit user/host approval to capture raw data (rare).
+    ExplicitlyApproved,
+}
+
+impl Default for RedactionState {
+    fn default() -> Self {
+        Self::NotCaptured
+    }
+}
+
+/// Generic outbound audit record / envelope.
+///
+/// Records an outbound network request made by a package through
+/// Ygg-provided network/request helpers. This is a kernel event
+/// payload — it does NOT contain raw secrets, bodies, headers,
+/// prompts, or responses. Only `secret_ref` identifiers and the
+/// `redaction_state` are recorded.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutboundAuditRecord {
+    /// Unique record id.
+    pub id: String,
+    /// The principal that initiated the request.
+    pub principal: String,
+    /// Package that owns the outbound request.
+    pub package_id: PackageId,
+    /// Capability through which the request was made.
+    pub capability_id: CapabilityId,
+    /// Destination host.
+    pub destination_host: String,
+    /// HTTP method (GET, POST, etc).
+    pub method: String,
+    /// Declared purpose from the manifest or request context.
+    #[serde(default)]
+    pub purpose: Option<String>,
+    /// Redaction state — what data, if any, was recorded.
+    #[serde(default)]
+    pub redaction_state: RedactionState,
+    /// Secret references used (not raw secrets).
+    #[serde(default)]
+    pub secret_refs_used: Vec<String>,
+    /// Usage placeholder (e.g. token count).
+    #[serde(default)]
+    pub usage: Value,
+    /// Cost placeholder.
+    #[serde(default)]
+    pub cost: Value,
+    /// Request status: "allowed", "denied", "error", etc.
+    pub status: String,
+    /// Error message if status is not "allowed".
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Type aliases and EventEnvelope
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventEnvelope {

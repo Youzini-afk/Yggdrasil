@@ -31,18 +31,18 @@ Non-goals:
 - No provider-specific key handling. **Met.**
 - No real network/model calls. **Met.**
 
-## Phase S2 — Network permissions, outbound audit, and redaction skeleton
+## Phase S2 — Network permissions, outbound audit, and redaction skeleton ✅
 
 Goals:
 
-- Extend manifest permission metadata with network declarations.
-- Add generic outbound audit/redaction records and helpers.
-- Add no-network/allowlisted-network conformance fixtures through package capabilities or host helpers.
+- Extend manifest permission metadata with network declarations. **Done.**
+- Add generic outbound audit/redaction records and helpers. **Done.**
+- Add no-network/allowlisted-network conformance fixtures through package capabilities or host helpers. **Done.**
 
 Non-goals:
 
-- No claim of full OS-level subprocess sandboxing.
-- No provider-specific audit schema.
+- No claim of full OS-level subprocess sandboxing. **Met.**
+- No provider-specific audit schema. **Met.**
 
 ## Phase S3 — Generic streaming and cancellation lifecycle
 
