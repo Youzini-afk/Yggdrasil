@@ -150,6 +150,7 @@ The kernel records `mime`, `hash`, `size`, and `origin_package`. It does not par
 kernel.projection.register  register a generic projection definition
 kernel.projection.rebuild   rebuild projection state from event filters
 kernel.projection.get       fetch projection state
+kernel.projection.list      list projection records
 ```
 
 The kernel manages projection records and rebuild lifecycle, but does not interpret content-specific state semantics. Package-owned projection execution belongs to packages.

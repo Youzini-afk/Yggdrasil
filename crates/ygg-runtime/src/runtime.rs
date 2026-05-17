@@ -643,6 +643,12 @@ where
             .ok_or_else(|| anyhow::anyhow!("projection '{projection_id}' not found"))
     }
 
+    pub async fn projection_list(&self) -> Vec<ProjectionDefinition> {
+        let mut projections: Vec<_> = self.projections.read().await.values().cloned().collect();
+        projections.sort_by(|a, b| a.id.cmp(&b.id));
+        projections
+    }
+
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
         if let PackageEntry::RustInproc { crate_ref, symbol, .. } = &manifest.entry {
             if !manifest.provides.is_empty() && self.config.inproc_packages.lookup(crate_ref, symbol).is_none() {
@@ -1347,6 +1353,7 @@ where
                     .ok_or_else(|| anyhow::anyhow!("kernel.projection.get requires projection_id"))?;
                 Ok(serde_json::to_value(self.projection_get(projection_id).await?)?)
             }
+            "kernel.projection.list" => Ok(serde_json::to_value(self.projection_list().await)?),
             other => anyhow::bail!("protocol method '{other}' is not implemented"),
         }
     }

@@ -25,12 +25,24 @@ async function render(error?: string) {
       client.capabilities().catch(() => []),
       client.diagnostics().catch(() => ({})),
     ]);
+    const [assets, projections, proposals, forgeSurfaces] = route === "forge"
+      ? await Promise.all([
+          client.assets().catch(() => []),
+          client.projections().catch(() => []),
+          client.proposals().catch(() => []),
+          client.surfaceContributions("forge_panel").catch(() => []),
+        ])
+      : [[], [], [], []];
     surfaceEntries = entries;
     diagnostics = hostDiagnostics;
-    body = route === "play" ? renderPlaySurface(surfaceEntries, sessionId) : renderForgeSurface(capabilities, events, sessionId);
+    body = route === "play"
+      ? renderPlaySurface(surfaceEntries, sessionId)
+      : renderForgeSurface({ capabilities, events, assets, projections, proposals, forgeSurfaces, sessionId });
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
-    body = route === "play" ? renderPlaySurface([], sessionId) : renderForgeSurface([], events, sessionId);
+    body = route === "play"
+      ? renderPlaySurface([], sessionId)
+      : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], sessionId });
   }
   app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen), error);
   wireEvents();
@@ -107,6 +119,28 @@ function wireEvents() {
     } catch (caught) {
       render(caught instanceof Error ? caught.message : String(caught));
     }
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-action='approve-proposal']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const proposalId = button.dataset.proposalId;
+        if (proposalId) await client.approveProposal(proposalId);
+        render();
+      } catch (caught) {
+        render(caught instanceof Error ? caught.message : String(caught));
+      }
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-action='apply-proposal']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const proposalId = button.dataset.proposalId;
+        if (proposalId) await client.applyProposal(proposalId);
+        render();
+      } catch (caught) {
+        render(caught instanceof Error ? caught.message : String(caught));
+      }
+    });
   });
 }
 

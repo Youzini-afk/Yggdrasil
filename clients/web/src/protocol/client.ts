@@ -64,6 +64,33 @@ export interface SurfaceContributionRecord {
   surface: SurfaceContribution;
 }
 
+export interface AssetRecord {
+  id: string;
+  origin_package_id: string;
+  mime: string;
+  hash: string;
+  size_bytes: number;
+  metadata: unknown;
+}
+
+export interface ProjectionRecord {
+  id: string;
+  session_id: string;
+  source_kind_prefix?: string;
+  state: unknown;
+}
+
+export interface ProposalRecord {
+  id: string;
+  status: string;
+  target_session_id?: string;
+  target_branch_id?: string;
+  operations: unknown[];
+  required_permissions: string[];
+  expected_effects: unknown;
+  result?: unknown;
+}
+
 export class YggProtocolClient {
   constructor(private readonly baseUrl = "http://127.0.0.1:8787") {}
 
@@ -90,6 +117,26 @@ export class YggProtocolClient {
 
   diagnostics() {
     return this.call<Record<string, unknown>>("kernel.host.diagnostics");
+  }
+
+  assets() {
+    return this.call<AssetRecord[]>("kernel.asset.list");
+  }
+
+  projections() {
+    return this.call<ProjectionRecord[]>("kernel.projection.list");
+  }
+
+  proposals() {
+    return this.call<ProposalRecord[]>("kernel.proposal.list");
+  }
+
+  approveProposal(proposalId: string) {
+    return this.call<ProposalRecord>("kernel.proposal.approve", { proposal_id: proposalId, reason: "web-forge" });
+  }
+
+  applyProposal(proposalId: string) {
+    return this.call<ProposalRecord>("kernel.proposal.apply", { proposal_id: proposalId });
   }
 
   surfaceContributions(slot?: string) {

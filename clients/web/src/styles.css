@@ -42,6 +42,7 @@ button.active, button:hover { background: #7c5cff; }
 .event-tail, .capability-list { display: grid; gap: 0.7rem; margin-top: 1rem; }
 .event-row, .capability-row { display: grid; gap: 0.35rem; padding: 0.8rem; border-radius: 1rem; background: rgba(255,255,255,0.07); }
 .event-row code { white-space: pre-wrap; color: #9fe8ff; }
+.inspector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
 .empty { color: #a79fc8; }
 
 .assistant-drawer { position: fixed; right: 1rem; bottom: 1rem; z-index: 10; }

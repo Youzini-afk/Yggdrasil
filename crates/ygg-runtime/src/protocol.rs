@@ -139,6 +139,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.projection.register", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.projection.rebuild", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.projection.get", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.projection.list", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.host.info", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.host.ping", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.host.diagnostics", streaming: false, status: MethodStatus::Partial },
