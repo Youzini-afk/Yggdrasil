@@ -1,0 +1,25 @@
+schema_version: 1
+id: example/logging-subprocess-python
+version: 0.1.0
+entry:
+  kind: subprocess
+  command:
+    - python3
+    - examples/packages/logging-subprocess-python/package.py
+  transport: json_rpc_stdio
+provides:
+  - id: example/logging-subprocess-python/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+permissions: {}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

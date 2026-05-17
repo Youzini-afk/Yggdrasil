@@ -24,5 +24,5 @@ pub use protocol::{
 };
 pub use runtime::{AppendEventRequest, EventListRequest, OpenSessionRequest, Runtime, RuntimeConfig};
 pub use schema::validate_json_schema_subset;
-pub use subprocess::SubprocessSupervisor;
+pub use subprocess::{SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;

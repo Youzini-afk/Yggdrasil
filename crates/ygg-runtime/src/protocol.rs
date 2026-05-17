@@ -116,6 +116,8 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.event.subscribe", streaming: true, status: MethodStatus::Planned },
     ProtocolMethod { id: "kernel.package.load", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.package.unload", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.package.restart", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.package.logs", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.package.list", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.package.status", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.package.describe", streaming: false, status: MethodStatus::Planned },
@@ -132,6 +134,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.asset.list", streaming: false, status: MethodStatus::Planned },
     ProtocolMethod { id: "kernel.host.info", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.host.ping", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.host.diagnostics", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.host.principal", streaming: false, status: MethodStatus::Planned },
 ];
 

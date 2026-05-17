@@ -103,6 +103,8 @@ kernel.package.describe  fetch a manifest snapshot
 kernel.package.load      load a package from a manifest reference
 kernel.package.unload    stop and remove a package
 kernel.package.status    current state and health
+kernel.package.restart   restart a package when its entry form supports restart
+kernel.package.logs      read captured package logs
 ```
 
 Loading a package may be host-policy-restricted.
@@ -145,6 +147,7 @@ The kernel records `mime`, `hash`, `size`, and `origin_package`. It does not par
 kernel.host.info         host version, kernel ABI, transports
 kernel.host.principal    the calling principal (user, package, remote)
 kernel.host.ping         liveness
+kernel.host.diagnostics  local host diagnostics for package/capability/hook observability
 ```
 
 ## Package methods

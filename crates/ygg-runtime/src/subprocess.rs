@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::timeout;
 use ygg_core::{PackageEntry, PackageId, PackageManifest, SubprocessTransport};
@@ -19,7 +19,15 @@ pub struct SubprocessHandle {
     child: Mutex<Child>,
     stdin: Mutex<ChildStdin>,
     stdout: Mutex<BufReader<ChildStdout>>,
+    stderr: Mutex<BufReader<ChildStderr>>,
     invoke_timeout: Duration,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SubprocessLogLine {
+    pub package_id: PackageId,
+    pub stream: String,
+    pub line: String,
 }
 
 impl SubprocessSupervisor {
@@ -38,15 +46,17 @@ impl SubprocessSupervisor {
             .args(args)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
             .spawn()?;
         let stdin = child.stdin.take().ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stdin"))?;
         let stdout = child.stdout.take().ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stdout"))?;
+        let stderr = child.stderr.take().ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stderr"))?;
         let handle = Arc::new(SubprocessHandle {
             package_id: manifest.id.clone(),
             child: Mutex::new(child),
             stdin: Mutex::new(stdin),
             stdout: Mutex::new(BufReader::new(stdout)),
+            stderr: Mutex::new(BufReader::new(stderr)),
             invoke_timeout: Duration::from_millis(manifest.sandbox_policy.cpu_quota_ms_per_invoke),
         });
 
@@ -125,6 +135,16 @@ impl SubprocessSupervisor {
             handle.kill().await;
         }
     }
+
+    pub async fn restart(&self, manifest: &PackageManifest) -> anyhow::Result<()> {
+        self.stop(&manifest.id).await;
+        self.start(manifest).await
+    }
+
+    pub async fn drain_logs(&self, package_id: &PackageId) -> Vec<SubprocessLogLine> {
+        let Some(handle) = self.handles.read().await.get(package_id).cloned() else { return Vec::new() };
+        handle.drain_logs().await
+    }
 }
 
 impl SubprocessHandle {
@@ -148,5 +168,22 @@ impl SubprocessHandle {
         let mut child = self.child.lock().await;
         let _ = child.kill().await;
         let _ = child.wait().await;
+    }
+
+    async fn drain_logs(&self) -> Vec<SubprocessLogLine> {
+        let mut logs = Vec::new();
+        let mut stderr = self.stderr.lock().await;
+        loop {
+            let mut line = String::new();
+            match timeout(Duration::from_millis(1), stderr.read_line(&mut line)).await {
+                Ok(Ok(read)) if read > 0 => logs.push(SubprocessLogLine {
+                    package_id: self.package_id.clone(),
+                    stream: "stderr".to_string(),
+                    line: line.trim_end().to_string(),
+                }),
+                _ => break,
+            }
+        }
+        logs
     }
 }

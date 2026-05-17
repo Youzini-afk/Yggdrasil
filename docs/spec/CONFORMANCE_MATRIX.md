@@ -9,7 +9,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 31 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 35 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -24,6 +24,9 @@ Current named conformance coverage: 31 CLI cases plus crate/service unit tests.
 | events | closed session rejects append | implemented |
 | events | sequence-range replay with filters | implemented |
 | package | valid manifest loads | implemented |
+| package | lifecycle timeline emits loading/starting/ready/loaded | implemented |
+| package | restart subprocess package | implemented |
+| package | capture subprocess stderr logs | implemented |
 | package | host policy rejects disallowed entry | implemented in unit tests |
 | package | unload removes registry record | implemented in unit tests |
 | package | unload removes capability provider | implemented |
@@ -57,6 +60,7 @@ Current named conformance coverage: 31 CLI cases plus crate/service unit tests.
 | subprocess | invalid subprocess output schema is rejected | implemented |
 | subprocess | unload removes subprocess capability | implemented |
 | service | SSE event subscribe endpoint replays and tails events | implemented |
+| host | diagnostics reports packages/capabilities/hooks | implemented |
 | package authoring | generated Python subprocess package passes local conformance | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
@@ -66,7 +70,7 @@ Current named conformance coverage: 31 CLI cases plus crate/service unit tests.
 | package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | implemented |
 | package execution | subprocess package completes JSON-RPC stdio handshake | Platform Host Alpha |
 | package execution | subprocess timeout/crash/degraded behavior is enforced | Platform Host Alpha |
-| package execution | package load goes through handshake/register/start states | partial |
+| package execution | package load goes through loading/starting/ready states | implemented |
 | capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | Platform Host Alpha |
 | capability | package caller without declared invoke permission is denied | Platform Host Alpha |
 | capability | version mismatch fails | partial |
@@ -115,6 +119,10 @@ principal.package_cannot_self_assert_writer PASS
 principal.package_cannot_self_assert_capability_caller PASS
 subprocess.load_ready                      PASS
 subprocess.invoke_echo                     PASS
+package.lifecycle_timeline                 PASS
+package.logs_capture                       PASS
+package.restart_subprocess                 PASS
+host.diagnostics                           PASS
 subprocess.bad_handshake                   PASS
 subprocess.invoke_timeout                  PASS
 subprocess.invalid_output_schema           PASS

@@ -420,6 +420,10 @@ async fn conformance() -> anyhow::Result<()> {
     );
     record_case(&mut results, "subprocess.load_ready", conformance_subprocess_load_ready().await);
     record_case(&mut results, "subprocess.invoke_echo", conformance_subprocess_invoke_echo().await);
+    record_case(&mut results, "package.lifecycle_timeline", conformance_package_lifecycle_timeline().await);
+    record_case(&mut results, "package.logs_capture", conformance_package_logs_capture().await);
+    record_case(&mut results, "package.restart_subprocess", conformance_package_restart_subprocess().await);
+    record_case(&mut results, "host.diagnostics", conformance_host_diagnostics().await);
     record_case(&mut results, "subprocess.bad_handshake", conformance_subprocess_bad_handshake().await);
     record_case(&mut results, "subprocess.invoke_timeout", conformance_subprocess_timeout().await);
     record_case(
@@ -781,6 +785,54 @@ async fn conformance_subprocess_invoke_echo() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(result.output == json!({"subprocess": true}), "subprocess echo mismatch");
+    Ok(())
+}
+
+async fn conformance_package_lifecycle_timeline() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    let session_id = "kernel_package_example_echo-subprocess-python".to_string();
+    let events = store.list_session(&session_id).await?;
+    for expected in ["kernel/package.loading", "kernel/package.starting", "kernel/package.ready", "kernel/package.loaded"] {
+        anyhow::ensure!(events.iter().any(|event| event.kind == expected), "missing lifecycle event {expected}");
+    }
+    Ok(())
+}
+
+async fn conformance_package_logs_capture() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/logging-subprocess-python/manifest.yaml")).await?).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "example/logging-subprocess-python/echo".to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"logs": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"logs": true}), "logging echo mismatch");
+    let logs = runtime.package_logs(&"example/logging-subprocess-python".to_string()).await;
+    anyhow::ensure!(logs.iter().any(|log| log.line.contains("invoke observed") || log.line.contains("booted")), "stderr logs were not captured");
+    Ok(())
+}
+
+async fn conformance_package_restart_subprocess() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
+    let record = runtime.restart_package(&"example/echo-subprocess-python".to_string()).await?;
+    anyhow::ensure!(matches!(record.state, ygg_runtime::PackageState::Ready), "restart did not return ready package");
+    Ok(())
+}
+
+async fn conformance_host_diagnostics() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/diag", "example/diag/echo")).await?;
+    let diagnostics = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.host.diagnostics", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(diagnostics["package_count"] == json!(1), "diagnostics package count mismatch");
     Ok(())
 }
 

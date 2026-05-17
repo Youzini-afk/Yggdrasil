@@ -18,7 +18,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `KernelSession` | implemented | Holds identity, labels, active package set, principal scope, status, timestamps, metadata. It does not hold messages, turns, prompts, actors, worlds, or memory. |
 | `EventEnvelope` | implemented | Append-only opaque JSON payload with per-session sequence, writer package id, namespaced kind, schema version, timestamp, metadata. |
 | `PackageManifest` | implemented | Declares identity, entry form, provided capabilities, consumed capabilities, contributed schemas/hooks/extension points/assets, permissions, sandbox policy. |
-| `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Full lifecycle event sequencing and all entry forms remain next. |
+| `PackageRecord` | partial | Tracks package id, version, entry kind, counts, manifest, trust level, state timestamps. Lifecycle validates and registers manifest declarations; `rust_inproc` entries are resolved through the host catalog before provided capabilities can load; subprocess entries start a JSON-RPC stdio process and handshake before readiness. Loading/starting/ready/stopping/stopped/unloaded/degraded events are emitted for implemented entry forms. WASM/remote remain next. |
 | `CapabilityDescriptor` | implemented | Declares provider-owned capability id, version, input/output schema refs, streaming, side effects, description. |
 | `HookSubscription` | partial | Manifest-declared subscription exists; hook dispatch now runs for event append and capability invoke lifecycle points with stable ordering, legacy fixture handlers, package-owned handler capabilities, metadata mutation, and unload cleanup. Rich timeout/error audit remains next. |
 | `AssetRecord` | planned | Type exists, storage methods are protocol-planned but not implemented. |
@@ -38,6 +38,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.package.unload` | partial | Stops subprocess handles when present, removes registry record and declared capabilities/hooks, writes lifecycle event. |
 | `kernel.package.list` | implemented | Lists in-memory package records. |
 | `kernel.package.status` | implemented | Returns registry record for package id. |
+| `kernel.package.restart` | partial | Restarts subprocess entries and emits lifecycle events; other entry forms are rejected. |
+| `kernel.package.logs` | partial | Drains captured subprocess stderr logs and emits `kernel/package.log` events; stdout remains reserved for JSON-RPC protocol frames. |
 | `kernel.package.describe` | planned | Can be derived from status manifest, but not exposed as method yet. |
 | `kernel.capability.discover` | implemented | Lists registered descriptors. |
 | `kernel.capability.describe` | planned | Registry can inspect descriptors; protocol method not exposed yet. |
@@ -50,6 +52,7 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.asset.put/get/list` | deferred | Asset types exist; storage is not implemented. |
 | `kernel.host.info` | implemented | Returns protocol version, advertised methods with statuses, and currently supported transport labels across in-process, HTTP `/rpc`, host stdio, and ad hoc HTTP. |
 | `kernel.host.ping` | partial | Advertised; direct service route is not yet exposed. |
+| `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
 
 ## Kernel event kind matrix
@@ -59,8 +62,14 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel/session.opened` | kernel | implemented | Session open. |
 | `kernel/session.closed` | kernel | implemented | Session close. |
 | `kernel/package.loaded` | kernel | implemented | Manifest accepted and registered. |
+| `kernel/package.loading` | kernel | implemented | Package record enters loading. |
+| `kernel/package.starting` | kernel | implemented | Subprocess package process is about to start/handshake. |
+| `kernel/package.ready` | kernel | implemented | Package is ready after entry-specific startup. |
+| `kernel/package.stopping` | kernel | implemented | Unload/restart is stopping package execution. |
+| `kernel/package.stopped` | kernel | implemented | Package execution has stopped. |
 | `kernel/package.unloaded` | kernel | implemented | Package removed from registry. |
-| `kernel/package.degraded` | kernel | planned | Real package execution failure/health loss. |
+| `kernel/package.degraded` | kernel | implemented | Real package execution failure/health loss. |
+| `kernel/package.log` | kernel | implemented | Captured subprocess stderr log line. |
 | `kernel/capability.invoked` | kernel | planned | Invocation lifecycle event. |
 | `kernel/capability.completed` | kernel | planned | Invocation success event. |
 | `kernel/capability.failed` | kernel | planned | Invocation failure event. |
@@ -98,14 +107,14 @@ Implemented:
 
 1. Session open/close writes kernel events.
 2. Package load validates manifest and host policy, registers manifest-declared capabilities/hooks/extension points, writes a kernel event.
-3. Package unload removes registry declarations and writes a kernel event.
+3. Package unload removes registry declarations and writes stopping/stopped/unloaded kernel events.
 4. Event append assigns sequence/timestamp/id and enforces namespace ownership.
 5. Permission denials write `kernel/permission.denied` audit events.
 6. Closed sessions reject non-kernel appends.
 7. Capability input/output and package-declared event payload schemas are validated against the current JSON Schema subset.
 8. Protocol contexts distinguish host/dev calls from package-principal calls, and package-principal operations ignore caller-supplied package identity fields.
 9. Canonical protocol envelopes can be dispatched in-process and through HTTP `/rpc`; `ygg host-stdio` exposes the same envelope over stdin/stdout for automation.
-10. Subprocess JSON-RPC stdio packages can handshake, invoke capabilities, time out, degrade, and unload with process kill.
+10. Subprocess JSON-RPC stdio packages can handshake, invoke capabilities, time out, degrade, restart, capture stderr logs, and unload with process kill.
 11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, legacy veto fixtures, package-owned handler capabilities, metadata mutation, and unload cleanup.
 12. Event range replay is implemented for in-process protocol and HTTP ad hoc list; HTTP SSE can replay from `after_sequence` and tail new events.
 13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
@@ -114,7 +123,7 @@ Still partial for Platform Host Alpha:
 
 1. Event subscribe lacks protocol-dispatch streaming and package-principal subscribe permissions.
 2. Hook handler timeout/error audit is thin.
-3. Package lifecycle does not yet emit each transition as a distinct event.
+3. Package lifecycle emits transitions for implemented entry forms; lifecycle health checks and richer crash monitoring remain partial.
 4. Capability routing has simple explicit provider/version constraints but no persisted provider selection policy.
 5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
 

@@ -8,8 +8,10 @@ use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 use ygg_core::{
     new_id, EventEnvelope, EventKind, EventSequence, KernelSession, PackageEntry, PackageId, PackageManifest, SessionId,
-    SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED,
-    EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, KERNEL_PACKAGE_ID,
+    SessionStatus, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG,
+    EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING,
+    EVENT_PACKAGE_UNLOADED, EVENT_PERMISSION_DENIED, EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED,
+    KERNEL_PACKAGE_ID,
 };
 
 use crate::{
@@ -349,12 +351,15 @@ where
             }
         }
         let mut record = self.packages.load(manifest, &self.config.host_policy).await?;
+        record = self.packages.set_state(&record.id, PackageState::Loading).await.unwrap_or(record);
+        self.append_package_lifecycle_event(&record, EVENT_PACKAGE_LOADING, None).await?;
         if matches!(record.manifest.entry, PackageEntry::Subprocess { .. }) {
             record = self
                 .packages
                 .set_state(&record.id, PackageState::Starting)
                 .await
                 .unwrap_or(record);
+            self.append_package_lifecycle_event(&record, EVENT_PACKAGE_STARTING, None).await?;
             if let Err(error) = self.subprocesses.start(&record.manifest).await {
                 let degraded = self
                     .packages
@@ -370,44 +375,70 @@ where
                 .await
                 .unwrap_or(record);
         }
+        if !matches!(record.state, PackageState::Ready) {
+            record = self.packages.set_state(&record.id, PackageState::Ready).await.unwrap_or(record);
+        }
         self.capabilities.register_package(&record.id, &record.manifest.provides).await;
         self.extensions.register_package(&record.id, &record.manifest.contributes.hooks).await;
-        let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
-        self.append_kernel_event(
-            &session_id,
-            EVENT_PACKAGE_LOADED,
-            json!({
-                "package_id": record.id,
-                "version": record.version,
-                "state": record.state,
-                "entry_kind": record.entry_kind,
-                "capability_count": record.capability_count,
-                "hook_count": record.hook_count,
-                "extension_point_count": record.extension_point_count,
-            }),
-        )
-        .await?;
+        self.append_package_lifecycle_event(&record, EVENT_PACKAGE_READY, None).await?;
+        self.append_package_lifecycle_event(&record, EVENT_PACKAGE_LOADED, None).await?;
         Ok(record)
     }
 
     pub async fn unload_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
+        if let Some(stopping) = self.packages.set_state(package_id, PackageState::Stopping).await {
+            self.append_package_lifecycle_event(&stopping, EVENT_PACKAGE_STOPPING, None).await?;
+        }
         self.subprocesses.stop(package_id).await;
+        if let Some(stopped) = self.packages.set_state(package_id, PackageState::Stopped).await {
+            self.append_package_lifecycle_event(&stopped, EVENT_PACKAGE_STOPPED, None).await?;
+        }
         let record = self.packages.unload(package_id).await?;
         self.capabilities.unregister_package(package_id).await;
         self.extensions.unregister_package(package_id).await;
-        let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
-        self.append_kernel_event(
-            &session_id,
-            EVENT_PACKAGE_UNLOADED,
-            json!({
-                "package_id": record.id,
-                "version": record.version,
-                "state": record.state,
-                "entry_kind": record.entry_kind,
-            }),
-        )
-        .await?;
+        self.append_package_lifecycle_event(&record, EVENT_PACKAGE_UNLOADED, None).await?;
         Ok(record)
+    }
+
+    pub async fn restart_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
+        let record = self
+            .package_status(package_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?;
+        if !matches!(record.manifest.entry, PackageEntry::Subprocess { .. }) {
+            anyhow::bail!("package '{package_id}' entry kind '{}' cannot restart yet", record.entry_kind);
+        }
+        if let Some(stopping) = self.packages.set_state(package_id, PackageState::Stopping).await {
+            self.append_package_lifecycle_event(&stopping, EVENT_PACKAGE_STOPPING, Some("restart")).await?;
+        }
+        self.subprocesses.restart(&record.manifest).await?;
+        let ready = self
+            .packages
+            .set_state(package_id, PackageState::Ready)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("package '{package_id}' disappeared during restart"))?;
+        self.append_package_lifecycle_event(&ready, EVENT_PACKAGE_READY, Some("restart")).await?;
+        Ok(ready)
+    }
+
+    pub async fn package_logs(&self, package_id: &PackageId) -> Vec<crate::SubprocessLogLine> {
+        let logs = self.subprocesses.drain_logs(package_id).await;
+        for log in &logs {
+            let _ = self.append_package_log_event(package_id, &log.stream, &log.line).await;
+        }
+        logs
+    }
+
+    pub async fn host_diagnostics(&self) -> Value {
+        let packages = self.list_packages().await;
+        let capabilities = self.discover_capabilities().await;
+        let hooks = self.extensions.list_all_hooks().await;
+        json!({
+            "package_count": packages.len(),
+            "capability_provider_count": capabilities.len(),
+            "hook_subscription_count": hooks.len(),
+            "packages": packages,
+        })
     }
 
     pub async fn list_packages(&self) -> Vec<PackageRecord> {
@@ -617,6 +648,7 @@ where
         match method {
             "kernel.host.info" => Ok(serde_json::to_value(crate::host_info())?),
             "kernel.host.ping" => Ok(json!({"ok": true})),
+            "kernel.host.diagnostics" => Ok(self.host_diagnostics().await),
             "kernel.session.open" => Ok(serde_json::to_value(
                 self.open_session(serde_json::from_value(params)?).await?,
             )?),
@@ -650,6 +682,22 @@ where
                     .ok_or_else(|| anyhow::anyhow!("kernel.package.unload requires package_id"))?
                     .to_string();
                 Ok(serde_json::to_value(self.unload_package(&package_id).await?)?)
+            }
+            "kernel.package.restart" => {
+                let package_id = params
+                    .get("package_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.package.restart requires package_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.restart_package(&package_id).await?)?)
+            }
+            "kernel.package.logs" => {
+                let package_id = params
+                    .get("package_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.package.logs requires package_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.package_logs(&package_id).await)?)
             }
             "kernel.capability.discover" => Ok(serde_json::to_value(self.discover_capabilities().await)?),
             "kernel.capability.invoke" => Ok(serde_json::to_value(
@@ -685,17 +733,37 @@ where
     }
 
     async fn append_package_degraded_event(&self, record: &PackageRecord, reason: &str) -> anyhow::Result<EventEnvelope> {
+        self.append_package_lifecycle_event(record, EVENT_PACKAGE_DEGRADED, Some(reason)).await
+    }
+
+    async fn append_package_lifecycle_event(
+        &self,
+        record: &PackageRecord,
+        kind: &'static str,
+        reason: Option<&str>,
+    ) -> anyhow::Result<EventEnvelope> {
         let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
+        let mut payload = json!({
+            "package_id": record.id,
+            "version": record.version,
+            "state": record.state,
+            "entry_kind": record.entry_kind,
+            "capability_count": record.capability_count,
+            "hook_count": record.hook_count,
+            "extension_point_count": record.extension_point_count,
+        });
+        if let Some(reason) = reason {
+            payload["reason"] = json!(reason);
+        }
+        self.append_kernel_event(&session_id, kind, payload).await
+    }
+
+    async fn append_package_log_event(&self, package_id: &PackageId, stream: &str, line: &str) -> anyhow::Result<EventEnvelope> {
+        let session_id = format!("kernel_package_{}", package_id.replace('/', "_"));
         self.append_kernel_event(
             &session_id,
-            EVENT_PACKAGE_DEGRADED,
-            json!({
-                "package_id": record.id,
-                "version": record.version,
-                "state": record.state,
-                "entry_kind": record.entry_kind,
-                "reason": reason,
-            }),
+            EVENT_PACKAGE_LOG,
+            json!({"package_id": package_id, "stream": stream, "line": line}),
         )
         .await
     }
@@ -850,8 +918,9 @@ mod tests {
 
         assert_eq!(record.id, "org/pkg");
         let events = store.list_session(&"kernel_package_org_pkg".to_string()).await?;
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].kind, EVENT_PACKAGE_LOADED);
+        assert!(events.iter().any(|event| event.kind == EVENT_PACKAGE_LOADING));
+        assert!(events.iter().any(|event| event.kind == EVENT_PACKAGE_READY));
+        assert!(events.iter().any(|event| event.kind == EVENT_PACKAGE_LOADED));
         Ok(())
     }
 
