@@ -110,6 +110,37 @@ impl InprocPackage for OfficialFoundationPackage {
                 "surfaces": request.input.get("surfaces").cloned().unwrap_or_else(|| serde_json::json!([])),
                 "edges": request.input.get("edges").cloned().unwrap_or_else(|| serde_json::json!([])),
             }))
+        } else if id.ends_with("/preview") {
+            let content = request.input.get("content").and_then(Value::as_str).unwrap_or_default();
+            Ok(serde_json::json!({
+                "kind": "asset_preview",
+                "asset_id": request.input.get("asset_id").cloned().unwrap_or(Value::Null),
+                "mime": request.input.get("mime").and_then(Value::as_str).unwrap_or("application/octet-stream"),
+                "content_length": content.len(),
+                "preview": content.chars().take(120).collect::<String>(),
+            }))
+        } else if id.ends_with("/diff") {
+            Ok(serde_json::json!({
+                "kind": "asset_diff",
+                "from": request.input.get("from").cloned().unwrap_or(Value::Null),
+                "to": request.input.get("to").cloned().unwrap_or(Value::Null),
+                "requires_proposal": true,
+            }))
+        } else if id.ends_with("/export") {
+            Ok(serde_json::json!({
+                "kind": "asset_export",
+                "asset_id": request.input.get("asset_id").cloned().unwrap_or(Value::Null),
+                "format": request.input.get("format").and_then(Value::as_str).unwrap_or("json"),
+                "content": request.input.get("content").cloned().unwrap_or(Value::Null),
+            }))
+        } else if id.ends_with("/import_plan") {
+            Ok(serde_json::json!({
+                "kind": "asset_import_plan",
+                "requires_user_approval": true,
+                "recommended_operation": "asset.put",
+                "mime": request.input.get("mime").and_then(Value::as_str).unwrap_or("application/json"),
+                "metadata": request.input.get("metadata").cloned().unwrap_or_else(|| serde_json::json!({})),
+            }))
         } else if id.ends_with("/explain") {
             Ok(serde_json::json!({
                 "kind": "assistant_explanation",

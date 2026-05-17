@@ -6,5 +6,6 @@ autoload:
   - ../packages/official/schema-tools/manifest.yaml
   - ../packages/official/event-tools/manifest.yaml
   - ../packages/official/composition-lab/manifest.yaml
+  - ../packages/official/asset-lab/manifest.yaml
   - ../packages/official/assistant-lab/manifest.yaml
   - ../packages/official/blank-experience/manifest.yaml

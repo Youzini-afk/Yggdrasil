@@ -722,6 +722,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "package.generated_experience_template", conformance_generated_experience_template().await);
     record_case(&mut results, "composition.check_descriptor", conformance_composition_descriptor().await);
     record_case(&mut results, "official.composition_lab", conformance_official_composition_lab().await);
+    record_case(&mut results, "official.asset_lab", conformance_official_asset_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1863,6 +1864,32 @@ async fn conformance_official_composition_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(graph.output["kind"] == json!("composition_surface_graph"), "composition lab surface_graph returned wrong kind");
+    Ok(())
+}
+
+async fn conformance_official_asset_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;
+    let preview = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/asset-lab/preview".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/asset-lab".to_string()),
+            version: None,
+            input: json!({"asset_id": "asset/demo", "mime": "application/json", "content": "{\"hello\":\"world\"}"}),
+        })
+        .await?;
+    anyhow::ensure!(preview.output["kind"] == json!("asset_preview"), "asset lab preview returned wrong kind");
+    let import_plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/asset-lab/import_plan".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/asset-lab".to_string()),
+            version: None,
+            input: json!({"mime": "application/json", "metadata": {"source": "conformance"}}),
+        })
+        .await?;
+    anyhow::ensure!(import_plan.output["requires_user_approval"] == json!(true), "asset import plan must require approval");
     Ok(())
 }
 
