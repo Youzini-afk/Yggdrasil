@@ -23,9 +23,9 @@ The platform's job is to make radical AI-native creation possible without privil
 
 ## Status
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed.**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha.**
 
-The current foundation includes a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, principals and scoped permissions, surface contributions, generic proposal/approval lifecycle, asset/branch/projection substrate, official platform packages (`composition-lab`, `asset-lab`, `projection-lab`), an assistant-as-package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play and Forge surfaces. 55 named conformance cases plus crate and service unit tests cover the boundary.
+The current foundation includes a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, principals and scoped permissions, surface contributions, generic proposal/approval lifecycle, asset/branch/projection substrate, official platform packages (`composition-lab`, `asset-lab`, `projection-lab`), Creative Capability Kit packages (`persona-lab`, `knowledge-lab`, `context-lab`, `text-transform-lab`), an assistant-as-package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play and Forge surfaces. 59 named conformance cases plus crate and service unit tests cover the boundary.
 
 For the executable snapshot, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md).
 For where this is going, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md).
@@ -125,6 +125,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 - [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.md) — hostile conformance roadmap.
 - [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) — play-creation product stance.
 - [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) — third-party package authoring walkthrough.
+- [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.md) — Yggdrasil-native creative capability package kit.
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) — living snapshot of what is done, partial, and deferred.
 - [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) — current and upcoming phases.
 - [`docs/roadmap/PLATFORM_HOST_ALPHA.md`](docs/roadmap/PLATFORM_HOST_ALPHA.md) — Host Alpha + Play/Forge Surface Beta result.

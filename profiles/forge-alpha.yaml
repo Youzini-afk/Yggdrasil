@@ -11,6 +11,7 @@ autoload:
   - ../packages/official/persona-lab/manifest.yaml
   - ../packages/official/knowledge-lab/manifest.yaml
   - ../packages/official/context-lab/manifest.yaml
+  - ../packages/official/text-transform-lab/manifest.yaml
   - ../packages/official/assistant-lab/manifest.yaml
   - ../packages/official/blank-experience/manifest.yaml
   - ../packages/official/playable-seed/manifest.yaml

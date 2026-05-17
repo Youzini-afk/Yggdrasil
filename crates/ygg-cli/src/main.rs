@@ -728,6 +728,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.persona_lab", conformance_official_persona_lab().await);
     record_case(&mut results, "official.knowledge_lab", conformance_official_knowledge_lab().await);
     record_case(&mut results, "official.context_lab", conformance_official_context_lab().await);
+    record_case(&mut results, "official.text_transform_lab", conformance_official_text_transform_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -2056,6 +2057,34 @@ async fn conformance_official_context_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(rendered.output["rendered"] == json!("Hello Yggdrasil"), "context template render failed");
+    Ok(())
+}
+
+async fn conformance_official_text_transform_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/text-transform-lab/manifest.yaml")).await?).await?;
+    let preview = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/text-transform-lab/apply_preview".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/text-transform-lab".to_string()),
+            version: None,
+            input: json!({"text": "Mira whispers now", "rules": [{"id": "quiet", "find": "whispers", "replace": "says quietly"}]}),
+        })
+        .await?;
+    anyhow::ensure!(preview.output["kind"] == json!("text_transform_preview"), "text transform preview returned wrong kind");
+    anyhow::ensure!(preview.output["output"] == json!("Mira says quietly now"), "text transform did not apply deterministic replacement");
+    anyhow::ensure!(preview.output["trace"].as_array().map(|t| !t.is_empty()).unwrap_or(false), "text transform missing trace");
+    let validation = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/text-transform-lab/validate_rules".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/text-transform-lab".to_string()),
+            version: None,
+            input: json!({"rules": [{"id": "bad"}]}),
+        })
+        .await?;
+    anyhow::ensure!(validation.output["valid"] == json!(false), "invalid transform rule should be reported");
     Ok(())
 }
 

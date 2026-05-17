@@ -1,0 +1,42 @@
+# Creative Capability Kit
+
+> [English](./CREATIVE_CAPABILITY_KIT.md) · [中文](./CREATIVE_CAPABILITY_KIT.zh-CN.md)
+
+Creative Capability Kit is the first Yggdrasil-native extraction of mature headless creative/RP workflows into general official capability packages.
+
+TavernHeadless informed the edge cases, but the official packages are not `tavern-*` wrappers:
+
+- `official/persona-lab` handles persona-like structured profiles.
+- `official/knowledge-lab` handles structured knowledge collections and match traces.
+- `official/context-lab` handles bounded context block assembly and budget diagnostics.
+- `official/text-transform-lab` handles deterministic text transform previews and pipeline explanations.
+
+## Rules
+
+- The kernel does not know persona, knowledge, prompt, worldbook, chat, character, or model-call concepts.
+- The packages are ordinary manifest/capability/surface packages.
+- Compatibility input formats are adapters and fixtures, not canonical Yggdrasil ontology.
+- Mutation must be represented as explicit asset/projection/proposal plans, not hidden package state writes.
+- Outputs should include provenance and diagnostics.
+
+## Reference tracking
+
+`integrations/tavern-headless/` records the reviewed TavernHeadless commit, capability map, and compact fixtures. Use it as a review ledger when TavernHeadless changes.
+
+The decision vocabulary is:
+
+- `adapted`: generalized into a Yggdrasil package.
+- `adapter_only`: useful for import/export, not canonical.
+- `deferred`: valuable but not yet part of this kit.
+- `rejected`: intentionally not inherited.
+
+## Typical flow
+
+1. Import a profile-like payload with `official/persona-lab/import_profile`.
+2. Import a knowledge collection with `official/knowledge-lab/import_collection`.
+3. Match knowledge entries with `official/knowledge-lab/match_entries`.
+4. Assemble generic context blocks with `official/context-lab/assemble_preview`.
+5. Preview deterministic transforms with `official/text-transform-lab/apply_preview`.
+6. If persistence is desired, create an approval-gated proposal that writes assets or rebuilds projections through public protocol.
+
+The flow is intentionally package-level. A third-party package can replace any official lab by exposing compatible capabilities and surfaces.

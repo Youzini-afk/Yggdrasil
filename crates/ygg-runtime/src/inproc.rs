@@ -253,6 +253,68 @@ impl InprocPackage for OfficialFoundationPackage {
                 "input_keys": request.input.as_object().map(|object| object.keys().cloned().collect::<Vec<_>>()).unwrap_or_default(),
                 "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
             }))
+        } else if request.provider_package_id == "official/text-transform-lab" && id.ends_with("/import_rules") {
+            let rules = request.input.get("rules").cloned().unwrap_or_else(|| request.input.clone());
+            let count = rules.as_array().map(|rules| rules.len()).unwrap_or(0);
+            Ok(serde_json::json!({
+                "kind": "text_transform_profile",
+                "rules": rules,
+                "rule_count": count,
+                "diagnostics": {"warnings": []},
+                "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+            }))
+        } else if request.provider_package_id == "official/text-transform-lab" && id.ends_with("/validate_rules") {
+            let rules = request.input.get("rules").and_then(Value::as_array).cloned().unwrap_or_default();
+            let diagnostics: Vec<Value> = rules
+                .iter()
+                .enumerate()
+                .filter_map(|(index, rule)| {
+                    if rule.get("find").or_else(|| rule.get("findRegex")).is_none() {
+                        Some(serde_json::json!({"index": index, "severity": "warning", "message": "missing find pattern"}))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            Ok(serde_json::json!({"kind": "text_transform_validation", "valid": diagnostics.is_empty(), "diagnostics": diagnostics}))
+        } else if request.provider_package_id == "official/text-transform-lab" && id.ends_with("/apply_preview") {
+            let mut output = request.input.get("text").and_then(Value::as_str).unwrap_or_default().to_string();
+            let mut trace = Vec::new();
+            if let Some(rules) = request.input.get("rules").and_then(Value::as_array) {
+                for rule in rules {
+                    if rule.get("disabled").and_then(Value::as_bool).unwrap_or(false) {
+                        trace.push(serde_json::json!({"rule": rule.get("id").or_else(|| rule.get("scriptName")).cloned().unwrap_or(Value::Null), "applied": false, "reason": "disabled"}));
+                        continue;
+                    }
+                    let pattern = rule.get("find").or_else(|| rule.get("findRegex")).and_then(Value::as_str).unwrap_or_default();
+                    let replacement = rule.get("replace").or_else(|| rule.get("replaceString")).and_then(Value::as_str).unwrap_or_default();
+                    let simple_pattern = pattern.trim_start_matches('/').split('/').next().unwrap_or(pattern);
+                    let before = output.clone();
+                    output = output.replace(simple_pattern, replacement);
+                    trace.push(serde_json::json!({"rule": rule.get("id").or_else(|| rule.get("scriptName")).cloned().unwrap_or(Value::Null), "applied": before != output, "pattern": simple_pattern}));
+                }
+            }
+            Ok(serde_json::json!({
+                "kind": "text_transform_preview",
+                "input": request.input.get("text").cloned().unwrap_or(Value::Null),
+                "output": output,
+                "trace": trace,
+                "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+            }))
+        } else if request.provider_package_id == "official/text-transform-lab" && id.ends_with("/explain_pipeline") {
+            Ok(serde_json::json!({
+                "kind": "text_transform_pipeline",
+                "rules": request.input.get("rules").cloned().unwrap_or_else(|| serde_json::json!([])),
+                "execution": "deterministic_ordered_preview",
+                "safety": "preview_only_no_mutation",
+                "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+            }))
+        } else if request.provider_package_id == "official/text-transform-lab" && id.ends_with("/compat_report") {
+            Ok(serde_json::json!({
+                "kind": "text_transform_compat_report",
+                "input_format": request.input.get("format").and_then(Value::as_str).unwrap_or("unknown"),
+                "diagnostics": ["regex-like compatibility rules are imported into generic transform profiles"]
+            }))
         } else if id.ends_with("/describe") {
             Ok(serde_json::json!({
                 "package_id": request.provider_package_id,
