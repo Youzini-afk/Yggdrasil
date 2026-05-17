@@ -66,7 +66,7 @@ Validation:
 - Engine selection diagnostics visible in Assistant proof (preference, availability, fallback reason badges).
 - No kernel/package/protocol changes.
 
-## Phase T4 — Forge/Assistant stream text integration
+## Phase T4 — Forge/Assistant stream text integration ✅ COMPLETE
 
 Goals:
 
@@ -74,10 +74,21 @@ Goals:
 - Add a bounded Forge text preview for stream/proposal/tool/audit-like long text without replacing JSON inspectors.
 - Keep Play unchanged except for documented future optional hint design.
 
+Delivered:
+
+- **`text-preview.ts`**: Text preview helper that extracts safe plain-text previews from arbitrary event payloads, stream frames, and proposal-like objects. Supports `kernel/stream.chunk`, `kernel/stream.progress`, `kernel/stream.error`, `kernel/stream.cancelled`, `kernel/stream.timeout` event payloads; common payload fields (`text`, `message`, `summary`, `reason`, `content`); proposal `expected_effects`/`operations` long string fields. No model/agent semantics. Uses the active text engine (or fallback) for line/height estimation. Exports `extractEventPreview`, `extractProposalPreview`, `kindBadgeLabel`, plus `TextPreviewKind` and `TextPreviewResult` types.
+- **`forge.ts` (T4 additions)**: `renderEvent` now shows an optional `<details class="text-preview-details">` below the existing JSON `<code>` when a stream payload or long text field is detected. The preview shows escaped plain text, line/height estimate, engine name, and kind badge. `renderProposal` adds a similar `<details>` for proposal text preview (effects/operations), preserving the original "Inspect proposal" JSON details.
+- **`styles.css` (T4 additions)**: `.text-preview-details`, `.text-preview-panel`, `.text-preview-meta`, `.text-preview-stage` CSS classes. Compact, non-intrusive styling consistent with existing Forge event rows.
+- **`index.ts`**: Updated re-exports for T4 `TextPreviewKind`, `TextPreviewResult`, `extractEventPreview`, `extractProposalPreview`, `kindBadgeLabel`.
+- **`clients/web/README.md`**: Updated with T4 section documenting text-preview helper, Forge event/proposal preview, and CSS additions.
+- **`integrations/pretext/ui-map.yaml`**: Updated to T4-alpha-1 with text-preview entries and updated constraint.
+
 Validation:
 
-- Web TypeScript passes.
+- `tsc -p clients/web/tsconfig.json --noEmit` passes.
 - UI behavior remains public-protocol-only.
+- No kernel/package/protocol changes.
+- Play unchanged.
 
 ## Phase T5 — SDK extraction, tests, and hardening
 

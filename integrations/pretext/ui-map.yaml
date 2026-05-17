@@ -4,8 +4,8 @@
 # the lightweight adapter/fallback skeleton in clients/web/src/text-layout.
 
 ledger:
-  version: "T3-alpha-1"
-  status: "optional-pretext-engine"
+  version: "T4-alpha-1"
+  status: "optional-pretext-engine-forge-preview"
   kernel_scope: "none"
   package_scope: "none"
   protocol_scope: "none"
@@ -95,6 +95,42 @@ stream_adapter:
       - "cancelled"
       - "timeout"
 
+text_preview:
+  - helper: "extractEventPreview"
+    path: "clients/web/src/text-layout/text-preview.ts"
+    note: "Extracts safe plain-text preview from event payloads. Supports kernel/stream.* events and common payload fields (text, message, summary, reason, content). Uses active text engine for line/height estimation."
+    supported_kinds:
+      - "stream-chunk"
+      - "stream-progress"
+      - "stream-error"
+      - "stream-cancelled"
+      - "stream-timeout"
+      - "payload-field"
+
+  - helper: "extractProposalPreview"
+    path: "clients/web/src/text-layout/text-preview.ts"
+    note: "Extracts text preview from proposal expected_effects/operations long string fields. No model/agent semantics."
+    supported_kinds:
+      - "proposal-effects"
+      - "proposal-operations"
+
+  - helper: "kindBadgeLabel"
+    path: "clients/web/src/text-layout/text-preview.ts"
+    note: "Returns human-readable badge label for a TextPreviewKind."
+
+forge_preview:
+  - component: "Forge Event Text Preview"
+    location: "Forge Events section"
+    path: "clients/web/src/surfaces/forge.ts → renderEvent()"
+    purpose: "Optional <details> with preview text, line/height estimate, engine name, and kind badge below existing JSON <code>. Does not replace JSON inspector."
+    css_class: "text-preview-details"
+
+  - component: "Forge Proposal Text Preview"
+    location: "Forge Proposals section"
+    path: "clients/web/src/surfaces/forge.ts → renderProposal()"
+    purpose: "Optional <details> with preview text for proposal effects/operations. Does not replace 'Inspect proposal' JSON details."
+    css_class: "text-preview-details"
+
 streaming_proof:
   - component: "MockStreamingTextProof"
     location: "Assistant Drawer"
@@ -129,6 +165,8 @@ constraints:
   - "PretextTextEngine.initialize() throws diagnostic error if module unavailable; registry falls back to FallbackTextEngine."
   - "Engine preference supports auto/fallback/pretext (URL, localStorage, global env)."
   - "Default is auto: use Pretext if available, otherwise fallback."
-  - "Proof stays inside Assistant Drawer; does not rewrite Play/Forge surfaces."
+  - "Proof stays inside Assistant Drawer; does not rewrite Play/Forge surfaces (T4 adds optional preview layers without replacing JSON inspectors)."
   - "FallbackTextEngine cache is bounded (default 4096 entries, FIFO eviction)."
   - "Stream adapter has no model/agent coupling."
+  - "Text preview helper (T4) has no model/agent coupling — pure payload field extraction."
+  - "Forge text preview (T4) is additive: original JSON inspectors always preserved."

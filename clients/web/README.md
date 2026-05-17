@@ -10,6 +10,7 @@ Public-protocol Home/Play, Forge, and Assist shell for the current Platform Foun
 - **Text Surface Proof (Phase T1)** is a client-side UI proof inside the Assistant Drawer. It demonstrates progressive mock-streaming text with live line/height estimates using a lightweight text-layout adapter (`src/text-layout`). This is not a kernel feature and does not depend on real model/agent calls.
 - **Optional Text Engine (Phase T2)** adds a `TextEngine` interface, engine registry, and fallback engine implementation. The Assistant Drawer now shows the active engine name, version, and state. A generic stream-frame-to-buffer adapter (`stream-adapter.ts`) is available for wiring future stream sources.
 - **Optional Pretext Engine (Phase T3)** adds an optional `PretextTextEngine` behind dynamic import, runtime engine selection with feature flags, and graceful fallback. The repo builds without installing `@chenglou/pretext`. The Assistant Drawer shows engine preference, Pretext availability, and fallback reason.
+- **Forge Text Preview (Phase T4)** adds a text preview helper that extracts safe plain-text previews from event payloads, stream frames, and proposal-like objects in the Forge surface. Events and proposals show an optional `<details>` with preview text, line/height estimates, and engine name — without replacing the existing JSON inspectors. No model/agent semantics; Play unchanged.
 
 This client uses only public host APIs:
 
@@ -107,3 +108,50 @@ The Text Surface Proof now shows additional diagnostic badges:
 - **Preference badge**: user preference (`auto`, `fallback`, `pretext`)
 - **Pretext availability badge**: whether Pretext module is loaded
 - **Fallback reason badge**: reason if preferred engine was not activated (tooltip shows full reason)
+
+## Forge Text Preview (Phase T4)
+
+Phase T4 adds optional text previews to the Forge Events and Proposals sections. These previews extract human-readable text from event payloads and proposal fields, showing it alongside (not replacing) the existing JSON inspectors.
+
+### Text preview helper (`text-preview.ts`)
+
+Extracts safe plain-text previews from:
+
+- **Stream events**: `kernel/stream.chunk`, `kernel/stream.progress`, `kernel/stream.error`, `kernel/stream.cancelled`, `kernel/stream.timeout` — extracts `text`, `message`, `summary`, `reason`, or `content` fields depending on event kind.
+- **Arbitrary payloads**: any event payload with common text fields (`text`, `message`, `summary`, `reason`, `content`) — shown when text is ≥ 40 characters.
+- **Proposal fields**: `expected_effects` and `operations` — extracts long string fields (≥ 60 characters) from proposal data.
+
+Functions:
+
+- `extractEventPreview(eventKind, payload)` — returns `TextPreviewResult` with `hasPreview`, `text`, `kind`, `lineEstimate`, `heightEstimate`, `engineName`
+- `extractProposalPreview(proposal)` — same shape, for proposal expected_effects/operations
+- `kindBadgeLabel(kind)` — human-readable label for the preview source kind
+
+The helper uses the active text engine (or fallback) for layout estimation with sensible defaults (560px max width, 20px line height, 14px Inter font).
+
+### Forge Events (T4 additions)
+
+Each event row now includes an optional `<details class="text-preview-details">` below the existing JSON `<code>`. When a stream payload or long text field is detected:
+
+- **Preview text**: escaped plain text in a scrollable `<pre>` container
+- **Line/height estimate**: badge showing `~N lines`, `~Npx`
+- **Engine badge**: which engine was used for estimation
+- **Kind badge**: the preview source (e.g. `stream:chunk`, `stream:error`, `text`)
+
+The original JSON `<code>` is always preserved.
+
+### Forge Proposals (T4 additions)
+
+Each proposal row includes an optional `<details class="text-preview-details">` below the existing "Inspect proposal" JSON details. When proposal `expected_effects` or `operations` contain long string fields:
+
+- Same preview layout as events (text, estimates, badges)
+- Kind badge shows `effects` or `operations`
+
+The original JSON inspector is always preserved.
+
+### CSS additions (T4)
+
+- `.text-preview-details` — collapsible details container, compact styling
+- `.text-preview-panel` — inner panel with subtle border and dark background
+- `.text-preview-meta` — flex row for badges (reuses `.text-proof-badge` from Assistant Drawer)
+- `.text-preview-stage` — scrollable pre container for preview text (max-height 180px)

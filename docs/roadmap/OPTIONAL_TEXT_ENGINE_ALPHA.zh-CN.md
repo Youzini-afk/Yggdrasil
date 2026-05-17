@@ -66,7 +66,7 @@
 - Assistant proof 显示 engine selection diagnostics（偏好、可用性、回退原因徽章）。
 - 未修改 kernel/package/protocol。
 
-## Phase T4 — Forge/Assistant stream text integration
+## Phase T4 — Forge/Assistant stream 文本集成 ✅ 已完成
 
 目标：
 
@@ -74,10 +74,21 @@
 - 在 Forge 增加受限文本预览，用于 stream/proposal/tool/audit-like long text，不替换 JSON inspector。
 - Play 保持不变，只记录未来 optional hint 设计。
 
+交付物：
+
+- **`text-preview.ts`**：文本预览 helper，从任意 event payload、stream frame 和 proposal-like 对象中提取安全纯文本预览。支持 `kernel/stream.chunk`、`kernel/stream.progress`、`kernel/stream.error`、`kernel/stream.cancelled`、`kernel/stream.timeout` 事件 payload；通用字段（`text`、`message`、`summary`、`reason`、`content`）；proposal `expected_effects`/`operations` 中的长 string 字段。不引入 model/agent 语义。使用活跃 text engine（或 fallback）进行 line/height 估算。导出 `extractEventPreview`、`extractProposalPreview`、`kindBadgeLabel`，以及 `TextPreviewKind` 和 `TextPreviewResult` 类型。
+- **`forge.ts`（T4 新增）**：`renderEvent` 在现有 JSON `<code>` 下方显示可选的 `<details class="text-preview-details">`，当检测到 stream payload 或长文本字段时展开。预览显示转义纯文本、line/height 估算、engine name 和 kind badge。`renderProposal` 新增类似的 `<details>` 用于 proposal 文本预览（effects/operations），保留原有"Inspect proposal" JSON 详情。
+- **`styles.css`（T4 新增）**：`.text-preview-details`、`.text-preview-panel`、`.text-preview-meta`、`.text-preview-stage` CSS 类。紧凑、不侵入的样式，与现有 Forge event row 一致。
+- **`index.ts`**：更新导出，包含 T4 的 `TextPreviewKind`、`TextPreviewResult`、`extractEventPreview`、`extractProposalPreview`、`kindBadgeLabel`。
+- **`clients/web/README.md`**：更新 T4 章节，文档化 text-preview helper、Forge event/proposal 预览和 CSS 新增。
+- **`integrations/pretext/ui-map.yaml`**：更新至 T4-alpha-1，包含 text-preview 条目和更新约束。
+
 验证：
 
-- Web TypeScript 通过。
+- `tsc -p clients/web/tsconfig.json --noEmit` 通过。
 - UI 行为仍只走 public protocol。
+- 未修改 kernel/package/protocol。
+- Play 不变。
 
 ## Phase T5 — SDK 抽取、测试与硬化
 

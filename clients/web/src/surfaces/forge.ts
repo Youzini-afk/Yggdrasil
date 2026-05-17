@@ -1,5 +1,6 @@
 import type { AssetRecord, KernelEvent, PackageRecord, ProjectionRecord, ProposalRecord, RegisteredCapability, SurfaceContributionRecord } from "../protocol/client";
 import { escapeHtml, formatJson } from "../utils/html";
+import { extractEventPreview, extractProposalPreview, kindBadgeLabel } from "../text-layout/text-preview.js";
 
 export function renderForgeSurface(input: {
   capabilities: RegisteredCapability[];
@@ -235,12 +236,20 @@ function renderSurface(record: SurfaceContributionRecord) {
 
 function renderProposal(proposal: ProposalRecord) {
   const operationCount = proposal.operations.length;
+  const preview = extractProposalPreview({
+    expected_effects: proposal.expected_effects,
+    operations: proposal.operations,
+  });
+  const previewHtml = preview.hasPreview
+    ? `<details class="text-preview-details"><summary>Proposal text preview</summary><div class="text-preview-panel"><div class="text-preview-meta"><span class="text-proof-badge">${escapeHtml(kindBadgeLabel(preview.kind))}</span><span class="text-proof-badge">~${preview.lineEstimate} line${preview.lineEstimate === 1 ? "" : "s"}</span><span class="text-proof-badge">~${preview.heightEstimate}px</span><span class="text-proof-badge">engine:${escapeHtml(preview.engineName)}</span></div><pre class="text-preview-stage">${escapeHtml(preview.text)}</pre></div></details>`
+    : "";
   return `
     <article class="event-row">
       <strong>${escapeHtml(proposal.id)} · ${escapeHtml(proposal.status)}</strong>
       <span>${operationCount} operation${operationCount === 1 ? "" : "s"}${proposal.target_session_id ? ` · ${escapeHtml(proposal.target_session_id.slice(0, 8))}` : ""}</span>
       <div class="proposal-timeline"><span class="${proposal.status === "created" ? "active" : ""}">created</span><span class="${proposal.status === "approved" ? "active" : ""}">approved</span><span class="${proposal.status === "applied" ? "active" : ""}">applied</span></div>
       <details class="surface-metadata"><summary>Inspect proposal</summary><code>${formatJson(proposal)}</code></details>
+      ${previewHtml}
       <div class="proposal-actions">
         ${proposal.status === "created" ? `<button type="button" class="button-warn" data-action="approve-proposal" data-proposal-id="${escapeHtml(proposal.id)}">Approve</button>` : ""}
         ${proposal.status === "approved" ? `<button type="button" class="button-success" data-action="apply-proposal" data-proposal-id="${escapeHtml(proposal.id)}">Apply</button>` : ""}
@@ -294,11 +303,16 @@ function mimeIcon(mime: string) {
 }
 
 function renderEvent(event: KernelEvent) {
+  const preview = extractEventPreview(event.kind, event.payload);
+  const previewHtml = preview.hasPreview
+    ? `<details class="text-preview-details"><summary>Text preview</summary><div class="text-preview-panel"><div class="text-preview-meta"><span class="text-proof-badge">${escapeHtml(kindBadgeLabel(preview.kind))}</span><span class="text-proof-badge">~${preview.lineEstimate} line${preview.lineEstimate === 1 ? "" : "s"}</span><span class="text-proof-badge">~${preview.heightEstimate}px</span><span class="text-proof-badge">engine:${escapeHtml(preview.engineName)}</span></div><pre class="text-preview-stage">${escapeHtml(preview.text)}</pre></div></details>`
+    : "";
   return `
     <article class="event-row">
       <span>#${event.sequence}</span>
       <strong>${escapeHtml(event.kind)}</strong>
       <code>${formatJson(event.payload)}</code>
+      ${previewHtml}
     </article>
   `;
 }

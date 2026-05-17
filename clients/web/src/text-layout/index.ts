@@ -1,7 +1,7 @@
 // Text Surface Proof Alpha — Public exports for the lightweight text-layout adapter.
 //
 // This module re-exports types, fallback implementations, engine abstraction,
-// registry, stream-adapter, and T3 optional Pretext engine support.
+// registry, stream-adapter, T3 optional Pretext engine support, and T4 text preview.
 
 // --- Types (unchanged) ---
 export type {
@@ -134,6 +134,17 @@ export {
   frameCancelled,
   frameTimeout,
 } from "./stream-adapter.js";
+
+// --- T4: Text preview helper ---
+export type {
+  TextPreviewKind,
+  TextPreviewResult,
+} from "./text-preview.js";
+export {
+  extractEventPreview,
+  extractProposalPreview,
+  kindBadgeLabel,
+} from "./text-preview.js";
 
 // --- Mock (unchanged) ---
 export { buildMockChunks, createMockChunkProducer, MOCK_STREAM_CHUNKS } from "./mock.js";

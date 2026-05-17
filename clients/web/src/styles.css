@@ -125,6 +125,14 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .text-proof-controls { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
 .text-proof-controls button { padding: 0.45rem 0.8rem; font-size: 0.78rem; }
 
+/* T4: Forge text preview details (Events & Proposals) */
+.text-preview-details { margin-top: 0.4rem; font-size: 0.75rem; color: #a79fc8; }
+.text-preview-details summary { cursor: pointer; color: #b8a9ff; font-size: 0.78rem; padding: 0.15rem 0; }
+.text-preview-details summary:hover { color: #9fe8ff; }
+.text-preview-panel { margin-top: 0.4rem; padding: 0.6rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.8rem; background: rgba(0,0,0,0.2); }
+.text-preview-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+.text-preview-stage { max-height: 180px; overflow: auto; padding: 0.5rem; border-radius: 0.6rem; background: rgba(255,255,255,0.04); font-family: var(--font-text-surface); font-size: 0.85rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: #e8e4f3; margin: 0; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+
 @media (max-width: 860px) {
   .surface-forge { grid-template-columns: 1fr; }
   .topbar { align-items: flex-start; flex-direction: column; }
