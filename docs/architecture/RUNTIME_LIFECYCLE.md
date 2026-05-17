@@ -1,5 +1,7 @@
 # Runtime Lifecycle
 
+> [English](./RUNTIME_LIFECYCLE.md) · [中文](./RUNTIME_LIFECYCLE.zh-CN.md)
+
 The kernel runs three lifecycles: package, session, and capability invocation. None of them describes a turn, a chat, a prompt, or any other content-shaped operation. Those belong to packages.
 
 ## Package lifecycle

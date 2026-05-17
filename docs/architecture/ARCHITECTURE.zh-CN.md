@@ -1,8 +1,8 @@
-# Architecture
+# 架构
 
 > [English](./ARCHITECTURE.md) · [中文](./ARCHITECTURE.zh-CN.md)
 
-Yggdrasil has two architectural strata: a kernel that hosts capability packages, and the packages themselves. The kernel is small and content-free. Everything meaningful lives in packages.
+Yggdrasil 有两个架构层：一个承载能力包的内核，以及能力包本身。内核很小，内容无关。一切有意义的东西都生活在能力包里。
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -38,63 +38,63 @@ Yggdrasil has two architectural strata: a kernel that hosts capability packages,
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## The two strata
+## 两个层
 
-### Kernel
+### 内核
 
-The kernel hosts capability packages and nothing else. See `PLATFORM_KERNEL.md` for the exhaustive list of responsibilities. In short: identity, sessions, opaque event log, package registry, capability fabric, extension-point dispatch, permissions, transports.
+内核只承载能力包，不干别的。完整职责清单见 `PLATFORM_KERNEL.md`。简言之：身份、session、不透明事件日志、能力包注册、capability fabric、扩展点分发、权限、transport。
 
-### Capability packages
+### 能力包
 
-Capability packages provide every meaningful concept on the platform: characters, prompts, models, agents, worlds, rules, memory, presentation, anything. See `CAPABILITY_PACKAGE.md`.
+能力包提供平台上每一个有意义的概念：角色、提示词、模型、agent、世界、规则、记忆、呈现，一切。详见 `CAPABILITY_PACKAGE.md`。
 
-Packages can be Rust in-process, subprocess, WASM, or remote. The kernel treats all four the same way.
+能力包可以是 Rust in-process、subprocess、WASM 或 remote。内核对四种一视同仁。
 
-## Boundary rules
+## 边界规则
 
-These are not preferences. They are invariants.
+这些不是偏好。这些是不变量。
 
-### 1. The kernel knows nothing about content
+### 1. 内核对内容一无所知
 
-No characters, scenes, worlds, prompts, models, turns, chats, agents, memories, games, rules, dice, inventories, or genres are part of the kernel. If a concept is meaningful to a creator or a player, it lives in a package.
+角色、场景、世界、提示词、模型、轮次、聊天、agent、记忆、游戏、规则、骰子、物品栏、类型——内核里没有这些。如果一个概念对创作者或玩家有意义，它就活在能力包里。
 
-### 2. Official packages have no privileges
+### 2. 官方包没有特权
 
-Anything an official package can do, a third-party package can do. Same manifest, same fabric, same hooks, same permission gate. There is no kernel shortcut based on package id.
+官方包能做的，第三方包都能做。同一个 manifest、同一套 fabric、同一个 hook、同一道权限闸门。不存在基于 package id 的内核捷径。
 
-### 3. Protocol-first
+### 3. 协议优先
 
-The kernel exposes one public contract. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services use the same contract. No private bypass.
+内核暴露一份公开契约。Studio、CLI、in-process 能力包、subprocess 能力包、WASM 能力包和 remote 服务使用同一份契约。没有私有旁路。
 
-### 4. Many entry forms, equal status
+### 4. 多种 entry 形式，地位平等
 
-A package can be `rust_inproc`, `subprocess`, `wasm`, or `remote`. Packaging form is implementation detail. The fabric treats them identically.
+能力包可以是 `rust_inproc`、`subprocess`、`wasm` 或 `remote`。打包形式是实现细节。fabric 对它们一视同仁。
 
-### 5. Events are the truth, but opaque to the kernel
+### 5. 事件是真相，但对内核不透明
 
-The kernel orders and persists events. It does not interpret payloads. Packages own meaning.
+内核为事件排序并持久化。它不解释 payload。意义属于能力包。
 
-### 6. Sandbox by declaration
+### 6. 声明式沙箱
 
-Side effects, network reach, filesystem reach, and cross-package calls are declared in manifest. The kernel enforces. Undeclared effects are violations.
+副作用、网络可达性、文件系统可达性、跨能力包调用——全在 manifest 中声明。内核负责执行。未声明的效果即为违规。
 
-### 7. Composition over containment
+### 7. 组合优于容纳
 
-Multiple packages can coexist in a session. There is no canonical "main experience." Conflicts are resolved by host-configured precedence, not by kernel defaults.
+多个能力包可以共存于一个 session。不存在规范的「主体验」。冲突由 host 配置的优先级解决，而非内核默认值。
 
-## What is not in this picture
+## 这张图里没有的东西
 
-Tavern is not a kernel layer. It will be a future capability package family.
+Tavern 不是内核层。它将是未来的能力包家族。
 
-pi is not a kernel layer. It would ship as a capability package.
+pi 不是内核层。它将以能力包的形式发布。
 
-Studio is not a kernel layer. It is a client of the public protocol, just like any other client. It may ship as official packages plus a UI shell.
+Studio 不是内核层。它是公开协议的客户端，和其他客户端一样。它可能以官方包加 UI shell 的形式发布。
 
-External game engines are not a kernel layer. They participate as remote-entry packages or as protocol clients.
+外部游戏引擎不是内核层。它们以 remote-entry 能力包或协议客户端的身份参与。
 
-## Repository map
+## 仓库地图
 
-The Yggdrasil Foundation Alpha workspace:
+Yggdrasil Foundation Alpha 工作区：
 
 ```text
 crates/ygg-core      kernel types: ids, schemas, manifests, principals, opaque events
@@ -109,14 +109,14 @@ profiles/            host profiles for autoloading sets of packages
 examples/            example package manifests and fixtures
 ```
 
-The kernel crates are content-free. Conversational, world, agent, memory, and model behavior — when added — arrives as ordinary capability packages and gets no kernel privilege.
+内核 crate 是内容无关的。对话、世界、agent、记忆和模型行为——在加入时——以普通能力包的形式到来，不享受内核特权。
 
-## How to read the rest of the docs
+## 如何阅读其余文档
 
-- `CHARTER.md` for the principles.
-- `PLATFORM_KERNEL.md` for what the kernel does and does not do.
-- `CAPABILITY_PACKAGE.md` for the package contract.
-- `EXTENSION_POINTS.md` for the hook contract.
-- `EVENT_MODEL.md` for the opaque event log.
-- `RUNTIME_LIFECYCLE.md` for kernel-side lifecycles.
-- `protocol/PROTOCOL_V0.md` for the public protocol.
+- `CHARTER.md` 讲原则。
+- `PLATFORM_KERNEL.md` 讲内核做什么、不做什么。
+- `CAPABILITY_PACKAGE.md` 讲能力包契约。
+- `EXTENSION_POINTS.md` 讲 hook 契约。
+- `EVENT_MODEL.md` 讲不透明事件日志。
+- `RUNTIME_LIFECYCLE.md` 讲内核侧生命周期。
+- `protocol/PROTOCOL_V0.md` 讲公开协议。

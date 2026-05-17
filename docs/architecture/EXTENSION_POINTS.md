@@ -1,5 +1,7 @@
 # Extension Points
 
+> [English](./EXTENSION_POINTS.md) · [中文](./EXTENSION_POINTS.zh-CN.md)
+
 An extension point is a named hook the kernel or a package emits during operation. Other packages may subscribe to it. The kernel routes the call; it does not assign meaning.
 
 This document covers the small set of kernel-emitted points and the rules every extension point follows.

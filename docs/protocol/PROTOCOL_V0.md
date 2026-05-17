@@ -1,5 +1,7 @@
 # Public Protocol v0
 
+> [English](./PROTOCOL_V0.md) · [中文](./PROTOCOL_V0.zh-CN.md)
+
 The kernel exposes one public protocol. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services use the same contract.
 
 There is no private bypass. Official clients use this protocol; third parties use this protocol.

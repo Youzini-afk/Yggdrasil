@@ -1,5 +1,7 @@
 # Tavern Compatibility (deferred)
 
+> [English](./TAVERN_COMPAT.md) · [中文](./TAVERN_COMPAT.zh-CN.md)
+
 This document is reserved for a future capability package family that imports SillyTavern resources and reproduces enough Tavern behavior for community content to run on Yggdrasil. It is not on the near-term path.
 
 ## Position

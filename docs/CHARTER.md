@@ -1,5 +1,7 @@
 # Yggdrasil Charter
 
+> [English](./CHARTER.md) · [中文](./CHARTER.zh-CN.md)
+
 Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
 
 It is a kernel and a contract — small, stable, opinion-free at the center — over which an open ecosystem of capability packages provides every meaningful concept.

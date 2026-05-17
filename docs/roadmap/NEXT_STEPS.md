@@ -1,5 +1,7 @@
 # Next Steps
 
+> [English](./NEXT_STEPS.md) · [中文](./NEXT_STEPS.zh-CN.md)
+
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, official foundation packages, an assistant package, a blank play-creation loop, and a public-protocol web shell with Home/Play and Forge surfaces.
 
 The next center of gravity is **not** more substrate. It is consolidation, then the first real playable experience that exercises the substrate end-to-end.

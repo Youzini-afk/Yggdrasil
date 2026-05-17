@@ -1,5 +1,7 @@
 # Platform Kernel
 
+> [English](./PLATFORM_KERNEL.md) · [中文](./PLATFORM_KERNEL.zh-CN.md)
+
 The kernel is the minimum infrastructure that lets capability packages coexist on Yggdrasil. It is small, content-free, and stable.
 
 This document fixes what the kernel does and does not do. Anything not listed as a kernel responsibility must live in a capability package.

@@ -1,5 +1,7 @@
 # Event Model
 
+> [English](./EVENT_MODEL.md) · [中文](./EVENT_MODEL.zh-CN.md)
+
 The event log is the kernel's source of truth. It is per-session, append-only, durable, and ordered.
 
 The kernel does not interpret event payloads. Meaning is owned by capability packages.

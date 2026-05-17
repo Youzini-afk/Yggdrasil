@@ -1,5 +1,7 @@
 # Platform Host Alpha
 
+> [English](./PLATFORM_HOST_ALPHA.md) · [中文](./PLATFORM_HOST_ALPHA.zh-CN.md)
+
 Platform Host Alpha is the milestone that proves Yggdrasil can host unprivileged external packages through the same public contract used by every caller. It is not a content runtime, Studio, Tavern compatibility, pi integration, or a game framework.
 
 The implemented slice is in place: a fresh host with zero official packages can load a third-party subprocess package, complete a JSON-RPC-over-stdio handshake, expose and invoke a capability through the public protocol, enforce permissions/schemas/timeouts/teardown, dispatch declared hooks for the implemented extension points, unload cleanly, and pass hostile conformance through in-process and public transport paths.

@@ -1,5 +1,7 @@
 # pi Integration (deferred)
 
+> [English](./PI_INTEGRATION.md) · [中文](./PI_INTEGRATION.zh-CN.md)
+
 This document is reserved for a future capability package family that integrates the `pi` agent framework with Yggdrasil. It is not on the near-term path.
 
 ## Position

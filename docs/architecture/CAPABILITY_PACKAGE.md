@@ -1,5 +1,7 @@
 # Capability Package Specification
 
+> [English](./CAPABILITY_PACKAGE.md) · [中文](./CAPABILITY_PACKAGE.zh-CN.md)
+
 A capability package is the unit of distribution and execution on Yggdrasil. Every concept in the platform that is not part of the kernel ships as a package.
 
 This document specifies how a package describes itself, how it loads, how it interacts with the kernel and other packages, and the rules every package follows regardless of origin.

@@ -110,32 +110,32 @@ cargo run -p ygg-cli -- sqlite-demo /tmp/ygg.db
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-## 推荐先读（开发文档为英文）
+## 推荐先读
 
-平台的核心开发文档统一以英文维护，避免双语不同步。下面这份阅读路径覆盖了内核、能力包契约、协议、状态与路线图：
+每篇开发文档都同时提供英文与简体中文版本，文件顶部的双语导航 blockquote 可在两种语言间切换。下面这份阅读路径覆盖了内核、能力包契约、协议、状态与路线图：
 
-- [`docs/CHARTER.md`](docs/CHARTER.md) —— 不变的根本原则。
-- [`docs/architecture/VISION.md`](docs/architecture/VISION.md) —— 平台为何而存在。
-- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) —— kernel + packages 两层架构。
-- [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) —— 内核做什么、不做什么。
-- [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) —— 能力包契约。
-- [`docs/architecture/EXTENSION_POINTS.md`](docs/architecture/EXTENSION_POINTS.md) —— 扩展点 / hook 契约。
-- [`docs/architecture/EVENT_MODEL.md`](docs/architecture/EVENT_MODEL.md) —— 不透明事件日志模型。
-- [`docs/architecture/RUNTIME_LIFECYCLE.md`](docs/architecture/RUNTIME_LIFECYCLE.md) —— 内核侧生命周期。
-- [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) —— 公开协议。
-- [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.md) —— 可执行的 alpha 契约矩阵。
-- [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.md) —— hostile conformance 路线图。
-- [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) —— 游创一体的产品立场。
-- [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
-- [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) —— 当前与下一阶段。
-- [`docs/roadmap/PLATFORM_HOST_ALPHA.md`](docs/roadmap/PLATFORM_HOST_ALPHA.md) —— Host Alpha + Play/Forge Surface Beta 阶段成果。
+- [`docs/CHARTER.zh-CN.md`](docs/CHARTER.zh-CN.md) —— 不变的根本原则。
+- [`docs/architecture/VISION.zh-CN.md`](docs/architecture/VISION.zh-CN.md) —— 平台为何而存在。
+- [`docs/architecture/ARCHITECTURE.zh-CN.md`](docs/architecture/ARCHITECTURE.zh-CN.md) —— kernel + packages 两层架构。
+- [`docs/architecture/PLATFORM_KERNEL.zh-CN.md`](docs/architecture/PLATFORM_KERNEL.zh-CN.md) —— 内核做什么、不做什么。
+- [`docs/architecture/CAPABILITY_PACKAGE.zh-CN.md`](docs/architecture/CAPABILITY_PACKAGE.zh-CN.md) —— 能力包契约。
+- [`docs/architecture/EXTENSION_POINTS.zh-CN.md`](docs/architecture/EXTENSION_POINTS.zh-CN.md) —— 扩展点 / hook 契约。
+- [`docs/architecture/EVENT_MODEL.zh-CN.md`](docs/architecture/EVENT_MODEL.zh-CN.md) —— 不透明事件日志模型。
+- [`docs/architecture/RUNTIME_LIFECYCLE.zh-CN.md`](docs/architecture/RUNTIME_LIFECYCLE.zh-CN.md) —— 内核侧生命周期。
+- [`docs/protocol/PROTOCOL_V0.zh-CN.md`](docs/protocol/PROTOCOL_V0.zh-CN.md) —— 公开协议。
+- [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.zh-CN.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.zh-CN.md) —— 可执行的 alpha 契约矩阵。
+- [`docs/spec/CONFORMANCE_MATRIX.zh-CN.md`](docs/spec/CONFORMANCE_MATRIX.zh-CN.md) —— hostile conformance 路线图。
+- [`docs/product/PLAY_CREATION_MODEL.zh-CN.md`](docs/product/PLAY_CREATION_MODEL.zh-CN.md) —— 游创一体的产品立场。
+- [`docs/ALPHA_STATUS.zh-CN.md`](docs/ALPHA_STATUS.zh-CN.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
+- [`docs/roadmap/NEXT_STEPS.zh-CN.md`](docs/roadmap/NEXT_STEPS.zh-CN.md) —— 当前与下一阶段。
+- [`docs/roadmap/PLATFORM_HOST_ALPHA.zh-CN.md`](docs/roadmap/PLATFORM_HOST_ALPHA.zh-CN.md) —— Host Alpha + Play/Forge Surface Beta 阶段成果。
 
 ## 延后事项
 
 下面这些方向有价值，但不属于内核。它们都将以普通能力包的形态到来。
 
-- SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
-- pi 集成 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md)。
+- SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.zh-CN.md`](docs/tavern/TAVERN_COMPAT.zh-CN.md)。
+- pi 集成 —— 见 [`docs/architecture/PI_INTEGRATION.zh-CN.md`](docs/architecture/PI_INTEGRATION.zh-CN.md)。
 - 外部游戏引擎（UE5、Godot、Unity、Web 端）—— 后续以包或 remote 入口形式接入。
 - 对话运行时、模型 provider、记忆模型、agent loop、世界模拟、director。
 - 最终视觉设计、完整 Studio、ComfyUI 风格节点编辑器、市场。

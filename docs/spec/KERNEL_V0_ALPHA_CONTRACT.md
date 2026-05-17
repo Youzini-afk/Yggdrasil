@@ -1,5 +1,7 @@
 # Kernel v0 Alpha Contract
 
+> [English](./KERNEL_V0_ALPHA_CONTRACT.md) · [中文](./KERNEL_V0_ALPHA_CONTRACT.zh-CN.md)
+
 This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents: if this matrix says a behavior is `implemented`, code and conformance must prove it; if it says `partial`, the type or API exists but behavior is incomplete; if it says `planned` or `deferred`, no caller may depend on it yet.
 
 For the executable snapshot of what runs today, see `docs/ALPHA_STATUS.md`. For the upcoming phases, see `docs/roadmap/NEXT_STEPS.md` and `docs/roadmap/PLATFORM_HOST_ALPHA.md`.

@@ -1,5 +1,7 @@
 # Play-Creation Model
 
+> [English](./PLAY_CREATION_MODEL.md) · [中文](./PLAY_CREATION_MODEL.zh-CN.md)
+
 This document fixes the product stance of Yggdrasil. The platform is not a chat tool, not a game engine, not a Tavern compatibility layer, and not a developer workbench. It is a play-creation platform whose purpose is to make AI-native experiences that did not exist before, and to keep them open to inspection, modification, and forking by the people who play them.
 
 The stance pinned here is what the kernel, the public protocol, the official packages, the web shell, and the SDKs collectively serve. When a future feature appears to push against it, the stance wins.

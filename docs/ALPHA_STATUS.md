@@ -1,5 +1,7 @@
 # Alpha Status
 
+> [English](./ALPHA_STATUS.md) · [中文](./ALPHA_STATUS.zh-CN.md)
+
 This is the living snapshot of what Yggdrasil is right now. It is updated whenever a milestone closes. It is not aspirational: every line below has code and conformance behind it (or is explicitly marked partial/deferred).
 
 For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/architecture/VISION.md`, and `docs/product/PLAY_CREATION_MODEL.md`. For where this is going, see `docs/roadmap/NEXT_STEPS.md`.

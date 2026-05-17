@@ -1,5 +1,7 @@
 # Yggdrasil Vision
 
+> [English](./VISION.md) · [中文](./VISION.zh-CN.md)
+
 Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
 
 The center of the platform is small and content-free. Everything meaningful lives in capability packages that the kernel hosts as equals.
