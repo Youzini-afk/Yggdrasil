@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
                 capability::capability_invoke(manifest, capability_id, input).await
             }
         },
-        Command::InitPackage { path, id, entry, language } => package::init_package(path, id, entry, language).await,
+        Command::InitPackage { path, id, entry, language, template } => package::init_package(path, id, entry, language, template).await,
         Command::InitComposition { path, id } => composition::init_composition(path, id).await,
         Command::Composition { command } => match command {
             CompositionCommand::Check { path } => composition::composition_check(path).await,

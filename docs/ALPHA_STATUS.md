@@ -9,7 +9,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 ## Headline
 
 - **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
-- **Conformance:** 63 named CLI cases plus crate and service unit tests.
+- **Conformance:** 68 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
 - **Next stage:** Authoring & Composition Beta+ (see `docs/roadmap/NEXT_STEPS.md`).
@@ -82,9 +82,11 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 ### Authoring
 
 - `ygg init-package` generates Python or TypeScript subprocess package skeletons. The TypeScript variant uses the SDK runtime under `sdk/typescript/subprocess`.
-- `--language typescript-experience` generates a manifest with experience-entry, play-renderer, Forge-panel, and assistant-action surface descriptors.
+- `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface` controls generated surface descriptors. Without `--template`, `--language *-experience` auto-detects a legacy 4-surface experience mode for backward compatibility; otherwise defaults to basic.
+- `--language typescript-experience` (without `--template`) still generates the original 4-surface experience descriptors for backward compatibility.
 - `ygg init-composition` and `ygg composition check` provide a local composition descriptor flow.
 - `ygg package check` and `ygg package conformance` validate generated packages locally.
+- `ygg package run-fixture` invokes all declared non-streaming capabilities with deterministic canned inputs and prints a structured JSON summary.
 - `ygg play-create-demo` orchestrates the blank play-creation loop end-to-end through ordinary public-protocol calls.
 
 ### Code organization
@@ -98,7 +100,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 63 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab, asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring, and composition descriptors.
+- `cargo run -p ygg-cli -- conformance` runs 68 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab, asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface templates), and composition descriptors.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 

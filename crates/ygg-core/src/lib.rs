@@ -24,6 +24,7 @@ pub use manifest::{
     EventPermissions, ExtensionPointDescriptor, FilesystemPermissions, HookSubscription, HookTiming,
     ManifestError, NetworkPermissions, PackageContributions, PackageEntry, PackageManifest,
     PackagePermissions, PermissionSet, RemoteAuth, SandboxPolicy, SchemaContribution,
-    SubprocessTransport,
+    SubprocessTransport, SurfaceActivation, SurfaceApprovalPolicy, SurfaceContribution,
+    SurfacePermissionRequirement, SurfaceRisk, SurfaceSlot,
 };
 pub use session::{KernelSession, SessionStatus};

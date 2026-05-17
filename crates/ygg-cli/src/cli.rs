@@ -1,8 +1,19 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use serde::Deserialize;
+
+#[derive(Debug, Clone, ValueEnum)]
+pub(crate) enum PackageTemplate {
+    Basic,
+    Experience,
+    PlayRenderer,
+    ForgePanel,
+    AssistantAction,
+    AssetEditor,
+    FullSurface,
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "ygg")]
@@ -54,6 +65,10 @@ pub(crate) enum Command {
         entry: String,
         #[arg(long, default_value = "python")]
         language: String,
+        /// Template controlling generated surfaces: basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface.
+        /// Defaults to auto-detected from --language (experience if language contains "experience", otherwise basic).
+        #[arg(long, value_enum)]
+        template: Option<PackageTemplate>,
     },
     /// Generate a local composition descriptor.
     InitComposition {
