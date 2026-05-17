@@ -10,6 +10,7 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/projection-lab`
 - `official/assistant-lab`
 - `official/blank-experience`
+- `official/playable-seed`
 
 They load through ordinary manifests, provide ordinary capabilities, and contribute ordinary surface descriptors.
 
@@ -22,3 +23,5 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 `official/assistant-lab` intentionally produces proposals that require user approval. It is not a privileged mutation path.
 
 `official/blank-experience` is a loop fixture, not a canonical game/runtime model.
+
+`official/playable-seed` is a reference playable package. It proves launch/render/inspect/propose flows without becoming a canonical game runtime.

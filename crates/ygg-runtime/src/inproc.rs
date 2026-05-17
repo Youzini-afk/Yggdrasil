@@ -193,6 +193,37 @@ impl InprocPackage for OfficialFoundationPackage {
                 "kind": "blank_experience_projection",
                 "state": request.input,
             }))
+        } else if id.ends_with("/create") && request.provider_package_id == "official/playable-seed" {
+            Ok(serde_json::json!({
+                "kind": "playable_seed",
+                "title": request.input.get("title").and_then(Value::as_str).unwrap_or("Playable Seed"),
+                "state": request.input.get("state").cloned().unwrap_or_else(|| serde_json::json!({"steps": [], "note": "reference playable seed"})),
+            }))
+        } else if id.ends_with("/launch") && request.provider_package_id == "official/playable-seed" {
+            Ok(serde_json::json!({
+                "kind": "playable_seed_launch",
+                "title": request.input.get("title").and_then(Value::as_str).unwrap_or("Playable Seed"),
+                "render_capability_id": "official/playable-seed/render_payload",
+                "forge_panel_id": "official/playable-seed/forge-panel",
+            }))
+        } else if id.ends_with("/describe_state") && request.provider_package_id == "official/playable-seed" {
+            Ok(serde_json::json!({
+                "kind": "playable_seed_state",
+                "state": request.input.get("state").cloned().unwrap_or_else(|| serde_json::json!({})),
+                "editable_through": "proposal",
+            }))
+        } else if id.ends_with("/render_payload") && request.provider_package_id == "official/playable-seed" {
+            Ok(serde_json::json!({
+                "kind": "playable_seed_render_payload",
+                "blocks": request.input.get("blocks").cloned().unwrap_or_else(|| serde_json::json!([{"type": "text", "text": "Playable Seed is running through package surfaces."}])),
+            }))
+        } else if id.ends_with("/propose_change") && request.provider_package_id == "official/playable-seed" {
+            Ok(serde_json::json!({
+                "kind": "playable_seed_change_proposal",
+                "requires_user_approval": true,
+                "recommended_operations": ["asset.put", "projection.rebuild"],
+                "proposal": request.input,
+            }))
         } else {
             Ok(serde_json::json!({"ok": true, "capability_id": request.capability_id}))
         }

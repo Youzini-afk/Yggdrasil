@@ -724,6 +724,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.composition_lab", conformance_official_composition_lab().await);
     record_case(&mut results, "official.asset_lab", conformance_official_asset_lab().await);
     record_case(&mut results, "official.projection_lab", conformance_official_projection_lab().await);
+    record_case(&mut results, "official.playable_seed", conformance_official_playable_seed().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -1917,6 +1918,48 @@ async fn conformance_official_projection_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(source.output["event_count"] == json!(1), "projection lab source event count mismatch");
+    Ok(())
+}
+
+async fn conformance_official_playable_seed() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/playable-seed/manifest.yaml")).await?).await?;
+    let launch = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/playable-seed/launch".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/playable-seed".to_string()),
+            version: None,
+            input: json!({"title": "Conformance Seed"}),
+        })
+        .await?;
+    anyhow::ensure!(launch.output["kind"] == json!("playable_seed_launch"), "playable seed launch returned wrong kind");
+    let render = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/playable-seed/render_payload".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/playable-seed".to_string()),
+            version: None,
+            input: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(render.output["kind"] == json!("playable_seed_render_payload"), "playable seed render returned wrong kind");
+    let proposal = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/playable-seed/propose_change".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/playable-seed".to_string()),
+            version: None,
+            input: json!({"change": "add one seed block"}),
+        })
+        .await?;
+    anyhow::ensure!(proposal.output["requires_user_approval"] == json!(true), "playable seed change must require approval");
+    let surfaces = runtime.list_surface_contributions(Some("experience_entry".to_string())).await;
+    let has_entry = surfaces
+        .as_array()
+        .map(|records| records.iter().any(|record| record["package_id"] == json!("official/playable-seed")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_entry, "playable seed entry surface missing");
     Ok(())
 }
 
