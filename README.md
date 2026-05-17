@@ -61,6 +61,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- demo
 cargo run -p ygg-cli -- sqlite-demo /tmp/ygg.db
 cargo run -p ygg-cli -- manifest validate examples/packages/echo-rust-inproc/manifest.yaml
+cargo run -p ygg-cli -- manifest validate examples/packages/thirdparty-surface-fixture/manifest.yaml
 cargo run -p ygg-cli -- package load examples/packages/echo-rust-inproc/manifest.yaml
 cargo run -p ygg-cli -- package check examples/packages/echo-subprocess-python/manifest.yaml
 cargo run -p ygg-cli -- package conformance examples/packages/echo-subprocess-python/manifest.yaml

@@ -69,7 +69,7 @@ Current named conformance coverage: 47 CLI cases plus crate/service unit tests.
 | service | SSE event subscribe endpoint replays and tails events | implemented |
 | host | diagnostics reports packages/capabilities/hooks | implemented |
 | host | profile autoload loads configured packages | implemented |
-| surfaces | package-contributed surface descriptors can be listed and filtered | implemented |
+| surfaces | package-contributed typed surface descriptors can be listed, described, and filtered | implemented |
 | official packages | foundation packages load and invoke without privilege | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |

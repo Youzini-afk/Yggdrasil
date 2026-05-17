@@ -690,12 +690,30 @@ where
                     contributions.push(json!({
                         "package_id": package.id,
                         "entry_kind": package.entry_kind,
+                        "package_state": package.state,
                         "surface": contribution,
                     }));
                 }
             }
         }
         json!(contributions)
+    }
+
+    pub async fn describe_surface_contribution(&self, surface_id: &str) -> anyhow::Result<Value> {
+        let packages = self.list_packages().await;
+        for package in packages {
+            for contribution in &package.manifest.contributes.surfaces {
+                if contribution.id == surface_id {
+                    return Ok(json!({
+                        "package_id": package.id,
+                        "entry_kind": package.entry_kind,
+                        "package_state": package.state,
+                        "surface": contribution,
+                    }));
+                }
+            }
+        }
+        anyhow::bail!("surface contribution '{surface_id}' not found")
     }
 
     pub async fn grant_permission(
@@ -984,6 +1002,13 @@ where
             "kernel.surface.contribution.list" => {
                 let slot = params.get("slot").and_then(Value::as_str).map(str::to_string);
                 Ok(self.list_surface_contributions(slot).await)
+            }
+            "kernel.surface.contribution.describe" => {
+                let surface_id = params
+                    .get("surface_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.surface.contribution.describe requires surface_id"))?;
+                self.describe_surface_contribution(surface_id).await
             }
             "kernel.permission.grant" => {
                 let principal = params

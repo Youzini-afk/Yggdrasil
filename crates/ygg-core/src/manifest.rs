@@ -89,6 +89,8 @@ pub struct PackageContributions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SurfaceContribution {
     pub id: String,
+    #[serde(default = "default_surface_version")]
+    pub version: String,
     pub slot: SurfaceSlot,
     pub title: String,
     #[serde(default)]
@@ -96,12 +98,57 @@ pub struct SurfaceContribution {
     #[serde(default)]
     pub capability_id: Option<CapabilityId>,
     #[serde(default)]
+    pub activation: SurfaceActivation,
+    #[serde(default)]
+    pub required_permissions: Vec<SurfacePermissionRequirement>,
+    #[serde(default)]
+    pub approval_policy: Option<SurfaceApprovalPolicy>,
+    #[serde(default)]
     pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SurfaceActivation {
+    #[serde(default)]
+    pub launch_capability_id: Option<CapabilityId>,
+    #[serde(default)]
+    pub session_template: Value,
+    #[serde(default)]
+    pub input_schema: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SurfacePermissionRequirement {
+    pub permission: String,
+    #[serde(default)]
+    pub scope: Option<String>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub risk: SurfaceRisk,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceRisk {
+    #[default]
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceApprovalPolicy {
+    None,
+    UserApproval,
+    ForkThenApprove,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SurfaceSlot {
+    ExperienceEntry,
     HomeCard,
     PlayRenderer,
     ForgePanel,
@@ -254,12 +301,29 @@ impl PackageManifest {
         }
         for surface in &self.contributes.surfaces {
             validate_namespaced_id(&surface.id)?;
+            if surface.title.trim().is_empty() {
+                return Err(ManifestError::InvalidSurface(surface.id.clone()));
+            }
+            validate_semver_like(&surface.version)?;
             if let Some(capability_id) = &surface.capability_id {
                 validate_namespaced_id(capability_id)?;
+            }
+            if let Some(capability_id) = &surface.activation.launch_capability_id {
+                validate_namespaced_id(capability_id)?;
+            }
+            validate_schema_shape(&surface.activation.input_schema)?;
+            for requirement in &surface.required_permissions {
+                if requirement.permission.trim().is_empty() {
+                    return Err(ManifestError::InvalidSurface(surface.id.clone()));
+                }
             }
         }
         Ok(())
     }
+}
+
+fn default_surface_version() -> String {
+    "0.1.0".to_string()
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -272,6 +336,8 @@ pub enum ManifestError {
     InvalidVersion(String),
     #[error("invalid schema shape: {0}")]
     InvalidSchema(String),
+    #[error("invalid surface contribution: {0}")]
+    InvalidSurface(String),
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {

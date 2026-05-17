@@ -1070,20 +1070,31 @@ async fn conformance_host_profile_autoload() -> anyhow::Result<()> {
 async fn conformance_surface_contribution_list() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(read_manifest(PathBuf::from("examples/packages/echo-rust-inproc/manifest.yaml")).await?).await?;
+    runtime.load_package(read_manifest(PathBuf::from("examples/packages/thirdparty-surface-fixture/manifest.yaml")).await?).await?;
     let all = runtime
         .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(all.as_array().map(|items| items.len()).unwrap_or(0) == 1, "surface contribution was not listed");
-    let home = runtime
+    anyhow::ensure!(all.as_array().map(|items| items.len()).unwrap_or(0) >= 5, "surface contributions were not listed");
+    let entries = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
             "kernel.surface.contribution.list",
-            json!({"slot": "home_card"}),
+            json!({"slot": "experience_entry"}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(home[0]["surface"]["id"] == json!("example/echo-rust-inproc/home-card"), "surface slot filter failed");
+    anyhow::ensure!(entries[0]["package_id"] == json!("thirdparty/surface-fixture"), "third-party entry surface missing");
+    anyhow::ensure!(entries[0]["surface"]["activation"]["launch_capability_id"] == json!("thirdparty/surface-fixture/start"), "entry launch capability missing");
+    let described = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.surface.contribution.describe",
+            json!({"surface_id": "thirdparty/surface-fixture/assist"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(described["surface"]["approval_policy"] == json!("fork_then_approve"), "assistant action policy missing");
     Ok(())
 }
 

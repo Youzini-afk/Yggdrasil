@@ -58,7 +58,8 @@ The alpha goal is not a playable experience. The goal is a falsifiable, content-
 | `kernel.host.diagnostics` | partial | Returns package/capability/hook counts and package records for local host observability. |
 | `kernel.host.principal` | planned | Identity provider integration deferred. |
 | `kernel.permission.grant/revoke/list/audit` | partial | Host-dev callers can grant/revoke scoped permissions to human or assistant principals, list grants, and inspect grant/revoke audit events. Durable grant rehydration and full resource policy coverage remain next. |
-| `kernel.surface.contribution.list` | partial | Lists package-declared surface descriptors for Home/Play, Forge, asset editor, and assistant slots. The kernel stores descriptors only; UI rendering and content semantics remain package/client work. |
+| `kernel.surface.contribution.list` | partial | Lists typed package-declared surface descriptors for experience entry, Home/Play, Forge, asset editor, and assistant slots. The kernel stores descriptors only; UI rendering and content semantics remain package/client work. |
+| `kernel.surface.contribution.describe` | partial | Describes one declared surface contribution by id. |
 
 ## Kernel event kind matrix
 

@@ -226,9 +226,12 @@ Packages may declare UI surface descriptors in their manifests. The kernel does 
 
 ```text
 kernel.surface.contribution.list
+kernel.surface.contribution.describe
 ```
 
-Initial slots are `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
+Initial slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
+
+Surface descriptors may include a version, launch capability, session template, input schema, permission UX metadata, and an approval policy. These remain descriptors; the kernel does not turn them into built-in experience/game semantics.
 
 ## Versioning
 

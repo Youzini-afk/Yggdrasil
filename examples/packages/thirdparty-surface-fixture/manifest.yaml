@@ -1,0 +1,80 @@
+schema_version: 1
+id: thirdparty/surface-fixture
+version: 0.1.0
+display_name: Third-Party Surface Fixture
+description: Ordinary package proving Play/Home, Forge, and Assist surface descriptors are not official-only.
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  symbol: register
+  abi_version: 1
+provides:
+  - id: thirdparty/surface-fixture/start
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/surface-fixture/inspect
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: thirdparty/surface-fixture/suggest
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: thirdparty/surface-fixture/entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Third-Party Blank Entry
+      description: Launchable entry declared by a non-official package.
+      capability_id: thirdparty/surface-fixture/start
+      activation:
+        launch_capability_id: thirdparty/surface-fixture/start
+        session_template:
+          labels: [thirdparty, surface-fixture]
+        input_schema: {}
+      required_permissions:
+        - permission: capabilities.invoke
+          scope: thirdparty/surface-fixture
+          reason: Start the fixture experience through its package capability.
+          risk: low
+      approval_policy: user_approval
+      metadata:
+        card_kind: fixture
+    - id: thirdparty/surface-fixture/play
+      version: 0.1.0
+      slot: play_renderer
+      title: Third-Party Play Renderer
+      capability_id: thirdparty/surface-fixture/start
+    - id: thirdparty/surface-fixture/forge
+      version: 0.1.0
+      slot: forge_panel
+      title: Third-Party Forge Inspector
+      capability_id: thirdparty/surface-fixture/inspect
+    - id: thirdparty/surface-fixture/assist
+      version: 0.1.0
+      slot: assistant_action
+      title: Third-Party Assistant Suggestion
+      capability_id: thirdparty/surface-fixture/suggest
+      approval_policy: fork_then_approve
+permissions:
+  events:
+    read: true
+    append: true
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
