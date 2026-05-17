@@ -1,0 +1,25 @@
+{
+  "consumer_slot": "play.primary",
+  "scope": "session",
+  "bindings": [
+    {
+      "profile_id": "profile/local-openai-compatible",
+      "priority": 10,
+      "purpose": "interactive_generation",
+      "fallback": false
+    },
+    {
+      "profile_id": "profile/google-gemini-fixture",
+      "priority": 5,
+      "purpose": "interactive_generation",
+      "fallback": true
+    }
+  ],
+  "params": {
+    "temperature": 0.7,
+    "max_output_tokens": 512,
+    "provider_options": {
+      "openai": { "reasoning_effort": "low" }
+    }
+  }
+}

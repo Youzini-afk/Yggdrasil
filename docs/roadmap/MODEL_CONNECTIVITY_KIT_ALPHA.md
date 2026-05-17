@@ -88,6 +88,8 @@ TavernHeadless behavior is reference material. Yggdrasil uses a native package m
 
 Add a model connectivity map and compact fixtures under `integrations/tavern-headless/`.
 
+Delivered files include `model-connectivity-map.yaml`, fixture provider profiles, and route binding fixtures. They contain only secret references, never real keys.
+
 Acceptance:
 
 - reference map targets `official/model-connector-lab` and `official/model-routing-lab`;

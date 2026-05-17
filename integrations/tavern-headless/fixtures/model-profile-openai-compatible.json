@@ -1,0 +1,10 @@
+{
+  "id": "profile/local-openai-compatible",
+  "provider_family": "openai-compatible",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "model_id": "local-fixture-model",
+  "secret_ref": "env:LOCAL_OPENAI_COMPATIBLE_KEY",
+  "display_name": "Local OpenAI-compatible fixture",
+  "capabilities": ["text_generation"],
+  "verification_level": "not_verified"
+}

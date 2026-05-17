@@ -16,6 +16,8 @@ Yggdrasil adapts those lessons into general official capability packages:
 - `official/knowledge-lab`
 - `official/context-lab`
 - `official/text-transform-lab`
+- `official/model-connector-lab`
+- `official/model-routing-lab`
 
 No product package in this track should be named `tavern-*`. Compatibility fixtures are inputs for validation, not canonical schemas.
 
@@ -30,3 +32,7 @@ When TavernHeadless changes:
 5. Run Yggdrasil conformance before changing package claims.
 
 The goal is not bit-for-bit parity. The goal is to avoid forgetting useful edge cases while keeping Yggdrasil’s abstractions broader than Tavern.
+
+## Model connectivity note
+
+`model-connectivity-map.yaml` tracks provider/profile and instance-routing lessons from TavernHeadless. Model Connectivity Kit Alpha remains no-network and no-inference: discovery outputs are plans, profile validation is structural, and secrets are represented by references only.

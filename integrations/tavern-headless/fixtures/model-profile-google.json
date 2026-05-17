@@ -1,0 +1,10 @@
+{
+  "id": "profile/google-gemini-fixture",
+  "provider_family": "google",
+  "base_url": "https://generativelanguage.googleapis.com",
+  "model_id": "gemini-fixture-model",
+  "secret_ref": "env:GOOGLE_API_KEY",
+  "display_name": "Google/Gemini fixture",
+  "capabilities": ["text_generation", "multimodal_hint"],
+  "verification_level": "not_verified"
+}
