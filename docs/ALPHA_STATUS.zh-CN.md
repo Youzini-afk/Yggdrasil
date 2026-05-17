@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1。
 - **Conformance：** 98 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** Secure Execution Substrate Phase T1（Pretext-inspired text surface proof）。
+- **下一阶段：** Secure Execution Substrate final cleanup。
 
 ## 已实现
 
@@ -92,6 +92,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - Home 发现 `experience_entry` surface，通过包声明的 launch 能力启动 session，支持 session fork。
 - Forge 检查事件、能力、asset、projection、proposal 和 Forge-panel surface contributions，提供 proposal 的 approve/apply 控制。
 - 没有官方包硬编码。Shell 和其他客户端一样是公开协议客户端。
+- **Text Surface Proof（Phase T1）**：Assistant Drawer 中加入受限 mock streaming text proof，使用 `clients/web/src/text-layout/`。它展示渐进 mock chunks、行数/高度估算、stream 生命周期徽章和 reset/replay 控件。不调用真实 agent/model，不出网，不改变 kernel/package/protocol surface。
 
 ### 创作
 

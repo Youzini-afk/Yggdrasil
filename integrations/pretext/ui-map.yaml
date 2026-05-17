@@ -1,0 +1,68 @@
+# UI-Map: Pretext → Yggdrasil Web Shell Text Surface Proof
+
+# This file is a ledger, not a build artifact. It maps Pretext API concepts to
+# the lightweight adapter/fallback skeleton in clients/web/src/text-layout.
+
+ledger:
+  version: "T1-alpha-1"
+  status: "ui-proof"
+  kernel_scope: "none"
+  package_scope: "none"
+  protocol_scope: "none"
+
+api_mappings:
+  - pretext_api: "prepare(text, font, options?)"
+    adapter_api: "prepareText(text, font, options?)"
+    adapter_path: "clients/web/src/text-layout/adapter.ts"
+    note: "Opaque handle. Fallback uses canvas measureText or DOM span probe."
+
+  - pretext_api: "layout(prepared, maxWidth, lineHeight)"
+    adapter_api: "layoutPreparedText(prepared, maxWidth, lineHeight)"
+    adapter_path: "clients/web/src/text-layout/adapter.ts"
+    note: "Resize hot path. Fallback does simple word-split arithmetic."
+
+  - pretext_api: "prepareWithSegments(text, font, options?)"
+    adapter_api: "prepareTextWithSegments(text, font, options?)"
+    adapter_path: "clients/web/src/text-layout/adapter.ts"
+    note: "Rich path for manual line layout. Fallback returns basic segments."
+
+  - pretext_api: "layoutWithLines(prepared, maxWidth, lineHeight)"
+    adapter_api: "layoutPreparedTextWithLines(prepared, maxWidth, lineHeight)"
+    adapter_path: "clients/web/src/text-layout/adapter.ts"
+    note: "Materializes lines. Fallback builds lines from split words."
+
+  - pretext_api: "measureLineStats(prepared, maxWidth)"
+    adapter_api: "measureLineStats(prepared, maxWidth)"
+    adapter_path: "clients/web/src/text-layout/adapter.ts"
+    note: "Non-allocating stats. Fallback computes lineCount and maxLineWidth."
+
+  - pretext_api: "walkLineRanges(prepared, maxWidth, onLine)"
+    adapter_api: "walkLineRanges(prepared, maxWidth, onLine)"
+    adapter_path: "clients/web/src/text-layout/adapter.ts"
+    note: "Non-materializing walker. Fallback iterates split lines."
+
+streaming_proof:
+  - component: "MockStreamingTextProof"
+    location: "Assistant Drawer"
+    path: "clients/web/src/drawer/assistant.ts"
+    purpose: "Demonstrate progressive text, line/height estimates, and stream lifecycle badges without real model/agent calls."
+    redaction_states:
+      - "idle"
+      - "streaming"
+      - "ended"
+      - "reset"
+    mock_source: "clients/web/src/text-layout/mock.ts"
+
+font_policy:
+  - variable: "--font-text-surface"
+    value: "'Inter', 'Helvetica Neue', Arial, sans-serif"
+    reason: "Named font avoids system-ui canvas/DOM mismatch on macOS."
+  - variable: "--font-text-surface-mono"
+    value: "'SF Mono', 'Fira Code', monospace"
+    reason: "Monospace for diagnostics and stream metadata badges."
+
+constraints:
+  - "No Pretext dependency in clients/web/package.json yet."
+  - "Adapter must compile and run without Pretext installed."
+  - "Pretext can be wired later by replacing the fallback implementations."
+  - "Proof stays inside Assistant Drawer; does not rewrite Play/Forge surfaces."

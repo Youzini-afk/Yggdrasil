@@ -8,11 +8,11 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 
 ## Headline
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4.
-- **Conformance:** 91 named CLI cases plus crate and service unit tests.
+- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1.
+- **Conformance:** 98 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Secure Execution Substrate Phase T1 (Pretext-inspired text surface proof).
+- **Next stage:** Secure Execution Substrate Phase T2 (expanded UI substrate and conformance hardening).
 
 ## What is implemented
 
@@ -93,6 +93,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - Home discovers `experience_entry` surfaces, launches sessions through the package-declared launch capability, supports session fork.
 - Forge inspects packages, capabilities, assets, projections, proposals, events, and surface contributions, with package/capability inventory by provider, surface descriptor inventory by slot, composition/authoring diagnostics, manifest/template CLI guidance, and approve/apply controls for proposals.
 - No official-package hardcoding. The shell is a public-protocol client like any other.
+- **Text Surface Proof (Phase T1)**: A lightweight client-side text-layout adapter (`clients/web/src/text-layout`) aligned with the Pretext API shape (`prepareText`, `layoutPreparedText`, `createStreamingBuffer`). It runs without a Pretext dependency and uses a canvas-based fallback for line-breaking, line-count, and height estimates. A mock-streaming proof lives inside the Assistant Drawer: inert mock chunks display progressively with live line/height metadata and stream-lifecycle badges (`idle`/`streaming`/`ended`/`reset`). This is a UI proof only; no kernel/package/protocol changes, no real model/agent calls, no network traffic.
 
 ### Authoring
 

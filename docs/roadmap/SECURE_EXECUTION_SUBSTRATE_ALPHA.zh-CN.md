@@ -78,19 +78,26 @@
 - 暂不真实接入 `pi-agent-core`。**满足。**
 - 不做真实 model inference。**满足。**
 
-## Phase T1 — Pretext-inspired text surface proof
+## Phase T1 — Pretext-inspired text surface proof ✅
 
 目标：
 
-- 增加 `integrations/pretext` ledger，记录 Pretext 适合/不适合的场景。
-- 在 Assistant drawer 或独立 web module 中增加轻量 client-side text layout / progressive streaming proof。
-- 保持现有 Play/Forge dashboard 稳定；不重写整个 web shell。
+- 增加 `integrations/pretext` ledger，记录 Pretext 适合/不适合的场景。**已完成。**
+- 在 Assistant drawer 或独立 web module 中增加轻量 client-side text layout / progressive streaming proof。**已完成。**
+- 保持现有 Play/Forge dashboard 稳定；不重写整个 web shell。**已完成。**
+
+交付：
+
+- `integrations/pretext/README.md`、`upstream.lock.toml`、`ui-map.yaml`：记录 Pretext 参考仓库路径、MIT license、核心 API 映射（`prepare`/`layout`/`prepareWithSegments`/`layoutWithLines`/`measureLineStats`/`walkLineRanges`）、适用场景（streaming agent/model text、long text measurement、resize stability）、不适用场景（Markdown engine/kernel/package/protocol）以及 font/Canvas/system-ui 风险。
+- `clients/web/src/text-layout/`：轻量 fallback adapter skeleton，TS 类型安全，API 形状对齐 Pretext。包含 `prepareText`、`layoutPreparedText`、`prepareTextWithSegments`、`layoutPreparedTextWithLines`、`measureLineStats`、`walkLineRanges`、`createStreamingBuffer` 和 `clearAdapterCache`。不安装 `@chenglou/pretext` 也能运行，并保留未来 Pretext swap-in 点。
+- Assistant Drawer mock streaming text proof：使用 deterministic mock chunks，不接真实 agent/model，不出站联网。展示渐进文本、实时行数/高度估算、类似 `redaction_state` 的 stream 生命周期徽章（`idle`/`streaming`/`ended`/`reset`）以及 reset/replay 控件。不改变现有 drawer 行为。
+- CSS 字体变量 `--font-text-surface` 与 `--font-text-surface-mono`，避免 macOS 上 `system-ui` 测量不一致风险。
 
 非目标：
 
-- Pretext 不进入 kernel/package/protocol。
-- 不承诺完整 Markdown engine。
-- Proof 通过前不承诺正式依赖。
+- Pretext 不进入 kernel/package/protocol。**已满足。**
+- 不承诺完整 Markdown engine。**已满足。**
+- Proof 通过前不承诺正式依赖。**已满足。**
 
 ## Final phase — durable docs and cleanup
 

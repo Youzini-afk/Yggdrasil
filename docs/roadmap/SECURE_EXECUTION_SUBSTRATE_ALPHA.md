@@ -78,19 +78,26 @@ Non-goals:
 - No real `pi-agent-core` integration yet. **Met.**
 - No real model inference. **Met.**
 
-## Phase T1 — Pretext-inspired text surface proof
+## Phase T1 — Pretext-inspired text surface proof ✅
 
 Goals:
 
-- Add an `integrations/pretext` ledger documenting what Pretext is useful for and what it is not.
-- Add a lightweight client-side text layout/progressive streaming proof in the Assistant drawer or a contained web module.
-- Keep existing Play/Forge dashboards stable; do not rewrite the whole web shell.
+- Add an `integrations/pretext` ledger documenting what Pretext is useful for and what it is not. **Done.**
+- Add a lightweight client-side text layout/progressive streaming proof in the Assistant drawer or a contained web module. **Done.**
+- Keep existing Play/Forge dashboards stable; do not rewrite the whole web shell. **Done.**
+
+Deliverables:
+
+- `integrations/pretext/README.md`, `upstream.lock.toml`, `ui-map.yaml`: Reference ledger for Pretext repo path, license (MIT), core API mapping (`prepare`/`layout`/`prepareWithSegments`/`layoutWithLines`/`measureLineStats`/`walkLineRanges`), suitable scenarios (streaming agent/model text, long text measurement, resize stability), unsuitable scenarios (Markdown engine/kernel/package/protocol), and font/Canvas/system-ui risk notes.
+- `clients/web/src/text-layout/`: Lightweight fallback adapter skeleton with TS type-safe API aligned to Pretext shape. Includes `prepareText`, `layoutPreparedText`, `prepareTextWithSegments`, `layoutPreparedTextWithLines`, `measureLineStats`, `walkLineRanges`, `createStreamingBuffer`, and `clearAdapterCache`. Runs without installing `@chenglou/pretext`; a Pretext swap-in point is preserved.
+- Assistant Drawer mock streaming text proof: Uses deterministic mock chunks, no real agent/model, no outbound network. Displays progressive text, live line/height estimates, and `redaction_state`-like stream lifecycle badges (`idle`/`streaming`/`ended`/`reset`) with reset/replay controls. Does not alter existing drawer behavior.
+- CSS font variables `--font-text-surface` and `--font-text-surface-mono` to avoid `system-ui` measurement mismatch on macOS.
 
 Non-goals:
 
-- No kernel/package/protocol changes for Pretext.
-- No full Markdown engine commitment.
-- No dependency commitment until the proof shows value.
+- No kernel/package/protocol changes for Pretext. **Met.**
+- No full Markdown engine commitment. **Met.**
+- No dependency commitment until the proof shows value. **Met.**
 
 ## Final phase — durable docs and cleanup
 

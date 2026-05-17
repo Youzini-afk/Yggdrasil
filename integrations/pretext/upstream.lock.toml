@@ -1,0 +1,30 @@
+[source]
+name = "Pretext"
+path = "../pretext"
+repo = "https://github.com/chenglou/pretext.git"
+commit = "local-reference"
+root_version = "0.0.7"
+api_version = "0.0.7"
+
+[checked]
+date = "2026-05-17"
+node = "22.22.2"
+typescript = "6.0.3"
+purpose = "Text Surface Proof Alpha / Phase T1 client-side UI proof"
+
+[public_boundary]
+prepare = "src/layout.ts prepare()"
+layout = "src/layout.ts layout()"
+prepare_with_segments = "src/layout.ts prepareWithSegments()"
+layout_with_lines = "src/layout.ts layoutWithLines()"
+measure_line_stats = "src/layout.ts measureLineStats()"
+walk_line_ranges = "src/layout.ts walkLineRanges()"
+rich_inline = "src/rich-inline.ts (deferred for UI proof)"
+internal_analysis = "src/analysis.ts (not an integration boundary)"
+internal_measurement = "src/measurement.ts (not an integration boundary)"
+
+[notes]
+no_kernel_dependency = true
+no_package_protocol_dependency = true
+no_markdown_engine = true
+font_recommendation = "Use named fonts; avoid system-ui for accurate canvas/DOM parity on macOS"
