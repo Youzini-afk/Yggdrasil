@@ -121,6 +121,16 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "protocol.call_capability_in_process",
         protocol::call_capability_in_process().await,
     );
+    record_case(
+        &mut results,
+        "package.check_diagnostics",
+        subprocess::package_check_diagnostics().await,
+    );
+    record_case(
+        &mut results,
+        "package.reload_smoke",
+        subprocess::package_reload_smoke().await,
+    );
     record_case(&mut results, "hook.ordering_stable", hooks::ordering_stable().await);
     record_case(&mut results, "hook.veto_blocks_event_append", hooks::veto_blocks_event_append().await);
     record_case(&mut results, "hook.metadata_mutation_allowed", hooks::metadata_mutation_allowed().await);

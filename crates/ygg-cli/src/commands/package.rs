@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
 use serde_json::json;
+use ygg_core::PackageEntry;
 use ygg_runtime::{
     CapabilityInvocationRequest, InMemoryEventStore, Runtime, RuntimeConfig,
 };
@@ -24,7 +26,85 @@ pub(crate) async fn package_load(path: PathBuf) -> Result<()> {
 pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     let manifest = read_manifest(path).await?;
     manifest.validate_basic()?;
+
+    // Structured diagnostics
+    let entry_kind = match &manifest.entry {
+        PackageEntry::RustInproc { .. } => "rust_inproc",
+        PackageEntry::Subprocess { .. } => "subprocess",
+        PackageEntry::Wasm { .. } => "wasm",
+        PackageEntry::Remote { .. } => "remote",
+    };
+    let trust_level = match &manifest.entry {
+        PackageEntry::RustInproc { .. } => "trusted_inproc",
+        PackageEntry::Subprocess { .. } => "process_isolated",
+        PackageEntry::Wasm { .. } => "wasm_sandbox",
+        PackageEntry::Remote { .. } => "remote_boundary",
+    };
+
+    let cap_count = manifest.provides.len();
+    let mut surfaces_by_slot: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for surface in &manifest.contributes.surfaces {
+        let slot_name = match surface.slot {
+            ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+            ygg_core::SurfaceSlot::HomeCard => "home_card",
+            ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+            ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+            ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+            ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+        };
+        surfaces_by_slot
+            .entry(slot_name.to_string())
+            .or_default()
+            .push(surface.id.clone());
+    }
+
+    let perm = &manifest.permissions;
+    let permissions_summary = json!({
+        "events": {"read": perm.events.read, "append": perm.events.append},
+        "capabilities_invoke": perm.capabilities.invoke.len(),
+        "packages_call": perm.packages.call.len(),
+        "assets": {"read": perm.assets.read, "write": perm.assets.write},
+        "network_hosts": perm.network.hosts.len(),
+        "filesystem_read": perm.filesystem.read.len(),
+        "filesystem_write": perm.filesystem.write.len(),
+    });
+
+    let sandbox = &manifest.sandbox_policy;
+    let sandbox_summary = json!({
+        "cpu_quota_ms_per_invoke": sandbox.cpu_quota_ms_per_invoke,
+        "memory_mb": sandbox.memory_mb,
+        "wall_clock_ms": sandbox.wall_clock_ms,
+    });
+
+    let mut warnings: Vec<String> = Vec::new();
+    if cap_count == 0 {
+        warnings.push("package provides no capabilities".to_string());
+    }
+    if manifest.contributes.surfaces.is_empty() {
+        warnings.push("package contributes no surfaces".to_string());
+    }
+
     println!("package check: {}@{} ok", manifest.id, manifest.version);
+    println!("  entry_kind:   {}", entry_kind);
+    println!("  trust_level:  {}", trust_level);
+    println!("  capabilities: {}", cap_count);
+    println!("  surfaces:");
+    if surfaces_by_slot.is_empty() {
+        println!("    (none)");
+    } else {
+        for (slot, ids) in &surfaces_by_slot {
+            println!("    {}: {}", slot, ids.join(", "));
+        }
+    }
+    println!("  permissions:  {}", serde_json::to_string(&permissions_summary)?);
+    println!("  sandbox:      {}", serde_json::to_string(&sandbox_summary)?);
+    if !warnings.is_empty() {
+        println!("  warnings:");
+        for w in &warnings {
+            println!("    - {}", w);
+        }
+    }
+
     Ok(())
 }
 
@@ -136,6 +216,58 @@ pub(crate) async fn package_conformance(path: PathBuf) -> Result<()> {
         .await?;
     anyhow::ensure!(result.output == json!({"package_conformance": true}), "package did not echo conformance payload");
     println!("package conformance: ok");
+    Ok(())
+}
+
+/// Local dev reload/restart smoke: loads a package into an in-memory runtime,
+/// attempts restart (subprocess only), and prints before/after status and log count.
+pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
+    let manifest = read_manifest(path.clone()).await?;
+    manifest.validate_basic()?;
+
+    let entry_kind = match &manifest.entry {
+        PackageEntry::RustInproc { .. } => "rust_inproc",
+        PackageEntry::Subprocess { .. } => "subprocess",
+        PackageEntry::Wasm { .. } => "wasm",
+        PackageEntry::Remote { .. } => "remote",
+    };
+    let can_restart = matches!(manifest.entry, PackageEntry::Subprocess { .. });
+    let package_id = manifest.id.clone();
+
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+
+    // Load
+    let load_record = runtime.load_package(manifest.clone()).await?;
+    let before = runtime.package_status(&package_id).await;
+    println!("package load: {}@{} ({:?})", load_record.id, load_record.version, load_record.state);
+
+    // Logs before restart
+    let logs_before = runtime.package_logs(&package_id).await;
+    println!("logs before restart: {}", logs_before.len());
+
+    if !can_restart {
+        println!("restart: skipped (entry kind '{}' does not support restart)", entry_kind);
+        runtime.unload_package(&package_id).await?;
+        return Ok(());
+    }
+
+    // Restart
+    let restart_record = runtime.restart_package(&package_id).await?;
+    let after = runtime.package_status(&package_id).await;
+
+    // Logs after restart
+    let logs_after = runtime.package_logs(&package_id).await;
+
+    println!("restart: {}@{} ({:?})", restart_record.id, restart_record.version, restart_record.state);
+    println!("status before: {:?}", before.map(|r| r.state));
+    println!("status after:  {:?}", after.map(|r| r.state));
+    println!("logs after restart: {}", logs_after.len());
+
+    // Unload
+    runtime.unload_package(&package_id).await?;
+    println!("unloaded: {}", package_id);
+
     Ok(())
 }
 

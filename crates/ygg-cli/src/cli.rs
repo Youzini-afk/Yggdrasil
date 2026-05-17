@@ -104,6 +104,8 @@ pub(crate) enum PackageCommand {
         input: String,
     },
     Conformance { path: PathBuf },
+    /// Local dev reload/restart smoke: load package, restart if supported, print status/logs.
+    Reload { path: PathBuf },
 }
 
 #[derive(Debug, Subcommand)]

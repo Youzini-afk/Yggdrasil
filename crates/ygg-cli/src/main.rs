@@ -35,6 +35,7 @@ async fn main() -> anyhow::Result<()> {
             PackageCommand::RunFixture { path } => package::package_run_fixture(path).await,
             PackageCommand::InvokeLocal { path, capability_id, input } => package::package_invoke_local(path, capability_id, input).await,
             PackageCommand::Conformance { path } => package::package_conformance(path).await,
+            PackageCommand::Reload { path } => package::package_reload(path).await,
         },
         Command::Capability { command } => match command {
             CapabilityCommand::Invoke { manifest, capability_id, input } => {
