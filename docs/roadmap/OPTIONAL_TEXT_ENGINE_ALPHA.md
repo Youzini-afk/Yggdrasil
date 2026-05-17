@@ -90,7 +90,7 @@ Validation:
 - No kernel/package/protocol changes.
 - Play unchanged.
 
-## Phase T5 — SDK extraction, tests, and hardening
+## Phase T5 — SDK extraction, tests, and hardening ✅ COMPLETE
 
 Goals:
 
@@ -99,10 +99,25 @@ Goals:
 - Add cache limits and font-loading helpers.
 - Document third-party client usage.
 
+Delivered:
+
+- **`sdk/typescript/text-surface/index.ts`**: Pure TypeScript frontend SDK with self-contained types (no dependency on `clients/web` private modules). Exports `createTextSurfaceBuffer`, `applyStreamFrame`, `extractTextChunk`, `createScrollAnchor`, and frame constructors (`frameStart`/`frameChunk`/`frameProgress`/`frameEnd`/`frameError`/`frameCancelled`/`frameTimeout`). Types: `FontDescriptor`, `StreamingBufferState`, `TextSurfaceBuffer`, `StreamFrameKind`, `StreamFrame`, `ApplyFrameResult`, `ScrollAnchor`.
+- **`sdk/typescript/text-surface/README.md`**: Documents the SDK as a frontend SDK (not a capability package), with usage examples and API reference table.
+- **`font-helper.ts`**: Non-blocking font loading via the browser Font Loading API. `ensureTextSurfaceFontLoaded(family, testText?)` — async, non-fatal on failure. `describeFontLoadState(family)` — returns `FontLoadState` snapshot (`loaded`/`loading`/`unloaded`/`unsupported`). Batch helpers: `ensureFontsLoaded`, `describeFontLoadStates`. In non-browser contexts, all fonts report `"unsupported"`.
+- **Cache diagnostics**: `BoundedWidthCache` now exposes `fontCount`, `maxEntries`, `estimatedBytes`. Public `getCacheDiagnostics()` returns `CacheDiagnostics` snapshot (`totalEntries`, `fontCount`, `maxEntries`, `estimatedBytes`) for monitoring cache pressure.
+- **`self-test.ts`**: Lightweight self-test harness that exercises the fallback engine, registry, stream adapter, and text preview with pure TS assertions. No external test framework required. `runTextLayoutSelfTest()` returns `SelfTestResult[]`. Call from browser console.
+- **`index.ts`**: Updated re-exports for T5 — `FontLoadState`, `ensureTextSurfaceFontLoaded`, `describeFontLoadState`, `ensureFontsLoaded`, `describeFontLoadStates`, `CacheDiagnostics`, `getCacheDiagnostics`, `SelfTestResult`, `runTextLayoutSelfTest`.
+- **`clients/web/README.md`**: Updated with T5 section documenting SDK extraction, font helper, cache diagnostics, and self-test harness.
+- **`docs/ALPHA_STATUS.md`**, **`docs/ALPHA_STATUS.zh-CN.md`**, **`docs/roadmap/NEXT_STEPS.md`**, **`docs/roadmap/NEXT_STEPS.zh-CN.md`**: Updated to reflect T5 completion.
+
 Validation:
 
-- TypeScript tests pass.
+- `tsc -p clients/web/tsconfig.json --noEmit` passes.
+- `cargo test --workspace` passes.
+- `cargo run -p ygg-cli -- conformance` passes.
+- `cargo run -p ygg-cli -- play-create-demo` passes.
 - Existing Rust/conformance/play demo pass.
+- No kernel/package/protocol changes.
 
 ## Final phase — durable docs and cleanup
 

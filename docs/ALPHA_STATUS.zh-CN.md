@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5。
 - **Conformance：** 98 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** Secure Execution Substrate final cleanup。
+- **下一阶段：** Agent Infrastructure Alpha。
 
 ## 已实现
 
@@ -93,6 +93,10 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - Forge 检查事件、能力、asset、projection、proposal 和 Forge-panel surface contributions，提供 proposal 的 approve/apply 控制。
 - 没有官方包硬编码。Shell 和其他客户端一样是公开协议客户端。
 - **Text Surface Proof（Phase T1）**：Assistant Drawer 中加入受限 mock streaming text proof，使用 `clients/web/src/text-layout/`。它展示渐进 mock chunks、行数/高度估算、stream 生命周期徽章和 reset/replay 控件。不调用真实 agent/model，不出网，不改变 kernel/package/protocol surface。
+- **Optional Text Engine（Phase T2）**：`TextEngine` 接口、engine registry、带限宽缓存（4096 条）的 fallback engine、通用 stream-frame-to-buffer adapter。未修改 kernel/protocol。
+- **Optional Pretext Engine（Phase T3）**：`PretextTextEngine` 通过 dynamic import 加载，运行时 feature flags（`auto`/`fallback`/`pretext`），优雅降级。仓库无需安装 `@chenglou/pretext` 即可 build。Assistant Drawer 显示引擎偏好、Pretext 可用性和 fallback 原因。
+- **Forge Text Preview（Phase T4）**：文本预览 helper，从 event payload、stream frame 和 proposal 对象中提取安全纯文本。Forge Events 和 Proposals 中新增可选 `<details>`，含预览文本、行数/高度估算和引擎徽章。不替换 JSON inspector。
+- **SDK 抽取与硬化（Phase T5）**：`sdk/typescript/text-surface` — 纯 TypeScript 前端 SDK，提供 `createTextSurfaceBuffer`、`applyStreamFrame`、`extractTextChunk`、`createScrollAnchor`（不依赖 `clients/web`）。字体加载 helper（`ensureTextSurfaceFontLoaded`、`describeFontLoadState`）。缓存诊断（`getCacheDiagnostics` 含 `totalEntries`/`fontCount`/`maxEntries`/`estimatedBytes`）。自测模块（`runTextLayoutSelfTest`），用纯 TS 断言覆盖 fallback engine、registry、stream adapter 和 text preview。
 
 ### 创作
 

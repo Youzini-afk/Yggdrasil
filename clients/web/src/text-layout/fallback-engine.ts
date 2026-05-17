@@ -45,10 +45,10 @@ function getSharedContext(): CanvasRenderingContext2D | OffscreenCanvasRendering
 class BoundedWidthCache {
   private readonly fontCaches = new Map<string, Map<string, number>>();
   private _totalEntries = 0;
-  private readonly maxEntries: number;
+  private readonly _maxEntries: number;
 
   constructor(maxEntries = DEFAULT_MAX_CACHE_ENTRIES) {
-    this.maxEntries = maxEntries;
+    this._maxEntries = maxEntries;
   }
 
   get(font: FontDescriptor, segment: string): number | undefined {
@@ -77,8 +77,28 @@ class BoundedWidthCache {
     return this._totalEntries;
   }
 
+  get fontCount(): number {
+    return this.fontCaches.size;
+  }
+
+  get maxEntries(): number {
+    return this._maxEntries;
+  }
+
+  /** Rough memory estimate: count characters in keys + 8 bytes per entry overhead. */
+  get estimatedBytes(): number {
+    let chars = 0;
+    for (const [fontKey, fontCache] of this.fontCaches) {
+      chars += fontKey.length;
+      for (const segKey of fontCache.keys()) {
+        chars += segKey.length;
+      }
+    }
+    return chars * 2 + this._totalEntries * 8;
+  }
+
   private evictIfNeeded(): void {
-    if (this.maxEntries <= 0 || this._totalEntries <= this.maxEntries) return;
+    if (this._maxEntries <= 0 || this._totalEntries <= this._maxEntries) return;
     // Evict the oldest font-level cache entirely (simple FIFO at font level)
     const firstKey = this.fontCaches.keys().next().value;
     if (firstKey !== undefined) {
@@ -481,6 +501,36 @@ export function createStreamingBuffer(
 /** Clear the shared segment width cache. Useful on font changes. */
 export function clearAdapterCache(): void {
   clearMeasurementCache();
+}
+
+// --- Cache diagnostics (T5) ---
+
+/** Cache diagnostics snapshot. */
+export type CacheDiagnostics = {
+  /** Total number of cached width entries across all fonts. */
+  totalEntries: number;
+  /** Number of distinct font descriptors in the cache. */
+  fontCount: number;
+  /** Configured maximum cache entries (0 = unlimited). */
+  maxEntries: number;
+  /** Approximate memory estimate in bytes (rough: 2 bytes per char + map overhead). */
+  estimatedBytes: number;
+};
+
+/**
+ * Get diagnostics for the shared width measurement cache.
+ *
+ * Useful for monitoring cache pressure in production. If cache entries
+ * approach the maximum, consider calling `clearAdapterCache()` after
+ * font changes.
+ */
+export function getCacheDiagnostics(): CacheDiagnostics {
+  return {
+    totalEntries: widthCache.totalEntries,
+    fontCount: widthCache.fontCount,
+    maxEntries: widthCache.maxEntries,
+    estimatedBytes: widthCache.estimatedBytes,
+  };
 }
 
 // --- FallbackTextEngine class ---

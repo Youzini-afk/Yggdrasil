@@ -155,3 +155,46 @@ The original JSON inspector is always preserved.
 - `.text-preview-panel` — inner panel with subtle border and dark background
 - `.text-preview-meta` — flex row for badges (reuses `.text-proof-badge` from Assistant Drawer)
 - `.text-preview-stage` — scrollable pre container for preview text (max-height 180px)
+
+## SDK Extraction, Tests, and Hardening (Phase T5)
+
+Phase T5 extracts reusable text-surface helpers into `sdk/typescript/text-surface`, adds font-loading helpers, cache diagnostics, and a lightweight self-test harness.
+
+### text-surface SDK (`sdk/typescript/text-surface`)
+
+A pure TypeScript frontend SDK for third-party UIs. No dependency on `clients/web` private modules. Types are self-contained (stable minimal shapes).
+
+- `createTextSurfaceBuffer(font, lineHeight, maxWidth)` — streaming text accumulator with `append`, `end`, `reset` and lifecycle state tracking
+- `applyStreamFrame(buffer, frame)` — generic frame→buffer adapter (mirrors `feedStreamFrame` with SDK-native types)
+- `extractTextChunk(payload)` — safe plain-text extraction from arbitrary record objects
+- `createScrollAnchor(buffer, options?)` — scroll-position anchor for streaming views (tracks offset and whether at tail)
+- Frame constructors: `frameStart`, `frameChunk`, `frameProgress`, `frameEnd`, `frameError`, `frameCancelled`, `frameTimeout`
+
+### Font loading helper (`font-helper.ts`)
+
+Non-blocking font readiness checks using the browser Font Loading API:
+
+- `ensureTextSurfaceFontLoaded(family, testText?)` — async: triggers font load and resolves when ready (non-fatal on failure)
+- `describeFontLoadState(family)` — returns `FontLoadState` snapshot (`loaded`/`loading`/`unloaded`/`unsupported`)
+- `ensureFontsLoaded(families)` — batch parallel font loading
+- `describeFontLoadStates(families)` — batch state snapshots
+
+In non-browser contexts, all fonts report `"unsupported"` so callers can skip font-dependent layout gracefully.
+
+### Cache diagnostics
+
+The `BoundedWidthCache` in `fallback-engine.ts` now exposes:
+
+- `fontCount` — number of distinct font descriptors cached
+- `maxEntries` — configured maximum cache entries
+- `estimatedBytes` — rough memory estimate
+
+Public function `getCacheDiagnostics()` returns a `CacheDiagnostics` snapshot (`totalEntries`, `fontCount`, `maxEntries`, `estimatedBytes`) for monitoring cache pressure.
+
+### Self-test harness (`self-test.ts`)
+
+Lightweight test harness that exercises the fallback engine, registry, stream adapter, and text preview with pure TS assertions. No external test framework required.
+
+- `runTextLayoutSelfTest()` — runs all tests and returns `SelfTestResult[]`
+- Call from browser console: `import { runTextLayoutSelfTest } from "./text-layout/self-test"; const results = runTextLayoutSelfTest(); console.table(results);`
+- Tests cover: FallbackTextEngine construction/activation/layout, BoundedWidthCache diagnostics, Registry defaults/activation/selection, Stream adapter frame dispatch, Text preview extraction, Async initialization result

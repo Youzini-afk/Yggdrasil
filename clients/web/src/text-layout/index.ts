@@ -148,3 +148,20 @@ export {
 
 // --- Mock (unchanged) ---
 export { buildMockChunks, createMockChunkProducer, MOCK_STREAM_CHUNKS } from "./mock.js";
+
+// --- T5: Font loading helper ---
+export type { FontLoadState } from "./font-helper.js";
+export {
+  ensureTextSurfaceFontLoaded,
+  describeFontLoadState,
+  ensureFontsLoaded,
+  describeFontLoadStates,
+} from "./font-helper.js";
+
+// --- T5: Cache diagnostics ---
+export type { CacheDiagnostics } from "./fallback-engine.js";
+export { getCacheDiagnostics } from "./fallback-engine.js";
+
+// --- T5: Self-test harness ---
+export type { SelfTestResult } from "./self-test.js";
+export { runTextLayoutSelfTest } from "./self-test.js";

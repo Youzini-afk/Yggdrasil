@@ -90,7 +90,7 @@
 - 未修改 kernel/package/protocol。
 - Play 不变。
 
-## Phase T5 — SDK 抽取、测试与硬化
+## Phase T5 — SDK 抽取、测试与硬化 ✅ 已完成
 
 目标：
 
@@ -99,10 +99,25 @@
 - 增加 cache limits 和 font-loading helpers。
 - 文档记录第三方 client 用法。
 
+交付物：
+
+- **`sdk/typescript/text-surface/index.ts`**：纯 TypeScript 前端 SDK，类型自包含（不依赖 `clients/web` 私有模块）。导出 `createTextSurfaceBuffer`、`applyStreamFrame`、`extractTextChunk`、`createScrollAnchor`，以及帧构造函数（`frameStart`/`frameChunk`/`frameProgress`/`frameEnd`/`frameError`/`frameCancelled`/`frameTimeout`）。类型：`FontDescriptor`、`StreamingBufferState`、`TextSurfaceBuffer`、`StreamFrameKind`、`StreamFrame`、`ApplyFrameResult`、`ScrollAnchor`。
+- **`sdk/typescript/text-surface/README.md`**：文档标注其为前端 SDK（不是能力包），含使用示例和 API 参考表。
+- **`font-helper.ts`**：通过浏览器 Font Loading API 实现非阻塞字体加载。`ensureTextSurfaceFontLoaded(family, testText?)` — 异步、失败不致命。`describeFontLoadState(family)` — 返回 `FontLoadState` 快照（`loaded`/`loading`/`unloaded`/`unsupported`）。批量辅助：`ensureFontsLoaded`、`describeFontLoadStates`。非浏览器环境下所有字体报告 `"unsupported"`。
+- **缓存诊断**：`BoundedWidthCache` 新增 `fontCount`、`maxEntries`、`estimatedBytes` 属性。公开 `getCacheDiagnostics()` 返回 `CacheDiagnostics` 快照（`totalEntries`、`fontCount`、`maxEntries`、`estimatedBytes`），用于监控缓存压力。
+- **`self-test.ts`**：轻量自测模块，用纯 TS 断言演练 fallback engine、registry、stream adapter 和 text preview。不依赖外部测试框架。`runTextLayoutSelfTest()` 返回 `SelfTestResult[]`。可在浏览器 console 调用。
+- **`index.ts`**：更新导出，包含 T5 — `FontLoadState`、`ensureTextSurfaceFontLoaded`、`describeFontLoadState`、`ensureFontsLoaded`、`describeFontLoadStates`、`CacheDiagnostics`、`getCacheDiagnostics`、`SelfTestResult`、`runTextLayoutSelfTest`。
+- **`clients/web/README.md`**：更新 T5 章节，文档化 SDK 抽取、font helper、缓存诊断和自测模块。
+- **`docs/ALPHA_STATUS.md`**、**`docs/ALPHA_STATUS.zh-CN.md`**、**`docs/roadmap/NEXT_STEPS.md`**、**`docs/roadmap/NEXT_STEPS.zh-CN.md`**：更新以反映 T5 完成。
+
 验证：
 
-- TypeScript tests 通过。
+- `tsc -p clients/web/tsconfig.json --noEmit` 通过。
+- `cargo test --workspace` 通过。
+- `cargo run -p ygg-cli -- conformance` 通过。
+- `cargo run -p ygg-cli -- play-create-demo` 通过。
 - 现有 Rust/conformance/play demo 通过。
+- 未修改 kernel/package/protocol。
 
 ## Final phase — durable docs and cleanup
 

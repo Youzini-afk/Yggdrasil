@@ -8,11 +8,11 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 
 ## Headline
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1.
+- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5.
 - **Conformance:** 98 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Secure Execution Substrate Phase T2 (expanded UI substrate and conformance hardening).
+- **Next stage:** Agent Infrastructure Alpha.
 
 ## What is implemented
 
@@ -94,6 +94,10 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - Forge inspects packages, capabilities, assets, projections, proposals, events, and surface contributions, with package/capability inventory by provider, surface descriptor inventory by slot, composition/authoring diagnostics, manifest/template CLI guidance, and approve/apply controls for proposals.
 - No official-package hardcoding. The shell is a public-protocol client like any other.
 - **Text Surface Proof (Phase T1)**: A lightweight client-side text-layout adapter (`clients/web/src/text-layout`) aligned with the Pretext API shape (`prepareText`, `layoutPreparedText`, `createStreamingBuffer`). It runs without a Pretext dependency and uses a canvas-based fallback for line-breaking, line-count, and height estimates. A mock-streaming proof lives inside the Assistant Drawer: inert mock chunks display progressively with live line/height metadata and stream-lifecycle badges (`idle`/`streaming`/`ended`/`reset`). This is a UI proof only; no kernel/package/protocol changes, no real model/agent calls, no network traffic.
+- **Optional Text Engine (Phase T2)**: `TextEngine` interface, engine registry, fallback engine with bounded width cache (4096 entries), and generic stream-frame-to-buffer adapter. No kernel/protocol changes.
+- **Optional Pretext Engine (Phase T3)**: `PretextTextEngine` with dynamic import, runtime feature flags (`auto`/`fallback`/`pretext`), and graceful fallback. Repo builds without `@chenglou/pretext`. Assistant Drawer shows engine preference, Pretext availability, and fallback reason.
+- **Forge Text Preview (Phase T4)**: Text preview helper extracting safe plain-text from event payloads, stream frames, and proposal objects. Optional `<details>` in Forge Events and Proposals with preview text, line/height estimates, and engine badge. No replacement of JSON inspectors.
+- **SDK Extraction & Hardening (Phase T5)**: `sdk/typescript/text-surface` — pure TypeScript frontend SDK with `createTextSurfaceBuffer`, `applyStreamFrame`, `extractTextChunk`, `createScrollAnchor` (no `clients/web` dependency). Font-loading helper (`ensureTextSurfaceFontLoaded`, `describeFontLoadState`). Cache diagnostics (`getCacheDiagnostics` with `totalEntries`/`fontCount`/`maxEntries`/`estimatedBytes`). Self-test harness (`runTextLayoutSelfTest`) with pure TS assertions for fallback engine, registry, stream adapter, and text preview.
 
 ### Authoring
 
