@@ -82,4 +82,4 @@
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态以及 Creative Capability Kit Alpha 已经完成。下一条聚焦路线是 [`MODEL_CONNECTIVITY_KIT_ALPHA.md`](MODEL_CONNECTIVITY_KIT_ALPHA.md)：provider/profile metadata、secret-safe validation、discovery planning 与 route planning，不做 network calls 或 inference。之后 Phase H 继续使用官方 labs 已验证的相同接口，让第三方能力包创作与 composition 真的好用。Phase I 在后台运行，以 charter 纪律评分（无内容形态泄漏到内核，无官方特权通过任何路径泄漏）。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha 与 Model Connectivity Kit Alpha 已经完成。Phase H 是下一步：使用官方 labs 已验证的相同接口，让第三方能力包创作与 composition 真的好用。未来 model inference 仍被推迟到 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 之后。Phase I 在后台运行，以 charter 纪律评分（无内容形态泄漏到内核，无官方特权通过任何路径泄漏）。

@@ -132,6 +132,8 @@ Acceptance:
 
 Document prerequisites for future `model-inference-lab`.
 
+Delivered in [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md).
+
 Acceptance:
 
 - future inference requires secret resolution, network permission, request/response audit, streaming/cancel policy, usage accounting, redaction, and provider error taxonomy;
