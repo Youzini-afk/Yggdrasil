@@ -12,6 +12,7 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/knowledge-lab`
 - `official/context-lab`
 - `official/text-transform-lab`
+- `official/model-connector-lab`
 - `official/assistant-lab`
 - `official/blank-experience`
 - `official/playable-seed`
@@ -31,6 +32,8 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 `official/context-lab` assembles generic bounded context blocks, reports omissions and budget accounting, and renders templates without model calls or chat ontology.
 
 `official/text-transform-lab` imports, validates, previews, and explains deterministic text transform rules without mutating trusted state.
+
+`official/model-connector-lab` validates provider profiles, masks secret references, and drafts discovery plans without network calls or inference.
 
 `official/assistant-lab` intentionally produces proposals that require user approval. It is not a privileged mutation path.
 

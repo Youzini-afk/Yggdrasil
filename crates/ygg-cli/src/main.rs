@@ -729,6 +729,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "official.knowledge_lab", conformance_official_knowledge_lab().await);
     record_case(&mut results, "official.context_lab", conformance_official_context_lab().await);
     record_case(&mut results, "official.text_transform_lab", conformance_official_text_transform_lab().await);
+    record_case(&mut results, "official.model_connector_lab", conformance_official_model_connector_lab().await);
 
     let mut failed = false;
     for (name, result) in &results {
@@ -2085,6 +2086,54 @@ async fn conformance_official_text_transform_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(validation.output["valid"] == json!(false), "invalid transform rule should be reported");
+    Ok(())
+}
+
+async fn conformance_official_model_connector_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/model-connector-lab/manifest.yaml")).await?).await?;
+    let families = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-connector-lab/describe_families".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-connector-lab".to_string()),
+            version: None,
+            input: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(families.output["kind"] == json!("model_provider_families"), "model connector families wrong kind");
+    anyhow::ensure!(families.output["families"].as_array().map(|f| f.len() >= 6).unwrap_or(false), "expected declared provider families");
+    let valid = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-connector-lab/validate_profile".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-connector-lab".to_string()),
+            version: None,
+            input: json!({"provider_family": "openai-compatible", "base_url": "http://127.0.0.1:11434/v1", "model_id": "fixture", "secret_ref": "env:LOCAL_KEY"}),
+        })
+        .await?;
+    anyhow::ensure!(valid.output["valid"] == json!(true), "valid connector profile rejected");
+    anyhow::ensure!(valid.output["verification_level"] == json!("not_verified"), "connector Alpha must not claim live verification");
+    let raw_secret = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-connector-lab/validate_profile".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-connector-lab".to_string()),
+            version: None,
+            input: json!({"provider_family": "openai", "model_id": "fixture", "api_key": "sk-should-not-be-accepted"}),
+        })
+        .await?;
+    anyhow::ensure!(raw_secret.output["valid"] == json!(false), "raw secret profile should be invalid");
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-connector-lab/discovery_plan".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-connector-lab".to_string()),
+            version: None,
+            input: json!({"provider_family": "google"}),
+        })
+        .await?;
+    anyhow::ensure!(plan.output["network_performed"] == json!(false), "discovery plan must not perform network");
     Ok(())
 }
 

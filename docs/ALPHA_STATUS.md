@@ -9,7 +9,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 ## Headline
 
 - **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
-- **Conformance:** 59 named CLI cases plus crate and service unit tests.
+- **Conformance:** 60 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
 - **Next stage:** Foundation Alpha Consolidation, then Playable Experience Alpha (see `docs/roadmap/NEXT_STEPS.md`).
 
@@ -63,6 +63,7 @@ All ordinary packages. No kernel privilege. They live under `packages/official/`
 - `official/knowledge-lab` — structured knowledge collection normalization, matching, injection planning, and diagnostics.
 - `official/context-lab` — bounded context block assembly, layer inspection, budget planning, and template rendering.
 - `official/text-transform-lab` — deterministic text transform import, validation, preview, pipeline explanation, and diagnostics.
+- `official/model-connector-lab` — no-network provider family metadata, profile validation, secret masking, discovery plans, and compatibility reports.
 - `official/assistant-lab` — assistant-action capability that returns approval-gated proposals.
 - `official/blank-experience` — minimal experience used by `ygg play-create-demo` to exercise the play-creation loop.
 - `official/playable-seed` — reference playable package with entry/play/Forge/assistant surfaces.
@@ -86,7 +87,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 59 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab, asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring, and composition descriptors.
+- `cargo run -p ygg-cli -- conformance` runs 60 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab, asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring, and composition descriptors.
 - Plus crate and service unit tests under `cargo test --workspace`.
 - `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
 
