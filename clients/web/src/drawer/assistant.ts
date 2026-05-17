@@ -1,4 +1,5 @@
 import type { StreamingBufferState } from "../text-layout/types";
+import type { TextEngineInitializationResult } from "../text-layout/config";
 
 export type TextProofView = {
   text: string;
@@ -7,12 +8,18 @@ export type TextProofView = {
   height: number;
   chunkIndex: number;
   totalChunks: number;
-  /** Active engine name (new in T2). */
+  /** Active engine name (T2). */
   engineName?: string;
-  /** Active engine version (new in T2). */
+  /** Active engine version (T2). */
   engineVersion?: string;
-  /** Active engine state (new in T2). */
+  /** Active engine state (T2). */
   engineState?: string;
+  /** User preference: auto/fallback/pretext (T3). */
+  enginePreference?: string;
+  /** Fallback reason if preferred engine not active (T3). */
+  fallbackReason?: string;
+  /** Whether Pretext module is available (T3). */
+  pretextAvailable?: boolean;
 };
 
 export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open = false, textProof?: TextProofView) {
@@ -29,6 +36,15 @@ export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open
   };
   const engineBadge = proof.engineName
     ? `<span class="text-proof-badge engine-badge">engine ${escapeHtml(proof.engineName)} v${escapeHtml(proof.engineVersion ?? "?")} <span class="engine-state state-${proof.engineState}">${proof.engineState}</span></span>`
+    : "";
+  const preferenceBadge = proof.enginePreference
+    ? `<span class="text-proof-badge pref-badge">pref ${escapeHtml(proof.enginePreference)}</span>`
+    : "";
+  const pretextBadge = proof.pretextAvailable !== undefined
+    ? `<span class="text-proof-badge pretext-badge ${proof.pretextAvailable ? "pretext-available" : "pretext-unavailable"}">pretext ${proof.pretextAvailable ? "available" : "unavailable"}</span>`
+    : "";
+  const fallbackBadge = proof.fallbackReason
+    ? `<span class="text-proof-badge fallback-reason-badge" title="${escapeHtml(proof.fallbackReason)}">fallback: ${escapeHtml(truncateReason(proof.fallbackReason))}</span>`
     : "";
   return `
     <aside class="assistant-drawer ${open ? "open" : ""}" aria-label="Assist drawer">
@@ -50,6 +66,9 @@ export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open
           <div class="text-proof-panel">
             <div class="text-proof-meta">
               ${engineBadge}
+              ${preferenceBadge}
+              ${pretextBadge}
+              ${fallbackBadge}
               <span class="text-proof-badge state-${proof.state}">${proof.state}</span>
               <span class="text-proof-badge">lines ${proof.lineCount}</span>
               <span class="text-proof-badge">height ${Math.round(proof.height)}px</span>
@@ -76,4 +95,10 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** Truncate a fallback reason for display in a badge. */
+function truncateReason(reason: string, maxLen = 40): string {
+  if (reason.length <= maxLen) return reason;
+  return reason.slice(0, maxLen - 1) + "…";
 }

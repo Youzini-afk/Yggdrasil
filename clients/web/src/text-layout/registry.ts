@@ -4,12 +4,25 @@
  * Provides registerTextEngine / activateTextEngine / getActiveTextEngine /
  * getTextEngineState / selectTextEngine. Default is the fallback engine.
  *
- * Supports parsing engine preference from localStorage, URL params, or
- * environment strings — but T3 will wire these to Pretext selection.
+ * T3 adds:
+ * - `initializeTextEnginePreference()`: async init that tries to activate
+ *   the preferred engine (from URL/localStorage/env), falls back gracefully.
+ * - `getInitializationResult()`: returns the last init result for diagnostics.
+ * - `isPretextAvailable()`: checks Pretext module availability.
+ * - Enhanced `resolveEnginePreference()` now returns "auto" by default and
+ *   supports the TextEnginePreference type from config.ts.
  */
 
 import type { TextEngine, TextEngineConfig, TextEngineDiagnostics, TextEngineName, TextEngineState } from "./engine.js";
 import { FallbackTextEngine } from "./fallback-engine.js";
+import { PretextTextEngine, isPretextAvailable as checkPretextAvailable, getPretextLoadError } from "./pretext-engine.js";
+import {
+  resolveTextEnginePreference,
+  preferenceToEngineName,
+  persistTextEnginePreference,
+  type TextEnginePreference,
+  type TextEngineInitializationResult,
+} from "./config.js";
 
 // --- Registry internals ---
 
@@ -24,6 +37,9 @@ const registry = new Map<TextEngineName, RegisteredEngine>();
 let activeEngineName: TextEngineName = "fallback";
 let initialised = false;
 
+/** Track initialization result for diagnostics. */
+let lastInitResult: TextEngineInitializationResult | null = null;
+
 /** Ensure the fallback engine is always registered. */
 function ensureInit(): void {
   if (initialised) return;
@@ -34,16 +50,9 @@ function ensureInit(): void {
     config: fallback.config,
     isFallback: true,
   });
-  // Try to resolve initial preference
-  const preferred = resolveEnginePreference();
-  if (preferred && preferred !== "fallback") {
-    // Will be resolved when the preferred engine is registered later (T3)
-    activeEngineName = "fallback";
-  } else {
-    activeEngineName = "fallback";
-  }
   // Activate the fallback
   fallback.activate();
+  activeEngineName = "fallback";
 }
 
 // --- Public API ---
@@ -66,8 +75,9 @@ export function registerTextEngine(engine: TextEngine): boolean {
   });
 
   // If user preference matches this engine, activate it
-  const preferred = resolveEnginePreference();
-  if (preferred === name) {
+  const preferred = resolveTextEnginePreference();
+  const preferredName = preferenceToEngineName(preferred);
+  if (preferredName !== undefined && preferredName === name) {
     activateTextEngine(name);
   }
   return true;
@@ -100,6 +110,9 @@ export function activateTextEngine(name: TextEngineName): boolean {
 /**
  * Get the currently active TextEngine. Always returns a valid engine
  * (falls back to the built-in fallback if the active engine is removed).
+ *
+ * This is a synchronous API — it returns whatever engine is currently active.
+ * For async initialization, use `initializeTextEnginePreference()`.
  */
 export function getActiveTextEngine(): TextEngine {
   ensureInit();
@@ -178,6 +191,133 @@ export function unregisterTextEngine(name: TextEngineName): boolean {
   return removed;
 }
 
+// --- T3: Async engine initialization ---
+
+/**
+ * Asynchronously initialize the text engine based on user preference.
+ *
+ * This function:
+ * 1. Resolves the user's preferred engine from URL/localStorage/env.
+ * 2. If preference is "auto" or "pretext", attempts to load and register
+ *    the Pretext engine.
+ * 3. If Pretext loads successfully and preference allows, activates it.
+ * 4. If Pretext fails or preference is "fallback", uses the fallback engine.
+ * 5. Records the result for diagnostics.
+ *
+ * After calling this, the synchronous `getActiveTextEngine()` returns the
+ * resolved engine.
+ *
+ * This function is idempotent — calling it multiple times is safe (it will
+ * only attempt initialization once unless reset).
+ */
+export async function initializeTextEnginePreference(): Promise<TextEngineInitializationResult> {
+  ensureInit();
+
+  const preference = resolveTextEnginePreference();
+  const preferredName = preferenceToEngineName(preference) ?? "pretext"; // "auto" → try pretext first
+
+  let pretextAvailable = false;
+  let pretextLoadError: string | undefined;
+
+  // If preference is "fallback", skip Pretext entirely
+  if (preference === "fallback") {
+    const result: TextEngineInitializationResult = {
+      preference,
+      preferredEngine: "fallback",
+      activeEngine: "fallback",
+      success: true,
+      fallbackReason: undefined,
+      pretextAvailable: false,
+    };
+    lastInitResult = result;
+    return result;
+  }
+
+  // Try to load Pretext
+  const pretextEngine = new PretextTextEngine();
+  try {
+    await pretextEngine.initialize();
+    // Register the engine
+    const registered = registerTextEngine(pretextEngine);
+    if (registered) {
+      // Set error field on registry entry to null (no error)
+      const entry = registry.get("pretext");
+      if (entry) entry.error = undefined;
+    }
+    pretextAvailable = true;
+  } catch (err) {
+    pretextLoadError = err instanceof Error ? err.message : String(err);
+    // Register the engine in error state so diagnostics can report it
+    const registered = registerTextEngine(pretextEngine);
+    if (registered) {
+      const entry = registry.get("pretext");
+      if (entry) entry.error = pretextLoadError;
+    }
+    pretextAvailable = false;
+  }
+
+  // Decide which engine to activate
+  if (pretextAvailable && (preference === "auto" || preference === "pretext")) {
+    activateTextEngine("pretext");
+    const result: TextEngineInitializationResult = {
+      preference,
+      preferredEngine: preferredName,
+      activeEngine: "pretext",
+      success: true,
+      fallbackReason: undefined,
+      pretextAvailable: true,
+    };
+    lastInitResult = result;
+    return result;
+  }
+
+  // Fallback
+  const reason = pretextLoadError
+    ? `Pretext unavailable: ${pretextLoadError}`
+    : (preference === "pretext"
+      ? "Pretext explicitly requested but unavailable"
+      : "No Pretext module found; using fallback");
+
+  // Ensure fallback is active
+  activateTextEngine("fallback");
+
+  const result: TextEngineInitializationResult = {
+    preference,
+    preferredEngine: preferredName,
+    activeEngine: "fallback",
+    success: preference !== "pretext", // success if auto and fell back, failure if pretext was required
+    fallbackReason: reason,
+    pretextAvailable,
+    pretextLoadError,
+  };
+  lastInitResult = result;
+  return result;
+}
+
+/**
+ * Get the result of the last `initializeTextEnginePreference()` call.
+ * Returns null if initialization has not been called yet.
+ */
+export function getInitializationResult(): TextEngineInitializationResult | null {
+  return lastInitResult;
+}
+
+/**
+ * Check if Pretext is available (module loaded successfully).
+ * Returns true only if the Pretext module has been loaded and cached.
+ */
+export function isPretextAvailable(): boolean {
+  return checkPretextAvailable();
+}
+
+/**
+ * Get the Pretext load error, if any.
+ * Returns null if no load has been attempted or if load succeeded.
+ */
+export function getPretextAvailabilityError(): string | null {
+  return getPretextLoadError();
+}
+
 // --- Preference resolution (localStorage / URL / env string) ---
 
 const STORAGE_KEY = "ygg_text_engine";
@@ -185,9 +325,11 @@ const URL_PARAM = "text-engine";
 
 /**
  * Resolve the preferred engine name from localStorage, URL search params,
- * or environment strings. Returns undefined if no preference is set.
+ * or environment strings. Returns the engine name string or undefined.
  *
- * T3 will extend this to support Pretext feature flags.
+ * This is the legacy sync resolver that returns TextEngineName.
+ * For the richer preference resolution, use `resolveTextEnginePreference()`
+ * from config.ts.
  */
 export function resolveEnginePreference(): TextEngineName | undefined {
   // 1. URL param (highest priority, for testing)

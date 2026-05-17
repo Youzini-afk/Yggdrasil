@@ -36,7 +36,7 @@
 - 现有 Rust/conformance 检查不受影响。
 - 未修改 kernel/package/protocol。
 
-## Phase T3 — 可选 Pretext engine 与 feature flags
+## Phase T3 — 可选 Pretext engine 与 feature flags ✅ 已完成
 
 目标：
 
@@ -45,10 +45,26 @@
 - 增加 URL/localStorage/build environment fallback 运行时控制。
 - 更新 `integrations/pretext` ledger 和 client README。
 
+交付物：
+
+- **`pretext-shim.ts`**：本地类型定义，镜像 `@chenglou/pretext` API surface (v0.0.7)。定义 `PretextModuleShape` 接口用于安全的 dynamic import 类型转换。允许 TypeScript 在未安装包的情况下编译通过。
+- **`pretext-bridge.ts`**：Ygg text-layout 类型与 Pretext shapes 之间的隔离映射。选项转换（`toPretextOptions`）、结果映射（`fromPretextLayoutResult`、`fromPretextLayoutLinesResult`、`fromPretextLineStats`、`fromPretextLineRange`）和不透明句柄桥接（`bridgePrepared`、`bridgePreparedWithSegments`、`unbridgePrepared`、`unbridgePreparedWithSegments`）。真实模块不可用时，类型骨架和适配器函数仍可编译。
+- **`pretext-engine.ts`**：`PretextTextEngine implements TextEngine`，带异步 `initialize()`。使用 dynamic import 配合 unknown-safe 类型转换（`import("@chenglou/pretext")` → 转换为 `PretextModuleShape`）。模块不可用时，`initialize()` 抛出可诊断错误（含加载失败原因），供 registry 回退。导出 `isPretextAvailable()`、`getPretextLoadError()`、`resetPretextLoadState()`。
+- **`config.ts`**：运行时引擎偏好解析。`TextEnginePreference` 类型：`"auto" | "fallback" | "pretext"`。按 URL 参数 `?text-engine=`、localStorage `ygg_text_engine`、`globalThis.__YGG_TEXT_ENGINE__` 解析。默认 `"auto"`（有 Pretext 就用，没有就 fallback）。导出 `TextEngineInitializationResult`，含 preferred/active engine、fallback reason、Pretext availability。
+- **`registry.ts`（T3 新增）**：`initializeTextEnginePreference()` — 异步初始化：解析偏好，尝试加载并激活 Pretext，失败时优雅回退并记录原因。`getInitializationResult()` — 返回上次初始化结果供诊断。`isPretextEngineAvailable()` — 检查 Pretext 模块可用性。`getPretextAvailabilityError()` — 返回加载错误（如有）。原有同步 `getActiveTextEngine()` 不变。
+- **Assistant Drawer（T3 新增）**：额外诊断徽章 — 引擎偏好（`pref auto`/`pref fallback`/`pref pretext`）、Pretext 可用性（`pretext available`/`pretext unavailable`）、回退原因（tooltip 显示完整原因）。
+- **`index.ts`**：更新导出，包含所有 T3 类型和函数。
+- **`clients/web/README.md`**：更新 T3 章节，文档化 PretextTextEngine、bridge、shim、config、async init、Assistant Drawer 新增。
+- **`integrations/pretext/README.md`**：更新 T3 集成详情（shim、bridge、engine、config、registry、drawer）。
+- **`integrations/pretext/upstream.lock.toml`**：更新 T3 备注（dynamic import、fallback 保证）。
+- **`integrations/pretext/ui-map.yaml`**：更新至 T3-alpha-1，包含 bridge/shim/config/engine 条目和更新约束。
+
 验证：
 
+- `tsc -p clients/web/tsconfig.json --noEmit` 通过（未安装 `@chenglou/pretext`）。
 - Pretext 不可用时 fallback 正常工作。
-- Assistant proof 显示 engine selection diagnostics。
+- Assistant proof 显示 engine selection diagnostics（偏好、可用性、回退原因徽章）。
+- 未修改 kernel/package/protocol。
 
 ## Phase T4 — Forge/Assistant stream text integration
 

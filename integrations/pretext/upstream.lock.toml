@@ -10,7 +10,7 @@ api_version = "0.0.7"
 date = "2026-05-17"
 node = "22.22.2"
 typescript = "6.0.3"
-purpose = "Text Surface Proof Alpha / Phase T1 client-side UI proof"
+purpose = "Text Surface Proof Alpha / Phase T1–T3 client-side UI proof"
 
 [public_boundary]
 prepare = "src/layout.ts prepare()"
@@ -28,3 +28,5 @@ no_kernel_dependency = true
 no_package_protocol_dependency = true
 no_markdown_engine = true
 font_recommendation = "Use named fonts; avoid system-ui for accurate canvas/DOM parity on macOS"
+t3_dynamic_import = "PretextTextEngine uses dynamic import with unknown-safe casting; compiles without package installed"
+t3_fallback_guaranteed = "Registry falls back to FallbackTextEngine if Pretext is unavailable"

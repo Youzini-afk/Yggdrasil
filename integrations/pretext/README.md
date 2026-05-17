@@ -4,7 +4,7 @@ This directory records how Yggdrasil studies [Pretext](https://github.com/chengl
 
 ## What Pretext is
 
-Pretext (`@chenglou/pretext`) is a pure JavaScript/TypeScript library for multiline text measurement and layout. It uses the browser’s Canvas 2D text engine as ground truth and `Intl.Segmenter` for Unicode-aware segmentation, avoiding DOM-based measurements that trigger synchronous layout reflow.
+Pretext (`@chenglou/pretext`) is a pure JavaScript/TypeScript library for multiline text measurement and layout. It uses the browser's Canvas 2D text engine as ground truth and `Intl.Segmenter` for Unicode-aware segmentation, avoiding DOM-based measurements that trigger synchronous layout reflow.
 
 - **License:** MIT
 - **Path:** `/workspace/Yggdrasil/pretext` (local reference clone)
@@ -45,7 +45,7 @@ const { height, lineCount } = layout(prepared, 320, 20)
 - **Canvas 2D availability:** Headless/SSR environments without a Canvas implementation are unsupported. The web proof targets browsers only.
 - **`Intl.Segmenter` availability:** Runtimes without `Intl.Segmenter` are unsupported. Modern browsers are fine.
 - **Emoji correction:** Auto-detected per font size; font-independent constant inflation on Chrome/Firefox macOS at sizes <24px.
-- **Dependency commitment:** This is a UI proof. Pretext is not added to `clients/web/package.json` yet. The adapter module keeps a lightweight fallback path so the shell compiles and runs without the dependency.
+- **Dependency commitment:** Pretext is optional. T3 adds `PretextTextEngine` behind dynamic import. The web shell compiles and runs without `@chenglou/pretext` installed. If installed, the registry can activate it at runtime; if not, fallback is automatic.
 
 ## Integration discipline
 
@@ -58,3 +58,14 @@ When Pretext changes:
 5. Run `tsc -p clients/web/tsconfig.json --noEmit` before changing claims.
 
 The goal is not to wrap Pretext as a kernel feature. The goal is to prove that client-side streaming text surfaces can be stable, measurable, and resize-safe before committing to a dependency.
+
+## Phase T3 integration
+
+T3 adds the optional Pretext engine integration:
+
+- **`pretext-shim.ts`**: Local type definitions mirroring the Pretext API surface (v0.0.7). Allows TypeScript compilation without the package. Defines `PretextModuleShape` for safe dynamic import casting.
+- **`pretext-bridge.ts`**: Isolated mapping between Ygg text-layout types and Pretext shapes. Option/result conversion and opaque handle bridging.
+- **`pretext-engine.ts`**: `PretextTextEngine implements TextEngine` with async `initialize()`. Uses dynamic import (`import("@chenglou/pretext")`) with unknown-safe casting. If the module is unavailable, throws a diagnostic error for registry fallback.
+- **`config.ts`**: Runtime engine preference resolution (`auto|fallback|pretext`) from URL, localStorage, and global env. Default is `auto`.
+- **Registry T3 additions**: `initializeTextEnginePreference()` (async init with fallback), `getInitializationResult()`, `isPretextEngineAvailable()`.
+- **Assistant Drawer T3**: Shows engine preference, Pretext availability, and fallback reason badges.

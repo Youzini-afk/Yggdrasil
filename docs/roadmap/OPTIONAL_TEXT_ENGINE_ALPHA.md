@@ -36,7 +36,7 @@ Validation:
 - Existing Rust/conformance checks unaffected.
 - No kernel/package/protocol changes.
 
-## Phase T3 — Optional Pretext engine and feature flags
+## Phase T3 — Optional Pretext engine and feature flags ✅ COMPLETE
 
 Goals:
 
@@ -45,10 +45,26 @@ Goals:
 - Add runtime controls via URL/localStorage/build environment fallbacks.
 - Update `integrations/pretext` ledger and client README.
 
+Delivered:
+
+- **`pretext-shim.ts`**: Local type definitions mirroring the `@chenglou/pretext` API surface (v0.0.7). Defines `PretextModuleShape` interface for safe dynamic import casting. Allows TypeScript compilation without the package installed.
+- **`pretext-bridge.ts`**: Isolated mapping between Ygg text-layout types and Pretext shapes. Option conversion (`toPretextOptions`), result mapping (`fromPretextLayoutResult`, `fromPretextLayoutLinesResult`, `fromPretextLineStats`, `fromPretextLineRange`), and opaque handle bridging (`bridgePrepared`, `bridgePreparedWithSegments`, `unbridgePrepared`, `unbridgePreparedWithSegments`). If the real module is unavailable, the type skeleton and adapter functions still compile.
+- **`pretext-engine.ts`**: `PretextTextEngine implements TextEngine` with async `initialize()`. Uses dynamic import with unknown-safe casting (`import("@chenglou/pretext")` → cast to `PretextModuleShape`). If the module is unavailable, `initialize()` throws a diagnostic error with the load failure reason for registry fallback. Exports `isPretextAvailable()`, `getPretextLoadError()`, `resetPretextLoadState()`.
+- **`config.ts`**: Runtime engine preference resolution. `TextEnginePreference` type: `"auto" | "fallback" | "pretext"`. Resolved from URL param `?text-engine=`, localStorage `ygg_text_engine`, or `globalThis.__YGG_TEXT_ENGINE__`. Default is `"auto"` (use Pretext if available, otherwise fallback). Exports `TextEngineInitializationResult` with preferred/active engine, fallback reason, and Pretext availability.
+- **`registry.ts` (T3 additions)**: `initializeTextEnginePreference()` — async init that resolves preference, tries to load and activate Pretext, falls back gracefully with recorded reason. `getInitializationResult()` — returns the last init result for diagnostics. `isPretextEngineAvailable()` — checks Pretext module availability. `getPretextAvailabilityError()` — returns the load error if any. Existing sync `getActiveTextEngine()` still works unchanged.
+- **Assistant Drawer (T3 additions)**: Additional diagnostic badges — engine preference (`pref auto`/`pref fallback`/`pref pretext`), Pretext availability (`pretext available`/`pretext unavailable`), and fallback reason (with full reason in tooltip).
+- **`index.ts`**: Updated re-exports for all new T3 types and functions.
+- **`clients/web/README.md`**: Updated with T3 section documenting PretextTextEngine, bridge, shim, config, async init, and Assistant Drawer additions.
+- **`integrations/pretext/README.md`**: Updated with T3 integration details (shim, bridge, engine, config, registry, drawer).
+- **`integrations/pretext/upstream.lock.toml`**: Updated with T3 notes (dynamic import, fallback guarantee).
+- **`integrations/pretext/ui-map.yaml`**: Updated to T3-alpha-1 with bridge/shim/config/engine entries and updated constraints.
+
 Validation:
 
+- `tsc -p clients/web/tsconfig.json --noEmit` passes (without `@chenglou/pretext` installed).
 - Fallback works when Pretext is unavailable.
-- Engine selection diagnostics are visible in the Assistant proof.
+- Engine selection diagnostics visible in Assistant proof (preference, availability, fallback reason badges).
+- No kernel/package/protocol changes.
 
 ## Phase T4 — Forge/Assistant stream text integration
 

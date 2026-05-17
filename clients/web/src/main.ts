@@ -3,7 +3,7 @@ import { YggProtocolClient, type KernelEvent, type PackageRecord, type SurfaceCo
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { renderPlaySurface } from "./surfaces/play";
-import { buildMockChunks, createStreamingBuffer, getActiveTextEngine, getActiveTextEngineName, getTextEngineDiagnostics } from "./text-layout/index.js";
+import { buildMockChunks, createStreamingBuffer, getActiveTextEngine, getActiveTextEngineName, getTextEngineDiagnostics, initializeTextEnginePreference, getInitializationResult } from "./text-layout/index.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 const client = new YggProtocolClient(location.origin === "null" ? "http://127.0.0.1:8787" : location.origin);
@@ -26,6 +26,9 @@ let streamBuffer = createStreamingBuffer(STREAM_PROOF_FONT, STREAM_PROOF_LINE_HE
 let streamChunkCursor = 0;
 let streamTimer: ReturnType<typeof setInterval> | null = null;
 
+// T3: Track engine initialization state
+let engineInitDone = false;
+
 let textProofView: TextProofView = {
   text: "",
   state: "idle",
@@ -41,6 +44,7 @@ let textProofView: TextProofView = {
 function syncTextProof() {
   const measured = streamBuffer.measure();
   const engine = getActiveTextEngine();
+  const initResult = getInitializationResult();
   textProofView = {
     text: streamBuffer.text,
     state: streamBuffer.state,
@@ -51,6 +55,10 @@ function syncTextProof() {
     engineName: getActiveTextEngineName(),
     engineVersion: engine.config.version,
     engineState: engine.state,
+    // T3 diagnostics
+    enginePreference: initResult?.preference,
+    fallbackReason: initResult?.fallbackReason,
+    pretextAvailable: initResult?.pretextAvailable,
   };
 }
 
@@ -64,11 +72,29 @@ function updateTextProofDOM() {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+
+  // Build badges for engine, preference, pretext availability, fallback reason
+  const engineBadge = textProofView.engineName
+    ? `<span class="text-proof-badge engine-badge">engine ${textProofView.engineName} v${textProofView.engineVersion ?? "?"} <span class="engine-state state-${textProofView.engineState}">${textProofView.engineState}</span></span>`
+    : "";
+  const preferenceBadge = textProofView.enginePreference
+    ? `<span class="text-proof-badge pref-badge">pref ${textProofView.enginePreference}</span>`
+    : "";
+  const pretextBadge = textProofView.pretextAvailable !== undefined
+    ? `<span class="text-proof-badge pretext-badge ${textProofView.pretextAvailable ? "pretext-available" : "pretext-unavailable"}">pretext ${textProofView.pretextAvailable ? "available" : "unavailable"}</span>`
+    : "";
+  const fallbackBadge = textProofView.fallbackReason
+    ? `<span class="text-proof-badge fallback-reason-badge" title="${textProofView.fallbackReason.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">fallback: ${textProofView.fallbackReason.length > 40 ? textProofView.fallbackReason.slice(0, 39) + "…" : textProofView.fallbackReason}</span>`
+    : "";
+
   stage.innerHTML = escaped
     ? `<p class="text-proof-content">${escaped}</p>`
     : `<p class="text-proof-placeholder">Tap replay to start mock stream…</p>`;
   meta.innerHTML = `
-    ${textProofView.engineName ? `<span class="text-proof-badge engine-badge">engine ${textProofView.engineName} v${textProofView.engineVersion ?? "?"} <span class="engine-state state-${textProofView.engineState}">${textProofView.engineState}</span></span>` : ""}
+    ${engineBadge}
+    ${preferenceBadge}
+    ${pretextBadge}
+    ${fallbackBadge}
     <span class="text-proof-badge state-${textProofView.state}">${textProofView.state}</span>
     <span class="text-proof-badge">lines ${textProofView.lineCount}</span>
     <span class="text-proof-badge">height ${Math.round(textProofView.height)}px</span>
@@ -110,6 +136,20 @@ function startStreamProof() {
 
   tick();
   streamTimer = setInterval(tick, 120);
+}
+
+// --- T3: Async engine initialization ---
+
+async function initEnginePreference() {
+  if (engineInitDone) return;
+  try {
+    await initializeTextEnginePreference();
+  } catch {
+    // initializeTextEnginePreference handles its own fallback;
+    // this catch is for any unexpected errors during the async flow.
+  }
+  engineInitDone = true;
+  syncTextProof();
 }
 
 // --- Render ---
@@ -256,4 +296,7 @@ function wireEvents() {
   });
 }
 
-render();
+// T3: Initialize engine preference on startup, then render.
+// The fallback engine is available synchronously; the async init
+// may switch to Pretext if available.
+initEnginePreference().then(() => render());

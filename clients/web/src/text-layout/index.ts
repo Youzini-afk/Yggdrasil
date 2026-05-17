@@ -1,8 +1,7 @@
 // Text Surface Proof Alpha — Public exports for the lightweight text-layout adapter.
 //
 // This module re-exports types, fallback implementations, engine abstraction,
-// registry, and stream-adapter. If Pretext is installed later (T3), swap the
-// active engine via the registry without changing consumers.
+// registry, stream-adapter, and T3 optional Pretext engine support.
 
 // --- Types (unchanged) ---
 export type {
@@ -20,7 +19,7 @@ export type {
   StreamingTextBuffer,
 } from "./types.js";
 
-// --- Engine types (new in T2) ---
+// --- Engine types (T2) ---
 export type {
   TextEngine,
   TextEngineName,
@@ -30,12 +29,66 @@ export type {
   TextEngineDiagnostics,
 } from "./engine.js";
 
-// --- Stream adapter types (new in T2) ---
+// --- Stream adapter types (T2) ---
 export type {
   StreamFrameKind,
   StreamFrame,
   FeedResult,
 } from "./stream-adapter.js";
+
+// --- T3: Config and preference types ---
+export type {
+  TextEnginePreference,
+  TextEngineInitializationResult,
+} from "./config.js";
+export {
+  resolveTextEnginePreference,
+  parseTextEnginePreference,
+  preferenceToEngineName,
+  persistTextEnginePreference,
+  ENGINE_PREFERENCE_VALUES,
+} from "./config.js";
+
+// --- T3: Pretext shim types (for downstream type use) ---
+export type {
+  PretextPrepared,
+  PretextPreparedWithSegments,
+  PretextLayoutResult,
+  PretextLayoutLinesResult,
+  PretextLayoutLine,
+  PretextLineStats,
+  PretextLayoutLineRange,
+  PretextOptions,
+  PretextModuleShape,
+} from "./pretext-shim.js";
+
+// --- T3: Pretext bridge ---
+export {
+  bridgePrepared,
+  bridgePreparedWithSegments,
+  isBridgedPretextPrepared,
+  isBridgedPretextPreparedWithSegments,
+  unbridgePrepared,
+  unbridgePreparedWithSegments,
+  toPretextOptions,
+  fromPretextLayoutResult,
+  fromPretextLayoutLinesResult,
+  fromPretextLineStats,
+  fromPretextLineRange,
+} from "./pretext-bridge.js";
+export type {
+  BridgedPretextPrepared,
+  BridgedPretextPreparedWithSegments,
+} from "./pretext-bridge.js";
+
+// --- T3: Pretext engine ---
+export {
+  PretextTextEngine,
+  PRETEXT_ENGINE_CONFIG,
+  isPretextAvailable,
+  getPretextLoadError,
+  resetPretextLoadState,
+} from "./pretext-engine.js";
 
 // --- Backward-compatible functions (re-exported from fallback-engine) ---
 export {
@@ -49,10 +102,10 @@ export {
   walkLineRanges,
 } from "./fallback-engine.js";
 
-// --- Fallback engine class (new in T2) ---
+// --- Fallback engine class (T2) ---
 export { FallbackTextEngine, FALLBACK_ENGINE_CONFIG } from "./fallback-engine.js";
 
-// --- Registry (new in T2) ---
+// --- Registry (T2 + T3) ---
 export {
   registerTextEngine,
   activateTextEngine,
@@ -63,9 +116,14 @@ export {
   getTextEngineDiagnostics,
   unregisterTextEngine,
   resolveEnginePreference,
+  // T3 additions:
+  initializeTextEnginePreference,
+  getInitializationResult,
+  isPretextAvailable as isPretextEngineAvailable,
+  getPretextAvailabilityError,
 } from "./registry.js";
 
-// --- Stream adapter (new in T2) ---
+// --- Stream adapter (T2) ---
 export {
   feedStreamFrame,
   frameStart,

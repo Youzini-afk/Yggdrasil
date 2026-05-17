@@ -4,8 +4,8 @@
 # the lightweight adapter/fallback skeleton in clients/web/src/text-layout.
 
 ledger:
-  version: "T2-alpha-1"
-  status: "engine-abstraction"
+  version: "T3-alpha-1"
+  status: "optional-pretext-engine"
   kernel_scope: "none"
   package_scope: "none"
   protocol_scope: "none"
@@ -14,32 +14,44 @@ api_mappings:
   - pretext_api: "prepare(text, font, options?)"
     adapter_api: "prepareText(text, font, options?)"
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
-    note: "Opaque handle. FallbackTextEngine uses canvas measureText."
+    pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → toPretextOptions(), bridgePrepared()"
+    pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.prepareText()"
+    note: "Opaque handle. FallbackTextEngine uses canvas measureText. PretextTextEngine bridges Pretext's prepare()."
 
   - pretext_api: "layout(prepared, maxWidth, lineHeight)"
     adapter_api: "layoutPreparedText(prepared, maxWidth, lineHeight)"
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
-    note: "Resize hot path. FallbackTextEngine does simple word-split arithmetic."
+    pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → fromPretextLayoutResult(), unbridgePrepared()"
+    pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.layoutPreparedText()"
+    note: "Resize hot path. FallbackTextEngine does simple word-split arithmetic. PretextTextEngine delegates to Pretext."
 
   - pretext_api: "prepareWithSegments(text, font, options?)"
     adapter_api: "prepareTextWithSegments(text, font, options?)"
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
-    note: "Rich path for manual line layout. FallbackTextEngine returns basic segments."
+    pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → bridgePreparedWithSegments()"
+    pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.prepareTextWithSegments()"
+    note: "Rich path for manual line layout. Both engines return segments/widths."
 
   - pretext_api: "layoutWithLines(prepared, maxWidth, lineHeight)"
     adapter_api: "layoutPreparedTextWithLines(prepared, maxWidth, lineHeight)"
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
-    note: "Materializes lines. FallbackTextEngine builds lines from split words."
+    pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → fromPretextLayoutLinesResult()"
+    pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.layoutPreparedTextWithLines()"
+    note: "Materializes lines. Bridge synthesizes cursors from Pretext line data."
 
   - pretext_api: "measureLineStats(prepared, maxWidth)"
     adapter_api: "measureLineStats(prepared, maxWidth)"
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
-    note: "Non-allocating stats. FallbackTextEngine computes lineCount and maxLineWidth."
+    pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → fromPretextLineStats()"
+    pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.measureLineStats()"
+    note: "Non-allocating stats. Direct type mapping."
 
   - pretext_api: "walkLineRanges(prepared, maxWidth, onLine)"
     adapter_api: "walkLineRanges(prepared, maxWidth, onLine)"
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
-    note: "Non-materializing walker. FallbackTextEngine iterates split lines."
+    pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → fromPretextLineRange()"
+    pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.walkLineRanges()"
+    note: "Non-materializing walker. Bridge maps PretextLayoutLineRange to Ygg LayoutLineRange."
 
 engine_abstraction:
   - interface: "TextEngine"
@@ -50,9 +62,25 @@ engine_abstraction:
     path: "clients/web/src/text-layout/fallback-engine.ts"
     note: "Canvas-based fallback. Always available. Bounded cache (4096 entries). Backward-compatible function exports."
 
+  - implementation: "PretextTextEngine (T3)"
+    path: "clients/web/src/text-layout/pretext-engine.ts"
+    note: "Optional Pretext engine. Loaded via dynamic import with async initialize(). Throws diagnostic error if unavailable. Registry falls back gracefully."
+
+  - bridge: "PretextBridge (T3)"
+    path: "clients/web/src/text-layout/pretext-bridge.ts"
+    note: "Isolated mapping between Ygg text-layout types and Pretext shapes. Option/result conversion and opaque handle bridging."
+
+  - shim: "PretextShim (T3)"
+    path: "clients/web/src/text-layout/pretext-shim.ts"
+    note: "Local type definitions mirroring Pretext API (v0.0.7). Allows tsc to compile without the package. Defines PretextModuleShape for safe dynamic import casting."
+
+  - config: "config.ts (T3)"
+    path: "clients/web/src/text-layout/config.ts"
+    note: "Runtime engine preference resolution. Supports auto/fallback/pretext from URL, localStorage, global env. Default: auto."
+
   - registry: "registry.ts"
     path: "clients/web/src/text-layout/registry.ts"
-    note: "registerTextEngine, activateTextEngine, getActiveTextEngine, selectTextEngine, getTextEngineState, getTextEngineDiagnostics. Supports localStorage/URL/env preference."
+    note: "registerTextEngine, activateTextEngine, getActiveTextEngine, selectTextEngine, getTextEngineState, getTextEngineDiagnostics. T3 adds: initializeTextEnginePreference (async), getInitializationResult, isPretextEngineAvailable."
 
 stream_adapter:
   - adapter: "feedStreamFrame"
@@ -82,6 +110,9 @@ streaming_proof:
       - "engine name"
       - "engine version"
       - "engine state"
+      - "engine preference (T3)"
+      - "pretext availability (T3)"
+      - "fallback reason (T3)"
 
 font_policy:
   - variable: "--font-text-surface"
@@ -92,9 +123,12 @@ font_policy:
     reason: "Monospace for diagnostics and stream metadata badges."
 
 constraints:
-  - "No Pretext dependency in clients/web/package.json yet."
+  - "No Pretext dependency in clients/web/package.json."
   - "Adapter must compile and run without Pretext installed."
-  - "Pretext can be wired later by replacing the fallback implementations."
+  - "Pretext is loaded via dynamic import; compilation does not require the package."
+  - "PretextTextEngine.initialize() throws diagnostic error if module unavailable; registry falls back to FallbackTextEngine."
+  - "Engine preference supports auto/fallback/pretext (URL, localStorage, global env)."
+  - "Default is auto: use Pretext if available, otherwise fallback."
   - "Proof stays inside Assistant Drawer; does not rewrite Play/Forge surfaces."
   - "FallbackTextEngine cache is bounded (default 4096 entries, FIFO eviction)."
   - "Stream adapter has no model/agent coupling."
