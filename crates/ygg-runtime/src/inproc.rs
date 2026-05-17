@@ -29,6 +29,7 @@ impl InprocPackageCatalog {
         let mut entries: HashMap<String, Arc<dyn InprocPackage>> = HashMap::new();
         entries.insert(entry_key("example-echo-rust-inproc", "register"), Arc::new(EchoInprocPackage));
         entries.insert(entry_key("example-hook-inproc", "register"), Arc::new(HookInprocPackage));
+        entries.insert(entry_key("official-foundation", "register"), Arc::new(OfficialFoundationPackage));
         Self { entries: Arc::new(entries) }
     }
 
@@ -61,6 +62,35 @@ impl InprocPackage for HookInprocPackage {
             Ok(serde_json::json!({"decision": "allow", "metadata_patch": {"hook_trace": request.provider_package_id}}))
         } else {
             Ok(serde_json::json!({"decision": "allow"}))
+        }
+    }
+}
+
+struct OfficialFoundationPackage;
+
+#[async_trait]
+impl InprocPackage for OfficialFoundationPackage {
+    async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
+        let id = request.capability_id.as_str();
+        if id.ends_with("/echo") {
+            Ok(request.input)
+        } else if id.ends_with("/fail") {
+            anyhow::bail!("official package-lab requested failure")
+        } else if id.ends_with("/describe") {
+            Ok(serde_json::json!({
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id,
+                "input_keys": request.input.as_object().map(|object| object.keys().cloned().collect::<Vec<_>>()).unwrap_or_default(),
+            }))
+        } else if id.ends_with("/validate") {
+            Ok(serde_json::json!({"valid": true, "diagnostics": []}))
+        } else if id.ends_with("/sample") {
+            Ok(serde_json::json!({"sample": request.input.get("schema").cloned().unwrap_or(Value::Null)}))
+        } else if id.ends_with("/summarize") {
+            let count = request.input.get("events").and_then(Value::as_array).map(|events| events.len()).unwrap_or(0);
+            Ok(serde_json::json!({"event_count": count}))
+        } else {
+            Ok(serde_json::json!({"ok": true, "capability_id": request.capability_id}))
         }
     }
 }

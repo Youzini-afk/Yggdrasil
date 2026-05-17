@@ -552,6 +552,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "host.diagnostics", conformance_host_diagnostics().await);
     record_case(&mut results, "host.profile_autoload", conformance_host_profile_autoload().await);
     record_case(&mut results, "surface.contribution_list", conformance_surface_contribution_list().await);
+    record_case(&mut results, "official.foundation_packages", conformance_official_foundation_packages().await);
     record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
     record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
     record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
@@ -1078,6 +1079,53 @@ async fn conformance_surface_contribution_list() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(home[0]["surface"]["id"] == json!("example/echo-rust-inproc/home-card"), "surface slot filter failed");
+    Ok(())
+}
+
+async fn conformance_official_foundation_packages() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    for manifest in [
+        "packages/official/package-lab/manifest.yaml",
+        "packages/official/schema-tools/manifest.yaml",
+        "packages/official/event-tools/manifest.yaml",
+    ] {
+        runtime.load_package(read_manifest(PathBuf::from(manifest)).await?).await?;
+    }
+    let echo = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/package-lab/echo".to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"official": "ordinary"}),
+        })
+        .await?;
+    anyhow::ensure!(echo.output == json!({"official": "ordinary"}), "package-lab echo failed");
+    let schema = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/schema-tools/validate".to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"schema": {"type": "object"}, "value": {}}),
+        })
+        .await?;
+    anyhow::ensure!(schema.output["valid"] == json!(true), "schema-tools validate failed");
+    let events = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/event-tools/summarize".to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"events": [{"kind": "x"}, {"kind": "y"}]}),
+        })
+        .await?;
+    anyhow::ensure!(events.output["event_count"] == json!(2), "event-tools summarize failed");
+    let surfaces = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({"slot": "forge_panel"}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(surfaces.as_array().map(|items| items.len()).unwrap_or(0) >= 2, "official package surfaces missing");
     Ok(())
 }
 

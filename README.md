@@ -44,6 +44,8 @@ crates/
   ygg-cli/       Demos, package tools, host modes, conformance.
 clients/
   web/           Play / Forge / Assist shell over public protocol.
+packages/
+  official/      Foundation capability packages loaded through ordinary manifests.
 docs/
   CHARTER.md
   architecture/

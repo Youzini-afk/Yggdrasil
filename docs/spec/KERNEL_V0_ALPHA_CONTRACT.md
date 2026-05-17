@@ -131,6 +131,7 @@ Implemented:
 13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
 14. Asset, branch, and generic projection substrate exists for host-dev protocol callers and can rehydrate from the durable event log.
 15. Human and assistant principals can receive scoped grants for event reads and capability invocation, with grant/revoke audit events.
+16. First official foundation packages (`official/package-lab`, `official/schema-tools`, `official/event-tools`) load through ordinary manifests and route through ordinary capabilities/surface descriptors.
 
 Still partial for Platform Host Alpha:
 

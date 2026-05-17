@@ -2,3 +2,6 @@ title: Yggdrasil Forge Alpha Host
 autoload:
   - ../examples/packages/echo-rust-inproc/manifest.yaml
   - ../examples/packages/echo-subprocess-python/manifest.yaml
+  - ../packages/official/package-lab/manifest.yaml
+  - ../packages/official/schema-tools/manifest.yaml
+  - ../packages/official/event-tools/manifest.yaml
