@@ -12,6 +12,7 @@
 - Play/Forge Surface Contract Beta：已完成。
 - First Real Capability Package Track：seed 已完成（`composition-lab`、`asset-lab`、`projection-lab`、`playable-seed`；55 个 conformance 用例）。
 - Platform Host Alpha：已实现切片完成；剩余项目（streaming 分发、hook 超时审计、持久 provider 策略、更广的传输层一致性、更丰富的 SDK 打包）在下方 Phase I 中追踪。
+- Code Health Split Alpha：已完成；CLI commands/templates/conformance 与 runtime official in-process handlers 已按领域拆分。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 

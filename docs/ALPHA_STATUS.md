@@ -11,7 +11,8 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta.
 - **Conformance:** 61 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
-- **Next stage:** Foundation Alpha Consolidation, then Playable Experience Alpha (see `docs/roadmap/NEXT_STEPS.md`).
+- **Code health:** CLI commands/templates/conformance and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
+- **Next stage:** Authoring & Composition Beta+ (see `docs/roadmap/NEXT_STEPS.md`).
 
 ## What is implemented
 
@@ -85,6 +86,12 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - `ygg init-composition` and `ygg composition check` provide a local composition descriptor flow.
 - `ygg package check` and `ygg package conformance` validate generated packages locally.
 - `ygg play-create-demo` orchestrates the blank play-creation loop end-to-end through ordinary public-protocol calls.
+
+### Code organization
+
+- `crates/ygg-cli/src/main.rs` is a thin entry point. CLI types live in `cli.rs`; commands live under `commands/`; package generation templates live under `templates/`; conformance cases live under `conformance/` domain modules.
+- `crates/ygg-runtime/src/inproc.rs` retains the in-process package API and delegates official lab behavior to focused modules under `crates/ygg-runtime/src/inproc/`.
+- This split is behavior-preserving and exists to keep future package, conformance, and handler growth reviewable.
 
 ### Conformance
 

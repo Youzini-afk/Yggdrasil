@@ -11,7 +11,8 @@
 - **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta。
 - **Conformance：** 61 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等。
-- **下一阶段：** Foundation Alpha Consolidation，然后 Playable Experience Alpha（见 `docs/roadmap/NEXT_STEPS.md`）。
+- **代码健康：** CLI commands/templates/conformance 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
+- **下一阶段：** Authoring & Composition Beta+（见 `docs/roadmap/NEXT_STEPS.md`）。
 
 ## 已实现
 
@@ -85,6 +86,12 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - `ygg init-composition` 和 `ygg composition check` 提供本地 composition descriptor 流程。
 - `ygg package check` 和 `ygg package conformance` 在本地验证生成的包。
 - `ygg play-create-demo` 通过普通公开协议调用端到端地编排空白游创循环。
+
+### 代码组织
+
+- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型位于 `cli.rs`；commands 位于 `commands/`；包生成模板位于 `templates/`；conformance 用例按领域位于 `conformance/` 模块。
+- `crates/ygg-runtime/src/inproc.rs` 保留 in-process package API，并把 official lab 行为委托给 `crates/ygg-runtime/src/inproc/` 下的聚焦模块。
+- 这次拆分不改变行为，目的是让后续 package、conformance 和 handler 增长保持可审查。
 
 ### Conformance
 
