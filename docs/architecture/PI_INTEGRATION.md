@@ -32,4 +32,4 @@ The kernel will never:
 
 ## Status
 
-Work on pi integration begins after the kernel/package separation is complete and the official conversational runtime package is the first end-to-end demonstration. Until then, this document only fixes the position: pi is a future package family, not a platform layer.
+pi integration is deferred until the play-creation platform substrate is consolidated. The substrate it would need — events, capabilities, hooks, permissions, surfaces, and the proposal/approval lifecycle — is now in place, so when integration begins it can ship as ordinary capability packages with no kernel changes. Until then, this document only fixes the position: pi is a future package family, not a platform layer.

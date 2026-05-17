@@ -42,4 +42,4 @@ The kernel will never:
 
 ## Status
 
-Work on Tavern compatibility begins after the kernel/package separation is complete and the official conversational runtime package is in place to consume Tavern-shaped content. Until then, this document only fixes the position: Tavern compatibility is a future package family, not a platform layer.
+Tavern compatibility is deferred until at least one playable conversational/runtime capability package exists on Yggdrasil to consume Tavern-shaped content. The platform substrate it would need — packages, events, capabilities, hooks, permissions, surface contributions, proposals, assets, branches, projections — is now in place, so Tavern compatibility, when built, can run entirely as packages with no kernel changes. Until then, this document only fixes the position: Tavern compatibility is a future package family, not a platform layer.

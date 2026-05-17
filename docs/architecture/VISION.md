@@ -74,7 +74,7 @@ Each of these is appropriate as a capability package. None is appropriate as ker
 
 ## Stance toward today's code
 
-The current Rust workspace has removed the initial conversational spike from the kernel crates. The active risk is now contract drift: package manifests, capability routing, permissions, hooks, protocol methods, and conformance must stay aligned until package execution is real enough that official and third-party packages are indistinguishable.
+The Rust workspace is now Platform Foundation Alpha: kernel-only events/sessions, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, permissioned principals, surface contributions, proposal/approval lifecycle, asset/branch/projection substrate, and a public-protocol web shell. The active discipline is preventing contract drift — surfaces, proposals, branches, assets, and projections must keep their generic shape, content-shaped semantics must not leak into the kernel, and official packages must keep using only what any third-party package can use.
 
 ## What success looks like
 

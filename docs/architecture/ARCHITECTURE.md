@@ -90,18 +90,24 @@ Studio is not a kernel layer. It is a client of the public protocol, just like a
 
 External game engines are not a kernel layer. They participate as remote-entry packages or as protocol clients.
 
-## Crate map (current)
+## Repository map
 
-The current Rust workspace was bootstrapped with a conversational shape inside what should be the kernel. Migration target:
+The Yggdrasil Foundation Alpha workspace:
 
 ```text
-crates/ygg-core      kernel-only types: ids, schemas, manifests, opaque events
-crates/ygg-runtime   kernel scheduler: sessions, registry, fabric, hooks, sandbox
-crates/ygg-service   protocol surface over the kernel
-crates/ygg-cli       operations against a manifest set
+crates/ygg-core      kernel types: ids, schemas, manifests, principals, opaque events
+crates/ygg-runtime   kernel scheduler: sessions, packages, capabilities, hooks, surfaces,
+                     proposals, assets, branches, projections, sandbox, transports
+crates/ygg-service   public protocol surface (HTTP /rpc, SSE event subscribe)
+crates/ygg-cli       host modes, manifest tools, package authoring, conformance
+clients/web          public-protocol Home/Play, Forge, and Assist shell
+packages/official    foundation capability packages loaded through ordinary manifests
+sdk/typescript       subprocess-package authoring helpers and template runtime
+profiles/            host profiles for autoloading sets of packages
+examples/            example package manifests and fixtures
 ```
 
-Conversational concepts (`Turn`, `PromptFrame`, `ModelCall`, message commit) move out of `ygg-core` and `ygg-runtime` into an official capability package. That migration is tracked in `docs/roadmap/NEXT_STEPS.md`.
+The kernel crates are content-free. Conversational, world, agent, memory, and model behavior — when added — arrives as ordinary capability packages and gets no kernel privilege.
 
 ## How to read the rest of the docs
 

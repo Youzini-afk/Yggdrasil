@@ -1,6 +1,6 @@
 # Conformance Matrix
 
-The conformance suite is the executable guardian of the charter. It proves both positive behavior and hostile rejection behavior. Platform Host Alpha is not complete until every case marked required for the milestone is either implemented or deliberately reclassified as deferred with a documented reason.
+The conformance suite is the executable guardian of the charter. It proves both positive behavior and hostile rejection behavior. The current foundation is Platform Foundation Alpha + Play/Forge Surface Contract Beta. New cases land here as they are added; cases marked partial or future remain on the radar for Foundation Alpha Consolidation and Substrate hardening (see `docs/roadmap/NEXT_STEPS.md`).
 
 ## Current release-gate command
 

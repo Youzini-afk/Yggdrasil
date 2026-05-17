@@ -34,22 +34,70 @@ There are two flavors of event kinds.
 
 ### Kernel-emitted kinds
 
-A small fixed set the kernel itself produces:
+A small fixed set the kernel itself produces. They describe kernel operations, not content.
+
+Session:
 
 ```text
 kernel/session.opened
 kernel/session.closed
+kernel/session.forked
+```
+
+Package lifecycle:
+
+```text
+kernel/package.loading
+kernel/package.starting
+kernel/package.ready
+kernel/package.stopping
+kernel/package.stopped
 kernel/package.loaded
 kernel/package.unloaded
 kernel/package.degraded
+kernel/package.log
+```
+
+Capability invocation (planned audit shape):
+
+```text
 kernel/capability.invoked
 kernel/capability.completed
 kernel/capability.failed
+```
+
+Permission audit:
+
+```text
+kernel/permission.granted
+kernel/permission.revoked
 kernel/permission.denied
+```
+
+Generic substrate:
+
+```text
+kernel/asset.put
+kernel/projection.updated
+```
+
+Proposal lifecycle:
+
+```text
+kernel/proposal.created
+kernel/proposal.approved
+kernel/proposal.rejected
+kernel/proposal.applied
+kernel/proposal.failed
+```
+
+Transport / runtime errors (planned):
+
+```text
 kernel/error
 ```
 
-These are the only event kinds the kernel knows about by name. They describe kernel operations, not content.
+These are the only event kinds the kernel knows about by name. Their payloads describe kernel operations and never content.
 
 ### Package-emitted kinds
 

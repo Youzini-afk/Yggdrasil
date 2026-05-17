@@ -1,80 +1,82 @@
 # Next Steps
 
-The current center of gravity is moving from a credible kernel alpha to **Platform Host Alpha**: a host that can run unprivileged external packages through the public protocol and prove the boundary with hostile conformance.
+The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, official foundation packages, an assistant package, a blank play-creation loop, and a public-protocol web shell with Home/Play and Forge surfaces.
 
-## Current status
+The next center of gravity is **not** more substrate. It is consolidation, then the first real playable experience that exercises the substrate end-to-end.
 
-The initial conversational runtime spike has been removed from the kernel crates. The workspace now contains content-free sessions, opaque events, package manifests, a manifest registry, a capability registry, a hook registry, SQLite event persistence, permission audit events, preview manifests for all entry forms, and a small CLI conformance command.
+## Where we are
 
-The new risk is no longer chat-shaped kernel pollution. The risk is a facade host: manifests load, but external package execution, protocol transports, lifecycle, hooks, and conformance are not yet strong enough for third-party package authors.
+- Platform Foundation Alpha: complete.
+- Play/Forge Surface Contract Beta: complete (51 conformance cases).
+- Platform Host Alpha: implemented slice complete; remaining items (streaming dispatch, hook timeout audit, persisted provider policy, broader transport parity, richer SDK packaging) are tracked in `PLATFORM_HOST_ALPHA.md`.
 
-## Phase A — Charter-aligned documentation
+See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
-Done in this round:
+## Phase F — Foundation Alpha Consolidation (current)
 
-- `docs/CHARTER.md`
-- `docs/architecture/PLATFORM_KERNEL.md`
-- `docs/architecture/CAPABILITY_PACKAGE.md`
-- `docs/architecture/EXTENSION_POINTS.md`
-- Rewrite of `docs/architecture/VISION.md`, `ARCHITECTURE.md`, `EVENT_MODEL.md`, `RUNTIME_LIFECYCLE.md`.
-- Rewrite of `docs/protocol/PROTOCOL_V0.md`.
-- `docs/architecture/PI_INTEGRATION.md` and `docs/tavern/TAVERN_COMPAT.md` reframed as deferred package families.
-- Updated `README.md`.
+Goal: stop expanding surface area. Sand the rough edges, lock the contract, and make the existing foundation easy to demo, document, and extend.
 
-## Phase B — Kernel v0 alpha contract hardening (completed baseline)
+- Documentation refresh across `README.md`, `README.zh-CN.md`, and the docs tree.
+- Add `docs/product/PLAY_CREATION_MODEL.md` to fix the play-creation product stance.
+- Add `docs/ALPHA_STATUS.md` as the living snapshot of what is done, partial, and deferred.
+- Resolve remaining Platform Host Alpha partial items where they are cheap.
+- @oracle-led review pass for content-shape leaks, official-privilege leaks, and YAGNI cleanups.
+- A single canonical end-to-end demo path documented and validated through conformance.
 
-Code and documentation goal: make the existing alpha contract precise, executable, and hostile to privilege leaks.
+This phase finishes when a new contributor can clone the repo, read one README, run one host serve command, and reach the blank play-creation loop without surprises.
 
-Immediate targets:
+## Phase G — Playable Experience Alpha (next)
 
-- Freeze `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` as the implemented/partial/planned matrix.
-- Keep `docs/spec/CONFORMANCE_MATRIX.md`, `docs/protocol/PROTOCOL_V0.md`, `README.md`, and `crates/ygg-runtime/src/protocol.rs` aligned.
-- Implement real `rust_inproc` package execution so capability invocation crosses a package boundary.
-- Replace friendly smoke conformance with hostile conformance cases: denied reads/writes/invokes, namespace violations, ambiguous providers, closed sessions, unload behavior, and official no-privilege checks.
-- Add practical schema enforcement for manifests, events, and capability input/output.
+Goal: prove the substrate by building one experience that is actually playable, modifiable, forkable, and assistant-assistable, entirely as ordinary packages.
 
-Conversational types may return only after Platform Host Alpha, and only as a normal package.
+This is the first time the platform produces something a player-creator can sit with for more than a demo. It is not a SillyTavern, not a chat-only runtime, not a director — it is the smallest experience that exercises every substrate primitive honestly.
 
-## Phase C — Platform Host Alpha (current)
+The experience itself is a package decision, not a kernel decision. A reasonable candidate is a small structured roleplay or solo-storytelling loop, but the choice is open and will be made when this phase begins.
 
-The next milestone is defined in `docs/roadmap/PLATFORM_HOST_ALPHA.md`.
+Constraints carried into this phase:
 
-Immediate targets:
+- Kernel changes are last resort. If the experience needs a new primitive, redesign the experience first.
+- The official package implementing the experience must remain replaceable by a third-party package.
+- The assistant must propose changes through `kernel.proposal.*`, not through privileged paths.
+- Forge must be able to inspect, fork, and edit the experience using only the public protocol.
+- Conformance grows alongside the package: at least one hostile case proves third-party experience packages reach the same surfaces.
 
-- Add protocol context and structured errors so transports cannot spoof package identity.
-- Implement real subprocess JSON-RPC-over-stdio package execution.
-- Add canonical public transports (`/rpc` HTTP first, host stdio after that) that call the same runtime paths as in-process tests.
-- Complete the first hook fabric slice for event, capability, and package lifecycle points.
-- Provide thin package authoring templates and local package conformance.
-- Promote hostile conformance to the release gate.
+## Phase H — Authoring & Composition Beta+ (after G)
 
-## Phase D — First official package: conversational runtime (deferred)
+Goal: turn the current authoring slice (`init-package`, `init-composition`, `composition check`, generated experience template) into a real authoring loop someone outside this repo can use to ship a package.
 
-Once the kernel skeleton is in place, an official package implements the chat-shaped runtime that today's code prototypes:
+- Richer composition descriptors (multi-package bundles, optional capabilities, default activation).
+- Template variants per surface slot (play renderer, forge panel, assistant action) beyond the current "experience template."
+- Local dev-loop ergonomics: watch mode, fast reload, manifest diff, surface preview.
+- A small how-to walkthrough that takes a contributor from `cargo run -p ygg-cli -- init-package ...` to a third-party package appearing on Home and in Forge.
+- Optional package registry-shaped surface, still on top of the public protocol.
 
-- own event kinds (`turn.started`, `prompt.rendered`, `model.streamed`, `message.committed`, etc.) under the package's namespace,
-- own capabilities (`generate`, `cancel`, `regenerate`),
-- own extension points (`before_step`, `after_step`, etc.),
-- model provider abstraction inside the package,
-- prompt rendering and context planning inside the package.
+## Phase I — Substrate hardening (concurrent, low-priority)
 
-The kernel will not gain anything to support this package. The package will work the same way a third-party package would.
+Carried forward as background work, not the headline:
 
-## Phase E — Demonstrate the equality rule
+- Persisted permission grants and richer resource policy coverage.
+- Content-addressed asset blobs.
+- Package-owned projection execution.
+- Streaming protocol dispatch + package-principal subscribe permissions.
+- Hook handler timeout/error audit.
+- Persisted capability provider selection policy.
+- Broader transport parity coverage in conformance.
+- WASM and remote package entry execution.
 
-Ship at least one minimal third-party-style package that reuses the conversational runtime's extension points (e.g., a tiny memory/curator package), to prove on the running platform that nothing the official package does requires kernel privilege.
+These items unblock specific use cases. They do not gate the headline phases above.
 
 ## Deferred indefinitely from kernel scope
 
 These remain non-goals for the kernel. They may exist as future packages.
 
-- SillyTavern compatibility (see `docs/tavern/TAVERN_COMPAT.md`).
-- pi integration (see `docs/architecture/PI_INTEGRATION.md`).
-- External game engine bridges.
-- Any UI shell, inspector, or studio.
-- Any memory model, agent loop, world simulation, or director.
-- SQLite schemas, OpenAI providers, vector retrieval, etc., as kernel concerns.
+- SillyTavern compatibility — see `docs/tavern/TAVERN_COMPAT.md`.
+- pi integration — see `docs/architecture/PI_INTEGRATION.md`.
+- External game engine bridges (UE5/Godot/Unity, web clients).
+- Any UI shell, inspector, or studio beyond the public-protocol web shell skeleton.
+- Memory model, agent loop, world simulation, director, prompt rendering, model provider abstraction.
+- Marketplace, package signing, dependency resolver.
 
 ## How to read this list
 
-Phase A is documentation only. Phase B is the kernel refactor in code. Phase C and beyond depend on Phase B landing cleanly. Until the kernel/package separation is real in code, no new content-shaped feature lands in the kernel crates.
+Phase F is consolidation only — no new substrate. Phase G is the first real product proof on top of the substrate. Phase H follows once the substrate has at least one non-trivial consumer. Phase I runs in the background and is graded on charter discipline (no content shapes leaking into the kernel, no official privilege leaking through any path).

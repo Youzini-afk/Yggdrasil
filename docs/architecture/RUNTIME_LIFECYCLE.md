@@ -27,11 +27,27 @@ opening     kernel/session.before_open dispatched (sync, vetoable)
 open        kernel/session.opened emitted
             event log accepting appends from authorized writers
             capability invocations dispatching against the active package set
+forking     fork() received with parent session and forked-from sequence
+forked      kernel/session.forked emitted; child session inherits parent up to the chosen sequence
 closing     kernel/session.before_close dispatched (sync, vetoable)
 closed      kernel/session.closed emitted; log frozen for further appends
 ```
 
 The kernel does not own a "current turn," "active actor," or any content-level state of the session. If a package wants such a notion, it derives it from events.
+
+## Proposal lifecycle
+
+The kernel mediates generic approval-gated change proposals. The lifecycle is content-free: it only knows the operations it can apply (`asset.put`, `projection.rebuild`).
+
+```text
+created     proposal recorded under requesting principal; kernel/proposal.created emitted
+approved    approver decision recorded; kernel/proposal.approved emitted
+rejected    approver decision recorded; kernel/proposal.rejected emitted
+applied     approved proposal executed against the kernel; kernel/proposal.applied emitted
+failed     application or validation failed; kernel/proposal.failed emitted
+```
+
+A package or assistant principal cannot apply a proposal directly: it must reach `approved` first. The kernel never invents domain-specific proposal semantics; richer operations (multi-step transactions, package-side compensations) belong to packages built on top.
 
 ## Capability invocation lifecycle
 

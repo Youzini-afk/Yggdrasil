@@ -50,24 +50,46 @@ This document fixes what the kernel does and does not do. Anything not listed as
 
 ### 7. Permission gate
 
+- Identify principals (host_admin, host_dev, package, human, assistant, anonymous).
 - Read manifest-declared permissions for each package.
-- Enforce them on event writes, capability invocations, cross-package calls, network/filesystem access.
-- Refuse undeclared side effects.
+- Track scoped grants for human and assistant principals (`events.read`, `capabilities.invoke`, etc.).
+- Enforce all of the above on event writes, capability invocations, cross-package calls, network/filesystem access.
+- Refuse undeclared side effects and write `kernel/permission.denied` audit events.
 
-### 8. Transport layer
+### 8. Surface contributions
 
-- Speak HTTP, WebSocket, JSON-RPC over stdio, JSON-RPC over TCP, and a process-internal channel.
-- Support remote endpoints.
-- Surface a single conceptual protocol over all transports.
+- Accept package-declared UI surface descriptors in manifests (slots like `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`).
+- Expose them through the public protocol so any client can discover what is launchable, inspectable, and assistant-actionable.
+- Store descriptors only. Rendering and content semantics belong to packages and clients.
 
-### 9. Sandbox boundaries
+### 9. Proposal lifecycle
 
-- Run in-process Rust packages within the kernel binary.
-- Spawn and supervise subprocess packages.
-- Host WASM packages with declared resource limits.
-- Authenticate remote packages.
+- Mediate generic, approval-gated change proposals (`create`, `get`, `list`, `approve`, `reject`, `apply`).
+- Apply only generic operations the kernel already understands (`asset.put`, `projection.rebuild`).
+- Emit `kernel/proposal.*` audit events for every transition.
+- Refuse application of proposals that are not approved, or whose declared operations are unsupported. The kernel never invents domain-specific proposal semantics.
 
-### 10. Public protocol
+### 10. Assets, branches, and projections
+
+- Maintain an opaque asset registry (`id`, `mime`, `hash`, `size`, `origin_package`, `metadata`, content blob).
+- Track session fork/branch lineage as kernel records.
+- Maintain generic projection records, rebuilt by filtering the event log; the kernel never interprets projection state.
+- All three are rehydratable from the durable event log.
+
+### 11. Transport layer
+
+- Speak the canonical protocol envelope over: in-process Rust API, HTTP `/rpc`, host JSON-RPC stdio (`ygg host-stdio`), and SSE event subscribe.
+- Profile-backed `ygg host serve` autoloads packages and exposes the same dispatcher.
+- WebSocket and TCP transports are reserved for future work.
+- All transports surface a single conceptual protocol; official packages and clients use the same protocol as third parties.
+
+### 12. Sandbox boundaries
+
+- Run in-process Rust packages within the kernel binary (trust level `trusted_inproc`).
+- Spawn and supervise subprocess packages via JSON-RPC over stdio with handshake, invoke timeout, kill-on-unload, restart, and stderr capture (trust level `process_isolated`).
+- WASM (`wasm_sandbox`) and remote (`remote_boundary`) entries are reserved as first-class manifest forms; execution is deferred.
+
+### 13. Public protocol
 
 - The wire-level contract for the above. The kernel uses no private bypass; official packages and clients use the same protocol as third parties.
 

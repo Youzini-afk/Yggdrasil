@@ -77,6 +77,26 @@ contributes:
       timing: sync | async
       modifiable: true
       short_circuit: true
+  surfaces:
+    - id: org/name/entry
+      version: 0.1.0
+      slot: experience_entry        # | home_card | play_renderer | forge_panel | asset_editor | assistant_action
+      title: ...
+      description: ...
+      capability_id: org/name/launch
+      activation:
+        launch_capability_id: org/name/launch
+        session_template:
+          labels: [...]
+          metadata: { ... }
+        input_schema: <jsonschema>
+      required_permissions:
+        - permission: events.read
+          scope: session
+          reason: render the play surface
+          risk: low                 # | medium | high
+      approval_policy: none         # | user_approval | fork_then_approve
+      metadata: { ... }
 
 permissions:
   network:

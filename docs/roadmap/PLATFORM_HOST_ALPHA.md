@@ -1,8 +1,10 @@
 # Platform Host Alpha
 
-Platform Host Alpha is the next Yggdrasil milestone after the credible kernel alpha. Its goal is not a content runtime, Studio, Tavern compatibility, pi integration, or a game framework. Its goal is to prove that Yggdrasil can host unprivileged external packages through the same public contract used by every caller.
+Platform Host Alpha is the milestone that proves Yggdrasil can host unprivileged external packages through the same public contract used by every caller. It is not a content runtime, Studio, Tavern compatibility, pi integration, or a game framework.
 
-The first executable slice of this milestone is now in place. The milestone remains open until the remaining partial items below are complete, but the host can already run a third-party subprocess package, call it through the protocol dispatcher, enforce core permissions/schema/timeout behavior, and prove that path through hostile conformance.
+The implemented slice is in place: a fresh host with zero official packages can load a third-party subprocess package, complete a JSON-RPC-over-stdio handshake, expose and invoke a capability through the public protocol, enforce permissions/schemas/timeouts/teardown, dispatch declared hooks for the implemented extension points, unload cleanly, and pass hostile conformance through in-process and public transport paths.
+
+A subsequent **Play/Forge Surface Contract Beta** layer was built directly on this foundation (see `Implemented slice` below). The remaining Host Alpha partial items continue to be tracked here and roll forward into Phase F (Foundation Alpha Consolidation) in `NEXT_STEPS.md`.
 
 ## Milestone definition
 
@@ -18,26 +20,34 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 
 ## Implemented slice
 
-1. Protocol and principal foundation: method envelopes, runtime context, structured errors, and no caller-supplied package identity spoofing for package-principal paths.
-2. Subprocess package execution: JSON-RPC stdio start, handshake, invoke, invoke timeout, degraded state, and unload kill.
+Host Alpha foundation:
+
+1. Protocol and principal foundation: method envelopes, runtime context, structured errors, no caller-supplied package identity spoofing for package-principal paths.
+2. Subprocess package execution: JSON-RPC stdio start, handshake, invoke, invoke timeout, degraded state, unload kill.
 3. Public transports: canonical HTTP `/rpc` and host JSON-RPC stdio mode for non-streaming methods.
-4. Hook fabric slice: event append and capability invoke before/after dispatch, stable ordering, legacy veto fixture, package-owned handler capabilities, metadata mutation, and unload cleanup.
-5. Package authoring harness: Python and TypeScript subprocess templates, package check, local fixture run, local invoke, and package conformance.
+4. Hook fabric slice: event append and capability invoke before/after dispatch, stable ordering, package-owned handler capabilities, metadata mutation, veto, unload cleanup.
+5. Package authoring harness: Python and TypeScript subprocess templates, package check, local fixture run, local invoke, package conformance.
 6. Release-gate conformance: named hostile cases with docs matrix coverage.
 7. Event range replay and host-dev HTTP SSE tailing.
 8. Explicit capability provider selection with simple version constraints.
-9. Package lifecycle timeline, subprocess restart, stderr log capture, and host diagnostics.
+9. Package lifecycle timeline, subprocess restart, stderr log capture, host diagnostics.
 10. Event-log-rehydratable asset, projection, and session branch substrate for host-dev protocol callers.
 11. Profile-backed `ygg host serve` with autoloaded packages, HTTP `/rpc`, and SSE routes.
-12. A public-protocol web shell skeleton with Play, Forge, and Assist surfaces under `clients/web`.
-13. First official foundation packages are ordinary package manifests under `packages/official` and autoload through the Forge profile.
-14. The first assistant package is an ordinary package that contributes an assistant action and returns approval-gated branch proposals.
+
+Play/Forge Surface Contract Beta (built on the Host Alpha foundation):
+
+12. A public-protocol web shell skeleton with Home/Play, Forge, and Assist surfaces under `clients/web`.
+13. First official foundation packages (`official/package-lab`, `official/schema-tools`, `official/event-tools`) are ordinary package manifests under `packages/official` and autoload through the Forge profile.
+14. The first assistant package (`official/assistant-lab`) is an ordinary package that contributes an assistant action and returns approval-gated proposals.
 15. `ygg play-create-demo` demonstrates the first blank play-creation loop over ordinary packages and public substrate.
 16. The web shell Home route discovers `experience_entry` surfaces over public protocol, launches package-backed sessions, and supports branch forking without official-package hardcoding.
-17. The web Forge route now provides generic public-protocol inspectors for package Forge panels, proposals, assets, projections, capabilities, and event tails.
-18. Package authoring now includes generated experience-surface templates and local composition descriptor checks.
+17. The web Forge route provides generic public-protocol inspectors for package Forge panels, proposals, assets, projections, capabilities, and event tails.
+18. Package authoring includes a generated experience-surface template and local composition descriptor checks.
+19. Generic proposal lifecycle methods (`kernel.proposal.create/get/list/approve/reject/apply`) gate assistant/package changes behind explicit approval and append `kernel/proposal.*` audit events.
 
 ## Remaining Platform Host Alpha work
+
+These items remain partial. They roll forward into Phase F consolidation and Phase I background hardening (see `NEXT_STEPS.md`).
 
 1. Protocol-dispatched streaming and package-principal subscribe permission checks.
 2. Hook timeout/error audit for package-owned handlers.
@@ -45,6 +55,7 @@ Platform Host Alpha is complete when a fresh host with zero official packages ca
 4. Persisted provider selection policy beyond per-invocation explicit provider selection.
 5. Broader transport parity cases beyond the current core protocol dispatcher/service tests.
 6. Richer TypeScript SDK packaging beyond the current thin subprocess helper/template.
+7. Persisted permission grant rehydration and richer resource policy coverage.
 
 ## Non-goals for this milestone
 

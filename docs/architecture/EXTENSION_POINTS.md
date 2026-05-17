@@ -38,6 +38,10 @@ A subscriber that returns an error short-circuits the operation if and only if `
 
 Sync handlers run within the operation's deadline. Async handlers receive a deadline derived from the package sandbox policy. Exceeding the deadline cancels the handler and is treated as a failed handler call.
 
+## Implementation status
+
+The kernel-emitted point set is fixed by design. The Foundation Alpha implements the executable slice for event append and capability invoke (deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup). Session and package lifecycle hooks are reserved in the contract; their dispatch is delivered through `kernel/session.*` and `kernel/package.*` events today and will gain the full sync/async hook treatment as the kernel grows. New points are added by package contributions, not by growing the kernel.
+
 ## Kernel-emitted points
 
 The kernel emits a small fixed set of points. New points are added by package contributions, not by growing the kernel.
