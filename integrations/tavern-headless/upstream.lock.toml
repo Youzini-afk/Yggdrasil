@@ -1,0 +1,18 @@
+[source]
+name = "TavernHeadless"
+path = "../TavernHeadless"
+repo = "local-reference"
+commit = "691c431f0fda03a4ad5cab2fab0c70961f802ff9"
+root_version = "0.1.0"
+api_version = "0.2.0-beta.3"
+
+[checked]
+date = "2026-05-17"
+node = "22.22.2"
+pnpm = "9"
+purpose = "Creative Capability Kit Alpha reference extraction"
+
+[public_boundary]
+sdk = "packages/official-integration-kit/sdk"
+client_helpers = "packages/official-integration-kit/client-helpers"
+internal_shared = "packages/shared is not a Yggdrasil integration boundary"

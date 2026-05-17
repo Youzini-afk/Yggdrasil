@@ -109,6 +109,8 @@ Future update checks should compare the reviewed TavernHeadless commit and chang
 
 Add the integration ledger and compact fixtures. Add docs that explain the abstraction from TavernHeadless into Yggdrasil-native packages.
 
+Delivered files live under `integrations/tavern-headless/` and include `upstream.lock.toml`, `capability-map.yaml`, a reference README, and compact fixtures for persona, knowledge, context, and text transforms.
+
 Acceptance:
 
 - no product package is named `tavern-*`;

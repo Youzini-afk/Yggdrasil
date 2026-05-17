@@ -1,0 +1,15 @@
+{
+  "name": "Layered Context Fixture",
+  "prompts": [
+    { "identifier": "persona", "name": "Persona", "content": "Persona: {{persona.name}}", "role": "system", "system_prompt": true },
+    { "identifier": "knowledge", "name": "Knowledge", "content": "Knowledge: {{knowledge.summary}}", "role": "system" },
+    { "identifier": "state", "name": "State", "content": "State: {{state.summary}}", "role": "user" }
+  ],
+  "prompt_order": [
+    { "identifier": "persona", "enabled": true },
+    { "identifier": "knowledge", "enabled": true },
+    { "identifier": "state", "enabled": true }
+  ],
+  "max_context": 2048,
+  "max_tokens": 256
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Dream City Notes",
+  "scan_depth": 4,
+  "recursive_scanning": true,
+  "entries": {
+    "1": {
+      "uid": 1,
+      "key": ["bell", "chime"],
+      "keysecondary": ["city"],
+      "comment": "Bell rule",
+      "content": "When the bell rings, alleys rotate clockwise.",
+      "constant": false,
+      "selective": true,
+      "selectiveLogic": 0,
+      "order": 100,
+      "position": 0,
+      "depth": 2
+    }
+  }
+}

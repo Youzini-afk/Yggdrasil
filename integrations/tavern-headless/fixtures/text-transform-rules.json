@@ -1,0 +1,17 @@
+[
+  {
+    "id": "trim-whisper",
+    "scriptName": "Trim whispers",
+    "findRegex": "/\\s+whispers\\s+/gi",
+    "replaceString": " says quietly ",
+    "trimStrings": [],
+    "placement": [1, 2],
+    "disabled": false,
+    "markdownOnly": false,
+    "promptOnly": false,
+    "runOnEdit": true,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  }
+]

@@ -109,6 +109,8 @@ Capabilities：
 
 添加 integration ledger 与紧凑 fixtures。补充文档解释从 TavernHeadless 到 Yggdrasil-native packages 的抽象路径。
 
+交付文件位于 `integrations/tavern-headless/`，包括 `upstream.lock.toml`、`capability-map.yaml`、参考 README，以及 persona、knowledge、context 与 text transforms 的紧凑 fixtures。
+
 验收：
 
 - 没有 product package 命名为 `tavern-*`；
