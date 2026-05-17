@@ -1,159 +1,159 @@
-# Conformance Matrix
+# Conformance 矩阵
 
-> [English](./CONFORMANCE_MATRIX.md) · [中文](./CONFORMANCE_MATRIX.zh-CN.md)
+> [English](./CONFORMANCE_MATRIX.en.md) · [中文](./CONFORMANCE_MATRIX.md)
 
-The conformance suite is the executable guardian of the charter. It proves both positive behavior and hostile rejection behavior. The current foundation is Platform Foundation Alpha + Play/Forge Surface Contract Beta. New cases land here as they are added; cases marked partial or future remain on the radar for Foundation Alpha Consolidation and Substrate hardening (see `docs/roadmap/NEXT_STEPS.md`).
+Conformance 套件是 charter 的可执行守卫。它同时证明正向行为和 hostile 拒绝行为。当前基础是 Platform Foundation Alpha + Play/Forge Surface Contract Beta。新用例在添加时收入此处；标记为 partial 或 future 的用例仍在 Foundation Alpha Consolidation 和底座 hardening 的雷达上（见 `docs/roadmap/NEXT_STEPS.md`）。
 
-## Current release-gate command
+## 当前发布门槛命令
 
 ```bash
 cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 91 implemented rows, backed by 98 named CLI conformance cases plus crate/service unit tests.
+当前矩阵覆盖：91 个 implemented rows，由 98 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
-## Current conformance coverage
+## 当前 conformance 覆盖
 
-| Area | Case | Status |
+| 领域 | 用例 | 状态 |
 |---|---|---:|
-| session | open content-free session | implemented |
-| events | authorized package appends own namespace event | implemented |
-| events | package denied when writing without `events.append` | implemented in unit tests |
-| events | package denied when reading without `events.read` | implemented |
-| events | package denied when writing another namespace | implemented in unit tests |
-| events | package denied when writing `kernel/...` | implemented in unit tests |
-| events | closed session rejects append | implemented |
-| events | sequence-range replay with filters | implemented |
-| package | valid manifest loads | implemented |
-| package | lifecycle timeline emits loading/starting/ready/loaded | implemented |
-| package | restart subprocess package | implemented |
-| package | capture subprocess stderr logs | implemented |
-| package | host policy rejects disallowed entry | implemented in unit tests |
-| package | unload removes registry record | implemented in unit tests |
-| package | unload removes capability provider | implemented |
-| capability | discover registered capability | implemented |
-| capability | invoke rust_inproc echo through package trait | implemented |
-| capability | ambiguous provider rejected | implemented in unit tests |
-| capability | explicit provider selection resolves duplicate providers | implemented |
-| capability | version constraint filters providers | implemented |
-| official equality | official-looking package has no route precedence | implemented |
-| hooks | veto fixture reports veto | implemented in unit tests |
-| hooks | stable ordering by precedence/package/handler | implemented |
-| hooks | before event append veto blocks operation | implemented |
-| hooks | before event append metadata mutation is applied | implemented |
-| hooks | package-owned hook handler capability is invoked | implemented |
-| hooks | unload removes hook subscription | implemented |
-| storage | SQLite persists/replays events | implemented in unit tests |
-| assets | put/get/list opaque assets | implemented |
-| sessions | fork session and list branch lineage | implemented |
-| projections | register and rebuild generic event-count projection | implemented |
-| substrate | SQLite event log rehydrates assets, branches, and projections | implemented |
-| substrate | permission grant survives SQLite-backed runtime rehydrate | implemented |
-| secret refs | `secret_ref:`, `secretRef:`, `secret-ref:`, `host:` reference pattern validation | implemented |
-| secret refs | raw secret in proposal payload is rejected | implemented |
-| secret refs | raw secret in asset metadata is rejected | implemented |
-| secret refs | official package has no secret-scanning bypass | implemented |
-| protocol | method list contains no content methods | implemented in unit tests |
-| protocol | structured permission error code | implemented |
-| protocol | in-process protocol dispatcher calls host.info | implemented |
-| protocol | in-process protocol dispatcher invokes capability | implemented |
-| protocol | HTTP `/rpc` returns protocol envelope | implemented in service tests |
-| protocol | host stdio responds to protocol envelope | implemented by CLI validation |
-| principal | package context overrides caller-supplied event writer | implemented |
-| principal | package context overrides caller-supplied capability caller | implemented |
-| principal | human and assistant protocol principals exist | implemented |
-| permissions | grant/revoke/list/audit protocol | implemented |
-| permissions | assistant capability invoke requires explicit grant | implemented |
-| schema | capability input schema rejects invalid input | implemented |
-| schema | event payload schema rejects invalid payload | implemented |
-| subprocess | JSON-RPC stdio package loads and reports ready | implemented |
-| subprocess | JSON-RPC stdio capability invoke works | implemented |
-| subprocess | bad handshake is rejected | implemented |
-| subprocess | invoke timeout degrades package | implemented |
-| subprocess | invalid subprocess output schema is rejected | implemented |
-| subprocess | unload removes subprocess capability | implemented |
-| service | SSE event subscribe endpoint replays and tails events | implemented |
-| host | diagnostics reports packages/capabilities/hooks | implemented |
-| host | profile autoload loads configured packages | implemented |
-| surfaces | package-contributed typed surface descriptors can be listed, described, and filtered | implemented |
-| official packages | foundation packages load and invoke without privilege | implemented |
-| official packages | composition-lab exposes launch-plan, surface-graph, and compat-report capabilities with v2 descriptor diagnostics without privilege | implemented |
-| official packages | asset-lab previews assets and drafts approval-gated import plans without privilege | implemented |
-| official packages | projection-lab drafts rebuild plans and explains source events without privilege | implemented |
-| official packages | playable-seed exposes reference entry/play/Forge/assistant surfaces and approval-gated edits | implemented |
-| official packages | persona-lab imports and renders persona profiles with provenance without kernel ontology | implemented |
-| official packages | knowledge-lab normalizes collections, matches entries, and returns plan-only injection output | implemented |
-| official packages | context-lab assembles generic blocks with budget omissions and template rendering | implemented |
-| official packages | text-transform-lab previews deterministic text transforms with trace and validation diagnostics | implemented |
-| official packages | model-connector-lab validates profiles, rejects raw secrets, and returns no-network discovery plans | implemented |
-| official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
-| in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
-| in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
-| official packages | assistant-lab returns approval-gated proposals through grants | implemented |
-| play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
-| proposals | approved proposals can apply generic asset/projection operations | implemented |
-| proposals | rejected or unapproved proposals cannot apply | implemented |
-| package authoring | generated Python subprocess package passes local conformance | implemented |
-| package authoring | generated TypeScript subprocess package passes local conformance | implemented |
-| package authoring | generated experience package surfaces pass local conformance | implemented |
-| composition | local composition descriptor validates package-provided surfaces | implemented |
-| composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
-| official packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
-| replacement | third-party playable-seed surfaces discoverable through kernel.surface.contribution.list | implemented |
-| replacement | third-party playable-seed capability invocation works through normal routing | implemented |
-| replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
-| replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
-| network | package without network permission denied outbound, produces outbound.denied audit | implemented |
-| network | allowlisted host+method allowed, produces redacted outbound.request audit | implemented |
-| network | host/method mismatch denied | implemented |
-| network | official package has no network bypass | implemented |
-| network | audit records contain no raw secrets/bodies, only secret_ref and redaction_state | implemented |
-| network | check_network_policy pure function tests | implemented |
-| stream | normal lifecycle emits ordered frames/events | implemented |
-| stream | cancel marks invocation cancelled and blocks further chunks | implemented |
-| stream | timeout marks invocation timeout and blocks further chunks | implemented |
-| stream | error terminal frame works | implemented |
-| stream | non-streaming capability (streaming=false) rejected from stream | implemented |
-| stream | no model/agent methods added to protocol | implemented |
-| stream | capability.stream and capability.cancel dispatchable through protocol | implemented |
-| package authoring | generated networked template passes check/conformance with network declarations, no raw secrets | implemented |
-| package authoring | generated streaming template passes check/conformance with streaming capability | implemented |
-| no-network readiness | faux-model-readiness package declares network permissions, provides streaming capability, uses secret_ref, no raw secrets | implemented |
-| no-network readiness | faux-agent-readiness package has no network permissions, provides streaming capability, uses proposal/trace patterns, no raw secrets | implemented |
+| session | 开启内容无关 session | implemented |
+| events | 已授权包追加自身 namespace 事件 | implemented |
+| events | 包在无 `events.append` 时被拒绝写入 | implemented in unit tests |
+| events | 包在无 `events.read` 时被拒绝读取 | implemented |
+| events | 包被拒绝写入他人 namespace | implemented in unit tests |
+| events | 包被拒绝写入 `kernel/...` | implemented in unit tests |
+| events | 已关闭 session 拒绝追加 | implemented |
+| events | 带过滤条件的 sequence-range replay | implemented |
+| package | 有效 manifest 加载成功 | implemented |
+| package | lifecycle 时间线发出 loading/starting/ready/loaded | implemented |
+| package | 重启 subprocess 包 | implemented |
+| package | 捕获 subprocess stderr 日志 | implemented |
+| package | host 策略拒绝不允许的 entry | implemented in unit tests |
+| package | unload 移除注册记录 | implemented in unit tests |
+| package | unload 移除 capability provider | implemented |
+| capability | 发现已注册的 capability | implemented |
+| capability | 通过 package trait 调用 rust_inproc echo | implemented |
+| capability | 模糊 provider 被拒绝 | implemented in unit tests |
+| capability | 显式 provider 选择解决重复 provider | implemented |
+| capability | 版本约束过滤 provider | implemented |
+| official equality | 官方外观的包无路由优先 | implemented |
+| hooks | veto fixture 报告 veto | implemented in unit tests |
+| hooks | 按 precedence/package/handler 稳定排序 | implemented |
+| hooks | before event append veto 阻止操作 | implemented |
+| hooks | before event append metadata 变更生效 | implemented |
+| hooks | 包拥有的 hook handler capability 被调用 | implemented |
+| hooks | unload 移除 hook 订阅 | implemented |
+| storage | SQLite 持久化/replay 事件 | implemented in unit tests |
+| assets | put/get/list 不透明 asset | implemented |
+| sessions | fork session 并列出 branch 族系 | implemented |
+| projections | 注册并 rebuild 通用事件计数 projection | implemented |
+| substrate | SQLite 事件日志 rehydrate asset、branch 和 projection | implemented |
+| substrate | permission grant 在 SQLite-backed runtime rehydrate 后仍存在 | implemented |
+| secret refs | `secret_ref:`、`secretRef:`、`secret-ref:`、`host:` reference pattern validation | implemented |
+| secret refs | proposal payload 中的 raw secret 会被拒绝 | implemented |
+| secret refs | asset metadata 中的 raw secret 会被拒绝 | implemented |
+| secret refs | 官方包没有 secret-scanning bypass | implemented |
+| protocol | 方法列表不包含内容方法 | implemented in unit tests |
+| protocol | 结构化权限错误码 | implemented |
+| protocol | in-process 协议分发器调用 host.info | implemented |
+| protocol | in-process 协议分发器调用 capability | implemented |
+| protocol | HTTP `/rpc` 返回协议信封 | implemented in service tests |
+| protocol | host stdio 响应协议信封 | implemented by CLI validation |
+| principal | 包上下文覆盖调用者提供的 event writer | implemented |
+| principal | 包上下文覆盖调用者提供的 capability caller | implemented |
+| principal | human 和 assistant 协议 principal 存在 | implemented |
+| permissions | grant/revoke/list/audit 协议 | implemented |
+| permissions | assistant capability 调用需要显式授权 | implemented |
+| schema | capability input schema 拒绝无效输入 | implemented |
+| schema | event payload schema 拒绝无效 payload | implemented |
+| subprocess | JSON-RPC stdio 包加载并报告 ready | implemented |
+| subprocess | JSON-RPC stdio capability 调用正常工作 | implemented |
+| subprocess | 错误握手被拒绝 | implemented |
+| subprocess | 调用超时导致包降级 | implemented |
+| subprocess | 无效 subprocess 输出 schema 被拒绝 | implemented |
+| subprocess | unload 移除 subprocess capability | implemented |
+| service | SSE 事件订阅端点 replay 和 tail 事件 | implemented |
+| host | diagnostics 报告包/capability/hook | implemented |
+| host | profile 自动加载配置的包 | implemented |
+| surfaces | 包贡献的类型化 surface 描述符可以列出、描述和过滤 | implemented |
+| official packages | 基础包无特权加载和调用 | implemented |
+| official packages | composition-lab 以无特权方式暴露 launch-plan、surface-graph 与 compat-report capabilities，支持 v2 descriptor 诊断 | implemented |
+| official packages | asset-lab 以无特权方式 preview assets 并生成需要审批的 import plans | implemented |
+| official packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
+| official packages | playable-seed 暴露 reference entry/play/Forge/assistant surfaces 以及需要审批的 edits | implemented |
+| official packages | persona-lab 以无 kernel ontology 的方式 import 并 render persona profiles，且带 provenance | implemented |
+| official packages | knowledge-lab normalize collections、match entries，并返回 plan-only injection output | implemented |
+| official packages | context-lab 组装 generic blocks，包含 budget omissions 与 template rendering | implemented |
+| official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
+| official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
+| official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
+| in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
+| in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
+| official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
+| play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
+| proposals | 已批准的 proposal 可以执行通用 asset/projection 操作 | implemented |
+| proposals | 被拒绝或未批准的 proposal 不能执行 | implemented |
+| package authoring | 生成的 Python subprocess 包通过本地 conformance | implemented |
+| package authoring | 生成的 TypeScript subprocess 包通过本地 conformance | implemented |
+| package authoring | 生成的 experience 包 surface 通过本地 conformance | implemented |
+| composition | 本地 composition 描述符验证包提供的 surface | implemented |
+| composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
+| official packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
+| replacement | 第三方 playable-seed surface 通过 kernel.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
+| replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
+| replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
+| network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
+| network | allowlisted host+method 允许，产生 redacted outbound.request 审计 | implemented |
+| network | host/method 不匹配被拒绝 | implemented |
+| network | 官方包无 network bypass | implemented |
+| network | 审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state | implemented |
+| network | check_network_policy 纯函数测试 | implemented |
+| stream | 正常生命周期发出有序 frame/event | implemented |
+| stream | cancel 标记 invocation 为 cancelled 并阻断后续 chunk | implemented |
+| stream | timeout 标记 invocation 为 timeout 并阻断后续 chunk | implemented |
+| stream | error 终端 frame 正常工作 | implemented |
+| stream | 非 streaming 能力（streaming=false）被拒绝 | implemented |
+| stream | 协议中无 model/agent 方法 | implemented |
+| stream | capability.stream 和 capability.cancel 可通过协议分发 | implemented |
+| package authoring | 生成的 networked 模板通过 check/conformance，含网络声明，无 raw secrets | implemented |
+| package authoring | 生成的 streaming 模板通过 check/conformance，含 streaming capability | implemented |
+| no-network readiness | faux-model-readiness 包声明网络权限、提供 streaming capability、使用 secret_ref、无 raw secrets | implemented |
+| no-network readiness | faux-agent-readiness 包无网络权限、提供 streaming capability、使用 proposal/trace 模式、无 raw secrets | implemented |
 
-## Required hostile conformance for Platform Host Alpha
+## Platform Host Alpha 必需的 hostile conformance
 
-| Area | Required case | Target phase |
+| 领域 | 必需用例 | 目标阶段 |
 |---|---|---|
-| package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | implemented |
-| package execution | subprocess package completes JSON-RPC stdio handshake | Platform Host Alpha |
-| package execution | subprocess timeout/crash/degraded behavior is enforced | Platform Host Alpha |
-| package execution | package load goes through loading/starting/ready states | implemented |
-| capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | Platform Host Alpha |
-| capability | package caller without declared invoke permission is denied | Platform Host Alpha |
-| capability | version mismatch fails | partial |
-| capability | duplicate providers produce ambiguous route unless caller selects provider | implemented |
-| capability | unloaded provider cannot be invoked | implemented |
-| events | package without `events.read` cannot list events | implemented |
-| events | closed session rejects append | implemented |
-| events | sequence-range replay works | implemented |
-| protocol | HTTP `/rpc` and in-process runtime share authorization behavior | Platform Host Alpha |
-| protocol | host JSON-RPC stdio transport passes core conformance | Platform Host Alpha |
-| hooks | hook ordering is stable | implemented |
-| hooks | unload removes hook subscribers | implemented |
-| hooks | before/after lifecycle hooks are dispatched by kernel operations | partial |
-| hooks | package-owned hook handler capability is invoked | implemented |
-| schema | manifest schema refs are resolvable | future |
-| schema | capability input schema rejects invalid input | implemented |
-| schema | capability output schema rejects invalid output | implemented in runtime path |
-| schema | event payload schema rejects invalid payload when schema is declared | implemented |
-| official equality | an `official/...` package has no special routing or permissions | implemented |
-| official equality | kernel starts and conformance passes with no official packages loaded | implemented |
+| package execution | `rust_inproc` capability 通过 package ABI 执行，而非硬编码 id 逻辑 | implemented |
+| package execution | subprocess 包完成 JSON-RPC stdio 握手 | Platform Host Alpha |
+| package execution | subprocess 超时/崩溃/降级行为被强制执行 | Platform Host Alpha |
+| package execution | 包加载经历 loading/starting/ready 状态 | implemented |
+| capability | anonymous/dev 调用者行为被显式标记为 host-only，非包特权 | Platform Host Alpha |
+| capability | 未声明 invoke 权限的包调用者被拒绝 | Platform Host Alpha |
+| capability | 版本不匹配失败 | partial |
+| capability | 重复 provider 在调用者未选择 provider 时产生 ambiguous route | implemented |
+| capability | 已卸载的 provider 不能被调用 | implemented |
+| events | 无 `events.read` 的包不能列出事件 | implemented |
+| events | 已关闭 session 拒绝追加 | implemented |
+| events | sequence-range replay 正常工作 | implemented |
+| protocol | HTTP `/rpc` 和 in-process 运行时共享授权行为 | Platform Host Alpha |
+| protocol | host JSON-RPC stdio 传输层通过核心 conformance | Platform Host Alpha |
+| hooks | hook 排序稳定 | implemented |
+| hooks | unload 移除 hook 订阅者 | implemented |
+| hooks | before/after lifecycle hook 由内核操作分发 | partial |
+| hooks | 包拥有的 hook handler capability 被调用 | implemented |
+| schema | manifest schema 引用可解析 | future |
+| schema | capability input schema 拒绝无效输入 | implemented |
+| schema | capability 输出 schema 拒绝无效输出 | implemented in runtime path |
+| schema | 声明了 schema 时 event payload schema 拒绝无效 payload | implemented |
+| official equality | `official/...` 包没有特殊路由或权限 | implemented |
+| official equality | 内核在未加载任何官方包时启动且 conformance 通过 | implemented |
 
-## CLI target output
+## CLI 目标输出
 
-`cargo run -p ygg-cli -- conformance` should evolve from a smoke test into a named case runner:
+`cargo run -p ygg-cli -- conformance` 应从一个冒烟测试演进为具名用例运行器：
 
 ```text
 session.open_empty                         PASS
@@ -209,8 +209,8 @@ package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
 composition.check_descriptor               PASS
 composition.check_descriptor_v2             PASS
-official.composition_lab                    PASS
-official.composition_lab_diagnostics         PASS
+official.composition_lab                   PASS
+official.composition_lab_diagnostics       PASS
 official.asset_lab                         PASS
 official.projection_lab                    PASS
 official.playable_seed                     PASS
@@ -226,7 +226,7 @@ replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_official_priority   PASS
 replacement.composition_thirdparty           PASS
-substrate.permission_grant_rehydrate          PASS
+substrate.permission_grant_rehydrate         PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
@@ -250,4 +250,4 @@ package.faux_model_readiness                   PASS
 package.faux_agent_readiness                   PASS
 ```
 
-The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
+该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

@@ -1,30 +1,30 @@
-# Public Protocol v0
+# 公开协议 v0
 
-> [English](./PROTOCOL_V0.md) · [中文](./PROTOCOL_V0.zh-CN.md)
+> [English](./PROTOCOL_V0.en.md) · [中文](./PROTOCOL_V0.md)
 
-The kernel exposes one public protocol. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services use the same contract.
+内核对外暴露一份公开协议。Studio、CLI、in-process 包、subprocess 包、WASM 包和 remote 服务使用同一份契约。
 
-There is no private bypass. Official clients use this protocol; third parties use this protocol.
+不存在私有旁路。官方客户端使用这份协议；第三方也使用这份协议。
 
-## Transports
+## 传输层
 
-All transports eventually surface the same protocol. Platform Host Alpha implements a minimal public subset first and marks the rest deferred until conformance covers them.
+所有传输层最终呈现同一份协议。Platform Host Alpha 优先实现最小的公开子集，其余标记为 deferred，直到 conformance 覆盖它们。
 
-- In-process: a Rust API that mirrors the wire shape one-to-one.
-- Subprocess: JSON-RPC over stdio. Required for Platform Host Alpha.
-- HTTP: request/response for non-streaming methods. Required for Platform Host Alpha.
-- Profile-backed HTTP host: `ygg host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` starts `/rpc` plus ad hoc SSE routes after autoloading profile packages.
-- Host stdio: JSON-RPC for automation and conformance. Required for Platform Host Alpha.
-- WebSocket: subscriptions and streaming methods. Planned after sequence-range replay.
-- TCP: JSON-RPC over a local socket. Deferred.
-- Remote endpoint: HTTP and WebSocket against a declared URL. Deferred.
-- WASM host: marshalled calls into the kernel-provided ABI. Deferred.
+- In-process：与线上格式一一对应的 Rust API。
+- Subprocess：基于 stdio 的 JSON-RPC。Platform Host Alpha 必须实现。
+- HTTP：用于非 streaming 方法的 request/response。Platform Host Alpha 必须实现。
+- Profile 支持的 HTTP host：`ygg host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` 在自动加载 profile 包之后启动 `/rpc` 以及 ad hoc SSE 路由。
+- Host stdio：用于自动化和 conformance 的 JSON-RPC。Platform Host Alpha 必须实现。
+- WebSocket：用于订阅和 streaming 方法。计划在 sequence-range replay 之后实现。
+- TCP：基于本地 socket 的 JSON-RPC。Deferred。
+- Remote endpoint：对声明 URL 的 HTTP 和 WebSocket。Deferred。
+- WASM host：通过内核提供的 ABI 进行 marshalled 调用。Deferred。
 
-Transport selection is a host concern. A method is not considered implemented for public callers until at least one public transport path and conformance case exercise it without bypassing runtime permission checks.
+传输层选择是 host 的职责。一个方法只有当至少有一条公开传输路径和 conformance 用例在不绕过运行时权限检查的情况下执行它时，才被视为已实现。
 
-## Protocol envelope
+## 协议信封
 
-Canonical request/response transports use this shape:
+规范的 request/response 传输层使用以下格式：
 
 ```json
 {
@@ -34,9 +34,9 @@ Canonical request/response transports use this shape:
 }
 ```
 
-The host attaches principal and transport context. Callers do not self-assert package/admin identity through request JSON.
+host 附加 principal 和传输层上下文。调用者不通过请求 JSON 自行声明 package/admin 身份。
 
-Success:
+成功：
 
 ```json
 {
@@ -45,7 +45,7 @@ Success:
 }
 ```
 
-Failure:
+失败：
 
 ```json
 {
@@ -58,20 +58,20 @@ Failure:
 }
 ```
 
-## Method shape
+## 方法格式
 
-Every method has:
+每个方法具有：
 
-- `id`: namespaced under `kernel/...` for kernel methods, or under a package id for package methods.
-- `input`: a JSON value validated against a published schema.
-- `output`: a JSON value, possibly a stream.
-- `errors`: a structured error model with `code`, `message`, `details`.
+- `id`：内核方法在 `kernel/...` 下命名，包方法在 package id 下命名。
+- `input`：根据已发布 schema 验证的 JSON 值。
+- `output`：JSON 值，可能是 stream。
+- `errors`：包含 `code`、`message`、`details` 的结构化错误模型。
 
-## Kernel methods
+## 内核方法
 
-The kernel exposes a minimal set. Anything not listed is owned by a package.
+内核暴露一个最小集合。未列出的任何内容都归某个包所有。
 
-### Sessions
+### Session
 
 ```text
 kernel.session.open      open a session with labels and a package set
@@ -82,9 +82,9 @@ kernel.session.get       get session metadata
 kernel.session.list      list sessions visible to the caller
 ```
 
-The kernel stores no content-level session state. Labels and package set are the only opinions.
+内核不存储任何内容层面的 session 状态。标签和包集是仅有的主观判断。
 
-### Events
+### 事件
 
 ```text
 kernel.event.append      append an event under the caller's namespace
@@ -92,15 +92,15 @@ kernel.event.list        list events for a session by sequence range
 kernel.event.subscribe   stream events as they are appended (resumable)
 ```
 
-`event.append` requires `events.append` in the caller's manifest. `event.list` and `event.subscribe` require `events.read` for package principals. The current Host Alpha slice exposes HTTP SSE as a host-dev stream:
+`event.append` 要求调用者的 manifest 中包含 `events.append`。`event.list` 和 `event.subscribe` 对于 package principal 要求 `events.read`。当前 Host Alpha 切片将 HTTP SSE 作为 host-dev 流暴露：
 
 ```text
 GET /kernel/event.subscribe/:session_id?after_sequence=42&kind_prefix=kernel/&writer_package_id=kernel
 ```
 
-`kernel.event.list` accepts `session_id`, `after_sequence`, `limit`, `kind_prefix`, and `writer_package_id`.
+`kernel.event.list` 接受 `session_id`、`after_sequence`、`limit`、`kind_prefix` 和 `writer_package_id`。
 
-### Packages
+### 包
 
 ```text
 kernel.package.list      list packages visible in the host
@@ -112,9 +112,9 @@ kernel.package.restart   restart a package when its entry form supports restart
 kernel.package.logs      read captured package logs
 ```
 
-Loading a package may be host-policy-restricted.
+加载包可能受 host 策略限制。
 
-### Capabilities
+### Capability
 
 ```text
 kernel.capability.discover    enumerate capabilities, optionally filtered
@@ -124,9 +124,9 @@ kernel.capability.stream      invoke a capability that streams
 kernel.capability.cancel      cancel an in-flight invocation
 ```
 
-`invoke` resolves to a provider by id, optional `provider_package_id`, optional version constraint, and eventually session package set. If multiple providers match and the caller did not specify `provider_package_id`, the kernel returns an ambiguous-route error. Host Alpha currently supports exact version or same-major `^x.y` constraints.
+`invoke` 通过 id、可选的 `provider_package_id`、可选的版本约束以及最终的 session 包集来解析到 provider。如果多个 provider 匹配且调用者未指定 `provider_package_id`，内核返回 ambiguous-route 错误。Host Alpha 目前支持精确版本或同主版本 `^x.y` 约束。
 
-### Extension points and hooks
+### Extension point 和 hook
 
 ```text
 kernel.extension_point.list        list live extension points
@@ -134,9 +134,9 @@ kernel.extension_point.describe    fetch payload schema and timing
 kernel.hook.list                   list subscribers to a point
 ```
 
-The kernel does not expose a method to inject hooks at runtime; subscriptions are declared in manifests. Live registration is allowed only through package lifecycle.
+内核不暴露在运行时注入 hook 的方法；订阅在 manifest 中声明。运行时注册仅允许通过包 lifecycle 进行。
 
-### Assets
+### Asset
 
 ```text
 kernel.asset.put         store an asset blob under the caller's namespace
@@ -144,9 +144,9 @@ kernel.asset.get         fetch an asset by id
 kernel.asset.list        list assets visible to the caller
 ```
 
-The kernel records `mime`, `hash`, `size`, and `origin_package`. It does not parse or interpret asset content.
+内核记录 `mime`、`hash`、`size` 和 `origin_package`。它不解析或解释 asset 内容。
 
-### Projections
+### Projection
 
 ```text
 kernel.projection.register  register a generic projection definition
@@ -155,9 +155,9 @@ kernel.projection.get       fetch projection state
 kernel.projection.list      list projection records
 ```
 
-The kernel manages projection records and rebuild lifecycle, but does not interpret content-specific state semantics. Package-owned projection execution belongs to packages.
+内核管理 projection 记录和 rebuild lifecycle，但不解释内容相关的状态语义。包拥有的 projection 执行归包所有。
 
-### Health and identity
+### 健康与身份
 
 ```text
 kernel.host.info         host version, kernel ABI, transports
@@ -166,13 +166,13 @@ kernel.host.ping         liveness
 kernel.host.diagnostics  local host diagnostics for package/capability/hook observability
 ```
 
-## Package methods
+## 包方法
 
-Each package contributes its own protocol methods through capability registrations and extension-point declarations. Their schemas are discoverable via `kernel.capability.describe` and `kernel.extension_point.describe`.
+每个包通过 capability 注册和 extension-point 声明贡献自己的协议方法。它们的 schema 可以通过 `kernel.capability.describe` 和 `kernel.extension_point.describe` 发现。
 
-The kernel does not predefine methods like `session.input`, `prompt_frame.get`, `model.call`, `memory.search`. If those exist, they belong to specific packages.
+内核不预定义 `session.input`、`prompt_frame.get`、`model.call`、`memory.search` 等方法。如果它们存在，它们属于特定的包。
 
-## Errors
+## 错误
 
 ```text
 kernel/error/transport
@@ -187,23 +187,23 @@ kernel/error/capacity
 kernel/error/package_state
 ```
 
-Package errors travel inside `capability.invoke` responses as `package_error` with provider-defined details.
+包错误作为 `package_error` 携带 provider 定义的详情，在 `capability.invoke` 响应中传递。
 
 ## Streaming
 
-Streaming flows over WebSocket or transport-equivalent. Streams carry typed frames whose schema is published with the method.
+Streaming 通过 WebSocket 或等效传输层进行。流携带类型化帧，其 schema 随方法发布。
 
-For `event.subscribe`, frames are event envelopes plus a `cursor` for resume.
+对于 `event.subscribe`，帧是事件信封加上用于恢复的 `cursor`。
 
-For `capability.stream`, frames are provider-defined chunks plus a terminal status frame.
+对于 `capability.stream`，帧是 provider 定义的块加上终端状态帧。
 
-## Authentication and principals
+## 认证和 principal
 
-A host enforces authentication at the transport layer. Each connection is associated with a principal: a user, assistant, package, host tool, anonymous caller, or remote system. The kernel checks permissions against the principal on every operation.
+host 在传输层强制执行认证。每个连接关联一个 principal：用户、assistant、包、host 工具、匿名调用者或 remote 系统。内核在每次操作时根据 principal 检查权限。
 
-The kernel does not ship an identity provider. Hosts plug one in.
+内核不附带 identity provider。Host 自行接入。
 
-Alpha principal kinds:
+Alpha principal 种类：
 
 ```text
 host_admin
@@ -214,7 +214,7 @@ assistant { assistant_id, delegated_user_id? }
 anonymous
 ```
 
-Human and assistant principals require explicit scoped grants for sensitive operations:
+Human 和 assistant principal 对敏感操作需要显式的有范围授权：
 
 ```text
 kernel.permission.grant
@@ -223,22 +223,22 @@ kernel.permission.list
 kernel.permission.audit
 ```
 
-## Surface contributions
+## Surface 贡献
 
-Packages may declare UI surface descriptors in their manifests. The kernel does not render or interpret these descriptors as content; it only exposes them for public clients:
+包可以在其 manifest 中声明 UI surface 描述符。内核不渲染或解释这些描述符的内容；它只将它们暴露给公开客户端：
 
 ```text
 kernel.surface.contribution.list
 kernel.surface.contribution.describe
 ```
 
-Initial slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
+初始 slot 为 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor` 和 `assistant_action`。
 
-Surface descriptors may include a version, launch capability, session template, input schema, permission UX metadata, and an approval policy. These remain descriptors; the kernel does not turn them into built-in experience/game semantics.
+Surface 描述符可以包含版本、启动 capability、session 模板、input schema、权限 UX 元数据和 approval 策略。这些始终是描述符；内核不会将它们转化为内建的体验/游戏语义。
 
 ## Proposal lifecycle
 
-Assistant and package-driven changes use generic proposal envelopes rather than privileged mutation paths:
+Assistant 和包驱动的变更使用通用 proposal 信封，而非特权变更路径：
 
 ```text
 kernel.proposal.create
@@ -249,14 +249,14 @@ kernel.proposal.reject
 kernel.proposal.apply
 ```
 
-Proposal statuses are `created`, `approved`, `rejected`, `applied`, and `failed`. Initial operation support is intentionally generic (`asset.put`, `projection.rebuild`) and must produce kernel audit/proposal events.
+Proposal 状态为 `created`、`approved`、`rejected`、`applied` 和 `failed`。初始操作支持是刻意保持通用的（`asset.put`、`projection.rebuild`），并且必须产生内核 audit/proposal 事件。
 
-## Versioning
+## 版本控制
 
-The protocol carries `protocol_version`. The kernel publishes the schema set per version. Breaking changes require a new version; the kernel may serve multiple concurrently.
+协议携带 `protocol_version`。内核按版本发布 schema 集。破坏性变更需要新版本；内核可以同时服务多个版本。
 
-Method schemas may evolve in backward-compatible ways within a version (additive fields). Breaking method changes require a new method id.
+方法 schema 可以在一个版本内以向后兼容的方式演进（增量字段）。破坏性方法变更需要新的方法 id。
 
-## Stability
+## 稳定性
 
-Anything resembling `session.input`, `prompt_frame.get`, `model.call`, or any other content method is out of scope for kernel protocol forever. Adding such methods to the kernel is a charter violation.
+任何类似 `session.input`、`prompt_frame.get`、`model.call` 或其他内容方法的东西，永远不在内核协议的范围内。向内核添加此类方法是 charter 违规。

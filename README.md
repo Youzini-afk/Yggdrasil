@@ -1,58 +1,58 @@
 # Yggdrasil
 
-> [English](./README.md) · [中文](./README.zh-CN.md)
+> [English](./README.en.md) · [中文](./README.md)
 
-Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
+Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱动创作平台。
 
-It is a kernel and a contract — small, stable, opinion-free at the center — over which an open ecosystem of capability packages provides every meaningful concept.
+它是一个内核 + 一份契约 —— 中心小、稳定、不带主观意图 —— 在它之上是一个由能力包（capability package）组成的开放生态，平台中的每一个有意义的概念都来自能力包。
 
-## Why this exists
+## 我们为什么做这个
 
-Most AI-native creative tools today divide their users into players who consume a finished experience and developers who build it. Yggdrasil refuses that split. A player can inspect the session, ask an assistant to change it, fork it, replace a package, and ship the result back. A creator works against the same public protocol, with the same packages, in the same surfaces. The substrate is the same in both directions.
+今天大多数 AI 原生创作工具，都把使用者切成两半：消费成品体验的玩家，和构建体验的开发者。Yggdrasil 拒绝这种切分。玩家可以审视当前 session、让 assistant 修改它、fork 它、替换其中某个能力包、再把改动反馈出去。创作者面对的是同一份公开协议、同样的能力包、同样的产品 surface。底层底座在两个方向上是完全相同的。
 
-That stance is what the kernel, the public protocol, the official packages, and the web shell collectively serve. See [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) for the full product stance.
+这一立场是内核、公开协议、官方包、Web shell 共同服务的目标。完整的产品立场见 [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md)。
 
-## Center of gravity
+## 重心所在
 
-- The kernel hosts capability packages and nothing else.
-- Capability packages provide every meaningful concept (characters, prompts, models, agents, worlds, rules, memory, anything).
-- Official packages have no privileges. Same manifest, same fabric, same permission gate.
-- Creators are free to compose, replace, or write their own packages.
+- 内核只承担承载能力包的职责，仅此而已。
+- 所有有意义的概念（角色、提示词、模型、agent、世界、规则、记忆等等）都由能力包提供。
+- 官方包没有任何特权。同一份 manifest、同一套能力网络、同一道权限闸门。
+- 创作者可以自由组合、替换或自己写新的能力包。
 
-The platform's job is to make radical AI-native creation possible without privileging an "official path."
+平台的职责是让激进的 AI 原生创作成为可能，而不是去给某条「官方路径」开特权。
 
-## Status
+## 当前状态
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha.**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha。**
 
-The current foundation includes a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, principals and scoped permissions, surface contributions, generic proposal/approval lifecycle, asset/branch/projection substrate, official platform packages (`composition-lab`, `asset-lab`, `projection-lab`), Creative Capability Kit packages (`persona-lab`, `knowledge-lab`, `context-lab`, `text-transform-lab`), no-network Model Connectivity Kit packages (`model-connector-lab`, `model-routing-lab`), an assistant-as-package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play and Forge surfaces. 61 named conformance cases plus crate and service unit tests cover the boundary.
+当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、安全执行原语（`secret_ref`、network declarations、outbound audit/redaction、stream/cancel lifecycle）、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、Creative Capability Kit 包（`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`）、no-network Model Connectivity Kit 包（`model-connector-lab`、`model-routing-lab`）、作为能力包存在的 assistant、`official/playable-seed`、空白游创循环、一个完全走公开协议的 Home/Play + Forge + Assist Web shell，以及可选前端文本引擎底座（fallback engine、可选 Pretext engine、Forge text preview、`sdk/typescript/text-surface`）。98 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
 
-For the executable snapshot, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md).
-For where this is going, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md).
+可执行快照见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。
+后续阶段见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
-## Repository layout
+## 仓库结构
 
 ```text
 crates/
-  ygg-core/      Kernel-only contracts and content-free types.
-  ygg-runtime/   Runtime host: events, packages, capabilities, hooks, surfaces,
-                 proposals, assets, branches, projections, sandbox, transports.
-  ygg-service/   Public protocol surface (HTTP /rpc, SSE event subscribe).
-  ygg-cli/       Host modes, manifest tools, package authoring, conformance.
+  ygg-core/      内核类型与契约，内容无关。
+  ygg-runtime/   运行时主机：events、packages、capabilities、hooks、surfaces、
+                 proposals、assets、branches、projections、sandbox、transports。
+  ygg-service/   公开协议层（HTTP /rpc，事件 SSE 订阅）。
+  ygg-cli/       host 模式、manifest 工具、能力包脚手架、conformance。
 clients/
-  web/           Public-protocol Home / Play, Forge, and Assist shell.
+  web/           走公开协议的 Home / Play、Forge、Assist Web shell。
 packages/
-  official/      Foundation capability packages loaded through ordinary manifests.
+  official/      作为普通 manifest 加载的官方基础能力包。
 sdk/
-  typescript/    Subprocess-package authoring helpers and template runtime.
-profiles/        Host profiles for autoloading sets of packages.
-examples/        Example package manifests and fixtures.
-docs/            Architecture, protocol, spec, roadmap, product, and tavern docs.
+  typescript/    subprocess 能力包脚手架与模板运行时。
+profiles/        host profile，用来批量自动加载能力包。
+examples/        示例 manifest 与 fixture 包。
+docs/            架构、协议、规范、路线图、产品、Tavern 相关文档。
 ```
 
-## Quick start
+## 快速上手
 
-Run a host with the Forge profile, then open the web shell against it:
+用 Forge profile 启动 host，再针对它打开 Web shell：
 
 ```bash
 cargo run -p ygg-cli -- host serve \
@@ -60,29 +60,29 @@ cargo run -p ygg-cli -- host serve \
   --profile profiles/forge-alpha.yaml
 ```
 
-In another terminal, type-check the web shell:
+另一个终端里类型检查 Web shell：
 
 ```bash
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-Run the full conformance suite:
+跑完整 conformance 套件：
 
 ```bash
 cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Demo the blank play-creation loop end-to-end through ordinary public-protocol calls:
+只用普通公开协议调用，跑通空白游创循环：
 
 ```bash
 cargo run -p ygg-cli -- play-create-demo
 ```
 
-## Common commands
+## 常用命令
 
 ```bash
-# manifests and packages
+# manifest 与能力包
 cargo run -p ygg-cli -- manifest validate examples/packages/echo-rust-inproc/manifest.yaml
 cargo run -p ygg-cli -- package load    examples/packages/echo-rust-inproc/manifest.yaml
 cargo run -p ygg-cli -- package check   examples/packages/echo-subprocess-python/manifest.yaml
@@ -90,18 +90,18 @@ cargo run -p ygg-cli -- package conformance examples/packages/echo-subprocess-py
 cargo run -p ygg-cli -- capability invoke examples/packages/echo-rust-inproc/manifest.yaml \
   example/echo-rust-inproc/echo --input '{"hello":"world"}'
 
-# package authoring
+# 能力包脚手架
 cargo run -p ygg-cli -- init-package /tmp/ygg-package        --id example/new-package        --entry subprocess --language python
 cargo run -p ygg-cli -- init-package /tmp/ygg-ts-package     --id example/new-ts-package     --entry subprocess --language typescript
 cargo run -p ygg-cli -- init-package /tmp/ygg-experience-pkg --id example/new-experience     --entry subprocess --language typescript-experience
 cargo run -p ygg-cli -- init-composition /tmp/ygg-composition --id example/new-experience
 cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 
-# host modes
+# host 模式
 cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 cargo run -p ygg-cli -- host-stdio
 
-# verification and demos
+# 验证与 demo
 cargo test --workspace
 cargo run -p ygg-cli -- conformance
 cargo run -p ygg-cli -- play-create-demo
@@ -118,36 +118,38 @@ cargo run -p ygg-cli -- init-composition /tmp/ygg-composition --id example/packa
 cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 ```
 
-## Read first
+## 推荐先读
 
-- [`docs/CHARTER.md`](docs/CHARTER.md) — permanent principles.
-- [`docs/architecture/VISION.md`](docs/architecture/VISION.md) — what the platform is for.
-- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) — kernel-and-packages layering.
-- [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) — what the kernel does and does not do.
-- [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) — package contract.
-- [`docs/architecture/EXTENSION_POINTS.md`](docs/architecture/EXTENSION_POINTS.md) — hook contract.
-- [`docs/architecture/EVENT_MODEL.md`](docs/architecture/EVENT_MODEL.md) — opaque event log model.
-- [`docs/architecture/RUNTIME_LIFECYCLE.md`](docs/architecture/RUNTIME_LIFECYCLE.md) — kernel-side lifecycles.
-- [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) — public protocol.
-- [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.md) — executable alpha contract matrix.
-- [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.md) — hostile conformance roadmap.
-- [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) — play-creation product stance.
-- [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) — third-party package authoring walkthrough.
-- [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.md) — Yggdrasil-native creative capability package kit.
-- [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) — no-network model provider profile and route planning kit.
-- [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) — living snapshot of what is done, partial, and deferred.
-- [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) — current and upcoming phases.
+每篇开发文档都同时提供英文与简体中文版本，文件顶部的双语导航 blockquote 可在两种语言间切换。下面这份阅读路径覆盖了内核、能力包契约、协议、状态与路线图：
 
-## Deferred
+- [`docs/CHARTER.md`](docs/CHARTER.md) —— 不变的根本原则。
+- [`docs/architecture/VISION.md`](docs/architecture/VISION.md) —— 平台为何而存在。
+- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) —— kernel + packages 两层架构。
+- [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) —— 内核做什么、不做什么。
+- [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) —— 能力包契约。
+- [`docs/architecture/EXTENSION_POINTS.md`](docs/architecture/EXTENSION_POINTS.md) —— 扩展点 / hook 契约。
+- [`docs/architecture/EVENT_MODEL.md`](docs/architecture/EVENT_MODEL.md) —— 不透明事件日志模型。
+- [`docs/architecture/RUNTIME_LIFECYCLE.md`](docs/architecture/RUNTIME_LIFECYCLE.md) —— 内核侧生命周期。
+- [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) —— 公开协议。
+- [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.md) —— 可执行的 alpha 契约矩阵。
+- [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.md) —— hostile conformance 路线图。
+- [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) —— 游创一体的产品立场。
+- [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) —— 第三方能力包创作 walkthrough。
+- [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.md) —— Yggdrasil-native creative capability package kit。
+- [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) —— no-network model provider profile 与 route planning kit。
+- [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
+- [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) —— 当前与下一阶段。
 
-These are valuable directions but not part of the kernel. They will arrive as ordinary capability packages.
+## 延后事项
 
-- SillyTavern compatibility — see [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md).
-- pi integration — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md).
-- External game engines (UE5, Godot, Unity, web clients) — future packages or remote-entry integrations.
-- Conversational runtime, model providers, memory model, agent loop, world simulation, director.
-- Final UI visual design, full Studio, ComfyUI-like node editors, marketplace.
+下面这些方向有价值，但不属于内核。它们都将以普通能力包的形态到来。
 
-## License
+- SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
+- pi 集成 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md)。
+- 外部游戏引擎（UE5、Godot、Unity、Web 端）—— 后续以包或 remote 入口形式接入。
+- 对话运行时、模型 provider、记忆模型、agent loop、世界模拟、director。
+- 最终视觉设计、完整 Studio、ComfyUI 风格节点编辑器、市场。
 
-Yggdrasil is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See [`LICENSE`](LICENSE).
+## 协议
+
+Yggdrasil 以 GNU Affero General Public License v3.0（AGPLv3）发布，详见 [`LICENSE`](LICENSE)。

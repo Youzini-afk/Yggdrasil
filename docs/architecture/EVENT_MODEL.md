@@ -1,14 +1,14 @@
-# Event Model
+# 事件模型
 
-> [English](./EVENT_MODEL.md) · [中文](./EVENT_MODEL.zh-CN.md)
+> [English](./EVENT_MODEL.en.md) · [中文](./EVENT_MODEL.md)
 
-The event log is the kernel's source of truth. It is per-session, append-only, durable, and ordered.
+事件日志是内核的真相来源。它按 session 组织、只追加、持久化且有序。
 
-The kernel does not interpret event payloads. Meaning is owned by capability packages.
+内核不解释事件 payload。意义属于能力包。
 
-## Envelope
+## 信封
 
-Every persisted event uses the same envelope:
+每个持久化的事件使用相同的信封：
 
 ```text
 EventEnvelope
@@ -23,22 +23,22 @@ EventEnvelope
 - metadata            opaque JSON; causation_id, correlation_id, trace ids, etc.
 ```
 
-The kernel:
+内核：
 
-- assigns `id`, `sequence`, `timestamp`, and `writer_package_id`,
-- enforces that `kind` is namespaced under the writer's id (or `kernel/...` for kernel events),
-- validates `payload` against the writer's declared schema if one is declared,
-- treats `metadata` as opaque.
+- 分配 `id`、`sequence`、`timestamp` 和 `writer_package_id`，
+- 要求 `kind` 命名空间在写入方的 id 之下（内核事件使用 `kernel/...`），
+- 在写入方声明了 schema 时，依据其声明的 schema 验证 `payload`，
+- 将 `metadata` 视为不透明。
 
-## Kinds
+## 种类
 
-There are two flavors of event kinds.
+事件 kind 有两种类型。
 
-### Kernel-emitted kinds
+### 内核发出的 kind
 
-A small fixed set the kernel itself produces. They describe kernel operations, not content.
+内核自身产生的一小部分固定集合。它们描述内核操作，而非内容。
 
-Session:
+Session：
 
 ```text
 kernel/session.opened
@@ -46,7 +46,7 @@ kernel/session.closed
 kernel/session.forked
 ```
 
-Package lifecycle:
+能力包 lifecycle：
 
 ```text
 kernel/package.loading
@@ -60,7 +60,7 @@ kernel/package.degraded
 kernel/package.log
 ```
 
-Capability invocation (planned audit shape):
+Capability 调用（计划的审计形式）：
 
 ```text
 kernel/capability.invoked
@@ -68,7 +68,7 @@ kernel/capability.completed
 kernel/capability.failed
 ```
 
-Permission audit:
+权限审计：
 
 ```text
 kernel/permission.granted
@@ -76,14 +76,14 @@ kernel/permission.revoked
 kernel/permission.denied
 ```
 
-Generic substrate:
+通用底座：
 
 ```text
 kernel/asset.put
 kernel/projection.updated
 ```
 
-Proposal lifecycle:
+Proposal 生命周期：
 
 ```text
 kernel/proposal.created
@@ -93,17 +93,17 @@ kernel/proposal.applied
 kernel/proposal.failed
 ```
 
-Transport / runtime errors (planned):
+Transport / runtime 错误（计划中）：
 
 ```text
 kernel/error
 ```
 
-These are the only event kinds the kernel knows about by name. Their payloads describe kernel operations and never content.
+这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，永远不是内容。
 
-### Package-emitted kinds
+### 能力包发出的 kind
 
-Everything else. Each package defines its own event kinds in its manifest, namespaced under its package id. Examples (illustrative; not part of the kernel):
+其余一切。每个能力包在自己的 manifest 中定义自己的事件 kind，命名空间在其 package id 之下。示例（仅为说明；不属于内核）：
 
 ```text
 someorg/conversation/turn.started
@@ -113,51 +113,51 @@ someorg/world-sim/tick.completed
 someorg/memory-pack/proposal.created
 ```
 
-The kernel persists these and orders them. It does not understand them.
+内核持久化并排序这些事件。但它不理解它们。
 
-## Permissions
+## 权限
 
-Appending an event requires `events.append` in the writer's manifest. Reading an event stream requires `events.read` (and may be scoped to specific sessions).
+追加事件要求写入方 manifest 中有 `events.append`。读取事件流要求 `events.read`（且可限定于特定 session）。
 
-A package cannot append events under another package's namespace. Cross-package event coordination flows through capability invocations or extension points, not by impersonating each other in the log.
+能力包不能在另一个能力包的 namespace 下追加事件。跨能力包的事件协调通过 capability 调用或扩展点进行，而非在日志中冒充对方。
 
-## Persistence rules
+## 持久化规则
 
-- Append-only. The log is never edited.
-- Per-session ordering is monotonic. The kernel makes no cross-session ordering claim.
-- Durable. After `kernel/event.after_append` fires, the event is committed.
-- Replayable. The kernel can stream events from `sequence` 0 forward.
+- 只追加。日志从不被编辑。
+- 按 session 排序是单调的。内核不做跨 session 排序承诺。
+- 持久化。`kernel/event.after_append` 触发后，事件即已提交。
+- 可 replay。内核可以从 `sequence` 0 开始向前流式输出事件。
 
 ## Replay
 
-The kernel can replay events to:
+内核可以将事件 replay 给：
 
-- a newly subscribing client,
-- a newly loaded package that requested catch-up,
-- a snapshot tool.
+- 新订阅的客户端，
+- 请求追赶的新加载能力包，
+- 快照工具。
 
-The kernel replays envelopes verbatim. Meaning, projection, and state reconstruction are package concerns.
+内核原封不动地 replay 信封。意义、projection 和状态重建是能力包的事。
 
-## Versioning
+## 版本管理
 
-Each event kind carries a `schema_version`. The owning writer is responsible for migrations. The kernel does not migrate payloads; it persists what was written.
+每个事件 kind 携带 `schema_version`。所属写入方负责迁移。内核不迁移 payload；它持久化写入时的内容。
 
-A package can publish a new `schema_version` for its kind without changing the kernel.
+能力包可以在不改动内核的情况下为自己的 kind 发布新的 `schema_version`。
 
-## Causation and correlation
+## 因果与关联
 
-The envelope's `metadata` may carry `causation_id` (the event that caused this one) and `correlation_id` (a logical trace), but the kernel treats them as opaque. Packages decide what they mean.
+信封的 `metadata` 可以携带 `causation_id`（导致此事件的那条事件）和 `correlation_id`（一个逻辑追踪），但内核将它们视为不透明。能力包决定它们的含义。
 
-## What this model deliberately omits
+## 本模型刻意省略的东西
 
-- No chat history concept.
-- No turn or message concept.
-- No prompt frame, context plan, or model call concept.
-- No memory or world-state concept.
-- No agent task or proposal concept.
+- 没有聊天历史概念。
+- 没有轮次或消息概念。
+- 没有 prompt frame、context plan 或 model call 概念。
+- 没有记忆或世界状态概念。
+- 没有 agent 任务或 proposal 概念。
 
-All of those are valid event kinds for the packages that need them. None of them are kernel events.
+以上所有对需要它们的能力包来说都是合法的事件 kind。它们都不是内核事件。
 
-## Stability
+## 稳定性
 
-The kernel-emitted kind set is small by design. Adding a new kernel kind requires the same justification as adding a new kernel responsibility: it cannot reasonably live in a package.
+内核发出的 kind 集合刻意保持很小。新增内核 kind 需要与新增内核职责相同的论证：它无法合理地生活在能力包里。

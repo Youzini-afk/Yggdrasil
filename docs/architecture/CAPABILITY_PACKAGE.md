@@ -1,20 +1,20 @@
-# Capability Package Specification
+# 能力包规范
 
-> [English](./CAPABILITY_PACKAGE.md) · [中文](./CAPABILITY_PACKAGE.zh-CN.md)
+> [English](./CAPABILITY_PACKAGE.en.md) · [中文](./CAPABILITY_PACKAGE.md)
 
-A capability package is the unit of distribution and execution on Yggdrasil. Every concept in the platform that is not part of the kernel ships as a package.
+能力包是 Yggdrasil 上的分发和执行单元。平台上每一个不属于内核的概念都以能力包的形式发布。
 
-This document specifies how a package describes itself, how it loads, how it interacts with the kernel and other packages, and the rules every package follows regardless of origin.
+本文档规定能力包如何描述自身、如何加载、如何与内核及其他能力包交互，以及每份能力包——无论来源——必须遵守的规则。
 
-## Equality rule
+## 平等规则
 
-Official, third-party, in-process, subprocess, WASM, and remote packages share the same manifest, the same lifecycle, the same capability fabric, and the same permission system.
+官方包、第三方包、in-process 包、subprocess 包、WASM 包和 remote 包共享同一个 manifest、同一个 lifecycle、同一套 capability fabric 和同一个权限系统。
 
-There is no private API. Anything an official package can do, any package can do.
+没有私有 API。官方包能做的，任何能力包都能做。
 
 ## Manifest
 
-A package is described by a manifest. This is a serializable document conforming to a published schema.
+能力包由 manifest 描述。这是一份符合已发布 schema 的可序列化文档。
 
 ```yaml
 schema_version: 1
@@ -118,29 +118,29 @@ sandbox_policy:
   wall_clock_ms: 30000
 ```
 
-The kernel rejects manifests that fail schema validation, and refuses to load a package that requests permissions outside the host's policy.
+内核拒绝未通过 schema 验证的 manifest，并拒绝加载请求超出 host 策略权限的能力包。
 
-## Entry forms
+## Entry 形式
 
-All four are first-class. The choice is implementation detail.
+四种都是一等的。选择是实现细节。
 
 ### rust_inproc
 
-Loaded as a Rust crate or shared library compiled against the kernel's package ABI. Fast, no IPC, full performance. Trust level: highest. Crashes can affect the host; sandbox is the host.
+以编译至内核能力包 ABI 的 Rust crate 或共享库加载。快速、无 IPC、满性能。Trust level：最高。崩溃可能影响 host；沙箱即 host 本身。
 
 ### subprocess
 
-The kernel spawns a child process and speaks JSON-RPC over stdio or a local socket. Language-agnostic. Crashes are isolated. Performance bounded by IPC.
+内核启动子进程，通过 stdio 或本地 socket 上的 JSON-RPC 通信。语言无关。崩溃被隔离。性能受 IPC 限制。
 
 ### wasm
 
-The kernel runs the package inside a WASM host with declared memory and CPU caps. Strong isolation. Language flexibility limited to WASM-targetable languages. Performance bounded by WASM and ABI marshalling.
+内核在 WASM host 内运行能力包，带有声明的内存和 CPU 上限。强隔离。语言灵活性受限于可编译为 WASM 的语言。性能受 WASM 和 ABI 编组限制。
 
 ### remote
 
-The package runs anywhere reachable over HTTP or WebSocket. Authenticated. Suitable for hosted services and external systems acting as packages.
+能力包运行在任何可通过 HTTP 或 WebSocket 访问的地方。经过认证。适用于托管服务和作为能力包参与的外部系统。
 
-A package may declare alternative entries (for example, `rust_inproc` plus a `subprocess` fallback) so the host can pick by policy.
+能力包可以声明替代 entry（例如 `rust_inproc` 加 `subprocess` 备选），让 host 按策略选择。
 
 ## Lifecycle
 
@@ -155,60 +155,60 @@ stopped     -> resources released
 unloaded    -> manifest no longer active in the host
 ```
 
-State transitions emit kernel events.
+状态转换发出内核事件。
 
-## Capability contract
+## Capability 契约
 
-A capability is identified by `id` and `version`. Calls are typed by `input_schema` and `output_schema`. They may stream.
+一个 capability 由 `id` 和 `version` 标识。调用由 `input_schema` 和 `output_schema` 约束类型。它们可以 streaming。
 
-A consumer requests a capability by id with a version constraint. The kernel selects a provider based on:
+消费方通过 id 加版本约束请求 capability。内核基于以下条件选择 provider：
 
-1. Active package set in the session scope.
-2. Declared precedence rules in the session/profile (not in the kernel default; the precedence policy itself is configured by the host or a routing package).
-3. Compatibility of versions.
+1. session 作用域内的活跃能力包集合。
+2. session/profile 中声明的优先级规则（而非内核默认值；优先级策略本身由 host 或路由能力包配置）。
+3. 版本兼容性。
 
-There is no implicit "official wins" rule.
+不存在隐式的「官方包优先」规则。
 
-If two packages provide the same capability id and the host has not configured precedence, the kernel reports an ambiguous-route error and refuses the call.
+如果两个能力包提供同一个 capability id，而 host 未配置优先级，内核报告 ambiguous-route 错误并拒绝调用。
 
-## Hook contract
+## Hook 契约
 
-A package may subscribe to extension points (kernel-defined or package-defined). The subscription declares timing and whether the handler may mutate or veto.
+能力包可以订阅扩展点（内核定义或能力包定义）。订阅声明时机以及 handler 是否可以修改或 veto。
 
-The kernel dispatches hooks per declared semantics. Subscribers run in declared order; tie-breaking uses subscriber precedence configured by the host.
+内核按声明的语义分发 hook。订阅方按声明顺序运行；平局由 host 配置的订阅方优先级打破。
 
-See `EXTENSION_POINTS.md` for the kernel-emitted point set and the contract.
+详见 `EXTENSION_POINTS.md` 了解内核发出的扩展点集合及契约。
 
-## Permissions and sandbox
+## 权限与沙箱
 
-The manifest is a contract with the host. The kernel enforces it on every operation:
+manifest 是与 host 的契约。内核在每次操作上强制执行：
 
-- An undeclared event append is refused.
-- An undeclared network call is refused.
-- An undeclared cross-package invocation is refused.
-- A capability that exceeds its declared `side_effects` is refused.
+- 未声明的事件追加被拒绝。
+- 未声明的网络调用被拒绝。
+- 未声明的跨能力包调用被拒绝。
+- 超出其声明 `side_effects` 的 capability 被拒绝。
 
-The host may layer additional policy on top (deny-list, quotas, audit). The package cannot bypass.
+host 可以在上层叠加额外策略（deny-list、配额、审计）。能力包无法绕过。
 
-## Distribution
+## 分发
 
-A package distribution includes the manifest and the entry artifact:
+能力包分发包含 manifest 和 entry 产物：
 
-- For `rust_inproc`: source crate or precompiled `cdylib` matching the host ABI version.
-- For `subprocess`: an executable for the target platform plus the manifest.
-- For `wasm`: a `.wasm` module plus the manifest.
-- For `remote`: just the manifest with the endpoint.
+- `rust_inproc`：源 crate 或与 host ABI 版本匹配的预编译 `cdylib`。
+- `subprocess`：目标平台的可执行文件加 manifest。
+- `wasm`：`.wasm` 模块加 manifest。
+- `remote`：仅有带 endpoint 的 manifest。
 
-A package registry is out of scope for the kernel. Hosts and tools may build registries on top.
+能力包注册表不在内核范围内。Host 和工具可以在此之上构建注册表。
 
-## Versioning
+## 版本管理
 
-`version` follows semver. `schema_version` of the manifest format is independent of package version.
+`version` 遵循 semver。manifest 格式的 `schema_version` 与能力包版本无关。
 
-A breaking ABI change in `rust_inproc` is signaled by a new `abi_version` in the entry. Hosts refuse to load mismatched ABI versions.
+`rust_inproc` 中的破坏性 ABI 变更通过 entry 中的新 `abi_version` 标识。Host 拒绝加载 ABI 版本不匹配的能力包。
 
-## Identity
+## 身份
 
-Package id is namespaced. The kernel does not own the namespace; conventions and registries do.
+能力包 id 是带命名空间的。内核不拥有 namespace；约定和注册表拥有。
 
-The kernel only enforces uniqueness within a host instance.
+内核仅在一个 host 实例内强制唯一性。

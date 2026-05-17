@@ -1,160 +1,160 @@
-# Platform Kernel
+# 平台内核
 
-> [English](./PLATFORM_KERNEL.md) · [中文](./PLATFORM_KERNEL.zh-CN.md)
+> [English](./PLATFORM_KERNEL.en.md) · [中文](./PLATFORM_KERNEL.md)
 
-The kernel is the minimum infrastructure that lets capability packages coexist on Yggdrasil. It is small, content-free, and stable.
+内核是让能力包在 Yggdrasil 上共存的最小基础设施。它很小，内容无关，并且稳定。
 
-This document fixes what the kernel does and does not do. Anything not listed as a kernel responsibility must live in a capability package.
+本文档界定内核做什么、不做什么。未被列为内核职责的一切，必须生活在能力包里。
 
-## What the kernel does
+## 内核做什么
 
-### 1. Identity and schemas
+### 1. 身份与 schema
 
-- Generate IDs for sessions, events, packages, capability invocations, asset records.
-- Maintain `schema_version` on every persisted contract object.
-- Validate manifests, hook subscriptions, and capability registrations against published schemas.
+- 为 session、event、package、capability 调用、asset 记录生成 ID。
+- 在每个持久化的契约对象上维护 `schema_version`。
+- 依据已发布的 schema 验证 manifest、hook 订阅和 capability 注册。
 
-### 2. Session shell
+### 2. Session 外壳
 
-- Allocate and address sessions.
-- Hold per-session metadata (id, created_at, label, status).
-- Carry an event stream and a permission scope.
-- The kernel does not interpret what a session is for. A session is a labeled event stream with an attached package set.
+- 分配和寻址 session。
+- 持有每个 session 的元数据（id、created_at、label、status）。
+- 承载事件流和权限作用域。
+- 内核不解释 session 的用途。一个 session 就是一个带标签的事件流，附带一个能力包集合。
 
-### 3. Append-only event log
+### 3. 只追加事件日志
 
-- Accept events from authorized writers.
-- Order them per session.
-- Persist them durably.
-- Replay them on demand.
-- The kernel treats event payloads as opaque JSON. Meaning is owned by packages.
+- 接受已授权写入方的事件。
+- 按 session 排序。
+- 持久化存储。
+- 按需 replay。
+- 内核将事件 payload 视为不透明 JSON。意义属于能力包。
 
-### 4. Package registry
+### 4. 能力包注册
 
-- Load, validate, and start packages from manifest.
-- Track package state (registered, loading, ready, degraded, stopped).
-- Unload cleanly.
-- Mediate lifetime: a session declares which packages are active in its scope.
+- 从 manifest 加载、验证并启动能力包。
+- 跟踪能力包状态（registered、loading、ready、degraded、stopped）。
+- 干净地卸载。
+- 调度生命周期：session 声明哪些能力包在其作用域内处于活跃状态。
 
 ### 5. Capability fabric
 
-- Index capabilities by id and version.
-- Route invocation calls and streams to providers.
-- Record invocations in the event log when configured.
-- Negotiate version constraints between consumer and provider.
+- 按 id 和 version 索引 capability。
+- 将调用和流路由到 provider。
+- 在配置时将调用记录到事件日志。
+- 在消费方和提供方之间协商版本约束。
 
-### 6. Extension-point dispatch
+### 6. 扩展点分发
 
-- Maintain the registry of extension points.
-- Hold subscriber lists.
-- Dispatch hook calls in declared order with declared timing.
-- Enforce timeout and cancellation.
+- 维护扩展点注册表。
+- 持有订阅方列表。
+- 按声明的顺序和时机分发 hook 调用。
+- 强制超时和取消。
 
-### 7. Permission gate
+### 7. 权限闸门
 
-- Identify principals (host_admin, host_dev, package, human, assistant, anonymous).
-- Read manifest-declared permissions for each package.
-- Track scoped grants for human and assistant principals (`events.read`, `capabilities.invoke`, etc.).
-- Enforce all of the above on event writes, capability invocations, cross-package calls, network/filesystem access.
-- Refuse undeclared side effects and write `kernel/permission.denied` audit events.
+- 识别 principal（host_admin、host_dev、package、human、assistant、anonymous）。
+- 读取每个能力包的 manifest 声明权限。
+- 跟踪 human 和 assistant principal 的作用域授权（`events.read`、`capabilities.invoke` 等）。
+- 在事件写入、capability 调用、跨能力包调用、网络/文件系统访问上执行以上全部。
+- 拒绝未声明的副作用并写入 `kernel/permission.denied` 审计事件。
 
 ### 8. Surface contributions
 
-- Accept package-declared UI surface descriptors in manifests (slots like `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`).
-- Expose them through the public protocol so any client can discover what is launchable, inspectable, and assistant-actionable.
-- Store descriptors only. Rendering and content semantics belong to packages and clients.
+- 接受能力包在 manifest 中声明的 UI surface 描述符（slot 包括 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`）。
+- 通过公开协议暴露它们，使任何客户端都可以发现哪些是可启动的、可查看的、可让 assistant 操作的。
+- 仅存储描述符。渲染和内容语义属于能力包和客户端。
 
-### 9. Proposal lifecycle
+### 9. Proposal 生命周期
 
-- Mediate generic, approval-gated change proposals (`create`, `get`, `list`, `approve`, `reject`, `apply`).
-- Apply only generic operations the kernel already understands (`asset.put`, `projection.rebuild`).
-- Emit `kernel/proposal.*` audit events for every transition.
-- Refuse application of proposals that are not approved, or whose declared operations are unsupported. The kernel never invents domain-specific proposal semantics.
+- 调度通用的、需要审批的变更 proposal（`create`、`get`、`list`、`approve`、`reject`、`apply`）。
+- 仅 apply 内核已理解的通用操作（`asset.put`、`projection.rebuild`）。
+- 为每次状态转换发出 `kernel/proposal.*` 审计事件。
+- 拒绝未获审批的 proposal 的 apply，或其声明的操作不被支持的 proposal。内核绝不发明领域相关的 proposal 语义。
 
-### 10. Assets, branches, and projections
+### 10. Asset、branch 和 projection
 
-- Maintain an opaque asset registry (`id`, `mime`, `hash`, `size`, `origin_package`, `metadata`, content blob).
-- Track session fork/branch lineage as kernel records.
-- Maintain generic projection records, rebuilt by filtering the event log; the kernel never interprets projection state.
-- All three are rehydratable from the durable event log.
+- 维护不透明的 asset 注册表（`id`、`mime`、`hash`、`size`、`origin_package`、`metadata`、content blob）。
+- 以内核记录的形式跟踪 session fork/branch 沿革。
+- 维护通用的 projection 记录，通过过滤事件日志重建；内核不解释 projection 状态。
+- 以上三者均可从持久事件日志恢复。
 
-### 11. Transport layer
+### 11. Transport 层
 
-- Speak the canonical protocol envelope over: in-process Rust API, HTTP `/rpc`, host JSON-RPC stdio (`ygg host-stdio`), and SSE event subscribe.
-- Profile-backed `ygg host serve` autoloads packages and exposes the same dispatcher.
-- WebSocket and TCP transports are reserved for future work.
-- All transports surface a single conceptual protocol; official packages and clients use the same protocol as third parties.
+- 在以下通道上承载规范协议信封：in-process Rust API、HTTP `/rpc`、host JSON-RPC stdio（`ygg host-stdio`）以及 SSE 事件订阅。
+- 基于配置文件的 `ygg host serve` 自动加载能力包并暴露同一 dispatcher。
+- WebSocket 和 TCP transport 保留供后续工作。
+- 所有 transport 呈现同一个概念协议；官方包和客户端与第三方使用同一协议。
 
-### 12. Sandbox boundaries
+### 12. 沙箱边界
 
-- Run in-process Rust packages within the kernel binary (trust level `trusted_inproc`).
-- Spawn and supervise subprocess packages via JSON-RPC over stdio with handshake, invoke timeout, kill-on-unload, restart, and stderr capture (trust level `process_isolated`).
-- WASM (`wasm_sandbox`) and remote (`remote_boundary`) entries are reserved as first-class manifest forms; execution is deferred.
+- 在内核二进制内运行 in-process Rust 能力包（trust level `trusted_inproc`）。
+- 通过 stdio 上的 JSON-RPC 启动和监管 subprocess 能力包，支持握手、调用超时、卸载时杀死、重启和 stderr 捕获（trust level `process_isolated`）。
+- WASM（`wasm_sandbox`）和 remote（`remote_boundary`）entry 保留为一等 manifest 形式；执行延后。
 
-### 13. Public protocol
+### 13. 公开协议
 
-- The wire-level contract for the above. The kernel uses no private bypass; official packages and clients use the same protocol as third parties.
+- 以上内容的线路级契约。内核不使用私有旁路；官方包和客户端与第三方使用同一协议。
 
-## What the kernel does not do
+## 内核不做什么
 
-The kernel ships zero opinion on these. They are reserved for capability packages, including official ones.
+内核对以下内容不携带任何意见。它们保留给能力包，包括官方包。
 
-### Conversation, prompts, and models
+### 对话、提示词和模型
 
-- No notion of turn, message, prompt frame, context plan, model call, sampling, or token usage.
-- No prompt rendering, no template language, no system/user/assistant roles.
-- No model provider abstraction, no streaming chunk format, no chat history.
+- 没有轮次、消息、prompt frame、context plan、model call、采样或 token 用量的概念。
+- 没有 prompt 渲染，没有模板语言，没有 system/user/assistant 角色。
+- 没有 model provider 抽象，没有 streaming chunk 格式，没有聊天历史。
 
-### Worlds, characters, scenes, rules
+### 世界、角色、场景、规则
 
-- No world model, scene graph, or actor type.
-- No character schema, no relationship state, no inventory, no clock.
-- No rule engine, no condition/effect, no dice, no combat resolution.
+- 没有世界模型、场景图或 actor 类型。
+- 没有角色 schema，没有关系状态，没有物品栏，没有时钟。
+- 没有规则引擎，没有条件/效果，没有骰子，没有战斗结算。
 
-### Memory
+### 记忆
 
-- No memory taxonomy, no embedding, no retrieval policy.
-- No summary, no pin, no consolidation strategy.
+- 没有记忆分类，没有 embedding，没有检索策略。
+- 没有摘要，没有 pin，没有合并策略。
 
-### Agents and directors
+### Agent 和 director
 
-- No agent loop, no planner, no director.
-- No proposal-and-commit pattern other than what packages choose to define.
+- 没有 agent loop，没有 planner，没有 director。
+- 没有 proposal-and-commit 模式——除非能力包自己选择定义。
 
-### Content sources
+### 内容来源
 
-- No SillyTavern parser, no PNG metadata reader, no character card schema.
-- No game engine bridge, no UE5/Godot/Unity glue.
+- 没有 SillyTavern 解析器，没有 PNG 元数据读取器，没有角色卡 schema。
+- 没有游戏引擎桥接，没有 UE5/Godot/Unity 胶水。
 
-### Presentation
+### 呈现
 
-- No UI, no chat panel, no inspector, no editor.
-- No theme, no layout, no asset rendering.
+- 没有 UI，没有聊天面板，没有 inspector，没有编辑器。
+- 没有主题，没有布局，没有 asset 渲染。
 
-### Storage opinion
+### 存储意见
 
-- No business tables. The kernel needs storage for events, manifests, and asset records. It does not provide ORM, query builders, or data models for content.
+- 没有业务表。内核需要存储事件、manifest 和 asset 记录。它不提供 ORM、查询构建器或面向内容的数据模型。
 
-## Gray zones
+## 灰色地带
 
-These need explicit positions to avoid drift.
+以下需要明确立场，以防漂移。
 
-### Assets
+### Asset
 
-The kernel maintains an asset registry. It records `id`, `mime`, `hash`, `size`, `origin_package`, and a content blob. It does not parse, render, or interpret asset content. Packages own their formats.
+内核维护 asset 注册表。它记录 `id`、`mime`、`hash`、`size`、`origin_package` 和 content blob。它不解析、渲染或解释 asset 内容。能力包拥有自己的格式。
 
-### Event ordering
+### 事件排序
 
-The kernel guarantees per-session monotonic ordering and durable persistence. It does not guarantee any cross-session ordering, causation graph, or correlation semantics. Causation/correlation fields are opaque metadata supplied by writers.
+内核保证每个 session 内的单调排序和持久化。它不保证任何跨 session 排序、因果图或关联语义。因果关系/关联字段是由写入方提供的不透明元数据。
 
-### Errors
+### 错误
 
-Kernel errors cover: transport, permission, schema validation, manifest, capacity, package lifecycle. Package errors flow through capability invocations as opaque structured failures; the kernel does not classify them.
+内核错误覆盖：transport、权限、schema 验证、manifest、容量、能力包 lifecycle。能力包错误以不透明结构化失败的形式流过 capability 调用；内核不对它们分类。
 
-### Defaults
+### 默认值
 
-The kernel ships no default packages. A distribution may bundle official packages, but the kernel binary itself, when started with no manifests, runs an empty platform: it accepts sessions, accepts events, but no capability is registered and no semantics exist.
+内核不附带默认能力包。一个发行版可以捆绑官方包，但内核二进制本身在不加载任何 manifest 启动时，运行的是一个空平台：它接受 session、接受事件，但没有 capability 注册，不存在任何语义。
 
-## Stability commitment
+## 稳定性承诺
 
-This document changes by explicit revision. New responsibilities require justification that they cannot live in a package. The default answer is "package, not kernel."
+本文档通过显式修订来变更。新的职责需要论证其无法生活在能力包里。默认答案是「能力包，而非内核」。

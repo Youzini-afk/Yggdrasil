@@ -1,97 +1,97 @@
 # Runtime Lifecycle
 
-> [English](./RUNTIME_LIFECYCLE.md) · [中文](./RUNTIME_LIFECYCLE.zh-CN.md)
+> [English](./RUNTIME_LIFECYCLE.en.md) · [中文](./RUNTIME_LIFECYCLE.md)
 
-The kernel runs three lifecycles: package, session, and capability invocation. None of them describes a turn, a chat, a prompt, or any other content-shaped operation. Those belong to packages.
+内核运行三种生命周期：package、session 和 capability invocation。它们都不描述 turn、chat、prompt 或任何其他内容形态的操作。那些属于能力包。
 
-## Package lifecycle
-
-```text
-discovered  manifest visible to the host
-loading     manifest validated, sandbox prepared, ABI checked
-starting    entry point booted, kernel handshake, capabilities and hooks registered
-ready       accepting calls and dispatches
-degraded    reachable but reporting reduced ability (heartbeat slow, partial features)
-stopping    graceful shutdown signal sent
-stopped     resources released
-unloaded    no longer active in the host
-```
-
-Each transition emits a `kernel/package.*` event. Subscribers (observability tools, other packages) react via the public protocol; the kernel exposes no private hook for package state.
-
-## Session lifecycle
-
-A session is a labeled event stream with an attached package set and a permission scope. The kernel does not assign any other meaning to it.
+## Package 生命周期
 
 ```text
-requested   open() received, principal and labels supplied
-opening     kernel/session.before_open dispatched (sync, vetoable)
-open        kernel/session.opened emitted
-            event log accepting appends from authorized writers
-            capability invocations dispatching against the active package set
-forking     fork() received with parent session and forked-from sequence
-forked      kernel/session.forked emitted; child session inherits parent up to the chosen sequence
-closing     kernel/session.before_close dispatched (sync, vetoable)
-closed      kernel/session.closed emitted; log frozen for further appends
+discovered  manifest 对 host 可见
+loading     manifest 已验证，sandbox 已准备，ABI 已检查
+starting    entry point 已启动，内核握手完成，capability 和 hook 已注册
+ready       接受调用和 dispatch
+degraded    可达但报告能力降低（heartbeat 迟缓、部分功能不可用）
+stopping    已发送优雅关闭信号
+stopped     资源已释放
+unloaded    在 host 中不再活跃
 ```
 
-The kernel does not own a "current turn," "active actor," or any content-level state of the session. If a package wants such a notion, it derives it from events.
+每次转换发出一个 `kernel/package.*` 事件。subscriber（可观测性工具、其他能力包）通过公开协议做出反应；内核不暴露 package 状态的私有 hook。
 
-## Proposal lifecycle
+## Session 生命周期
 
-The kernel mediates generic approval-gated change proposals. The lifecycle is content-free: it only knows the operations it can apply (`asset.put`, `projection.rebuild`).
+一个 session 是一个带标签的事件流，附带一组 package set 和一个权限作用域。内核不赋予它任何其他含义。
 
 ```text
-created     proposal recorded under requesting principal; kernel/proposal.created emitted
-approved    approver decision recorded; kernel/proposal.approved emitted
-rejected    approver decision recorded; kernel/proposal.rejected emitted
-applied     approved proposal executed against the kernel; kernel/proposal.applied emitted
-failed     application or validation failed; kernel/proposal.failed emitted
+requested   open() 已收到，principal 和 labels 已提供
+opening     kernel/session.before_open 已 dispatch（sync，可 veto）
+open        kernel/session.opened 已发出
+            event 日志接受已授权写入者的 append
+            capability invocation 正在针对活跃 package set 进行 dispatch
+forking     fork() 已收到，携带 parent session 和 forked-from 序号
+forked      kernel/session.forked 已发出；子 session 继承 parent 直至所选序号
+closing     kernel/session.before_close 已 dispatch（sync，可 veto）
+closed      kernel/session.closed 已发出；日志已冻结，不再接受 append
 ```
 
-A package or assistant principal cannot apply a proposal directly: it must reach `approved` first. The kernel never invents domain-specific proposal semantics; richer operations (multi-step transactions, package-side compensations) belong to packages built on top.
+内核不拥有 "当前 turn"、"活跃 actor" 或 session 的任何内容级状态。如果能力包需要这类概念，它从事件中自行推导。
 
-## Capability invocation lifecycle
+## Proposal 生命周期
+
+内核负责协调通用的需要审批的变更 proposal。该生命周期是内容无关的：它只知道可以执行的操作（`asset.put`、`projection.rebuild`）。
 
 ```text
-requested        invoke(id, version, input) received
-authorizing      kernel/capability.before_invoke dispatched (sync, vetoable)
-routed           provider selected by id+version+session package set
-running          provider executing; streaming chunks may flow
-completed        kernel/capability.completed emitted with output (or stream end)
-failed           kernel/capability.failed emitted with structured error
-cancelled        cancellation acknowledged by provider; failed/completed event records the outcome
+created     proposal 在发起 principal 下记录；kernel/proposal.created 已发出
+approved    审批者决定已记录；kernel/proposal.approved 已发出
+rejected    审批者决定已记录；kernel/proposal.rejected 已发出
+applied     已批准的 proposal 已对内核执行；kernel/proposal.applied 已发出
+failed     执行或验证失败；kernel/proposal.failed 已发出
 ```
 
-The kernel records invocations as kernel events. The contents of `input` and `output` are opaque to the kernel and validated only against the provider's declared schemas.
+能力包或 assistant principal 不能直接 apply proposal：必须先到达 `approved` 状态。内核永远不会发明特定领域的 proposal 语义；更丰富的操作（多步事务、能力包侧补偿）属于构建在其上的能力包。
 
-## Cancellation and timeouts
+## Capability invocation 生命周期
 
-Every long-running operation (capability invocation, hook dispatch, package start) has a deadline derived from manifest sandbox policy plus host policy. Exceeding the deadline triggers cancellation. The kernel records the outcome.
+```text
+requested        invoke(id, version, input) 已收到
+authorizing      kernel/capability.before_invoke 已 dispatch（sync，可 veto）
+routed           按 id+version+session package set 选择 provider
+running          provider 正在执行；streaming chunk 可能正在流动
+completed        kernel/capability.completed 已发出，附带 output（或 stream 结束）
+failed           kernel/capability.failed 已发出，附带结构化 error
+cancelled        取消已被 provider 确认；failed/completed 事件记录结果
+```
 
-The kernel does not invent its own cancellation semantics for content (no "regenerate," no "stop generating"). Such operations are package capabilities.
+内核将 invocation 作为 kernel 事件记录。`input` 和 `output` 的内容对内核不透明，仅按 provider 声明的 schema 进行验证。
 
-## Replay and bootstrap
+## 取消与超时
 
-When a host restarts:
+每个长时间运行的操作（capability invocation、hook dispatch、package start）都有一个 deadline，由 manifest sandbox 策略加 host 策略推导而来。超过 deadline 触发取消。内核记录结果。
 
-1. Manifests are rediscovered.
-2. Packages move through `loading` and `starting`.
-3. Stored sessions are accessible for read-only replay immediately.
-4. A session resumes write operations only after its required packages reach `ready`.
+内核不会为内容发明自己的取消语义（没有 "重新生成"，没有 "停止生成"）。这类操作是能力包的 capability。
 
-Packages that need to rebuild internal state from the event log do so via `events.read` and the replay stream. The kernel offers no other recovery mechanism.
+## Replay 与引导
 
-## Errors
+当 host 重启时：
 
-The kernel classifies errors only at its own boundary: transport, manifest, schema, permission, capacity, lifecycle, ambiguous-route. Package errors flow through capability invocations as opaque structured failures and are recorded under `kernel/capability.failed`.
+1. Manifest 被重新发现。
+2. Package 经历 `loading` 和 `starting`。
+3. 已存储的 session 立即可用于只读 replay。
+4. Session 只有在其所需 package 到达 `ready` 后才恢复写操作。
 
-## What this lifecycle does not describe
+需要从 event 日志重建内部状态的能力包，通过 `events.read` 和 replay 流来完成。内核不提供其他恢复机制。
 
-- No turn, no message, no prompt cycle.
-- No model call orchestration.
-- No memory update flow.
-- No agent task.
-- No world tick.
+## 错误
 
-All of the above are appropriate inside packages. None of them are kernel lifecycles.
+内核仅在自己的边界上对错误分类：transport、manifest、schema、permission、capacity、lifecycle、ambiguous-route。能力包的错误作为不透明的结构化失败通过 capability invocation 传递，记录在 `kernel/capability.failed` 下。
+
+## 本生命周期未描述的内容
+
+- 没有 turn，没有 message，没有 prompt 循环。
+- 没有模型调用编排。
+- 没有记忆更新流。
+- 没有 agent 任务。
+- 没有 world tick。
+
+以上所有都适合存在于能力包内部。它们都不是内核生命周期。

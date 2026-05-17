@@ -1,42 +1,42 @@
 # Creative Capability Kit
 
-> [English](./CREATIVE_CAPABILITY_KIT.md) · [中文](./CREATIVE_CAPABILITY_KIT.zh-CN.md)
+> [English](./CREATIVE_CAPABILITY_KIT.en.md) · [中文](./CREATIVE_CAPABILITY_KIT.md)
 
-Creative Capability Kit is the first Yggdrasil-native extraction of mature headless creative/RP workflows into general official capability packages.
+Creative Capability Kit 是 Yggdrasil 第一次把成熟的 headless creative/RP workflows 抽象成 Yggdrasil-native 通用官方能力包。
 
-TavernHeadless informed the edge cases, but the official packages are not `tavern-*` wrappers:
+TavernHeadless 提供边界案例参考，但这些官方包不是 `tavern-*` wrappers：
 
-- `official/persona-lab` handles persona-like structured profiles.
-- `official/knowledge-lab` handles structured knowledge collections and match traces.
-- `official/context-lab` handles bounded context block assembly and budget diagnostics.
-- `official/text-transform-lab` handles deterministic text transform previews and pipeline explanations.
+- `official/persona-lab` 处理 persona-like structured profiles。
+- `official/knowledge-lab` 处理 structured knowledge collections 与 match traces。
+- `official/context-lab` 处理 bounded context block assembly 与 budget diagnostics。
+- `official/text-transform-lab` 处理 deterministic text transform previews 与 pipeline explanations。
 
-## Rules
+## 规则
 
-- The kernel does not know persona, knowledge, prompt, worldbook, chat, character, or model-call concepts.
-- The packages are ordinary manifest/capability/surface packages.
-- Compatibility input formats are adapters and fixtures, not canonical Yggdrasil ontology.
-- Mutation must be represented as explicit asset/projection/proposal plans, not hidden package state writes.
-- Outputs should include provenance and diagnostics.
+- Kernel 不知道 persona、knowledge、prompt、worldbook、chat、character 或 model-call 概念。
+- 这些包都是普通 manifest/capability/surface packages。
+- 兼容输入格式是 adapters 和 fixtures，不是 canonical Yggdrasil ontology。
+- Mutation 必须表达为明确的 asset/projection/proposal plans，而不是隐藏的 package state writes。
+- 输出应包含 provenance 与 diagnostics。
 
 ## Reference tracking
 
-`integrations/tavern-headless/` records the reviewed TavernHeadless commit, capability map, and compact fixtures. Use it as a review ledger when TavernHeadless changes.
+`integrations/tavern-headless/` 记录已研查的 TavernHeadless commit、capability map 与紧凑 fixtures。TavernHeadless 更新时，用它作为 review ledger。
 
-The decision vocabulary is:
+决策词汇：
 
-- `adapted`: generalized into a Yggdrasil package.
-- `adapter_only`: useful for import/export, not canonical.
-- `deferred`: valuable but not yet part of this kit.
-- `rejected`: intentionally not inherited.
+- `adapted`：已泛化为 Yggdrasil package。
+- `adapter_only`：适合 import/export，但不是 canonical。
+- `deferred`：有价值，但暂不属于本 kit。
+- `rejected`：明确不继承。
 
-## Typical flow
+## 典型流程
 
-1. Import a profile-like payload with `official/persona-lab/import_profile`.
-2. Import a knowledge collection with `official/knowledge-lab/import_collection`.
-3. Match knowledge entries with `official/knowledge-lab/match_entries`.
-4. Assemble generic context blocks with `official/context-lab/assemble_preview`.
-5. Preview deterministic transforms with `official/text-transform-lab/apply_preview`.
-6. If persistence is desired, create an approval-gated proposal that writes assets or rebuilds projections through public protocol.
+1. 用 `official/persona-lab/import_profile` import profile-like payload。
+2. 用 `official/knowledge-lab/import_collection` import knowledge collection。
+3. 用 `official/knowledge-lab/match_entries` match knowledge entries。
+4. 用 `official/context-lab/assemble_preview` assemble generic context blocks。
+5. 用 `official/text-transform-lab/apply_preview` preview deterministic transforms。
+6. 如果需要持久化，通过公开协议创建 approval-gated proposal，写 assets 或 rebuild projections。
 
-The flow is intentionally package-level. A third-party package can replace any official lab by exposing compatible capabilities and surfaces.
+这条流程刻意停留在 package 层。第三方包只要暴露兼容 capabilities 和 surfaces，就可以替换任意官方 lab。

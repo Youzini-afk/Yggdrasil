@@ -1,10 +1,10 @@
-# Package Authoring Walkthrough
+# 能力包创作 walkthrough
 
-> [English](./PACKAGE_AUTHORING_WALKTHROUGH.md) · [中文](./PACKAGE_AUTHORING_WALKTHROUGH.zh-CN.md)
+> [English](./PACKAGE_AUTHORING_WALKTHROUGH.en.md) · [中文](./PACKAGE_AUTHORING_WALKTHROUGH.md)
 
-This walkthrough creates a third-party package that appears in Home, contributes Forge and assistant surfaces, passes local conformance, and can be composed with other packages. It deliberately uses the same public manifest/capability/surface path as official packages.
+这份 walkthrough 创建一个第三方能力包：它会出现在 Home，贡献 Forge 与 assistant surfaces，通过本地 conformance，并且可以与其他包 composition。它刻意使用与官方包相同的公开 manifest/capability/surface 路径。
 
-## 1. Generate a package
+## 1. 生成能力包
 
 ```bash
 cargo run -p ygg-cli -- init-package /tmp/ygg-seed-package \
@@ -14,16 +14,16 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-seed-package \
   --template full-surface
 ```
 
-The generated manifest includes:
+生成的 manifest 包含：
 
-- an `experience_entry` surface for Home;
-- a `play_renderer` surface;
-- a `forge_panel` surface;
-- an `assistant_action` surface;
-- an `asset_editor` surface;
-- one subprocess JSON-RPC capability that echoes input.
+- 一个面向 Home 的 `experience_entry` surface；
+- 一个 `play_renderer` surface；
+- 一个 `forge_panel` surface；
+- 一个 `assistant_action` surface；
+- 一个 `asset_editor` surface；
+- 一个通过 subprocess JSON-RPC 暴露的 echo capability。
 
-For narrower packages, select another template:
+如果只需要更窄的包，可以选择其他 template：
 
 ```bash
 cargo run -p ygg-cli -- init-package /tmp/ygg-assist \
@@ -39,21 +39,21 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-asset-editor \
   --template asset-editor
 ```
 
-Available templates are:
+可用 templates：
 
-- `basic` — capability only, no surfaces.
-- `experience` — Home `experience_entry` only.
-- `play-renderer` — Play renderer surface.
-- `forge-panel` — Forge panel surface.
-- `assistant-action` — assistant action surface with approval policy metadata.
-- `asset-editor` — asset editor surface.
-- `full-surface` — all authoring/play surface slots.
-- `networked` — networked capability with declared network permissions (`host`, `methods`, `purpose`), `secret_ref` usage, and outbound audit helper. No raw secrets, no implicit network access. Demonstrates `NetworkDeclaration` and `OutboundAuditHelper` from `sdk/typescript/secure-execution`.
-- `streaming` — streaming capability with faux frame lifecycle (`StreamFrameClient`). Demonstrates `start`/`chunk`/`end` frames and `redaction_state`. No real model inference. Uses `sdk/typescript/secure-execution`.
+- `basic` — 只有 capability，没有 surfaces。
+- `experience` — 只有 Home `experience_entry`。
+- `play-renderer` — Play renderer surface。
+- `forge-panel` — Forge panel surface。
+- `assistant-action` — assistant action surface，带 approval policy metadata。
+- `asset-editor` — asset editor surface。
+- `full-surface` — 所有 authoring/play surface slots。
+- `networked` — 带 declared network permissions（`host`、`methods`、`purpose`）的网络能力包，使用 `secret_ref`，带 outbound audit helper。无 raw secrets、无隐式 network 访问。演示 `sdk/typescript/secure-execution` 中的 `NetworkDeclaration` 和 `OutboundAuditHelper`。
+- `streaming` — 带 faux frame 生命周期的 streaming capability（`StreamFrameClient`）。演示 `start`/`chunk`/`end` frame 和 `redaction_state`。不做真实 model inference。使用 `sdk/typescript/secure-execution`。
 
-`--language typescript-experience` remains supported as a legacy shortcut for a full experience-shaped package.
+`--language typescript-experience` 仍作为 legacy shortcut 保留，用于生成完整 experience-shaped package。
 
-## 2. Validate the package locally
+## 2. 本地验证能力包
 
 ```bash
 cargo run -p ygg-cli -- package check /tmp/ygg-seed-package/manifest.yaml
@@ -62,93 +62,93 @@ cargo run -p ygg-cli -- package run-fixture /tmp/ygg-seed-package/manifest.yaml
 cargo run -p ygg-cli -- package reload /tmp/ygg-seed-package/manifest.yaml
 ```
 
-These commands only inspect the manifest and invoke the package through the ordinary capability path. They do not grant private host access.
+这些命令只检查 manifest，并通过普通 capability 路径调用能力包。它们不会授予私有 host 访问权。
 
-`package check` prints authoring diagnostics such as entry kind, trust level, capability count, surfaces by slot, permission summary, sandbox policy, and warnings for packages with no capabilities or no surfaces. `package run-fixture` invokes declared non-streaming capabilities with deterministic fixture input and prints a structured JSON result. `package reload` exercises the local load/restart/unload loop and reports package status and logs.
+`package check` 会打印 authoring diagnostics，例如 entry kind、trust level、capability count、按 slot 分组的 surfaces、permission summary、sandbox policy，以及无 capabilities 或无 surfaces 的 warnings。`package run-fixture` 用确定性 fixture input 调用声明的非 streaming capabilities，并输出结构化 JSON 结果。`package reload` 练习本地 load/restart/unload 循环，并报告 package status 与 logs。
 
-## 3. Create a composition descriptor
+## 3. 创建 composition descriptor
 
 ```bash
 cargo run -p ygg-cli -- init-composition /tmp/ygg-seed-composition --id example/seed-package
 cargo run -p ygg-cli -- composition check /tmp/ygg-seed-composition/composition.yaml
 ```
 
-A composition descriptor says which packages provide the launchable entry and which surface slots must be present. It is not a kernel `game` or `experience` type.
+composition descriptor 描述哪些包提供可启动入口、必须有哪些 surface slots。它不是内核里的 `game` 或 `experience` 类型。
 
-Composition descriptor v2 fields can also declare optional packages, required capabilities, permission expectations, replacement candidates, default activation metadata, and compatibility notes. `composition check` reports loaded package paths, surfaces by slot, capabilities, missing required surfaces/capabilities, optional-package warnings, and replacement diagnostics.
+Composition descriptor v2 fields 还能声明 optional packages、required capabilities、permission expectations、replacement candidates、default activation metadata 和 compatibility notes。`composition check` 会报告已加载 package paths、按 slot 分组的 surfaces、capabilities、缺失的 required surfaces/capabilities、optional-package warnings 与 replacement diagnostics。
 
-For a replacement proof, inspect the included third-party example:
+要查看 replacement proof，可以检查内置第三方 example：
 
 ```bash
 cargo run -p ygg-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
 cargo run -p ygg-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
-The package id is `thirdparty/playable-seed`, not `official/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without official priority.
+该 package id 是 `thirdparty/playable-seed`，不是 `official/*`，并且在没有 official priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
 
-## 4. Load the package in a host profile
+## 4. 在 host profile 中加载能力包
 
-Add the package manifest to a host profile, for example:
+把包 manifest 加入一个 host profile，例如：
 
 ```yaml
 autoload:
   - /tmp/ygg-seed-package/manifest.yaml
 ```
 
-Then run:
+然后运行：
 
 ```bash
 cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 ```
 
-Home discovers the package through `kernel.surface.contribution.list`. Forge discovers panels through the same protocol. The UI does not receive private runtime handles.
+Home 通过 `kernel.surface.contribution.list` 发现能力包。Forge 通过同一公开协议发现 panels。UI 不会获得私有 runtime handle。
 
-Forge now includes lightweight authoring panels over public protocol data:
+Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 
-- package and capability inventory grouped by provider package;
-- surface inventory grouped by slot;
-- authoring diagnostics for packages, capabilities, surfaces, assets, projections, and entry surfaces;
-- copy-ready CLI command guidance for templates, package checks, fixture runs, reloads, and compositions.
+- 按 provider package 分组的 package 与 capability inventory；
+- 按 slot 分组的 surface inventory；
+- packages、capabilities、surfaces、assets、projections 与 entry surfaces 的 authoring diagnostics；
+- templates、package checks、fixture runs、reloads 与 compositions 的 CLI command guidance。
 
-## 5. Compare with official packages
+## 5. 与官方包对比
 
-Official packages under `packages/official/` are reference implementations, not privileged routes:
+`packages/official/` 下的官方包是 reference implementations，不是特权路径：
 
-- `official/composition-lab` explains launch plans and surface graphs.
-- `official/asset-lab` previews assets and drafts import plans.
-- `official/projection-lab` explains projection rebuilds and source events.
-- `official/playable-seed` proves a reference playable package.
+- `official/composition-lab` 解释 launch plans 与 surface graphs。
+- `official/asset-lab` preview assets 并草拟 import plans。
+- `official/projection-lab` 解释 projection rebuilds 与 source events。
+- `official/playable-seed` 证明 reference playable package。
 
-A third-party package should be able to replace any of these when it exposes compatible surfaces and capabilities.
+只要第三方包暴露兼容的 surfaces 与 capabilities，就应该能替换其中任意一个。
 
-The `examples/packages/thirdparty-playable-seed` package is the current proof. Conformance verifies that its surfaces are discoverable, capabilities invoke through normal routing, composition checks pass, and shared capability ids are rejected as ambiguous unless an explicit provider is selected. There is no implicit official priority.
+`examples/packages/thirdparty-playable-seed` package 是当前 proof。Conformance 会验证它的 surfaces 可发现、capabilities 通过普通 routing 调用、composition checks 通过，并且共享 capability id 在没有 explicit provider 时会被判定为 ambiguous。不存在隐式 official priority。
 
-## Invariants
+## 不变量
 
-- Packages must not self-assert caller identity.
-- Packages must write only inside authorized namespaces.
-- Assistant-like packages must return proposals or events, not mutate trusted state directly.
-- UI and tooling must use public protocol methods only.
-- If a capability needs mutation, route it through permission checks and `kernel.proposal.*` when user approval is required.
+- Packages 不能自我声明 caller identity。
+- Packages 只能写入授权 namespace。
+- assistant-like packages 必须返回 proposals 或 events，不能直接修改可信状态。
+- UI 和 tooling 只能使用公开 protocol methods。
+- 如果 capability 需要 mutation，应通过权限检查；需要用户审批时走 `kernel.proposal.*`。
 
 ## 6. Secure execution helpers
 
-The `sdk/typescript/secure-execution` module provides thin, protocol-safe helpers for packages that need secret references, network declarations, outbound audit, and streaming frames. No private kernel internals are exposed.
+`sdk/typescript/secure-execution` 模块为需要 secret references、网络声明、outbound audit 和 streaming frames 的包提供薄且协议安全的 helper。不暴露任何私有内核内部。
 
 ### Secret references
 
 ```ts
 import { secretRef, isValidSecretRef, looksLikeRawSecret } from "../../sdk/typescript/secure-execution/index.js";
 
-// Create a secret reference (never embed raw secrets in payloads)
+// 创建 secret reference（不要在 payload 中嵌入 raw secrets）
 const ref = secretRef("env", "MY_API_KEY"); // → "secret_ref:env:MY_API_KEY"
 
-// Validate
+// 验证
 isValidSecretRef("secret_ref:env:KEY"); // true
 isValidSecretRef("sk-abc123");           // false
 ```
 
-### Network declarations
+### 网络声明
 
 ```ts
 import { NetworkDeclaration } from "../../sdk/typescript/secure-execution/index.js";
@@ -158,7 +158,7 @@ const decl = new NetworkDeclaration({
   methods: ["GET", "POST"],
   purpose: "model inference",
 });
-decl.toManifestEntry(); // manifest-compatible object
+decl.toManifestEntry(); // manifest 兼容的对象
 decl.matches("api.example.com", "POST"); // true
 ```
 
@@ -177,7 +177,7 @@ const payload = audit.buildRequestPayload({
   secretRefsUsed: [secretRef("env", "MY_KEY")],
   purpose: "model inference",
 });
-// payload contains only references — never raw secrets
+// payload 只包含引用——永远不会有 raw secrets
 ```
 
 ### Stream frame client
@@ -189,19 +189,19 @@ const client = new StreamFrameClient();
 const startFrame = client.start("example/stream/echo", {});
 const chunk1 = client.chunk({ text: "faux token 1" });
 const endFrame = client.end();
-// Frames carry invocation_id, stream_id, sequence, redaction_state
+// Frame 包含 invocation_id、stream_id、sequence、redaction_state
 ```
 
 ## 7. No-network readiness proof
 
-For packages that want to prove their readiness to work with the secure execution substrate (secret refs, network permissions, streaming) without making real network calls or performing model inference, see the included examples:
+对于想证明自己已准备好在安全执行底座（secret refs、网络权限、streaming）上运行，但不想进行真实网络调用或 model inference 的包，可以参考内置示例：
 
 ```bash
 cargo run -p ygg-cli -- package check examples/packages/faux-model-readiness/manifest.yaml
 cargo run -p ygg-cli -- package check examples/packages/faux-agent-readiness/manifest.yaml
 ```
 
-- `example/faux-model-readiness` declares network permissions, uses `secret_ref` for credentials, returns discovery plans (not real API responses), and produces faux streaming frames. No real inference or network calls.
-- `example/faux-agent-readiness` produces proposals/traces/plans only, emphasizes public protocol/capability/proposal patterns, has no network permissions, and produces faux streaming trace frames. No connection to pi runtime or model inference.
+- `example/faux-model-readiness` 声明网络权限，使用 `secret_ref` 引用凭证，返回 discovery plans（非真实 API 响应），产生 faux streaming frames。不做真实 inference 或网络调用。
+- `example/faux-agent-readiness` 仅产出 proposals/traces/plans，强调公开 protocol/capability/proposal 模式，无网络权限，产生 faux streaming trace frames。不连接 pi runtime 或 model inference。
 
-These packages prove the substrate shape without coupling to any specific model or agent implementation.
+这些包证明了 substrate shape，而不与任何特定 model 或 agent 实现耦合。

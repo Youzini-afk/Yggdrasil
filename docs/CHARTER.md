@@ -1,96 +1,96 @@
 # Yggdrasil Charter
 
-> [English](./CHARTER.md) · [中文](./CHARTER.zh-CN.md)
+> [English](./CHARTER.en.md) · [中文](./CHARTER.md)
 
-Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
+Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱动创作平台。
 
-It is a kernel and a contract — small, stable, opinion-free at the center — over which an open ecosystem of capability packages provides every meaningful concept.
+它是一个内核和一份契约 —— 中心小、稳定、不带主观意图 —— 在它之上是一个由能力包（capability package）组成的开放生态，平台中的每一个有意义的概念都来自能力包。
 
-This charter pins down what Yggdrasil is, what it is not, and the principles that do not change.
+这份 charter 界定 Yggdrasil 是什么、不是什么，以及不会改变的原则。
 
-## Identity
+## 身份
 
-Yggdrasil is:
+Yggdrasil 是：
 
-- a kernel for hosting capability packages,
-- a public protocol for clients, packages, and external systems to participate as equals,
-- an event-sourced foundation that preserves what happened,
-- a creation surface for radically open AI-native experiences.
+- 一个承载能力包的内核，
+- 一份让客户端、能力包和外部系统以平等身份参与的公开协议，
+- 一个保留所发生事件的事件溯源基础，
+- 一个面向激进开放 AI 原生体验的创作 surface。
 
-Yggdrasil is not:
+Yggdrasil 不是：
 
-- an application,
-- a chat tool,
-- a SillyTavern replacement,
-- a framework with built-in genres, loops, or content models,
-- a plugin host whose center is filled with privileged official content.
+- 一个应用，
+- 一个聊天工具，
+- 一个 SillyTavern 替代品，
+- 一个内建题材、循环或内容模型的框架，
+- 一个内核充满特权官方内容的插件宿主。
 
-## Permanent principles
+## 永久原则
 
-### 1. The kernel knows nothing about content
+### 1. 内核对内容一无所知
 
-No characters, scenes, worlds, prompts, models, turns, chats, agents, memories, games, rules, dice, inventories, or genres are part of the kernel. All such concepts live in capability packages. If a concept is meaningful to a creator or a player, it does not belong in the kernel.
+角色、场景、世界、提示词、模型、回合、聊天、agent、记忆、游戏、规则、骰子、背包、题材 —— 这些都不属于内核。所有此类概念都存在于能力包中。如果一个概念对创作者或玩家有意义，它就不属于内核。
 
-### 2. Official packages have no privileges
+### 2. 官方包没有任何特权
 
-Anything an official package can do, a third-party package can do. There are no private APIs, no special hooks, no hidden lifecycle, no kernel shortcuts based on package id or origin.
+官方包能做到的，第三方包一样能做到。没有私有 API，没有特殊 hook，没有隐藏 lifecycle，没有基于 package id 或来源的内核捷径。
 
-### 3. Protocol-first
+### 3. 协议优先
 
-The kernel exposes one set of contracts. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services all speak the same protocol. Internal callers do not bypass it.
+内核暴露一套契约。Studio、CLI、in-process 包、subprocess 包、WASM 包和 remote 服务都走同一套协议。内部调用者不能绕过它。
 
-### 4. Many entry forms, equal status
+### 4. 多种入口形式，平等地位
 
-A capability package may be:
+能力包可以是：
 
-- a Rust crate (in-process),
-- a local subprocess speaking JSON-RPC,
-- a WASM module,
-- a remote HTTP/WebSocket service.
+- 一个 Rust crate（in-process），
+- 一个通过 JSON-RPC 通信的本地 subprocess，
+- 一个 WASM 模块，
+- 一个 remote HTTP/WebSocket 服务。
 
-Same manifest, same fabric, same contract. Packaging form is implementation detail.
+同一份 manifest，同一套 fabric，同一份契约。打包形式只是实现细节。
 
-### 5. Events are the truth
+### 5. 事件即真相
 
-The kernel maintains an append-only event log per session as the system's source of truth. Anything stateful is derived. The kernel does not interpret event payloads; packages do.
+内核为每个 session 维护一条只追加的事件日志作为系统的真相来源。任何有状态的东西都是从事件派生的。内核不解读 event payload；包来解读。
 
-### 6. Sandbox by declaration
+### 6. 声明式沙箱
 
-Side effects, network access, persistence reach, and cross-package calls are declared in manifest. The kernel enforces those declarations. Undeclared side effects are violations.
+副作用、网络访问、持久化范围、跨包调用都必须在 manifest 中声明。内核强制执行这些声明。未声明的副作用就是违规。
 
-### 7. Composition over containment
+### 7. 组合优于容纳
 
-The platform never owns a "main experience." Multiple packages can coexist in a session, layering capabilities, hooks, and presentations. There is no canonical mode.
+平台从不拥有「主体验」。多个包可以共存于一个 session，层叠能力、hook 和呈现。不存在典型模式。
 
-## Stance toward radical creation
+## 对激进创作的立场
 
-Creators should be able to:
+创作者应该能够：
 
-- define their own genres, loops, and rules,
-- compose AI behaviors as building blocks,
-- inspect, branch, rewrite, and recombine any experience,
-- be limited only by what they can express, not by what the platform expected.
+- 定义自己的题材、循环和规则，
+- 把 AI 行为当作构建块来组合，
+- 审视、fork、改写和重组任何体验，
+- 只受限于自己能表达的东西，不受限于平台预期的东西。
 
-The platform's job is to make this possible, not to provide the experience.
+平台的职责是让这一切成为可能，而不是提供体验本身。
 
-## Non-goals
+## 非目标
 
-The kernel will not ship:
+内核不会交付：
 
-- a chat experience,
-- a world simulator,
-- a director or narrator,
-- a memory model or retrieval strategy,
-- a SillyTavern compatibility layer,
-- an external game engine bridge,
-- a blessed UI.
+- 一个聊天体验，
+- 一个世界模拟器，
+- 一个 director 或 narrator，
+- 一个记忆模型或检索策略，
+- 一个 SillyTavern 兼容层，
+- 一个外部游戏引擎桥接，
+- 一个受眷顾的 UI。
 
-Each of these is appropriate as a capability package. None is appropriate as kernel.
+以上每一项都适合作为能力包存在。没有任何一项适合作为内核。
 
-## Stance toward today's code
+## 对现有代码的立场
 
-The Rust workspace has already removed the initial conversational spike from the kernel crates. From here on, any reintroduction of content-shaped concepts into kernel crates is a charter regression. Conversational, model, memory, agent, world, Tavern, and Studio behavior must arrive as packages.
+Rust 工作区已经从内核 crate 中移除了最初的对话功能突刺。从现在起，任何将内容形态概念重新引入内核 crate 的行为都是 charter 退化。对话、模型、记忆、agent、世界、Tavern 和 Studio 行为必须以包的形式到来。
 
-## Stability commitment
+## 稳定性承诺
 
-This charter changes only by explicit revision. The kernel may evolve; the principles do not. When a future feature appears to require violating a principle, the answer is to redesign the feature, not the principle.
+这份 charter 只有通过明确修订才会改变。内核可以演进；原则不会。当某个未来功能看起来需要违反原则时，答案是重新设计那个功能，而不是修改原则。

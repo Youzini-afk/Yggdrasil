@@ -1,83 +1,83 @@
 # Yggdrasil Vision
 
-> [English](./VISION.md) · [中文](./VISION.zh-CN.md)
+> [English](./VISION.en.md) · [中文](./VISION.md)
 
-Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
+Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱动创作平台。
 
-The center of the platform is small and content-free. Everything meaningful lives in capability packages that the kernel hosts as equals.
+平台的核心小且内容无关。所有有意义的概念都存在于能力包中，内核以平等的方式承载它们。
 
-## What Yggdrasil is
+## Yggdrasil 是什么
 
-A kernel that hosts capability packages.
+一个承载能力包的内核。
 
-A public protocol that lets clients, packages, and external systems participate as equals.
+一份让客户端、能力包和外部系统以平等身份参与的公开协议。
 
-An event-sourced foundation that preserves what happened.
+一个保留已发生之事的事件溯源底座。
 
-A creation surface for radical AI-native experiences that the platform itself does not predefine.
+一个供激进 AI 原生体验使用的创作 surface——平台本身不预定义这些体验。
 
-## What Yggdrasil is not
+## Yggdrasil 不是什么
 
-Not an application. Not a chat tool. Not a SillyTavern replacement. Not a framework with built-in genres. Not a plugin host whose center is filled with privileged official content.
+不是应用。不是聊天工具。不是 SillyTavern 替代品。不是内置了类型的框架。不是一个中心填满了特权官方内容的 plugin host。
 
-There is no canonical experience the platform ships. The kernel has no opinion about characters, worlds, prompts, models, agents, or memory. Those are package concerns.
+平台不会发布任何典范体验。内核对角色、世界、提示词、模型、agent 或记忆没有任何立场。那些是能力包关注的事。
 
-## What "radical creative freedom" means here
+## 「激进创作自由」在这里意味着什么
 
-Creators are not limited to the shapes Yggdrasil imagined.
+创作者不被局限于 Yggdrasil 所想象的形态。
 
-A creator can:
+创作者可以：
 
-- define their own genres, loops, rules, and presentation,
-- compose AI behaviors as building blocks,
-- inspect, branch, rewrite, and recombine any experience,
-- replace or override any official package with their own,
-- distribute new capabilities, new event kinds, new extension points,
-- mix multiple packages in one session without one being privileged.
+- 定义自己的类型、循环、规则和呈现方式，
+- 将 AI 行为作为构建块组合，
+- 审视、fork、改写和重组任何体验，
+- 用自己的能力包替换或覆盖任何官方包，
+- 分发新的 capability、新的 event kind、新的 extension point，
+- 在同一个 session 中混合多个能力包，没有任何一方享有特权。
 
-The platform's job is to make this possible. The platform's job is not to provide the experience.
+平台的职责是让这一切成为可能。平台的职责不是提供体验。
 
-## Why kernel-and-packages
+## 为什么是内核加能力包
 
-A walled framework decides what the medium is. Yggdrasil refuses to.
+封闭框架决定了媒介是什么。Yggdrasil 拒绝这样做。
 
-Putting all meaning in packages — including the official ones — keeps the medium open. It keeps the platform honest: if an official "conversational runtime" can be replaced or coexist with a third-party "world simulator," then the kernel is not secretly the boss.
+把所有含义放在能力包中——包括官方包——保持了媒介的开放性。它保持了平台的诚实：如果一个官方"对话 runtime"可以被替换，或者与一个第三方"世界模拟器"共存，那内核就不是暗中的掌控者。
 
-This is what protects creative freedom over time.
+这就是在时间维度上保护创作自由的方式。
 
-## Reach
+## 适用范围
 
-Yggdrasil is designed to be useful as:
+Yggdrasil 被设计为以下角色可用：
 
-- a local platform host,
-- a headless service speaking the public protocol,
-- an embedded library inside larger products,
-- an open protocol for external systems acting as packages or clients.
+- 本地平台 host，
+- 讲公开协议的无头服务，
+- 嵌入更大产品中的库，
+- 供外部系统作为能力包或客户端使用的开放协议。
 
-All four use the same contract.
+四者使用同一份契约。
 
-## Future capability families (deferred)
+## 未来 capability 家族（已延后）
 
-These are valuable directions, but they are packages, not kernel concerns. They wait until the kernel/package layer is stable.
+以下是有价值的方向，但它们是能力包，不是内核关注的事。它们要等到内核/能力包层稳定之后。
 
-- A SillyTavern resource and behavior compatibility package family.
-- An agent integration package family (pi or otherwise).
-- A game engine bridge package family (UE5, Godot, Unity, web clients).
-- An official conversational runtime package.
-- An official inspector and creator UI.
+- SillyTavern 资源和行为兼容能力包家族。
+- agent 集成能力包家族（pi 或其他）。
+- 游戏引擎桥接能力包家族（UE5、Godot、Unity、web 客户端）。
+- 官方对话 runtime 能力包。
+- 官方审查器和创作者 UI。
 
-Each of these will be built and judged as a normal capability package. None will receive kernel privileges.
+每一个都将作为普通能力包构建和评判。没有一个会获得内核特权。
 
-## Non-goals
+## 非目标
 
-The kernel will not ship a chat experience, a world simulator, a director, a memory model, a SillyTavern compatibility layer, an external engine bridge, or a blessed UI.
+内核不会发布聊天体验、世界模拟器、director、记忆模型、SillyTavern 兼容层、外部引擎桥接或官方 UI。
 
-Each of these is appropriate as a capability package. None is appropriate as kernel.
+每一个作为能力包都是合适的。没有一个作为内核是合适的。
 
-## Stance toward today's code
+## 对当前代码的态度
 
-The Rust workspace is now Platform Foundation Alpha: kernel-only events/sessions, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, permissioned principals, surface contributions, proposal/approval lifecycle, asset/branch/projection substrate, and a public-protocol web shell. The active discipline is preventing contract drift — surfaces, proposals, branches, assets, and projections must keep their generic shape, content-shaped semantics must not leak into the kernel, and official packages must keep using only what any third-party package can use.
+Rust workspace 目前是 Platform Foundation Alpha：仅内核的 event/session、基于 manifest 的能力包、真正的 `rust_inproc` 和 subprocess 执行、hook fabric、SQLite event 日志、权限化 principal、surface contribution、proposal/approval 生命周期、asset/branch/projection 底座、以及走公开协议的 web shell。当前的纪律是防止契约漂移——surface、proposal、branch、asset 和 projection 必须保持其通用形态，内容形态的语义不能泄漏到内核中，官方包必须只使用任何第三方包都能使用的东西。
 
-## What success looks like
+## 成功的样子
 
-Yggdrasil succeeds when a creator can build something the platform's authors did not foresee, ship it as a package, and have it run alongside the official packages with no second-class treatment.
+当一个创作者可以构建出平台作者未曾预见的东西，把它作为能力包发布，并与官方包并行运行且不受二等对待时，Yggdrasil 就成功了。

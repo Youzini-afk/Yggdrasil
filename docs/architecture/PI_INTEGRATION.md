@@ -1,37 +1,37 @@
 # pi Integration (deferred)
 
-> [English](./PI_INTEGRATION.md) · [中文](./PI_INTEGRATION.zh-CN.md)
+> [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-This document is reserved for a future capability package family that integrates the `pi` agent framework with Yggdrasil. It is not on the near-term path.
+本文档为未来集成 `pi` agent 框架与 Yggdrasil 的能力包家族预留。它不在近期路径上。
 
-## Position
+## 立场
 
-pi is not part of the kernel. The kernel ships zero opinion about agents, planners, proposals, memory curation, or any other content-shaped concern.
+pi 不是内核的一部分。内核对 agent、planner、proposal、记忆策展或任何其他内容形态关注不持有任何立场。
 
-When pi integration is built, it will ship as one or more capability packages, governed by the same manifest, fabric, permission, and sandbox rules as any third-party package. It will receive no kernel privileges.
+当 pi 集成被构建时，它将以一个或多个能力包的形式发布，受与任何第三方包相同的 manifest、fabric、权限和 sandbox 规则约束。它不会获得任何内核特权。
 
-## Likely shape (sketch only)
+## 可能的形态（仅为草稿）
 
-The platform contract gives every package the tools it would need:
+平台契约为每个能力包提供了所需的工具：
 
-- Subscribe to events via `kernel.event.subscribe`.
-- Append package-namespaced events under the writer's own kind set (e.g., `pi/<...>/proposal.created`).
-- Provide capabilities other packages can invoke (e.g., `pi/<...>/curate`, `pi/<...>/extract`).
-- Define its own extension points so other packages can subscribe to pi-internal stages.
-- Declare permissions, sandbox limits, and side effects in manifest.
+- 通过 `kernel.event.subscribe` subscribe 事件。
+- 在写入者自己的 kind set 下 append 带 package namespace 的事件（例如 `pi/<...>/proposal.created`）。
+- 提供其他能力包可以调用的 capability（例如 `pi/<...>/curate`、`pi/<...>/extract`）。
+- 定义自己的 extension point，让其他能力包可以 subscribe pi 内部的阶段。
+- 在 manifest 中声明权限、sandbox 限制和副作用。
 
-A "proposal then commit" pattern, if pi adopts it, is implemented as ordinary events and capability calls between pi packages and other packages. The kernel does not need to know about it.
+如果 pi 采用"先 proposal 后 commit"模式，它作为普通事件和 capability 调用在 pi 包和其他包之间实现即可。内核不需要了解它。
 
-## Non-goals for the kernel
+## 内核的非目标
 
-The kernel will never:
+内核永远不会：
 
-- model "agents" as a first-class concept,
-- model "proposals" as a first-class concept,
-- model memory taxonomy,
-- offer pi-specific hooks or methods,
-- treat pi packages differently from any other package.
+- 将 "agent" 建模为一等概念，
+- 将 "proposal" 建模为一等概念，
+- 建模记忆分类体系，
+- 提供 pi 专用 hook 或方法，
+- 对 pi 能力包给予与其他能力包不同的对待。
 
-## Status
+## 状态
 
-pi integration is deferred until the play-creation platform substrate is consolidated. The substrate it would need — events, capabilities, hooks, permissions, surfaces, and the proposal/approval lifecycle — is now in place, so when integration begins it can ship as ordinary capability packages with no kernel changes. Until then, this document only fixes the position: pi is a future package family, not a platform layer.
+pi 集成已延后，直到游创平台底座稳固。它所需的底座——event、capability、hook、权限、surface 和 proposal/approval 生命周期——现在已经就位，所以当集成开始时，它可以作为普通能力包发布，无需修改内核。在此之前，本文档仅固定立场：pi 是未来的能力包家族，不是平台层。

@@ -1,162 +1,159 @@
-# Alpha Status
+# Alpha 状态
 
-> [English](./ALPHA_STATUS.md) · [中文](./ALPHA_STATUS.zh-CN.md)
+> [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-This is the living snapshot of what Yggdrasil is right now. It is updated whenever a milestone closes. It is not aspirational: every line below has code and conformance behind it (or is explicitly marked partial/deferred).
+这是 Yggdrasil 当前状态的实时快照。每当一个里程碑关闭时更新。它不是愿景：下面每一行都有代码和 conformance 支撑（或被明确标注为 partial/deferred）。
 
-For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/architecture/VISION.md`, and `docs/product/PLAY_CREATION_MODEL.md`. For where this is going, see `docs/roadmap/NEXT_STEPS.md`.
+长期架构和产品立场见 `docs/CHARTER.md`、`docs/architecture/VISION.md` 和 `docs/product/PLAY_CREATION_MODEL.md`。后续方向见 `docs/roadmap/NEXT_STEPS.md`。
 
-## Headline
+## 概要
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5.
-- **Conformance:** 98 named CLI cases plus crate and service unit tests.
-- **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof.
-- **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Agent Infrastructure Alpha.
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5。
+- **Conformance：** 98 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof。
+- **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
+- **下一阶段：** Agent Infrastructure Alpha。
 
-## What is implemented
+## 已实现
 
-### Kernel
+### 内核
 
-- Content-free sessions, append-only opaque events, manifest-driven packages, capability fabric, hook fabric slice, surface contributions, proposal lifecycle, asset/branch/projection substrate.
-- SQLite-backed durable event log with per-session monotonic sequencing and rehydratable substrate including assets, branches, projections, and **permission grants**.
-- JSON Schema subset for capability input/output and package-declared event payloads.
-- Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Scoped grants for human and assistant principals.
-- **Persistent permission grants**: grants are rehydrated from the event log on runtime reconstruction. A grant issued before a host restart remains effective after rehydrate.
-- Permission audit events: `kernel/permission.granted`, `kernel/permission.revoked`, `kernel/permission.denied`.
-- **Secret reference contract**: `SecretRef` type with `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` reference patterns. Packages reference secrets via `secret_ref` identifiers; raw secrets must never appear in events, proposals, logs, or audit records.
-- **Host secret resolver**: `HostSecretResolver` trait and `DenyAllSecretResolver` placeholder. Resolution is only permitted at runtime during capability invocation; resolved raw secrets must never be written back to the event log or any audit/proposal path. `SecretResolverConfig` on `RuntimeConfig`.
-- **Raw-secret blocking**: Conservative scanner checks proposal payloads, asset metadata, and audit-like payloads for known secret field names (`api_key`, `secret`, `token`, `password`, etc.) and value patterns (`Bearer ...`, `sk-...`, high-entropy strings). Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text. Official packages have no bypass.
-- **Network permission declarations**: Manifest `permissions.network` supports both flat `hosts` (backward compat) and structured `declarations` with `host`, `methods`, and `purpose`. The runtime policy checker matches outbound requests against declared entries. Packages with no network declarations are denied outbound access. Official packages have no bypass.
-- **Outbound audit/redaction records**: `OutboundAuditRecord` records principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, status/error. Raw body/header/prompt/response is never saved — only `secret_ref` identifiers and the `redaction_state` enum (`not_captured`, `redacted`, `policy_ref`, `unsafe_blocked`, `explicitly_approved`) are recorded. Default is `redacted`.
-    - **Network policy checker**: `check_network_policy` pure function and `check_and_audit_outbound` runtime method. Supports exact host match, wildcard prefix (`*.example.com`), method allowlists (empty = any), and flat `hosts` backward compat. Denied requests produce `kernel/outbound.denied` audit events; allowed requests produce `kernel/outbound.request` events.
-- **Protocol method**: `kernel.outbound.audit` lists outbound audit events for a given package.
-- **Streaming invocation registry**: In-memory `StreamRegistry` tracks ongoing streaming capability invocations with start/append/end/cancel/timeout lifecycle. `StreamFrameEnvelope` defines generic content-free stream frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. No model/prompt/agent semantics.
-- **Streaming capability lifecycle**: `kernel.capability.stream` starts a streaming invocation (validates `streaming=true` in descriptor), `kernel.capability.cancel` cancels an in-flight invocation. Runtime methods emit ordered kernel events: `kernel/stream.started`, `kernel/stream.chunk`, `kernel/stream.progress`, `kernel/stream.ended`, `kernel/stream.error`, `kernel/stream.cancelled`, `kernel/stream.timeout`. Cancel and timeout block further chunks. Non-streaming capabilities (descriptor `streaming=false`) are rejected from streaming.
-- **Streaming invocation record**: `StreamInvocationRecord` tracks invocation_id, stream_id, capability_id, provider_package_id, session_id, state (active/ended/error/cancelled/timeout), frame_count, timestamps, and metadata. Terminal states block further frame appends.
-- **Secure-execution TypeScript helpers** (`sdk/typescript/secure-execution/index.ts`): `secretRef()` / `isValidSecretRef()` / `looksLikeRawSecret()` / `isSecretFieldName()` for secret reference construction and validation. `NetworkDeclaration` class for building manifest-compatible network permission entries with host/method matching. `OutboundAuditHelper` class for building audit-safe outbound request payloads that reject raw secrets and include only `secret_ref` identifiers. `StreamFrameClient` class for building faux stream frame envelopes with full lifecycle (start/chunk/progress/end/error/cancel/timeout). All helpers wrap only public protocol and types — no private internals, no protocol bypass.
-- **Package templates**: `--template networked` generates a subprocess package with network permission declarations (`host`, `methods`, `purpose`), a `fetch` capability with `network` side effect, and an `echo` capability. Demonstrates `secretRef`, `NetworkDeclaration`, and `OutboundAuditHelper` usage. `--template streaming` generates a subprocess package with a streaming capability (`streaming: true`) and demonstrates `StreamFrameClient` faux frame lifecycle. Both templates are safe by default: no raw secrets, no implicit network access.
-- **No-network readiness proof examples**: `examples/packages/faux-model-readiness/` proves the substrate shape for model-like packages (network declarations, secret_ref usage, discovery plans, faux streaming frames — no real inference). `examples/packages/faux-agent-readiness/` proves the substrate shape for agent-like packages (proposal/trace patterns, no network permissions, faux streaming trace — no real agent loop or pi runtime coupling).
-- Package lifecycle events: `kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`.
-- Proposal lifecycle events: `kernel/proposal.created|approved|rejected|applied|failed`.
+- 内容无关的 session、只追加不透明事件、manifest 驱动的包、能力 fabric、hook fabric 切片、surface contributions、proposal lifecycle、asset/branch/projection 底座。
+- SQLite 支撑的持久事件日志，每 session 单调递增序号，可重新水化的底座。
+- JSON Schema 子集用于能力输入/输出和包声明的 event payload。
+- Principal：`host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。human 和 assistant principal 的作用域授权。
+- 权限审计事件：`kernel/permission.granted`、`kernel/permission.revoked`、`kernel/permission.denied`。
+- 包 lifecycle 事件：`kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`。
+- Proposal lifecycle 事件：`kernel/proposal.created|approved|rejected|applied|failed`。
+- 持久权限授权：`kernel/permission.granted|revoked` 事件可在 SQLite-backed runtime 中重新水化，重启后授权仍可用于 human/assistant principal 的作用域检查。
+- **Secret reference contract**：`SecretRef` 类型支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:` 和 `host:` reference patterns。包通过 `secret_ref` identifier 引用 secret；raw secrets 不得出现在 events、proposals、logs 或 audit records 中。
+- **Host secret resolver placeholder**：`HostSecretResolver` trait 和 deny-all resolver 已存在，用于未来 host-level secret store。当前不做生产级 vault 或 provider-specific key handling。
+- **Raw-secret blocking**：Proposal operations/expected effects 与 asset metadata 会被保守扫描；明显 raw API keys、token/password fields 会被拒绝。Asset content 和普通 prose 字段不扫描，以避免误伤用户内容。
+- **网络权限声明**：Manifest `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（含 `host`、`methods`、`purpose`）。Runtime 策略检查器根据声明的条目匹配出站请求。无网络声明的包被拒绝出站访问。官方包无绕过。
+- **Outbound audit/redaction records**：`OutboundAuditRecord` 记录 principal、package_id、capability_id、destination_host、method、purpose、redaction_state、secret_refs_used、usage/cost 占位符、status/error。Raw body/header/prompt/response 不会被保存——仅记录 `secret_ref` 标识符和 `redaction_state` 枚举（`not_captured`、`redacted`、`policy_ref`、`unsafe_blocked`、`explicitly_approved`）。默认为 `redacted`。
+- **网络策略检查器**：`check_network_policy` 纯函数和 `check_and_audit_outbound` runtime 方法。支持精确 host 匹配、通配符前缀（`*.example.com`）、method 白名单（空 = 任意）和扁平 `hosts` 向后兼容。被拒绝的请求产生 `kernel/outbound.denied` 审计事件；被允许的请求产生 `kernel/outbound.request` 事件。
+- **协议方法**：`kernel.outbound.audit` 列出给定包的出站审计事件。
+- **Streaming invocation registry**：内存中的 `StreamRegistry` 追踪进行中的 streaming capability 调用，支持 start/append/end/cancel/timeout 生命周期。`StreamFrameEnvelope` 定义通用内容无关的 stream frame 类型（start/chunk/progress/end/error/cancelled/timeout），包含 invocation_id、stream_id、sequence、redaction_state 和 timestamp/metadata。不包含 model/prompt/agent 语义。
+- **Streaming capability 生命周期**：`kernel.capability.stream` 启动 streaming invocation（验证 descriptor 中 `streaming=true`），`kernel.capability.cancel` 取消进行中的 invocation。Runtime 方法按序发出 kernel 事件：`kernel/stream.started`、`kernel/stream.chunk`、`kernel/stream.progress`、`kernel/stream.ended`、`kernel/stream.error`、`kernel/stream.cancelled`、`kernel/stream.timeout`。Cancel 和 timeout 阻断后续 chunk。非 streaming 能力（descriptor `streaming=false`）被拒绝。
+- **Streaming invocation 记录**：`StreamInvocationRecord` 追踪 invocation_id、stream_id、capability_id、provider_package_id、session_id、状态（active/ended/error/cancelled/timeout）、frame_count、时间戳和 metadata。终态阻断后续 frame 追加。
+- **Secure-execution TypeScript helpers**（`sdk/typescript/secure-execution/index.ts`）：`secretRef()`/`isValidSecretRef()`/`looksLikeRawSecret()`/`isSecretFieldName()` 用于 secret reference 构造和验证。`NetworkDeclaration` 类用于构建 manifest 兼容的网络权限条目，支持 host/method 匹配。`OutboundAuditHelper` 类用于构建审计安全的出站请求 payload，拒绝 raw secrets，仅包含 `secret_ref` 标识符。`StreamFrameClient` 类用于构建 faux stream frame envelope，支持完整生命周期（start/chunk/progress/end/error/cancel/timeout）。所有 helper 只包装公开协议和类型——无私有内部、无协议绕过。
+- **包模板**：`--template networked` 生成带网络权限声明的 subprocess package（`host`、`methods`、`purpose`），包含带 `network` side effect 的 `fetch` capability 和 `echo` capability。演示 `secretRef`、`NetworkDeclaration` 和 `OutboundAuditHelper` 用法。`--template streaming` 生成带 streaming capability（`streaming: true`）的 subprocess package，演示 `StreamFrameClient` faux frame 生命周期。两个模板默认安全：无 raw secrets、无隐式 network 访问。
+- **No-network readiness proof 示例**：`examples/packages/faux-model-readiness/` 证明 model-like 包的 substrate shape（网络声明、secret_ref 用法、discovery plans、faux streaming frames——不做真实 inference）。`examples/packages/faux-agent-readiness/` 证明 agent-like 包的 substrate shape（proposal/trace 模式、无网络权限、faux streaming trace——不做真实 agent loop 或 pi runtime coupling）。
 
-### Public protocol and transports
+### 公开协议与传输
 
-- Canonical request/response envelope with host-attached principal context. Callers cannot self-assert package or admin identity.
-- HTTP `POST /rpc` and host JSON-RPC stdio (`ygg host-stdio`) call the same dispatcher.
-- HTTP SSE event subscribe with `after_sequence` replay and live tailing for host-dev callers.
-- Profile-backed `ygg host serve` autoloads packages and exposes `/rpc` plus SSE.
-- WebSocket and TCP transports are reserved for future work; remote and WASM entries are reserved as first-class manifest forms with execution deferred.
+- 规范的请求/响应信封，附带 host 绑定的 principal 上下文。调用者不能自行断言 package 或 admin 身份。
+- HTTP `POST /rpc` 和 host JSON-RPC stdio（`ygg host-stdio`）调用同一套 dispatcher。
+- HTTP SSE 事件订阅，支持 `after_sequence` replay 和对 host-dev 调用者的实时追尾。
+- Profile 驱动的 `ygg host serve` 自动加载包并暴露 `/rpc` 与 SSE。
+- WebSocket 和 TCP 传输保留为未来工作；remote 和 WASM 入口保留为第一等 manifest 形式，执行延后。
 
-### Package execution
+### 包执行
 
-- `rust_inproc` packages execute through a host-provided package trait and catalog. Manifests whose declared in-process provider is missing from the catalog are rejected.
-- `subprocess` packages execute via JSON-RPC over stdio with handshake, invoke, invoke timeout, degraded state, restart, kill-on-unload, and stderr log capture.
-- `wasm` and `remote` entries: manifest support yes, execution deferred.
-- Capability routing supports explicit provider selection and simple exact / `^x.y` version constraints. Ambiguous routes are rejected unless the caller specifies `provider_package_id`.
-- Hook fabric slice: deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup for `kernel/event.before_append|after_append` and `kernel/capability.before_invoke|after_invoke`.
+- `rust_inproc` 包通过 host 提供的 package trait 和 catalog 执行。声明了 in-process provider 但 catalog 中缺失的 manifest 会被拒绝。
+- `subprocess` 包通过 JSON-RPC over stdio 执行，支持 handshake、invoke、invoke 超时、degraded 状态、restart、kill-on-unload 和 stderr 日志捕获。
+- `wasm` 和 `remote` 入口：manifest 支持已就绪，执行延后。
+- 能力路由支持显式 provider 选择和简单精确匹配 / `^x.y` 版本约束。路由歧义时拒绝，除非调用者指定 `provider_package_id`。
+- Hook fabric 切片：确定性排序、包拥有的 handler 能力、payload 元数据修改、veto、unload 清理，覆盖 `kernel/event.before_append|after_append` 和 `kernel/capability.before_invoke|after_invoke`。
 
-### Substrate
+### 底座
 
-- Asset registry: opaque `id`/`mime`/`hash`/`size`/`origin_package_id`/`metadata`, rehydratable from SQLite. Permission enforcement and content-addressed blob storage are next.
-- Session fork/branch lineage records, rehydratable from the event log.
-- Generic projection registry. Rebuild filters events by `kind_prefix` and `writer_package_id` and writes `kernel/projection.updated`. Package-owned projection execution is next.
-- **Permission grant rehydration**: `kernel/permission.granted` and `kernel/permission.revoked` events are replayed during `hydrate_substrate_from_events` so that grants survive runtime reconstruction against the same SQLite store.
-- Surface contributions: typed descriptors with version, slot, activation, required permissions, approval policy, metadata. Slots: `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable through `kernel.surface.contribution.list` and `.describe`.
-- Proposal lifecycle: `kernel.proposal.create|get|list|approve|reject|apply`. Apply currently executes generic `asset.put` and `projection.rebuild` operations. Broader transactions and revert/compensation are next.
+- Asset 注册表：不透明的 `id`/`mime`/`hash`/`size`/`origin_package_id`/`metadata`，可从 SQLite 重新水化。权限强制和内容寻址 blob 存储为下一步。
+- Session fork/branch 血缘记录，可从事件日志重新水化。
+- 通用 projection 注册表。Rebuild 以 `kind_prefix` 和 `writer_package_id` 过滤事件并写入 `kernel/projection.updated`。包拥有的 projection 执行为下一步。
+- Surface contributions：带版本、slot、activation、所需权限、approval 策略、metadata 的类型化描述符。Slot：`experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。可通过 `kernel.surface.contribution.list` 和 `.describe` 发现。
+- Proposal lifecycle：`kernel.proposal.create|get|list|approve|reject|apply`。Apply 当前执行通用 `asset.put` 和 `projection.rebuild` 操作。更广泛的事务和 revert/compensation 为下一步。
 
-### Official packages
+### 官方包
 
-All ordinary packages. No kernel privilege. They live under `packages/official/` and load through normal manifests:
+全部为普通包。无内核特权。位于 `packages/official/`，通过普通 manifest 加载：
 
-- `official/package-lab` — package-authoring helpers exposed as ordinary capabilities and surfaces.
-- `official/schema-tools` — schema-validation helpers.
-- `official/event-tools` — event filtering and inspection helpers.
-- `official/composition-lab` — composition validation, launch-plan, permission-preview, surface-graph, and compat-report helpers with v2 descriptor diagnostics (capabilities, permissions, replacements, compatibility notes).
-- `official/asset-lab` — generic asset preview, diff, export, and import-plan helpers.
-- `official/projection-lab` — projection describe, diff, rebuild-plan, and source-event helpers.
-- `official/persona-lab` — persona profile import, normalization, rendering, and compatibility diagnostics.
-- `official/knowledge-lab` — structured knowledge collection normalization, matching, injection planning, and diagnostics.
-- `official/context-lab` — bounded context block assembly, layer inspection, budget planning, and template rendering.
-- `official/text-transform-lab` — deterministic text transform import, validation, preview, pipeline explanation, and diagnostics.
-- `official/model-connector-lab` — no-network provider family metadata, profile validation, secret masking, discovery plans, and compatibility reports.
-- `official/model-routing-lab` — no-inference consumer-slot binding, route planning, fallback planning, and params normalization.
-- `official/assistant-lab` — assistant-action capability that returns approval-gated proposals.
-- `official/blank-experience` — minimal experience used by `ygg play-create-demo` to exercise the play-creation loop.
-- `official/playable-seed` — reference playable package with entry/play/Forge/assistant surfaces.
+- `official/package-lab` —— 包创作辅助，以普通能力和 surface 暴露。
+- `official/schema-tools` —— schema 验证辅助。
+- `official/event-tools` —— 事件过滤与检查辅助。
+- `official/composition-lab` —— composition 验证、launch-plan、permission-preview、surface-graph 与 compat-report 辅助，支持 v2 descriptor 诊断（capabilities、permissions、replacements、compatibility notes）。
+- `official/asset-lab` —— 通用 asset preview、diff、export 与 import-plan 辅助。
+- `official/projection-lab` —— projection describe、diff、rebuild-plan 与 source-event 辅助。
+- `official/persona-lab` —— persona profile import、normalization、rendering 与 compatibility diagnostics。
+- `official/knowledge-lab` —— structured knowledge collection normalization、matching、injection planning 与 diagnostics。
+- `official/context-lab` —— bounded context block assembly、layer inspection、budget planning 与 template rendering。
+- `official/text-transform-lab` —— deterministic text transform import、validation、preview、pipeline explanation 与 diagnostics。
+- `official/model-connector-lab` —— no-network provider family metadata、profile validation、secret masking、discovery plans 与 compatibility reports。
+- `official/model-routing-lab` —— no-inference consumer-slot binding、route planning、fallback planning 与 params normalization。
+- `official/assistant-lab` —— assistant-action 能力，返回需要审批的 proposal。
+- `official/blank-experience` —— 最小体验，被 `ygg play-create-demo` 用来跑通游创循环。
+- `official/playable-seed` —— 带有 entry/play/Forge/assistant surfaces 的 reference playable package。
 
-The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside example fixture packages.
+Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 fixture 包。
 
-### Web shell (`clients/web`)
+### Web shell（`clients/web`）
 
-- Skeletal Home/Play, Forge, and Assist surfaces over the public protocol.
-- Home discovers `experience_entry` surfaces, launches sessions through the package-declared launch capability, supports session fork.
-- Forge inspects packages, capabilities, assets, projections, proposals, events, and surface contributions, with package/capability inventory by provider, surface descriptor inventory by slot, composition/authoring diagnostics, manifest/template CLI guidance, and approve/apply controls for proposals.
-- No official-package hardcoding. The shell is a public-protocol client like any other.
-- **Text Surface Proof (Phase T1)**: A lightweight client-side text-layout adapter (`clients/web/src/text-layout`) aligned with the Pretext API shape (`prepareText`, `layoutPreparedText`, `createStreamingBuffer`). It runs without a Pretext dependency and uses a canvas-based fallback for line-breaking, line-count, and height estimates. A mock-streaming proof lives inside the Assistant Drawer: inert mock chunks display progressively with live line/height metadata and stream-lifecycle badges (`idle`/`streaming`/`ended`/`reset`). This is a UI proof only; no kernel/package/protocol changes, no real model/agent calls, no network traffic.
-- **Optional Text Engine (Phase T2)**: `TextEngine` interface, engine registry, fallback engine with bounded width cache (4096 entries), and generic stream-frame-to-buffer adapter. No kernel/protocol changes.
-- **Optional Pretext Engine (Phase T3)**: `PretextTextEngine` with dynamic import, runtime feature flags (`auto`/`fallback`/`pretext`), and graceful fallback. Repo builds without `@chenglou/pretext`. Assistant Drawer shows engine preference, Pretext availability, and fallback reason.
-- **Forge Text Preview (Phase T4)**: Text preview helper extracting safe plain-text from event payloads, stream frames, and proposal objects. Optional `<details>` in Forge Events and Proposals with preview text, line/height estimates, and engine badge. No replacement of JSON inspectors.
-- **SDK Extraction & Hardening (Phase T5)**: `sdk/typescript/text-surface` — pure TypeScript frontend SDK with `createTextSurfaceBuffer`, `applyStreamFrame`, `extractTextChunk`, `createScrollAnchor` (no `clients/web` dependency). Font-loading helper (`ensureTextSurfaceFontLoaded`, `describeFontLoadState`). Cache diagnostics (`getCacheDiagnostics` with `totalEntries`/`fontCount`/`maxEntries`/`estimatedBytes`). Self-test harness (`runTextLayoutSelfTest`) with pure TS assertions for fallback engine, registry, stream adapter, and text preview.
+- 骨架化的 Home/Play、Forge 和 Assist surface，走公开协议。
+- Home 发现 `experience_entry` surface，通过包声明的 launch 能力启动 session，支持 session fork。
+- Forge 检查事件、能力、asset、projection、proposal 和 Forge-panel surface contributions，提供 proposal 的 approve/apply 控制。
+- 没有官方包硬编码。Shell 和其他客户端一样是公开协议客户端。
+- **Text Surface Proof（Phase T1）**：Assistant Drawer 中加入受限 mock streaming text proof，使用 `clients/web/src/text-layout/`。它展示渐进 mock chunks、行数/高度估算、stream 生命周期徽章和 reset/replay 控件。不调用真实 agent/model，不出网，不改变 kernel/package/protocol surface。
+- **Optional Text Engine（Phase T2）**：`TextEngine` 接口、engine registry、带限宽缓存（4096 条）的 fallback engine、通用 stream-frame-to-buffer adapter。未修改 kernel/protocol。
+- **Optional Pretext Engine（Phase T3）**：`PretextTextEngine` 通过 dynamic import 加载，运行时 feature flags（`auto`/`fallback`/`pretext`），优雅降级。仓库无需安装 `@chenglou/pretext` 即可 build。Assistant Drawer 显示引擎偏好、Pretext 可用性和 fallback 原因。
+- **Forge Text Preview（Phase T4）**：文本预览 helper，从 event payload、stream frame 和 proposal 对象中提取安全纯文本。Forge Events 和 Proposals 中新增可选 `<details>`，含预览文本、行数/高度估算和引擎徽章。不替换 JSON inspector。
+- **SDK 抽取与硬化（Phase T5）**：`sdk/typescript/text-surface` — 纯 TypeScript 前端 SDK，提供 `createTextSurfaceBuffer`、`applyStreamFrame`、`extractTextChunk`、`createScrollAnchor`（不依赖 `clients/web`）。字体加载 helper（`ensureTextSurfaceFontLoaded`、`describeFontLoadState`）。缓存诊断（`getCacheDiagnostics` 含 `totalEntries`/`fontCount`/`maxEntries`/`estimatedBytes`）。自测模块（`runTextLayoutSelfTest`），用纯 TS 断言覆盖 fallback engine、registry、stream adapter 和 text preview。
 
-### Authoring
+### 创作
 
-- `ygg init-package` generates Python or TypeScript subprocess package skeletons. The TypeScript variant uses the SDK runtime under `sdk/typescript/subprocess`.
-- `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming` controls generated surface descriptors. Without `--template`, `--language *-experience` auto-detects a legacy 4-surface experience mode for backward compatibility; otherwise defaults to basic. `networked` template adds network permission declarations and demonstrates `secretRef`/`NetworkDeclaration`/`OutboundAuditHelper` usage. `streaming` template adds a streaming capability and demonstrates `StreamFrameClient` faux frame lifecycle.
-- `--language typescript-experience` (without `--template`) still generates the original 4-surface experience descriptors for backward compatibility.
-- `ygg init-composition` and `ygg composition check` provide a local composition descriptor flow with v2 fields (title, description, optional packages, required capabilities, default activation, permission expectations, replacement candidates, compatibility notes). `composition check` prints structured diagnostics: loaded required/optional packages, surfaces by slot, capabilities, entry activation, missing required surfaces/capabilities (fail), and warnings for missing optional packages.
-- `ygg package check` and `ygg package conformance` validate generated packages locally. `ygg package check` prints structured diagnostics: entry kind, trust level, capability count, surfaces by slot, permissions summary, sandbox policy summary, and warnings for packages with no capabilities or no surfaces.
-- `ygg package reload <manifest>` loads a package into an in-memory runtime, restarts it (subprocess only), prints before/after status and logs count, then unloads. Uses existing Runtime::restart_package path; no new protocol methods.
-- `ygg package run-fixture` invokes all declared non-streaming capabilities with deterministic canned inputs and prints a structured JSON summary.
-- `ygg play-create-demo` orchestrates the blank play-creation loop end-to-end through ordinary public-protocol calls.
+- `ygg init-package` 生成 Python 或 TypeScript subprocess 包骨架。TypeScript 变体使用 `sdk/typescript/subprocess` 下的 SDK runtime。
+- `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming` 控制生成的 surface 描述符。未指定 `--template` 时，`--language *-experience` 自动检测为 legacy 4-surface 体验模式以兼容旧行为；否则默认 basic。`networked` 模板增加网络权限声明，演示 `secretRef`/`NetworkDeclaration`/`OutboundAuditHelper` 用法。`streaming` 模板增加 streaming capability，演示 `StreamFrameClient` faux frame 生命周期。
+- `--language typescript-experience`（未指定 `--template`）仍生成原始 4-surface 体验描述符以兼容旧行为。
+- `ygg init-composition` 和 `ygg composition check` 提供本地 composition descriptor 流程，支持 v2 字段（title、description、optional packages、required capabilities、default activation、permission expectations、replacement candidates、compatibility notes）。`composition check` 输出结构化诊断：已加载的 required/optional 包、surfaces 按 slot 归类、capabilities、entry activation、缺失的 required surfaces/capabilities（失败）、以及 optional 包缺失警告。
+- `ygg package check` 和 `ygg package conformance` 在本地验证生成的包。`ygg package check` 输出结构化诊断信息：entry kind、trust level、capability 数量、surfaces 按 slot 归类、permissions 摘要、sandbox policy 摘要，以及对无 capability 或无 surface 的包发出警告。
+- `ygg package reload <manifest>` 将包加载到内存 runtime，重启（仅 subprocess），输出重启前后状态和日志数量，然后卸载。使用现有 Runtime::restart_package 路径；不新增协议方法。
+- `ygg package run-fixture` 使用确定性 canned 输入调用所有声明的非 streaming 能力，并输出结构化 JSON 摘要。
+- `ygg play-create-demo` 通过普通公开协议调用端到端地编排空白游创循环。
 
-### Code organization
+### 代码组织
 
-- `crates/ygg-cli/src/main.rs` is a thin entry point. CLI types live in `cli.rs`; commands live under `commands/`; package generation templates live under `templates/`; conformance cases live under `conformance/` domain modules.
-- `crates/ygg-runtime/src/runtime/` owns runtime domain behavior across session, events, packages, capabilities, hooks, permissions, assets, branches, projections, proposals, and protocol dispatch modules; `runtime/mod.rs` preserves the public `Runtime<S>` API and re-exports moved public request/record types.
-- Protocol method metadata and dispatch share the `KernelMethod` source of truth, with unit coverage for registry/dispatch consistency.
-- `crates/ygg-runtime/src/inproc.rs` retains the in-process package API and delegates official lab behavior to focused modules under `crates/ygg-runtime/src/inproc/`.
-- `crates/ygg-runtime/src/inproc/common.rs` routes shared official in-process handlers by provider package and local capability name rather than suffix-only fallback.
-- This split is behavior-preserving and exists to keep future package, conformance, and handler growth reviewable.
+- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型位于 `cli.rs`；commands 位于 `commands/`；包生成模板位于 `templates/`；conformance 用例按领域位于 `conformance/` 模块。
+- `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 和 protocol dispatch 模块承载 runtime domain behavior；`runtime/mod.rs` 保持公开 `Runtime<S>` API，并 re-export 移动后的公开 request/record types。
+- Protocol method metadata 与 dispatch 共享 `KernelMethod` 单一事实源，并有 registry/dispatch 一致性单元覆盖。
+- `crates/ygg-runtime/src/inproc.rs` 保留 in-process package API，并把 official lab 行为委托给 `crates/ygg-runtime/src/inproc/` 下的聚焦模块。
+- `crates/ygg-runtime/src/inproc/common.rs` 按 provider package 和 local capability name 路由共享 official in-process handlers，而不是 suffix-only fallback。
+- 这次拆分不改变行为，目的是让后续 package、conformance 和 handler 增长保持可审查。
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` runs 98 named CLI cases covering: sessions, events, packages, capabilities, hooks, schemas, principals, permissions, subprocess execution, host transports, surfaces, proposals, official packages, composition-lab (with v2 diagnostics and compat-report), asset-lab, projection-lab, persona-lab, knowledge-lab, context-lab, text-transform-lab, model-connector-lab, model-routing-lab, in-process package fallback hardening, playable-seed, blank play-creation loop, asset/branch/projection substrate, generated package authoring (basic, experience, assistant-action, asset-editor, full-surface, **networked**, **streaming** templates), composition descriptors (v1 and v2), package check diagnostics, package reload smoke, third-party playable-seed replacement proof (surface discoverability, capability invocation, ambiguous-route no-official-priority, composition check), **permission grant rehydrate through SQLite**, **secret_ref validation**, **raw-secret blocking in proposals and asset metadata**, **official-package no-secret-bypass**, **network permission denied for undeclared packages with outbound.denied audit**, **allowlisted host+method allowed with redacted audit**, **host/method mismatch denied**, **official-package no-network bypass**, **audit records contain no raw secrets/bodies — only secret_ref and redaction_state**, **network policy checker pure function tests**, **streaming/cancellation lifecycle (normal end, cancel, timeout, error, non-streaming rejection, no model/agent methods, protocol dispatch)**, **generated networked template conformance with network declarations and no raw secrets**, **generated streaming template conformance with streaming capability**, **faux-model-readiness manifest structure (network declarations, secret_ref, streaming, no raw secrets)**, and **faux-agent-readiness manifest structure (no network permissions, streaming, proposal/trace patterns, no raw secrets)**.
-- Plus crate and service unit tests under `cargo test --workspace`.
-- `tsc -p clients/web/tsconfig.json --noEmit` checks the web shell.
+- `cargo run -p ygg-cli -- conformance` 运行 98 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab（含 v2 诊断与 compat-report）、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-routing-lab、in-process package fallback hardening、playable-seed、空白游创循环、asset/branch/projection 底座、生成包创作（basic、experience、assistant-action、asset-editor、full-surface、**networked**、**streaming** 模板）、composition descriptor（v1 与 v2）、package check 诊断、package reload 冒烟测试、第三方 playable-seed 替换证明（surface 可发现性、能力调用、歧义路由无官方优先、composition check）、**permission grant 通过 SQLite 重新水化**、**secret_ref validation**、**proposals 和 asset metadata 中的 raw-secret blocking**、**official-package no-secret-bypass**、**无网络权限的包被拒绝出站并产生 outbound.denied 审计**、**allowlisted host+method 允许并记录 redacted audit**、**host/method 不匹配拒绝**、**official-package 无 network bypass**、**审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state**，**网络策略检查器纯函数测试**，**streaming/cancellation 生命周期（normal end、cancel、timeout、error、non-streaming 拒绝、无 model/agent 方法、protocol dispatch）**，**生成的 networked 模板 conformance（网络声明、无 raw secrets）**，**生成的 streaming 模板 conformance（streaming capability）**，**faux-model-readiness manifest 结构（网络声明、secret_ref、streaming、无 raw secrets）**，以及 **faux-agent-readiness manifest 结构（无网络权限、streaming、proposal/trace 模式、无 raw secrets）**。
+- 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
+- `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 
-## What is partial
+## 部分实现
 
-- Capability invocation lifecycle events (`kernel/capability.invoked|completed|failed`) reserved in contract; not emitted yet.
-- Streaming protocol dispatch is partial (stream start/cancel lifecycle works; real network streaming deferred).
-- Package-principal `event.subscribe` permissions.
-- Hook handler timeout/error audit for package-owned handlers.
-- Persisted capability provider selection policy beyond per-invocation explicit selection.
-- Richer resource policy coverage (filesystem enforcement matrices) — Phase S4+ target.
-- Content-addressed asset blob storage and package-principal asset permission checks.
-- Package-owned projection execution.
-- Richer crash monitoring and health-check beyond lifecycle events.
-- Broader transport parity coverage in conformance beyond the current core protocol dispatcher and service tests.
-- Richer TypeScript SDK packaging beyond the current thin subprocess helper and secure-execution helpers.
-- Full `kernel.session.get|list`, `kernel.package.describe`, `kernel.capability.describe`, `kernel.extension_point.describe`, `kernel.host.principal`, `kernel.host.ping` route exposure.
-- Production secret vault integration (Phase S1 provides the contract and `DenyAllSecretResolver` only).
-- Network permission declarations and outbound audit/redaction records (Phase S2 — implemented).
+- 能力调用 lifecycle 事件（`kernel/capability.invoked|completed|failed`）已在契约中预留；尚未发出。
+- Streaming 协议分发自 partial（stream start/cancel 生命周期可用；真实网络 streaming 延后）。
+- Package-principal 的 `event.subscribe` 权限。
+- Hook handler 超时/错误审计，面向包拥有的 handler。
+- 持久化的能力 provider 选择策略（超越单次调用显式选择）。
+- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Phase S4+ 目标。
+- 内容寻址的 asset blob 存储和 package-principal asset 权限检查。
+- 包拥有的 projection 执行。
+- 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。
+- 更广泛的传输一致性覆盖（超出当前核心协议 dispatcher 和 service 测试）。
+- 更丰富的 TypeScript SDK 打包（超出当前薄 subprocess 辅助层和 secure-execution helpers）。
+- 完整的 `kernel.session.get|list`、`kernel.package.describe`、`kernel.capability.describe`、`kernel.extension_point.describe`、`kernel.host.principal`、`kernel.host.ping` 路由暴露。
 
-## What is deferred
+## 延后事项
 
-These are non-goals for the kernel and are expected to ship as ordinary packages or future work:
+这些是内核的非目标，预期以普通包或未来工作的形式交付：
 
-- Conversational runtime, prompts, models, sampling, message/turn semantics.
-- Memory model, retrieval, summarization, agent loop, director.
-- World, scene, actor, rule, dice, inventory semantics.
-- SillyTavern resource and behavior compatibility (see `docs/tavern/TAVERN_COMPAT.md`).
-- pi integration (see `docs/architecture/PI_INTEGRATION.md`).
-- External game engine bridges (UE5, Godot, Unity, web clients).
-- Marketplace, package signing, dependency resolver.
-- Final UI visual design, full Studio, ComfyUI-like node editors.
-- WASM and remote package execution.
+- 对话 runtime、提示词、模型、采样、消息/回合语义。
+- 记忆模型、检索、摘要、agent loop、director。
+- 世界、场景、角色、规则、骰子、背包语义。
+- SillyTavern 资源和行为兼容（见 `docs/tavern/TAVERN_COMPAT.md`）。
+- pi 集成（见 `docs/architecture/PI_INTEGRATION.md`）。
+- 外部游戏引擎桥接（UE5、Godot、Unity、web 客户端）。
+- 市场、包签名、依赖解析器。
+- 最终 UI 视觉设计、完整 Studio、ComfyUI 风格节点编辑器。
+- WASM 和 remote 包执行。
 
-## How to verify this snapshot
+## 如何验证此快照
 
 ```bash
 cargo test --workspace
@@ -165,20 +162,20 @@ cargo run -p ygg-cli -- play-create-demo
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-If any of the above fails, this document is wrong; the code is right. Update this document.
+如果以上任何一步失败，以这份文档为准的是代码；请更新此文档。
 
-## Where to read next
+## 延伸阅读
 
-- `docs/CHARTER.md` — what does not change.
-- `docs/architecture/VISION.md` — what the platform is for.
-- `docs/architecture/ARCHITECTURE.md` — kernel-and-packages layering.
-- `docs/architecture/PLATFORM_KERNEL.md` — what the kernel does and does not do.
-- `docs/architecture/CAPABILITY_PACKAGE.md` — package contract.
-- `docs/architecture/EVENT_MODEL.md` — opaque event log.
-- `docs/architecture/EXTENSION_POINTS.md` — hook contract.
-- `docs/architecture/RUNTIME_LIFECYCLE.md` — kernel-side lifecycles.
-- `docs/protocol/PROTOCOL_V0.md` — public protocol.
-- `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` — executable alpha contract matrix.
-- `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
-- `docs/product/PLAY_CREATION_MODEL.md` — play-creation product stance.
-- `docs/roadmap/NEXT_STEPS.md` — current and upcoming phases.
+- `docs/CHARTER.md` —— 不变的根本原则。
+- `docs/architecture/VISION.md` —— 平台为何而存在。
+- `docs/architecture/ARCHITECTURE.md` —— kernel + packages 两层架构。
+- `docs/architecture/PLATFORM_KERNEL.md` —— 内核做什么、不做什么。
+- `docs/architecture/CAPABILITY_PACKAGE.md` —— 能力包契约。
+- `docs/architecture/EVENT_MODEL.md` —— 不透明事件日志。
+- `docs/architecture/EXTENSION_POINTS.md` —— hook 契约。
+- `docs/architecture/RUNTIME_LIFECYCLE.md` —— 内核侧生命周期。
+- `docs/protocol/PROTOCOL_V0.md` —— 公开协议。
+- `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` —— 可执行的 alpha 契约矩阵。
+- `docs/spec/CONFORMANCE_MATRIX.md` —— hostile conformance 路线图。
+- `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
+- `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。
