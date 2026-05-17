@@ -9,7 +9,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current named conformance coverage: 45 CLI cases plus crate/service unit tests.
+Current named conformance coverage: 46 CLI cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -71,6 +71,7 @@ Current named conformance coverage: 45 CLI cases plus crate/service unit tests.
 | host | profile autoload loads configured packages | implemented |
 | surfaces | package-contributed surface descriptors can be listed and filtered | implemented |
 | official packages | foundation packages load and invoke without privilege | implemented |
+| official packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | package authoring | generated Python subprocess package passes local conformance | implemented |
 | package authoring | generated TypeScript subprocess package passes local conformance | implemented |
 
@@ -139,6 +140,7 @@ host.diagnostics                           PASS
 host.profile_autoload                      PASS
 surface.contribution_list                  PASS
 official.foundation_packages               PASS
+official.assistant_lab_proposal            PASS
 asset.put_get_list                         PASS
 session.fork_branch                        PASS
 projection.rebuild                         PASS

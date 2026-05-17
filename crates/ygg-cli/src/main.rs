@@ -553,6 +553,7 @@ async fn conformance() -> anyhow::Result<()> {
     record_case(&mut results, "host.profile_autoload", conformance_host_profile_autoload().await);
     record_case(&mut results, "surface.contribution_list", conformance_surface_contribution_list().await);
     record_case(&mut results, "official.foundation_packages", conformance_official_foundation_packages().await);
+    record_case(&mut results, "official.assistant_lab_proposal", conformance_official_assistant_lab_proposal().await);
     record_case(&mut results, "asset.put_get_list", conformance_asset_put_get_list().await);
     record_case(&mut results, "session.fork_branch", conformance_session_fork_branch().await);
     record_case(&mut results, "projection.rebuild", conformance_projection_rebuild().await);
@@ -1126,6 +1127,44 @@ async fn conformance_official_foundation_packages() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(surfaces.as_array().map(|items| items.len()).unwrap_or(0) >= 2, "official package surfaces missing");
+    Ok(())
+}
+
+async fn conformance_official_assistant_lab_proposal() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(read_manifest(PathBuf::from("packages/official/assistant-lab/manifest.yaml")).await?).await?;
+    let assistant = json!({"kind": "assistant", "assistant_id": "assistant/lab", "delegated_user_id": "user/conformance"});
+    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string() };
+    let denied = runtime
+        .call_protocol(
+            &assistant_context,
+            "kernel.capability.invoke",
+            json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"change": "try branch"}}),
+        )
+        .await;
+    anyhow::ensure!(denied.is_err(), "assistant package invocation should require grant");
+    runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.permission.grant",
+            json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let proposal = runtime
+        .call_protocol(
+            &assistant_context,
+            "kernel.capability.invoke",
+            json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"change": "try branch"}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(proposal["output"]["requires_user_approval"] == json!(true), "assistant did not return an approval-gated proposal");
+    let surfaces = runtime
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({"slot": "assistant_action"}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(surfaces.as_array().map(|items| items.len()).unwrap_or(0) == 1, "assistant surface contribution missing");
     Ok(())
 }
 

@@ -89,6 +89,24 @@ impl InprocPackage for OfficialFoundationPackage {
         } else if id.ends_with("/summarize") {
             let count = request.input.get("events").and_then(Value::as_array).map(|events| events.len()).unwrap_or(0);
             Ok(serde_json::json!({"event_count": count}))
+        } else if id.ends_with("/explain") {
+            Ok(serde_json::json!({
+                "kind": "assistant_explanation",
+                "summary": "Assistant package can explain protocol-visible context without private kernel access.",
+                "context_keys": request.input.as_object().map(|object| object.keys().cloned().collect::<Vec<_>>()).unwrap_or_default(),
+            }))
+        } else if id.ends_with("/suggest") {
+            Ok(serde_json::json!({
+                "kind": "assistant_suggestions",
+                "suggestions": ["inspect events", "fork before changing", "invoke package capability through public protocol"],
+            }))
+        } else if id.ends_with("/draft_branch_change") {
+            Ok(serde_json::json!({
+                "kind": "assistant_proposal",
+                "requires_user_approval": true,
+                "recommended_operation": "kernel.session.fork",
+                "proposal": request.input,
+            }))
         } else {
             Ok(serde_json::json!({"ok": true, "capability_id": request.capability_id}))
         }
