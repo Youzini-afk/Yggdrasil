@@ -21,6 +21,7 @@ use ygg_core::{
 use crate::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
     ExtensionDispatchResult, ExtensionRegistry, HostPolicy, InprocInvocation, InprocPackageCatalog,
+    KernelMethod,
     RegisteredCapability,
     PackageRecord, PackageRegistry, PackageState, ProtocolContext, ProtocolPrincipal, SubprocessSupervisor,
     validate_json_schema_subset,
@@ -1156,22 +1157,25 @@ where
     }
 
     async fn call_protocol_inner(&self, context: &ProtocolContext, method: &str, params: Value) -> anyhow::Result<Value> {
-        match method {
-            "kernel.host.info" => Ok(serde_json::to_value(crate::host_info())?),
-            "kernel.host.ping" => Ok(json!({"ok": true})),
-            "kernel.host.diagnostics" => Ok(self.host_diagnostics().await),
-            "kernel.surface.contribution.list" => {
+        let kernel_method: KernelMethod = method.parse().map_err(|_| {
+            anyhow::anyhow!("protocol method '{}' is not a known kernel method", method)
+        })?;
+        match kernel_method {
+            KernelMethod::HostInfo => Ok(serde_json::to_value(crate::host_info())?),
+            KernelMethod::HostPing => Ok(json!({"ok": true})),
+            KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
+            KernelMethod::SurfaceContributionList => {
                 let slot = params.get("slot").and_then(Value::as_str).map(str::to_string);
                 Ok(self.list_surface_contributions(slot).await)
             }
-            "kernel.surface.contribution.describe" => {
+            KernelMethod::SurfaceContributionDescribe => {
                 let surface_id = params
                     .get("surface_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.surface.contribution.describe requires surface_id"))?;
                 self.describe_surface_contribution(surface_id).await
             }
-            "kernel.permission.grant" => {
+            KernelMethod::PermissionGrant => {
                 let principal = params
                     .get("principal")
                     .cloned()
@@ -1186,21 +1190,21 @@ where
                 let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
                 Ok(serde_json::to_value(self.grant_permission(principal, permission, scope, reason).await?)?)
             }
-            "kernel.permission.revoke" => {
+            KernelMethod::PermissionRevoke => {
                 let grant_id = params
                     .get("grant_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.permission.revoke requires grant_id"))?;
                 Ok(serde_json::to_value(self.revoke_permission(grant_id).await?)?)
             }
-            "kernel.permission.list" => {
+            KernelMethod::PermissionList => {
                 let principal = match params.get("principal") {
                     Some(value) => Some(serde_json::from_value(value.clone())?),
                     None => None,
                 };
                 Ok(serde_json::to_value(self.list_permission_grants(principal).await)?)
             }
-            "kernel.permission.audit" => {
+            KernelMethod::PermissionAudit => {
                 let events: Vec<_> = self
                     .store
                     .list_all()
@@ -1210,19 +1214,19 @@ where
                     .collect();
                 Ok(serde_json::to_value(events)?)
             }
-            "kernel.proposal.create" => {
+            KernelMethod::ProposalCreate => {
                 let proposal: ProposalRecord = serde_json::from_value(params)?;
                 Ok(serde_json::to_value(self.create_proposal(context, proposal).await?)?)
             }
-            "kernel.proposal.get" => {
+            KernelMethod::ProposalGet => {
                 let proposal_id = params
                     .get("proposal_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.proposal.get requires proposal_id"))?;
                 Ok(serde_json::to_value(self.get_proposal(proposal_id).await?)?)
             }
-            "kernel.proposal.list" => Ok(serde_json::to_value(self.list_proposals().await)?),
-            "kernel.proposal.approve" => {
+            KernelMethod::ProposalList => Ok(serde_json::to_value(self.list_proposals().await)?),
+            KernelMethod::ProposalApprove => {
                 let proposal_id = params
                     .get("proposal_id")
                     .and_then(Value::as_str)
@@ -1230,7 +1234,7 @@ where
                 let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
                 Ok(serde_json::to_value(self.approve_proposal(context, proposal_id, reason).await?)?)
             }
-            "kernel.proposal.reject" => {
+            KernelMethod::ProposalReject => {
                 let proposal_id = params
                     .get("proposal_id")
                     .and_then(Value::as_str)
@@ -1238,17 +1242,25 @@ where
                 let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
                 Ok(serde_json::to_value(self.reject_proposal(context, proposal_id, reason).await?)?)
             }
-            "kernel.proposal.apply" => {
+            KernelMethod::ProposalApply => {
                 let proposal_id = params
                     .get("proposal_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.proposal.apply requires proposal_id"))?;
                 Ok(serde_json::to_value(self.apply_proposal(proposal_id).await?)?)
             }
-            "kernel.session.open" => Ok(serde_json::to_value(
+            KernelMethod::SessionOpen => Ok(serde_json::to_value(
                 self.open_session(serde_json::from_value(params)?).await?,
             )?),
-            "kernel.session.fork" => {
+            KernelMethod::SessionClose => {
+                let session_id = params
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.session.close requires session_id"))?
+                    .to_string();
+                Ok(serde_json::to_value(self.close_session(session_id).await?)?)
+            }
+            KernelMethod::SessionFork => {
                 let parent_session_id = params
                     .get("parent_session_id")
                     .and_then(Value::as_str)
@@ -1261,7 +1273,7 @@ where
                 let metadata = params.get("metadata").cloned().unwrap_or_else(|| json!({}));
                 Ok(serde_json::to_value(self.fork_session(parent_session_id, forked_from_sequence, metadata).await?)?)
             }
-            "kernel.session.branch.list" => {
+            KernelMethod::SessionBranchList => {
                 let session_id = params
                     .get("session_id")
                     .and_then(Value::as_str)
@@ -1269,18 +1281,18 @@ where
                     .to_string();
                 Ok(serde_json::to_value(self.list_branches(&session_id).await)?)
             }
-            "kernel.event.append" => Ok(serde_json::to_value(
+            KernelMethod::EventAppend => Ok(serde_json::to_value(
                 self.append_event_with_context(context, serde_json::from_value(params)?).await?,
             )?),
-            "kernel.event.list" => {
+            KernelMethod::EventList => {
                 let request: EventListRequest = serde_json::from_value(params)?;
                 Ok(serde_json::to_value(self.list_events_range_with_context(context, &request).await?)?)
             }
-            "kernel.package.load" => Ok(serde_json::to_value(
+            KernelMethod::PackageLoad => Ok(serde_json::to_value(
                 self.load_package(serde_json::from_value(params)?).await?,
             )?),
-            "kernel.package.list" => Ok(serde_json::to_value(self.list_packages().await)?),
-            "kernel.package.status" => {
+            KernelMethod::PackageList => Ok(serde_json::to_value(self.list_packages().await)?),
+            KernelMethod::PackageStatus => {
                 let package_id = params
                     .get("package_id")
                     .and_then(Value::as_str)
@@ -1292,7 +1304,7 @@ where
                         .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?,
                 )?)
             }
-            "kernel.package.unload" => {
+            KernelMethod::PackageUnload => {
                 let package_id = params
                     .get("package_id")
                     .and_then(Value::as_str)
@@ -1300,7 +1312,7 @@ where
                     .to_string();
                 Ok(serde_json::to_value(self.unload_package(&package_id).await?)?)
             }
-            "kernel.package.restart" => {
+            KernelMethod::PackageRestart => {
                 let package_id = params
                     .get("package_id")
                     .and_then(Value::as_str)
@@ -1308,7 +1320,7 @@ where
                     .to_string();
                 Ok(serde_json::to_value(self.restart_package(&package_id).await?)?)
             }
-            "kernel.package.logs" => {
+            KernelMethod::PackageLogs => {
                 let package_id = params
                     .get("package_id")
                     .and_then(Value::as_str)
@@ -1316,11 +1328,11 @@ where
                     .to_string();
                 Ok(serde_json::to_value(self.package_logs(&package_id).await)?)
             }
-            "kernel.capability.discover" => Ok(serde_json::to_value(self.discover_capabilities().await)?),
-            "kernel.capability.invoke" => Ok(serde_json::to_value(
+            KernelMethod::CapabilityDiscover => Ok(serde_json::to_value(self.discover_capabilities().await)?),
+            KernelMethod::CapabilityInvoke => Ok(serde_json::to_value(
                 self.invoke_capability_with_context(context, serde_json::from_value(params)?).await?,
             )?),
-            "kernel.extension_point.list" => Ok(json!([
+            KernelMethod::ExtensionPointList => Ok(json!([
                 "kernel/event.before_append",
                 "kernel/event.after_append",
                 "kernel/capability.before_invoke",
@@ -1328,33 +1340,44 @@ where
                 "kernel/package.loaded",
                 "kernel/package.unloaded"
             ])),
-            "kernel.hook.list" => Ok(serde_json::to_value(self.extensions.list_all_hooks().await)?),
-            "kernel.asset.put" => Ok(serde_json::to_value(self.put_asset(serde_json::from_value(params)?).await?)?),
-            "kernel.asset.get" => {
+            KernelMethod::HookList => Ok(serde_json::to_value(self.extensions.list_all_hooks().await)?),
+            KernelMethod::AssetPut => Ok(serde_json::to_value(self.put_asset(serde_json::from_value(params)?).await?)?),
+            KernelMethod::AssetGet => {
                 let asset_id = params
                     .get("asset_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.asset.get requires asset_id"))?;
                 Ok(serde_json::to_value(self.get_asset(asset_id).await?)?)
             }
-            "kernel.asset.list" => Ok(serde_json::to_value(self.list_assets().await)?),
-            "kernel.projection.register" => Ok(serde_json::to_value(self.projection_register(serde_json::from_value(params)?).await?)?),
-            "kernel.projection.rebuild" => {
+            KernelMethod::AssetList => Ok(serde_json::to_value(self.list_assets().await)?),
+            KernelMethod::ProjectionRegister => Ok(serde_json::to_value(self.projection_register(serde_json::from_value(params)?).await?)?),
+            KernelMethod::ProjectionRebuild => {
                 let projection_id = params
                     .get("projection_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.projection.rebuild requires projection_id"))?;
                 Ok(serde_json::to_value(self.projection_rebuild(projection_id).await?)?)
             }
-            "kernel.projection.get" => {
+            KernelMethod::ProjectionGet => {
                 let projection_id = params
                     .get("projection_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| anyhow::anyhow!("kernel.projection.get requires projection_id"))?;
                 Ok(serde_json::to_value(self.projection_get(projection_id).await?)?)
             }
-            "kernel.projection.list" => Ok(serde_json::to_value(self.projection_list().await)?),
-            other => anyhow::bail!("protocol method '{other}' is not implemented"),
+            KernelMethod::ProjectionList => Ok(serde_json::to_value(self.projection_list().await)?),
+            // Planned methods — no dispatch yet
+            KernelMethod::SessionGet
+            | KernelMethod::SessionList
+            | KernelMethod::EventSubscribe
+            | KernelMethod::PackageDescribe
+            | KernelMethod::CapabilityDescribe
+            | KernelMethod::CapabilityStream
+            | KernelMethod::CapabilityCancel
+            | KernelMethod::ExtensionPointDescribe
+            | KernelMethod::HostPrincipal => {
+                anyhow::bail!("protocol method '{}' is not yet implemented", kernel_method)
+            }
         }
     }
 

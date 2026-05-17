@@ -1,5 +1,365 @@
+use std::fmt;
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+// ---------------------------------------------------------------------------
+// KernelMethod — single source of truth for protocol method identity, status,
+// and streaming flag. Every method that appears in KERNEL_METHODS must have a
+// variant here; every variant must be covered in FromStr, Display, id(),
+// status(), streaming(), and all(). The runtime dispatch matches on these
+// variants instead of raw string literals.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KernelMethod {
+    SessionOpen,
+    SessionClose,
+    SessionFork,
+    SessionBranchList,
+    SessionGet,
+    SessionList,
+    EventAppend,
+    EventList,
+    EventSubscribe,
+    PackageLoad,
+    PackageUnload,
+    PackageRestart,
+    PackageLogs,
+    PackageList,
+    PackageStatus,
+    PackageDescribe,
+    CapabilityDiscover,
+    CapabilityDescribe,
+    CapabilityInvoke,
+    CapabilityStream,
+    CapabilityCancel,
+    ExtensionPointList,
+    ExtensionPointDescribe,
+    HookList,
+    AssetPut,
+    AssetGet,
+    AssetList,
+    ProjectionRegister,
+    ProjectionRebuild,
+    ProjectionGet,
+    ProjectionList,
+    HostInfo,
+    HostPing,
+    HostDiagnostics,
+    HostPrincipal,
+    PermissionGrant,
+    PermissionRevoke,
+    PermissionList,
+    PermissionAudit,
+    ProposalCreate,
+    ProposalGet,
+    ProposalList,
+    ProposalApprove,
+    ProposalReject,
+    ProposalApply,
+    SurfaceContributionList,
+    SurfaceContributionDescribe,
+}
+
+impl KernelMethod {
+    /// Canonical dotted method identifier (e.g. `"kernel.session.open"`).
+    pub const fn id(&self) -> &'static str {
+        match self {
+            Self::SessionOpen => "kernel.session.open",
+            Self::SessionClose => "kernel.session.close",
+            Self::SessionFork => "kernel.session.fork",
+            Self::SessionBranchList => "kernel.session.branch.list",
+            Self::SessionGet => "kernel.session.get",
+            Self::SessionList => "kernel.session.list",
+            Self::EventAppend => "kernel.event.append",
+            Self::EventList => "kernel.event.list",
+            Self::EventSubscribe => "kernel.event.subscribe",
+            Self::PackageLoad => "kernel.package.load",
+            Self::PackageUnload => "kernel.package.unload",
+            Self::PackageRestart => "kernel.package.restart",
+            Self::PackageLogs => "kernel.package.logs",
+            Self::PackageList => "kernel.package.list",
+            Self::PackageStatus => "kernel.package.status",
+            Self::PackageDescribe => "kernel.package.describe",
+            Self::CapabilityDiscover => "kernel.capability.discover",
+            Self::CapabilityDescribe => "kernel.capability.describe",
+            Self::CapabilityInvoke => "kernel.capability.invoke",
+            Self::CapabilityStream => "kernel.capability.stream",
+            Self::CapabilityCancel => "kernel.capability.cancel",
+            Self::ExtensionPointList => "kernel.extension_point.list",
+            Self::ExtensionPointDescribe => "kernel.extension_point.describe",
+            Self::HookList => "kernel.hook.list",
+            Self::AssetPut => "kernel.asset.put",
+            Self::AssetGet => "kernel.asset.get",
+            Self::AssetList => "kernel.asset.list",
+            Self::ProjectionRegister => "kernel.projection.register",
+            Self::ProjectionRebuild => "kernel.projection.rebuild",
+            Self::ProjectionGet => "kernel.projection.get",
+            Self::ProjectionList => "kernel.projection.list",
+            Self::HostInfo => "kernel.host.info",
+            Self::HostPing => "kernel.host.ping",
+            Self::HostDiagnostics => "kernel.host.diagnostics",
+            Self::HostPrincipal => "kernel.host.principal",
+            Self::PermissionGrant => "kernel.permission.grant",
+            Self::PermissionRevoke => "kernel.permission.revoke",
+            Self::PermissionList => "kernel.permission.list",
+            Self::PermissionAudit => "kernel.permission.audit",
+            Self::ProposalCreate => "kernel.proposal.create",
+            Self::ProposalGet => "kernel.proposal.get",
+            Self::ProposalList => "kernel.proposal.list",
+            Self::ProposalApprove => "kernel.proposal.approve",
+            Self::ProposalReject => "kernel.proposal.reject",
+            Self::ProposalApply => "kernel.proposal.apply",
+            Self::SurfaceContributionList => "kernel.surface.contribution.list",
+            Self::SurfaceContributionDescribe => "kernel.surface.contribution.describe",
+        }
+    }
+
+    /// Protocol implementation status for this method.
+    pub const fn status(&self) -> MethodStatus {
+        match self {
+            Self::SessionOpen => MethodStatus::Implemented,
+            Self::SessionClose => MethodStatus::Implemented,
+            Self::SessionFork => MethodStatus::Partial,
+            Self::SessionBranchList => MethodStatus::Partial,
+            Self::SessionGet => MethodStatus::Planned,
+            Self::SessionList => MethodStatus::Planned,
+            Self::EventAppend => MethodStatus::Implemented,
+            Self::EventList => MethodStatus::Partial,
+            Self::EventSubscribe => MethodStatus::Planned,
+            Self::PackageLoad => MethodStatus::Partial,
+            Self::PackageUnload => MethodStatus::Partial,
+            Self::PackageRestart => MethodStatus::Partial,
+            Self::PackageLogs => MethodStatus::Partial,
+            Self::PackageList => MethodStatus::Implemented,
+            Self::PackageStatus => MethodStatus::Implemented,
+            Self::PackageDescribe => MethodStatus::Planned,
+            Self::CapabilityDiscover => MethodStatus::Implemented,
+            Self::CapabilityDescribe => MethodStatus::Planned,
+            Self::CapabilityInvoke => MethodStatus::Partial,
+            Self::CapabilityStream => MethodStatus::Planned,
+            Self::CapabilityCancel => MethodStatus::Planned,
+            Self::ExtensionPointList => MethodStatus::Implemented,
+            Self::ExtensionPointDescribe => MethodStatus::Planned,
+            Self::HookList => MethodStatus::Partial,
+            Self::AssetPut => MethodStatus::Partial,
+            Self::AssetGet => MethodStatus::Partial,
+            Self::AssetList => MethodStatus::Partial,
+            Self::ProjectionRegister => MethodStatus::Partial,
+            Self::ProjectionRebuild => MethodStatus::Partial,
+            Self::ProjectionGet => MethodStatus::Partial,
+            Self::ProjectionList => MethodStatus::Partial,
+            Self::HostInfo => MethodStatus::Implemented,
+            Self::HostPing => MethodStatus::Partial,
+            Self::HostDiagnostics => MethodStatus::Partial,
+            Self::HostPrincipal => MethodStatus::Planned,
+            Self::PermissionGrant => MethodStatus::Partial,
+            Self::PermissionRevoke => MethodStatus::Partial,
+            Self::PermissionList => MethodStatus::Partial,
+            Self::PermissionAudit => MethodStatus::Partial,
+            Self::ProposalCreate => MethodStatus::Partial,
+            Self::ProposalGet => MethodStatus::Partial,
+            Self::ProposalList => MethodStatus::Partial,
+            Self::ProposalApprove => MethodStatus::Partial,
+            Self::ProposalReject => MethodStatus::Partial,
+            Self::ProposalApply => MethodStatus::Partial,
+            Self::SurfaceContributionList => MethodStatus::Partial,
+            Self::SurfaceContributionDescribe => MethodStatus::Partial,
+        }
+    }
+
+    /// Whether this method returns a streaming response.
+    pub const fn streaming(&self) -> bool {
+        match self {
+            Self::EventSubscribe | Self::CapabilityStream => true,
+            _ => false,
+        }
+    }
+
+    /// All known kernel methods in canonical order.
+    pub const fn all() -> &'static [KernelMethod] {
+        &[
+            Self::SessionOpen,
+            Self::SessionClose,
+            Self::SessionFork,
+            Self::SessionBranchList,
+            Self::SessionGet,
+            Self::SessionList,
+            Self::EventAppend,
+            Self::EventList,
+            Self::EventSubscribe,
+            Self::PackageLoad,
+            Self::PackageUnload,
+            Self::PackageRestart,
+            Self::PackageLogs,
+            Self::PackageList,
+            Self::PackageStatus,
+            Self::PackageDescribe,
+            Self::CapabilityDiscover,
+            Self::CapabilityDescribe,
+            Self::CapabilityInvoke,
+            Self::CapabilityStream,
+            Self::CapabilityCancel,
+            Self::ExtensionPointList,
+            Self::ExtensionPointDescribe,
+            Self::HookList,
+            Self::AssetPut,
+            Self::AssetGet,
+            Self::AssetList,
+            Self::ProjectionRegister,
+            Self::ProjectionRebuild,
+            Self::ProjectionGet,
+            Self::ProjectionList,
+            Self::HostInfo,
+            Self::HostPing,
+            Self::HostDiagnostics,
+            Self::HostPrincipal,
+            Self::PermissionGrant,
+            Self::PermissionRevoke,
+            Self::PermissionList,
+            Self::PermissionAudit,
+            Self::ProposalCreate,
+            Self::ProposalGet,
+            Self::ProposalList,
+            Self::ProposalApprove,
+            Self::ProposalReject,
+            Self::ProposalApply,
+            Self::SurfaceContributionList,
+            Self::SurfaceContributionDescribe,
+        ]
+    }
+
+    /// Convert to the serialisable descriptor used in the public registry.
+    pub fn to_protocol_method(&self) -> ProtocolMethod {
+        ProtocolMethod { id: self.id(), streaming: self.streaming(), status: self.status() }
+    }
+
+    /// Whether this method has a dispatch branch in the runtime
+    /// (`call_protocol_inner`). Kept in sync with the dispatch match in
+    /// `runtime.rs` — update both sides together.
+    pub const fn is_dispatched(&self) -> bool {
+        match self {
+            // Implemented or Partial methods that have a dispatch arm
+            Self::SessionOpen
+            | Self::SessionClose
+            | Self::SessionFork
+            | Self::SessionBranchList
+            | Self::EventAppend
+            | Self::EventList
+            | Self::PackageLoad
+            | Self::PackageUnload
+            | Self::PackageRestart
+            | Self::PackageLogs
+            | Self::PackageList
+            | Self::PackageStatus
+            | Self::CapabilityDiscover
+            | Self::CapabilityInvoke
+            | Self::ExtensionPointList
+            | Self::HookList
+            | Self::AssetPut
+            | Self::AssetGet
+            | Self::AssetList
+            | Self::ProjectionRegister
+            | Self::ProjectionRebuild
+            | Self::ProjectionGet
+            | Self::ProjectionList
+            | Self::HostInfo
+            | Self::HostPing
+            | Self::HostDiagnostics
+            | Self::PermissionGrant
+            | Self::PermissionRevoke
+            | Self::PermissionList
+            | Self::PermissionAudit
+            | Self::ProposalCreate
+            | Self::ProposalGet
+            | Self::ProposalList
+            | Self::ProposalApprove
+            | Self::ProposalReject
+            | Self::ProposalApply
+            | Self::SurfaceContributionList
+            | Self::SurfaceContributionDescribe => true,
+            // Planned methods with no dispatch yet
+            Self::SessionGet
+            | Self::SessionList
+            | Self::EventSubscribe
+            | Self::PackageDescribe
+            | Self::CapabilityDescribe
+            | Self::CapabilityStream
+            | Self::CapabilityCancel
+            | Self::ExtensionPointDescribe
+            | Self::HostPrincipal => false,
+        }
+    }
+}
+
+impl fmt::Display for KernelMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.id())
+    }
+}
+
+impl FromStr for KernelMethod {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "kernel.session.open" => Ok(Self::SessionOpen),
+            "kernel.session.close" => Ok(Self::SessionClose),
+            "kernel.session.fork" => Ok(Self::SessionFork),
+            "kernel.session.branch.list" => Ok(Self::SessionBranchList),
+            "kernel.session.get" => Ok(Self::SessionGet),
+            "kernel.session.list" => Ok(Self::SessionList),
+            "kernel.event.append" => Ok(Self::EventAppend),
+            "kernel.event.list" => Ok(Self::EventList),
+            "kernel.event.subscribe" => Ok(Self::EventSubscribe),
+            "kernel.package.load" => Ok(Self::PackageLoad),
+            "kernel.package.unload" => Ok(Self::PackageUnload),
+            "kernel.package.restart" => Ok(Self::PackageRestart),
+            "kernel.package.logs" => Ok(Self::PackageLogs),
+            "kernel.package.list" => Ok(Self::PackageList),
+            "kernel.package.status" => Ok(Self::PackageStatus),
+            "kernel.package.describe" => Ok(Self::PackageDescribe),
+            "kernel.capability.discover" => Ok(Self::CapabilityDiscover),
+            "kernel.capability.describe" => Ok(Self::CapabilityDescribe),
+            "kernel.capability.invoke" => Ok(Self::CapabilityInvoke),
+            "kernel.capability.stream" => Ok(Self::CapabilityStream),
+            "kernel.capability.cancel" => Ok(Self::CapabilityCancel),
+            "kernel.extension_point.list" => Ok(Self::ExtensionPointList),
+            "kernel.extension_point.describe" => Ok(Self::ExtensionPointDescribe),
+            "kernel.hook.list" => Ok(Self::HookList),
+            "kernel.asset.put" => Ok(Self::AssetPut),
+            "kernel.asset.get" => Ok(Self::AssetGet),
+            "kernel.asset.list" => Ok(Self::AssetList),
+            "kernel.projection.register" => Ok(Self::ProjectionRegister),
+            "kernel.projection.rebuild" => Ok(Self::ProjectionRebuild),
+            "kernel.projection.get" => Ok(Self::ProjectionGet),
+            "kernel.projection.list" => Ok(Self::ProjectionList),
+            "kernel.host.info" => Ok(Self::HostInfo),
+            "kernel.host.ping" => Ok(Self::HostPing),
+            "kernel.host.diagnostics" => Ok(Self::HostDiagnostics),
+            "kernel.host.principal" => Ok(Self::HostPrincipal),
+            "kernel.permission.grant" => Ok(Self::PermissionGrant),
+            "kernel.permission.revoke" => Ok(Self::PermissionRevoke),
+            "kernel.permission.list" => Ok(Self::PermissionList),
+            "kernel.permission.audit" => Ok(Self::PermissionAudit),
+            "kernel.proposal.create" => Ok(Self::ProposalCreate),
+            "kernel.proposal.get" => Ok(Self::ProposalGet),
+            "kernel.proposal.list" => Ok(Self::ProposalList),
+            "kernel.proposal.approve" => Ok(Self::ProposalApprove),
+            "kernel.proposal.reject" => Ok(Self::ProposalReject),
+            "kernel.proposal.apply" => Ok(Self::ProposalApply),
+            "kernel.surface.contribution.list" => Ok(Self::SurfaceContributionList),
+            "kernel.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
+            other => Err(format!("unknown kernel method: {other}")),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Public protocol types (API-compatible)
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProtocolMethod {
@@ -108,6 +468,9 @@ pub struct HostInfo {
 
 pub const KERNEL_PROTOCOL_VERSION: &str = "0.1.0";
 
+// KERNEL_METHODS is derived from KernelMethod — the enum is the single source
+// of truth. If a new method variant is added to KernelMethod, a corresponding
+// entry must appear here (tests enforce this).
 pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.session.open", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.session.close", streaming: false, status: MethodStatus::Implemented },
@@ -132,7 +495,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.capability.cancel", streaming: false, status: MethodStatus::Planned },
     ProtocolMethod { id: "kernel.extension_point.list", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.extension_point.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.hook.list", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.hook.list", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.asset.put", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.asset.get", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.asset.list", streaming: false, status: MethodStatus::Partial },
@@ -197,6 +560,107 @@ mod tests {
             "kernel.host.principal",
         ] {
             assert!(ids.contains(&expected), "missing {expected}");
+        }
+    }
+
+    // --- KernelMethod / registry alignment tests ---
+
+    #[test]
+    fn every_registry_id_parses_to_kernel_method() {
+        for method in KERNEL_METHODS {
+            let parsed: Result<KernelMethod, String> = method.id.parse();
+            assert!(parsed.is_ok(), "registry id '{}' does not parse to KernelMethod", method.id);
+        }
+    }
+
+    #[test]
+    fn kernel_method_all_covers_entire_registry() {
+        let all_ids: Vec<&'static str> = KernelMethod::all().iter().map(|m| m.id()).collect();
+        for method in KERNEL_METHODS {
+            assert!(
+                all_ids.contains(&method.id),
+                "KERNEL_METHODS contains '{}' but KernelMethod::all() does not",
+                method.id
+            );
+        }
+    }
+
+    #[test]
+    fn registry_matches_enum_metadata() {
+        for method in KERNEL_METHODS {
+            let km: KernelMethod = method.id.parse().unwrap();
+            assert_eq!(method.id, km.id(), "id mismatch for {:?}", km);
+            assert_eq!(method.streaming, km.streaming(), "streaming mismatch for {:?}", km);
+            assert_eq!(method.status, km.status(), "status mismatch for {:?}", km);
+        }
+    }
+
+    #[test]
+    fn no_duplicate_ids_in_all() {
+        let all = KernelMethod::all();
+        let ids: Vec<&'static str> = all.iter().map(|m| m.id()).collect();
+        let unique: std::collections::HashSet<&'static str> = ids.iter().copied().collect();
+        assert_eq!(ids.len(), unique.len(), "KernelMethod::all() contains duplicate ids");
+    }
+
+    #[test]
+    fn session_close_is_implemented_and_dispatched() {
+        let km = KernelMethod::SessionClose;
+        assert_eq!(km.id(), "kernel.session.close");
+        assert_eq!(km.status(), MethodStatus::Implemented);
+        assert!(km.is_dispatched(), "kernel.session.close must be dispatch-covered");
+    }
+
+    #[test]
+    fn hook_list_status_matches_dispatch() {
+        let km = KernelMethod::HookList;
+        assert_eq!(km.id(), "kernel.hook.list");
+        // Was previously Planned, but dispatch exists → must be at least Partial
+        assert!(
+            matches!(km.status(), MethodStatus::Implemented | MethodStatus::Partial),
+            "kernel.hook.list status must be Implemented or Partial since dispatch exists, got {:?}",
+            km.status()
+        );
+        assert!(km.is_dispatched(), "kernel.hook.list must be dispatch-covered");
+    }
+
+    #[test]
+    fn implemented_or_partial_methods_must_be_dispatched() {
+        for method in KERNEL_METHODS {
+            let km: KernelMethod = method.id.parse().unwrap();
+            if matches!(km.status(), MethodStatus::Implemented | MethodStatus::Partial) {
+                assert!(
+                    km.is_dispatched(),
+                    "{:?} ({}) is {:?} but has no dispatch — add dispatch or downgrade to Planned",
+                    km,
+                    km.id(),
+                    km.status()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dispatched_methods_must_not_be_planned() {
+        for method in KERNEL_METHODS {
+            let km: KernelMethod = method.id.parse().unwrap();
+            if km.is_dispatched() {
+                assert!(
+                    !matches!(km.status(), MethodStatus::Planned),
+                    "{:?} ({}) is dispatched but status is Planned — upgrade to at least Partial",
+                    km,
+                    km.id()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn display_roundtrips_through_fromstr() {
+        for km in KernelMethod::all() {
+            let s = km.to_string();
+            let parsed: KernelMethod = s.parse().unwrap();
+            assert_eq!(*km, parsed, "Display -> FromStr roundtrip failed for {:?}", km);
         }
     }
 }

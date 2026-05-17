@@ -19,8 +19,9 @@ pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog};
 pub use package::{entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel};
 pub use pi::PI_INTEGRATION_DEFERRED;
 pub use protocol::{
-    host_info, method_ids, HostInfo, MethodStatus, ProtocolContext, ProtocolError, ProtocolMethod,
-    ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS, KERNEL_PROTOCOL_VERSION,
+    host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolContext, ProtocolError,
+    ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS,
+    KERNEL_PROTOCOL_VERSION,
 };
 pub use runtime::{AppendEventRequest, EventListRequest, OpenSessionRequest, Runtime, RuntimeConfig};
 pub use schema::validate_json_schema_subset;
