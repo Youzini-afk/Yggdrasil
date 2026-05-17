@@ -108,6 +108,14 @@ cargo run -p ygg-cli -- play-create-demo
 cargo run -p ygg-cli -- demo
 cargo run -p ygg-cli -- sqlite-demo /tmp/ygg.db
 tsc -p clients/web/tsconfig.json --noEmit
+
+# third-party authoring loop
+cargo run -p ygg-cli -- init-package /tmp/ygg-package --id example/package --entry subprocess --language typescript --template full-surface
+cargo run -p ygg-cli -- package check /tmp/ygg-package/manifest.yaml
+cargo run -p ygg-cli -- package run-fixture /tmp/ygg-package/manifest.yaml
+cargo run -p ygg-cli -- package reload /tmp/ygg-package/manifest.yaml
+cargo run -p ygg-cli -- init-composition /tmp/ygg-composition --id example/package
+cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 ```
 
 ## Read first

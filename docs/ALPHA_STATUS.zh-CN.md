@@ -12,7 +12,7 @@
 - **Conformance：** 76 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** Authoring & Composition Beta+（见 `docs/roadmap/NEXT_STEPS.md`）。
+- **下一阶段：** 后台 substrate hardening 与 package ecosystem readiness（见 `docs/roadmap/NEXT_STEPS.md`）。
 
 ## 已实现
 

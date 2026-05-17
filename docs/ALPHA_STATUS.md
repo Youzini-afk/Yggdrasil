@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 76 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Authoring & Composition Beta+ (see `docs/roadmap/NEXT_STEPS.md`).
+- **Next stage:** background substrate hardening and package ecosystem readiness (see `docs/roadmap/NEXT_STEPS.md`).
 
 ## What is implemented
 

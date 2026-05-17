@@ -13,6 +13,7 @@ The next center of gravity is **not** more substrate. It is making the first ref
 - First Real Capability Package Track: complete seed (`composition-lab`, `asset-lab`, `projection-lab`, `playable-seed`; 55 conformance cases).
 - Platform Host Alpha: implemented slice complete; remaining items (streaming dispatch, hook timeout audit, persisted provider policy, broader transport parity, richer SDK packaging) are tracked below in Phase I.
 - Code Health Split Alpha: complete; CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain.
+- Authoring & Composition Beta+: complete; generated package templates, fixture/reload tooling, composition v2 diagnostics, Forge authoring panels, and a third-party playable replacement proof are in place.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -45,16 +46,16 @@ Constraints carried into this phase:
 - Forge must be able to inspect, fork, and edit the experience using only the public protocol.
 - Conformance grows alongside the package: at least one hostile case proves third-party experience packages reach the same surfaces.
 
-## Phase H — Authoring & Composition Beta+ (next)
+## Phase H — Authoring & Composition Beta+ (complete)
 
 Goal: turn the current authoring slice (`init-package`, `init-composition`, `composition check`, generated experience template) into a real authoring loop someone outside this repo can use to ship a package.
 
-- H4: Forge authoring surface improvements — package/capability inventory, surface descriptor inventory by slot, composition diagnostics, and manifest/template CLI guidance.
-- Richer composition descriptors (multi-package bundles, optional capabilities, default activation).
-- Template variants per surface slot (play renderer, forge panel, assistant action) beyond the current "experience template."
-- Local dev-loop ergonomics: watch mode, fast reload, manifest diff, surface preview.
-- Keep expanding `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md` from a thin walkthrough into a complete contributor path.
-- Optional package registry-shaped surface, still on top of the public protocol.
+- Template variants per surface slot (`basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`).
+- Local fixture and reload tooling: `package check`, `package run-fixture`, `package reload`, and generated package conformance.
+- Composition descriptor v2 diagnostics for optional packages, required capabilities, permission expectations, replacement candidates, and compatibility notes.
+- Forge authoring surface improvements — package/capability inventory, surface descriptor inventory by slot, composition diagnostics, and manifest/template CLI guidance.
+- Third-party replacement proof: `examples/packages/thirdparty-playable-seed` and `examples/compositions/playable-seed-replacement` prove official packages are replaceable without official priority.
+- Durable walkthrough updates in `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`.
 
 ## Phase I — Substrate hardening (concurrent, low-priority)
 
@@ -84,4 +85,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, and Model Connectivity Kit Alpha are complete. Phase H is next: make third-party package authoring and composition feel real using the same interfaces proven by the official labs. Future model inference remains deferred behind [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md). Phase I runs in the background and is graded on charter discipline (no content shapes leaking into the kernel, no official privilege leaking through any path).
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, and Authoring & Composition Beta+ are complete. The next work should be chosen from Phase I hardening or a new package-ecosystem track, while future model inference remains deferred behind [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md). Phase I is graded on charter discipline (no content shapes leaking into the kernel, no official privilege leaking through any path).

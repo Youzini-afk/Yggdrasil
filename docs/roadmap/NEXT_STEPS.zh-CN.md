@@ -13,6 +13,7 @@
 - First Real Capability Package Track：seed 已完成（`composition-lab`、`asset-lab`、`projection-lab`、`playable-seed`；55 个 conformance 用例）。
 - Platform Host Alpha：已实现切片完成；剩余项目（streaming 分发、hook 超时审计、持久 provider 策略、更广的传输层一致性、更丰富的 SDK 打包）在下方 Phase I 中追踪。
 - Code Health Split Alpha：已完成；CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分。
+- Authoring & Composition Beta+：已完成；生成 package templates、fixture/reload tooling、composition v2 diagnostics、Forge authoring panels 与第三方 playable replacement proof 已就位。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -45,15 +46,16 @@
 - Forge 必须能够仅使用公开协议检查、fork 和编辑体验。
 - Conformance 随包一起增长：至少一个 hostile 用例证明第三方体验包可以到达相同的 surface。
 
-## Phase H — Authoring & Composition Beta+（下一步）
+## Phase H — Authoring & Composition Beta+（已完成）
 
 目标：将当前的创作切片（`init-package`、`init-composition`、`composition check`、生成的 experience 模板）转化为此仓库外的人可以用来发布包的真实创作循环。
 
-- 更丰富的 composition 描述符（多包捆绑、可选 capability、默认激活）。
-- 各 surface slot 的模板变体（play renderer、forge panel、assistant action），超越当前的 "experience template"。
-- 本地开发循环体验：watch 模式、快速 reload、manifest diff、surface 预览。
-- 持续扩展 `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`，从薄 walkthrough 变成完整贡献者路径。
-- 可选的包注册表形态的 surface，仍然建立在公开协议之上。
+- 各 surface slot 的模板变体（`basic`、`experience`、`play-renderer`、`forge-panel`、`assistant-action`、`asset-editor`、`full-surface`）。
+- 本地 fixture 与 reload tooling：`package check`、`package run-fixture`、`package reload` 与 generated package conformance。
+- Composition descriptor v2 diagnostics，覆盖 optional packages、required capabilities、permission expectations、replacement candidates 与 compatibility notes。
+- Forge authoring surface 改进：package/capability inventory、按 slot 分组的 surface descriptor inventory、composition diagnostics 与 manifest/template CLI guidance。
+- 第三方 replacement proof：`examples/packages/thirdparty-playable-seed` 与 `examples/compositions/playable-seed-replacement` 证明官方包可替换，且没有 official priority。
+- `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md` durable walkthrough 更新。
 
 ## Phase I — 底座 hardening（并行，低优先级）
 
@@ -83,4 +85,4 @@
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha 与 Model Connectivity Kit Alpha 已经完成。Phase H 是下一步：使用官方 labs 已验证的相同接口，让第三方能力包创作与 composition 真的好用。未来 model inference 仍被推迟到 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 之后。Phase I 在后台运行，以 charter 纪律评分（无内容形态泄漏到内核，无官方特权通过任何路径泄漏）。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha 与 Authoring & Composition Beta+ 已完成。下一步应从 Phase I hardening 或新的 package-ecosystem track 中选择；未来 model inference 仍被推迟到 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 之后。Phase I 以 charter 纪律评分（无内容形态泄漏到内核，无官方特权通过任何路径泄漏）。
