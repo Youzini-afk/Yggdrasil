@@ -82,4 +82,4 @@
 
 ## 如何阅读这份列表
 
-Phase F 和 Phase G 的 seed 形态已经完成。Phase H 是下一步：让第三方能力包创作与 composition 真的好用。Phase I 在后台运行，以 charter 纪律评分（无内容形态泄漏到内核，无官方特权通过任何路径泄漏）。
+Phase F 和 Phase G 的 seed 形态已经完成。下一条聚焦路线是 [`CREATIVE_CAPABILITY_KIT_ALPHA.md`](CREATIVE_CAPABILITY_KIT_ALPHA.md)：把 TavernHeadless 启发的能力改造成通用 Yggdrasil-native 官方包，而不是创建 `tavern-*` ontology。之后 Phase H 继续推进第三方能力包创作与 composition 的真实可用性。Phase I 在后台运行，以 charter 纪律评分（无内容形态泄漏到内核，无官方特权通过任何路径泄漏）。

@@ -82,4 +82,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F and the seed form of Phase G are complete. Phase H is next: make third-party package authoring and composition feel real. Phase I runs in the background and is graded on charter discipline (no content shapes leaking into the kernel, no official privilege leaking through any path).
+Phase F and the seed form of Phase G are complete. The next focused track is [`CREATIVE_CAPABILITY_KIT_ALPHA.md`](CREATIVE_CAPABILITY_KIT_ALPHA.md): adapt TavernHeadless-informed capabilities into general Yggdrasil-native official packages without creating `tavern-*` ontology. Phase H continues after that by making third-party authoring and composition feel real. Phase I runs in the background and is graded on charter discipline (no content shapes leaking into the kernel, no official privilege leaking through any path).
