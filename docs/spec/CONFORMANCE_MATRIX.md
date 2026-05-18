@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：105 个 implemented rows，由 113 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：106 个 implemented rows，由 114 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -89,6 +89,7 @@ cargo run -p ygg-cli -- conformance
 | official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
 | official packages | model-provider-lab 列出八家 provider families、validate profiles 拒绝 raw secret、normalize requests 覆盖八家 dialects/endpoints、explain errors（401/429/529）、output 含 network_performed:false/inference_performed:false、无 raw secret echo | implemented |
 | official packages | model-provider-lab invoke 全部八家 provider（OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；fake/local、outbound_request_shape 可审计、raw credential rejected、openai_compatible 缺 base_url 或 http base_url 拒绝、unsupported family diagnostic、executor_kind fake_local、live_call_supported false） | implemented |
+| official packages | model-provider-lab normalize_stream 八家 provider stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；terminal_frame_consistent；provider event 输入归一化；raw secret 不 echo；unsupported family empty frames + terminal_frame_consistent false） | implemented |
 | outbound | model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake） | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
 | official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
@@ -235,6 +236,7 @@ official.text_transform_lab                PASS
 official.model_connector_lab               PASS
 official.model_provider_lab                 PASS
 official.model_provider_lab_invoke_core       PASS
+official.model_provider_lab_normalize_stream  PASS
 official.model_routing_lab                 PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS

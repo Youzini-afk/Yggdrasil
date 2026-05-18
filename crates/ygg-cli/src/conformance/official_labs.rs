@@ -1413,6 +1413,192 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/model-provider-lab/manifest.yaml")).await?).await?;
+
+    // --- Default fake stream samples for all eight families ---
+
+    let families_and_stream_families = [
+        ("openai", "semantic_sse"),
+        ("anthropic", "semantic_sse"),
+        ("gemini", "typed_chunk_stream"),
+        ("openai_compatible", "delta_sse"),
+        ("openrouter", "semantic_sse"),
+        ("deepseek", "delta_sse"),
+        ("xai", "semantic_sse"),
+        ("fireworks", "delta_sse"),
+    ];
+
+    for (family, expected_sf) in &families_and_stream_families {
+        let result = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+                caller_package_id: None,
+                provider_package_id: Some("official/model-provider-lab".to_string()),
+                version: None,
+                input: json!({
+                    "family": family,
+                }),
+            })
+            .await?;
+        anyhow::ensure!(result.output["kind"] == json!("model_provider_stream_normalization"), "{} normalize_stream wrong kind", family);
+        anyhow::ensure!(result.output["family"] == json!(family), "{} normalize_stream wrong family", family);
+        anyhow::ensure!(result.output["stream_family"] == json!(expected_sf), "{} normalize_stream wrong stream_family: got {:?}", family, result.output["stream_family"]);
+        anyhow::ensure!(result.output["network_performed"] == json!(false), "{} normalize_stream must not perform network", family);
+        anyhow::ensure!(result.output["inference_performed"] == json!(false), "{} normalize_stream must not perform inference", family);
+
+        // Frames must have start + at least one chunk + end
+        let frames = result.output["frames"].as_array().unwrap_or_else(|| panic!("{} missing frames array", family));
+        anyhow::ensure!(!frames.is_empty(), "{} normalize_stream must have frames", family);
+        let kinds: Vec<&str> = frames.iter().map(|f| f["kind"].as_str().unwrap_or_default()).collect();
+        anyhow::ensure!(kinds.first() == Some(&"start"), "{} first frame must be start, got {:?}", family, kinds.first());
+        anyhow::ensure!(kinds.last() == Some(&"end"), "{} last frame must be end, got {:?}", family, kinds.last());
+        anyhow::ensure!(kinds.contains(&"chunk"), "{} must have at least one chunk frame", family);
+        anyhow::ensure!(result.output["terminal_frame_consistent"] == json!(true), "{} terminal_frame_consistent must be true", family);
+
+        // Every frame must have invocation_id, sequence, redaction_state, metadata
+        for (i, frame) in frames.iter().enumerate() {
+            anyhow::ensure!(frame["invocation_id"].is_string(), "{} frame {} missing invocation_id", family, i);
+            anyhow::ensure!(frame["sequence"].is_number(), "{} frame {} missing sequence", family, i);
+            anyhow::ensure!(frame["redaction_state"] == json!("redacted"), "{} frame {} must be redacted", family, i);
+            anyhow::ensure!(frame["metadata"]["provider_family"] == json!(family), "{} frame {} wrong metadata.provider_family", family, i);
+        }
+
+        // No raw secrets in output
+        let output_str = serde_json::to_string(&result.output).unwrap();
+        anyhow::ensure!(!output_str.contains("sk-"), "{} no sk- in normalize_stream output", family);
+    }
+
+    // --- Normalize OpenAI delta_sse sample_provider_events ---
+    let openai_events = json!([
+        {"choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]},
+        {"choices": [{"index": 0, "delta": {"content": "Hello"}, "finish_reason": null}]},
+        {"choices": [{"index": 0, "delta": {"content": " world"}, "finish_reason": null}]},
+        {"choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "stop"}]},
+        {"usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}}
+    ]);
+    let openai_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "openai",
+                "invocation_id": "inv_test_openai_stream",
+                "sample_provider_events": openai_events,
+            }),
+        })
+        .await?;
+    let oframes = openai_result.output["frames"].as_array().unwrap();
+    let okinds: Vec<&str> = oframes.iter().map(|f| f["kind"].as_str().unwrap_or_default()).collect();
+    // Should have at least some chunk and end frames
+    anyhow::ensure!(okinds.contains(&"chunk"), "openai sample events must produce chunk frames");
+    // Must have an end frame (from finish_reason or [DONE])
+    anyhow::ensure!(okinds.contains(&"end") || okinds.contains(&"progress"), "openai sample events must produce end or progress frame");
+    anyhow::ensure!(openai_result.output["terminal_frame_consistent"] == json!(true), "openai sample terminal_frame_consistent must be true");
+    // Frame invocation_id must match
+    for frame in oframes {
+        anyhow::ensure!(frame["invocation_id"] == json!("inv_test_openai_stream"), "openai sample frame invocation_id mismatch");
+    }
+
+    // --- Normalize Anthropic semantic_sse sample_provider_events ---
+    let anthropic_events = json!([
+        {"type": "message_start", "message": {"id": "msg_001", "role": "assistant", "usage": {"input_tokens": 10}}},
+        {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Hello world"}},
+        {"type": "content_block_stop", "index": 0},
+        {"type": "message_delta", "delta": {"stop_reason": "end_turn"}, "usage": {"output_tokens": 5}},
+        {"type": "message_stop"}
+    ]);
+    let anthropic_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "anthropic",
+                "invocation_id": "inv_test_anthropic_stream",
+                "sample_provider_events": anthropic_events,
+            }),
+        })
+        .await?;
+    let aframes = anthropic_result.output["frames"].as_array().unwrap();
+    let akinds: Vec<&str> = aframes.iter().map(|f| f["kind"].as_str().unwrap_or_default()).collect();
+    anyhow::ensure!(akinds.contains(&"start"), "anthropic sample must have start frame");
+    anyhow::ensure!(akinds.contains(&"chunk"), "anthropic sample must have chunk frame");
+    anyhow::ensure!(akinds.contains(&"end"), "anthropic sample must have end frame");
+    anyhow::ensure!(anthropic_result.output["terminal_frame_consistent"] == json!(true), "anthropic sample terminal_frame_consistent must be true");
+
+    // --- Normalize Gemini typed_chunk_stream sample_provider_events ---
+    let gemini_events = json!([
+        {"candidates": [{"content": {"parts": [{"text": "Hello"}], "role": "model"}, "index": 0}]},
+        {"candidates": [{"content": {"parts": [{"text": " world"}], "role": "model"}, "index": 0}]},
+        {"candidates": [{"content": {"parts": [], "role": "model"}, "finishReason": "STOP", "index": 0}]},
+        {"usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 5, "totalTokenCount": 15}}
+    ]);
+    let gemini_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "gemini",
+                "invocation_id": "inv_test_gemini_stream",
+                "sample_provider_events": gemini_events,
+            }),
+        })
+        .await?;
+    let gframes = gemini_result.output["frames"].as_array().unwrap();
+    let gkinds: Vec<&str> = gframes.iter().map(|f| f["kind"].as_str().unwrap_or_default()).collect();
+    anyhow::ensure!(gkinds.contains(&"chunk"), "gemini sample must have chunk frame");
+    anyhow::ensure!(gkinds.contains(&"end"), "gemini sample must have end frame (from finishReason)");
+    anyhow::ensure!(gemini_result.output["terminal_frame_consistent"] == json!(true), "gemini sample terminal_frame_consistent must be true");
+
+    // --- Normalize OpenRouter delta_sse sample_provider_events ---
+    let or_events = json!([
+        {"choices": [{"index": 0, "delta": {"content": "Hi"}, "finish_reason": null}]},
+        {"choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "stop"}]}
+    ]);
+    let or_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "openrouter",
+                "sample_provider_events": or_events,
+            }),
+        })
+        .await?;
+    let orframes = or_result.output["frames"].as_array().unwrap();
+    let orkinds: Vec<&str> = orframes.iter().map(|f| f["kind"].as_str().unwrap_or_default()).collect();
+    anyhow::ensure!(orkinds.contains(&"chunk"), "openrouter sample must have chunk frame");
+    anyhow::ensure!(orkinds.contains(&"end"), "openrouter sample must have end frame");
+
+    // --- Unsupported family ---
+    let bad_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "nonexistent",
+            }),
+        })
+        .await?;
+    anyhow::ensure!(bad_result.output["kind"] == json!("model_provider_stream_normalization"), "unsupported family should still return right kind");
+    anyhow::ensure!(bad_result.output["frames"].as_array().map(|a| a.is_empty()).unwrap_or(false), "unsupported family should have empty frames");
+    anyhow::ensure!(bad_result.output["terminal_frame_consistent"] == json!(false), "unsupported family terminal_frame_consistent must be false");
+
+    Ok(())
+}
+
 pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/pi-agent-runtime-lab/manifest.yaml")).await?).await?;

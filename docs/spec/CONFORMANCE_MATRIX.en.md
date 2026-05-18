@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 105 implemented rows, backed by 113 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 106 implemented rows, backed by 114 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -89,6 +89,7 @@ Current matrix coverage: 105 implemented rows, backed by 113 named CLI conforman
 | official packages | model-connector-lab validates profiles, rejects raw secrets, and returns no-network discovery plans | implemented |
 | official packages | model-provider-lab lists eight provider families, validates profiles rejecting raw secrets, normalizes requests across eight dialects/endpoints, explains errors (401/429/529), outputs network_performed:false/inference_performed:false, no raw secret echoed | implemented |
 | official packages | model-provider-lab invoke all eight provider families (OpenAI chat/responses, Anthropic messages, Gemini generateContent, OpenAI-compatible chat, OpenRouter chat/responses, DeepSeek chat, xAI chat/responses, Fireworks chat/responses; fake/local, auditable outbound_request_shape, raw credential rejected, openai_compatible missing/http base_url rejected, unsupported family diagnostic, executor_kind fake_local, live_call_supported false) | implemented |
+| official packages | model-provider-lab normalize_stream eight families stream normalization (delta SSE, semantic SSE, typed chunk stream → StreamFrameEnvelope frames: start/chunk/progress/end/error/cancelled/timeout; terminal_frame_consistent; provider event input normalization; no raw secret echo; unsupported family empty frames + terminal_frame_consistent false) | implemented |
 | outbound | model provider outbound shape fake executor (three-provider host/method/path/secret_ref shapes pass outbound boundary, call_count=3, executor_kind Fake) | implemented |
 | official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
 | official packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
@@ -235,6 +236,7 @@ official.text_transform_lab                PASS
 official.model_connector_lab               PASS
 official.model_provider_lab                 PASS
 official.model_provider_lab_invoke_core       PASS
+official.model_provider_lab_normalize_stream  PASS
 official.model_routing_lab                 PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS

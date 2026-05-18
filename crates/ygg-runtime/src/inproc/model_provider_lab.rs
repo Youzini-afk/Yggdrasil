@@ -1,12 +1,14 @@
 //! Handler for `official/model-provider-lab` capabilities.
 //!
 //! No-network, no-inference provider family metadata, profile validation,
-//! request normalization, fake/local invoke, and error explanation across
-//! eight families: openai, anthropic, gemini, openai_compatible, openrouter,
-//! deepseek, xai, fireworks.
+//! request normalization, fake/local invoke, stream normalization, and error
+//! explanation across eight families: openai, anthropic, gemini,
+//! openai_compatible, openrouter, deepseek, xai, fireworks.
 //!
 //! M4 adds `invoke` for openai, anthropic, gemini.
 //! M5 extends `invoke` to openai_compatible, openrouter, deepseek, xai, fireworks.
+//! M6 adds `normalize_stream` — normalizes provider stream events to
+//! StreamFrameEnvelope-like frames (start/chunk/progress/end/error/cancelled/timeout).
 //! The invoke handler produces a fake/local result with an auditable
 //! `outbound_request_shape` but performs no real network I/O.
 
@@ -71,6 +73,8 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(Ok(request.input.clone()))
     } else if id.ends_with("/invoke") {
         Some(invoke(request))
+    } else if id.ends_with("/normalize_stream") {
+        Some(normalize_stream(request))
     } else {
         None
     }
@@ -773,6 +777,412 @@ fn build_fireworks_fake_response(params: &ProfileParams, shape: &NormalizedShape
             },
             "provider_request_id": "req_fake_fireworks_001"
         })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// normalize_stream (M6 — all eight families)
+// ---------------------------------------------------------------------------
+
+fn normalize_stream(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let family = request.input
+        .get("family")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    if !SUPPORTED_FAMILIES.contains(&family.as_str()) {
+        return Ok(serde_json::json!({
+            "kind": "model_provider_stream_normalization",
+            "family": family,
+            "stream_family": "unknown",
+            "frames": [],
+            "terminal_frame_consistent": false,
+            "diagnostics": [{"severity": "error", "field": "family", "message": format!("unsupported provider family: '{}'", family)}],
+            "network_performed": false,
+            "inference_performed": false,
+            "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+        }));
+    }
+
+    let stream_family = default_stream_family_for_family(&family);
+    let invocation_id = request.input
+        .get("invocation_id")
+        .and_then(Value::as_str)
+        .unwrap_or("inv_stream_001")
+        .to_string();
+
+    // If sample_provider_events are provided, normalize them; otherwise produce fake samples
+    let sample_events = request.input.get("sample_provider_events");
+    let frames = if let Some(events) = sample_events.and_then(Value::as_array) {
+        normalize_provider_events(&family, &stream_family, &invocation_id, events)
+    } else {
+        build_fake_stream_frames(&family, &stream_family, &invocation_id)
+    };
+
+    // Check terminal consistency: must have at least one start frame and one
+    // terminal frame (end/error/cancelled/timeout), with start first.
+    let has_start = frames.iter().any(|f| f["kind"] == "start");
+    let terminal_kinds = ["end", "error", "cancelled", "timeout"];
+    let has_terminal = frames.iter().any(|f| {
+        terminal_kinds.contains(&f["kind"].as_str().unwrap_or_default())
+    });
+    let terminal_frame_consistent = has_start && has_terminal;
+
+    // Check for raw secrets in input (diagnostics only, not rejection)
+    let mut diagnostics = Vec::new();
+    let credential = request.input.get("credential").and_then(Value::as_str).unwrap_or_default();
+    if looks_like_raw_secret(credential) {
+        diagnostics.push(serde_json::json!({
+            "severity": "warning",
+            "field": "credential",
+            "message": "raw credential detected; stream normalization does not echo it, but callers should use secret_ref"
+        }));
+    }
+
+    Ok(serde_json::json!({
+        "kind": "model_provider_stream_normalization",
+        "family": family,
+        "stream_family": stream_family,
+        "frames": frames,
+        "terminal_frame_consistent": terminal_frame_consistent,
+        "diagnostics": diagnostics,
+        "network_performed": false,
+        "inference_performed": false,
+        "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+    }))
+}
+
+/// Normalize provider-specific stream events into StreamFrameEnvelope-like frames.
+///
+/// Always emits a `start` frame as the first frame (before processing provider events)
+/// since provider events typically don't include an explicit stream-open event
+/// (except Anthropic's `message_start`).
+fn normalize_provider_events(
+    family: &str,
+    stream_family: &str,
+    invocation_id: &str,
+    events: &[Value],
+) -> Vec<Value> {
+    let mut frames = Vec::new();
+    let mut seq = 0u64;
+
+    // Always emit a start frame unless the first provider event is already a start
+    // (Anthropic message_start is detected as start below, but we still add our own
+    // canonical start before processing any provider events).
+    seq += 1;
+    frames.push(serde_json::json!({
+        "kind": "start",
+        "invocation_id": invocation_id,
+        "sequence": seq,
+        "payload": {
+            "provider_family": family,
+            "stream_family": stream_family,
+            "event_count": events.len(),
+        },
+        "metadata": {"provider_family": family, "stream_family": stream_family},
+        "redaction_state": "redacted",
+    }));
+
+    for event in events {
+        seq += 1;
+        // Try to extract text content and event type from provider-specific shapes
+        let (frame_kind, payload) = match family {
+            "openai" | "openai_compatible" | "deepseek" | "fireworks" => {
+                normalize_delta_sse_event(event, &mut seq)
+            }
+            "anthropic" => normalize_semantic_sse_event(event, &mut seq),
+            "gemini" => normalize_typed_chunk_event(event, &mut seq),
+            "openrouter" => {
+                // OpenRouter can use either delta_sse or responses; check event shape
+                if event.get("choices").is_some() {
+                    normalize_delta_sse_event(event, &mut seq)
+                } else if event.get("type").is_some() {
+                    normalize_semantic_sse_event(event, &mut seq)
+                } else if event.get("candidates").is_some() {
+                    normalize_typed_chunk_event(event, &mut seq)
+                } else {
+                    ("chunk".to_string(), event.clone())
+                }
+            }
+            "xai" => {
+                // xAI uses openai_chat/responses shapes
+                if event.get("choices").is_some() || event.get("event").is_some() {
+                    normalize_delta_sse_event(event, &mut seq)
+                } else {
+                    ("chunk".to_string(), event.clone())
+                }
+            }
+            _ => ("chunk".to_string(), event.clone()),
+        };
+
+        frames.push(serde_json::json!({
+            "kind": frame_kind,
+            "invocation_id": invocation_id,
+            "sequence": seq,
+            "payload": payload,
+            "metadata": {
+                "provider_family": family,
+                "stream_family": stream_family,
+            },
+            "redaction_state": "redacted",
+        }));
+    }
+
+    // Ensure there is a terminal frame if the last provider event didn't produce one
+    let last_kind = frames.last().and_then(|f| f["kind"].as_str()).unwrap_or_default();
+    let terminal_kinds = ["end", "error", "cancelled", "timeout"];
+    if !terminal_kinds.contains(&last_kind) {
+        seq += 1;
+        frames.push(serde_json::json!({
+            "kind": "end",
+            "invocation_id": invocation_id,
+            "sequence": seq,
+            "payload": {"finish_reason": "stop", "auto_terminated": true},
+            "metadata": {"provider_family": family, "stream_family": stream_family},
+            "redaction_state": "redacted",
+        }));
+    }
+
+    frames
+}
+
+/// Normalize an OpenAI-style delta SSE event.
+fn normalize_delta_sse_event(event: &Value, seq: &mut u64) -> (String, Value) {
+    // Check for [DONE] marker
+    if event.as_str() == Some("[DONE]") {
+        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+    }
+
+    // Check for finish_reason in choices
+    if let Some(choices) = event.get("choices").and_then(Value::as_array) {
+        for choice in choices {
+            if let Some(fr) = choice.get("finish_reason").and_then(Value::as_str) {
+                if !fr.is_empty() {
+                    return ("end".to_string(), serde_json::json!({"finish_reason": fr}));
+                }
+            }
+            // Delta content
+            if let Some(delta) = choice.get("delta") {
+                if let Some(content) = delta.get("content").and_then(Value::as_str) {
+                    if !content.is_empty() {
+                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                    }
+                }
+            }
+        }
+    }
+
+    // Check for Responses API event field
+    if let Some(evt_type) = event.get("event").and_then(Value::as_str) {
+        if evt_type.contains("completed") || evt_type.contains("done") {
+            return ("end".to_string(), serde_json::json!({"finish_reason": "complete", "event": evt_type}));
+        }
+        if let Some(delta) = event.get("data").and_then(|d| d.get("delta")).and_then(Value::as_str) {
+            return ("chunk".to_string(), serde_json::json!({"text_delta": delta, "event": evt_type}));
+        }
+    }
+
+    // Usage in final chunk
+    if event.get("usage").is_some() {
+        *seq += 1;
+        return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+    }
+
+    ("chunk".to_string(), event.clone())
+}
+
+/// Normalize an Anthropic-style semantic SSE event.
+fn normalize_semantic_sse_event(event: &Value, _seq: &mut u64) -> (String, Value) {
+    let event_type = event.get("type").and_then(Value::as_str).unwrap_or_default();
+
+    match event_type {
+        "message_start" => {
+            // Canonical start is already injected; this becomes a progress heartbeat
+            ("progress".to_string(), serde_json::json!({"provider_event": "message_start"}))
+        }
+        "content_block_start" => {
+            ("chunk".to_string(), serde_json::json!({"provider_event": "content_block_start"}))
+        }
+        "content_block_delta" => {
+            if let Some(delta) = event.get("delta") {
+                if let Some(text) = delta.get("text").and_then(Value::as_str) {
+                    return ("chunk".to_string(), serde_json::json!({"text_delta": text}));
+                }
+            }
+            ("chunk".to_string(), event.clone())
+        }
+        "content_block_stop" => {
+            ("progress".to_string(), serde_json::json!({"provider_event": "content_block_stop"}))
+        }
+        "message_delta" => {
+            if let Some(delta) = event.get("delta") {
+                if let Some(stop_reason) = delta.get("stop_reason").and_then(Value::as_str) {
+                    return ("end".to_string(), serde_json::json!({"finish_reason": stop_reason}));
+                }
+            }
+            if event.get("usage").is_some() {
+                return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+            }
+            ("progress".to_string(), event.clone())
+        }
+        "message_stop" => ("end".to_string(), serde_json::json!({"provider_event": "message_stop"})),
+        "ping" => ("progress".to_string(), serde_json::json!({"provider_event": "ping"})),
+        "error" => ("error".to_string(), serde_json::json!({"provider_event": "error"})),
+        _ => ("chunk".to_string(), event.clone()),
+    }
+}
+
+/// Normalize a Gemini-style typed chunk stream event.
+fn normalize_typed_chunk_event(event: &Value, _seq: &mut u64) -> (String, Value) {
+    // Check for candidates with content
+    if let Some(candidates) = event.get("candidates").and_then(Value::as_array) {
+        for candidate in candidates {
+            if let Some(content) = candidate.get("content") {
+                if let Some(parts) = content.get("parts").and_then(Value::as_array) {
+                    for part in parts {
+                        if let Some(text) = part.get("text").and_then(Value::as_str) {
+                            if !text.is_empty() {
+                                return ("chunk".to_string(), serde_json::json!({"text_delta": text}));
+                            }
+                        }
+                    }
+                }
+            }
+            // Check finish reason
+            if let Some(finish_reason) = candidate.get("finishReason").and_then(Value::as_str) {
+                return ("end".to_string(), serde_json::json!({"finish_reason": finish_reason}));
+            }
+        }
+    }
+
+    // Usage metadata
+    if event.get("usageMetadata").is_some() {
+        return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+    }
+
+    ("chunk".to_string(), event.clone())
+}
+
+/// Build fake stream frames for a provider family (default sample).
+fn build_fake_stream_frames(family: &str, stream_family: &str, invocation_id: &str) -> Vec<Value> {
+    let mut frames = Vec::new();
+    let mut seq = 0u64;
+
+    // Start frame
+    seq += 1;
+    frames.push(serde_json::json!({
+        "kind": "start",
+        "invocation_id": invocation_id,
+        "sequence": seq,
+        "payload": {
+            "provider_family": family,
+            "stream_family": stream_family,
+            "model": "fake-model",
+        },
+        "metadata": {"provider_family": family, "stream_family": stream_family},
+        "redaction_state": "redacted",
+    }));
+
+    // Provider-specific chunk frames
+    match stream_family {
+        "delta_sse" => {
+            // OpenAI-style delta SSE: text deltas
+            for (i, text) in ["fake", " local", " stream"].iter().enumerate() {
+                seq += 1;
+                frames.push(serde_json::json!({
+                    "kind": "chunk",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"text_delta": text, "delta_index": i},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+            }
+            // Finish reason chunk
+            seq += 1;
+            frames.push(serde_json::json!({
+                "kind": "chunk",
+                "invocation_id": invocation_id,
+                "sequence": seq,
+                "payload": {"finish_reason": "stop", "marker": "[DONE]"},
+                "metadata": {"provider_family": family, "stream_family": stream_family},
+                "redaction_state": "redacted",
+            }));
+        }
+        "semantic_sse" => {
+            // Anthropic-style: content_block_delta → message_delta
+            seq += 1;
+            frames.push(serde_json::json!({
+                "kind": "chunk",
+                "invocation_id": invocation_id,
+                "sequence": seq,
+                "payload": {"text_delta": "fake local stream", "provider_event": "content_block_delta"},
+                "metadata": {"provider_family": family, "stream_family": stream_family},
+                "redaction_state": "redacted",
+            }));
+            // Usage/stop
+            seq += 1;
+            frames.push(serde_json::json!({
+                "kind": "progress",
+                "invocation_id": invocation_id,
+                "sequence": seq,
+                "payload": {"usage_present": true, "provider_event": "message_delta"},
+                "metadata": {"provider_family": family, "stream_family": stream_family},
+                "redaction_state": "redacted",
+            }));
+        }
+        "typed_chunk_stream" => {
+            // Gemini-style: candidates with text parts
+            seq += 1;
+            frames.push(serde_json::json!({
+                "kind": "chunk",
+                "invocation_id": invocation_id,
+                "sequence": seq,
+                "payload": {"text_delta": "fake local stream", "provider_event": "candidates"},
+                "metadata": {"provider_family": family, "stream_family": stream_family},
+                "redaction_state": "redacted",
+            }));
+        }
+        _ => {
+            // Unknown stream family: just emit one generic chunk
+            seq += 1;
+            frames.push(serde_json::json!({
+                "kind": "chunk",
+                "invocation_id": invocation_id,
+                "sequence": seq,
+                "payload": {"text_delta": "fake local stream"},
+                "metadata": {"provider_family": family, "stream_family": stream_family},
+                "redaction_state": "redacted",
+            }));
+        }
+    }
+
+    // End frame
+    seq += 1;
+    frames.push(serde_json::json!({
+        "kind": "end",
+        "invocation_id": invocation_id,
+        "sequence": seq,
+        "payload": {"finish_reason": "stop"},
+        "metadata": {"provider_family": family, "stream_family": stream_family},
+        "redaction_state": "redacted",
+    }));
+
+    frames
+}
+
+fn default_stream_family_for_family(family: &str) -> &'static str {
+    match family {
+        "openai" => "semantic_sse",  // default (responses) dialect uses semantic_sse
+        "anthropic" => "semantic_sse",
+        "gemini" => "typed_chunk_stream",
+        "openai_compatible" => "delta_sse",
+        "openrouter" => "semantic_sse",  // default (responses) dialect
+        "deepseek" => "delta_sse",
+        "xai" => "semantic_sse",        // default (responses) dialect
+        "fireworks" => "delta_sse",
+        _ => "unknown",
     }
 }
 

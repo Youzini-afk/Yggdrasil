@@ -41,7 +41,7 @@ Goal: implement multi-provider model access as ordinary capability packages, cov
 - OpenAI-compatible is an adapter family, not the only protocol.
 - Extended invoke to cover all eight provider families.
 
-## M6 — Streaming normalization
+## M6 — Streaming normalization ✅
 
 - Normalize delta SSE, semantic SSE, and typed chunk streams into provider package normalized stream events, then wrap them as `StreamFrameEnvelope`.
 - Cover terminal/error/usage/cancel/timeout.

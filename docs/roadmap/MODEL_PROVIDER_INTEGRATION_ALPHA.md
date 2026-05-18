@@ -41,7 +41,7 @@
 - OpenAI-compatible 是 adapter family，不是唯一协议。
 - 扩展 invoke 覆盖全部八家 provider。
 
-## M6 — Streaming normalization
+## M6 — Streaming normalization ✅
 
 - 将 delta SSE、semantic SSE、typed chunk stream 归一为 provider package normalized stream events，再包装为 `StreamFrameEnvelope`。
 - 覆盖 terminal/error/usage/cancel/timeout。

@@ -219,6 +219,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     record_case(&mut results, "official.model_connector_lab", official_labs::model_connector_lab().await);
     record_case(&mut results, "official.model_provider_lab", official_labs::model_provider_lab().await);
     record_case(&mut results, "official.model_provider_lab_invoke_core", official_labs::model_provider_lab_invoke_core().await);
+    record_case(&mut results, "official.model_provider_lab_normalize_stream", official_labs::model_provider_lab_normalize_stream().await);
     record_case(&mut results, "official.model_routing_lab", official_labs::model_routing_lab().await);
     record_case(&mut results, "official.pi_agent_runtime_lab", official_labs::pi_agent_runtime_lab().await);
     record_case(&mut results, "official.capability_tool_bridge_lab", official_labs::capability_tool_bridge_lab().await);
