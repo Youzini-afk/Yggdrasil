@@ -23,11 +23,12 @@
 - 新增普通官方包，先提供 `list_supported_families`、`validate_profile`、`normalize_request`、`explain_error`、`echo`。
 - 不出网、不做真实 inference。
 
-## M3 — Host Outbound Executor Boundary
+## M3 — Host Outbound Executor Boundary ✅
 
-- 新增 content-free outbound executor abstraction：request/response/fake executor/local mock 支持。
+- 新增 content-free outbound executor 抽象：request/response/fake executor/local mock 支持。
 - 保持默认 deny/fake；真实出网需要显式 opt-in。
 - 强制 network allowlist、secret_ref、redacted audit、timeout/cancel。
+- conformance 覆盖：denied 时 executor 不被调用、policy/executor request 不一致时 fail-closed、allowlisted fake executor 返回 network_performed:false、raw body 不进 audit、secret_refs 仅存引用、host mismatch redirect denied（redirect_target 检查延后 M4）。此边界只保护 Ygg-provided outbound path，不声称 OS 级拦截任意 subprocess 网络调用。
 
 ## M4 — OpenAI / Anthropic / Gemini invoke adapters
 

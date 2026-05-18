@@ -20,12 +20,17 @@ mod proposals;
 mod protocol_dispatch;
 mod network;
 mod streaming;
+mod outbound;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
 pub use self::assets::{AssetGetResponse, AssetPutRequest};
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::network::{NetworkPolicyDecision, OutboundRequest, check_network_policy};
+pub use self::outbound::{
+    DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, OutboundExecutor,
+    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
+};
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};
@@ -42,6 +47,8 @@ pub struct RuntimeConfig {
     pub host_policy: HostPolicy,
     pub inproc_packages: InprocPackageCatalog,
     pub secret_resolver: SecretResolverConfig,
+    /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
+    pub outbound_executor: OutboundExecutorConfig,
 }
 
 impl Default for RuntimeConfig {
@@ -51,6 +58,7 @@ impl Default for RuntimeConfig {
             host_policy: HostPolicy::default(),
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
+            outbound_executor: OutboundExecutorConfig::default(),
         }
     }
 }

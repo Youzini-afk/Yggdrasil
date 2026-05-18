@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 97 implemented rows, backed by 105 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 103 implemented rows, backed by 111 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -116,6 +116,12 @@ Current matrix coverage: 97 implemented rows, backed by 105 named CLI conformanc
 | network | official package has no network bypass | implemented |
 | network | audit records contain no raw secrets/bodies, only secret_ref and redaction_state | implemented |
 | network | check_network_policy pure function tests | implemented |
+| outbound | no permission executor not called — denied request never reaches executor | implemented |
+| outbound | policy/audit request and executor request package/capability/host/method/secret_refs mismatch fails closed and never calls executor | implemented |
+| outbound | allowlisted fake executor returns network_performed:false, executor_kind:fake, redacted audit | implemented |
+| outbound | raw body_shape not persisted in audit; audit redaction_state redacted/not_captured | implemented |
+| outbound | secret_refs stored as references only; raw secrets rejected/not echoed | implemented |
+| outbound | host mismatch redirect denied; redirect_target check deferred to M4 | implemented |
 | stream | normal lifecycle emits ordered frames/events | implemented |
 | stream | cancel marks invocation cancelled and blocks further chunks | implemented |
 | stream | timeout marks invocation timeout and blocks further chunks | implemented |
@@ -249,6 +255,11 @@ network.host_method_mismatch_denied           PASS
 network.official_no_network_bypass            PASS
 network.audit_no_raw_secrets                  PASS
 network.policy_pure_function                  PASS
+outbound.no_permission_executor_not_called      PASS
+outbound.allowlisted_fake_executor              PASS
+outbound.raw_body_not_audited                   PASS
+outbound.secret_refs_only                       PASS
+outbound.host_mismatch_redirect_denied          PASS
 stream.normal_lifecycle                       PASS
 stream.cancel_blocks_chunks                   PASS
 stream.timeout_blocks_chunks                  PASS

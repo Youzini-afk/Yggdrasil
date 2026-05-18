@@ -314,6 +314,37 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "network.policy_pure_function",
         network::network_policy_pure_function().await,
     );
+    // Phase M3 — outbound executor boundary
+    record_case(
+        &mut results,
+        "outbound.no_permission_executor_not_called",
+        network::outbound_no_permission_executor_not_called().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.policy_executor_mismatch_denied",
+        network::outbound_policy_executor_mismatch_denied().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.allowlisted_fake_executor",
+        network::outbound_allowlisted_fake_executor().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.raw_body_not_audited",
+        network::outbound_raw_body_not_audited().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.secret_refs_only",
+        network::outbound_secret_refs_only().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.host_mismatch_redirect_denied",
+        network::outbound_host_mismatch_redirect_denied().await,
+    );
     // Phase S3 — streaming and cancellation lifecycle
     record_case(
         &mut results,

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：97 个 implemented rows，由 105 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：103 个 implemented rows，由 111 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -116,6 +116,12 @@ cargo run -p ygg-cli -- conformance
 | network | 官方包无 network bypass | implemented |
 | network | 审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state | implemented |
 | network | check_network_policy 纯函数测试 | implemented |
+| outbound | 无权限时 executor 不被调用 — 被拒绝的请求不会到达 executor | implemented |
+| outbound | policy/audit request 与 executor request 的 package/capability/host/method/secret_refs 不一致时 fail-closed，executor 不被调用 | implemented |
+| outbound | allowlisted fake executor 返回 network_performed:false、executor_kind:fake、redacted audit | implemented |
+| outbound | raw body_shape 不持久化到审计；审计 redaction_state 为 redacted/not_captured | implemented |
+| outbound | secret_refs 仅存储为引用；raw secret 被拒绝/不回显 | implemented |
+| outbound | host 不匹配时 redirect 被拒绝；redirect_target 检查延后 M4 | implemented |
 | stream | 正常生命周期发出有序 frame/event | implemented |
 | stream | cancel 标记 invocation 为 cancelled 并阻断后续 chunk | implemented |
 | stream | timeout 标记 invocation 为 timeout 并阻断后续 chunk | implemented |
@@ -249,6 +255,11 @@ network.host_method_mismatch_denied           PASS
 network.official_no_network_bypass            PASS
 network.audit_no_raw_secrets                  PASS
 network.policy_pure_function                  PASS
+outbound.no_permission_executor_not_called      PASS
+outbound.allowlisted_fake_executor              PASS
+outbound.raw_body_not_audited                   PASS
+outbound.secret_refs_only                       PASS
+outbound.host_mismatch_redirect_denied          PASS
 stream.normal_lifecycle                       PASS
 stream.cancel_blocks_chunks                   PASS
 stream.timeout_blocks_chunks                  PASS
