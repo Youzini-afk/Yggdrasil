@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 106 implemented rows, backed by 114 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 109 implemented rows, backed by 117 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -54,6 +54,9 @@ Current matrix coverage: 106 implemented rows, backed by 114 named CLI conforman
 | secret refs | raw secret in proposal payload is rejected | implemented |
 | secret refs | raw secret in asset metadata is rejected | implemented |
 | secret refs | official package has no secret-scanning bypass | implemented |
+| env resolver | `EnvSecretResolver` allows resolution when env name is in allowlist (`secret_ref:env`, `secretRef:env`, `secret-ref:env`, `host:env`) | implemented |
+| env resolver | `EnvSecretResolver` denies resolution when env name is not in allowlist; non-env vault and `host:<key>` rejected | implemented |
+| env resolver | `EnvSecretResolver` missing env var returns typed error without leaking raw value | implemented |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
@@ -254,6 +257,9 @@ secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
 official.no_secret_bypass                    PASS
+secret.env_resolver_allowed                  PASS
+secret.env_resolver_denied                   PASS
+secret.env_resolver_missing_no_leak          PASS
 network.no_permission_denied                  PASS
 network.allowlisted_host_method_allowed       PASS
 network.host_method_mismatch_denied           PASS

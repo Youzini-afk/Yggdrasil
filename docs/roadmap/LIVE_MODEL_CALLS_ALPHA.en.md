@@ -36,15 +36,17 @@ Validation:
 - Doc link check.
 - `kernel.model/prompt/chat/embedding` only appear in non-goals/prohibitions.
 
-## Phase L1 — Host EnvSecretResolver
+## Phase L1 — Host EnvSecretResolver ✅
 
-Implement host-owned env secret resolver:
+Implemented host-owned env secret resolver:
 
-- Support `secret_ref:env:NAME` / `secretRef:env:NAME` / `secret-ref:env:NAME` / `host:env:NAME`.
-- Deny-all by default; host config must explicitly allow env names.
+- Supports `secret_ref:env:NAME` / `secretRef:env:NAME` / `secret-ref:env:NAME` / `host:env:NAME`.
+- Deny-all default; host config must explicitly allow env names (allowlist-only).
 - Missing, denied, and malformed references return typed errors.
 - Raw values exist only transiently inside the host and are never serialized; audit/errors include only references/env names, never values.
-- Conformance covers allowed/missing/denied/no-leak.
+- `Runtime::resolve_secret_ref` host-internal method for host use during capability invocation.
+- `extract_env_name` helper recognizes only `env` vault; `host:<key>` without `env:` prefix not treated as env.
+- Conformance covers allowed/missing/denied/no-leak (3 new cases: `secret.env_resolver_allowed`, `secret.env_resolver_denied`, `secret.env_resolver_missing_no_leak`).
 
 ## Phase L2 — LiveHttpOutboundExecutor
 

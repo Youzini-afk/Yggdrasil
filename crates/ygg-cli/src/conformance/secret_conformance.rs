@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use serde_json::json;
-use ygg_runtime::{OpenSessionRequest, ProtocolContext};
+use ygg_runtime::{EnvSecretResolver, InMemoryEventStore, OpenSessionRequest, ProtocolContext, Runtime, RuntimeConfig, SecretResolverConfig};
 
 use super::fixtures::*;
 
@@ -173,6 +176,126 @@ pub(crate) async fn no_secret_bypass() -> anyhow::Result<()> {
         })
         .await;
     anyhow::ensure!(denied.is_err(), "official package must not bypass secret scanning");
+
+    Ok(())
+}
+
+/// Unique env var name per test + process to avoid pollution.
+fn unique_env_name(suffix: &str) -> String {
+    format!("YGG_CONF_ENV_{}_{}", std::process::id(), suffix)
+}
+
+struct EnvVarGuard(String);
+
+impl EnvVarGuard {
+    fn set(name: &str, value: &str) -> Self {
+        std::env::set_var(name, value);
+        Self(name.to_string())
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        std::env::remove_var(&self.0);
+    }
+}
+
+/// EnvSecretResolver allows resolution when the env name is in the allowlist.
+pub(crate) async fn env_resolver_allowed() -> anyhow::Result<()> {
+    let name = unique_env_name("ALLOWED");
+    let _guard = EnvVarGuard::set(&name, "test-value-not-a-provider-key");
+
+    let resolver = Arc::new(EnvSecretResolver::new(HashSet::from([name.clone()])));
+    let config = RuntimeConfig {
+        secret_resolver: SecretResolverConfig::with_resolver(resolver),
+        ..RuntimeConfig::default()
+    };
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, config);
+
+    // All supported prefix forms should resolve
+    let result = runtime.resolve_secret_ref(&format!("secret_ref:env:{}", name)).await;
+    anyhow::ensure!(result.is_ok(), "secret_ref:env should resolve: {:?}", result);
+    anyhow::ensure!(result.unwrap() == "test-value-not-a-provider-key", "resolved value mismatch");
+
+    let result = runtime.resolve_secret_ref(&format!("secretRef:env:{}", name)).await;
+    anyhow::ensure!(result.is_ok(), "secretRef:env should resolve: {:?}", result);
+
+    let result = runtime.resolve_secret_ref(&format!("secret-ref:env:{}", name)).await;
+    anyhow::ensure!(result.is_ok(), "secret-ref:env should resolve: {:?}", result);
+
+    let result = runtime.resolve_secret_ref(&format!("host:env:{}", name)).await;
+    anyhow::ensure!(result.is_ok(), "host:env should resolve: {:?}", result);
+
+    Ok(())
+}
+
+/// EnvSecretResolver denies resolution when the env name is not in the allowlist.
+pub(crate) async fn env_resolver_denied() -> anyhow::Result<()> {
+    let name = unique_env_name("DENIED");
+    let _guard = EnvVarGuard::set(&name, "should-not-be-returned");
+
+    // Empty allowlist — env name is not allowed
+    let resolver = Arc::new(EnvSecretResolver::new(HashSet::new()));
+    let config = RuntimeConfig {
+        secret_resolver: SecretResolverConfig::with_resolver(resolver),
+        ..RuntimeConfig::default()
+    };
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, config);
+
+    let result = runtime.resolve_secret_ref(&format!("secret_ref:env:{}", name)).await;
+    anyhow::ensure!(result.is_err(), "denied env should fail");
+    let err_msg = result.unwrap_err().to_string();
+    anyhow::ensure!(err_msg.contains("not in allowlist"), "error should mention allowlist: {err_msg}");
+    anyhow::ensure!(!err_msg.contains("should-not-be-returned"), "error must not leak raw value: {err_msg}");
+
+    // Non-env vault should also be rejected
+    let result = runtime.resolve_secret_ref("secret_ref:vault:prod/openai").await;
+    anyhow::ensure!(result.is_err(), "non-env vault should be rejected");
+
+    // host:<non-env-key> should not be treated as env
+    let result = runtime.resolve_secret_ref("host:my_secret").await;
+    anyhow::ensure!(result.is_err(), "host:my_secret should not resolve as env");
+
+    Ok(())
+}
+
+/// EnvSecretResolver returns typed error for missing env var without leaking raw value.
+pub(crate) async fn env_resolver_missing_no_leak() -> anyhow::Result<()> {
+    let name = unique_env_name("MISSING");
+    // Ensure the env var is NOT set
+    std::env::remove_var(&name);
+
+    let resolver = Arc::new(EnvSecretResolver::new(HashSet::from([name.clone()])));
+    let config = RuntimeConfig {
+        secret_resolver: SecretResolverConfig::with_resolver(resolver),
+        ..RuntimeConfig::default()
+    };
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, config);
+
+    let result = runtime.resolve_secret_ref(&format!("secret_ref:env:{}", name)).await;
+    anyhow::ensure!(result.is_err(), "missing env should fail");
+    let err_msg = result.unwrap_err().to_string();
+    anyhow::ensure!(err_msg.contains("not set"), "error should mention 'not set': {err_msg}");
+    anyhow::ensure!(err_msg.contains(&name), "error should contain env name for debugging: {err_msg}");
+
+    // Even if the env var exists, denied env name must not leak the value in errors
+    let existing_name = unique_env_name("NOLEAK");
+    let _guard = EnvVarGuard::set(&existing_name, "super-secret-value-xyz");
+    let resolver2 = Arc::new(EnvSecretResolver::new(HashSet::new())); // empty allowlist
+    let config2 = RuntimeConfig {
+        secret_resolver: SecretResolverConfig::with_resolver(resolver2),
+        ..RuntimeConfig::default()
+    };
+    let store2 = Arc::new(InMemoryEventStore::default());
+    let runtime2 = Runtime::new(store2, config2);
+
+    let result2 = runtime2.resolve_secret_ref(&format!("secret_ref:env:{}", existing_name)).await;
+    anyhow::ensure!(result2.is_err(), "denied env should fail");
+    let err_msg2 = result2.unwrap_err().to_string();
+    anyhow::ensure!(!err_msg2.contains("super-secret-value-xyz"), "error must not leak raw env value: {err_msg2}");
 
     Ok(())
 }

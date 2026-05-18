@@ -33,6 +33,6 @@ pub use runtime::{
     Runtime, RuntimeConfig, StreamRegistry, check_network_policy,
 };
 pub use schema::validate_json_schema_subset;
-pub use secret::{DenyAllSecretResolver, HostSecretResolver, SecretResolverConfig};
+pub use secret::{DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver, SecretResolverConfig, extract_env_name};
 pub use subprocess::{SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;

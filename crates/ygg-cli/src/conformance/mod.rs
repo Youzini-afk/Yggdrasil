@@ -288,6 +288,21 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     );
     record_case(
         &mut results,
+        "secret.env_resolver_allowed",
+        secret_conformance::env_resolver_allowed().await,
+    );
+    record_case(
+        &mut results,
+        "secret.env_resolver_denied",
+        secret_conformance::env_resolver_denied().await,
+    );
+    record_case(
+        &mut results,
+        "secret.env_resolver_missing_no_leak",
+        secret_conformance::env_resolver_missing_no_leak().await,
+    );
+    record_case(
+        &mut results,
         "network.no_permission_denied",
         network::no_network_permission_denied().await,
     );

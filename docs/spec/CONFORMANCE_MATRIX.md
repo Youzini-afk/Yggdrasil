@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：106 个 implemented rows，由 114 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：109 个 implemented rows，由 117 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -54,6 +54,9 @@ cargo run -p ygg-cli -- conformance
 | secret refs | proposal payload 中的 raw secret 会被拒绝 | implemented |
 | secret refs | asset metadata 中的 raw secret 会被拒绝 | implemented |
 | secret refs | 官方包没有 secret-scanning bypass | implemented |
+| env resolver | `EnvSecretResolver` 在 env name 于 allowlist 中时允许解析（`secret_ref:env`、`secretRef:env`、`secret-ref:env`、`host:env`） | implemented |
+| env resolver | `EnvSecretResolver` 在 env name 不在 allowlist 中时拒绝解析；非 env vault 和 `host:<key>` 被拒绝 | implemented |
+| env resolver | `EnvSecretResolver` 缺失 env var 返回 typed error，不泄漏 raw value | implemented |
 | protocol | 方法列表不包含内容方法 | implemented in unit tests |
 | protocol | 结构化权限错误码 | implemented |
 | protocol | in-process 协议分发器调用 host.info | implemented |
@@ -254,6 +257,9 @@ secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
 official.no_secret_bypass                    PASS
+secret.env_resolver_allowed                  PASS
+secret.env_resolver_denied                   PASS
+secret.env_resolver_missing_no_leak          PASS
 network.no_permission_denied                  PASS
 network.allowlisted_host_method_allowed       PASS
 network.host_method_mismatch_denied           PASS

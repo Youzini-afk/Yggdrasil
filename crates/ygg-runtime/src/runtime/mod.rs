@@ -135,6 +135,19 @@ where
         self.extensions.clone()
     }
 
+    /// Resolve a secret reference using the configured host secret resolver.
+    ///
+    /// This is a host-internal method (not a protocol method) for use by
+    /// the host during capability invocation. It delegates to
+    /// `self.config.secret_resolver.resolver.resolve(ref_id)`.
+    ///
+    /// Returns the raw secret string on success, or an error if the
+    /// reference cannot be resolved. Raw values must never be written
+    /// to events, proposals, logs, or audit records.
+    pub async fn resolve_secret_ref(&self, ref_id: &str) -> anyhow::Result<String> {
+        self.config.secret_resolver.resolver.resolve(ref_id).await
+    }
+
     pub async fn hydrate_substrate_from_events(&self) -> anyhow::Result<()> {
         let events = self.store.list_all().await?;
         let mut assets = HashMap::new();

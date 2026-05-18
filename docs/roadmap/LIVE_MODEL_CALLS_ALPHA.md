@@ -36,15 +36,17 @@ secret_ref → host secret resolver → public outbound boundary → live HTTPS 
 - 文档链接检查。
 - `kernel.model/prompt/chat/embedding` 只出现在非目标/禁止项说明。
 
-## Phase L1 — Host EnvSecretResolver
+## Phase L1 — Host EnvSecretResolver ✅
 
-实现 host-owned env secret resolver：
+已实现 host-owned env secret resolver：
 
 - 支持 `secret_ref:env:NAME` / `secretRef:env:NAME` / `secret-ref:env:NAME` / `host:env:NAME`。
-- 默认 deny-all；必须 host config 显式 allow env names。
+- 默认 deny-all；host config 必须显式 allow env names（allowlist-only）。
 - 缺失、未 allow、格式错误都返回 typed error。
 - Raw value 只在 host 内部短暂存在，不序列化；audit/error 只出现 secret_ref/env name，不出现 value。
-- Conformance 覆盖 allowed/missing/denied/no-leak。
+- `Runtime::resolve_secret_ref` host 内部方法，用于 host 在能力调用时解析 secret。
+- `extract_env_name` 辅助函数只识别 `env` vault；`host:<key>`（不含 `env:` 前缀）不被视为 env 引用。
+- Conformance 覆盖 allowed/missing/denied/no-leak（3 个新用例：`secret.env_resolver_allowed`、`secret.env_resolver_denied`、`secret.env_resolver_missing_no_leak`）。
 
 ## Phase L2 — LiveHttpOutboundExecutor
 
