@@ -9,7 +9,7 @@
 ## 概要
 
 - **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5。
-- **Conformance：** 111 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **Conformance：** 113 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
 - **当前收敛：** Agent Infrastructure Alpha 已完成并文档化；下一阶段应继续围绕真实 inference 前置条件、host hardening 或更深入的 package authoring，而不是把 agent/model/prompt 语义放进内核。
@@ -80,7 +80,7 @@
 - `official/context-lab` —— bounded context block assembly、layer inspection、budget planning 与 template rendering。
 - `official/text-transform-lab` —— deterministic text transform import、validation、preview、pipeline explanation 与 diagnostics。
 - `official/model-connector-lab` —— no-network provider family metadata、profile validation、secret masking、discovery plans 与 compatibility reports。
-- `official/model-provider-lab` —— no-network 八家 provider 的 request normalization、profile validation（拒绝 raw secret）、error explanation、echo。覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks。
+- `official/model-provider-lab` —— no-network 八家 provider 的 request normalization、profile validation（拒绝 raw secret）、fake/local invoke（OpenAI chat/responses、Anthropic messages、Gemini generateContent；outbound_request_shape 可审计）、error explanation、echo。覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks。invoke 仅 openai/anthropic/gemini（M4）。
 - `official/model-routing-lab` —— no-inference consumer-slot binding、route planning、fallback planning 与 params normalization。
 - `official/assistant-lab` —— assistant-action 能力，返回需要审批的 proposal。
 - `official/pi-agent-runtime-lab` —— 参考代理运行时包，deterministic no-network run plan、trace summary、proposal draft 与 echo。
@@ -125,7 +125,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 
 ### Conformance
 
-- `cargo run -p ygg-cli -- conformance` 运行 111 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-provider-lab、model-routing-lab、pi-agent-runtime-lab、capability-tool-bridge-lab、in-process fallback hardening、playable-seed、游创循环、生成包创作、composition descriptor、package check、reload 冒烟测试、第三方替换证明、permission grant rehydrate、secret_ref validation、raw-secret blocking、official no-secret-bypass、网络权限审计、策略纯函数测试、**outbound executor boundary（被拒绝请求不调用 executor、policy/executor mismatch fail-closed、allowlisted fake executor 返回 network_performed:false、raw body 不进审计、secret_refs 仅存引用、host mismatch redirect denied）**、streaming/cancellation 生命周期、模板 conformance、no-network readiness proof。
+- `cargo run -p ygg-cli -- conformance` 运行 113 个具名 CLI 用例，覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-provider-lab、model-routing-lab、pi-agent-runtime-lab、capability-tool-bridge-lab、in-process fallback hardening、playable-seed、游创循环、生成包创作、composition descriptor、package check、reload 冒烟测试、第三方替换证明、permission grant rehydrate、secret_ref validation、raw-secret blocking、official no-secret-bypass、网络权限审计、策略纯函数测试、**outbound executor boundary（被拒绝请求不调用 executor、policy/executor mismatch fail-closed、allowlisted fake executor 返回 network_performed:false、raw body 不进审计、secret_refs 仅存引用、host mismatch redirect denied）**、**model provider invoke adapters（OpenAI chat/responses、Anthropic messages、Gemini generateContent fake/local invoke、raw credential rejected、unsupported family diagnostic、outbound_request_shape 可审计）**、**model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake）**、streaming/cancellation 生命周期、模板 conformance、no-network readiness proof。
 - 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
 - `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
 

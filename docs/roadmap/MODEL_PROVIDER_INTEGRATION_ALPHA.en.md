@@ -30,7 +30,7 @@ Goal: implement multi-provider model access as ordinary capability packages, cov
 - Enforce network allowlist, secret_ref, redacted audit, timeout/cancel.
 - Conformance covers: denied requests never reach executor, policy/executor request mismatch fails closed, allowlisted fake executor returns network_performed:false, raw body not persisted in audit, secret_refs stored as refs only, host mismatch redirect denied (redirect_target check deferred to M4). This boundary only secures the Ygg-provided outbound path; it does not claim OS-level interception of arbitrary subprocess networking.
 
-## M4 — OpenAI / Anthropic / Gemini invoke adapters
+## M4 — OpenAI / Anthropic / Gemini invoke adapters ✅
 
 - Implement fake/local invoke paths for three representative non-compatible families inside `model-provider-lab`.
 - Support manual live call paths, but keep them out of default conformance.

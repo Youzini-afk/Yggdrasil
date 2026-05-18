@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：103 个 implemented rows，由 111 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：105 个 implemented rows，由 113 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -88,6 +88,8 @@ cargo run -p ygg-cli -- conformance
 | official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
 | official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
 | official packages | model-provider-lab 列出八家 provider families、validate profiles 拒绝 raw secret、normalize requests 覆盖八家 dialects/endpoints、explain errors（401/429/529）、output 含 network_performed:false/inference_performed:false、无 raw secret echo | implemented |
+| official packages | model-provider-lab invoke OpenAI chat/responses、Anthropic messages、Gemini generateContent（fake/local、outbound_request_shape 可审计、raw credential rejected、unsupported family diagnostic、executor_kind fake_local、live_call_supported false） | implemented |
+| outbound | model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake） | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
 | official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
 | official packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
@@ -232,6 +234,7 @@ official.context_lab                       PASS
 official.text_transform_lab                PASS
 official.model_connector_lab               PASS
 official.model_provider_lab                 PASS
+official.model_provider_lab_invoke_core       PASS
 official.model_routing_lab                 PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS
@@ -258,6 +261,7 @@ network.policy_pure_function                  PASS
 outbound.no_permission_executor_not_called      PASS
 outbound.allowlisted_fake_executor              PASS
 outbound.raw_body_not_audited                   PASS
+outbound.model_provider_shape_fake_executor   PASS
 outbound.secret_refs_only                       PASS
 outbound.host_mismatch_redirect_denied          PASS
 stream.normal_lifecycle                       PASS

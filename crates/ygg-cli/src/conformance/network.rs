@@ -756,3 +756,141 @@ pub(crate) async fn outbound_host_mismatch_redirect_denied() -> anyhow::Result<(
     // deferred to M4 when real HTTP executors are introduced.
     Ok(())
 }
+
+/// M4: Model provider request shapes pass through the fake outbound executor.
+///
+/// Constructs a Runtime with FakeOutboundExecutor and network declarations
+/// for api.openai.com, api.anthropic.com, and generativelanguage.googleapis.com.
+/// Calls execute_outbound_with_policy with equivalent OpenAI/Anthropic/Gemini
+/// request shapes. Asserts executor_kind Fake and call_count=3.
+pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    runtime
+        .load_package(network_package(
+            "example/m4-provider-shapes",
+            vec![
+                NetworkDeclaration {
+                    host: "api.openai.com".to_string(),
+                    methods: vec!["POST".to_string()],
+                    purpose: Some("chat completions".to_string()),
+                },
+                NetworkDeclaration {
+                    host: "api.anthropic.com".to_string(),
+                    methods: vec!["POST".to_string()],
+                    purpose: Some("messages".to_string()),
+                },
+                NetworkDeclaration {
+                    host: "generativelanguage.googleapis.com".to_string(),
+                    methods: vec!["POST".to_string()],
+                    purpose: Some("generate content".to_string()),
+                },
+            ],
+            vec![],
+        ))
+        .await?;
+
+    let pkg_id = "example/m4-provider-shapes";
+    let cap_id = "example/m4-provider-shapes/fetch";
+    let principal = ProtocolPrincipal::Package { package_id: pkg_id.to_string() };
+    let secret_ref = "secret_ref:env:PROVIDER_KEY".to_string();
+
+    // OpenAI request shape
+    let openai_response = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: principal.clone(),
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.openai.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![secret_ref.clone()],
+            },
+            OutboundExecutorRequest {
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.openai.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1/chat/completions".to_string()),
+                purpose: Some("chat completions".to_string()),
+                secret_refs: vec![secret_ref.clone()],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::json!({"provider": "openai", "request_dialect": "openai_chat"}),
+                body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
+            },
+        )
+        .await?;
+    anyhow::ensure!(openai_response.status == "ok", "openai shape should succeed");
+    anyhow::ensure!(!openai_response.network_performed, "openai shape must not perform real network");
+    anyhow::ensure!(openai_response.executor_kind == ExecutorKind::Fake, "openai shape executor_kind must be Fake");
+
+    // Anthropic request shape
+    let anthropic_response = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: principal.clone(),
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.anthropic.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![secret_ref.clone()],
+            },
+            OutboundExecutorRequest {
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.anthropic.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1/messages".to_string()),
+                purpose: Some("messages".to_string()),
+                secret_refs: vec![secret_ref.clone()],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::json!({"provider": "anthropic", "request_dialect": "anthropic_messages"}),
+                body_shape: Some(serde_json::json!({"model": "claude-3-5-sonnet-20241022", "messages": [], "max_tokens": 1024})),
+            },
+        )
+        .await?;
+    anyhow::ensure!(anthropic_response.status == "ok", "anthropic shape should succeed");
+    anyhow::ensure!(anthropic_response.executor_kind == ExecutorKind::Fake, "anthropic shape executor_kind must be Fake");
+
+    // Gemini request shape
+    let gemini_response = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: principal.clone(),
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "generativelanguage.googleapis.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![secret_ref.clone()],
+            },
+            OutboundExecutorRequest {
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "generativelanguage.googleapis.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1beta/models/gemini-2.0-flash:generateContent".to_string()),
+                purpose: Some("generate content".to_string()),
+                secret_refs: vec![secret_ref],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::json!({"provider": "gemini", "request_dialect": "gemini_generate_content"}),
+                body_shape: Some(serde_json::json!({"contents": []})),
+            },
+        )
+        .await?;
+    anyhow::ensure!(gemini_response.status == "ok", "gemini shape should succeed");
+    anyhow::ensure!(gemini_response.executor_kind == ExecutorKind::Fake, "gemini shape executor_kind must be Fake");
+
+    // Verify all three calls reached the executor
+    anyhow::ensure!(
+        fake.call_count() == 3,
+        "fake executor should be called 3 times for 3 provider shapes, got {}",
+        fake.call_count()
+    );
+
+    Ok(())
+}

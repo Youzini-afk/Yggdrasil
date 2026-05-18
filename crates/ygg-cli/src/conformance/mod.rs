@@ -218,6 +218,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     record_case(&mut results, "official.text_transform_lab", official_labs::text_transform_lab().await);
     record_case(&mut results, "official.model_connector_lab", official_labs::model_connector_lab().await);
     record_case(&mut results, "official.model_provider_lab", official_labs::model_provider_lab().await);
+    record_case(&mut results, "official.model_provider_lab_invoke_core", official_labs::model_provider_lab_invoke_core().await);
     record_case(&mut results, "official.model_routing_lab", official_labs::model_routing_lab().await);
     record_case(&mut results, "official.pi_agent_runtime_lab", official_labs::pi_agent_runtime_lab().await);
     record_case(&mut results, "official.capability_tool_bridge_lab", official_labs::capability_tool_bridge_lab().await);
@@ -344,6 +345,12 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "outbound.host_mismatch_redirect_denied",
         network::outbound_host_mismatch_redirect_denied().await,
+    );
+    // Phase M4 — model provider invoke adapters + outbound shape conformance
+    record_case(
+        &mut results,
+        "outbound.model_provider_shape_fake_executor",
+        network::outbound_model_provider_shape_fake_executor().await,
     );
     // Phase S3 — streaming and cancellation lifecycle
     record_case(

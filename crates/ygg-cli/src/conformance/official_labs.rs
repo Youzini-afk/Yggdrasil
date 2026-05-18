@@ -991,6 +991,214 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/model-provider-lab/manifest.yaml")).await?).await?;
+
+    // invoke openai (chat dialect)
+    let inv_openai = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "secret_ref:env:OPENAI_KEY"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_openai.output["kind"] == json!("model_provider_invoke_result"), "openai invoke wrong kind");
+    anyhow::ensure!(inv_openai.output["request_dialect"] == json!("openai_chat"), "openai invoke wrong dialect");
+    anyhow::ensure!(inv_openai.output["endpoint"].as_str().unwrap_or_default().ends_with("/v1/chat/completions"), "openai invoke wrong endpoint");
+    anyhow::ensure!(inv_openai.output["method"] == json!("POST"), "openai invoke wrong method");
+    anyhow::ensure!(inv_openai.output["network_performed"] == json!(false), "openai invoke must not perform network");
+    anyhow::ensure!(inv_openai.output["inference_performed"] == json!(false), "openai invoke must not perform inference");
+    anyhow::ensure!(inv_openai.output["executor_kind"] == json!("fake_local"), "openai invoke executor_kind must be fake_local");
+    anyhow::ensure!(inv_openai.output["live_call_supported"] == json!(false), "openai invoke live_call_supported must be false");
+    anyhow::ensure!(inv_openai.output["outbound_request_shape"]["destination_host"] == json!("api.openai.com"), "openai invoke wrong destination_host");
+    anyhow::ensure!(inv_openai.output["outbound_request_shape"]["method"] == json!("POST"), "openai invoke outbound wrong method");
+    anyhow::ensure!(inv_openai.output["outbound_request_shape"]["redaction_state"] == json!("redacted"), "openai invoke outbound must be redacted");
+    // Response has id, stop_reason, usage, provider_request_id
+    anyhow::ensure!(inv_openai.output["response"]["id"].is_string(), "openai invoke response missing id");
+    anyhow::ensure!(inv_openai.output["response"]["stop_reason"].is_string(), "openai invoke response missing stop_reason");
+    anyhow::ensure!(inv_openai.output["response"]["usage"].is_object(), "openai invoke response missing usage");
+    // No raw secret echoed
+    let output_str = serde_json::to_string(&inv_openai.output).unwrap();
+    anyhow::ensure!(!output_str.contains("sk-"), "no raw secret should appear in invoke output");
+
+    // invoke openai with preferResponses (responses dialect)
+    let inv_openai_resp = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "secret_ref:env:OPENAI_KEY",
+                    "extra": {"preferResponses": true}
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_openai_resp.output["request_dialect"] == json!("openai_responses"), "openai responses invoke wrong dialect");
+    anyhow::ensure!(inv_openai_resp.output["endpoint"].as_str().unwrap_or_default().ends_with("/v1/responses"), "openai responses wrong endpoint");
+    anyhow::ensure!(inv_openai_resp.output["response"]["object"] == json!("response"), "openai responses fake response wrong object");
+
+    // invoke anthropic
+    let inv_anthropic = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "anthropic",
+                    "model": "claude-3-5-sonnet-20241022",
+                    "credential": "secret_ref:env:ANTHROPIC_KEY"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_anthropic.output["request_dialect"] == json!("anthropic_messages"), "anthropic invoke wrong dialect");
+    anyhow::ensure!(inv_anthropic.output["endpoint"].as_str().unwrap_or_default().ends_with("/v1/messages"), "anthropic invoke wrong endpoint");
+    anyhow::ensure!(inv_anthropic.output["outbound_request_shape"]["destination_host"] == json!("api.anthropic.com"), "anthropic invoke wrong destination_host");
+    anyhow::ensure!(inv_anthropic.output["outbound_request_shape"]["path"] == json!("/v1/messages"), "anthropic invoke wrong outbound path");
+    anyhow::ensure!(inv_anthropic.output["response"]["type"] == json!("message"), "anthropic invoke wrong response type");
+    anyhow::ensure!(inv_anthropic.output["response"]["content"].is_array(), "anthropic invoke response missing content");
+    anyhow::ensure!(inv_anthropic.output["response"]["usage"]["input_tokens"].is_number(), "anthropic invoke response missing usage");
+    anyhow::ensure!(inv_anthropic.output["network_performed"] == json!(false), "anthropic invoke must not perform network");
+    anyhow::ensure!(inv_anthropic.output["executor_kind"] == json!("fake_local"), "anthropic invoke executor_kind must be fake_local");
+
+    // invoke gemini
+    let inv_gemini = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "gemini",
+                    "model": "gemini-2.0-flash",
+                    "credential": "secret_ref:env:GEMINI_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_gemini.output["request_dialect"] == json!("gemini_generate_content"), "gemini invoke wrong dialect");
+    anyhow::ensure!(inv_gemini.output["outbound_request_shape"]["destination_host"] == json!("generativelanguage.googleapis.com"), "gemini invoke wrong destination_host");
+    anyhow::ensure!(inv_gemini.output["response"]["candidates"].is_array(), "gemini invoke response missing candidates");
+    anyhow::ensure!(inv_gemini.output["response"]["usageMetadata"].is_object(), "gemini invoke response missing usageMetadata");
+    anyhow::ensure!(inv_gemini.output["executor_kind"] == json!("fake_local"), "gemini invoke executor_kind must be fake_local");
+
+    // invoke with raw credential rejected
+    let inv_raw = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "rawSecretPlaceholder1234567890ABCDEF"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_raw.output["normalized_error"]["error_kind"] == json!("secret_unavailable"), "raw credential invoke should produce secret_unavailable error");
+    anyhow::ensure!(inv_raw.output["network_performed"] == json!(false), "raw credential invoke must not perform network");
+    // No raw secret echoed
+    let raw_output_str = serde_json::to_string(&inv_raw.output).unwrap();
+    anyhow::ensure!(!raw_output_str.contains("sk-"), "no sk- pattern in raw credential invoke output");
+
+    // invoke with raw-looking header rejected
+    let inv_raw_header = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "secret_ref:env:OPENAI_KEY",
+                    "headers": {"X-Debug-Secret": "rawSecretPlaceholder1234567890ABCDEF"}
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_raw_header.output["normalized_error"]["error_kind"] == json!("secret_unavailable"), "raw header invoke should produce secret_unavailable error");
+    anyhow::ensure!(inv_raw_header.output["network_performed"] == json!(false), "raw header invoke must not perform network");
+
+    // invoke with non-HTTPS base_url rejected before producing outbound_request_shape
+    let inv_http_base = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "secret_ref:env:OPENAI_KEY",
+                    "baseUrl": "http://api.openai.com"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_http_base.output["normalized_error"]["error_kind"] == json!("network_denied"), "non-HTTPS base_url invoke should be network_denied");
+    anyhow::ensure!(inv_http_base.output["network_performed"] == json!(false), "non-HTTPS base_url invoke must not perform network");
+
+    // invoke unsupported family (openrouter) returns diagnostic
+    let inv_unsupported = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openrouter",
+                    "model": "openai/gpt-4o",
+                    "credential": "secret_ref:env:OPENROUTER_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_unsupported.output["normalized_error"]["error_kind"] == json!("bad_request"), "unsupported family invoke should produce bad_request error");
+    anyhow::ensure!(inv_unsupported.output["executor_kind"] == json!("fake_local"), "unsupported family invoke executor_kind must be fake_local");
+
+    Ok(())
+}
+
 pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/pi-agent-runtime-lab/manifest.yaml")).await?).await?;

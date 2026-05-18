@@ -2,7 +2,7 @@ schema_version: 1
 id: official/model-provider-lab
 version: 0.1.0
 display_name: Official Model Provider Lab
-description: No-network model provider family metadata, profile validation, request normalization, and error explanation across eight provider families.
+description: No-network model provider family metadata, profile validation, request normalization, fake/local invoke, and error explanation across eight provider families.
 entry:
   kind: rust_inproc
   crate_ref: official-foundation
@@ -34,6 +34,12 @@ provides:
     streaming: false
     side_effects: []
   - id: official/model-provider-lab/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/model-provider-lab/invoke
     version: 0.1.0
     input_schema: {}
     output_schema: {}

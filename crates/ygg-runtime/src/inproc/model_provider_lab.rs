@@ -1,8 +1,13 @@
 //! Handler for `official/model-provider-lab` capabilities.
 //!
 //! No-network, no-inference provider family metadata, profile validation,
-//! request normalization, and error explanation across eight families:
-//! openai, anthropic, gemini, openai_compatible, openrouter, deepseek, xai, fireworks.
+//! request normalization, fake/local invoke, and error explanation across
+//! eight families: openai, anthropic, gemini, openai_compatible, openrouter,
+//! deepseek, xai, fireworks.
+//!
+//! M4 adds `invoke` for openai, anthropic, gemini only (M5 covers the rest).
+//! The invoke handler produces a fake/local result with an auditable
+//! `outbound_request_shape` but performs no real network I/O.
 
 use serde_json::Value;
 
@@ -21,6 +26,24 @@ const SUPPORTED_FAMILIES: &[&str] = &[
     "fireworks",
 ];
 
+const INVOKE_FAMILIES: &[&str] = &["openai", "anthropic", "gemini"];
+
+// ---------------------------------------------------------------------------
+// Normalized request shape (shared between normalize_request and invoke)
+// ---------------------------------------------------------------------------
+
+struct NormalizedShape {
+    endpoint: String,
+    request_dialect: String,
+    stream_family: String,
+    headers: Value,
+    body_shape: Value,
+}
+
+// ---------------------------------------------------------------------------
+// Top-level dispatch
+// ---------------------------------------------------------------------------
+
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
         return None;
@@ -36,6 +59,8 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(explain_error(request))
     } else if id.ends_with("/echo") {
         Some(Ok(request.input.clone()))
+    } else if id.ends_with("/invoke") {
+        Some(invoke(request))
     } else {
         None
     }
@@ -142,7 +167,6 @@ fn list_supported_families(request: &InprocInvocation) -> anyhow::Result<Value> 
 // ---------------------------------------------------------------------------
 
 fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
-    // Accept profile as object or flat fields
     let profile = request.input.get("profile");
     let family = profile
         .and_then(|p| p.get("family"))
@@ -170,7 +194,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
     let mut network_required_hosts: Vec<String> = Vec::new();
     let mut secret_refs: Vec<String> = Vec::new();
 
-    // Check family support
     if !SUPPORTED_FAMILIES.contains(&family) {
         diagnostics.push(serde_json::json!({
             "severity": "error",
@@ -179,7 +202,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    // Reject raw-looking API keys / headers
     let has_raw_secret = request.input.get("api_key").is_some()
         || request.input.get("secret").is_some()
         || looks_like_raw_secret(credential);
@@ -190,7 +212,7 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
             "field": "credential",
             "message": "raw secrets are not accepted; use secret_ref: or host: reference"
         }));
-    } else if !is_valid_secret_ref(credential) {
+    } else if !is_valid_secret_ref(credential) && !credential.is_empty() {
         diagnostics.push(serde_json::json!({
             "severity": "error",
             "field": "credential",
@@ -200,7 +222,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         secret_refs.push(credential.to_string());
     }
 
-    // openai_compatible requires HTTPS base_url
     if family == "openai_compatible" {
         if base_url.is_empty() {
             diagnostics.push(serde_json::json!({
@@ -217,7 +238,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     }
 
-    // General HTTPS check for base_url when provided
     if !base_url.is_empty() && !base_url.starts_with("https://") && !base_url.starts_with("http://") {
         diagnostics.push(serde_json::json!({
             "severity": "error",
@@ -226,7 +246,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    // OpenRouter optional headers warning
     if family == "openrouter" {
         let has_referer = headers_value(headers, "HTTP-Referer").or_else(|| headers_value(headers, "http-referer")).is_some();
         if !has_referer {
@@ -246,7 +265,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     }
 
-    // Anthropic required headers hint
     if family == "anthropic" {
         let has_version = headers_value(headers, "anthropic-version").is_some();
         if !has_version {
@@ -258,7 +276,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     }
 
-    // Gemini auth hint
     if family == "gemini" {
         let has_api_key_header = headers_value(headers, "x-goog-api-key").or_else(|| headers_value(headers, "X-Goog-Api-Key")).is_some();
         if !has_api_key_header {
@@ -270,7 +287,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     }
 
-    // Header values should not contain raw secrets
     if let Some(headers_obj) = headers.and_then(Value::as_object) {
         for (key, value) in headers_obj {
             if let Some(s) = value.as_str() {
@@ -285,7 +301,6 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     }
 
-    // Determine network_required hosts from base_url or default
     if !base_url.is_empty() {
         if let Some(host) = extract_host(base_url) {
             network_required_hosts.push(host);
@@ -317,259 +332,227 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
 // ---------------------------------------------------------------------------
 
 fn normalize_request(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let profile = request.input.get("profile");
-    let family = profile
-        .and_then(|p| p.get("family"))
-        .or_else(|| request.input.get("family"))
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-
-    let model = profile
-        .and_then(|p| p.get("model"))
-        .or_else(|| request.input.get("model"))
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-
-    let credential = profile
-        .and_then(|p| p.get("credential"))
-        .or_else(|| request.input.get("credential"))
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-
-    let base_url = profile
-        .and_then(|p| p.get("baseUrl"))
-        .or_else(|| request.input.get("base_url"))
-        .and_then(Value::as_str)
-        .map(|s| s.to_string())
-        .or_else(|| default_base_url_for_family(family).map(|s| s.to_string()))
-        .unwrap_or_default();
-
-    let extra = request.input.get("extra").or_else(|| profile.and_then(|p| p.get("extra")));
-    let prefer_responses = extra
-        .and_then(|e| e.get("preferResponses"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-
-    let stream = request.input.get("stream").and_then(Value::as_bool).unwrap_or(false);
-
-    let (endpoint, request_dialect, stream_family, headers, body_shape) = match family {
-        "openai" => {
-            let is_responses = prefer_responses;
-            let dialect = if is_responses { "openai_responses" } else { "openai_chat" };
-            let sf = if is_responses { "semantic_sse" } else { "delta_sse" };
-            let ep = if is_responses {
-                format!("{}/v1/responses", base_url)
-            } else {
-                format!("{}/v1/chat/completions", base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": model,
-                    "input": request.input.get("messages"),
-                    "stream": stream,
-                    "max_output_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            } else {
-                serde_json::json!({
-                    "model": model,
-                    "messages": request.input.get("messages"),
-                    "stream": stream,
-                    "max_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        "anthropic" => {
-            let ep = format!("{}/v1/messages", base_url);
-            let mut hdrs = serde_json::json!({
-                "x-api-key": credential_ref_placeholder(credential),
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            });
-            // Merge profile headers
-            if let Some(ph) = profile.and_then(|p| p.get("headers")).and_then(Value::as_object) {
-                for (k, v) in ph {
-                    if k != "anthropic-version" && v.is_string() {
-                        hdrs[k] = v.clone();
-                    }
-                }
-            }
-            let body = serde_json::json!({
-                "model": model,
-                "messages": request.input.get("messages"),
-                "system": request.input.get("system"),
-                "stream": stream,
-                "max_tokens": request.input.get("max_tokens"),
-                "temperature": request.input.get("temperature"),
-                "tools": request.input.get("tools"),
-            });
-            (ep, "anthropic_messages", "semantic_sse", hdrs, body)
-        }
-        "gemini" => {
-            let stream_suffix = if stream { "?alt=sse" } else { "" };
-            let ep = format!(
-                "{}/v1beta/models/{}:generateContent{}",
-                base_url, model, stream_suffix
-            );
-            let hdrs = serde_json::json!({
-                "x-goog-api-key": credential_ref_placeholder(credential),
-                "Content-Type": "application/json",
-            });
-            let body = serde_json::json!({
-                "contents": request.input.get("messages"),
-                "systemInstruction": request.input.get("systemInstruction"),
-                "generationConfig": {
-                    "maxOutputTokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                },
-            });
-            (ep, "gemini_generate_content", "typed_chunk_stream", hdrs, body)
-        }
-        "openai_compatible" => {
-            let ep = format!("{}/chat/completions", base_url);
-            let hdrs = credential_header("Authorization", "Bearer", credential);
-            let body = serde_json::json!({
-                "model": model,
-                "messages": request.input.get("messages"),
-                "stream": stream,
-                "max_tokens": request.input.get("max_tokens"),
-                "temperature": request.input.get("temperature"),
-                "tools": request.input.get("tools"),
-            });
-            (ep, "openai_chat", "delta_sse", hdrs, body)
-        }
-        "openrouter" => {
-            let is_responses = prefer_responses;
-            let dialect = if is_responses { "stateless_responses" } else { "openai_chat" };
-            let sf = if is_responses { "semantic_sse" } else { "delta_sse" };
-            let ep = if is_responses {
-                format!("{}/responses", base_url)
-            } else {
-                format!("{}/chat/completions", base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": model,
-                    "input": request.input.get("messages"),
-                    "stream": stream,
-                })
-            } else {
-                serde_json::json!({
-                    "model": model,
-                    "messages": request.input.get("messages"),
-                    "stream": stream,
-                    "max_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        "deepseek" => {
-            let ep = format!("{}/chat/completions", base_url);
-            let hdrs = credential_header("Authorization", "Bearer", credential);
-            let mut body = serde_json::json!({
-                "model": model,
-                "messages": request.input.get("messages"),
-                "stream": stream,
-                "max_tokens": request.input.get("max_tokens"),
-                "temperature": request.input.get("temperature"),
-                "tools": request.input.get("tools"),
-            });
-            // DeepSeek supports reasoning_effort via extra
-            if let Some(effort) = extra.and_then(|e| e.get("reasoning_effort")) {
-                body["reasoning_effort"] = effort.clone();
-            }
-            (ep, "openai_chat", "delta_sse", hdrs, body)
-        }
-        "xai" => {
-            let is_responses = prefer_responses;
-            let dialect = if is_responses { "openai_responses" } else { "openai_chat" };
-            let sf = if is_responses { "semantic_sse" } else { "delta_sse" };
-            let ep = if is_responses {
-                format!("{}/v1/responses", base_url)
-            } else {
-                format!("{}/v1/chat/completions", base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": model,
-                    "input": request.input.get("messages"),
-                    "stream": stream,
-                    "max_output_tokens": request.input.get("max_tokens"),
-                })
-            } else {
-                serde_json::json!({
-                    "model": model,
-                    "messages": request.input.get("messages"),
-                    "stream": stream,
-                    "max_completion_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        "fireworks" => {
-            let is_responses = prefer_responses;
-            let dialect = if is_responses { "fireworks_responses" } else { "openai_chat" };
-            let sf = if is_responses { "semantic_sse" } else { "delta_sse" };
-            let ep = if is_responses {
-                format!("{}/responses", base_url)
-            } else {
-                format!("{}/chat/completions", base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": model,
-                    "input": request.input.get("messages"),
-                    "stream": stream,
-                })
-            } else {
-                serde_json::json!({
-                    "model": model,
-                    "messages": request.input.get("messages"),
-                    "stream": stream,
-                    "max_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        _ => {
-            return Ok(serde_json::json!({
-                "kind": "model_provider_normalized_request",
-                "error": format!("unsupported provider family: '{}'", family),
-                "network_performed": false,
-                "inference_performed": false,
-            }));
-        }
-    };
+    let params = extract_profile_params(request);
+    let shape = build_normalized_shape(request, &params)?;
 
     Ok(serde_json::json!({
         "kind": "model_provider_normalized_request",
-        "family": family,
+        "family": params.family,
         "method": "POST",
-        "endpoint": endpoint,
-        "request_dialect": request_dialect,
-        "stream_family": stream_family,
-        "headers": headers,
-        "body_shape": body_shape,
-        "credential_ref": credential_ref_placeholder(credential),
+        "endpoint": shape.endpoint,
+        "request_dialect": shape.request_dialect,
+        "stream_family": shape.stream_family,
+        "headers": shape.headers,
+        "body_shape": shape.body_shape,
+        "credential_ref": credential_ref_placeholder(&params.credential),
         "provider_options_namespaced": true,
         "network_performed": false,
         "inference_performed": false,
         "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
     }))
+}
+
+// ---------------------------------------------------------------------------
+// invoke (M4 — openai, anthropic, gemini only)
+// ---------------------------------------------------------------------------
+
+fn invoke(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let params = extract_profile_params(request);
+    let profile = request.input.get("profile");
+
+    // Reject raw credentials
+    if looks_like_raw_secret(&params.credential)
+        || request.input.get("api_key").is_some()
+        || request.input.get("secret").is_some()
+        || headers_contain_raw_secret(profile.and_then(|p| p.get("headers")).or_else(|| request.input.get("headers")))
+    {
+        return Ok(serde_json::json!({
+            "kind": "model_provider_invoke_result",
+            "family": params.family,
+            "normalized_error": {
+                "error_kind": "secret_unavailable",
+                "message": "raw secrets are not accepted; use secret_ref: or host: reference",
+                "retryable": false,
+            },
+            "network_performed": false,
+            "inference_performed": false,
+            "executor_kind": "fake_local",
+            "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+        }));
+    }
+
+    if !params.base_url.starts_with("https://") {
+        return Ok(serde_json::json!({
+            "kind": "model_provider_invoke_result",
+            "family": params.family,
+            "normalized_error": {
+                "error_kind": "network_denied",
+                "message": "invoke requires an HTTPS base_url",
+                "retryable": false,
+            },
+            "network_performed": false,
+            "inference_performed": false,
+            "executor_kind": "fake_local",
+            "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+        }));
+    }
+
+    // Only openai, anthropic, gemini supported for M4
+    if !INVOKE_FAMILIES.contains(&params.family.as_str()) {
+        return Ok(serde_json::json!({
+            "kind": "model_provider_invoke_result",
+            "family": params.family,
+            "normalized_error": {
+                "error_kind": "bad_request",
+                "message": format!("invoke not yet implemented for family '{}'; supported: openai, anthropic, gemini", params.family),
+                "retryable": false,
+            },
+            "network_performed": false,
+            "inference_performed": false,
+            "executor_kind": "fake_local",
+            "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+        }));
+    }
+
+    let shape = build_normalized_shape(request, &params)?;
+
+    // Build outbound_request_shape
+    let (destination_host, path) = split_endpoint(&shape.endpoint);
+    let secret_refs = if is_valid_secret_ref(&params.credential) {
+        vec![params.credential.to_string()]
+    } else {
+        vec![]
+    };
+
+    let outbound_request_shape = serde_json::json!({
+        "destination_host": destination_host,
+        "method": "POST",
+        "path": path,
+        "secret_refs": secret_refs,
+        "body_shape": shape.body_shape,
+        "redaction_state": "redacted"
+    });
+
+    // Build fake response per family
+    let fake_response = build_fake_response(&params, &shape);
+
+    Ok(serde_json::json!({
+        "kind": "model_provider_invoke_result",
+        "family": params.family,
+        "request_dialect": shape.request_dialect,
+        "stream_family": shape.stream_family,
+        "endpoint": shape.endpoint,
+        "method": "POST",
+        "outbound_request_shape": outbound_request_shape,
+        "response": fake_response,
+        "normalized_error": Value::Null,
+        "network_performed": false,
+        "inference_performed": false,
+        "executor_kind": "fake_local",
+        "live_call_supported": false,
+        "manual_live_call_requires": [
+            "public outbound package path",
+            "secret_ref",
+            "network allowlist",
+            "redacted audit"
+        ],
+        "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+    }))
+}
+
+fn build_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    match params.family.as_str() {
+        "openai" => build_openai_fake_response(params, shape),
+        "anthropic" => build_anthropic_fake_response(params),
+        "gemini" => build_gemini_fake_response(params),
+        _ => serde_json::json!({}),
+    }
+}
+
+fn build_openai_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    let is_responses = shape.request_dialect == "openai_responses";
+    if is_responses {
+        serde_json::json!({
+            "id": "resp_fake_001",
+            "object": "response",
+            "model": params.model,
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {"type": "output_text", "text": "fake local response"}
+                    ]
+                }
+            ],
+            "stop_reason": "complete",
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_openai_001"
+        })
+    } else {
+        serde_json::json!({
+            "id": "chatcmpl-fake-001",
+            "object": "chat.completion",
+            "model": params.model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "fake local response"},
+                    "finish_reason": "stop"
+                }
+            ],
+            "stop_reason": "stop",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_openai_001"
+        })
+    }
+}
+
+fn build_anthropic_fake_response(params: &ProfileParams) -> Value {
+    serde_json::json!({
+        "id": "msg_fake_001",
+        "type": "message",
+        "role": "assistant",
+        "model": params.model,
+        "content": [
+            {"type": "text", "text": "fake local response"}
+        ],
+        "stop_reason": "end_turn",
+        "usage": {
+            "input_tokens": 10,
+            "output_tokens": 5
+        },
+        "provider_request_id": "req_fake_anthropic_001"
+    })
+}
+
+fn build_gemini_fake_response(_params: &ProfileParams) -> Value {
+    serde_json::json!({
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": "fake local response"}],
+                    "role": "model"
+                },
+                "finishReason": "STOP",
+                "index": 0
+            }
+        ],
+        "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 5,
+            "totalTokenCount": 15
+        },
+        "provider_request_id": "req_fake_gemini_001"
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -584,7 +567,6 @@ fn explain_error(request: &InprocInvocation) -> anyhow::Result<Value> {
 
     let code_lower = code.to_lowercase();
 
-    // Try provider code mapping first
     let (kind, retryable) = if !code.is_empty() {
         map_provider_code(&code_lower)
     } else if let Some(s) = status {
@@ -605,6 +587,285 @@ fn explain_error(request: &InprocInvocation) -> anyhow::Result<Value> {
         "inference_performed": false,
         "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Shared profile extraction + normalization
+// ---------------------------------------------------------------------------
+
+struct ProfileParams {
+    family: String,
+    model: String,
+    credential: String,
+    base_url: String,
+    prefer_responses: bool,
+    stream: bool,
+}
+
+fn extract_profile_params(request: &InprocInvocation) -> ProfileParams {
+    let profile = request.input.get("profile");
+    let family = profile
+        .and_then(|p| p.get("family"))
+        .or_else(|| request.input.get("family"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let model = profile
+        .and_then(|p| p.get("model"))
+        .or_else(|| request.input.get("model"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let credential = profile
+        .and_then(|p| p.get("credential"))
+        .or_else(|| request.input.get("credential"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let base_url = profile
+        .and_then(|p| p.get("baseUrl"))
+        .or_else(|| request.input.get("base_url"))
+        .and_then(Value::as_str)
+        .map(|s| s.to_string())
+        .or_else(|| default_base_url_for_family(&family).map(|s| s.to_string()))
+        .unwrap_or_default();
+
+    let extra = request.input.get("extra").or_else(|| profile.and_then(|p| p.get("extra")));
+    let prefer_responses = extra
+        .and_then(|e| e.get("preferResponses"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    let stream = request.input.get("stream").and_then(Value::as_bool).unwrap_or(false);
+
+    ProfileParams {
+        family,
+        model,
+        credential,
+        base_url,
+        prefer_responses,
+        stream,
+    }
+}
+
+fn build_normalized_shape(request: &InprocInvocation, params: &ProfileParams) -> anyhow::Result<NormalizedShape> {
+    let profile = request.input.get("profile");
+    let extra = request.input.get("extra").or_else(|| profile.and_then(|p| p.get("extra")));
+
+    let (endpoint, request_dialect, stream_family, headers, body_shape) = match params.family.as_str() {
+        "openai" => {
+            let is_responses = params.prefer_responses;
+            let dialect = if is_responses { "openai_responses".to_string() } else { "openai_chat".to_string() };
+            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
+            let ep = if is_responses {
+                format!("{}/v1/responses", params.base_url)
+            } else {
+                format!("{}/v1/chat/completions", params.base_url)
+            };
+            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+            let body = if is_responses {
+                serde_json::json!({
+                    "model": params.model,
+                    "input": request.input.get("messages"),
+                    "stream": params.stream,
+                    "max_output_tokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                    "tools": request.input.get("tools"),
+                })
+            } else {
+                serde_json::json!({
+                    "model": params.model,
+                    "messages": request.input.get("messages"),
+                    "stream": params.stream,
+                    "max_tokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                    "tools": request.input.get("tools"),
+                })
+            };
+            (ep, dialect, sf, hdrs, body)
+        }
+        "anthropic" => {
+            let ep = format!("{}/v1/messages", params.base_url);
+            let mut hdrs = serde_json::json!({
+                "x-api-key": credential_ref_placeholder(&params.credential),
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            });
+            if let Some(ph) = profile.and_then(|p| p.get("headers")).and_then(Value::as_object) {
+                for (k, v) in ph {
+                    if k != "anthropic-version" && v.is_string() {
+                        hdrs[k] = v.clone();
+                    }
+                }
+            }
+            let body = serde_json::json!({
+                "model": params.model,
+                "messages": request.input.get("messages"),
+                "system": request.input.get("system"),
+                "stream": params.stream,
+                "max_tokens": request.input.get("max_tokens"),
+                "temperature": request.input.get("temperature"),
+                "tools": request.input.get("tools"),
+            });
+            (ep, "anthropic_messages".to_string(), "semantic_sse".to_string(), hdrs, body)
+        }
+        "gemini" => {
+            let stream_suffix = if params.stream { "?alt=sse" } else { "" };
+            let ep = format!(
+                "{}/v1beta/models/{}:generateContent{}",
+                params.base_url, params.model, stream_suffix
+            );
+            let hdrs = serde_json::json!({
+                "x-goog-api-key": credential_ref_placeholder(&params.credential),
+                "Content-Type": "application/json",
+            });
+            let body = serde_json::json!({
+                "contents": request.input.get("messages"),
+                "systemInstruction": request.input.get("systemInstruction"),
+                "generationConfig": {
+                    "maxOutputTokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                },
+            });
+            (ep, "gemini_generate_content".to_string(), "typed_chunk_stream".to_string(), hdrs, body)
+        }
+        "openai_compatible" => {
+            let ep = format!("{}/chat/completions", params.base_url);
+            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+            let body = serde_json::json!({
+                "model": params.model,
+                "messages": request.input.get("messages"),
+                "stream": params.stream,
+                "max_tokens": request.input.get("max_tokens"),
+                "temperature": request.input.get("temperature"),
+                "tools": request.input.get("tools"),
+            });
+            (ep, "openai_chat".to_string(), "delta_sse".to_string(), hdrs, body)
+        }
+        "openrouter" => {
+            let is_responses = params.prefer_responses;
+            let dialect = if is_responses { "stateless_responses".to_string() } else { "openai_chat".to_string() };
+            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
+            let ep = if is_responses {
+                format!("{}/responses", params.base_url)
+            } else {
+                format!("{}/chat/completions", params.base_url)
+            };
+            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+            let body = if is_responses {
+                serde_json::json!({
+                    "model": params.model,
+                    "input": request.input.get("messages"),
+                    "stream": params.stream,
+                })
+            } else {
+                serde_json::json!({
+                    "model": params.model,
+                    "messages": request.input.get("messages"),
+                    "stream": params.stream,
+                    "max_tokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                    "tools": request.input.get("tools"),
+                })
+            };
+            (ep, dialect, sf, hdrs, body)
+        }
+        "deepseek" => {
+            let ep = format!("{}/chat/completions", params.base_url);
+            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+            let mut body = serde_json::json!({
+                "model": params.model,
+                "messages": request.input.get("messages"),
+                "stream": params.stream,
+                "max_tokens": request.input.get("max_tokens"),
+                "temperature": request.input.get("temperature"),
+                "tools": request.input.get("tools"),
+            });
+            if let Some(effort) = extra.and_then(|e| e.get("reasoning_effort")) {
+                body["reasoning_effort"] = effort.clone();
+            }
+            (ep, "openai_chat".to_string(), "delta_sse".to_string(), hdrs, body)
+        }
+        "xai" => {
+            let is_responses = params.prefer_responses;
+            let dialect = if is_responses { "openai_responses".to_string() } else { "openai_chat".to_string() };
+            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
+            let ep = if is_responses {
+                format!("{}/v1/responses", params.base_url)
+            } else {
+                format!("{}/v1/chat/completions", params.base_url)
+            };
+            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+            let body = if is_responses {
+                serde_json::json!({
+                    "model": params.model,
+                    "input": request.input.get("messages"),
+                    "stream": params.stream,
+                    "max_output_tokens": request.input.get("max_tokens"),
+                })
+            } else {
+                serde_json::json!({
+                    "model": params.model,
+                    "messages": request.input.get("messages"),
+                    "stream": params.stream,
+                    "max_completion_tokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                    "tools": request.input.get("tools"),
+                })
+            };
+            (ep, dialect, sf, hdrs, body)
+        }
+        "fireworks" => {
+            let is_responses = params.prefer_responses;
+            let dialect = if is_responses { "fireworks_responses".to_string() } else { "openai_chat".to_string() };
+            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
+            let ep = if is_responses {
+                format!("{}/responses", params.base_url)
+            } else {
+                format!("{}/chat/completions", params.base_url)
+            };
+            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+            let body = if is_responses {
+                serde_json::json!({
+                    "model": params.model,
+                    "input": request.input.get("messages"),
+                    "stream": params.stream,
+                })
+            } else {
+                serde_json::json!({
+                    "model": params.model,
+                    "messages": request.input.get("messages"),
+                    "stream": params.stream,
+                    "max_tokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                    "tools": request.input.get("tools"),
+                })
+            };
+            (ep, dialect, sf, hdrs, body)
+        }
+        _ => {
+            // Return an empty shape for unsupported families;
+            // callers (normalize_request, invoke) handle the error case.
+            (
+                String::new(),
+                "unknown".to_string(),
+                "unknown".to_string(),
+                serde_json::json!({}),
+                serde_json::json!({}),
+            )
+        }
+    };
+
+    Ok(NormalizedShape {
+        endpoint,
+        request_dialect,
+        stream_family,
+        headers,
+        body_shape,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -638,7 +899,7 @@ fn looks_like_raw_secret(value: &str) -> bool {
         return true;
     }
     if value.starts_with("AIza") {
-        return true; // Gemini keys
+        return true;
     }
     if value.len() >= 32 {
         let alphanum: bool = value.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_');
@@ -649,7 +910,6 @@ fn looks_like_raw_secret(value: &str) -> bool {
             if has_upper && has_lower && has_digit {
                 return true;
             }
-            // Hex string of length >= 32
             if value.chars().all(|c| c.is_ascii_hexdigit()) && value.len() >= 32 {
                 return true;
             }
@@ -681,6 +941,13 @@ fn headers_value<'a>(headers: Option<&'a Value>, key: &str) -> Option<&'a str> {
         .and_then(Value::as_str)
 }
 
+fn headers_contain_raw_secret(headers: Option<&Value>) -> bool {
+    headers
+        .and_then(Value::as_object)
+        .map(|obj| obj.values().any(|value| value.as_str().map(looks_like_raw_secret).unwrap_or(false)))
+        .unwrap_or(false)
+}
+
 fn default_base_url_for_family(family: &str) -> Option<&'static str> {
     match family {
         "openai" => Some("https://api.openai.com"),
@@ -695,15 +962,27 @@ fn default_base_url_for_family(family: &str) -> Option<&'static str> {
 }
 
 fn extract_host(url: &str) -> Option<String> {
-    // Simple host extraction without regex
     let stripped = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
     let host_part = stripped.split('/').next()?;
     let host = host_part.split(':').next()?;
     Some(host.to_string())
 }
 
+/// Split an endpoint URL into (destination_host, path).
+fn split_endpoint(endpoint: &str) -> (String, String) {
+    if let Some(stripped) = endpoint.strip_prefix("https://").or_else(|| endpoint.strip_prefix("http://")) {
+        if let Some(slash_pos) = stripped.find('/') {
+            let host = stripped[..slash_pos].split(':').next().unwrap_or(&stripped[..slash_pos]).to_string();
+            let path = stripped[slash_pos..].to_string();
+            return (host, path);
+        }
+        let host = stripped.split(':').next().unwrap_or(stripped).to_string();
+        return (host, "/".to_string());
+    }
+    (endpoint.to_string(), "/".to_string())
+}
+
 fn map_provider_code(code_lower: &str) -> (String, bool) {
-    // Anthropic codes
     if code_lower.contains("invalid_request") {
         return ("bad_request".to_string(), false);
     }
@@ -728,7 +1007,6 @@ fn map_provider_code(code_lower: &str) -> (String, bool) {
     if code_lower.contains("api_error") {
         return ("upstream_malformed".to_string(), true);
     }
-    // Gemini codes
     if code_lower == "invalid_argument" {
         return ("bad_request".to_string(), false);
     }
@@ -750,7 +1028,6 @@ fn map_provider_code(code_lower: &str) -> (String, bool) {
     if code_lower == "unauthenticated" {
         return ("authentication".to_string(), false);
     }
-    // OpenAI codes
     if code_lower == "invalid_api_key" {
         return ("authentication".to_string(), false);
     }
@@ -760,11 +1037,9 @@ fn map_provider_code(code_lower: &str) -> (String, bool) {
     if code_lower == "insufficient_quota" {
         return ("billing".to_string(), false);
     }
-    // Tool schema
     if code_lower.contains("tool") && code_lower.contains("schema") {
         return ("tool_schema".to_string(), false);
     }
-    // Stream error
     if code_lower.contains("stream") {
         return ("stream_error".to_string(), true);
     }
@@ -787,5 +1062,32 @@ fn map_http_status(status: i64) -> (String, bool) {
         504 => ("timeout".to_string(), true),
         529 => ("overloaded".to_string(), true),
         _ => ("unknown".to_string(), false),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_endpoint_extracts_host_and_path() {
+        let (host, path) = split_endpoint("https://api.openai.com/v1/chat/completions");
+        assert_eq!(host, "api.openai.com");
+        assert_eq!(path, "/v1/chat/completions");
+
+        let (host, path) = split_endpoint("https://api.anthropic.com/v1/messages");
+        assert_eq!(host, "api.anthropic.com");
+        assert_eq!(path, "/v1/messages");
+
+        let (host, path) = split_endpoint("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent");
+        assert_eq!(host, "generativelanguage.googleapis.com");
+        assert_eq!(path, "/v1beta/models/gemini-2.0-flash:generateContent");
+    }
+
+    #[test]
+    fn split_endpoint_handles_no_path() {
+        let (host, path) = split_endpoint("https://api.example.com");
+        assert_eq!(host, "api.example.com");
+        assert_eq!(path, "/");
     }
 }

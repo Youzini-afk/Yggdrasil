@@ -30,7 +30,7 @@
 - 强制 network allowlist、secret_ref、redacted audit、timeout/cancel。
 - conformance 覆盖：denied 时 executor 不被调用、policy/executor request 不一致时 fail-closed、allowlisted fake executor 返回 network_performed:false、raw body 不进 audit、secret_refs 仅存引用、host mismatch redirect denied（redirect_target 检查延后 M4）。此边界只保护 Ygg-provided outbound path，不声称 OS 级拦截任意 subprocess 网络调用。
 
-## M4 — OpenAI / Anthropic / Gemini invoke adapters
+## M4 — OpenAI / Anthropic / Gemini invoke adapters ✅
 
 - 在 `model-provider-lab` 中实现三类非兼容代表的 fake/local invoke path。
 - 支持手动真实调用路径，但不进入默认 conformance。
