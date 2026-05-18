@@ -23,9 +23,9 @@ Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱
 
 ## 当前状态
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha。**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha。**
 
-当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、安全执行原语（`secret_ref`、network declarations、outbound audit/redaction、outbound executor boundary、stream/cancel lifecycle）、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、Creative Capability Kit 包（`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`）、Model Connectivity / Provider 包（`model-connector-lab`、`model-provider-lab`、`model-routing-lab`；覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 的 no-network normalization、fake/local invoke 和 stream normalization）、作为能力包存在的 assistant、`official/playable-seed`、参考代理运行时包 `official/pi-agent-runtime-lab`、capability tool bridge 包 `official/capability-tool-bridge-lab`、第三方 agent runtime 替换证明（`thirdparty/agent-runtime`）、空白游创循环、一个完全走公开协议的 Home/Play + Forge + Assist Web shell、可选前端文本引擎底座（fallback engine、可选 Pretext engine、Forge text preview、`sdk/typescript/text-surface`），以及 agent runtime 包模板（`--template agent-runtime`）。114 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
+当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、安全执行原语（`secret_ref`、EnvSecretResolver allowlist、network declarations、outbound audit/redaction、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、stream/cancel lifecycle）、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、Creative Capability Kit 包（`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`）、Model Connectivity / Provider 包（`model-connector-lab`、`model-provider-lab`、`model-routing-lab`；覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 的 normalization、fake/local invoke、stream normalization、live loopback shapes 和 provider quirks）、作为能力包存在的 assistant、`official/playable-seed`、参考代理运行时包 `official/pi-agent-runtime-lab`、capability tool bridge 包 `official/capability-tool-bridge-lab`、第三方 agent runtime 替换证明（`thirdparty/agent-runtime`）、空白游创循环、一个完全走公开协议的 Home/Play + Forge + Assist Web shell、可选前端文本引擎底座（fallback engine、可选 Pretext engine、Forge text preview、`sdk/typescript/text-surface`），以及 agent runtime 包模板（`--template agent-runtime`）。145 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
 
 可执行快照见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。
 后续阶段见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
@@ -150,7 +150,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
 - pi / agent 包基础设施 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md) 与 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)。真实 agent loop 和记忆系统仍是未来普通能力包；model provider 接入底座见 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)。
 - 外部游戏引擎（UE5、Godot、Unity、Web 端）—— 后续以包或 remote 入口形式接入。
-- 对话运行时、生产级 live model calls、记忆模型、agent loop、世界模拟、director。
+- 对话运行时、生产级 provider package 产品化、记忆模型、agent loop、世界模拟、director。
 - 最终视觉设计、完整 Studio、ComfyUI 风格节点编辑器、市场。
 
 ## 协议

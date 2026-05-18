@@ -6,15 +6,20 @@
 
 ## 当前交付
 
-Model Provider Integration Alpha 已完成：
+Model Provider Integration Alpha 与 Live Model Calls Alpha 已完成：
 
 - `integrations/model-providers/` 保存 provider research ledger、provider matrix、stream compatibility notes 和 error taxonomy。
 - `sdk/typescript/model-provider-adapter` 提供纯 TypeScript adapter，用于 provider profile、请求归一化、错误分类和 stream event 解析；它不出网、不做计费、不访问私有 runtime。
 - `official/model-provider-lab` 是普通官方能力包，覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 八类 provider family。
 - `official/model-provider-lab` 能力包括：`list_supported_families`、`validate_profile`、`normalize_request`、`invoke`、`normalize_stream`、`explain_error`、`echo`。
-- `invoke` 当前是 fake/local provider adapter path：产出 provider 形状的 response 和可审计 `outbound_request_shape`，但 `network_performed=false`、`inference_performed=false`、`executor_kind=fake_local`。
-- Host 侧已有 content-free `OutboundExecutor` boundary，默认 deny-all，并有 fake executor conformance；这证明 request shape 可以走 host policy/audit 边界，但不声称拦截 subprocess 任意联网。
-- `normalize_stream` 将 delta SSE、semantic SSE、typed chunk stream 归一为 `StreamFrameEnvelope` 风格 frames：`start`、`chunk`、`progress`、`end`、`error`、`cancelled`、`timeout`。
+- `invoke` 保留 fake/local provider adapter path：产出 provider 形状的 response 和可审计 `outbound_request_shape`，`network_performed=false`、`inference_performed=false`、`executor_kind=fake_local`，用于默认 conformance 和 adapter 形状验证。
+- Host 侧已有 content-free `OutboundExecutor` boundary，默认 deny-all，并有 fake executor、loopback live HTTP executor 和 hostile conformance；这证明 request shape 可以走 host policy/audit 边界，但不声称 OS 级拦截 subprocess 任意联网。
+- `kernel.outbound.execute` 是公开出站协议，ordinary packages 和 official packages 必须走同一路径；package principal 来自 protocol context，不能 spoof 其他 package。
+- `EnvSecretResolver` 支持 host-owned `secret_ref:env:NAME` allowlist；raw secret 只在 host 内部短暂存在，不进入 event/log/audit/response。
+- `LiveHttpOutboundExecutor` 使用 `reqwest + rustls`，默认关闭；HTTPS-only，redirect fail-closed，timeout 必须配置，response/audit 只保留 redacted shape。Loopback conformance 用 `allow_insecure_loopback_for_tests=true`，不依赖公网。
+- `secret_headers` 支持 host-side header 注入（例如 Authorization bearer、x-api-key、x-goog-api-key）；缺失/无效 secret fail-closed。`static_headers` 只允许少量非 secret provider/version/format headers（anthropic-version、content-type、accept、http-referer、x-title），并阻止 Authorization/x-api-key/Cookie 等 secret-bearing 或 host-owned headers。
+- Live-call conformance 覆盖 DeepSeek canary、OpenAI Chat/Responses、Anthropic Messages、Gemini generateContent、OpenRouter、xAI、Fireworks loopback shapes，以及缺失 secret fail-closed 与无 raw secret 泄漏。
+- `normalize_stream` 将 delta SSE、semantic SSE、typed chunk stream 归一为 `StreamFrameEnvelope` 风格 frames：`start`、`chunk`、`progress`、`end`、`error`、`cancelled`、`timeout`；并覆盖 DeepSeek reasoning/cache usage、OpenRouter mid-stream error、xAI reasoning usage、Fireworks perf usage 等 provider quirks。
 
 ## Provider families
 
@@ -86,7 +91,7 @@ OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观
 
 ### `invoke`
 
-当前不做真实网络调用。它返回 provider-shaped fake/local response 和 `outbound_request_shape`，用于证明 adapter、secret_ref、base URL、method、path 和 redaction shape。
+`official/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过官方包私有 runtime access；它必须由 ordinary package 使用公开 `kernel.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
 
 输出必须保持：
 
@@ -99,7 +104,32 @@ OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观
 }
 ```
 
-真实 live call 是后续普通包/host policy 工作，不会通过官方包私有路径获得特权。
+这保留了 adapter 自测与默认 conformance 的确定性，同时避免官方 provider 包获得第三方包没有的私有出站特权。
+
+### `kernel.outbound.execute`
+
+普通能力包的 live HTTP path：
+
+```json
+{
+  "capability_id": "example/provider/fetch",
+  "destination_host": "api.openai.com",
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "secret_headers": {
+    "Authorization": {"secret_ref": "secret_ref:env:OPENAI_API_KEY", "scheme": "bearer"}
+  },
+  "body_shape": {"model": "gpt-4o", "messages": [{"role": "user", "content": "hello"}]}
+}
+```
+
+规则：
+
+- caller package 来自 `ProtocolContext::Package`，不能由 params 伪造；`capability_id` 必须属于 caller package namespace。
+- host 先解析 `secret_headers`，解析失败则 fail-closed，不发送请求。
+- policy/audit request 与 executor request 的 package/capability/host/method/secret_refs 必须一致，否则 fail-closed。
+- raw secret、Authorization value、request body 和 response body 不进 audit；只记录 redacted shape、secret_refs、host、method、purpose、status、usage/cost/error metadata。
+- 默认 runtime 仍是 deny-all；live executor 需要 host 显式 opt-in。
 
 ### `normalize_stream`
 
@@ -132,16 +162,24 @@ OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观
 
 ## Manual live call boundary
 
-Alpha 不默认执行真实 provider 请求。后续 live path 必须满足：
+Alpha 默认 conformance 不依赖公网；manual/live provider 请求必须满足：
 
 1. provider package 声明最小网络权限；
 2. caller 或 host 显式授权；
 3. secret 通过 host resolver 解析，raw secret 不进入 event/log/audit；
-4. request 走 host outbound boundary；
+4. request 走公开 `kernel.outbound.execute` 与 host outbound boundary；
 5. audit 只记录 host、method、purpose、secret_refs、usage/cost/error metadata 和 redaction state；
 6. stream 统一落到 content-free frame lifecycle；
 7. cancel/timeout 不被 provider adapter 私自吞掉；
 8. third-party provider package 可以替换官方 package，没有官方优先级。
+
+可选真实 DeepSeek smoke path 只在同时满足以下条件时运行：
+
+```bash
+YGG_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p ygg-cli -- conformance
+```
+
+默认 CI / 默认 conformance 不会访问公网。
 
 ## 非目标
 
@@ -160,4 +198,4 @@ cargo run -p ygg-cli -- package check packages/official/model-provider-lab/manif
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-当前 conformance 包含 `official.model_provider_lab`、`official.model_provider_lab_invoke_core`、`official.model_provider_lab_normalize_stream` 和 outbound fake executor hostile cases。
+当前 conformance 包含 `official.model_provider_lab`、`official.model_provider_lab_invoke_core`、`official.model_provider_lab_normalize_stream`、public `kernel.outbound.execute`、secret header injection、live loopback provider shapes、provider quirk fixtures 和 outbound hostile cases，共 145 个具名 CLI 用例。

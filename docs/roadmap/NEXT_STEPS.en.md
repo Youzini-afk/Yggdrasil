@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha and Model Provider Integration Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages. Default conformance does not require network access. The current headline is **Live Model Calls Alpha**: run real keys, real HTTPS, public outbound boundaries, stream/cancel, and redacted audit without becoming a relay gateway, billing backend, or kernel model ontology.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, and live loopback provider shapes. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The next headline should move toward provider-package productization, real package authoring/SDK experience, or broader host hardening — not kernel model semantics.
 
 ## Where we are
 
@@ -18,7 +18,7 @@ Agent Infrastructure Alpha and Model Provider Integration Alpha are complete. Yg
 - Text Surface Proof: complete Phase T1/T2/T3/T4/T5. `integrations/pretext` documents the Pretext reference boundary, and the Assistant Drawer contains a bounded mock streaming text proof over `clients/web/src/text-layout` without kernel/protocol/package changes. `sdk/typescript/text-surface` provides a pure TypeScript frontend SDK for third-party UIs. Font loading, cache diagnostics, and a self-test harness are in place.
 - Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
 - Model Provider Integration Alpha: complete; `integrations/model-providers` research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab`, provider profile examples, and [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md) are in place.
-- Live Model Calls Alpha: in progress; temporary plan in [`LIVE_MODEL_CALLS_ALPHA.md`](LIVE_MODEL_CALLS_ALPHA.en.md).
+- Live Model Calls Alpha: complete; results are folded into [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), and the conformance matrix.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -106,20 +106,11 @@ Delivered: provider API research ledger (M0), `sdk/typescript/model-provider-ada
 
 Non-goals: user balances, billing, channel admin, admin UI, hosted platform relay keys, `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, and `kernel.embedding.*`.
 
-## Phase L — Live Model Calls Alpha (in progress)
+## Phase L — Live Model Calls Alpha (complete)
 
 Goal: advance the fake/local provider path into real live calls while still using ordinary capability packages, host-owned secrets, public outbound boundaries, redacted audit, and opt-in live conformance.
 
-Stages:
-
-- L0: freeze live-call contract and temporary plan.
-- L1: Host EnvSecretResolver.
-- L2: LiveHttpOutboundExecutor (`reqwest + rustls`, disabled by default).
-- L3: public outbound/secret boundary, avoiding official private runtime access.
-- L4: first live provider canary invoke + stream.
-- L5: OpenAI / Anthropic / Gemini live adapters.
-- L6: OpenRouter / DeepSeek / xAI / Fireworks quirks.
-- L7: durable docs + cleanup.
+Delivered: L0 live-call contract, L1 `EnvSecretResolver`, L2 `LiveHttpOutboundExecutor` (`reqwest + rustls`, disabled by default), L3 public `kernel.outbound.execute`, L4 DeepSeek canary / secret header injection / loopback live HTTP, L5 OpenAI / Anthropic / Gemini live adapter shapes, L6 OpenRouter / DeepSeek / xAI / Fireworks quirks and sanitized fixtures, and L7 durable docs cleanup. Current conformance has 145 named cases.
 
 Non-goals: relay gateway, user balances/billing, channel admin, hosted platform relay keys, default networked CI, provider direct env access, provider direct HTTP bypassing the host, and `kernel.model.*`.
 
@@ -136,4 +127,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, and Model Provider Integration Alpha are complete. Live Model Calls Alpha is now turning the production-grade secret resolver, real outbound executor, manual opt-in, provider package replacement, and transport parity requirements in [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md) into ordinary capability packages plus host boundaries — not a relay gateway or kernel model ontology. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Future phases should productize these capabilities through ordinary provider packages, SDKs, host policy, and UI authoring flows — not a relay gateway or kernel model ontology. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
