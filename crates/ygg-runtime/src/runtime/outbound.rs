@@ -191,6 +191,12 @@ pub const STATIC_HEADER_ALLOWLIST: &[&str] = &[
     "anthropic-version",
     "content-type",
     "accept",
+    // L6: OpenRouter safe attribution/labeling headers.
+    // These carry no secrets — they are for app identification and
+    // request labeling per OpenRouter's documentation. Case-insensitive
+    // match means "HTTP-Referer" and "http-referer" both work.
+    "http-referer",
+    "x-title",
 ];
 
 /// Check whether a header name is on the safe static headers allowlist.
@@ -1488,6 +1494,31 @@ mod tests {
         assert!(!is_secret_header_name("content-type"));
         assert!(!is_secret_header_name("accept"));
         assert!(!is_secret_header_name("user-agent"));
+    }
+
+    // L6: OpenRouter safe static headers are allowed and not secret-bearing
+    #[test]
+    fn static_header_allows_openrouter_safe_headers() {
+        // Lower-case allowlist entries match case-insensitively
+        assert!(is_static_header_allowed("http-referer"));
+        assert!(is_static_header_allowed("HTTP-Referer"));
+        assert!(is_static_header_allowed("x-title"));
+        assert!(is_static_header_allowed("X-Title"));
+        // These are not secret-bearing
+        assert!(!is_secret_header_name("http-referer"));
+        assert!(!is_secret_header_name("HTTP-Referer"));
+        assert!(!is_secret_header_name("x-title"));
+        assert!(!is_secret_header_name("X-Title"));
+    }
+
+    #[test]
+    fn static_header_blocks_secret_names_even_if_allowed_elsewhere() {
+        // Defense-in-depth: secret-bearing names blocked even if someone
+        // accidentally added them to the allowlist
+        assert!(is_secret_header_name("authorization"));
+        assert!(is_secret_header_name("x-api-key"));
+        assert!(is_secret_header_name("x-goog-api-key"));
+        assert!(is_secret_header_name("cookie"));
     }
 
     #[test]

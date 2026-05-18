@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 130 implemented rows, backed by 138 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 130 implemented rows, backed by 145 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -160,6 +160,13 @@ Current matrix coverage: 130 implemented rows, backed by 138 named CLI conforman
 | outbound | no raw secret leak across all providers: OpenAI/Anthropic/Gemini shapes through FakeOutboundExecutor, response+audit contain no raw secrets | implemented |
 | outbound | static_headers safe allowlist: anthropic-version accepted, safe non-secret headers injected | implemented |
 | outbound | static_headers block secrets: Authorization/x-api-key/Cookie in static_headers rejected, must use secret_headers | implemented |
+| outbound | OpenRouter loopback headers: Authorization Bearer + HTTP-Referer + X-Title static headers arrive at server, POST /api/v1/chat/completions, raw secret not in response/audit | implemented |
+| outbound | xAI loopback: Authorization Bearer arrives at server, POST /v1/chat/completions, reasoning/usage sanitized, raw secret not in response/audit | implemented |
+| outbound | Fireworks loopback: Authorization Bearer arrives at server, POST /inference/v1/chat/completions, perf/usage metadata sanitized, raw secret not in response/audit | implemented |
+| stream | DeepSeek reasoning stream normalization: reasoning_content → reasoning_delta frames, cache usage → progress frames, terminal_frame_consistent, no raw secrets | implemented |
+| stream | OpenRouter mid-stream error normalization: error object after HTTP 200 → error frame with mid_stream_error provider_event | implemented |
+| outbound | provider quirks sanitized fixtures: integrations/model-providers/fixtures/*.json contain no real keys or provider-looking raw keys, scan finds nothing | implemented |
+| outbound | static_headers OpenRouter safe: http-referer/x-title on allowlist, not secret-bearing; Authorization/x-api-key still blocked | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -325,6 +332,13 @@ outbound.provider_normalize_request_alignment      PASS
 outbound.no_raw_secret_leak_all_providers          PASS
 outbound.static_headers_safe_allowlist             PASS
 outbound.static_headers_block_secrets              PASS
+outbound.openrouter_loopback_headers               PASS
+outbound.xai_loopback                              PASS
+outbound.fireworks_loopback                        PASS
+stream.deepseek_reasoning_stream                   PASS
+stream.openrouter_midstream_error                   PASS
+outbound.provider_quirk_fixtures_no_secrets        PASS
+outbound.static_headers_openrouter_safe             PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

@@ -886,11 +886,53 @@ fn normalize_provider_events(
 
     for event in events {
         seq += 1;
+
+        // L6: Handle SSE keep-alive comments (e.g. ": keep-alive" or ": ").
+        // These are empty events used by some providers (DeepSeek, OpenRouter)
+        // to prevent connection timeout. They produce a progress heartbeat.
+        if let Some(s) = event.as_str() {
+            if s.starts_with(':') {
+                frames.push(serde_json::json!({
+                    "kind": "progress",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"provider_event": "keep_alive_comment", "comment": s},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+                continue;
+            }
+        }
+
+        // L6: Handle mid-stream error events (OpenRouter, DeepSeek).
+        // Some providers return error objects after HTTP 200 in the SSE stream.
+        if let Some(error_obj) = event.get("error") {
+            let error_message = error_obj.get("message").and_then(Value::as_str)
+                .unwrap_or("provider mid-stream error");
+            let error_code = error_obj.get("code").and_then(Value::as_str)
+                .unwrap_or("unknown");
+            frames.push(serde_json::json!({
+                "kind": "error",
+                "invocation_id": invocation_id,
+                "sequence": seq,
+                "payload": {
+                    "provider_event": "mid_stream_error",
+                    "error_kind": error_code,
+                    "message": error_message,
+                },
+                "metadata": {"provider_family": family, "stream_family": stream_family},
+                "redaction_state": "redacted",
+            }));
+            continue;
+        }
+
         // Try to extract text content and event type from provider-specific shapes
         let (frame_kind, payload) = match family {
-            "openai" | "openai_compatible" | "deepseek" | "fireworks" => {
+            "openai" | "openai_compatible" => {
                 normalize_delta_sse_event(event, &mut seq)
             }
+            "deepseek" => normalize_deepseek_event(event, &mut seq),
+            "fireworks" => normalize_fireworks_event(event, &mut seq),
             "anthropic" => normalize_semantic_sse_event(event, &mut seq),
             "gemini" => normalize_typed_chunk_event(event, &mut seq),
             "openrouter" => {
@@ -901,14 +943,17 @@ fn normalize_provider_events(
                     normalize_semantic_sse_event(event, &mut seq)
                 } else if event.get("candidates").is_some() {
                     normalize_typed_chunk_event(event, &mut seq)
+                } else if event.get("error").is_some() {
+                    // Already handled above, but as fallback
+                    ("error".to_string(), serde_json::json!({"provider_event": "mid_stream_error"}))
                 } else {
                     ("chunk".to_string(), event.clone())
                 }
             }
             "xai" => {
-                // xAI uses openai_chat/responses shapes
+                // xAI uses openai_chat/responses shapes with possible reasoning fields
                 if event.get("choices").is_some() || event.get("event").is_some() {
-                    normalize_delta_sse_event(event, &mut seq)
+                    normalize_xai_event(event, &mut seq)
                 } else {
                     ("chunk".to_string(), event.clone())
                 }
@@ -987,6 +1032,207 @@ fn normalize_delta_sse_event(event: &Value, seq: &mut u64) -> (String, Value) {
     if event.get("usage").is_some() {
         *seq += 1;
         return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+    }
+
+    ("chunk".to_string(), event.clone())
+}
+
+// ---------------------------------------------------------------------------
+// L6: Provider-specific event normalizers for DeepSeek / xAI / Fireworks
+// ---------------------------------------------------------------------------
+
+/// Normalize a DeepSeek-style delta SSE event with quirks:
+/// - `reasoning_content` in delta (thinking/reasoning output)
+/// - Final usage chunk with `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`
+/// - Keep-alive comments handled upstream (before this function)
+/// - Mid-stream errors handled upstream
+fn normalize_deepseek_event(event: &Value, seq: &mut u64) -> (String, Value) {
+    // Check for [DONE] marker
+    if event.as_str() == Some("[DONE]") {
+        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+    }
+
+    // L6: DeepSeek final usage chunk (often after [DONE] or as a standalone chunk)
+    // Check usage FIRST because DeepSeek may send finish_reason AND usage in
+    // the same chunk — we need to produce both an end frame and a progress frame.
+    if event.get("usage").is_some() {
+        let usage = &event["usage"];
+        let has_cache = usage.get("prompt_cache_hit_tokens").is_some()
+            || usage.get("prompt_cache_miss_tokens").is_some();
+        *seq += 1;
+        // If there's also a finish_reason in choices, emit both an end and progress.
+        // The caller (normalize_provider_events) will emit both frames.
+        if let Some(choices) = event.get("choices").and_then(Value::as_array) {
+            for choice in choices {
+                if let Some(fr) = choice.get("finish_reason").and_then(Value::as_str) {
+                    if !fr.is_empty() {
+                        // Return a combined payload; the caller needs to split
+                        // We return "end" with usage info, and the caller can
+                        // insert a progress frame before the end frame.
+                        // Actually, normalize_provider_events only uses one return.
+                        // So we return "progress" with usage and let the end be
+                        // auto-appended by the terminal-frame check.
+                        // But that would lose the finish_reason. Instead, let's
+                        // return "end" and include usage_present so the auto-
+                        // terminal check can be adjusted.
+                        // Simplest fix: return "progress" for the usage, and
+                        // let the auto-terminal append handle the end.
+                        return ("progress".to_string(), serde_json::json!({
+                            "usage_present": true,
+                            "finish_reason": fr,
+                            "provider_quirk": if has_cache { Some("deepseek_cache_usage") } else { None },
+                        }));
+                    }
+                }
+            }
+        }
+        return ("progress".to_string(), serde_json::json!({
+            "usage_present": true,
+            "provider_quirk": if has_cache { Some("deepseek_cache_usage") } else { None },
+        }));
+    }
+
+    // Check for finish_reason in choices (without usage)
+    if let Some(choices) = event.get("choices").and_then(Value::as_array) {
+        for choice in choices {
+            if let Some(fr) = choice.get("finish_reason").and_then(Value::as_str) {
+                if !fr.is_empty() {
+                    return ("end".to_string(), serde_json::json!({"finish_reason": fr}));
+                }
+            }
+            // L6: DeepSeek reasoning_content — emitted in delta alongside content
+            if let Some(delta) = choice.get("delta") {
+                if let Some(reasoning) = delta.get("reasoning_content").and_then(Value::as_str) {
+                    if !reasoning.is_empty() {
+                        return ("chunk".to_string(), serde_json::json!({
+                            "reasoning_delta": reasoning,
+                            "provider_quirk": "deepseek_reasoning_content",
+                        }));
+                    }
+                }
+                // Regular content delta
+                if let Some(content) = delta.get("content").and_then(Value::as_str) {
+                    if !content.is_empty() {
+                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                    }
+                }
+            }
+        }
+    }
+
+    ("chunk".to_string(), event.clone())
+}
+
+/// Normalize an xAI-style event with quirks:
+/// - `reasoning_content` in choices[].delta (Grok reasoning output)
+/// - `max_completion_tokens` usage pattern
+/// - May include cost/ticks/reasoning details in usage
+fn normalize_xai_event(event: &Value, seq: &mut u64) -> (String, Value) {
+    // Check for [DONE] marker
+    if event.as_str() == Some("[DONE]") {
+        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+    }
+
+    // Check for Responses API event field (xAI uses same shape)
+    if let Some(evt_type) = event.get("event").and_then(Value::as_str) {
+        if evt_type.contains("completed") || evt_type.contains("done") {
+            return ("end".to_string(), serde_json::json!({"finish_reason": "complete", "event": evt_type}));
+        }
+        if let Some(delta) = event.get("data").and_then(|d| d.get("delta")).and_then(Value::as_str) {
+            return ("chunk".to_string(), serde_json::json!({"text_delta": delta, "event": evt_type}));
+        }
+    }
+
+    // Check choices for content and reasoning
+    if let Some(choices) = event.get("choices").and_then(Value::as_array) {
+        for choice in choices {
+            if let Some(fr) = choice.get("finish_reason").and_then(Value::as_str) {
+                if !fr.is_empty() {
+                    return ("end".to_string(), serde_json::json!({"finish_reason": fr}));
+                }
+            }
+            if let Some(delta) = choice.get("delta") {
+                // L6: xAI reasoning content
+                if let Some(reasoning) = delta.get("reasoning_content").and_then(Value::as_str) {
+                    if !reasoning.is_empty() {
+                        return ("chunk".to_string(), serde_json::json!({
+                            "reasoning_delta": reasoning,
+                            "provider_quirk": "xai_reasoning_content",
+                        }));
+                    }
+                }
+                // Regular content delta
+                if let Some(content) = delta.get("content").and_then(Value::as_str) {
+                    if !content.is_empty() {
+                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                    }
+                }
+            }
+        }
+    }
+
+    // L6: xAI usage with reasoning/cost details
+    if event.get("usage").is_some() {
+        *seq += 1;
+        let usage = &event["usage"];
+        let has_reasoning = usage.get("reasoning_tokens").is_some()
+            || usage.get("prompt_tokens_details").is_some();
+        return ("progress".to_string(), serde_json::json!({
+            "usage_present": true,
+            "provider_quirk": if has_reasoning { Some("xai_reasoning_usage") } else { None },
+        }));
+    }
+
+    ("chunk".to_string(), event.clone())
+}
+
+/// Normalize a Fireworks-style event with quirks:
+/// - Perf/latency metadata in stream chunks
+/// - Prompt/usage metadata with `prompt_tokens_details` and timing
+/// - Responses-style stream with session/MCP continuation
+fn normalize_fireworks_event(event: &Value, seq: &mut u64) -> (String, Value) {
+    // Check for [DONE] marker
+    if event.as_str() == Some("[DONE]") {
+        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+    }
+
+    // Check for finish_reason in choices
+    if let Some(choices) = event.get("choices").and_then(Value::as_array) {
+        for choice in choices {
+            if let Some(fr) = choice.get("finish_reason").and_then(Value::as_str) {
+                if !fr.is_empty() {
+                    return ("end".to_string(), serde_json::json!({"finish_reason": fr}));
+                }
+            }
+            if let Some(delta) = choice.get("delta") {
+                if let Some(content) = delta.get("content").and_then(Value::as_str) {
+                    if !content.is_empty() {
+                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                    }
+                }
+            }
+        }
+    }
+
+    // L6: Fireworks usage with perf/timing metadata
+    if event.get("usage").is_some() {
+        *seq += 1;
+        let usage = &event["usage"];
+        let has_perf = usage.get("prompt_tokens_details").is_some()
+            || usage.get("completion_tokens_details").is_some();
+        return ("progress".to_string(), serde_json::json!({
+            "usage_present": true,
+            "provider_quirk": if has_perf { Some("fireworks_perf_usage") } else { None },
+        }));
+    }
+
+    // L6: Fireworks may include timing/latency metadata at top level
+    if event.get("timing").is_some() || event.get("latency_ms").is_some() {
+        *seq += 1;
+        return ("progress".to_string(), serde_json::json!({
+            "usage_present": false,
+            "provider_quirk": "fireworks_latency_metadata",
+        }));
     }
 
     ("chunk".to_string(), event.clone())
@@ -1099,6 +1345,40 @@ fn build_fake_stream_frames(family: &str, stream_family: &str, invocation_id: &s
                     "redaction_state": "redacted",
                 }));
             }
+            // L6: Provider-specific quirks in fake delta_sse frames
+            if family == "deepseek" {
+                // DeepSeek reasoning_content frame
+                seq += 1;
+                frames.push(serde_json::json!({
+                    "kind": "chunk",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"reasoning_delta": "fake reasoning", "provider_quirk": "deepseek_reasoning_content"},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+                // DeepSeek cache usage progress
+                seq += 1;
+                frames.push(serde_json::json!({
+                    "kind": "progress",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"usage_present": true, "provider_quirk": "deepseek_cache_usage"},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+            } else if family == "fireworks" {
+                // Fireworks perf usage
+                seq += 1;
+                frames.push(serde_json::json!({
+                    "kind": "progress",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"usage_present": true, "provider_quirk": "fireworks_perf_usage"},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+            }
             // Finish reason chunk
             seq += 1;
             frames.push(serde_json::json!({
@@ -1121,6 +1401,28 @@ fn build_fake_stream_frames(family: &str, stream_family: &str, invocation_id: &s
                 "metadata": {"provider_family": family, "stream_family": stream_family},
                 "redaction_state": "redacted",
             }));
+            // L6: OpenRouter/xAI reasoning in semantic_sse
+            if family == "xai" {
+                seq += 1;
+                frames.push(serde_json::json!({
+                    "kind": "chunk",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"reasoning_delta": "fake reasoning", "provider_quirk": "xai_reasoning_content"},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+                // xAI reasoning usage progress
+                seq += 1;
+                frames.push(serde_json::json!({
+                    "kind": "progress",
+                    "invocation_id": invocation_id,
+                    "sequence": seq,
+                    "payload": {"usage_present": true, "provider_quirk": "xai_reasoning_usage"},
+                    "metadata": {"provider_family": family, "stream_family": stream_family},
+                    "redaction_state": "redacted",
+                }));
+            }
             // Usage/stop
             seq += 1;
             frames.push(serde_json::json!({

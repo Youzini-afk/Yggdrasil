@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：130 个 implemented rows，由 138 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：130 个 implemented rows，由 145 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -160,6 +160,13 @@ cargo run -p ygg-cli -- conformance
 | outbound | no raw secret leak across all providers：OpenAI/Anthropic/Gemini shapes 通过 FakeOutboundExecutor，response+audit 不含 raw secrets | implemented |
 | outbound | static_headers safe allowlist：anthropic-version 接受，安全非 secret headers 可注入 | implemented |
 | outbound | static_headers block secrets：Authorization/x-api-key/Cookie 在 static_headers 中被拒绝，必须使用 secret_headers | implemented |
+| outbound | OpenRouter loopback headers：Authorization Bearer + HTTP-Referer + X-Title static headers 到达 server，POST /api/v1/chat/completions，raw secret 不在 response/audit | implemented |
+| outbound | xAI loopback：Authorization Bearer 到达 server，POST /v1/chat/completions，reasoning/usage sanitized，raw secret 不在 response/audit | implemented |
+| outbound | Fireworks loopback：Authorization Bearer 到达 server，POST /inference/v1/chat/completions，perf/usage metadata sanitized，raw secret 不在 response/audit | implemented |
+| stream | DeepSeek reasoning stream normalization：reasoning_content → reasoning_delta frames，cache usage → progress frames，terminal_frame_consistent，no raw secrets | implemented |
+| stream | OpenRouter mid-stream error normalization：error object after HTTP 200 → error frame with mid_stream_error provider_event | implemented |
+| outbound | provider quirks sanitized fixtures：integrations/model-providers/fixtures/*.json 不含真实 key 或 provider-looking raw key，scan 无 findings | implemented |
+| outbound | static_headers OpenRouter safe：http-referer/x-title 在 allowlist 上，非 secret-bearing；Authorization/x-api-key 仍被阻止 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -325,6 +332,13 @@ outbound.provider_normalize_request_alignment      PASS
 outbound.no_raw_secret_leak_all_providers          PASS
 outbound.static_headers_safe_allowlist             PASS
 outbound.static_headers_block_secrets              PASS
+outbound.openrouter_loopback_headers               PASS
+outbound.xai_loopback                              PASS
+outbound.fireworks_loopback                        PASS
+stream.deepseek_reasoning_stream                   PASS
+stream.openrouter_midstream_error                   PASS
+outbound.provider_quirk_fixtures_no_secrets        PASS
+outbound.static_headers_openrouter_safe             PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

@@ -112,14 +112,18 @@ secret_ref → host secret resolver → public outbound boundary → live HTTPS 
 - **`LiveHttpOutboundExecutor::build_headers` L5**：在 HTTP 请求中注入 `static_headers`，与 secret headers 和默认 headers 并列。
 - Conformance 新增 9 个用例：`outbound.openai_chat_loopback`、`outbound.openai_responses_loopback`、`outbound.anthropic_messages_loopback`、`outbound.gemini_generate_content_loopback`、`outbound.missing_secret_fails_closed`、`outbound.provider_normalize_request_alignment`、`outbound.no_raw_secret_leak_all_providers`、`outbound.static_headers_safe_allowlist`、`outbound.static_headers_block_secrets`。不依赖公网。
 
-## Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek quirks
+## Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek quirks ✅
 
 补齐剩余 provider family：
 
-- OpenRouter comments + mid-stream error。
-- DeepSeek reasoning_content / final usage chunk / keep-alive。
-- xAI reasoning timeout / chat vs responses。
-- Fireworks responses-style stream fixture。
+- **OpenRouter**：Authorization bearer secret_ref + safe static headers（`http-referer`、`x-title` 扩展 `STATIC_HEADER_ALLOWLIST`）；loopback 验证 Authorization + HTTP-Referer + X-Title 全部到达 server、POST `/api/v1/chat/completions`、raw secret 不在 response/audit。
+- **xAI**：Authorization bearer secret_ref，loopback 验证 `/v1/chat/completions` 路径、Bearer header 到达；reasoning/usage fields sanitized。
+- **Fireworks**：Authorization bearer secret_ref，loopback 验证 `/inference/v1/chat/completions` 路径、Bearer header 到达；perf/usage metadata sanitized。
+- **DeepSeek quirks**：`normalize_stream` 增强 reasoning_content、final usage chunk（`prompt_cache_hit_tokens`/`prompt_cache_miss_tokens`）、SSE keep-alive 注释（`": keep-alive"` → progress heartbeat）、mid-stream error events（`{"error": {...}}` → error frame）。
+- **Sanitized fixtures**：`integrations/model-providers/fixtures/` 下 4 个 .json fixture（`deepseek_reasoning_stream.json`、`openrouter_midstream_error.json`、`xai_reasoning_stream.json`、`fireworks_perf_stream.json`、`openrouter_outbound_shape.json`），全部不含真实 key/provider-looking raw key，中英 doc 说明 sanitized。
+- **`STATIC_HEADER_ALLOWLIST` 扩展**：新增 `http-referer` 和 `x-title`（case-insensitive），支持 OpenRouter attribution 和 request labeling headers。`is_secret_header_name` 确认这些不是 secret-bearing；Authorization/x-api-key 仍被阻止。
+- **`normalize_stream` 增强**：新增 `normalize_deepseek_event`、`normalize_xai_event`、`normalize_fireworks_event` 三个 provider-specific normalizer，覆盖 reasoning_content、cache usage、perf usage、latency metadata、reasoning usage。SSE keep-alive comments 和 mid-stream error events 在 `normalize_provider_events` 入口处统一处理（所有 provider family 通用）。
+- Conformance 新增 7 个用例：`outbound.openrouter_loopback_headers`、`outbound.xai_loopback`、`outbound.fireworks_loopback`、`stream.deepseek_reasoning_stream`、`stream.openrouter_midstream_error`、`outbound.provider_quirk_fixtures_no_secrets`、`outbound.static_headers_openrouter_safe`。不依赖公网。
 
 ## Phase L7 — Durable docs + cleanup
 

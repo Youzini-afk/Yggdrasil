@@ -1,0 +1,22 @@
+{
+  "_comment": "SANITIZED FIXTURE — No real API keys or provider-looking raw keys. All content is fake. For conformance testing only.",
+  "_comment_zh": "已脱敏的 fixture — 不含真实 API key 或看起来像 provider 的原始 key。所有内容均为假数据。仅用于 conformance 测试。",
+  "provider": "openrouter",
+  "stream_family": "semantic_sse",
+  "description": "OpenRouter responses-style stream with safe attribution headers shape",
+  "description_zh": "OpenRouter responses-style stream 带 safe attribution headers shape",
+  "outbound_request_shape": {
+    "destination_host": "openrouter.ai",
+    "method": "POST",
+    "path": "/api/v1/responses",
+    "secret_refs": ["secret_ref:env:OPENROUTER_API_KEY"],
+    "static_headers": ["http-referer", "x-title"],
+    "secret_headers": ["Authorization"],
+    "body_shape": {
+      "model": "fake-model",
+      "input": [{"role": "user", "content": "hello"}],
+      "stream": true
+    },
+    "redaction_state": "redacted"
+  }
+}

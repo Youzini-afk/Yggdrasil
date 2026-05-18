@@ -514,6 +514,42 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "outbound.static_headers_block_secrets",
         live_model::static_headers_block_secrets().await,
     );
+    // Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek provider quirks
+    record_case(
+        &mut results,
+        "outbound.openrouter_loopback_headers",
+        live_model::openrouter_loopback_headers().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.xai_loopback",
+        live_model::xai_loopback().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.fireworks_loopback",
+        live_model::fireworks_loopback().await,
+    );
+    record_case(
+        &mut results,
+        "stream.deepseek_reasoning_stream",
+        live_model::deepseek_reasoning_stream().await,
+    );
+    record_case(
+        &mut results,
+        "stream.openrouter_midstream_error",
+        live_model::openrouter_midstream_error().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.provider_quirk_fixtures_no_secrets",
+        live_model::provider_quirk_fixtures_no_secrets().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.static_headers_openrouter_safe",
+        live_model::static_headers_openrouter_safe().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

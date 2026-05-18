@@ -1,0 +1,59 @@
+{
+  "_comment": "SANITIZED FIXTURE — No real API keys or provider-looking raw keys. All content is fake. For conformance testing only.",
+  "_comment_zh": "已脱敏的 fixture — 不含真实 API key 或看起来像 provider 的原始 key。所有内容均为假数据。仅用于 conformance 测试。",
+  "provider": "fireworks",
+  "stream_family": "delta_sse",
+  "description": "Fireworks chat completions with perf/usage metadata and latency timing",
+  "description_zh": "Fireworks chat completions 带 perf/usage 元数据和延迟计时",
+  "sample_provider_events": [
+    {
+      "id": "chatcmpl-fake-fw-perf-001",
+      "object": "chat.completion.chunk",
+      "model": "accounts/fake/models/fake-model",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"role": "assistant", "content": ""},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-fw-perf-001",
+      "object": "chat.completion.chunk",
+      "model": "accounts/fake/models/fake-model",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"content": "Fake response."},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-fw-perf-001",
+      "object": "chat.completion.chunk",
+      "model": "accounts/fake/models/fake-model",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {},
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "total_tokens": 15,
+        "prompt_tokens_details": {"cached_tokens": 5},
+        "completion_tokens_details": {"reasoning_tokens": 0}
+      }
+    },
+    {
+      "timing": {"ttft_ms": 120, "tpot_ms": 35},
+      "latency_ms": 350
+    }
+  ],
+  "expected_normalized_kinds": ["start", "chunk", "chunk", "end", "progress", "progress"],
+  "expected_quirks": ["fireworks_perf_usage", "fireworks_latency_metadata"]
+}

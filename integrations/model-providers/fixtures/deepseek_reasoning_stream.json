@@ -1,0 +1,80 @@
+{
+  "_comment": "SANITIZED FIXTURE — No real API keys or provider-looking raw keys. All content is fake. For conformance testing only.",
+  "_comment_zh": "已脱敏的 fixture — 不含真实 API key 或看起来像 provider 的原始 key。所有内容均为假数据。仅用于 conformance 测试。",
+  "provider": "deepseek",
+  "stream_family": "delta_sse",
+  "description": "DeepSeek reasoning_content + final usage chunk + keep-alive comment + mid-stream error",
+  "description_zh": "DeepSeek reasoning_content + 最终 usage chunk + keep-alive 注释 + 流中错误",
+  "sample_provider_events": [
+    {
+      "id": "chatcmpl-fake-ds-reasoning-001",
+      "object": "chat.completion.chunk",
+      "model": "deepseek-reasoner",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"role": "assistant", "reasoning_content": "Let me think about this step by step"},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-ds-reasoning-001",
+      "object": "chat.completion.chunk",
+      "model": "deepseek-reasoner",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"reasoning_content": " and consider the implications."},
+          "finish_reason": null
+        }
+      ]
+    },
+    ": keep-alive",
+    {
+      "id": "chatcmpl-fake-ds-reasoning-001",
+      "object": "chat.completion.chunk",
+      "model": "deepseek-reasoner",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"content": "The answer is"},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-ds-reasoning-001",
+      "object": "chat.completion.chunk",
+      "model": "deepseek-reasoner",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"content": " 42."},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-ds-reasoning-001",
+      "object": "chat.completion.chunk",
+      "model": "deepseek-reasoner",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {},
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 20,
+        "total_tokens": 30,
+        "prompt_cache_hit_tokens": 5,
+        "prompt_cache_miss_tokens": 5
+      }
+    }
+  ],
+  "expected_normalized_kinds": ["start", "chunk", "chunk", "progress", "chunk", "chunk", "end", "progress"],
+  "expected_quirks": ["deepseek_reasoning_content", "deepseek_cache_usage"]
+}

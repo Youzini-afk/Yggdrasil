@@ -1,0 +1,42 @@
+{
+  "_comment": "SANITIZED FIXTURE — No real API keys or provider-looking raw keys. All content is fake. For conformance testing only.",
+  "_comment_zh": "已脱敏的 fixture — 不含真实 API key 或看起来像 provider 的原始 key。所有内容均为假数据。仅用于 conformance 测试。",
+  "provider": "openrouter",
+  "stream_family": "delta_sse",
+  "description": "OpenRouter mid-stream error after HTTP 200 with chat completions delta SSE",
+  "description_zh": "OpenRouter 在 HTTP 200 后的流中错误，使用 chat completions delta SSE",
+  "sample_provider_events": [
+    {
+      "id": "gen-fake-or-mid-001",
+      "object": "chat.completion.chunk",
+      "model": "fake-model/openrouter",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"role": "assistant", "content": ""},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-fake-or-mid-001",
+      "object": "chat.completion.chunk",
+      "model": "fake-model/openrouter",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"content": "Starting to respond"},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "error": {
+        "code": "rate_limit_exceeded",
+        "message": "Rate limit exceeded for this model. Please retry after a brief wait."
+      }
+    }
+  ],
+  "expected_normalized_kinds": ["start", "chunk", "chunk", "error"],
+  "expected_quirks": ["mid_stream_error"]
+}

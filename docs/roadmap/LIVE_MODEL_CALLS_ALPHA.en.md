@@ -112,14 +112,18 @@ Extended three representative non-isomorphic APIs through the public `kernel.out
 - **`LiveHttpOutboundExecutor::build_headers` L5**: Injects `static_headers` into the HTTP request alongside secret headers and default headers.
 - Conformance adds 9 new cases: `outbound.openai_chat_loopback`, `outbound.openai_responses_loopback`, `outbound.anthropic_messages_loopback`, `outbound.gemini_generate_content_loopback`, `outbound.missing_secret_fails_closed`, `outbound.provider_normalize_request_alignment`, `outbound.no_raw_secret_leak_all_providers`, `outbound.static_headers_safe_allowlist`, `outbound.static_headers_block_secrets`. No public internet dependency.
 
-## Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek quirks
+## Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek quirks ✅
 
 Complete remaining provider families:
 
-- OpenRouter comments + mid-stream error.
-- DeepSeek reasoning_content / final usage chunk / keep-alive.
-- xAI reasoning timeout / chat vs responses.
-- Fireworks responses-style stream fixture.
+- **OpenRouter**: Authorization bearer secret_ref + safe static headers (`http-referer`, `x-title` added to `STATIC_HEADER_ALLOWLIST`); loopback verifies Authorization + HTTP-Referer + X-Title all arrive at server, POST `/api/v1/chat/completions`, raw secret not in response/audit.
+- **xAI**: Authorization bearer secret_ref, loopback verifies `/v1/chat/completions` path, Bearer header arrives; reasoning/usage fields sanitized.
+- **Fireworks**: Authorization bearer secret_ref, loopback verifies `/inference/v1/chat/completions` path, Bearer header arrives; perf/usage metadata sanitized.
+- **DeepSeek quirks**: `normalize_stream` enhanced with `reasoning_content`, final usage chunk (`prompt_cache_hit_tokens`/`prompt_cache_miss_tokens`), SSE keep-alive comments (`": keep-alive"` → progress heartbeat), mid-stream error events (`{"error": {...}}` → error frame).
+- **Sanitized fixtures**: 4+ `.json` fixtures under `integrations/model-providers/fixtures/` (`deepseek_reasoning_stream.json`, `openrouter_midstream_error.json`, `xai_reasoning_stream.json`, `fireworks_perf_stream.json`, `openrouter_outbound_shape.json`), all containing no real keys or provider-looking raw keys, with bilingual sanitized documentation.
+- **`STATIC_HEADER_ALLOWLIST` extended**: Added `http-referer` and `x-title` (case-insensitive), supporting OpenRouter attribution and request labeling headers. `is_secret_header_name` confirms these are not secret-bearing; Authorization/x-api-key remain blocked.
+- **`normalize_stream` enhanced**: New `normalize_deepseek_event`, `normalize_xai_event`, `normalize_fireworks_event` provider-specific normalizers covering reasoning_content, cache usage, perf usage, latency metadata, reasoning usage. SSE keep-alive comments and mid-stream error events handled uniformly at the `normalize_provider_events` entry point (universal across all provider families).
+- Conformance adds 7 new cases: `outbound.openrouter_loopback_headers`, `outbound.xai_loopback`, `outbound.fireworks_loopback`, `stream.deepseek_reasoning_stream`, `stream.openrouter_midstream_error`, `outbound.provider_quirk_fixtures_no_secrets`, `outbound.static_headers_openrouter_safe`. No public internet dependency.
 
 ## Phase L7 — durable docs + cleanup
 

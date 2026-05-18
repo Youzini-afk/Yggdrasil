@@ -1,0 +1,67 @@
+{
+  "_comment": "SANITIZED FIXTURE — No real API keys or provider-looking raw keys. All content is fake. For conformance testing only.",
+  "_comment_zh": "已脱敏的 fixture — 不含真实 API key 或看起来像 provider 的原始 key。所有内容均为假数据。仅用于 conformance 测试。",
+  "provider": "xai",
+  "stream_family": "delta_sse",
+  "description": "xAI chat completions with reasoning_content and reasoning usage details",
+  "description_zh": "xAI chat completions 带 reasoning_content 和 reasoning usage 详情",
+  "sample_provider_events": [
+    {
+      "id": "chatcmpl-fake-xai-001",
+      "object": "chat.completion.chunk",
+      "model": "grok-fake",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"role": "assistant", "content": ""},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-xai-001",
+      "object": "chat.completion.chunk",
+      "model": "grok-fake",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"reasoning_content": "Analyzing the query"},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-xai-001",
+      "object": "chat.completion.chunk",
+      "model": "grok-fake",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {"content": "The answer is 42."},
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-fake-xai-001",
+      "object": "chat.completion.chunk",
+      "model": "grok-fake",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {},
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "total_tokens": 15,
+        "reasoning_tokens": 3,
+        "prompt_tokens_details": {"cached_tokens": 5}
+      }
+    }
+  ],
+  "expected_normalized_kinds": ["start", "chunk", "chunk", "chunk", "end", "progress"],
+  "expected_quirks": ["xai_reasoning_content", "xai_reasoning_usage"]
+}
