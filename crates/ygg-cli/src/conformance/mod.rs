@@ -192,6 +192,11 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     );
     record_case(
         &mut results,
+        "package.generated_agent_runtime_template",
+        generated::generated_agent_runtime_template().await,
+    );
+    record_case(
+        &mut results,
         "package.faux_model_readiness",
         generated::faux_model_readiness_package().await,
     );

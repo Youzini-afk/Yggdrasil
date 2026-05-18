@@ -269,6 +269,93 @@ pub(crate) async fn generated_streaming_template() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Test that the agent-runtime template generates a 4-capability agent package
+/// with streaming run, proposal, trace, echo capabilities and passes check/conformance.
+/// Verifies: 4 capabilities, run is streaming, assistant_action + forge_panel surfaces,
+/// permissions.network.declarations empty, no raw secrets, no kernel.agent/model/prompt/memory/turn text.
+pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-agent-runtime-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    package::init_package(
+        path.clone(),
+        "example/generated-agent-runtime".to_string(),
+        "subprocess".to_string(),
+        "typescript".to_string(),
+        Some(PackageTemplate::AgentRuntime),
+    )
+    .await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
+    let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
+
+    // 4 capabilities: run (streaming), explain-run, draft-proposal, echo
+    anyhow::ensure!(
+        manifest.provides.len() == 4,
+        "agent-runtime template should have 4 capabilities, got {}",
+        manifest.provides.len()
+    );
+
+    // run capability must be streaming
+    let run_cap = manifest.provides.iter().find(|c| c.id == "example/generated-agent-runtime/run");
+    anyhow::ensure!(run_cap.is_some(), "agent-runtime should have run capability");
+    anyhow::ensure!(run_cap.unwrap().streaming, "run capability should be streaming");
+
+    // 2 surfaces: assistant_action + forge_panel (no experience_entry)
+    anyhow::ensure!(
+        manifest.contributes.surfaces.len() == 2,
+        "agent-runtime template should have 2 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
+    let slots: Vec<&str> = manifest.contributes.surfaces.iter().map(|s| match s.slot {
+        ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+        ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+        ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+        ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+        ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+        ygg_core::SurfaceSlot::HomeCard => "home_card",
+    }).collect();
+    anyhow::ensure!(slots.contains(&"assistant_action"), "agent-runtime should have assistant_action surface");
+    anyhow::ensure!(slots.contains(&"forge_panel"), "agent-runtime should have forge_panel surface");
+    anyhow::ensure!(!slots.contains(&"experience_entry"), "agent-runtime should NOT have experience_entry surface");
+
+    // No network declarations (no-network)
+    anyhow::ensure!(
+        manifest.permissions.network.declarations.is_empty(),
+        "agent-runtime should have no network declarations"
+    );
+
+    // No raw secrets in manifest
+    let manifest_json = serde_json::to_value(&manifest)?;
+    let manifest_str = serde_json::to_string(&manifest_json)?;
+    anyhow::ensure!(
+        !ygg_core::looks_like_raw_secret(&manifest_str),
+        "agent-runtime manifest must not contain raw secrets"
+    );
+
+    // No kernel.agent/model/prompt/memory/turn text in manifest or package.ts
+    let forbidden = ["kernel.agent", "kernel.model", "kernel.prompt", "kernel.memory", "kernel.turn"];
+    for token in &forbidden {
+        anyhow::ensure!(
+            !manifest_str.contains(token),
+            "agent-runtime manifest must not contain '{}' text",
+            token
+        );
+    }
+    let package_ts = fs::read_to_string(path.join("package.ts"))?;
+    for token in &forbidden {
+        anyhow::ensure!(
+            !package_ts.contains(token),
+            "agent-runtime package.ts must not contain '{}' text",
+            token
+        );
+    }
+
+    fs::remove_dir_all(path)?;
+    Ok(())
+}
+
 /// Test that the faux-model-readiness example package passes check/conformance.
 /// Proves the no-network readiness substrate shape without real model inference.
 pub(crate) async fn faux_model_readiness_package() -> anyhow::Result<()> {

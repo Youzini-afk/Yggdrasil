@@ -22,11 +22,16 @@ Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like ca
   - `sdk/typescript/ygg-agent-adapter/README.md` / `README.en.md` — Chinese & English docs.
   - `integrations/pi/capability-map.yaml` — J1 adapter SDK annotation.
 
-## J2 — Agent Runtime Template
+## J2 — Agent Runtime Template ✅
 
 - Add `ygg init-package --template agent-runtime`.
 - Default deterministic/no-network subprocess package.
 - Include streaming run capability, assistant_action/forge_panel surfaces, proposal-first output, package-owned trace events.
+- **Deliverables**:
+  - `crates/ygg-cli` — `PackageTemplate::AgentRuntime`, `EffectiveTemplate::AgentRuntime`, manifest generation (4 capabilities: run streaming, explain-run, draft-proposal, echo; 2 surfaces: assistant_action + forge_panel; permissions: {}).
+  - `crates/ygg-cli/src/templates/mod.rs` — `typescript_agent_runtime_template()`; uses `StreamFrameClient` (secure-execution) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (ygg-agent-adapter).
+  - `crates/ygg-cli/src/conformance/generated.rs` — `generated_agent_runtime_template()` conformance case: verifies 4 capabilities, run streaming, assistant_action + forge_panel surfaces, no-network, no raw secrets, no kernel.agent/model/prompt/memory/turn text.
+  - Conformance total +1 (99 named cases).
 
 ## J3 — Official Reference Agent Package
 

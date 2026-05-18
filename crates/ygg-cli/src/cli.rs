@@ -17,6 +17,9 @@ pub(crate) enum PackageTemplate {
     Networked,
     /// Streaming capability template with stream frame lifecycle and faux frame examples.
     Streaming,
+    /// Agent runtime template: deterministic/no-network subprocess with streaming run,
+    /// proposal draft, trace summary, and echo capabilities; assistant_action + forge_panel surfaces.
+    AgentRuntime,
 }
 
 #[derive(Debug, Parser)]
@@ -69,7 +72,7 @@ pub(crate) enum Command {
         entry: String,
         #[arg(long, default_value = "python")]
         language: String,
-        /// Template controlling generated surfaces: basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming.
+        /// Template controlling generated surfaces: basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming|agent-runtime.
         /// Defaults to auto-detected from --language (experience if language contains "experience", otherwise basic).
         #[arg(long, value_enum)]
         template: Option<PackageTemplate>,

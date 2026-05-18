@@ -50,6 +50,7 @@ Available templates are:
 - `full-surface` — all authoring/play surface slots.
 - `networked` — networked capability with declared network permissions (`host`, `methods`, `purpose`), `secret_ref` usage, and outbound audit helper. No raw secrets, no implicit network access. Demonstrates `NetworkDeclaration` and `OutboundAuditHelper` from `sdk/typescript/secure-execution`.
 - `streaming` — streaming capability with faux frame lifecycle (`StreamFrameClient`). Demonstrates `start`/`chunk`/`end` frames and `redaction_state`. No real model inference. Uses `sdk/typescript/secure-execution`.
+- `agent-runtime` — deterministic/no-network agent-like subprocess package. Includes streaming `run` capability, `explain-run` trace summary, `draft-proposal` approval-gated proposal, `echo` capability, and `assistant_action` + `forge_panel` surfaces. Uses `StreamFrameClient` (`sdk/typescript/secure-execution`) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (`sdk/typescript/ygg-agent-adapter`). No real model inference, no network calls, no raw secrets.
 
 `--language typescript-experience` remains supported as a legacy shortcut for a full experience-shaped package.
 

@@ -50,6 +50,7 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-asset-editor \
 - `full-surface` — 所有 authoring/play surface slots。
 - `networked` — 带 declared network permissions（`host`、`methods`、`purpose`）的网络能力包，使用 `secret_ref`，带 outbound audit helper。无 raw secrets、无隐式 network 访问。演示 `sdk/typescript/secure-execution` 中的 `NetworkDeclaration` 和 `OutboundAuditHelper`。
 - `streaming` — 带 faux frame 生命周期的 streaming capability（`StreamFrameClient`）。演示 `start`/`chunk`/`end` frame 和 `redaction_state`。不做真实 model inference。使用 `sdk/typescript/secure-execution`。
+- `agent-runtime` — deterministic/no-network agent-like subprocess 包。包含 streaming `run` capability、`explain-run` trace summary、`draft-proposal` approval-gated proposal、`echo` capability，以及 `assistant_action` + `forge_panel` surfaces。使用 `StreamFrameClient`（`sdk/typescript/secure-execution`）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（`sdk/typescript/ygg-agent-adapter`）。不做真实 model inference、不出网、不暴露 raw secret。
 
 `--language typescript-experience` 仍作为 legacy shortcut 保留，用于生成完整 experience-shaped package。
 

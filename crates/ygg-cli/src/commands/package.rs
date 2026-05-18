@@ -300,6 +300,7 @@ enum EffectiveTemplate {
     LegacyExperience,
     Networked,
     Streaming,
+    AgentRuntime,
 }
 
 impl std::fmt::Debug for EffectiveTemplate {
@@ -315,6 +316,7 @@ impl std::fmt::Debug for EffectiveTemplate {
             EffectiveTemplate::LegacyExperience => write!(f, "Experience (legacy)"),
             EffectiveTemplate::Networked => write!(f, "Networked"),
             EffectiveTemplate::Streaming => write!(f, "Streaming"),
+            EffectiveTemplate::AgentRuntime => write!(f, "AgentRuntime"),
         }
     }
 }
@@ -333,6 +335,7 @@ fn resolve_template(template: &Option<PackageTemplate>, language: &str) -> Effec
         Some(PackageTemplate::FullSurface) => EffectiveTemplate::FullSurface,
         Some(PackageTemplate::Networked) => EffectiveTemplate::Networked,
         Some(PackageTemplate::Streaming) => EffectiveTemplate::Streaming,
+        Some(PackageTemplate::AgentRuntime) => EffectiveTemplate::AgentRuntime,
         None => {
             if language.contains("experience") {
                 EffectiveTemplate::LegacyExperience
@@ -479,6 +482,23 @@ fn build_surfaces_yaml(template: &EffectiveTemplate, id: &str) -> String {
         ),
         EffectiveTemplate::Networked => "  surfaces: []\n".to_string(),
         EffectiveTemplate::Streaming => "  surfaces: []\n".to_string(),
+        EffectiveTemplate::AgentRuntime => format!(
+            r#"  surfaces:
+    - id: {id}/assist
+      version: 0.1.0
+      slot: assistant_action
+      title: Agent Runtime Assistant
+      description: Agent runtime assistant action surface for proposal-gated operations.
+      capability_id: {id}/run
+      approval_policy: fork_then_approve
+    - id: {id}/forge
+      version: 0.1.0
+      slot: forge_panel
+      title: Agent Runtime Forge Panel
+      description: Agent runtime forge panel for trace and proposal observability.
+      capability_id: {id}/explain-run
+"#
+        ),
     }
 }
 
@@ -623,6 +643,48 @@ sandbox_policy:
   wall_clock_ms: 30000
 "#
         ),
+        "subprocess" if matches!(effective_template, EffectiveTemplate::AgentRuntime) => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: subprocess
+  command:
+{subprocess_command}
+  transport: json_rpc_stdio
+provides:
+  - id: {id}/run
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: true
+  - id: {id}/explain-run
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/draft-proposal
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+{surfaces}permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
         "subprocess" => format!(
             r#"schema_version: 1
 id: {id}
@@ -682,6 +744,8 @@ sandbox_policy:
             fs::write(path.join("package.ts"), templates::typescript_networked_template(&id))?;
         } else if matches!(effective_template, EffectiveTemplate::Streaming) {
             fs::write(path.join("package.ts"), templates::typescript_streaming_template(&id))?;
+        } else if matches!(effective_template, EffectiveTemplate::AgentRuntime) {
+            fs::write(path.join("package.ts"), templates::typescript_agent_runtime_template(&id))?;
         } else {
             fs::write(path.join("package.ts"), templates::typescript_subprocess_template(&id))?;
         }

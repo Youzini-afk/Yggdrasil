@@ -22,11 +22,16 @@
   - `sdk/typescript/ygg-agent-adapter/README.md` / `README.en.md` — 中英文文档。
   - `integrations/pi/capability-map.yaml` — 标注 J1 adapter SDK。
 
-## J2 — Agent Runtime Template
+## J2 — Agent Runtime Template ✅
 
 - 新增 `ygg init-package --template agent-runtime`。
 - 默认 deterministic/no-network subprocess package。
 - 包含 streaming run capability、assistant_action/forge_panel surfaces、proposal-first output、package-owned trace events。
+- **交付**：
+  - `crates/ygg-cli` — `PackageTemplate::AgentRuntime`、`EffectiveTemplate::AgentRuntime`、manifest 生成（4 capabilities: run streaming、explain-run、draft-proposal、echo；2 surfaces: assistant_action + forge_panel；permissions: {}）。
+  - `crates/ygg-cli/src/templates/mod.rs` — `typescript_agent_runtime_template()`；使用 `StreamFrameClient`（secure-execution）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（ygg-agent-adapter）。
+  - `crates/ygg-cli/src/conformance/generated.rs` — `generated_agent_runtime_template()` conformance 用例：验证 4 capabilities、run streaming、assistant_action + forge_panel surfaces、no-network、no raw secrets、无 kernel.agent/model/prompt/memory/turn 文本。
+  - Conformance 总数 +1（99 个具名用例）。
 
 ## J3 — Official Reference Agent Package
 
