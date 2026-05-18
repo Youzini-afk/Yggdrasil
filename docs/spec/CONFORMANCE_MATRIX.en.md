@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 91 implemented rows, backed by 98 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 92 implemented rows, backed by 100 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -88,6 +88,7 @@ Current matrix coverage: 91 implemented rows, backed by 98 named CLI conformance
 | official packages | text-transform-lab previews deterministic text transforms with trace and validation diagnostics | implemented |
 | official packages | model-connector-lab validates profiles, rejects raw secrets, and returns no-network discovery plans | implemented |
 | official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
+| official packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
 | in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
@@ -220,6 +221,7 @@ official.context_lab                       PASS
 official.text_transform_lab                PASS
 official.model_connector_lab               PASS
 official.model_routing_lab                 PASS
+official.pi_agent_runtime_lab              PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS

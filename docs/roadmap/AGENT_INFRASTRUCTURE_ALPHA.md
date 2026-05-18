@@ -33,12 +33,17 @@
   - `crates/ygg-cli/src/conformance/generated.rs` — `generated_agent_runtime_template()` conformance 用例：验证 4 capabilities、run streaming、assistant_action + forge_panel surfaces、no-network、no raw secrets、无 kernel.agent/model/prompt/memory/turn 文本。
   - Conformance 总数 +1（99 个具名用例）。
 
-## J3 — Official Reference Agent Package
+## J3 — Official Reference Agent Package ✅
 
 - 新增 `packages/official/pi-agent-runtime-lab` 普通包。
 - no-network/faux 默认，不真实调用模型。
 - 可 stream run、draft proposal、emit trace。
 - 官方包无特权，无特殊路由。
+- **交付**：
+  - `packages/official/pi-agent-runtime-lab/manifest.yaml` — 普通包，5 capabilities（run streaming、explain_run、draft_proposal、summarize_trace、echo），3 surfaces（assistant_action + forge_panel + home_card），approval_policy fork_then_approve，permissions {} 无网络声明。
+  - `crates/ygg-runtime/src/inproc/pi_agent_runtime_lab.rs` — inproc handler，返回 deterministic/no-network/faux payload（pi_agent_run_plan、pi_agent_run_explanation、pi_agent_proposal、pi_agent_trace_summary、pi_agent_echo），provenance 含 provider_package_id。
+  - `crates/ygg-cli/src/conformance/official_labs.rs` — `pi_agent_runtime_lab()` conformance 用例：验证 no-inference/no-network、approval-gated proposal、surfaces 可发现、provider_package_id 匹配。
+  - Conformance 总数 +1（100 个具名用例）。
 
 ## J4 — Capability Tool Bridge Lab
 

@@ -451,3 +451,107 @@ pub(crate) async fn model_routing_lab() -> anyhow::Result<()> {
     anyhow::ensure!(params.output["provider_specific_namespaced"] == json!(true), "provider-specific params must stay namespaced");
     Ok(())
 }
+
+pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/pi-agent-runtime-lab/manifest.yaml")).await?).await?;
+
+    // run: deterministic no-inference no-network plan
+    let run_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/pi-agent-runtime-lab/run".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
+            version: None,
+            input: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(run_result.output["kind"] == json!("pi_agent_run_plan"), "pi-agent run returned wrong kind");
+    anyhow::ensure!(run_result.output["inference_performed"] == json!(false), "pi-agent run must not perform inference");
+    anyhow::ensure!(run_result.output["network_performed"] == json!(false), "pi-agent run must not perform network");
+    anyhow::ensure!(run_result.output["trace_events"].is_array(), "pi-agent run missing trace_events");
+    anyhow::ensure!(run_result.output["stream_frames"].is_array(), "pi-agent run missing stream_frames");
+    anyhow::ensure!(run_result.output["proposal_draft"].is_object(), "pi-agent run missing proposal_draft");
+    anyhow::ensure!(run_result.output["provenance"]["package_id"] == json!("official/pi-agent-runtime-lab"), "pi-agent run provenance mismatch");
+
+    // explain_run: no-inference explanation
+    let explain = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/pi-agent-runtime-lab/explain_run".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
+            version: None,
+            input: json!({"trace_events": [{"step": 1}, {"step": 2}]}),
+        })
+        .await?;
+    anyhow::ensure!(explain.output["kind"] == json!("pi_agent_run_explanation"), "pi-agent explain_run wrong kind");
+    anyhow::ensure!(explain.output["inference_performed"] == json!(false), "pi-agent explain_run must not claim inference");
+    anyhow::ensure!(explain.output["network_performed"] == json!(false), "pi-agent explain_run must not claim network");
+    anyhow::ensure!(explain.output["trace_event_count"] == json!(2), "pi-agent explain_run wrong event count");
+
+    // draft_proposal: approval-gated
+    let proposal = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/pi-agent-runtime-lab/draft_proposal".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
+            version: None,
+            input: json!({"change": "agent-driven modification"}),
+        })
+        .await?;
+    anyhow::ensure!(proposal.output["kind"] == json!("pi_agent_proposal"), "pi-agent draft_proposal wrong kind");
+    anyhow::ensure!(proposal.output["requires_user_approval"] == json!(true), "pi-agent proposal must require approval");
+    anyhow::ensure!(proposal.output["provenance"]["package_id"] == json!("official/pi-agent-runtime-lab"), "pi-agent proposal provenance mismatch");
+
+    // summarize_trace: no-inference summary
+    let trace = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/pi-agent-runtime-lab/summarize_trace".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
+            version: None,
+            input: json!({"trace_events": [{"e": 1}, {"e": 2}, {"e": 3}]}),
+        })
+        .await?;
+    anyhow::ensure!(trace.output["kind"] == json!("pi_agent_trace_summary"), "pi-agent summarize_trace wrong kind");
+    anyhow::ensure!(trace.output["event_count"] == json!(3), "pi-agent summarize_trace wrong event count");
+    anyhow::ensure!(trace.output["inference_performed"] == json!(false), "pi-agent summarize_trace must not claim inference");
+    anyhow::ensure!(trace.output["network_performed"] == json!(false), "pi-agent summarize_trace must not claim network");
+
+    // echo: passthrough
+    let echo = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/pi-agent-runtime-lab/echo".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
+            version: None,
+            input: json!({"hello": "agent"}),
+        })
+        .await?;
+    anyhow::ensure!(echo.output["kind"] == json!("pi_agent_echo"), "pi-agent echo wrong kind");
+    anyhow::ensure!(echo.output["input"]["hello"] == json!("agent"), "pi-agent echo did not pass through input");
+
+    // surfaces discoverable: assistant_action, forge_panel, home_card
+    let assistant_surfaces = runtime.list_surface_contributions(Some("assistant_action".to_string())).await;
+    let has_assistant = assistant_surfaces
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("official/pi-agent-runtime-lab")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_assistant, "pi-agent assistant_action surface missing");
+
+    let forge_surfaces = runtime.list_surface_contributions(Some("forge_panel".to_string())).await;
+    let has_forge = forge_surfaces
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("official/pi-agent-runtime-lab")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_forge, "pi-agent forge_panel surface missing");
+
+    let home_surfaces = runtime.list_surface_contributions(Some("home_card".to_string())).await;
+    let has_home = home_surfaces
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("official/pi-agent-runtime-lab")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_home, "pi-agent home_card surface missing");
+
+    Ok(())
+}

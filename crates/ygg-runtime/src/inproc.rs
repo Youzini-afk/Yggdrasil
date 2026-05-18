@@ -12,6 +12,7 @@ mod knowledge_lab;
 mod model_connector_lab;
 mod model_routing_lab;
 mod persona_lab;
+mod pi_agent_runtime_lab;
 mod playable_seed;
 mod projection_lab;
 mod text_transform_lab;
@@ -98,6 +99,9 @@ impl InprocPackage for OfficialFoundationPackage {
             return result;
         }
         if let Some(result) = model_routing_lab::try_handle(&request) {
+            return result;
+        }
+        if let Some(result) = pi_agent_runtime_lab::try_handle(&request) {
             return result;
         }
         // projection-lab /diff must be tried before the generic /diff

@@ -218,6 +218,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     record_case(&mut results, "official.text_transform_lab", official_labs::text_transform_lab().await);
     record_case(&mut results, "official.model_connector_lab", official_labs::model_connector_lab().await);
     record_case(&mut results, "official.model_routing_lab", official_labs::model_routing_lab().await);
+    record_case(&mut results, "official.pi_agent_runtime_lab", official_labs::pi_agent_runtime_lab().await);
     record_case(&mut results, "inproc.non_official_preview_rejected", inproc::non_official_preview_rejected().await);
     record_case(&mut results, "inproc.unknown_capability_errors", inproc::unknown_inproc_capability_errors().await);
     record_case(

@@ -33,12 +33,17 @@ Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like ca
   - `crates/ygg-cli/src/conformance/generated.rs` — `generated_agent_runtime_template()` conformance case: verifies 4 capabilities, run streaming, assistant_action + forge_panel surfaces, no-network, no raw secrets, no kernel.agent/model/prompt/memory/turn text.
   - Conformance total +1 (99 named cases).
 
-## J3 — Official Reference Agent Package
+## J3 — Official Reference Agent Package ✅
 
 - Add ordinary `packages/official/pi-agent-runtime-lab` package.
 - no-network/faux by default, no real model calls.
 - Can stream runs, draft proposals, and emit trace.
 - No official privilege or special routing.
+- **Deliverables**:
+  - `packages/official/pi-agent-runtime-lab/manifest.yaml` — ordinary package, 5 capabilities (run streaming, explain_run, draft_proposal, summarize_trace, echo), 3 surfaces (assistant_action + forge_panel + home_card), approval_policy fork_then_approve, permissions {} with no network declarations.
+  - `crates/ygg-runtime/src/inproc/pi_agent_runtime_lab.rs` — inproc handler returning deterministic/no-network/faux payloads (pi_agent_run_plan, pi_agent_run_explanation, pi_agent_proposal, pi_agent_trace_summary, pi_agent_echo) with provenance containing provider_package_id.
+  - `crates/ygg-cli/src/conformance/official_labs.rs` — `pi_agent_runtime_lab()` conformance case: verifies no-inference/no-network, approval-gated proposal, surfaces discoverable, provider_package_id match.
+  - Conformance total +1 (100 named cases).
 
 ## J4 — Capability Tool Bridge Lab
 

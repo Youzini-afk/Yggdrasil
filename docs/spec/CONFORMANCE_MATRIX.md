@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：91 个 implemented rows，由 98 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：92 个 implemented rows，由 100 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -88,6 +88,7 @@ cargo run -p ygg-cli -- conformance
 | official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
 | official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
+| official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
 | in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
@@ -220,6 +221,7 @@ official.context_lab                       PASS
 official.text_transform_lab                PASS
 official.model_connector_lab               PASS
 official.model_routing_lab                 PASS
+official.pi_agent_runtime_lab              PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS
