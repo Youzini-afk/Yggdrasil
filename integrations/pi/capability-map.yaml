@@ -1,0 +1,44 @@
+integration: pi
+status: agent_infrastructure_alpha_reference
+default_language: zh-CN
+absorption:
+  adapter_now:
+    - pi_agent_core_agent_event_lifecycle
+    - pi_agent_core_agent_tool_shape
+    - before_after_tool_call_policy_gates
+    - parallel_sequential_tool_execution_policy
+    - steer_followup_queue_concepts
+    - pi_ai_faux_provider_testing_strategy
+  package_internal_optional:
+    - pi_agent_core_agent_loop
+    - pi_ai_faux_provider
+    - pi_ai_stream_tool_call_shapes
+  reference_only:
+    - pi_coding_agent_session_tree
+    - pi_coding_agent_compaction
+    - pi_coding_agent_resource_loading
+    - pi_coding_agent_skills_extensions
+    - pi_ai_provider_lazy_registration
+    - pi_ai_provider_onboarding_checklist
+  deferred:
+    - real_provider_calls
+    - oauth_api_key_login
+    - model_catalog
+    - streaming_inference
+    - multi_agent_orchestration
+  rejected:
+    - pi_coding_agent_as_ygg_shell
+    - default_bash_read_write_edit_tools
+    - kernel_agent_methods
+    - kernel_model_prompt_memory_methods
+    - private_runtime_access
+    - official_agent_priority
+ygg_mappings:
+  agent_run: kernel.capability.invoke_or_stream
+  cancel: kernel.capability.cancel
+  tool_discovery: kernel.capability.discover_describe
+  tool_execution: kernel.capability.invoke_or_stream
+  proposal: kernel.proposal_lifecycle
+  trace: package_owned_events_or_stream_frames
+  state: package_owned_assets_projections_or_capabilities
+  ui: surface_contributions_public_protocol

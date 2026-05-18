@@ -1,0 +1,17 @@
+[upstream]
+name = "pi"
+local_path = "/workspace/Yggdrasil/pi"
+license = "MIT"
+observed_date = "2026-05-17"
+
+[packages]
+ai = "@earendil-works/pi-ai"
+agent_core = "@earendil-works/pi-agent-core"
+coding_agent = "@earendil-works/pi-coding-agent"
+
+[policy]
+kernel_dependency = false
+service_dependency = false
+web_shell_dependency = false
+coding_agent_embedding = "rejected"
+real_model_calls = "deferred"

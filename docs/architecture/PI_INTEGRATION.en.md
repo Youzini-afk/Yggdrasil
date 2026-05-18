@@ -1,37 +1,89 @@
-# pi Integration (deferred)
+# pi Integration Boundary
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-This document is reserved for a future capability package family that integrates the `pi` agent framework with Yggdrasil. It is not on the near-term path.
+This document fixes how Yggdrasil absorbs agent-framework capabilities from `/workspace/Yggdrasil/pi`. The conclusion is: pi is an important reference source and an optional package-internal implementation source for agent package infrastructure, but it is not the Yggdrasil kernel, protocol, or product shell.
 
-## Position
+## Current position
 
-pi is not part of the kernel. The kernel ships zero opinion about agents, planners, proposals, memory curation, or any other content-shaped concern.
+Yggdrasil should be able to host, constrain, observe, and replace agent-like capability packages. Yggdrasil itself should not become a built-in agent runtime.
 
-When pi integration is built, it will ship as one or more capability packages, governed by the same manifest, fabric, permission, and sandbox rules as any third-party package. It will receive no kernel privileges.
+Agent infrastructure must sit on existing public primitives:
 
-## Likely shape (sketch only)
+- `kernel.capability.invoke` / `kernel.capability.stream` starts or advances an agent-like package capability.
+- `kernel.capability.cancel` cancels an in-flight stream invocation.
+- `kernel.capability.discover` / `kernel.capability.describe` discovers capabilities that can be adapted into agent tools.
+- `kernel.proposal.create/get/list/approve/reject/apply` carries agent-produced change proposals.
+- `kernel.event.append/list/subscribe` carries package-owned trace, tool-call, and run events.
+- `kernel.surface.contribution.*` lets Assist / Forge discover agent actions and trace panels through public protocol.
+- Permissions, `secret_ref`, network declarations, outbound audit/redaction, and stream/cancel lifecycle continue to be enforced by the secure execution substrate.
 
-The platform contract gives every package the tools it would need:
+## pi layer absorption strategy
 
-- Subscribe to events via `kernel.event.subscribe`.
-- Append package-namespaced events under the writer's own kind set (e.g., `pi/<...>/proposal.created`).
-- Provide capabilities other packages can invoke (e.g., `pi/<...>/curate`, `pi/<...>/extract`).
-- Define its own extension points so other packages can subscribe to pi-internal stages.
-- Declare permissions, sandbox limits, and side effects in manifest.
+| pi layer | Yggdrasil handling | Reason |
+|---|---|---|
+| `pi-ai` | Reference + future ordinary model/inference package internal option | Provider registry, stream/tool-call shape, and faux provider are valuable, but real model calls still require mature host policy, secret, network, audit, usage, and redaction contracts. |
+| `pi-agent-core` | adapter-now + package-internal optional | `AgentEvent`, `AgentTool`, before/after tool-call hooks, parallel/sequential execution, and steer/followUp queues are worth absorbing; model/message/systemPrompt/thinkingLevel must not enter the kernel. |
+| `pi-coding-agent` | reference only | It is a complete coding-agent product with TUI, bash/read/write/edit tools, session JSONL, model resolver, skills/extensions, and coding workflow. It is not suitable as a Ygg platform dependency or product shell. |
 
-A "proposal then commit" pattern, if pi adopts it, is implemented as ordinary events and capability calls between pi packages and other packages. The kernel does not need to know about it.
+For the finer ledger, see [`../../integrations/pi/README.md`](../../integrations/pi/README.md).
 
-## Non-goals for the kernel
+## Mapping agent concepts to Ygg primitives
 
-The kernel will never:
+| Agent concept | Yggdrasil public primitive | Rule |
+|---|---|---|
+| run / turn / step | package capability invocation or stream invocation | The kernel does not gain an agent lifecycle. |
+| cancellation | `kernel.capability.cancel` | Use the generic stream/cancel lifecycle. |
+| tool discovery | `kernel.capability.discover` / `describe` | A tool is an adapter view of a capability. |
+| tool execution | `kernel.capability.invoke` / `stream` | Preserve caller principal, provider package, permission gate, and audit. |
+| tool ambiguity | explicit `provider_package_id` | Never prefer official providers automatically. |
+| proposal | `kernel.proposal.*` | Agents do not directly mutate trusted state. |
+| trace | package-owned events or stream frames | The kernel does not interpret trace payloads. |
+| state | package-owned asset/projection/get_state capability | No `kernel.agent.state`. |
+| memory/prompt/model | future ordinary packages | Not kernel concepts. |
+| UI | surface contributions + public protocol | Assist/Forge do not read runtime internals. |
 
-- model "agents" as a first-class concept,
-- model "proposals" as a first-class concept,
-- model memory taxonomy,
-- offer pi-specific hooks or methods,
-- treat pi packages differently from any other package.
+## SDK and package boundaries
 
-## Status
+Agent Infrastructure Alpha may add:
 
-pi integration is deferred until the play-creation platform substrate is consolidated. The substrate it would need — events, capabilities, hooks, permissions, surfaces, and the proposal/approval lifecycle — is now in place, so when integration begins it can ship as ordinary capability packages with no kernel changes. Until then, this document only fixes the position: pi is a future package family, not a platform layer.
+- `sdk/typescript/ygg-agent-adapter`: maps Ygg capabilities to pi-style tools and provides proposal, trace, stream/cancel, permission/provider diagnostics helpers.
+- `ygg init-package --template agent-runtime`: generates a deterministic/no-network subprocess agent package.
+- `official/pi-agent-runtime-lab`: ordinary reference package, no-network/faux by default, no real model calls.
+- `official/capability-tool-bridge-lab`: ordinary tool bridge package for discovery, permission preview, explicit provider selection, and public-protocol calls.
+- Forge/Assist observability for agent traces, tools, and proposals.
+- Third-party replacement proof showing official agent packages have no priority.
+
+These components must not:
+
+- import runtime private modules;
+- bypass package/capability/permission/proposal boundaries;
+- hardcode official package IDs in UI;
+- expose raw secrets in events/proposals/audit;
+- provide default bash/edit/write tools;
+- make real model calls in Alpha.
+
+## Kernel non-goals
+
+The kernel will not add or standardize:
+
+- `kernel.agent.*`
+- `kernel.model.*`
+- `kernel.prompt.*`
+- `kernel.memory.*`
+- `kernel.turn.*`
+- agent state, chat transcript, prompt template, model provider, thinking/reasoning, or memory taxonomy.
+
+## Anti-patterns
+
+- Embedding `pi-coding-agent` as the Ygg product shell.
+- `Assist` starting agents through private runtime paths.
+- A tool bridge automatically selecting the first matching provider or preferring official providers.
+- Agent packages directly writing asset/projection/session trusted state.
+- Storing pi `AgentState` as kernel state.
+- Adding a kernel trace ontology for a trace viewer.
+- Connecting real OpenAI/Anthropic first and adding secret/network/audit/redaction later.
+
+## Current status
+
+Agent Infrastructure Alpha has entered execution. J0 fixes the boundary and ledger; later phases will add the adapter SDK, deterministic/no-network template, ordinary official reference package, tool bridge, Forge/Assist observability, and third-party replacement proof. Real model inference remains deferred until a dedicated package and host policy are ready.
