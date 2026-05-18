@@ -1470,7 +1470,7 @@ export function runModelProviderAdapterSelfTest(): { ok: boolean; diagnostics: s
     const diags = validateProviderProfile({
       family: "openai",
       model: "gpt-4o",
-      credential: "sk-abc123longvalue12345678901234",
+      credential: "rawSecretPlaceholder1234567890ABCDEF",
     });
     const errors = diags.filter((d) => d.severity === "error");
     assert("raw secret rejection: has errors", errors.length > 0);
@@ -1579,7 +1579,7 @@ export function runModelProviderAdapterSelfTest(): { ok: boolean; diagnostics: s
       family: "openai",
       model: "gpt-4o",
       credential: "secret_ref:env:KEY",
-      headers: { "X-Custom-Key": "sk-abc123longvalue12345678901234" },
+      headers: { "X-Custom-Key": "rawSecretPlaceholder1234567890ABCDEF" },
     });
     assert("raw secret in headers: rejected", diags.some((d) => d.field.startsWith("headers.") && d.severity === "error"));
   }
