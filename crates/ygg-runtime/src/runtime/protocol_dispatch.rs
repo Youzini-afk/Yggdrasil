@@ -115,6 +115,11 @@ where
                 // Format: { "Authorization": {"secret_ref": "...", "scheme": "bearer"} }
                 let secret_headers_spec = parse_secret_headers(&params)?;
 
+                // L5: Parse static_headers from params for safe non-secret header injection.
+                // Format: { "anthropic-version": "2023-06-01" }
+                // Only allowlisted header names are accepted; secret-bearing names are rejected.
+                let static_headers = parse_static_headers(&params)?;
+
                 // Collect secret_refs from both top-level and secret_headers
                 let mut all_secret_refs = secret_refs.clone();
                 for spec in &secret_headers_spec {
@@ -171,6 +176,7 @@ where
                     body_shape,
                     secret_headers: secret_headers_spec,
                     resolved_secret_headers,
+                    static_headers,
                 };
 
                 let response = self
@@ -508,4 +514,103 @@ fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
     }
 
     Ok(specs)
+}
+
+/// L5: Parse `static_headers` from `kernel.outbound.execute` params.
+///
+/// Expected format:
+/// ```json
+/// {
+///   "anthropic-version": "2023-06-01",
+///   "accept": "application/json"
+/// }
+/// ```
+///
+/// Each entry declares a safe non-secret header to be injected into the
+/// request. Only header names on the `STATIC_HEADER_ALLOWLIST` are
+/// permitted; secret-bearing header names (Authorization, x-api-key,
+/// Cookie, etc.) are rejected with an error. Values must be plain
+/// strings that do not look like raw secrets.
+///
+/// This allows provider-specific version headers (e.g. Anthropic's
+/// `anthropic-version`) without requiring secret resolution, while
+/// preventing `static_headers` from becoming a secret bypass path.
+fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::StaticHeader>> {
+    let static_headers_value = match params.get("static_headers") {
+        Some(v) => v,
+        None => return Ok(Vec::new()),
+    };
+
+    let headers_obj = static_headers_value
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute static_headers must be an object"))?;
+
+    let mut headers = Vec::new();
+    for (header_name, header_value) in headers_obj {
+        // Defense-in-depth: reject known secret-bearing header names
+        if super::outbound::is_secret_header_name(header_name) {
+            anyhow::bail!(
+                "kernel.outbound.execute static_headers rejected: '{}' is a secret-bearing header; use secret_headers with secret_ref instead",
+                header_name
+            );
+        }
+
+        // Only allowlisted header names are permitted
+        if !super::outbound::is_static_header_allowed(header_name) {
+            anyhow::bail!(
+                "kernel.outbound.execute static_headers rejected: '{}' is not on the safe header allowlist",
+                header_name
+            );
+        }
+
+        let value = header_value
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!(
+                "kernel.outbound.execute static_headers value for '{}' must be a string",
+                header_name
+            ))?
+            .to_string();
+
+        // Reject values that look like raw secrets
+        if looks_like_raw_secret_value(&value) {
+            anyhow::bail!(
+                "kernel.outbound.execute static_headers rejected: value for '{}' looks like a raw secret; use secret_headers with secret_ref instead",
+                header_name
+            );
+        }
+
+        headers.push(super::outbound::StaticHeader {
+            name: header_name.clone(),
+            value,
+        });
+    }
+
+    Ok(headers)
+}
+
+/// Check if a static header value looks like a raw secret.
+/// This is a lightweight defense-in-depth check — not a full secret scanner.
+fn looks_like_raw_secret_value(value: &str) -> bool {
+    if value.starts_with("sk-") || value.starts_with("sk_") {
+        return true;
+    }
+    if value.starts_with("key-") || value.starts_with("key_") {
+        return true;
+    }
+    if value.starts_with("Bearer ") || value.starts_with("bearer ") {
+        return true;
+    }
+    if value.starts_with("AIza") {
+        return true;
+    }
+    // High-entropy alphanumeric strings of length >= 32
+    if value.len() >= 32 && value.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_') {
+        let has_upper = value.chars().any(|c| c.is_uppercase());
+        let has_lower = value.chars().any(|c| c.is_lowercase());
+        let has_digit = value.chars().any(|c| c.is_ascii_digit());
+        if has_upper && has_lower && has_digit {
+            return true;
+        }
+    }
+    false
 }

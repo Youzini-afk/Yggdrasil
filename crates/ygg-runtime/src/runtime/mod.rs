@@ -32,6 +32,7 @@ pub use self::outbound::{
     LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundExecutorResponse,
     SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
+    StaticHeader, is_static_header_allowed, is_secret_header_name, STATIC_HEADER_ALLOWLIST,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;

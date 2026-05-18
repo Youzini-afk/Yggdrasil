@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 121 implemented rows, backed by 129 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 130 implemented rows, backed by 138 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -151,6 +151,15 @@ Current matrix coverage: 121 implemented rows, backed by 129 named CLI conforman
 | outbound | DeepSeek SSE stream normalize canary: delta_sse start→chunk→end lifecycle, terminal_frame_consistent, no raw secrets | implemented |
 | outbound | opt-in live DeepSeek conformance: default skip, only when YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY | implemented |
 | outbound | canary DeepSeek profile shape: normalize_request endpoint/dialect/stream_family correct, secret_ref placeholder no raw key | implemented |
+| outbound | OpenAI Chat Completions loopback: Authorization Bearer arrives at server, POST /v1/chat/completions, body shape model+messages, raw secret not in response/audit | implemented |
+| outbound | OpenAI Responses loopback: Authorization Bearer arrives, POST /v1/responses, body shape uses input field, raw secret not in response/audit | implemented |
+| outbound | Anthropic Messages loopback: x-api-key secret header + anthropic-version static header arrive at server, POST /v1/messages, body shape content blocks, raw secret not in response/audit | implemented |
+| outbound | Gemini generateContent loopback: x-goog-api-key secret header arrives at server, POST /v1beta/models/{model}:generateContent, body shape contents/parts, raw secret not in response/audit | implemented |
+| outbound | missing secret fails closed: unavailable secret_ref produces error, no outbound request sent, no raw secret in error | implemented |
+| outbound | provider normalize_request alignment: OpenAI chat+responses, Anthropic messages, Gemini generateContent endpoints/dialects match outbound.execute params, credential placeholders not raw | implemented |
+| outbound | no raw secret leak across all providers: OpenAI/Anthropic/Gemini shapes through FakeOutboundExecutor, response+audit contain no raw secrets | implemented |
+| outbound | static_headers safe allowlist: anthropic-version accepted, safe non-secret headers injected | implemented |
+| outbound | static_headers block secrets: Authorization/x-api-key/Cookie in static_headers rejected, must use secret_headers | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -307,6 +316,15 @@ outbound.live_loopback_secret_injection            PASS
 stream.sse_normalize_deepseek_canary              PASS
 outbound.live_deepseek_opt_in                     PASS
 canary.deepseek_profile_shape                     PASS
+outbound.openai_chat_loopback                     PASS
+outbound.openai_responses_loopback                 PASS
+outbound.anthropic_messages_loopback               PASS
+outbound.gemini_generate_content_loopback          PASS
+outbound.missing_secret_fails_closed               PASS
+outbound.provider_normalize_request_alignment      PASS
+outbound.no_raw_secret_leak_all_providers          PASS
+outbound.static_headers_safe_allowlist             PASS
+outbound.static_headers_block_secrets              PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

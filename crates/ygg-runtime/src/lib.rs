@@ -32,6 +32,7 @@ pub use runtime::{
     NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest, Runtime, RuntimeConfig,
     StreamRegistry, SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
+    StaticHeader, is_static_header_allowed, is_secret_header_name, STATIC_HEADER_ALLOWLIST,
     check_network_policy,
 };
 pub use schema::validate_json_schema_subset;

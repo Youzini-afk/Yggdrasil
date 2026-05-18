@@ -96,13 +96,21 @@ secret_ref → host secret resolver → public outbound boundary → live HTTPS 
 - 真实 provider auth failure/timeout/rate limit 归一化。
 - 多 provider live adapters（OpenAI/Anthropic/Gemini 延后 L5）。
 
-## Phase L5 — OpenAI / Anthropic / Gemini live adapters
+## Phase L5 — OpenAI / Anthropic / Gemini live adapters ✅
 
-扩展三个代表性非同构 API：
+通过公开 `kernel.outbound.execute` 边界扩展三个代表性非同构 API：
 
-- OpenAI Chat/Responses。
-- Anthropic Messages named SSE。
-- Gemini generateContent / streamGenerateContent。
+- **OpenAI Chat Completions**（`/v1/chat/completions`）：Authorization bearer secret_ref 注入，messages body shape。Loopback conformance 验证 Bearer header 到达 server、POST 方法、正确路径、response/audit 无 raw secret。
+- **OpenAI Responses**（`/v1/responses`）：同一 Authorization bearer scheme，不同 endpoint 和 body shape（使用 `input` 而非 `messages`）。Loopback conformance 验证不同 endpoint 路由。
+- **Anthropic Messages**（`/v1/messages`）：`x-api-key` secret header 注入（raw scheme，无 Bearer 前缀）+ `anthropic-version` 安全 static header（allowlisted，非 secret）。Loopback conformance 验证两个 header 到达 server、POST 方法、content blocks body shape、无 raw secret 泄漏。
+- **Gemini generateContent**（`/v1beta/models/{model}:generateContent`）：`x-goog-api-key` secret header 注入（raw scheme）。Loopback conformance 验证 header 到达、POST 方法、冒号风格路径、contents/parts body shape、无 raw secret 泄漏。
+- **Missing secret fails closed**：当 `secret_headers` 引用无法解析时，`kernel.outbound.execute` 返回错误，无 outbound 请求发出，错误中不含 raw secret。
+- **Provider normalize_request alignment**：`model-provider-lab/normalize_request` 的 OpenAI（chat+responses）、Anthropic（messages）、Gemini（generateContent）输出正确映射到 `kernel.outbound.execute` 参数（host、method、path、header 名）。Credential placeholder 是安全引用而非 raw value。Provider 包使用同一公开边界；无私有 runtime 调用。
+- **No raw secret leak across all providers**：OpenAI/Anthropic/Gemini 请求 shape 通过 FakeOutboundExecutor 产生 response 和 audit 事件，零 raw secret 内容。
+- **安全 `static_headers` 支持（L5）**：`kernel.outbound.execute` 新增 `static_headers` 参数用于安全非 secret header 注入。只接受 `STATIC_HEADER_ALLOWLIST` 上的极少量 header 名（anthropic-version、content-type、accept）。已知 secret-bearing header 名（Authorization、x-api-key、x-goog-api-key、Cookie 等）被显式阻止——这些必须使用带 `secret_ref` 的 `secret_headers`；host-owned headers（如 x-ygg-outbound、user-agent、accept-encoding）也不允许由 package 覆盖。Static header 值会检查 raw-secret-like 模式。这防止 `static_headers` 成为 secret bypass 或 host header override 路径。
+- **`OutboundExecutorRequest` 扩展**：新增 `static_headers: Vec<StaticHeader>` 字段承载验证过的安全 headers。
+- **`LiveHttpOutboundExecutor::build_headers` L5**：在 HTTP 请求中注入 `static_headers`，与 secret headers 和默认 headers 并列。
+- Conformance 新增 9 个用例：`outbound.openai_chat_loopback`、`outbound.openai_responses_loopback`、`outbound.anthropic_messages_loopback`、`outbound.gemini_generate_content_loopback`、`outbound.missing_secret_fails_closed`、`outbound.provider_normalize_request_alignment`、`outbound.no_raw_secret_leak_all_providers`、`outbound.static_headers_safe_allowlist`、`outbound.static_headers_block_secrets`。不依赖公网。
 
 ## Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek quirks
 

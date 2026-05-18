@@ -96,13 +96,21 @@ Implemented the minimum verifiable path for first live provider canary invoke+st
 - Real provider auth failure/timeout/rate limit classification.
 - Multi-provider live adapters (OpenAI/Anthropic/Gemini deferred to L5).
 
-## Phase L5 — OpenAI / Anthropic / Gemini live adapters
+## Phase L5 — OpenAI / Anthropic / Gemini live adapters ✅
 
-Extend three representative non-isomorphic APIs:
+Extended three representative non-isomorphic APIs through the public `kernel.outbound.execute` boundary:
 
-- OpenAI Chat/Responses.
-- Anthropic Messages named SSE.
-- Gemini generateContent / streamGenerateContent.
+- **OpenAI Chat Completions** (`/v1/chat/completions`): Authorization bearer secret_ref injection, messages body shape. Loopback conformance verifies Bearer header arrives at server, POST method, correct path, no raw secret in response/audit.
+- **OpenAI Responses** (`/v1/responses`): Same Authorization bearer scheme, different endpoint and body shape (uses `input` instead of `messages`). Loopback conformance verifies distinct endpoint routing.
+- **Anthropic Messages** (`/v1/messages`): `x-api-key` secret header injection (raw scheme, no Bearer prefix) + `anthropic-version` safe static header (allowlisted, non-secret). Loopback conformance verifies both headers arrive at server, POST method, content blocks body shape, no raw secret leaks.
+- **Gemini generateContent** (`/v1beta/models/{model}:generateContent`): `x-goog-api-key` secret header injection (raw scheme). Loopback conformance verifies header arrives, POST method, colon-style path, contents/parts body shape, no raw secret leaks.
+- **Missing secret fails closed**: When a `secret_headers` reference cannot be resolved, `kernel.outbound.execute` returns an error, no outbound request is made, and no raw secret appears in the error.
+- **Provider normalize_request alignment**: `model-provider-lab/normalize_request` outputs for OpenAI (chat+responses), Anthropic (messages), and Gemini (generateContent) correctly map to the expected `kernel.outbound.execute` params (host, method, path, header names). Credential placeholders are safe refs, not raw values. Provider packages use the same public boundary; no private runtime calls.
+- **No raw secret leak across all providers**: OpenAI/Anthropic/Gemini request shapes through FakeOutboundExecutor produce responses and audit events with zero raw secret content.
+- **Safe `static_headers` support (L5)**: `kernel.outbound.execute` gains a `static_headers` param for safe non-secret header injection. Only a tiny `STATIC_HEADER_ALLOWLIST` is accepted (anthropic-version, content-type, accept). Known secret-bearing header names (Authorization, x-api-key, x-goog-api-key, Cookie, etc.) are explicitly blocked — these must use `secret_headers` with `secret_ref` instead; host-owned headers such as x-ygg-outbound, user-agent, and accept-encoding cannot be overridden by packages. Static header values are checked for raw-secret-like patterns. This prevents `static_headers` from becoming a secret bypass or host header override path.
+- **`OutboundExecutorRequest` extension**: New `static_headers: Vec<StaticHeader>` field carries validated safe headers.
+- **`LiveHttpOutboundExecutor::build_headers` L5**: Injects `static_headers` into the HTTP request alongside secret headers and default headers.
+- Conformance adds 9 new cases: `outbound.openai_chat_loopback`, `outbound.openai_responses_loopback`, `outbound.anthropic_messages_loopback`, `outbound.gemini_generate_content_loopback`, `outbound.missing_secret_fails_closed`, `outbound.provider_normalize_request_alignment`, `outbound.no_raw_secret_leak_all_providers`, `outbound.static_headers_safe_allowlist`, `outbound.static_headers_block_secrets`. No public internet dependency.
 
 ## Phase L6 — OpenRouter / xAI / Fireworks / DeepSeek quirks
 

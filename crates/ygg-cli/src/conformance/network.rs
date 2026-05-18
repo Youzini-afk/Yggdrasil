@@ -389,6 +389,7 @@ pub(crate) async fn outbound_no_permission_executor_not_called() -> anyhow::Resu
                 body_shape: None,
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await;
@@ -446,6 +447,7 @@ pub(crate) async fn outbound_policy_executor_mismatch_denied() -> anyhow::Result
                 body_shape: None,
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await;
@@ -498,6 +500,7 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
                 body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await?;
@@ -585,6 +588,7 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
                 })),
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await?;
@@ -670,6 +674,7 @@ pub(crate) async fn outbound_secret_refs_only() -> anyhow::Result<()> {
                 body_shape: None,
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await?;
@@ -754,6 +759,7 @@ pub(crate) async fn outbound_host_mismatch_redirect_denied() -> anyhow::Result<(
                 body_shape: None,
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await;
@@ -833,6 +839,7 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await?;
@@ -866,6 +873,7 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 body_shape: Some(serde_json::json!({"model": "claude-3-5-sonnet-20241022", "messages": [], "max_tokens": 1024})),
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await?;
@@ -898,6 +906,7 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 body_shape: Some(serde_json::json!({"contents": []})),
                 secret_headers: Vec::new(),
                 resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
             },
         )
         .await?;
@@ -985,6 +994,7 @@ pub(crate) async fn outbound_live_http_rejects_insecure_url() -> anyhow::Result<
         body_shape: None,
         secret_headers: Vec::new(),
         resolved_secret_headers: Vec::new(),
+        static_headers: Vec::new(),
     };
     let result = executor.execute(request_http_scheme).await;
     anyhow::ensure!(
@@ -1007,6 +1017,7 @@ pub(crate) async fn outbound_live_http_rejects_insecure_url() -> anyhow::Result<
         body_shape: None,
         secret_headers: Vec::new(),
         resolved_secret_headers: Vec::new(),
+        static_headers: Vec::new(),
     };
     let result = executor.execute(request_http_base).await;
     anyhow::ensure!(
@@ -1058,6 +1069,7 @@ pub(crate) async fn outbound_live_http_redacted_shape() -> anyhow::Result<()> {
         body_shape: Some(serde_json::json!({"model": "test", "messages": []})),
         secret_headers: Vec::new(),
         resolved_secret_headers: Vec::new(),
+        static_headers: Vec::new(),
     };
 
     let response = executor.execute(request).await;

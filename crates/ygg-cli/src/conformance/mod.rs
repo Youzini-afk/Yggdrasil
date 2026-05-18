@@ -468,6 +468,52 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "canary.deepseek_profile_shape",
         live_model::canary_deepseek_profile_shape().await,
     );
+    // Phase L5 — OpenAI / Anthropic / Gemini live adapter conformance
+    record_case(
+        &mut results,
+        "outbound.openai_chat_loopback",
+        live_model::openai_chat_loopback().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.openai_responses_loopback",
+        live_model::openai_responses_loopback().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.anthropic_messages_loopback",
+        live_model::anthropic_messages_loopback().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.gemini_generate_content_loopback",
+        live_model::gemini_generate_content_loopback().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.missing_secret_fails_closed",
+        live_model::missing_secret_fails_closed().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.provider_normalize_request_alignment",
+        live_model::provider_normalize_request_alignment().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.no_raw_secret_leak_all_providers",
+        live_model::no_raw_secret_leak_all_providers().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.static_headers_safe_allowlist",
+        live_model::static_headers_safe_allowlist().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.static_headers_block_secrets",
+        live_model::static_headers_block_secrets().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

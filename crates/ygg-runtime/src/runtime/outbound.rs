@@ -113,6 +113,10 @@ pub enum ExecutorKind {
 /// L4 adds `secret_headers` (specification for header injection from
 /// secret refs) and `resolved_secret_headers` (host-resolved header
 /// values, redacted in Debug, not serialized, never echoed back).
+///
+/// L5 adds `static_headers` (safe non-secret headers injected by the
+/// caller, validated against a strict allowlist; secret-bearing header
+/// names like Authorization/x-api-key/Cookie are blocked).
 #[derive(Debug, Clone)]
 pub struct OutboundExecutorRequest {
     /// Package that initiated the outbound request.
@@ -152,6 +156,74 @@ pub struct OutboundExecutorRequest {
     /// values and must never be serialized, logged, or echoed back.
     /// Debug prints `[redacted]` for the values.
     pub resolved_secret_headers: Vec<ResolvedSecretHeader>,
+    /// L5: Safe non-secret headers provided by the caller, validated
+    /// against a strict allowlist. Only known-safe header names are
+    /// permitted (e.g. `anthropic-version`, `content-type`). Header
+    /// names that carry secrets (Authorization, x-api-key, Cookie,
+    /// etc.) are rejected. Values are plain strings — no secret
+    /// resolution is performed on static_headers.
+    pub static_headers: Vec<StaticHeader>,
+}
+
+/// A safe non-secret static header for outbound requests (L5).
+///
+/// Only header names on the `STATIC_HEADER_ALLOWLIST` are permitted.
+/// Secret-bearing header names (Authorization, x-api-key, Cookie, etc.)
+/// are rejected at parse time. Values must be plain strings that do not
+/// look like raw secrets.
+#[derive(Debug, Clone)]
+pub struct StaticHeader {
+    /// HTTP header name (must be on the allowlist).
+    pub name: String,
+    /// Header value (plain string, no secret resolution).
+    pub value: String,
+}
+
+/// The set of header names that are safe to inject via `static_headers`.
+///
+/// Only these known-safe, non-secret headers are allowed. All other
+/// header names are rejected. This prevents `static_headers` from
+/// becoming a secret bypass path.
+///
+/// To add a new safe header: it must never carry authentication,
+/// authorization, cookies, API keys, or other secret material.
+pub const STATIC_HEADER_ALLOWLIST: &[&str] = &[
+    "anthropic-version",
+    "content-type",
+    "accept",
+];
+
+/// Check whether a header name is on the safe static headers allowlist.
+///
+/// Case-insensitive comparison. Returns true if the header name is
+/// explicitly allowed for static injection.
+pub fn is_static_header_allowed(name: &str) -> bool {
+    let name_lower = name.to_lowercase();
+    STATIC_HEADER_ALLOWLIST.iter().any(|&allowed| allowed == name_lower)
+}
+
+/// Check whether a header name is explicitly blocked from static_headers
+/// because it is a well-known secret-bearing header.
+///
+/// These headers MUST use `secret_headers` (with secret_ref) instead.
+/// This is a defense-in-depth check: even if someone adds a header name
+/// to the allowlist, we still block known secret-bearing names.
+pub fn is_secret_header_name(name: &str) -> bool {
+    let name_lower = name.to_lowercase();
+    matches!(
+        name_lower.as_str(),
+        "authorization"
+        | "x-api-key"
+        | "x-goog-api-key"
+        | "cookie"
+        | "set-cookie"
+        | "proxy-authorization"
+        | "x-auth-token"
+        | "x-access-token"
+        | "x-secret"
+        | "www-authenticate"
+        | "proxy-authenticate"
+    )
 }
 
 impl OutboundExecutorRequest {
@@ -159,6 +231,11 @@ impl OutboundExecutorRequest {
     /// Use in all existing construction sites.
     pub fn empty_secret_headers() -> (Vec<SecretHeaderSpec>, Vec<ResolvedSecretHeader>) {
         (Vec::new(), Vec::new())
+    }
+
+    /// Helper to add the default L5 fields to a struct literal.
+    pub fn empty_static_headers() -> Vec<StaticHeader> {
+        Vec::new()
     }
 }
 
@@ -514,6 +591,11 @@ impl LiveHttpOutboundExecutor {
     /// L4 injects resolved secret headers (e.g. `Authorization: Bearer <key>`)
     /// from `request.resolved_secret_headers`. These values exist only in the
     /// HTTP request; they are never stored in audit, Debug, or response shapes.
+    ///
+    /// L5 injects safe static headers from `request.static_headers`.
+    /// These are non-secret headers validated against the allowlist
+    /// (e.g. `anthropic-version: 2023-06-01`). Secret-bearing header
+    /// names are rejected at parse time and never reach this method.
     fn build_headers(&self, request: &OutboundExecutorRequest) -> anyhow::Result<reqwest::header::HeaderMap> {
         let mut headers = reqwest::header::HeaderMap::new();
 
@@ -530,6 +612,15 @@ impl LiveHttpOutboundExecutor {
             reqwest::header::HeaderName::from_static("x-ygg-outbound"),
             reqwest::header::HeaderValue::from_static("true"),
         );
+
+        // L5: Inject safe static headers (non-secret, allowlisted)
+        for static_hdr in &request.static_headers {
+            let header_name = reqwest::header::HeaderName::from_bytes(static_hdr.name.as_bytes())
+                .map_err(|_| anyhow::anyhow!("static header name '{}' is invalid", static_hdr.name))?;
+            let header_value = reqwest::header::HeaderValue::from_str(&static_hdr.value)
+                .map_err(|_| anyhow::anyhow!("static header value for '{}' is invalid", static_hdr.name))?;
+            headers.insert(header_name, header_value);
+        }
 
         // L4: Inject resolved secret headers (e.g. Authorization)
         for resolved in &request.resolved_secret_headers {
@@ -912,7 +1003,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "denied");
@@ -936,7 +1028,8 @@ mod tests {
             metadata: serde_json::json!({"provider": "openai"}),
             body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "ok");
@@ -984,7 +1077,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "ok");
@@ -1012,7 +1106,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         let _ = executor.execute(request.clone()).await.unwrap();
@@ -1052,7 +1147,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
         assert!(validate_policy_executor_consistency(&policy, &executor).is_err());
     }
@@ -1111,7 +1207,8 @@ mod tests {
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1139,7 +1236,8 @@ mod tests {
             metadata: serde_json::json!({"base_url": "http://api.example.com"}),
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1163,7 +1261,8 @@ mod tests {
             metadata: serde_json::json!({"base_url": "https://other.example.com"}),
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1188,7 +1287,8 @@ mod tests {
             metadata: serde_json::json!({}),
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1217,7 +1317,8 @@ mod tests {
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         // This will fail to connect (nothing listening on 127.0.0.1),
@@ -1267,7 +1368,8 @@ mod tests {
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
             secret_headers: Vec::new(),
-            resolved_secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1338,5 +1440,59 @@ mod tests {
         assert!(!is_safe_response_header("authorization"));
         assert!(!is_safe_response_header("set-cookie"));
         assert!(!is_safe_response_header("x-api-key"));
+    }
+
+    // -----------------------------------------------------------------------
+    // L5: Static headers allowlist and blocking tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn static_header_allowlist_allows_safe_headers() {
+        assert!(is_static_header_allowed("anthropic-version"));
+        assert!(is_static_header_allowed("content-type"));
+        assert!(is_static_header_allowed("accept"));
+        // Case-insensitive
+        assert!(is_static_header_allowed("Anthropic-Version"));
+        assert!(is_static_header_allowed("Content-Type"));
+    }
+
+    #[test]
+    fn static_header_allowlist_rejects_unlisted_headers() {
+        assert!(!is_static_header_allowed("x-custom-header"));
+        assert!(!is_static_header_allowed("some-random-header"));
+        assert!(!is_static_header_allowed("x-ygg-outbound"));
+        assert!(!is_static_header_allowed("user-agent"));
+        assert!(!is_static_header_allowed("accept-encoding"));
+    }
+
+    #[test]
+    fn static_header_rejects_secret_bearing_names() {
+        assert!(is_secret_header_name("authorization"));
+        assert!(is_secret_header_name("x-api-key"));
+        assert!(is_secret_header_name("x-goog-api-key"));
+        assert!(is_secret_header_name("cookie"));
+        assert!(is_secret_header_name("set-cookie"));
+        assert!(is_secret_header_name("proxy-authorization"));
+        assert!(is_secret_header_name("x-auth-token"));
+        assert!(is_secret_header_name("x-access-token"));
+        assert!(is_secret_header_name("x-secret"));
+        assert!(is_secret_header_name("www-authenticate"));
+        // Case-insensitive
+        assert!(is_secret_header_name("Authorization"));
+        assert!(is_secret_header_name("X-Api-Key"));
+    }
+
+    #[test]
+    fn static_header_allows_non_secret_names() {
+        assert!(!is_secret_header_name("anthropic-version"));
+        assert!(!is_secret_header_name("content-type"));
+        assert!(!is_secret_header_name("accept"));
+        assert!(!is_secret_header_name("user-agent"));
+    }
+
+    #[test]
+    fn empty_static_headers_helper() {
+        let headers = OutboundExecutorRequest::empty_static_headers();
+        assert!(headers.is_empty());
     }
 }

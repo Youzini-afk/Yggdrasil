@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：121 个 implemented rows，由 129 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：130 个 implemented rows，由 138 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -151,6 +151,15 @@ cargo run -p ygg-cli -- conformance
 | outbound | DeepSeek SSE stream normalize canary：delta_sse start→chunk→end lifecycle，terminal_frame_consistent，no raw secrets | implemented |
 | outbound | opt-in live DeepSeek conformance：默认跳过，YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY 时才尝试 | implemented |
 | outbound | canary DeepSeek profile shape：normalize_request endpoint/dialect/stream_family 正确，secret_ref placeholder 不含 raw key | implemented |
+| outbound | OpenAI Chat Completions loopback：Authorization Bearer 到达 server，POST /v1/chat/completions，body shape model+messages，raw secret 不在 response/audit | implemented |
+| outbound | OpenAI Responses loopback：Authorization Bearer 到达 server，POST /v1/responses，body shape 使用 input 字段，raw secret 不在 response/audit | implemented |
+| outbound | Anthropic Messages loopback：x-api-key secret header + anthropic-version static header 到达 server，POST /v1/messages，body shape content blocks，raw secret 不在 response/audit | implemented |
+| outbound | Gemini generateContent loopback：x-goog-api-key secret header 到达 server，POST /v1beta/models/{model}:generateContent，body shape contents/parts，raw secret 不在 response/audit | implemented |
+| outbound | missing secret fails closed：不可用的 secret_ref 产生错误，无 outbound 请求发出，错误中不含 raw secret | implemented |
+| outbound | provider normalize_request alignment：OpenAI chat+responses、Anthropic messages、Gemini generateContent endpoint/dialect 匹配 outbound.execute 参数，credential placeholder 非 raw | implemented |
+| outbound | no raw secret leak across all providers：OpenAI/Anthropic/Gemini shapes 通过 FakeOutboundExecutor，response+audit 不含 raw secrets | implemented |
+| outbound | static_headers safe allowlist：anthropic-version 接受，安全非 secret headers 可注入 | implemented |
+| outbound | static_headers block secrets：Authorization/x-api-key/Cookie 在 static_headers 中被拒绝，必须使用 secret_headers | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -307,6 +316,15 @@ outbound.live_loopback_secret_injection            PASS
 stream.sse_normalize_deepseek_canary              PASS
 outbound.live_deepseek_opt_in                     PASS
 canary.deepseek_profile_shape                     PASS
+outbound.openai_chat_loopback                     PASS
+outbound.openai_responses_loopback                 PASS
+outbound.anthropic_messages_loopback               PASS
+outbound.gemini_generate_content_loopback          PASS
+outbound.missing_secret_fails_closed               PASS
+outbound.provider_normalize_request_alignment      PASS
+outbound.no_raw_secret_leak_all_providers          PASS
+outbound.static_headers_safe_allowlist             PASS
+outbound.static_headers_block_secrets              PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

@@ -1,6 +1,6 @@
-//! Live Model Calls Alpha L4 conformance tests.
+//! Live Model Calls Alpha L4 + L5 conformance tests.
 //!
-//! Tests cover:
+//! L4 tests cover:
 //! - Secret header injection through `kernel.outbound.execute` `secret_headers` param
 //! - Local fake HTTP server conformance: loopback-only server verifies
 //!   Authorization header arrives but raw secret never appears in
@@ -10,12 +10,23 @@
 //! - Opt-in live conformance: only runs when YGG_LIVE_MODEL_TESTS=1
 //!   and DEEPSEEK_API_KEY is set; default conformance skips it
 //!
+//! L5 tests cover:
+//! - OpenAI Chat Completions loopback conformance (Authorization bearer)
+//! - OpenAI Responses loopback conformance (different endpoint/body shape)
+//! - Anthropic Messages loopback conformance (x-api-key secret + anthropic-version static)
+//! - Gemini generateContent loopback conformance (x-goog-api-key secret)
+//! - Missing secret fails closed (no request sent)
+//! - Provider normalize_request alignment (all 3 providers match outbound shapes)
+//! - No raw secret leak across all providers
+//! - Static headers safe allowlist (anthropic-version accepted, Authorization rejected)
+//!
 //! Security hard constraints enforced:
 //! - No kernel.model/prompt/chat
 //! - No raw secret resolve API
 //! - Provider packages cannot read env directly
 //! - Raw Authorization/secret never written to audit/response
 //! - No real internet dependency in default CI
+//! - static_headers cannot bypass secret injection path
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -621,6 +632,1324 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
     anyhow::ensure!(
         !response_str.contains("sk-"),
         "normalize_request response must not contain raw API key"
+    );
+
+    Ok(())
+}
+
+// ===========================================================================
+// L5: OpenAI / Anthropic / Gemini live adapter conformance
+// ===========================================================================
+//
+// L5 extends the `kernel.outbound.execute` boundary to cover three
+// representative non-isomorphic provider APIs:
+// - OpenAI Chat Completions and Responses (Authorization bearer)
+// - Anthropic Messages (x-api-key secret + anthropic-version static)
+// - Gemini generateContent (x-goog-api-key secret)
+//
+// All tests use local loopback HTTP servers. No public internet.
+// Raw secrets never appear in protocol response/audit/log.
+// static_headers provide safe non-secret header injection.
+
+/// Create a package manifest with network permissions for multiple hosts.
+fn multi_host_networked_package(id: &str, hosts: Vec<(&str, &str)>) -> PackageManifest {
+    PackageManifest {
+        schema_version: 1,
+        id: id.to_string(),
+        version: "0.1.0".to_string(),
+        display_name: None,
+        description: None,
+        author: None,
+        license: None,
+        entry: PackageEntry::RustInproc {
+            crate_ref: "example-echo-rust-inproc".to_string(),
+            symbol: "register".to_string(),
+            abi_version: 1,
+        },
+        provides: vec![CapabilityDescriptor {
+            id: format!("{id}/fetch"),
+            version: "0.1.0".to_string(),
+            input_schema: serde_json::Value::Null,
+            output_schema: serde_json::Value::Null,
+            streaming: false,
+            side_effects: vec!["network".to_string()],
+            description: None,
+        }],
+        consumes: Vec::new(),
+        contributes: PackageContributions::default(),
+        permissions: PermissionSet {
+            network: NetworkPermissions {
+                declarations: hosts
+                    .into_iter()
+                    .map(|(host, purpose)| NetworkDeclaration {
+                        host: host.to_string(),
+                        methods: vec!["POST".to_string()],
+                        purpose: Some(purpose.to_string()),
+                    })
+                    .collect(),
+                hosts: vec![],
+            },
+            ..PermissionSet::default()
+        },
+        sandbox_policy: SandboxPolicy::default(),
+    }
+}
+
+/// Helper: start a loopback HTTP server that checks for specific headers
+/// and returns a minimal JSON response. Returns (port, server_handle, checked_flags).
+struct LoopbackServerChecks {
+    /// Whether a specific header was found in the request.
+    header_found: Arc<std::sync::atomic::AtomicBool>,
+    /// Whether a specific header value matched.
+    header_value_correct: Arc<std::sync::atomic::AtomicBool>,
+    /// Whether the request method was correct.
+    method_correct: Arc<std::sync::atomic::AtomicBool>,
+    /// Whether the request path was correct.
+    path_correct: Arc<std::sync::atomic::AtomicBool>,
+    /// The raw request captured (for debugging, never logged with secrets).
+    request_captured: Arc<tokio::sync::Mutex<String>>,
+}
+
+/// Start a loopback HTTP server that validates request properties.
+async fn start_loopback_server(
+    expected_header_name: &str,
+    expected_header_prefix: &str,
+    expected_method: &str,
+    expected_path: &str,
+) -> (u16, tokio::task::JoinHandle<()>, LoopbackServerChecks) {
+    let checks = LoopbackServerChecks {
+        header_found: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        header_value_correct: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        method_correct: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        path_correct: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        request_captured: Arc::new(tokio::sync::Mutex::new(String::new())),
+    };
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    let hdr_found = checks.header_found.clone();
+    let hdr_correct = checks.header_value_correct.clone();
+    let meth_correct = checks.method_correct.clone();
+    let path_correct_clone = checks.path_correct.clone();
+    let req_captured = checks.request_captured.clone();
+
+    let hdr_name = expected_header_name.to_lowercase();
+    let hdr_prefix = expected_header_prefix.to_lowercase();
+    let exp_method = expected_method.to_string();
+    let exp_path = expected_path.to_string();
+
+    let server = tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use std::sync::atomic::Ordering;
+
+        if let Ok((mut stream, _)) = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            listener.accept(),
+        ).await.unwrap() {
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 8192];
+            loop {
+                match tokio::time::timeout(
+                    std::time::Duration::from_millis(500),
+                    stream.read(&mut tmp),
+                ).await {
+                    Ok(Ok(0)) => break,
+                    Ok(Ok(n)) => {
+                        buf.extend_from_slice(&tmp[..n]);
+                        let s = String::from_utf8_lossy(&buf);
+                        if s.contains("\r\n\r\n") { break; }
+                    }
+                    _ => break,
+                }
+            }
+
+            let request_str = String::from_utf8_lossy(&buf).to_string();
+            {
+                let mut captured = req_captured.lock().await;
+                // Redact any auth headers from captured request for safety
+                *captured = request_str.lines()
+                    .map(|line| {
+                        let line_lower = line.to_lowercase();
+                        if line_lower.starts_with("authorization:")
+                            || line_lower.starts_with("x-api-key:")
+                            || line_lower.starts_with("x-goog-api-key:") {
+                            format!("{}: [redacted]", line.split(':').next().unwrap_or(""))
+                        } else {
+                            line.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+            }
+
+            let request_lower = request_str.to_lowercase();
+
+            // Check method
+            if request_lower.starts_with(&format!("{} ", exp_method.to_lowercase())) {
+                meth_correct.store(true, Ordering::SeqCst);
+            }
+
+            // Check path
+            if request_lower.contains(&exp_path.to_lowercase()) {
+                path_correct_clone.store(true, Ordering::SeqCst);
+            }
+
+            // Check header
+            let header_line = format!("{}: {}", hdr_name, hdr_prefix);
+            if request_lower.contains(&header_line) {
+                hdr_found.store(true, Ordering::SeqCst);
+                hdr_correct.store(true, Ordering::SeqCst);
+            } else if request_lower.contains(&format!("{}:", hdr_name)) {
+                hdr_found.store(true, Ordering::SeqCst);
+            }
+
+            // Respond
+            let body = r#"{"id":"fake","object":"fake","choices":[]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+        }
+    });
+
+    (port, server, checks)
+}
+
+// ---------------------------------------------------------------------------
+// L5-1: OpenAI Chat Completions loopback conformance
+// ---------------------------------------------------------------------------
+
+/// L5: OpenAI Chat Completions shape through `kernel.outbound.execute`
+/// loopback. Verifies:
+/// - Authorization: Bearer header arrives at the server
+/// - POST method to /v1/chat/completions
+/// - Body shape contains `model` and `messages`
+/// - Raw secret never appears in protocol response/audit
+pub(crate) async fn openai_chat_loopback() -> anyhow::Result<()> {
+    use std::sync::atomic::Ordering;
+
+    let test_key = "test-l5-openai-chat-key-do-not-log";
+    std::env::set_var("YGG_L5_OPENAI_CHAT_KEY", test_key);
+
+    let (port, server, checks) = start_loopback_server(
+        "authorization",
+        "bearer",
+        "POST",
+        "/v1/chat/completions",
+    ).await;
+
+    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
+        "YGG_L5_OPENAI_CHAT_KEY".to_string(),
+    ]);
+    runtime
+        .load_package(networked_package("example/l5-openai-chat", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-openai-chat", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-openai-chat/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/v1/chat/completions",
+                "secret_headers": {
+                    "Authorization": {"secret_ref": "secret_ref:env:YGG_L5_OPENAI_CHAT_KEY", "scheme": "bearer"},
+                },
+                "metadata": {
+                    "scheme": "http",
+                    "base_url": format!("http://127.0.0.1:{}", port),
+                },
+                "body_shape": {
+                    "model": "gpt-4o",
+                    "messages": [{"role": "user", "content": "hello"}],
+                    "max_tokens": 10,
+                },
+            }),
+        )
+        .await;
+
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), server).await;
+
+    // Verify header, method, path arrived correctly
+    anyhow::ensure!(
+        checks.header_found.load(Ordering::SeqCst),
+        "OpenAI chat loopback: server should have received Authorization header"
+    );
+    anyhow::ensure!(
+        checks.header_value_correct.load(Ordering::SeqCst),
+        "OpenAI chat loopback: server should have received correct Bearer token"
+    );
+    anyhow::ensure!(
+        checks.method_correct.load(Ordering::SeqCst),
+        "OpenAI chat loopback: server should have received POST method"
+    );
+    anyhow::ensure!(
+        checks.path_correct.load(Ordering::SeqCst),
+        "OpenAI chat loopback: server should have received /v1/chat/completions path"
+    );
+
+    // Verify no raw secret in response
+    if let Ok(response_value) = result {
+        let response_str = serde_json::to_string(&response_value)?;
+        anyhow::ensure!(
+            !response_str.contains(test_key),
+            "OpenAI chat response must not contain raw secret value"
+        );
+        anyhow::ensure!(
+            !response_str.contains("Bearer "),
+            "OpenAI chat response must not contain Bearer pattern"
+        );
+    }
+
+    // Verify no raw secret in audit
+    let session_id = "kernel_outbound_example_l5-openai-chat".to_string();
+    let events = store.list_session(&session_id).await?;
+    for event in &events {
+        let payload_str = serde_json::to_string(&event.payload)?;
+        anyhow::ensure!(
+            !payload_str.contains(test_key),
+            "OpenAI chat audit must not contain raw secret"
+        );
+    }
+
+    std::env::remove_var("YGG_L5_OPENAI_CHAT_KEY");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-2: OpenAI Responses loopback conformance
+// ---------------------------------------------------------------------------
+
+/// L5: OpenAI Responses API shape through `kernel.outbound.execute`
+/// loopback. Verifies:
+/// - Authorization: Bearer header arrives
+/// - POST to /v1/responses (different endpoint from chat)
+/// - Body shape uses `input` instead of `messages`
+/// - Raw secret never leaks
+pub(crate) async fn openai_responses_loopback() -> anyhow::Result<()> {
+    use std::sync::atomic::Ordering;
+
+    let test_key = "test-l5-openai-resp-key-do-not-log";
+    std::env::set_var("YGG_L5_OPENAI_RESP_KEY", test_key);
+
+    let (port, server, checks) = start_loopback_server(
+        "authorization",
+        "bearer",
+        "POST",
+        "/v1/responses",
+    ).await;
+
+    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
+        "YGG_L5_OPENAI_RESP_KEY".to_string(),
+    ]);
+    runtime
+        .load_package(networked_package("example/l5-openai-resp", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-openai-resp", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-openai-resp/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/v1/responses",
+                "secret_headers": {
+                    "Authorization": {"secret_ref": "secret_ref:env:YGG_L5_OPENAI_RESP_KEY", "scheme": "bearer"},
+                },
+                "metadata": {
+                    "scheme": "http",
+                    "base_url": format!("http://127.0.0.1:{}", port),
+                },
+                "body_shape": {
+                    "model": "gpt-4o",
+                    "input": [{"role": "user", "content": "hello"}],
+                },
+            }),
+        )
+        .await;
+
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), server).await;
+
+    anyhow::ensure!(
+        checks.header_found.load(Ordering::SeqCst),
+        "OpenAI responses loopback: server should have received Authorization header"
+    );
+    anyhow::ensure!(
+        checks.path_correct.load(Ordering::SeqCst),
+        "OpenAI responses loopback: server should have received /v1/responses path"
+    );
+
+    // Verify no raw secret
+    if let Ok(response_value) = result {
+        let response_str = serde_json::to_string(&response_value)?;
+        anyhow::ensure!(
+            !response_str.contains(test_key),
+            "OpenAI responses response must not contain raw secret"
+        );
+    }
+
+    let session_id = "kernel_outbound_example_l5-openai-resp".to_string();
+    let events = store.list_session(&session_id).await?;
+    for event in &events {
+        let payload_str = serde_json::to_string(&event.payload)?;
+        anyhow::ensure!(
+            !payload_str.contains(test_key),
+            "OpenAI responses audit must not contain raw secret"
+        );
+    }
+
+    std::env::remove_var("YGG_L5_OPENAI_RESP_KEY");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-3: Anthropic Messages loopback conformance
+// ---------------------------------------------------------------------------
+
+/// L5: Anthropic Messages shape through `kernel.outbound.execute`
+/// loopback. Verifies:
+/// - x-api-key header with raw secret value arrives at server
+/// - anthropic-version static header arrives at server
+/// - POST to /v1/messages
+/// - Body shape with `model`, `messages`, `max_tokens`
+/// - Raw secret never appears in protocol response/audit
+/// - static_headers provide anthropic-version without bypassing secret path
+pub(crate) async fn anthropic_messages_loopback() -> anyhow::Result<()> {
+    use std::sync::atomic::Ordering;
+
+    let test_key = "test-l5-anthropic-key-do-not-log";
+    std::env::set_var("YGG_L5_ANTHROPIC_KEY", test_key);
+
+    // Track both x-api-key and anthropic-version headers
+    let api_key_found = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let api_key_correct = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let version_found = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let method_correct = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let path_correct = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let api_key_found_c = api_key_found.clone();
+    let api_key_correct_c = api_key_correct.clone();
+    let version_found_c = version_found.clone();
+    let method_correct_c = method_correct.clone();
+    let path_correct_c = path_correct.clone();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let port = listener.local_addr()?.port();
+
+    let server = tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        if let Ok((mut stream, _)) = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            listener.accept(),
+        ).await.unwrap() {
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 8192];
+            loop {
+                match tokio::time::timeout(
+                    std::time::Duration::from_millis(500),
+                    stream.read(&mut tmp),
+                ).await {
+                    Ok(Ok(0)) => break,
+                    Ok(Ok(n)) => {
+                        buf.extend_from_slice(&tmp[..n]);
+                        let s = String::from_utf8_lossy(&buf);
+                        if s.contains("\r\n\r\n") { break; }
+                    }
+                    _ => break,
+                }
+            }
+
+            let request_str = String::from_utf8_lossy(&buf).to_string();
+            let request_lower = request_str.to_lowercase();
+
+            // Check x-api-key header
+            if request_lower.contains("x-api-key:") {
+                api_key_found_c.store(true, Ordering::SeqCst);
+                if request_lower.contains(&format!("x-api-key: {}", test_key.to_lowercase())) {
+                    api_key_correct_c.store(true, Ordering::SeqCst);
+                }
+            }
+
+            // Check anthropic-version static header
+            if request_lower.contains("anthropic-version:") {
+                version_found_c.store(true, Ordering::SeqCst);
+            }
+
+            // Check method and path
+            if request_lower.starts_with("post ") {
+                method_correct_c.store(true, Ordering::SeqCst);
+            }
+            if request_lower.contains("/v1/messages") {
+                path_correct_c.store(true, Ordering::SeqCst);
+            }
+
+            // Respond
+            let body = r#"{"id":"msg_fake","type":"message","role":"assistant","content":[{"type":"text","text":"ok"}]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+        }
+    });
+
+    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
+        "YGG_L5_ANTHROPIC_KEY".to_string(),
+    ]);
+    runtime
+        .load_package(networked_package("example/l5-anthropic", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-anthropic", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-anthropic/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/v1/messages",
+                "secret_headers": {
+                    "x-api-key": {"secret_ref": "secret_ref:env:YGG_L5_ANTHROPIC_KEY"},
+                },
+                "static_headers": {
+                    "anthropic-version": "2023-06-01",
+                },
+                "metadata": {
+                    "scheme": "http",
+                    "base_url": format!("http://127.0.0.1:{}", port),
+                },
+                "body_shape": {
+                    "model": "claude-3-5-sonnet-20241022",
+                    "messages": [{"role": "user", "content": "hello"}],
+                    "max_tokens": 100,
+                },
+            }),
+        )
+        .await;
+
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), server).await;
+
+    // Verify all headers arrived correctly
+    anyhow::ensure!(
+        api_key_found.load(Ordering::SeqCst),
+        "Anthropic loopback: server should have received x-api-key header"
+    );
+    anyhow::ensure!(
+        api_key_correct.load(Ordering::SeqCst),
+        "Anthropic loopback: server should have received correct x-api-key value"
+    );
+    anyhow::ensure!(
+        version_found.load(Ordering::SeqCst),
+        "Anthropic loopback: server should have received anthropic-version static header"
+    );
+    anyhow::ensure!(
+        method_correct.load(Ordering::SeqCst),
+        "Anthropic loopback: server should have received POST method"
+    );
+    anyhow::ensure!(
+        path_correct.load(Ordering::SeqCst),
+        "Anthropic loopback: server should have received /v1/messages path"
+    );
+
+    // Verify no raw secret in response
+    if let Ok(response_value) = result {
+        let response_str = serde_json::to_string(&response_value)?;
+        anyhow::ensure!(
+            !response_str.contains(test_key),
+            "Anthropic response must not contain raw secret value"
+        );
+    }
+
+    // Verify no raw secret in audit
+    let session_id = "kernel_outbound_example_l5-anthropic".to_string();
+    let events = store.list_session(&session_id).await?;
+    for event in &events {
+        let payload_str = serde_json::to_string(&event.payload)?;
+        anyhow::ensure!(
+            !payload_str.contains(test_key),
+            "Anthropic audit must not contain raw secret"
+        );
+    }
+
+    std::env::remove_var("YGG_L5_ANTHROPIC_KEY");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-4: Gemini generateContent loopback conformance
+// ---------------------------------------------------------------------------
+
+/// L5: Gemini generateContent shape through `kernel.outbound.execute`
+/// loopback. Verifies:
+/// - x-goog-api-key header with raw secret arrives at server
+/// - POST to /v1beta/models/{model}:generateContent
+/// - Body shape with `contents` and `generationConfig`
+/// - Raw secret never leaks
+pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
+    use std::sync::atomic::Ordering;
+
+    let test_key = "test-l5-gemini-key-do-not-log";
+    std::env::set_var("YGG_L5_GEMINI_KEY", test_key);
+
+    // Track x-goog-api-key header
+    let api_key_found = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let api_key_correct = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let method_correct = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let path_correct = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let api_key_found_c = api_key_found.clone();
+    let api_key_correct_c = api_key_correct.clone();
+    let method_correct_c = method_correct.clone();
+    let path_correct_c = path_correct.clone();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let port = listener.local_addr()?.port();
+
+    let server = tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        if let Ok((mut stream, _)) = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            listener.accept(),
+        ).await.unwrap() {
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 8192];
+            loop {
+                match tokio::time::timeout(
+                    std::time::Duration::from_millis(500),
+                    stream.read(&mut tmp),
+                ).await {
+                    Ok(Ok(0)) => break,
+                    Ok(Ok(n)) => {
+                        buf.extend_from_slice(&tmp[..n]);
+                        let s = String::from_utf8_lossy(&buf);
+                        if s.contains("\r\n\r\n") { break; }
+                    }
+                    _ => break,
+                }
+            }
+
+            let request_str = String::from_utf8_lossy(&buf).to_string();
+            let request_lower = request_str.to_lowercase();
+
+            // Check x-goog-api-key header
+            if request_lower.contains("x-goog-api-key:") {
+                api_key_found_c.store(true, Ordering::SeqCst);
+                if request_lower.contains(&format!("x-goog-api-key: {}", test_key.to_lowercase())) {
+                    api_key_correct_c.store(true, Ordering::SeqCst);
+                }
+            }
+
+            if request_lower.starts_with("post ") {
+                method_correct_c.store(true, Ordering::SeqCst);
+            }
+            if request_lower.contains(":generatecontent") {
+                path_correct_c.store(true, Ordering::SeqCst);
+            }
+
+            // Respond
+            let body = r#"{"candidates":[{"content":{"parts":[{"text":"ok"}],"role":"model"}}]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+        }
+    });
+
+    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
+        "YGG_L5_GEMINI_KEY".to_string(),
+    ]);
+    runtime
+        .load_package(networked_package("example/l5-gemini", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-gemini", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-gemini/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/v1beta/models/gemini-2.0-flash:generateContent",
+                "secret_headers": {
+                    "x-goog-api-key": {"secret_ref": "secret_ref:env:YGG_L5_GEMINI_KEY"},
+                },
+                "metadata": {
+                    "scheme": "http",
+                    "base_url": format!("http://127.0.0.1:{}", port),
+                },
+                "body_shape": {
+                    "contents": [{"role": "user", "parts": [{"text": "hello"}]}],
+                    "generationConfig": {"maxOutputTokens": 100},
+                },
+            }),
+        )
+        .await;
+
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), server).await;
+
+    anyhow::ensure!(
+        api_key_found.load(Ordering::SeqCst),
+        "Gemini loopback: server should have received x-goog-api-key header"
+    );
+    anyhow::ensure!(
+        api_key_correct.load(Ordering::SeqCst),
+        "Gemini loopback: server should have received correct x-goog-api-key value"
+    );
+    anyhow::ensure!(
+        method_correct.load(Ordering::SeqCst),
+        "Gemini loopback: server should have received POST method"
+    );
+    anyhow::ensure!(
+        path_correct.load(Ordering::SeqCst),
+        "Gemini loopback: server should have received generateContent path"
+    );
+
+    // Verify no raw secret
+    if let Ok(response_value) = result {
+        let response_str = serde_json::to_string(&response_value)?;
+        anyhow::ensure!(
+            !response_str.contains(test_key),
+            "Gemini response must not contain raw secret value"
+        );
+    }
+
+    let session_id = "kernel_outbound_example_l5-gemini".to_string();
+    let events = store.list_session(&session_id).await?;
+    for event in &events {
+        let payload_str = serde_json::to_string(&event.payload)?;
+        anyhow::ensure!(
+            !payload_str.contains(test_key),
+            "Gemini audit must not contain raw secret"
+        );
+    }
+
+    std::env::remove_var("YGG_L5_GEMINI_KEY");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-5: Missing secret fails closed — no request sent
+// ---------------------------------------------------------------------------
+
+/// L5: When a secret_headers reference cannot be resolved (missing env var
+/// or denied by allowlist), `kernel.outbound.execute` must fail closed:
+/// no outbound request is made, and no raw secret leaks in the error.
+pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
+    // Don't set the env var — it will be missing
+    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
+        "YGG_L5_MISSING_KEY".to_string(),  // allowed but not set
+    ]);
+    runtime
+        .load_package(networked_package("example/l5-missing", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-missing", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-missing/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/v1/chat/completions",
+                "secret_headers": {
+                    "Authorization": {"secret_ref": "secret_ref:env:YGG_L5_MISSING_KEY", "scheme": "bearer"},
+                },
+            }),
+        )
+        .await;
+
+    // The request should fail because the secret is unavailable
+    anyhow::ensure!(
+        result.is_err(),
+        "kernel.outbound.execute must fail when secret is unavailable"
+    );
+
+    // Error message must not contain raw secret patterns
+    let err_str = format!("{:?}", result.unwrap_err());
+    anyhow::ensure!(
+        !err_str.contains("Bearer "),
+        "error must not contain Bearer pattern"
+    );
+    anyhow::ensure!(
+        !err_str.contains("sk-"),
+        "error must not contain raw API key patterns"
+    );
+
+    // No audit events should be produced (policy check may or may not
+    // have run, but no outbound.request should exist)
+    let session_id = "kernel_outbound_example_l5-missing".to_string();
+    let events = store.list_session(&session_id).await?;
+    let outbound_requests: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == "kernel/outbound.request")
+        .collect();
+    anyhow::ensure!(
+        outbound_requests.is_empty(),
+        "no outbound.request audit should be produced when secret fails closed"
+    );
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-6: Provider normalize_request alignment
+// ---------------------------------------------------------------------------
+
+/// L5: Verify that model-provider-lab's normalize_request output for
+/// OpenAI, Anthropic, and Gemini aligns with the expected
+/// `kernel.outbound.execute` params (host, method, path, secret header name).
+/// This ensures the provider package's shape and the host boundary
+/// are consistent — no private runtime calls needed.
+pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()> {
+    let (_store, runtime) = fixtures::runtime();
+    runtime.load_package(
+        manifest::read_manifest(std::path::PathBuf::from(
+            "packages/official/model-provider-lab/manifest.yaml",
+        ))
+        .await?,
+    ).await?;
+
+    // --- OpenAI Chat Completions ---
+    let openai_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "secret_ref:env:OPENAI_API_KEY",
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+            }),
+        })
+        .await?;
+
+    let openai_resp = &openai_result.output;
+    anyhow::ensure!(
+        openai_resp.get("method").and_then(|v| v.as_str()) == Some("POST"),
+        "OpenAI normalize_request method should be POST"
+    );
+    anyhow::ensure!(
+        openai_resp.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains("api.openai.com"))
+            .unwrap_or(false),
+        "OpenAI normalize_request endpoint should contain api.openai.com"
+    );
+    anyhow::ensure!(
+        openai_resp.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains("/v1/chat/completions"))
+            .unwrap_or(false),
+        "OpenAI normalize_request endpoint should contain /v1/chat/completions"
+    );
+    anyhow::ensure!(
+        openai_resp.get("request_dialect").and_then(|v| v.as_str()) == Some("openai_chat"),
+        "OpenAI normalize_request dialect should be openai_chat"
+    );
+
+    // --- OpenAI Responses ---
+    let openai_resp_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai",
+                    "model": "gpt-4o",
+                    "credential": "secret_ref:env:OPENAI_API_KEY",
+                    "extra": {"preferResponses": true},
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+            }),
+        })
+        .await?;
+
+    let openai_resp_out = &openai_resp_result.output;
+    anyhow::ensure!(
+        openai_resp_out.get("request_dialect").and_then(|v| v.as_str()) == Some("openai_responses"),
+        "OpenAI Responses dialect should be openai_responses"
+    );
+    anyhow::ensure!(
+        openai_resp_out.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains("/v1/responses"))
+            .unwrap_or(false),
+        "OpenAI Responses endpoint should contain /v1/responses"
+    );
+
+    // --- Anthropic Messages ---
+    let anthropic_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "anthropic",
+                    "model": "claude-3-5-sonnet-20241022",
+                    "credential": "secret_ref:env:ANTHROPIC_API_KEY",
+                    "headers": {"anthropic-version": "2023-06-01"},
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+            }),
+        })
+        .await?;
+
+    let anthropic_resp = &anthropic_result.output;
+    anyhow::ensure!(
+        anthropic_resp.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains("api.anthropic.com"))
+            .unwrap_or(false),
+        "Anthropic normalize_request endpoint should contain api.anthropic.com"
+    );
+    anyhow::ensure!(
+        anthropic_resp.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains("/v1/messages"))
+            .unwrap_or(false),
+        "Anthropic normalize_request endpoint should contain /v1/messages"
+    );
+    anyhow::ensure!(
+        anthropic_resp.get("request_dialect").and_then(|v| v.as_str()) == Some("anthropic_messages"),
+        "Anthropic normalize_request dialect should be anthropic_messages"
+    );
+
+    // Verify Anthropic headers shape includes x-api-key and anthropic-version
+    let headers = anthropic_resp.get("headers").ok_or_else(|| anyhow::anyhow!("missing headers"))?;
+    anyhow::ensure!(
+        headers.get("x-api-key").is_some(),
+        "Anthropic headers should contain x-api-key placeholder"
+    );
+    anyhow::ensure!(
+        headers.get("anthropic-version").is_some(),
+        "Anthropic headers should contain anthropic-version"
+    );
+
+    // --- Gemini ---
+    let gemini_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "gemini",
+                    "model": "gemini-2.0-flash",
+                    "credential": "secret_ref:env:GEMINI_API_KEY",
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+            }),
+        })
+        .await?;
+
+    let gemini_resp = &gemini_result.output;
+    anyhow::ensure!(
+        gemini_resp.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains("generativelanguage.googleapis.com"))
+            .unwrap_or(false),
+        "Gemini normalize_request endpoint should contain generativelanguage.googleapis.com"
+    );
+    anyhow::ensure!(
+        gemini_resp.get("endpoint")
+            .and_then(|v| v.as_str())
+            .map(|e| e.contains(":generateContent"))
+            .unwrap_or(false),
+        "Gemini normalize_request endpoint should contain :generateContent"
+    );
+    anyhow::ensure!(
+        gemini_resp.get("request_dialect").and_then(|v| v.as_str()) == Some("gemini_generate_content"),
+        "Gemini normalize_request dialect should be gemini_generate_content"
+    );
+
+    // Verify no raw secrets in any response
+    // Note: "Bearer " is expected in the headers shape placeholder
+    // (e.g. "Bearer <secret_ref:env:...>") — that's safe. We check
+    // for actual raw secret patterns like "sk-" instead.
+    for (name, resp) in [
+        ("openai", openai_resp),
+        ("openai_responses", openai_resp_out),
+        ("anthropic", anthropic_resp),
+        ("gemini", gemini_resp),
+    ] {
+        let resp_str = serde_json::to_string(&resp)?;
+        anyhow::ensure!(
+            !resp_str.contains("sk-"),
+            "{} normalize_request must not contain raw secret patterns",
+            name
+        );
+        // The headers shape may contain "Bearer <secret_ref:...>" which is a
+        // placeholder, not a raw secret. Verify the placeholder format is present.
+        if name.starts_with("openai") {
+            anyhow::ensure!(
+                resp_str.contains("<secret_ref:") || resp_str.contains("<credential_ref>"),
+                "{} normalize_request should use credential placeholder, not raw secret",
+                name
+            );
+        }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-7: No raw secret leak across all providers
+// ---------------------------------------------------------------------------
+
+/// L5: Comprehensive check that raw secrets never leak across all three
+/// provider shapes through `kernel.outbound.execute`. Tests OpenAI,
+/// Anthropic, and Gemini shapes with FakeOutboundExecutor, ensuring
+/// response/audit never contain raw secret values.
+pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
+    use ygg_runtime::{FakeOutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal};
+    use ygg_core::RedactionState;
+
+    let store = Arc::new(InMemoryEventStore::default());
+    let fake = Arc::new(FakeOutboundExecutor::new());
+    let config = RuntimeConfig {
+        outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+        ..RuntimeConfig::default()
+    };
+    let runtime = Runtime::new(store.clone(), config);
+
+    runtime
+        .load_package(multi_host_networked_package(
+            "example/l5-no-leak",
+            vec![
+                ("api.openai.com", "chat completions"),
+                ("api.anthropic.com", "messages"),
+                ("generativelanguage.googleapis.com", "generate content"),
+            ],
+        ))
+        .await?;
+
+    let pkg_id = "example/l5-no-leak";
+    let cap_id = "example/l5-no-leak/fetch";
+    let principal = ProtocolPrincipal::Package { package_id: pkg_id.to_string() };
+    let secret_ref = "secret_ref:env:TEST_PROVIDER_KEY".to_string();
+
+    // OpenAI shape
+    let openai_resp = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: principal.clone(),
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.openai.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![secret_ref.clone()],
+            },
+            OutboundExecutorRequest {
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.openai.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1/chat/completions".to_string()),
+                purpose: Some("chat completions".to_string()),
+                secret_refs: vec![secret_ref.clone()],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::json!({"provider": "openai"}),
+                body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
+                secret_headers: vec![ygg_runtime::SecretHeaderSpec {
+                    header_name: "Authorization".to_string(),
+                    secret_ref: secret_ref.clone(),
+                    scheme: "bearer".to_string(),
+                }],
+                resolved_secret_headers: vec![ygg_runtime::ResolvedSecretHeader {
+                    header_name: "Authorization".to_string(),
+                    value: ygg_runtime::RedactedHeaderValue("Bearer test-key-redacted".to_string()),
+                }],
+                static_headers: vec![],
+            },
+        )
+        .await?;
+
+    let openai_str = serde_json::to_string(&openai_resp)?;
+    anyhow::ensure!(
+        !openai_str.contains("Bearer ") && !openai_str.contains("sk-"),
+        "OpenAI shape response must not contain raw secrets"
+    );
+
+    // Anthropic shape
+    let anthropic_resp = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: principal.clone(),
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.anthropic.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![secret_ref.clone()],
+            },
+            OutboundExecutorRequest {
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "api.anthropic.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1/messages".to_string()),
+                purpose: Some("messages".to_string()),
+                secret_refs: vec![secret_ref.clone()],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::json!({"provider": "anthropic"}),
+                body_shape: Some(serde_json::json!({"model": "claude-3-5-sonnet-20241022", "messages": [], "max_tokens": 1024})),
+                secret_headers: vec![ygg_runtime::SecretHeaderSpec {
+                    header_name: "x-api-key".to_string(),
+                    secret_ref: secret_ref.clone(),
+                    scheme: "raw".to_string(),
+                }],
+                resolved_secret_headers: vec![ygg_runtime::ResolvedSecretHeader {
+                    header_name: "x-api-key".to_string(),
+                    value: ygg_runtime::RedactedHeaderValue("test-anthropic-key-redacted".to_string()),
+                }],
+                static_headers: vec![ygg_runtime::StaticHeader {
+                    name: "anthropic-version".to_string(),
+                    value: "2023-06-01".to_string(),
+                }],
+            },
+        )
+        .await?;
+
+    let anthropic_str = serde_json::to_string(&anthropic_resp)?;
+    anyhow::ensure!(
+        !anthropic_str.contains("sk-") && !anthropic_str.contains("x-api-key"),
+        "Anthropic shape response must not contain raw secrets"
+    );
+
+    // Gemini shape
+    let gemini_resp = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: principal.clone(),
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "generativelanguage.googleapis.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![secret_ref.clone()],
+            },
+            OutboundExecutorRequest {
+                package_id: pkg_id.to_string(),
+                capability_id: cap_id.to_string(),
+                destination_host: "generativelanguage.googleapis.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1beta/models/gemini-2.0-flash:generateContent".to_string()),
+                purpose: Some("generate content".to_string()),
+                secret_refs: vec![secret_ref],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::json!({"provider": "gemini"}),
+                body_shape: Some(serde_json::json!({"contents": []})),
+                secret_headers: vec![ygg_runtime::SecretHeaderSpec {
+                    header_name: "x-goog-api-key".to_string(),
+                    secret_ref: "secret_ref:env:GEMINI_API_KEY".to_string(),
+                    scheme: "raw".to_string(),
+                }],
+                resolved_secret_headers: vec![ygg_runtime::ResolvedSecretHeader {
+                    header_name: "x-goog-api-key".to_string(),
+                    value: ygg_runtime::RedactedHeaderValue("test-gemini-key-redacted".to_string()),
+                }],
+                static_headers: vec![],
+            },
+        )
+        .await?;
+
+    let gemini_str = serde_json::to_string(&gemini_resp)?;
+    anyhow::ensure!(
+        !gemini_str.contains("sk-") && !gemini_str.contains("AIza"),
+        "Gemini shape response must not contain raw secrets"
+    );
+
+    // Verify fake executor was called 3 times
+    anyhow::ensure!(
+        fake.call_count() == 3,
+        "fake executor should be called 3 times for all providers, got {}",
+        fake.call_count()
+    );
+
+    // Verify audit has no raw secrets
+    let session_id = "kernel_outbound_example_l5-no-leak".to_string();
+    let events = store.list_session(&session_id).await?;
+    for event in &events {
+        let payload_str = serde_json::to_string(&event.payload)?;
+        anyhow::ensure!(
+            !payload_str.contains("Bearer ") && !payload_str.contains("sk-") && !payload_str.contains("AIza"),
+            "audit event must not contain raw secret patterns"
+        );
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L5-extra: Static headers safe allowlist conformance
+// ---------------------------------------------------------------------------
+
+/// L5: Verify that `static_headers` accepts safe headers (anthropic-version)
+/// and rejects secret-bearing headers (Authorization, x-api-key, Cookie).
+/// This prevents `static_headers` from becoming a secret bypass path.
+pub(crate) async fn static_headers_safe_allowlist() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime_with_live_http_and_env_resolver(vec![]);
+    runtime
+        .load_package(networked_package("example/l5-static-ok", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-static-ok", "in_process");
+
+    // Valid static_headers should be accepted
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-static-ok/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/test",
+                "static_headers": {
+                    "anthropic-version": "2023-06-01",
+                },
+                "metadata": {
+                    "scheme": "http",
+                    "base_url": "http://127.0.0.1:1",  // Will fail to connect, but parse succeeds
+                },
+            }),
+        )
+        .await;
+
+    // The request may fail to connect, but the parse should succeed
+    // (static_headers were accepted)
+    match result {
+        Ok(_) => {}
+        Err(e) => {
+            let err_str = format!("{:?}", e);
+            anyhow::ensure!(
+                !err_str.contains("static_headers rejected"),
+                "anthropic-version should be accepted in static_headers, got: {}",
+                err_str
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// L5: Verify that secret-bearing header names are rejected in `static_headers`.
+/// Authorization, x-api-key, Cookie, etc. must use `secret_headers` instead.
+pub(crate) async fn static_headers_block_secrets() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime_with_live_http_and_env_resolver(vec![]);
+    runtime
+        .load_package(networked_package("example/l5-static-block", "127.0.0.1"))
+        .await?;
+
+    let context = ProtocolContext::package("example/l5-static-block", "in_process");
+
+    // Authorization in static_headers must be rejected
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-static-block/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/test",
+                "static_headers": {
+                    "Authorization": "rejected-placeholder",
+                },
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(
+        result.is_err(),
+        "Authorization in static_headers should be rejected"
+    );
+    let err_str = format!("{:?}", result.unwrap_err());
+    anyhow::ensure!(
+        err_str.contains("secret-bearing") || err_str.contains("static_headers rejected"),
+        "error should mention secret-bearing header rejection"
+    );
+
+    // x-api-key in static_headers must be rejected
+    let result2 = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-static-block/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/test",
+                "static_headers": {
+                    "x-api-key": "should-be-rejected",
+                },
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(
+        result2.is_err(),
+        "x-api-key in static_headers should be rejected"
+    );
+
+    // Cookie in static_headers must be rejected
+    let result3 = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            json!({
+                "capability_id": "example/l5-static-block/fetch",
+                "destination_host": "127.0.0.1",
+                "method": "POST",
+                "path": "/test",
+                "static_headers": {
+                    "Cookie": "session=should-be-rejected",
+                },
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(
+        result3.is_err(),
+        "Cookie in static_headers should be rejected"
     );
 
     Ok(())
