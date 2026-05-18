@@ -1,0 +1,70 @@
+schema_version: 1
+id: official/model-provider-lab
+version: 0.1.0
+display_name: Official Model Provider Lab
+description: No-network model provider family metadata, profile validation, request normalization, and error explanation across eight provider families.
+entry:
+  kind: rust_inproc
+  crate_ref: official-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: official/model-provider-lab/list_supported_families
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/model-provider-lab/validate_profile
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/model-provider-lab/normalize_request
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/model-provider-lab/explain_error
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/model-provider-lab/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: official/model-provider-lab/home-card
+      slot: home_card
+      title: Model Provider Lab
+      description: Inspect provider families, validate profiles, and normalize requests without network calls.
+      capability_id: official/model-provider-lab/list_supported_families
+    - id: official/model-provider-lab/forge-panel
+      slot: forge_panel
+      title: Model Provider Inspector
+      description: Validate provider profiles, normalize requests, and explain errors across eight provider families.
+      capability_id: official/model-provider-lab/validate_profile
+    - id: official/model-provider-lab/assistant-action
+      slot: assistant_action
+      title: Draft Provider Profile Plan
+      description: Prepare approval-gated provider profile normalization without raw secrets or network.
+      capability_id: official/model-provider-lab/normalize_request
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

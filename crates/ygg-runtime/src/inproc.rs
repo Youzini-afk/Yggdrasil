@@ -11,6 +11,7 @@ mod common;
 mod context_lab;
 mod knowledge_lab;
 mod model_connector_lab;
+mod model_provider_lab;
 mod model_routing_lab;
 mod persona_lab;
 mod pi_agent_runtime_lab;
@@ -99,6 +100,9 @@ impl InprocPackage for OfficialFoundationPackage {
             return result;
         }
         if let Some(result) = model_connector_lab::try_handle(&request) {
+            return result;
+        }
+        if let Some(result) = model_provider_lab::try_handle(&request) {
             return result;
         }
         if let Some(result) = model_routing_lab::try_handle(&request) {

@@ -13,6 +13,7 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/context-lab`
 - `official/text-transform-lab`
 - `official/model-connector-lab`
+- `official/model-provider-lab`
 - `official/model-routing-lab`
 - `official/assistant-lab`
 - `official/pi-agent-runtime-lab`
@@ -37,6 +38,8 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 `official/text-transform-lab` imports, validates, previews, and explains deterministic text transform rules without mutating trusted state.
 
 `official/model-connector-lab` validates provider profiles, masks secret references, and drafts discovery plans without network calls or inference.
+
+`official/model-provider-lab` normalizes provider requests across eight families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, and explains provider errors, all without network calls or inference.
 
 `official/model-routing-lab` resolves package-owned consumer slots to static model profile route plans with explicit fallbacks and normalized params, without inference.
 

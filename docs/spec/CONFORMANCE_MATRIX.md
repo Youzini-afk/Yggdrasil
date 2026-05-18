@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：96 个 implemented rows，由 104 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：97 个 implemented rows，由 105 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -87,6 +87,7 @@ cargo run -p ygg-cli -- conformance
 | official packages | context-lab 组装 generic blocks，包含 budget omissions 与 template rendering | implemented |
 | official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
 | official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
+| official packages | model-provider-lab 列出八家 provider families、validate profiles 拒绝 raw secret、normalize requests 覆盖八家 dialects/endpoints、explain errors（401/429/529）、output 含 network_performed:false/inference_performed:false、无 raw secret echo | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
 | official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
 | official packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
@@ -224,6 +225,7 @@ official.knowledge_lab                     PASS
 official.context_lab                       PASS
 official.text_transform_lab                PASS
 official.model_connector_lab               PASS
+official.model_provider_lab                 PASS
 official.model_routing_lab                 PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS

@@ -18,7 +18,7 @@
 - 定义 provider profile、canonical request/response、normalized stream events、usage/cost/error metadata。
 - 提供 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks normalization helpers。
 
-## M2 — `official/model-provider-lab` no-network normalization
+## M2 — `official/model-provider-lab` no-network normalization ✅
 
 - 新增普通官方包，先提供 `list_supported_families`、`validate_profile`、`normalize_request`、`explain_error`、`echo`。
 - 不出网、不做真实 inference。

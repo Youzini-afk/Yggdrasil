@@ -70,7 +70,7 @@ const diagnostics = validateProviderProfile({
 validateProviderProfile({
   family: "openai",
   model: "gpt-4o",
-  credential: "sk-abc123...",
+  credential: "rawSecretPlaceholder1234567890ABCDEF",
 });
 // → error: "Raw API key detected in credential. Use a secret_ref: or host: reference."
 

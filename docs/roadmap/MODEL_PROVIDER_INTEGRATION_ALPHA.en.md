@@ -18,7 +18,7 @@ Goal: implement multi-provider model access as ordinary capability packages, cov
 - Define provider profiles, canonical request/response, normalized stream events, usage/cost/error metadata.
 - Provide normalization helpers for OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks.
 
-## M2 — `official/model-provider-lab` no-network normalization
+## M2 — `official/model-provider-lab` no-network normalization ✅
 
 - Add an ordinary official package with `list_supported_families`, `validate_profile`, `normalize_request`, `explain_error`, and `echo`.
 - No network, no real inference.

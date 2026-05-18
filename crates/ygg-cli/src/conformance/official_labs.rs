@@ -401,7 +401,7 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
-            input: json!({"provider_family": "openai", "model_id": "fixture", "api_key": "sk-should-not-be-accepted"}),
+            input: json!({"provider_family": "openai", "model_id": "fixture", "api_key": "rawSecretPlaceholder1234567890ABCDEF"}),
         })
         .await?;
     anyhow::ensure!(raw_secret.output["valid"] == json!(false), "raw secret profile should be invalid");
@@ -620,7 +620,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "official/pkg",
-                "api_key": "sk-raw-secret-value-here"
+                "api_key": "rawSecretPlaceholder1234567890ABCDEF"
             }),
         })
         .await?;
@@ -698,6 +698,295 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
         .map(|items| items.iter().any(|r| r["package_id"] == json!("official/capability-tool-bridge-lab")))
         .unwrap_or(false);
     anyhow::ensure!(has_home, "tool bridge home_card surface missing");
+
+    Ok(())
+}
+
+pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/model-provider-lab/manifest.yaml")).await?).await?;
+
+    // list_supported_families: returns all eight families
+    let families = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/list_supported_families".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(families.output["kind"] == json!("model_provider_families"), "model provider families wrong kind");
+    let family_list = families.output["families"].as_array().unwrap();
+    anyhow::ensure!(family_list.len() == 8, "expected 8 provider families, got {}", family_list.len());
+    let family_ids: Vec<&str> = family_list.iter().filter_map(|f| f["id"].as_str()).collect();
+    for expected in ["openai", "anthropic", "gemini", "openai_compatible", "openrouter", "deepseek", "xai", "fireworks"] {
+        anyhow::ensure!(family_ids.contains(&expected), "missing family: {}", expected);
+    }
+    // Every family must have network_performed: false
+    for f in family_list {
+        anyhow::ensure!(f["network_performed"] == json!(false), "family {} should have network_performed:false", f["id"]);
+    }
+    anyhow::ensure!(families.output["network_performed"] == json!(false), "families output must have network_performed:false");
+    anyhow::ensure!(families.output["inference_performed"] == json!(false), "families output must have inference_performed:false");
+
+    // validate_profile: raw secret rejected
+    let raw_secret = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/validate_profile".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "openai",
+                "credential": "rawSecretPlaceholder1234567890ABCDEF",
+                "model": "gpt-4o"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(raw_secret.output["valid"] == json!(false), "raw secret profile should be invalid");
+
+    // validate_profile: openai_compatible with http base_url rejected
+    let http_invalid = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/validate_profile".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "openai_compatible",
+                "credential": "secret_ref:env:MY_KEY",
+                "model": "local",
+                "base_url": "http://127.0.0.1:11434/v1"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(http_invalid.output["valid"] == json!(false), "openai_compatible http base_url should be invalid");
+
+    // validate_profile: openai_compatible with https base_url accepted
+    let https_valid = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/validate_profile".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "family": "openai_compatible",
+                "credential": "secret_ref:env:MY_KEY",
+                "model": "local",
+                "base_url": "https://my-llm.example.com/v1"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(https_valid.output["valid"] == json!(true), "openai_compatible https base_url should be valid");
+
+    // normalize_request: anthropic
+    let norm_anthropic = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "anthropic",
+                    "model": "claude-3-5-sonnet-20241022",
+                    "credential": "secret_ref:env:ANTHROPIC_KEY"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(norm_anthropic.output["request_dialect"] == json!("anthropic_messages"), "anthropic normalize wrong dialect");
+    anyhow::ensure!(norm_anthropic.output["endpoint"].as_str().unwrap_or_default().ends_with("/v1/messages"), "anthropic wrong endpoint");
+    anyhow::ensure!(norm_anthropic.output["network_performed"] == json!(false), "normalize must not perform network");
+    anyhow::ensure!(norm_anthropic.output["inference_performed"] == json!(false), "normalize must not perform inference");
+    // No raw secret echoed
+    let output_str = serde_json::to_string(&norm_anthropic.output).unwrap();
+    anyhow::ensure!(!output_str.contains("sk-"), "no raw secret should appear in normalize output");
+
+    // normalize_request: gemini
+    let norm_gemini = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "gemini",
+                    "model": "gemini-2.0-flash",
+                    "credential": "secret_ref:env:GEMINI_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(norm_gemini.output["request_dialect"] == json!("gemini_generate_content"), "gemini normalize wrong dialect");
+    anyhow::ensure!(norm_gemini.output["stream_family"] == json!("typed_chunk_stream"), "gemini wrong stream family");
+
+    // normalize_request: openrouter
+    let norm_openrouter = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openrouter",
+                    "model": "openai/gpt-4o",
+                    "credential": "secret_ref:env:OPENROUTER_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        norm_openrouter.output["request_dialect"] == json!("openai_chat")
+            || norm_openrouter.output["request_dialect"] == json!("stateless_responses"),
+        "openrouter normalize wrong dialect"
+    );
+    anyhow::ensure!(norm_openrouter.output["network_performed"] == json!(false), "openrouter normalize must not perform network");
+
+    // normalize_request: deepseek
+    let norm_deepseek = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "deepseek",
+                    "model": "deepseek-chat",
+                    "credential": "secret_ref:env:DEEPSEEK_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(norm_deepseek.output["request_dialect"] == json!("openai_chat"), "deepseek normalize wrong dialect");
+    anyhow::ensure!(norm_deepseek.output["endpoint"].as_str().unwrap_or_default().contains("deepseek.com"), "deepseek wrong endpoint");
+
+    // normalize_request: xai
+    let norm_xai = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "xai",
+                    "model": "grok-2",
+                    "credential": "secret_ref:env:XAI_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        norm_xai.output["request_dialect"] == json!("openai_chat")
+            || norm_xai.output["request_dialect"] == json!("openai_responses"),
+        "xai normalize wrong dialect"
+    );
+    anyhow::ensure!(norm_xai.output["endpoint"].as_str().unwrap_or_default().contains("x.ai"), "xai wrong endpoint");
+
+    // normalize_request: fireworks
+    let norm_fireworks = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "fireworks",
+                    "model": "accounts/fireworks/models/llama-v3p1-70b",
+                    "credential": "secret_ref:env:FIREWORKS_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        norm_fireworks.output["request_dialect"] == json!("openai_chat")
+            || norm_fireworks.output["request_dialect"] == json!("fireworks_responses"),
+        "fireworks normalize wrong dialect"
+    );
+    anyhow::ensure!(norm_fireworks.output["endpoint"].as_str().unwrap_or_default().contains("fireworks.ai"), "fireworks wrong endpoint");
+
+    // explain_error: 401 -> authentication
+    let err_401 = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/explain_error".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "status": 401,
+                "family": "openai",
+                "stage": "request"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(err_401.output["error_kind"] == json!("authentication"), "401 should map to authentication");
+    anyhow::ensure!(err_401.output["retryable"] == json!(false), "401 should not be retryable");
+
+    // explain_error: 429 -> rate_limit
+    let err_429 = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/explain_error".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "status": 429,
+                "family": "anthropic",
+                "stage": "request"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(err_429.output["error_kind"] == json!("rate_limit"), "429 should map to rate_limit");
+    anyhow::ensure!(err_429.output["retryable"] == json!(true), "429 should be retryable");
+
+    // explain_error: 529 -> overloaded
+    let err_529 = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/explain_error".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "status": 529,
+                "family": "anthropic",
+                "stage": "stream"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(err_529.output["error_kind"] == json!("overloaded"), "529 should map to overloaded");
+    anyhow::ensure!(err_529.output["retryable"] == json!(true), "529 should be retryable");
+    anyhow::ensure!(err_529.output["network_performed"] == json!(false), "explain_error must not perform network");
+    anyhow::ensure!(err_529.output["inference_performed"] == json!(false), "explain_error must not perform inference");
+
+    // echo: returns input
+    let echo = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/echo".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({"hello": "provider"}),
+        })
+        .await?;
+    anyhow::ensure!(echo.output["hello"] == json!("provider"), "model-provider-lab echo did not return input");
 
     Ok(())
 }
