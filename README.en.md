@@ -23,9 +23,9 @@ The platform's job is to make radical AI-native creation possible without privil
 
 ## Status
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha (J0–J6).**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha.**
 
-The current foundation includes a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, principals and scoped permissions, surface contributions, generic proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives (`secret_ref`, network declarations, outbound audit/redaction, stream/cancel lifecycle), official platform packages (`composition-lab`, `asset-lab`, `projection-lab`), Creative Capability Kit packages (`persona-lab`, `knowledge-lab`, `context-lab`, `text-transform-lab`), no-network Model Connectivity Kit packages (`model-connector-lab`, `model-provider-lab`, `model-routing-lab`), an assistant-as-package, `official/playable-seed`, reference agent runtime package `official/pi-agent-runtime-lab`, capability tool bridge package `official/capability-tool-bridge-lab`, third-party agent runtime replacement proof (`thirdparty/agent-runtime`), a blank play-creation loop, a public-protocol web shell with Home/Play, Forge, and Assist surfaces, an optional frontend text engine substrate (fallback engine, optional Pretext engine, Forge text preview, `sdk/typescript/text-surface`), and an agent runtime package template (`--template agent-runtime`). 108 named conformance cases plus crate and service unit tests cover the boundary.
+The current foundation includes a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, principals and scoped permissions, surface contributions, generic proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives (`secret_ref`, network declarations, outbound audit/redaction, outbound executor boundary, stream/cancel lifecycle), official platform packages (`composition-lab`, `asset-lab`, `projection-lab`), Creative Capability Kit packages (`persona-lab`, `knowledge-lab`, `context-lab`, `text-transform-lab`), Model Connectivity / Provider packages (`model-connector-lab`, `model-provider-lab`, `model-routing-lab`; covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks with no-network normalization, fake/local invoke, and stream normalization), an assistant-as-package, `official/playable-seed`, reference agent runtime package `official/pi-agent-runtime-lab`, capability tool bridge package `official/capability-tool-bridge-lab`, third-party agent runtime replacement proof (`thirdparty/agent-runtime`), a blank play-creation loop, a public-protocol web shell with Home/Play, Forge, and Assist surfaces, an optional frontend text engine substrate (fallback engine, optional Pretext engine, Forge text preview, `sdk/typescript/text-surface`), and an agent runtime package template (`--template agent-runtime`). 114 named conformance cases plus crate and service unit tests cover the boundary.
 
 For the executable snapshot, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md).
 For where this is going, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
@@ -136,19 +136,19 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md) — agent-like capability package authoring guide.
 - [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.en.md) — Yggdrasil-native creative capability package kit.
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.en.md) — no-network model provider profile and route planning kit.
+- [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md) — multi-provider model integration guide.
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) — living snapshot of what is done, partial, and deferred.
 - [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) — current and upcoming phases.
 - [`sdk/typescript/model-provider-adapter/README.en.md`](sdk/typescript/model-provider-adapter/README.en.md) — Model Provider Adapter SDK (M1).
-- [`docs/roadmap/MODEL_PROVIDER_INTEGRATION_ALPHA.en.md`](docs/roadmap/MODEL_PROVIDER_INTEGRATION_ALPHA.en.md) — Model Provider Integration Alpha execution plan (M2 ✅).
 
 ## Deferred
 
 These are valuable directions but not part of the kernel. They will arrive as ordinary capability packages.
 
 - SillyTavern compatibility — see [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md).
-- pi / agent package infrastructure — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.en.md) and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md). Real agent loops, model calls, and memory systems remain future ordinary capability packages.
+- pi / agent package infrastructure — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.en.md) and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md). Real agent loops and memory systems remain future ordinary capability packages; model provider integration substrate is documented in [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md).
 - External game engines (UE5, Godot, Unity, web clients) — future packages or remote-entry integrations.
-- Conversational runtime, model providers, memory model, agent loop, world simulation, director.
+- Conversational runtime, production-grade live model calls, memory model, agent loop, world simulation, director.
 - Final UI visual design, full Studio, ComfyUI-like node editors, marketplace.
 
 ## License

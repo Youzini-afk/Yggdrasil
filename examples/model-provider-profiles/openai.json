@@ -1,0 +1,9 @@
+{
+  "family": "openai",
+  "model": "gpt-4o-mini",
+  "credential": "secret_ref:env:OPENAI_API_KEY",
+  "baseUrl": "https://api.openai.com",
+  "extra": {
+    "preferResponses": false
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "family": "gemini",
+  "model": "gemini-2.0-flash",
+  "credential": "secret_ref:env:GEMINI_API_KEY",
+  "baseUrl": "https://generativelanguage.googleapis.com"
+}

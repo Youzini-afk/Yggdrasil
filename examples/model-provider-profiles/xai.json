@@ -1,0 +1,9 @@
+{
+  "family": "xai",
+  "model": "grok-2-latest",
+  "credential": "secret_ref:env:XAI_API_KEY",
+  "baseUrl": "https://api.x.ai",
+  "extra": {
+    "preferResponses": false
+  }
+}

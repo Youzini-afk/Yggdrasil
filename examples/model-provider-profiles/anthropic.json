@@ -1,0 +1,9 @@
+{
+  "family": "anthropic",
+  "model": "claude-3-5-sonnet-20241022",
+  "credential": "secret_ref:env:ANTHROPIC_API_KEY",
+  "baseUrl": "https://api.anthropic.com",
+  "headers": {
+    "anthropic-version": "2023-06-01"
+  }
+}

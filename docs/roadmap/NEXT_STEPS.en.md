@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha is complete. The next headline is **Model Provider Integration Alpha**: connect real API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages. Default conformance uses fake/local executors; manual live calls are opt-in. This is not a relay gateway, billing system, or kernel model/prompt/chat ontology.
+Agent Infrastructure Alpha and Model Provider Integration Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages. Default conformance does not require network access; future live calls must still use explicit host policy, secret resolver, and outbound boundary paths.
 
 ## Where we are
 
@@ -17,7 +17,7 @@ Agent Infrastructure Alpha is complete. The next headline is **Model Provider In
 - Secure Execution Substrate: complete Alpha slice. Persistent grants, `secret_ref`, host resolver placeholder, raw-secret blocking, network permission declarations, outbound audit/redaction, generic streaming/cancel lifecycle, secure-execution TypeScript helpers, networked/streaming templates, and no-network model/agent readiness examples are in place.
 - Text Surface Proof: complete Phase T1/T2/T3/T4/T5. `integrations/pretext` documents the Pretext reference boundary, and the Assistant Drawer contains a bounded mock streaming text proof over `clients/web/src/text-layout` without kernel/protocol/package changes. `sdk/typescript/text-surface` provides a pure TypeScript frontend SDK for third-party UIs. Font loading, cache diagnostics, and a self-test harness are in place.
 - Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
-- Model Provider Integration Alpha: in progress; `integrations/model-providers` research ledger and the temporary plan [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.en.md) record multi-provider API, stream, error, new-api/TavernHeadless lessons, and non-goals.
+- Model Provider Integration Alpha: complete; `integrations/model-providers` research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab`, provider profile examples, and [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md) are in place.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -97,11 +97,11 @@ Non-goals for Phase J:
 - No kernel `agent`, `prompt`, `memory`, `turn`, or `model` methods.
 - No wholesale embedding of `pi-coding-agent` product assumptions.
 
-## Phase K — Model Provider Integration Alpha (in progress)
+## Phase K — Model Provider Integration Alpha (complete)
 
 Goal: start real model provider integration directly while keeping the Yggdrasil shape: ordinary packages, `secret_ref`, network allowlists, redacted audit, stream/cancel, fake/local conformance, manual live opt-in, no official privilege, and no kernel model ontology.
 
-Execution sequence is tracked in [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.en.md): provider API research ledger (✅ M0), `sdk/typescript/model-provider-adapter` (✅ M1), `official/model-provider-lab` no-network normalization (✅ M2), host outbound executor boundary (✅ M3), OpenAI/Anthropic/Gemini invoke adapters (✅ M4), OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets (✅ M5), streaming normalization (✅ M6), examples/conformance/durable docs.
+Delivered: provider API research ledger (M0), `sdk/typescript/model-provider-adapter` (M1), `official/model-provider-lab` no-network normalization (M2), host outbound executor boundary (M3), OpenAI/Anthropic/Gemini invoke adapters (M4), OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets (M5), streaming normalization (M6), provider profile examples, durable guide, and 114 conformance cases.
 
 Non-goals: user balances, billing, channel admin, admin UI, hosted platform relay keys, `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, and `kernel.embedding.*`.
 
@@ -113,9 +113,9 @@ These remain non-goals for the kernel. They may exist as future packages.
 - pi product embedding — see `docs/architecture/PI_INTEGRATION.md`. Agent infrastructure may proceed only as ordinary package/SDK work.
 - External game engine bridges (UE5/Godot/Unity, web clients).
 - Any UI shell, inspector, or studio beyond the public-protocol web shell skeleton.
-- Memory model, world simulation, director, prompt rendering, and model provider abstraction in the kernel. Agent loops and model providers may exist only as ordinary packages.
+- Memory model, world simulation, director, prompt rendering, and model provider abstraction in the kernel. Agent loops, production-grade live model calls, and model providers may exist only as ordinary packages.
 - Marketplace, package signing, dependency resolver.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, and Agent Infrastructure Alpha are complete. Model Provider Integration Alpha is in progress and will turn the prerequisites in [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md) into ordinary capability packages plus a host outbound boundary, not into a relay gateway or kernel model ontology. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, and Model Provider Integration Alpha are complete. If future work advances real live model calls, it must continue turning the production-grade secret resolver, real outbound executor, manual opt-in, provider package replacement, and transport parity requirements in [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md) into ordinary capability packages plus host boundaries — not a relay gateway or kernel model ontology. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.

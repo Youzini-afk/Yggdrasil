@@ -23,9 +23,9 @@ Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱
 
 ## 当前状态
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha（J0–J6）。**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha。**
 
-当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、安全执行原语（`secret_ref`、network declarations、outbound audit/redaction、stream/cancel lifecycle）、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、Creative Capability Kit 包（`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`）、no-network Model Connectivity Kit 包（`model-connector-lab`、`model-provider-lab`、`model-routing-lab`）、作为能力包存在的 assistant、`official/playable-seed`、参考代理运行时包 `official/pi-agent-runtime-lab`、capability tool bridge 包 `official/capability-tool-bridge-lab`、第三方 agent runtime 替换证明（`thirdparty/agent-runtime`）、空白游创循环、一个完全走公开协议的 Home/Play + Forge + Assist Web shell、可选前端文本引擎底座（fallback engine、可选 Pretext engine、Forge text preview、`sdk/typescript/text-surface`），以及 agent runtime 包模板（`--template agent-runtime`）。108 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
+当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、安全执行原语（`secret_ref`、network declarations、outbound audit/redaction、outbound executor boundary、stream/cancel lifecycle）、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、Creative Capability Kit 包（`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`）、Model Connectivity / Provider 包（`model-connector-lab`、`model-provider-lab`、`model-routing-lab`；覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 的 no-network normalization、fake/local invoke 和 stream normalization）、作为能力包存在的 assistant、`official/playable-seed`、参考代理运行时包 `official/pi-agent-runtime-lab`、capability tool bridge 包 `official/capability-tool-bridge-lab`、第三方 agent runtime 替换证明（`thirdparty/agent-runtime`）、空白游创循环、一个完全走公开协议的 Home/Play + Forge + Assist Web shell、可选前端文本引擎底座（fallback engine、可选 Pretext engine、Forge text preview、`sdk/typescript/text-surface`），以及 agent runtime 包模板（`--template agent-runtime`）。114 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
 
 可执行快照见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。
 后续阶段见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
@@ -138,19 +138,19 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md) —— agent-like 能力包创作指南。
 - [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.md) —— Yggdrasil-native creative capability package kit。
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) —— no-network model provider profile 与 route planning kit。
+- [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md) —— 多 provider 模型接入指南。
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
 - [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) —— 当前与下一阶段。
 - [`sdk/typescript/model-provider-adapter/README.md`](sdk/typescript/model-provider-adapter/README.md) —— Model Provider Adapter SDK（M1）。
-- [`docs/roadmap/MODEL_PROVIDER_INTEGRATION_ALPHA.md`](docs/roadmap/MODEL_PROVIDER_INTEGRATION_ALPHA.md) —— Model Provider Integration Alpha 执行计划（M2 ✅）。
 
 ## 延后事项
 
 下面这些方向有价值，但不属于内核。它们都将以普通能力包的形态到来。
 
 - SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
-- pi / agent 包基础设施 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md) 与 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)。真实 agent loop、模型调用和记忆系统仍是未来普通能力包。
+- pi / agent 包基础设施 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md) 与 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)。真实 agent loop 和记忆系统仍是未来普通能力包；model provider 接入底座见 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)。
 - 外部游戏引擎（UE5、Godot、Unity、Web 端）—— 后续以包或 remote 入口形式接入。
-- 对话运行时、模型 provider、记忆模型、agent loop、世界模拟、director。
+- 对话运行时、生产级 live model calls、记忆模型、agent loop、世界模拟、director。
 - 最终视觉设计、完整 Studio、ComfyUI 风格节点编辑器、市场。
 
 ## 协议

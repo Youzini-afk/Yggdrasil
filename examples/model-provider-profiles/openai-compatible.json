@@ -1,0 +1,6 @@
+{
+  "family": "openai_compatible",
+  "model": "local-or-vendor-model",
+  "credential": "secret_ref:env:OPENAI_COMPATIBLE_API_KEY",
+  "baseUrl": "https://api.openai-compatible.example.com/v1"
+}

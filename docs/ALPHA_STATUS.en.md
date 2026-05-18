@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 114 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof, **outbound executor boundary with deny-all default and fake executor conformance**.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Current consolidation:** Agent Infrastructure Alpha is complete and documented; the next phase should continue around real-inference prerequisites, host hardening, or deeper package authoring rather than putting agent/model/prompt semantics into the kernel.
+- **Current consolidation:** Agent Infrastructure Alpha and Model Provider Integration Alpha are complete and documented; future live model calls still require explicit host policy, secret resolver, real outbound executor, and ordinary provider-package paths, not kernel model/prompt semantics or relay-admin backends.
 
 ## What is implemented
 
@@ -155,7 +155,7 @@ These are non-goals for the kernel and are expected to ship as ordinary packages
 - Memory model, retrieval, summarization, agent loop, director.
 - World, scene, actor, rule, dice, inventory semantics.
 - SillyTavern resource and behavior compatibility (see `docs/tavern/TAVERN_COMPAT.md`).
-- Real agent loops, model calls, and memory systems (agent-like infrastructure is complete; see `docs/architecture/PI_INTEGRATION.md` and `docs/guides/AGENT_PACKAGE_AUTHORING.md`).
+- Real agent loops, production-grade live model calls, and memory systems (agent-like infrastructure plus provider adapter/fake-local invoke are complete; see `docs/architecture/PI_INTEGRATION.md`, `docs/guides/AGENT_PACKAGE_AUTHORING.md`, and `docs/guides/MODEL_PROVIDER_INTEGRATION.md`).
 - External game engine bridges (UE5, Godot, Unity, web clients).
 - Marketplace, package signing, dependency resolver.
 - Final UI visual design, full Studio, ComfyUI-like node editors.
@@ -187,4 +187,5 @@ If any of the above fails, this document is wrong; the code is right. Update thi
 - `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
 - `docs/product/PLAY_CREATION_MODEL.md` — play-creation product stance.
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like capability package authoring guide.
+- `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — multi-provider model integration guide.
 - `docs/roadmap/NEXT_STEPS.md` — current and upcoming phases.

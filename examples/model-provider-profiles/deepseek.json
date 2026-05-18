@@ -1,0 +1,6 @@
+{
+  "family": "deepseek",
+  "model": "deepseek-chat",
+  "credential": "secret_ref:env:DEEPSEEK_API_KEY",
+  "baseUrl": "https://api.deepseek.com"
+}
