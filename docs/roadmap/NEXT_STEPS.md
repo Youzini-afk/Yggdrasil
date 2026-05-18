@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha 已完成：Yggdrasil 现在可以通过普通包、SDK adapter、capability/tool bridge、approval-gated proposals 和 public-protocol UI 观察面托管 agent-like packages，而不是把 agent/model/prompt 语义加入内核。
+Agent Infrastructure Alpha 已完成。下一条主线是 **Model Provider Integration Alpha**：以普通能力包接入 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等真实 provider API 差异；默认 conformance 使用 fake/local executor，手动真实调用 opt-in；不做中转站、计费系统或 kernel model/prompt/chat 语义。
 
 ## 当前位置
 
@@ -17,6 +17,7 @@ Agent Infrastructure Alpha 已完成：Yggdrasil 现在可以通过普通包、S
 - Secure Execution Substrate：Alpha 切片已完成。持久 grants、`secret_ref`、host resolver placeholder、raw-secret blocking、网络权限声明、outbound audit/redaction、通用 streaming/cancel 生命周期、secure-execution TypeScript helpers、networked/streaming templates，以及 no-network model/agent readiness examples 已就位。
 - Text Surface Proof：Phase T1/T2/T3/T4/T5 已完成。`integrations/pretext` 记录 Pretext 参考边界，Assistant Drawer 中已有基于 `clients/web/src/text-layout` 的受限 mock streaming text proof，且没有 kernel/protocol/package 变更。`sdk/typescript/text-surface` 提供纯 TypeScript 前端 SDK 供第三方 UI 使用。字体加载、缓存诊断和自测模块已就位。
 - Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
+- Model Provider Integration Alpha：执行中；`integrations/model-providers` research ledger 和临时计划 [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.md) 记录多 provider API、stream、error、new-api/TavernHeadless 经验和非目标。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -96,13 +97,13 @@ Phase J 非目标：
 - 不新增 kernel `agent`、`prompt`、`memory`、`turn` 或 `model` 方法。
 - 不整体嵌入 `pi-coding-agent` 的产品假设。
 
-## Phase K — 建议下一主线
+## Phase K — Model Provider Integration Alpha（执行中）
 
-下一阶段不应把 agent/model/prompt/memory 塞进 kernel。更合适的方向是从以下三者中选择：
+目标：直接开始真实模型 provider 接入，但保持 Yggdrasil 方式：普通能力包、`secret_ref`、network allowlist、redacted audit、stream/cancel、fake/local conformance、manual live opt-in、无官方特权、无 kernel model ontology。
 
-- **Real Model Inference Prerequisites**：继续推进 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 中的 host policy、secret resolver、usage/audit、stream transport parity 和 provider error taxonomy，然后再做普通 `model-inference` 能力包。
-- **Host Hardening**：补齐 package-principal subscribe、hook timeout/error audit、持久 provider 选择策略、filesystem/resource policy 和更广传输一致性。
-- **Package Authoring Depth**：加强 package release/check/composition/reporting、SDK packaging、第三方 examples 和 Forge authoring flows。
+执行顺序见 [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.md)：provider API 调研 ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab` no-network normalization、host outbound executor boundary、OpenAI/Anthropic/Gemini invoke adapters、OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets、streaming normalization、examples/conformance/durable docs。
+
+非目标：用户余额、计费、渠道后台、admin UI、托管平台代理 key、`kernel.model.*`、`kernel.prompt.*`、`kernel.chat.*`、`kernel.embedding.*`。
 
 ## 内核范围内的无限期延后
 
@@ -117,4 +118,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha 和 Agent Infrastructure Alpha 已完成。未来真实 model inference 仍推迟到 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 之后。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha 和 Agent Infrastructure Alpha 已完成。Model Provider Integration Alpha 正在执行，并会把 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 中的前置条件落实到普通能力包与 host outbound boundary，而不是变成中转站或 kernel model ontology。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

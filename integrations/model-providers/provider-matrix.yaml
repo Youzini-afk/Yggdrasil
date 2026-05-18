@@ -1,0 +1,135 @@
+integration: model_provider_integration_alpha
+status: research_ledger
+default_language: zh-CN
+families:
+  openai:
+    endpoints:
+      - POST /v1/responses
+      - POST /v1/chat/completions
+    auth:
+      - Authorization: Bearer ${secret_ref}
+      - optional OpenAI-Organization
+      - optional OpenAI-Project
+    request_dialects: [openai_responses, openai_chat]
+    stream_families: [semantic_sse, delta_sse]
+    usage_modes: [top_level, final_chunk]
+    tool_modes: [functions, built_in_tools]
+    notes:
+      - Responses emits semantic events such as response.output_text.delta.
+      - Chat completions uses choices[].delta.
+  anthropic:
+    endpoints:
+      - POST /v1/messages
+    auth:
+      - x-api-key: ${secret_ref}
+      - anthropic-version
+    request_dialects: [anthropic_messages]
+    stream_families: [semantic_sse]
+    usage_modes: [cumulative_delta]
+    tool_modes: [tool_use]
+    notes:
+      - system is top-level, not a system role message.
+      - stream events include message_start/content_block_delta/message_delta/message_stop.
+  gemini:
+    endpoints:
+      - POST /v1beta/models/{model}:generateContent
+      - POST /v1beta/models/{model}:streamGenerateContent?alt=sse
+    auth:
+      - x-goog-api-key: ${secret_ref}
+    request_dialects: [gemini_generate_content]
+    stream_families: [typed_chunk_stream]
+    usage_modes: [usage_metadata]
+    tool_modes: [functions, code_execution]
+    notes:
+      - Uses contents[] and parts[], plus systemInstruction/generationConfig/safetySettings.
+      - Not OpenAI-compatible.
+  openai_compatible:
+    endpoints:
+      - POST {base_url}/chat/completions
+      - optional POST {base_url}/responses
+    auth:
+      - Authorization: Bearer ${secret_ref}
+    request_dialects: [openai_chat, optional_openai_responses]
+    stream_families: [delta_sse]
+    usage_modes: [final_chunk, top_level]
+    tool_modes: [functions]
+    notes:
+      - Provider presets still needed for base URL, params, reasoning fields, usage quirks, and error wrappers.
+  openrouter:
+    endpoints:
+      - POST https://openrouter.ai/api/v1/responses
+      - POST https://openrouter.ai/api/v1/chat/completions
+    auth:
+      - Authorization: Bearer ${secret_ref}
+      - optional HTTP-Referer
+      - optional X-OpenRouter-Title
+    request_dialects: [stateless_responses, openai_chat]
+    stream_families: [semantic_sse, delta_sse]
+    usage_modes: [top_level]
+    tool_modes: [functions, web_search]
+    notes:
+      - Stateless: callers send full history.
+      - Mid-stream errors may arrive as SSE chunks after HTTP 200.
+  deepseek:
+    endpoints:
+      - POST https://api.deepseek.com/chat/completions
+      - optional POST https://api.deepseek.com/anthropic
+      - beta https://api.deepseek.com/beta
+    auth:
+      - Authorization: Bearer ${secret_ref}
+    request_dialects: [openai_chat, anthropic_compat]
+    stream_families: [delta_sse]
+    usage_modes: [top_level, final_chunk]
+    tool_modes: [functions]
+    notes:
+      - Supports thinking/reasoning_effort extensions.
+      - Strict beta requires stricter schema constraints.
+  xai:
+    endpoints:
+      - POST /v1/responses
+      - POST /v1/chat/completions
+    auth:
+      - Authorization: Bearer ${secret_ref}
+    request_dialects: [openai_responses, openai_chat]
+    stream_families: [semantic_sse, delta_sse]
+    usage_modes: [top_level]
+    tool_modes: [functions, web_search]
+    notes:
+      - Chat max_tokens is deprecated in favor of max_completion_tokens.
+      - Usage may include cost/ticks/reasoning/tool details.
+  fireworks:
+    endpoints:
+      - POST https://api.fireworks.ai/inference/v1/chat/completions
+      - POST /v1/responses
+    auth:
+      - Authorization: Bearer ${secret_ref}
+      - Content-Type: application/json
+    request_dialects: [openai_chat, fireworks_responses]
+    stream_families: [delta_sse, semantic_sse]
+    usage_modes: [top_level, final_chunk]
+    tool_modes: [functions, mcp]
+    notes:
+      - Supports rollout/session affinity headers.
+      - Responses can include MCP and previous_response_id style continuation.
+abstract_capabilities:
+  request_dialect:
+    - openai_chat
+    - openai_responses
+    - anthropic_messages
+    - gemini_generate_content
+    - stateless_responses
+  stream_family:
+    - delta_sse
+    - semantic_sse
+    - typed_chunk_stream
+  normalized_stream_events:
+    - text_delta
+    - reasoning_delta
+    - tool_call_started
+    - tool_args_delta
+    - tool_call_done
+    - citation
+    - usage_final
+    - error
+    - done
+    - heartbeat

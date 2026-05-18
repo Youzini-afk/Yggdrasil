@@ -2,7 +2,7 @@
 
 > [English](./MODEL_INFERENCE_PREREQUISITES.en.md) · [中文](./MODEL_INFERENCE_PREREQUISITES.md)
 
-Model Connectivity Kit Alpha deliberately stops before real model execution. A future `official/model-inference-lab` or equivalent package family must not start until these prerequisites are specified and covered by conformance.
+Model Connectivity Kit Alpha deliberately stopped before real model execution. Model Provider Integration Alpha now starts turning these prerequisites into ordinary capability packages, SDKs, and a host outbound boundary; it is not a relay gateway, billing system, or kernel model ontology.
 
 ## Required platform contracts
 

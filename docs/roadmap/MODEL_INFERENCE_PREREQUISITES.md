@@ -2,7 +2,7 @@
 
 > [English](./MODEL_INFERENCE_PREREQUISITES.en.md) · [中文](./MODEL_INFERENCE_PREREQUISITES.md)
 
-Model Connectivity Kit Alpha 刻意停在真实 model execution 之前。未来的 `official/model-inference-lab` 或等价能力包族，必须等以下前置条件被明确并纳入 conformance 后再开始。
+Model Connectivity Kit Alpha 刻意停在真实 model execution 之前。Model Provider Integration Alpha 现在开始把这些前置条件落实为普通能力包、SDK 和 host outbound boundary；它不是中转站、计费系统或 kernel model ontology。
 
 ## 必需的平台契约
 

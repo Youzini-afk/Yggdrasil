@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha is complete: Yggdrasil can now host agent-like packages through ordinary packages, SDK adapters, capability/tool bridges, approval-gated proposals, and public-protocol UI observability — without adding agent/model/prompt semantics to the kernel.
+Agent Infrastructure Alpha is complete. The next headline is **Model Provider Integration Alpha**: connect real API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages. Default conformance uses fake/local executors; manual live calls are opt-in. This is not a relay gateway, billing system, or kernel model/prompt/chat ontology.
 
 ## Where we are
 
@@ -17,6 +17,7 @@ Agent Infrastructure Alpha is complete: Yggdrasil can now host agent-like packag
 - Secure Execution Substrate: complete Alpha slice. Persistent grants, `secret_ref`, host resolver placeholder, raw-secret blocking, network permission declarations, outbound audit/redaction, generic streaming/cancel lifecycle, secure-execution TypeScript helpers, networked/streaming templates, and no-network model/agent readiness examples are in place.
 - Text Surface Proof: complete Phase T1/T2/T3/T4/T5. `integrations/pretext` documents the Pretext reference boundary, and the Assistant Drawer contains a bounded mock streaming text proof over `clients/web/src/text-layout` without kernel/protocol/package changes. `sdk/typescript/text-surface` provides a pure TypeScript frontend SDK for third-party UIs. Font loading, cache diagnostics, and a self-test harness are in place.
 - Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
+- Model Provider Integration Alpha: in progress; `integrations/model-providers` research ledger and the temporary plan [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.en.md) record multi-provider API, stream, error, new-api/TavernHeadless lessons, and non-goals.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -96,13 +97,13 @@ Non-goals for Phase J:
 - No kernel `agent`, `prompt`, `memory`, `turn`, or `model` methods.
 - No wholesale embedding of `pi-coding-agent` product assumptions.
 
-## Phase K — recommended next headline
+## Phase K — Model Provider Integration Alpha (in progress)
 
-The next phase should not put agent/model/prompt/memory semantics into the kernel. Better candidates are:
+Goal: start real model provider integration directly while keeping the Yggdrasil shape: ordinary packages, `secret_ref`, network allowlists, redacted audit, stream/cancel, fake/local conformance, manual live opt-in, no official privilege, and no kernel model ontology.
 
-- **Real Model Inference Prerequisites**: continue [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md) with host policy, secret resolver, usage/audit, stream transport parity, and provider error taxonomy before building an ordinary `model-inference` capability package.
-- **Host Hardening**: package-principal subscribe, hook timeout/error audit, persisted provider selection policy, filesystem/resource policy, and broader transport parity.
-- **Package Authoring Depth**: package release/check/composition/reporting, SDK packaging, third-party examples, and Forge authoring flows.
+Execution sequence is tracked in [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.en.md): provider API research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab` no-network normalization, host outbound executor boundary, OpenAI/Anthropic/Gemini invoke adapters, OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets, streaming normalization, examples/conformance/durable docs.
+
+Non-goals: user balances, billing, channel admin, admin UI, hosted platform relay keys, `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, and `kernel.embedding.*`.
 
 ## Deferred indefinitely from kernel scope
 
@@ -117,4 +118,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, and Agent Infrastructure Alpha are complete. Future real model inference remains deferred behind [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md). Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, and Agent Infrastructure Alpha are complete. Model Provider Integration Alpha is in progress and will turn the prerequisites in [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md) into ordinary capability packages plus a host outbound boundary, not into a relay gateway or kernel model ontology. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
