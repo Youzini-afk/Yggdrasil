@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha 与 Model Provider Integration Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；默认 conformance 不依赖外网，后续真实 live call 仍必须走显式 host policy、secret resolver 和 outbound boundary。
+Agent Infrastructure Alpha 与 Model Provider Integration Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；默认 conformance 不依赖外网。当前主线是 **Live Model Calls Alpha**：把真实 key、真实 HTTPS、公开 outbound boundary、stream/cancel 和 redacted audit 跑通，同时保持无中转站、无计费后台、无 kernel model ontology。
 
 ## 当前位置
 
@@ -18,6 +18,7 @@ Agent Infrastructure Alpha 与 Model Provider Integration Alpha 已完成。Yggd
 - Text Surface Proof：Phase T1/T2/T3/T4/T5 已完成。`integrations/pretext` 记录 Pretext 参考边界，Assistant Drawer 中已有基于 `clients/web/src/text-layout` 的受限 mock streaming text proof，且没有 kernel/protocol/package 变更。`sdk/typescript/text-surface` 提供纯 TypeScript 前端 SDK 供第三方 UI 使用。字体加载、缓存诊断和自测模块已就位。
 - Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
+- Live Model Calls Alpha：执行中；临时计划见 [`LIVE_MODEL_CALLS_ALPHA.md`](LIVE_MODEL_CALLS_ALPHA.md)。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -105,6 +106,23 @@ Phase J 非目标：
 
 非目标：用户余额、计费、渠道后台、admin UI、托管平台代理 key、`kernel.model.*`、`kernel.prompt.*`、`kernel.chat.*`、`kernel.embedding.*`。
 
+## Phase L — Live Model Calls Alpha（执行中）
+
+目标：把 fake/local provider path 推进到真实 live calls，但仍通过普通能力包、host-owned secrets、public outbound boundary、redacted audit 和 opt-in live conformance 工作。
+
+阶段：
+
+- L0：冻结 live-call contract 与临时计划。
+- L1：Host EnvSecretResolver。
+- L2：LiveHttpOutboundExecutor（`reqwest + rustls`，默认关闭）。
+- L3：公开 outbound/secret boundary，避免 official private runtime access。
+- L4：first live provider canary invoke + stream。
+- L5：OpenAI / Anthropic / Gemini live adapters。
+- L6：OpenRouter / DeepSeek / xAI / Fireworks quirks。
+- L7：durable docs + cleanup。
+
+非目标：中转站、用户金额/计费系统、渠道后台、平台代理 key、默认联网 CI、provider 直接读 env、provider 直接 HTTP 绕过 host、`kernel.model.*`。
+
 ## 内核范围内的无限期延后
 
 这些仍是内核的非目标。它们可能以未来包的形式存在。
@@ -118,4 +136,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha 和 Model Provider Integration Alpha 已完成。后续如果推进真实 live model calls，必须把 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 中的生产级 secret resolver、真实 outbound executor、manual opt-in、provider package replacement 和 transport parity 继续落到普通能力包与 host boundary，而不是变成中转站或 kernel model ontology。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha 和 Model Provider Integration Alpha 已完成。Live Model Calls Alpha 正在把 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 中的生产级 secret resolver、真实 outbound executor、manual opt-in、provider package replacement 和 transport parity 落到普通能力包与 host boundary，而不是变成中转站或 kernel model ontology。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

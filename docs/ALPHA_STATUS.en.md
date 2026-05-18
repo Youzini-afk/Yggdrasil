@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 114 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof, **outbound executor boundary with deny-all default and fake executor conformance**.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Current consolidation:** Agent Infrastructure Alpha and Model Provider Integration Alpha are complete and documented; future live model calls still require explicit host policy, secret resolver, real outbound executor, and ordinary provider-package paths, not kernel model/prompt semantics or relay-admin backends.
+- **Current headline:** Agent Infrastructure Alpha and Model Provider Integration Alpha are complete and documented; Live Model Calls Alpha is advancing real keys, real HTTPS, public outbound boundaries, stream/cancel, and redacted audit while still requiring ordinary provider-package paths, not kernel model/prompt semantics or relay-admin backends.
 
 ## What is implemented
 

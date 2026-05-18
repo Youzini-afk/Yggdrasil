@@ -12,7 +12,7 @@
 - **Conformance：** 114 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前收敛：** Agent Infrastructure Alpha 与 Model Provider Integration Alpha 已完成并文档化；后续真实 live model calls 仍需显式 host policy、secret resolver、真实 outbound executor 和普通 provider package 路径，不能变成 kernel model/prompt 语义或中转站后台。
+- **当前主线：** Agent Infrastructure Alpha 与 Model Provider Integration Alpha 已完成并文档化；Live Model Calls Alpha 正在推进真实 key、真实 HTTPS、public outbound boundary、stream/cancel 和 redacted audit，仍必须通过普通 provider package 路径，不能变成 kernel model/prompt 语义或中转站后台。
 
 ## 已实现
 
