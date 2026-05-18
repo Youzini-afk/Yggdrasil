@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：116 个 implemented rows，由 124 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：121 个 implemented rows，由 129 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -146,6 +146,11 @@ cargo run -p ygg-cli -- conformance
 | outbound | kernel.outbound.execute spoofed package_id 被拒绝，不能代替其他 package | implemented |
 | outbound | kernel.outbound.execute 无 network permission denied，executor 不调用 | implemented |
 | outbound | kernel.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
+| outbound | kernel.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
+| outbound | local loopback HTTP server secret injection：Authorization header 真实到达 server，raw secret 不在 protocol response/audit/log | implemented |
+| outbound | DeepSeek SSE stream normalize canary：delta_sse start→chunk→end lifecycle，terminal_frame_consistent，no raw secrets | implemented |
+| outbound | opt-in live DeepSeek conformance：默认跳过，YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY 时才尝试 | implemented |
+| outbound | canary DeepSeek profile shape：normalize_request endpoint/dialect/stream_family 正确，secret_ref placeholder 不含 raw key | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -297,6 +302,11 @@ outbound.execute_package_allowed                 PASS
 outbound.execute_spoofed_package_id_rejected     PASS
 outbound.execute_no_permission_denied             PASS
 outbound.execute_no_raw_secret_in_response        PASS
+outbound.secret_headers_parsed                    PASS
+outbound.live_loopback_secret_injection            PASS
+stream.sse_normalize_deepseek_canary              PASS
+outbound.live_deepseek_opt_in                     PASS
+canary.deepseek_profile_shape                     PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 116 implemented rows, backed by 124 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 121 implemented rows, backed by 129 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -146,6 +146,11 @@ Current matrix coverage: 116 implemented rows, backed by 124 named CLI conforman
 | outbound | kernel.outbound.execute spoofed package_id rejected, cannot act as another package | implemented |
 | outbound | kernel.outbound.execute no network permission denied, executor not called | implemented |
 | outbound | kernel.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
+| outbound | kernel.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
+| outbound | local loopback HTTP server secret injection: Authorization header actually arrives at server, raw secret not in protocol response/audit/log | implemented |
+| outbound | DeepSeek SSE stream normalize canary: delta_sse start→chunk→end lifecycle, terminal_frame_consistent, no raw secrets | implemented |
+| outbound | opt-in live DeepSeek conformance: default skip, only when YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY | implemented |
+| outbound | canary DeepSeek profile shape: normalize_request endpoint/dialect/stream_family correct, secret_ref placeholder no raw key | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -297,6 +302,11 @@ outbound.execute_package_allowed                 PASS
 outbound.execute_spoofed_package_id_rejected     PASS
 outbound.execute_no_permission_denied             PASS
 outbound.execute_no_raw_secret_in_response        PASS
+outbound.secret_headers_parsed                    PASS
+outbound.live_loopback_secret_injection            PASS
+stream.sse_normalize_deepseek_canary              PASS
+outbound.live_deepseek_opt_in                     PASS
+canary.deepseek_profile_shape                     PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

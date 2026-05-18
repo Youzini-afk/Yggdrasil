@@ -387,6 +387,8 @@ pub(crate) async fn outbound_no_permission_executor_not_called() -> anyhow::Resu
                 timeout_ms: None,
                 metadata: serde_json::Value::Null,
                 body_shape: None,
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await;
@@ -442,6 +444,8 @@ pub(crate) async fn outbound_policy_executor_mismatch_denied() -> anyhow::Result
                 timeout_ms: Some(30000),
                 metadata: serde_json::Value::Null,
                 body_shape: None,
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await;
@@ -492,6 +496,8 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
                 timeout_ms: Some(30000),
                 metadata: serde_json::json!({"provider": "openai"}),
                 body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await?;
@@ -577,6 +583,8 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
                     "messages": [{"role": "user", "content": "Hello world"}],
                     "temperature": 0.7
                 })),
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await?;
@@ -660,6 +668,8 @@ pub(crate) async fn outbound_secret_refs_only() -> anyhow::Result<()> {
                 timeout_ms: None,
                 metadata: serde_json::Value::Null,
                 body_shape: None,
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await?;
@@ -742,6 +752,8 @@ pub(crate) async fn outbound_host_mismatch_redirect_denied() -> anyhow::Result<(
                 timeout_ms: None,
                 metadata: serde_json::Value::Null,
                 body_shape: None,
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await;
@@ -819,6 +831,8 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 timeout_ms: Some(30000),
                 metadata: serde_json::json!({"provider": "openai", "request_dialect": "openai_chat"}),
                 body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await?;
@@ -850,6 +864,8 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 timeout_ms: Some(30000),
                 metadata: serde_json::json!({"provider": "anthropic", "request_dialect": "anthropic_messages"}),
                 body_shape: Some(serde_json::json!({"model": "claude-3-5-sonnet-20241022", "messages": [], "max_tokens": 1024})),
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await?;
@@ -880,6 +896,8 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 timeout_ms: Some(30000),
                 metadata: serde_json::json!({"provider": "gemini", "request_dialect": "gemini_generate_content"}),
                 body_shape: Some(serde_json::json!({"contents": []})),
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
             },
         )
         .await?;
@@ -965,6 +983,8 @@ pub(crate) async fn outbound_live_http_rejects_insecure_url() -> anyhow::Result<
         timeout_ms: None,
         metadata: serde_json::json!({"scheme": "http"}),
         body_shape: None,
+        secret_headers: Vec::new(),
+        resolved_secret_headers: Vec::new(),
     };
     let result = executor.execute(request_http_scheme).await;
     anyhow::ensure!(
@@ -985,6 +1005,8 @@ pub(crate) async fn outbound_live_http_rejects_insecure_url() -> anyhow::Result<
         timeout_ms: None,
         metadata: serde_json::json!({"base_url": "http://api.example.com"}),
         body_shape: None,
+        secret_headers: Vec::new(),
+        resolved_secret_headers: Vec::new(),
     };
     let result = executor.execute(request_http_base).await;
     anyhow::ensure!(
@@ -1034,6 +1056,8 @@ pub(crate) async fn outbound_live_http_redacted_shape() -> anyhow::Result<()> {
         timeout_ms: Some(100),
         metadata: serde_json::json!({"scheme": "http"}),
         body_shape: Some(serde_json::json!({"model": "test", "messages": []})),
+        secret_headers: Vec::new(),
+        resolved_secret_headers: Vec::new(),
     };
 
     let response = executor.execute(request).await;

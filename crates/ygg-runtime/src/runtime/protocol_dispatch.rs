@@ -1,3 +1,4 @@
+use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
 
 use super::Runtime;
@@ -110,6 +111,18 @@ where
                     .unwrap_or(Value::Null);
                 let body_shape = params.get("body_shape").cloned();
 
+                // L4: Parse secret_headers from params for host-side injection.
+                // Format: { "Authorization": {"secret_ref": "...", "scheme": "bearer"} }
+                let secret_headers_spec = parse_secret_headers(&params)?;
+
+                // Collect secret_refs from both top-level and secret_headers
+                let mut all_secret_refs = secret_refs.clone();
+                for spec in &secret_headers_spec {
+                    if !all_secret_refs.contains(&spec.secret_ref) {
+                        all_secret_refs.push(spec.secret_ref.clone());
+                    }
+                }
+
                 let policy_request = super::OutboundRequest {
                     principal: context.principal.clone(),
                     package_id: package_id.clone(),
@@ -117,8 +130,32 @@ where
                     destination_host: destination_host.clone(),
                     method: method.clone(),
                     purpose: purpose.clone(),
-                    secret_refs_used: secret_refs.clone(),
+                    secret_refs_used: all_secret_refs.clone(),
                 };
+
+                // L4: Resolve secret_headers into resolved_secret_headers
+                let mut resolved_secret_headers = Vec::new();
+                for spec in &secret_headers_spec {
+                    HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
+                        anyhow::anyhow!("kernel.outbound.execute secret header name is invalid")
+                    })?;
+                    let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
+                        anyhow::anyhow!("kernel.outbound.execute secret header is unavailable")
+                    })?;
+                    let header_value = match spec.scheme.to_lowercase().as_str() {
+                        "bearer" => format!("Bearer {}", raw_value),
+                        "basic" => format!("Basic {}", raw_value),
+                        "raw" | "" => raw_value,
+                        other => format!("{} {}", other, raw_value),
+                    };
+                    HeaderValue::from_str(&header_value).map_err(|_| {
+                        anyhow::anyhow!("kernel.outbound.execute secret header value is invalid")
+                    })?;
+                    resolved_secret_headers.push(super::outbound::ResolvedSecretHeader {
+                        header_name: spec.header_name.clone(),
+                        value: super::outbound::RedactedHeaderValue(header_value),
+                    });
+                }
 
                 let executor_request = super::OutboundExecutorRequest {
                     package_id: package_id.clone(),
@@ -127,11 +164,13 @@ where
                     method: method.clone(),
                     path,
                     purpose,
-                    secret_refs: secret_refs.clone(),
+                    secret_refs: all_secret_refs,
                     redaction_state: None,
                     timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
                     metadata,
                     body_shape,
+                    secret_headers: secret_headers_spec,
+                    resolved_secret_headers,
                 };
 
                 let response = self
@@ -417,4 +456,56 @@ fn strip_raw_secrets_from_value(value: &mut Value) {
         }
         _ => {}
     }
+}
+
+/// L4: Parse `secret_headers` from `kernel.outbound.execute` params.
+///
+/// Expected format:
+/// ```json
+/// {
+///   "Authorization": {"secret_ref": "secret_ref:env:DEEPSEEK_API_KEY", "scheme": "bearer"},
+///   "x-api-key": {"secret_ref": "secret_ref:env:MY_KEY"}
+/// }
+/// ```
+///
+/// Each entry declares a header to be injected from a secret_ref, with
+/// an optional scheme prefix (e.g. "bearer" → "Bearer <value>").
+/// The host resolves these at execution time; raw values are never
+/// returned to the caller, persisted in audit, or echoed in errors.
+fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::SecretHeaderSpec>> {
+    let secret_headers_value = match params.get("secret_headers") {
+        Some(v) => v,
+        None => return Ok(Vec::new()),
+    };
+
+    let headers_obj = secret_headers_value
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute secret_headers must be an object"))?;
+
+    let mut specs = Vec::new();
+    for (header_name, header_spec) in headers_obj {
+        let secret_ref = header_spec
+            .get("secret_ref")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute secret header requires secret_ref"))?
+            .to_string();
+
+        if !ygg_core::SecretRef::is_valid_ref(&secret_ref) {
+            anyhow::bail!("kernel.outbound.execute secret header secret_ref is invalid");
+        }
+
+        let scheme = header_spec
+            .get("scheme")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+
+        specs.push(super::outbound::SecretHeaderSpec {
+            header_name: header_name.clone(),
+            secret_ref,
+            scheme,
+        });
+    }
+
+    Ok(specs)
 }

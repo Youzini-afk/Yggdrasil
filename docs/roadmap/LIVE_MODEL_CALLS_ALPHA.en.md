@@ -77,16 +77,24 @@ Expose content-free host boundary to ordinary capability packages:
 - Docs clarify arbitrary subprocess networking is still not OS-level intercepted; uncontrolled subprocess providers are not default live providers.
 - Conformance adds 4 new cases: `outbound.execute_package_allowed`, `outbound.execute_spoofed_package_id_rejected`, `outbound.execute_no_permission_denied`, `outbound.execute_no_raw_secret_in_response`. No public internet dependency.
 
-## Phase L4 — First live provider canary
+## Phase L4 — First live provider canary invoke+stream ✅
 
-Run one provider through real invoke + stream, preferably DeepSeek / OpenAI-compatible:
+Implemented the minimum verifiable path for first live provider canary invoke+stream:
 
-- env secret opt-in.
-- live invoke.
-- live stream.
-- auth failure, timeout, rate limit/bad request classification.
-- stream cancel/timeout through host boundary.
-- Manual `conformance live-model` opt-in; default conformance remains local and stable.
+- **Host-side secret header injection**: `kernel.outbound.execute` gains a `secret_headers` param with format `{ "Authorization": {"secret_ref":"secret_ref:env:DEEPSEEK_API_KEY", "scheme":"bearer"}}`. Host resolves the secret_ref via `EnvSecretResolver` and constructs the header value (e.g. `Bearer <key>`), injecting it into `LiveHttpOutboundExecutor` HTTP request headers. Raw secrets are never returned to packages, audit, errors, or responses.
+- **`OutboundExecutorRequest` extension**: New fields `secret_headers: Vec<SecretHeaderSpec>` (parsed spec) and `resolved_secret_headers: Vec<ResolvedSecretHeader>` (host-resolved values, wrapped in `RedactedHeaderValue` newtype, Debug/Serialize do not leak).
+- **`LiveHttpOutboundExecutor::build_headers` injection**: L4 reads `resolved_secret_headers` and injects Authorization and other secret headers; raw values exist only in the HTTP request, never in audit/Debug/response shapes.
+- **Protocol dispatch L4 integration**: `parse_secret_headers` parses `secret_headers` params; `resolve_secret_ref` resolves each secret_ref; resolved headers flow into `OutboundExecutorRequest`; secret_refs from secret_headers are merged into `all_secret_refs` for policy/audit.
+- **Canary provider profile shape**: `model-provider-lab/normalize_request` validates DeepSeek profile maps to the correct endpoint (api.deepseek.com), request_dialect (openai_chat), stream_family (delta_sse).
+- **SSE stream canary**: `model-provider-lab/normalize_stream` validates DeepSeek delta_sse normalizes to start→chunk→end frames, terminal_frame_consistent=true, network_performed=false, no raw secrets.
+- **Local loopback HTTP server conformance**: Starts a local HTTP server (loopback only, no public internet), verifies Authorization header actually arrives at server, but raw secret does not appear in protocol response/audit/log. Uses `allow_insecure_loopback_for_tests=true`.
+- **Opt-in live conformance**: Only attempts real `kernel.outbound.execute` when `YGG_LIVE_MODEL_TESTS=1` AND `DEEPSEEK_API_KEY` is set. Default conformance skips (no public internet dependency).
+- Conformance adds 5 new cases: `outbound.secret_headers_parsed`, `outbound.live_loopback_secret_injection`, `stream.sse_normalize_deepseek_canary`, `outbound.live_deepseek_opt_in`, `canary.deepseek_profile_shape`. No public internet dependency.
+
+**L4 does not cover** (deferred to L5):
+- Real provider streaming through outbound boundary (current stream canary proves host boundary path via normalize_stream; real HTTP SSE streaming deferred to L5).
+- Real provider auth failure/timeout/rate limit classification.
+- Multi-provider live adapters (OpenAI/Anthropic/Gemini deferred to L5).
 
 ## Phase L5 — OpenAI / Anthropic / Gemini live adapters
 

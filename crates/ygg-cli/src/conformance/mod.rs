@@ -3,6 +3,7 @@ mod fixtures;
 mod generated;
 mod hooks;
 mod inproc;
+mod live_model;
 mod network;
 mod official_foundation;
 mod official_labs;
@@ -440,6 +441,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "stream.protocol_dispatch",
         streaming::stream_protocol_dispatch().await,
+    );
+    // Phase L4 — Live Model Calls: first live provider canary invoke+stream
+    record_case(
+        &mut results,
+        "outbound.secret_headers_parsed",
+        live_model::outbound_secret_headers_parsed().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.live_loopback_secret_injection",
+        live_model::outbound_live_loopback_secret_injection().await,
+    );
+    record_case(
+        &mut results,
+        "stream.sse_normalize_deepseek_canary",
+        live_model::stream_sse_normalize_deepseek_canary().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.live_deepseek_opt_in",
+        live_model::outbound_live_deepseek_opt_in().await,
+    );
+    record_case(
+        &mut results,
+        "canary.deepseek_profile_shape",
+        live_model::canary_deepseek_profile_shape().await,
     );
 
     let mut failed = false;

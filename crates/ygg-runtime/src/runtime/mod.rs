@@ -31,6 +31,7 @@ pub use self::outbound::{
     DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundExecutorResponse,
+    SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;

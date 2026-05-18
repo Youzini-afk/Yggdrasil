@@ -35,6 +35,59 @@ use crate::EventStore;
 use super::Runtime;
 
 // ---------------------------------------------------------------------------
+// L4: Secret header injection types
+// ---------------------------------------------------------------------------
+
+/// Specification for a secret-derived HTTP header to be injected by the host
+/// during outbound execution. Packages declare these in `kernel.outbound.execute`
+/// params as `secret_headers`; the host resolves the `secret_ref` at execution
+/// time and injects the resulting header value into the live HTTP request.
+///
+/// Raw secret values never appear in audit, response, or Debug output.
+#[derive(Debug, Clone)]
+pub struct SecretHeaderSpec {
+    /// HTTP header name (e.g. `Authorization`, `x-api-key`).
+    pub header_name: String,
+    /// Secret reference to resolve (e.g. `secret_ref:env:DEEPSEEK_API_KEY`).
+    pub secret_ref: String,
+    /// Auth scheme to apply as a prefix (e.g. `bearer` → `Bearer <value>`,
+    /// `basic` → `Basic <value>`). If empty or `"raw"`, the value is used as-is.
+    pub scheme: String,
+}
+
+/// A resolved secret header value produced by the host during outbound execution.
+///
+/// This carries a raw header value that must never appear in Debug, Serialize,
+/// audit, error, or response output. It exists only transiently during the
+/// executor call and is dropped afterward.
+#[derive(Clone)]
+pub struct RedactedHeaderValue(pub String);
+
+impl std::fmt::Debug for RedactedHeaderValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("[redacted]")
+    }
+}
+
+/// A fully resolved secret header, ready for injection into an HTTP request.
+#[derive(Clone)]
+pub struct ResolvedSecretHeader {
+    /// HTTP header name (e.g. `Authorization`).
+    pub header_name: String,
+    /// The full header value (e.g. `Bearer <secret>`). Redacted in Debug.
+    pub value: RedactedHeaderValue,
+}
+
+impl std::fmt::Debug for ResolvedSecretHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResolvedSecretHeader")
+            .field("header_name", &self.header_name)
+            .field("value", &"[redacted]")
+            .finish()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Executor request / response types
 // ---------------------------------------------------------------------------
 
@@ -56,6 +109,10 @@ pub enum ExecutorKind {
 /// identifiers, routing metadata, and the JSON *shape* of the body
 /// (not the raw bytes). Secret references are just that — references,
 /// never resolved raw values.
+///
+/// L4 adds `secret_headers` (specification for header injection from
+/// secret refs) and `resolved_secret_headers` (host-resolved header
+/// values, redacted in Debug, not serialized, never echoed back).
 #[derive(Debug, Clone)]
 pub struct OutboundExecutorRequest {
     /// Package that initiated the outbound request.
@@ -84,6 +141,25 @@ pub struct OutboundExecutorRequest {
     /// This is a structural description, not raw bytes.
     /// Raw body content is never persisted in audit.
     pub body_shape: Option<Value>,
+    /// L4: Secret header injection specifications. Each entry declares
+    /// a header to be injected from a secret_ref, with an optional scheme
+    /// prefix (e.g. "bearer"). The host resolves these at execution time
+    /// and populates `resolved_secret_headers`. Raw secret values never
+    /// leave this struct except into the actual HTTP request.
+    pub secret_headers: Vec<SecretHeaderSpec>,
+    /// L4: Host-resolved secret header values, injected into the live
+    /// HTTP executor's request headers. These carry raw secret-derived
+    /// values and must never be serialized, logged, or echoed back.
+    /// Debug prints `[redacted]` for the values.
+    pub resolved_secret_headers: Vec<ResolvedSecretHeader>,
+}
+
+impl OutboundExecutorRequest {
+    /// Helper to add the default L4 fields to a struct literal.
+    /// Use in all existing construction sites.
+    pub fn empty_secret_headers() -> (Vec<SecretHeaderSpec>, Vec<ResolvedSecretHeader>) {
+        (Vec::new(), Vec::new())
+    }
 }
 
 /// Response returned by an outbound executor.
@@ -435,8 +511,10 @@ impl LiveHttpOutboundExecutor {
     /// - `content-type: application/json` (for JSON body)
     /// - `x-ygg-outbound: true` (Ygg placeholder)
     ///
-    /// No auth/secret values are ever injected (L3 responsibility).
-    fn build_headers(&self, request: &OutboundExecutorRequest) -> reqwest::header::HeaderMap {
+    /// L4 injects resolved secret headers (e.g. `Authorization: Bearer <key>`)
+    /// from `request.resolved_secret_headers`. These values exist only in the
+    /// HTTP request; they are never stored in audit, Debug, or response shapes.
+    fn build_headers(&self, request: &OutboundExecutorRequest) -> anyhow::Result<reqwest::header::HeaderMap> {
         let mut headers = reqwest::header::HeaderMap::new();
 
         // Content-Type: application/json if there's a body
@@ -453,9 +531,18 @@ impl LiveHttpOutboundExecutor {
             reqwest::header::HeaderValue::from_static("true"),
         );
 
+        // L4: Inject resolved secret headers (e.g. Authorization)
+        for resolved in &request.resolved_secret_headers {
+            let header_name = reqwest::header::HeaderName::from_bytes(resolved.header_name.as_bytes())
+                .map_err(|_| anyhow::anyhow!("resolved secret header name is invalid"))?;
+            let value = reqwest::header::HeaderValue::from_str(&resolved.value.0)
+                .map_err(|_| anyhow::anyhow!("resolved secret header value is invalid"))?;
+            headers.insert(header_name, value);
+        }
+
         // Metadata may carry headers_shape for informational purposes,
         // but L2 does NOT send those headers. L3+ may inject safe ones.
-        headers
+        Ok(headers)
     }
 
     /// Extract a redacted headers_shape from an HTTP response.
@@ -591,7 +678,7 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
         let url = self.build_url(&request)?;
 
         // Build safe headers (no secrets injected)
-        let headers = self.build_headers(&request);
+        let headers = self.build_headers(&request)?;
 
         // Build the request method
         let method = match request.method.to_uppercase().as_str() {
@@ -824,6 +911,8 @@ mod tests {
             timeout_ms: None,
             metadata: Value::Null,
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "denied");
@@ -846,6 +935,8 @@ mod tests {
             timeout_ms: Some(30000),
             metadata: serde_json::json!({"provider": "openai"}),
             body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "ok");
@@ -892,6 +983,8 @@ mod tests {
             timeout_ms: None,
             metadata: Value::Null,
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "ok");
@@ -918,6 +1011,8 @@ mod tests {
             timeout_ms: None,
             metadata: Value::Null,
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         let _ = executor.execute(request.clone()).await.unwrap();
@@ -956,6 +1051,8 @@ mod tests {
             timeout_ms: None,
             metadata: Value::Null,
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
         assert!(validate_policy_executor_consistency(&policy, &executor).is_err());
     }
@@ -1013,6 +1110,8 @@ mod tests {
             timeout_ms: None,
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1039,6 +1138,8 @@ mod tests {
             timeout_ms: None,
             metadata: serde_json::json!({"base_url": "http://api.example.com"}),
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1061,6 +1162,8 @@ mod tests {
             timeout_ms: None,
             metadata: serde_json::json!({"base_url": "https://other.example.com"}),
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1084,6 +1187,8 @@ mod tests {
             timeout_ms: None,
             metadata: serde_json::json!({}),
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1111,6 +1216,8 @@ mod tests {
             timeout_ms: Some(100), // short timeout so we don't hang
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         // This will fail to connect (nothing listening on 127.0.0.1),
@@ -1159,6 +1266,8 @@ mod tests {
             timeout_ms: None,
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
+            secret_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;

@@ -31,7 +31,8 @@ pub use runtime::{
     FakeOutboundExecutor, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
     NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest, Runtime, RuntimeConfig,
-    StreamRegistry, check_network_policy,
+    StreamRegistry, SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
+    check_network_policy,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver, SecretResolverConfig, extract_env_name};

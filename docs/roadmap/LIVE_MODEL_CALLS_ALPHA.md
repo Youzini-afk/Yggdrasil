@@ -77,16 +77,24 @@ secret_ref → host secret resolver → public outbound boundary → live HTTPS 
 - 文档明确 subprocess 任意联网仍不是 OS 级拦截；未受控 subprocess provider 不得作为 live provider 默认形态。
 - Conformance 新增 4 个用例：`outbound.execute_package_allowed`、`outbound.execute_spoofed_package_id_rejected`、`outbound.execute_no_permission_denied`、`outbound.execute_no_raw_secret_in_response`。不依赖公网。
 
-## Phase L4 — First live provider canary
+## Phase L4 — First live provider canary invoke+stream ✅
 
-先跑通一个 provider 的真实 invoke + stream，优先 DeepSeek / OpenAI-compatible：
+已实现 first live provider canary invoke+stream 的最小可验证路径：
 
-- env secret opt-in。
-- live invoke。
-- live stream。
-- auth failure、timeout、rate limit/bad request 归一。
-- stream cancel/timeout 通过 host boundary。
-- `conformance live-model` 手动 opt-in；默认 conformance 仍本地稳定。
+- **Host-side secret header injection**：`kernel.outbound.execute` 新增 `secret_headers` 参数，格式 `{ "Authorization": {"secret_ref":"secret_ref:env:DEEPSEEK_API_KEY", "scheme":"bearer"}}`。Host 内部通过 `EnvSecretResolver` 解析 secret_ref 并构造 header value（如 `Bearer <key>`），注入到 `LiveHttpOutboundExecutor` 的 HTTP 请求 headers 中。Raw secret 不返回给 package、audit、error、response。
+- **`OutboundExecutorRequest` 扩展**：新增 `secret_headers: Vec<SecretHeaderSpec>`（解析规格）和 `resolved_secret_headers: Vec<ResolvedSecretHeader>`（host 解析后的值，`RedactedHeaderValue` newtype 包裹，Debug/Serialize 不泄漏）。
+- **`LiveHttpOutboundExecutor::build_headers` 注入**：L4 从 `resolved_secret_headers` 读取并注入 Authorization 等 secret headers；raw value 只存在于 HTTP 请求中，不存入 audit/Debug/response shapes。
+- **Protocol dispatch L4 集成**：`parse_secret_headers` 解析 `secret_headers` params；`resolve_secret_ref` 解析每个 secret_ref；resolved headers 传入 `OutboundExecutorRequest`；secret_refs 从 secret_headers 合并到 `all_secret_refs` 用于 policy/audit。
+- **Canary provider profile shape**：`model-provider-lab/normalize_request` 验证 DeepSeek profile 映射到正确的 endpoint（api.deepseek.com）、request_dialect（openai_chat）、stream_family（delta_sse）。
+- **SSE stream canary**：`model-provider-lab/normalize_stream` 验证 DeepSeek delta_sse 归一为 start→chunk→end frames、terminal_frame_consistent=true、network_performed=false、无 raw secrets。
+- **Local loopback HTTP server conformance**：启动本地 HTTP server（loopback only, no public internet），验证 Authorization header 真实到达 server，但 raw secret 不出现在 protocol response/audit/log。使用 `allow_insecure_loopback_for_tests=true`。
+- **Opt-in live conformance**：`YGG_LIVE_MODEL_TESTS=1` 且 `DEEPSEEK_API_KEY` 存在时才尝试真实 `kernel.outbound.execute`。默认 conformance 跳过（no public internet dependency）。
+- Conformance 新增 5 个用例：`outbound.secret_headers_parsed`、`outbound.live_loopback_secret_injection`、`stream.sse_normalize_deepseek_canary`、`outbound.live_deepseek_opt_in`、`canary.deepseek_profile_shape`。不依赖公网。
+
+**L4 不覆盖**（延后至 L5）：
+- 真实 provider streaming through outbound boundary（当前 stream canary 通过 normalize_stream 证明 host boundary 路径，真实 HTTP SSE streaming 延后 L5）。
+- 真实 provider auth failure/timeout/rate limit 归一化。
+- 多 provider live adapters（OpenAI/Anthropic/Gemini 延后 L5）。
 
 ## Phase L5 — OpenAI / Anthropic / Gemini live adapters
 
