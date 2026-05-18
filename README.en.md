@@ -138,6 +138,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.en.md) — no-network model provider profile and route planning kit.
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) — living snapshot of what is done, partial, and deferred.
 - [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) — current and upcoming phases.
+- [`sdk/typescript/model-provider-adapter/README.en.md`](sdk/typescript/model-provider-adapter/README.en.md) — Model Provider Adapter SDK (M1).
 
 ## Deferred
 

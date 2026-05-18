@@ -12,7 +12,7 @@
 - 固定 provider matrix、stream compatibility、error taxonomy。
 - 记录 `new-api` 与 TavernHeadless 可吸收/不可吸收经验。
 
-## M1 — Model Provider Adapter SDK
+## M1 — Model Provider Adapter SDK ✅
 
 - 新增 `sdk/typescript/model-provider-adapter`。
 - 定义 provider profile、canonical request/response、normalized stream events、usage/cost/error metadata。

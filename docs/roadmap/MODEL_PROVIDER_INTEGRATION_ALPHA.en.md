@@ -12,7 +12,7 @@ Goal: implement multi-provider model access as ordinary capability packages, cov
 - Fix provider matrix, stream compatibility, and error taxonomy.
 - Record `new-api` and TavernHeadless lessons to absorb/avoid.
 
-## M1 — Model Provider Adapter SDK
+## M1 — Model Provider Adapter SDK ✅
 
 - Add `sdk/typescript/model-provider-adapter`.
 - Define provider profiles, canonical request/response, normalized stream events, usage/cost/error metadata.

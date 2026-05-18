@@ -101,7 +101,7 @@ Phase J 非目标：
 
 目标：直接开始真实模型 provider 接入，但保持 Yggdrasil 方式：普通能力包、`secret_ref`、network allowlist、redacted audit、stream/cancel、fake/local conformance、manual live opt-in、无官方特权、无 kernel model ontology。
 
-执行顺序见 [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.md)：provider API 调研 ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab` no-network normalization、host outbound executor boundary、OpenAI/Anthropic/Gemini invoke adapters、OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets、streaming normalization、examples/conformance/durable docs。
+执行顺序见 [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.md)：provider API 调研 ledger（✅ M0）、`sdk/typescript/model-provider-adapter`（✅ M1）、`official/model-provider-lab` no-network normalization、host outbound executor boundary、OpenAI/Anthropic/Gemini invoke adapters、OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets、streaming normalization、examples/conformance/durable docs。
 
 非目标：用户余额、计费、渠道后台、admin UI、托管平台代理 key、`kernel.model.*`、`kernel.prompt.*`、`kernel.chat.*`、`kernel.embedding.*`。
 

@@ -140,6 +140,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) —— no-network model provider profile 与 route planning kit。
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
 - [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) —— 当前与下一阶段。
+- [`sdk/typescript/model-provider-adapter/README.md`](sdk/typescript/model-provider-adapter/README.md) —— Model Provider Adapter SDK（M1）。
 
 ## 延后事项
 
