@@ -368,6 +368,22 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "outbound.model_provider_shape_fake_executor",
         network::outbound_model_provider_shape_fake_executor().await,
     );
+    // Phase L2 — LiveHttpOutboundExecutor
+    record_case(
+        &mut results,
+        "outbound.live_http_default_disabled",
+        network::outbound_live_http_default_disabled().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.live_http_rejects_insecure_url",
+        network::outbound_live_http_rejects_insecure_url().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.live_http_redacted_shape",
+        network::outbound_live_http_redacted_shape().await,
+    );
     // Phase S3 — streaming and cancellation lifecycle
     record_case(
         &mut results,

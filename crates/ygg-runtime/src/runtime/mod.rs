@@ -28,8 +28,9 @@ pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::network::{NetworkPolicyDecision, OutboundRequest, check_network_policy};
 pub use self::outbound::{
-    DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, OutboundExecutor,
-    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
+    DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, LiveHttpOutboundExecutor,
+    LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
+    OutboundExecutorRequest, OutboundExecutorResponse,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;

@@ -48,18 +48,25 @@ Implemented host-owned env secret resolver:
 - `extract_env_name` helper recognizes only `env` vault; `host:<key>` without `env:` prefix not treated as env.
 - Conformance covers allowed/missing/denied/no-leak (3 new cases: `secret.env_resolver_allowed`, `secret.env_resolver_denied`, `secret.env_resolver_missing_no_leak`).
 
-## Phase L2 — LiveHttpOutboundExecutor
+## Phase L2 — LiveHttpOutboundExecutor ✅
 
-Implement host live HTTP executor:
+Implemented host live HTTP executor:
 
-- `reqwest + rustls`.
-- Disabled by default; `RuntimeConfig` must opt in.
-- HTTPS-only.
-- Redirects rejected by default, or limited to same-host/explicit allowlist.
-- Connect/request timeout; streaming idle watchdog deferred until stream phase.
+- `reqwest + rustls`, no native-tls.
+- Disabled by default; `RuntimeConfig` must opt in via `OutboundExecutorConfig::LiveHttp(config)`.
+- HTTPS-only; non-HTTPS URLs are rejected (fail-closed).
+- Redirects rejected by default (`allow_redirects: false`); L2 does not implement redirect following, and `allow_redirects=true` fails closed until redirect target policy re-check lands.
+- Configurable connect/request timeouts; streaming idle watchdog deferred until stream phase.
 - Headers/body recorded only as shape/audit metadata, never raw auth/body.
+  - Only sends `content-type: application/json` and `x-ygg-outbound` placeholder headers.
+  - L2 does not inject secrets (L3 handles injection through the host boundary).
+  - Response `headers_shape` records only content-type and request-id safe header values; all other header values are replaced with `[redacted]`.
+  - Response `body_shape`: JSON secret fields replaced with `[redacted]`; non-JSON records kind/bytes_captured only.
 - Denied/policy-mismatch requests never call the executor.
-- Default conformance uses local loopback fixtures or fake, never public internet.
+- Errors normalized to `status="error"` or `"timeout"`, with no raw body/secret content.
+- `allow_insecure_loopback_for_tests` defaults to false; permits only 127.0.0.1/localhost http:// URLs for conformance testing.
+- `LiveHttpOutboundExecutorConfig` provides `timeout_ms`, `connect_timeout_ms`, `allow_redirects`, `max_response_preview_bytes`, `allow_insecure_loopback_for_tests`.
+- Conformance adds 3 new cases: `outbound.live_http_default_disabled`, `outbound.live_http_rejects_insecure_url`, `outbound.live_http_redacted_shape`. No public internet dependency.
 
 ## Phase L3 — Public outbound/secret boundary
 

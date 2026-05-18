@@ -48,18 +48,25 @@ secret_ref → host secret resolver → public outbound boundary → live HTTPS 
 - `extract_env_name` 辅助函数只识别 `env` vault；`host:<key>`（不含 `env:` 前缀）不被视为 env 引用。
 - Conformance 覆盖 allowed/missing/denied/no-leak（3 个新用例：`secret.env_resolver_allowed`、`secret.env_resolver_denied`、`secret.env_resolver_missing_no_leak`）。
 
-## Phase L2 — LiveHttpOutboundExecutor
+## Phase L2 — LiveHttpOutboundExecutor ✅
 
-实现 host live HTTP executor：
+已实现 host live HTTP executor：
 
-- `reqwest + rustls`。
-- 默认不启用；`RuntimeConfig` 必须 opt-in。
-- HTTPS-only。
-- redirect 默认 reject，或只允许同 host/显式 allowlist。
-- connect/request timeout；stream 后续扩 idle watchdog。
-- headers/body 只以 shape/audit metadata 记录，不保存 raw auth/body。
+- `reqwest + rustls`，不启用 native-tls。
+- 默认不启用；`RuntimeConfig` 必须 opt-in（`OutboundExecutorConfig::LiveHttp(config)`）。
+- HTTPS-only；非 HTTPS URL 被 reject（fail-closed）。
+- Redirect 默认 reject（`allow_redirects: false`）；L2 不实现 redirect following，且 `allow_redirects=true` 会 fail-closed，直到 redirect target policy re-check 落地。
+- Connect/request timeout 可配置；stream idle watchdog 延后至 stream phase。
+- Headers/body 只以 shape/audit metadata 记录，不保存 raw auth/body。
+  - 只发送 `content-type: application/json` 和 `x-ygg-outbound` placeholder headers。
+  - L2 不注入 secret（L3 负责通过 host boundary 注入）。
+  - 响应 headers_shape 只记录 content-type 和 request-id 安全 headers 值；其余 header 值替换为 `[redacted]`。
+  - 响应 body_shape：JSON 内 secret 字段替换为 `[redacted]`；非 JSON 只记录 kind/bytes_captured。
 - Denied/policy mismatch 时 executor 不被调用。
-- Conformance 默认使用 local loopback fixture 或 fake，不依赖公网。
+- 错误归一为 status="error" 或 "timeout"，不包含 raw body/secret。
+- `allow_insecure_loopback_for_tests` 默认 false；仅允许 127.0.0.1/localhost 的 http:// URL，用于 conformance 测试。
+- `LiveHttpOutboundExecutorConfig` 提供 timeout_ms、connect_timeout_ms、allow_redirects、max_response_preview_bytes、allow_insecure_loopback_for_tests。
+- Conformance 3 个新用例：`outbound.live_http_default_disabled`、`outbound.live_http_rejects_insecure_url`、`outbound.live_http_redacted_shape`。不依赖公网。
 
 ## Phase L3 — Public outbound/secret boundary
 

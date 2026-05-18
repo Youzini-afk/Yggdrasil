@@ -28,9 +28,10 @@ pub use protocol::{
 pub use redaction::{redact_secrets_in_value, scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult};
 pub use runtime::{
     AppendEventRequest, DenyAllOutboundExecutor, EventListRequest, ExecutorKind,
-    FakeOutboundExecutor, NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor,
-    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest,
-    Runtime, RuntimeConfig, StreamRegistry, check_network_policy,
+    FakeOutboundExecutor, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor, OutboundExecutorConfig,
+    OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest, Runtime, RuntimeConfig,
+    StreamRegistry, check_network_policy,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver, SecretResolverConfig, extract_env_name};

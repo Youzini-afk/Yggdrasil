@@ -18,3 +18,4 @@ tokio.workspace = true
 tokio-stream.workspace = true
 uuid.workspace = true
 ygg-core.workspace = true
+reqwest.workspace = true

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 109 implemented rows, backed by 117 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 112 implemented rows, backed by 120 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -139,6 +139,9 @@ Current matrix coverage: 109 implemented rows, backed by 117 named CLI conforman
 | package authoring | generated streaming template passes check/conformance with streaming capability | implemented |
 | no-network readiness | faux-model-readiness package declares network permissions, provides streaming capability, uses secret_ref, no raw secrets | implemented |
 | no-network readiness | faux-agent-readiness package has no network permissions, provides streaming capability, uses proposal/trace patterns, no raw secrets | implemented |
+| outbound | live HTTP executor disabled by default; RuntimeConfig::default remains DenyAll | implemented |
+| outbound | live HTTP executor rejects non-HTTPS URLs; no network attempted | implemented |
+| outbound | live HTTP executor response shape contains no raw body/header/secret | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -283,6 +286,9 @@ package.generated_networked_template           PASS
 package.generated_streaming_template           PASS
 package.faux_model_readiness                   PASS
 package.faux_agent_readiness                   PASS
+outbound.live_http_default_disabled             PASS
+outbound.live_http_rejects_insecure_url         PASS
+outbound.live_http_redacted_shape               PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

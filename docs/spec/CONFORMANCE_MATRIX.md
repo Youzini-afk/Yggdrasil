@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：109 个 implemented rows，由 117 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：112 个 implemented rows，由 120 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -139,6 +139,9 @@ cargo run -p ygg-cli -- conformance
 | package authoring | 生成的 streaming 模板通过 check/conformance，含 streaming capability | implemented |
 | no-network readiness | faux-model-readiness 包声明网络权限、提供 streaming capability、使用 secret_ref、无 raw secrets | implemented |
 | no-network readiness | faux-agent-readiness 包无网络权限、提供 streaming capability、使用 proposal/trace 模式、无 raw secrets | implemented |
+| outbound | live HTTP executor 默认关闭；RuntimeConfig::default 仍 DenyAll | implemented |
+| outbound | live HTTP executor 拒绝非 HTTPS URL；无网络尝试 | implemented |
+| outbound | live HTTP executor response shape 不含 raw body/header/secret | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -283,6 +286,9 @@ package.generated_networked_template           PASS
 package.generated_streaming_template           PASS
 package.faux_model_readiness                   PASS
 package.faux_agent_readiness                   PASS
+outbound.live_http_default_disabled             PASS
+outbound.live_http_rejects_insecure_url         PASS
+outbound.live_http_redacted_shape               PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

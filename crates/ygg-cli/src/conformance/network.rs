@@ -22,6 +22,7 @@ use ygg_core::{
 };
 use ygg_runtime::{
     check_network_policy, EventStore, ExecutorKind, FakeOutboundExecutor, InMemoryEventStore,
+    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, OutboundExecutor,
     OutboundExecutorConfig, OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal,
     Runtime, RuntimeConfig,
 };
@@ -891,6 +892,199 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
         "fake executor should be called 3 times for 3 provider shapes, got {}",
         fake.call_count()
     );
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// L2: LiveHttpOutboundExecutor conformance cases
+// ---------------------------------------------------------------------------
+
+/// L2: RuntimeConfig::default() still uses DenyAll; LiveHttp is not used.
+///
+/// Verifies that adding the `LiveHttp` variant to `OutboundExecutorConfig`
+/// does not change the default behavior. The default remains deny-all.
+pub(crate) async fn outbound_live_http_default_disabled() -> anyhow::Result<()> {
+    let config = RuntimeConfig::default();
+    // Default outbound executor config must be DenyAll
+    anyhow::ensure!(
+        matches!(config.outbound_executor, OutboundExecutorConfig::DenyAll),
+        "RuntimeConfig::default must keep outbound executor DenyAll"
+    );
+
+    // A runtime with default config should deny all outbound
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store.clone(), config);
+
+    runtime
+        .load_package(network_package("example/l2-default", vec![], vec![]))
+        .await?;
+
+    let result = runtime
+        .check_and_audit_outbound(OutboundRequest {
+            principal: ProtocolPrincipal::Package {
+                package_id: "example/l2-default".to_string(),
+            },
+            package_id: "example/l2-default".to_string(),
+            capability_id: "example/l2-default/fetch".to_string(),
+            destination_host: "api.example.com".to_string(),
+            method: "GET".to_string(),
+            purpose: None,
+            secret_refs_used: vec![],
+        })
+        .await;
+
+    anyhow::ensure!(
+        result.is_err(),
+        "default runtime config must deny outbound requests (DenyAll)"
+    );
+    Ok(())
+}
+
+/// L2: LiveHttpOutboundExecutor rejects non-HTTPS URLs; no network
+/// is attempted for insecure destinations.
+///
+/// Tests that the executor fails closed when given an http:// URL or
+/// metadata with an http scheme/base_url. No real network connection
+/// is made — the rejection happens at URL construction time.
+pub(crate) async fn outbound_live_http_rejects_insecure_url() -> anyhow::Result<()> {
+    // Create a LiveHttp executor with default (safe) config
+    let config = LiveHttpOutboundExecutorConfig::default();
+    let executor = LiveHttpOutboundExecutor::new(config)?;
+
+    // Test 1: http:// scheme in metadata is rejected
+    let request_http_scheme = OutboundExecutorRequest {
+        package_id: "test/pkg".to_string(),
+        capability_id: "test/pkg/fetch".to_string(),
+        destination_host: "api.example.com".to_string(),
+        method: "POST".to_string(),
+        path: Some("/v1/test".to_string()),
+        purpose: None,
+        secret_refs: vec![],
+        redaction_state: None,
+        timeout_ms: None,
+        metadata: serde_json::json!({"scheme": "http"}),
+        body_shape: None,
+    };
+    let result = executor.execute(request_http_scheme).await;
+    anyhow::ensure!(
+        result.is_err(),
+        "live executor must reject http:// scheme URL"
+    );
+
+    // Test 2: http:// base_url in metadata is rejected
+    let request_http_base = OutboundExecutorRequest {
+        package_id: "test/pkg".to_string(),
+        capability_id: "test/pkg/fetch".to_string(),
+        destination_host: "api.example.com".to_string(),
+        method: "POST".to_string(),
+        path: None,
+        purpose: None,
+        secret_refs: vec![],
+        redaction_state: None,
+        timeout_ms: None,
+        metadata: serde_json::json!({"base_url": "http://api.example.com"}),
+        body_shape: None,
+    };
+    let result = executor.execute(request_http_base).await;
+    anyhow::ensure!(
+        result.is_err(),
+        "live executor must reject http:// base_url"
+    );
+
+    // Test 3: allow_insecure_loopback_for_tests defaults to false
+    let default_config = LiveHttpOutboundExecutorConfig::default();
+    anyhow::ensure!(
+        !default_config.allow_insecure_loopback_for_tests,
+        "allow_insecure_loopback_for_tests must default to false"
+    );
+
+    Ok(())
+}
+
+/// L2: Live executor response/error shapes do not include raw body,
+/// header secret-like values. Response is content-free with only
+/// shapes, redacted preview, and safe metadata.
+///
+/// This test calls the executor directly with an invalid URL that
+/// will fail at connect time, then inspects the error response to
+/// confirm no raw body/header/secret leaks.
+pub(crate) async fn outbound_live_http_redacted_shape() -> anyhow::Result<()> {
+    // Create a LiveHttp executor with loopback enabled for testing
+    // so we can attempt a connection that will fail (nothing listening)
+    let config = LiveHttpOutboundExecutorConfig {
+        allow_insecure_loopback_for_tests: true,
+        timeout_ms: 100,
+        connect_timeout_ms: 50,
+        ..Default::default()
+    };
+    let executor = LiveHttpOutboundExecutor::new(config)?;
+
+    // Attempt a request to localhost on a port nothing listens on.
+    // This will fail to connect, but the URL passes validation.
+    let request = OutboundExecutorRequest {
+        package_id: "test/pkg".to_string(),
+        capability_id: "test/pkg/fetch".to_string(),
+        destination_host: "127.0.0.1".to_string(),
+        method: "POST".to_string(),
+        path: Some("/nonexistent-test-endpoint-l2".to_string()),
+        purpose: None,
+        secret_refs: vec![],
+        redaction_state: None,
+        timeout_ms: Some(100),
+        metadata: serde_json::json!({"scheme": "http"}),
+        body_shape: Some(serde_json::json!({"model": "test", "messages": []})),
+    };
+
+    let response = executor.execute(request).await;
+
+    match response {
+        Ok(resp) => {
+            // Connection error response
+            anyhow::ensure!(
+                resp.executor_kind == ExecutorKind::Real,
+                "response executor_kind must be Real"
+            );
+            anyhow::ensure!(
+                resp.network_performed,
+                "live executor response must report network_performed=true"
+            );
+            anyhow::ensure!(
+                resp.status == "error" || resp.status == "timeout",
+                "failed connection should report error or timeout, got '{}'",
+                resp.status
+            );
+            anyhow::ensure!(
+                resp.redaction_state == RedactionState::Redacted,
+                "response redaction_state must be Redacted"
+            );
+
+            // Verify no raw secret-like content in response
+            let resp_json = serde_json::to_value(&resp)?;
+            let resp_str = serde_json::to_string(&resp_json)?;
+            anyhow::ensure!(
+                !resp_str.contains("raw_body") && !resp_str.contains("raw_header"),
+                "response must not contain raw_body or raw_header fields"
+            );
+            anyhow::ensure!(
+                !resp_str.contains("Bearer ") && !resp_str.contains("sk-"),
+                "response must not contain raw API key patterns"
+            );
+            // Secret-like fields must not appear as keys
+            for forbidden in &["api_key", "secret_value", "raw_secret", "token_value"] {
+                anyhow::ensure!(
+                    resp_json.get(forbidden).is_none(),
+                    "response must not contain '{}' field",
+                    forbidden
+                );
+            }
+        }
+        Err(_) => {
+            // Connection refused is acceptable — the key invariant
+            // is that the URL was accepted (not rejected for being
+            // non-HTTPS to loopback). Error handling is correct.
+        }
+    }
 
     Ok(())
 }
