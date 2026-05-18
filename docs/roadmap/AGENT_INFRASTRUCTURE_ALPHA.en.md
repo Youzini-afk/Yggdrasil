@@ -45,11 +45,16 @@ Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like ca
   - `crates/ygg-cli/src/conformance/official_labs.rs` — `pi_agent_runtime_lab()` conformance case: verifies no-inference/no-network, approval-gated proposal, surfaces discoverable, provider_package_id match.
   - Conformance total +1 (100 named cases).
 
-## J4 — Capability Tool Bridge Lab
+## J4 — Capability Tool Bridge Lab ✅
 
 - Add an ordinary tool bridge package.
 - Discover capabilities, preview permissions, require explicit provider selection, call through `kernel.capability.invoke/stream`.
 - Hostile conformance covers ambiguous provider, denied invoke, official no-priority.
+- **Deliverables**:
+  - `packages/official/capability-tool-bridge-lab/manifest.yaml` — ordinary package, 6 capabilities (discover_tools, preview_tool_permissions, invoke_tool, stream_tool, explain_tool_call, echo), 3 surfaces (forge_panel + assistant_action + home_card), permissions {} with no network declarations.
+  - `crates/ygg-runtime/src/inproc/capability_tool_bridge_lab.rs` — inproc handler returning deterministic tool-bridge plans (discover_tools marks ambiguous/rejected without preferring official; preview_tool_permissions reports missing_permissions; invoke_tool/stream_tool require explicit provider, ambiguous/missing rejected; explain_tool_call returns audit-safe summary; raw secret payload returns unsafe_blocked).
+  - `crates/ygg-cli/src/conformance/official_labs.rs` — `capability_tool_bridge_lab()` conformance case: verifies load package; discover_tools marks ambiguous providers rejected; explicit third-party provider works as plan; official provider not preferred; invoke_tool missing provider rejected; preview denied reports missing permission; raw secret payload unsafe_blocked; surfaces discoverable.
+  - Conformance total +1 (101 named cases).
 
 ## J5 — Forge / Assist Observability
 

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ygg_core::{CapabilityId, PackageId};
 
+mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
 mod knowledge_lab;
@@ -110,6 +111,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // playable-seed handlers checked before generic capability suffixes
         if let Some(result) = playable_seed::try_handle(&request) {
+            return result;
+        }
+        // capability-tool-bridge-lab handlers checked before generic capability suffixes
+        if let Some(result) = capability_tool_bridge_lab::try_handle(&request) {
             return result;
         }
         // Package-aware generic capability handlers (namespace-scoped matching)

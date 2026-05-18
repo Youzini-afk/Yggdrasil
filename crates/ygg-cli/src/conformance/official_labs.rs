@@ -452,6 +452,256 @@ pub(crate) async fn model_routing_lab() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/capability-tool-bridge-lab/manifest.yaml")).await?).await?;
+
+    // discover_tools: ambiguous providers marked rejected
+    let discovery = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capabilities": [
+                    {
+                        "capability_id": "example/echo",
+                        "providers": ["official/pkg-a", "thirdparty/pkg-b"]
+                    }
+                ]
+            }),
+        })
+        .await?;
+    anyhow::ensure!(discovery.output["kind"] == json!("tool_bridge_discovery"), "tool bridge discovery wrong kind");
+    let tools = discovery.output["tools"].as_array().unwrap();
+    anyhow::ensure!(tools.len() == 1, "tool bridge discovery should return 1 tool");
+    anyhow::ensure!(tools[0]["status"] == json!("rejected"), "ambiguous tool should be rejected");
+    anyhow::ensure!(tools[0]["ambiguous"] == json!(true), "ambiguous tool should be flagged");
+    // No official preference
+    anyhow::ensure!(tools[0]["provider_package_id"].is_null(), "ambiguous tool should not auto-select official provider");
+
+    // discover_tools: explicit third-party provider works as plan
+    let discovery_explicit = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capabilities": [
+                    {
+                        "capability_id": "example/echo",
+                        "providers": ["official/pkg-a", "thirdparty/pkg-b"],
+                        "provider_package_id": "thirdparty/pkg-b"
+                    }
+                ]
+            }),
+        })
+        .await?;
+    let tools_explicit = discovery_explicit.output["tools"].as_array().unwrap();
+    anyhow::ensure!(tools_explicit[0]["status"] == json!("available"), "explicit third-party provider should be available");
+    anyhow::ensure!(tools_explicit[0]["provider_package_id"] == json!("thirdparty/pkg-b"), "explicit provider should be preserved");
+
+    // discover_tools: explicit provider must be in candidate providers when candidates are supplied
+    let discovery_bad_provider = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capabilities": [
+                    {
+                        "capability_id": "example/echo",
+                        "providers": ["official/pkg-a", "thirdparty/pkg-b"],
+                        "provider_package_id": "thirdparty/not-a-provider"
+                    }
+                ]
+            }),
+        })
+        .await?;
+    let bad_provider_tools = discovery_bad_provider.output["tools"].as_array().unwrap();
+    anyhow::ensure!(bad_provider_tools[0]["status"] == json!("rejected"), "explicit non-candidate provider should be rejected");
+    anyhow::ensure!(bad_provider_tools[0]["rejection_reason"] == json!("provider_not_in_candidates"), "explicit non-candidate provider wrong reason");
+
+    // invoke_tool: missing provider rejected
+    let invoke_missing = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/echo"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(invoke_missing.output["kind"] == json!("tool_bridge_invocation_plan"), "invoke_tool wrong kind");
+    anyhow::ensure!(invoke_missing.output["status"] == json!("rejected"), "missing provider should be rejected");
+    anyhow::ensure!(invoke_missing.output["rejection_reason"] == json!("missing_provider"), "missing provider wrong reason");
+
+    // invoke_tool: explicit third-party provider produces plan
+    let invoke_explicit = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/echo",
+                "provider_package_id": "thirdparty/my-tool"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(invoke_explicit.output["status"] == json!("plan_ready"), "explicit third-party invoke should be plan_ready");
+    anyhow::ensure!(invoke_explicit.output["method"] == json!("kernel.capability.invoke"), "invoke_tool method should be kernel.capability.invoke");
+    anyhow::ensure!(invoke_explicit.output["requires_user_approval"] == json!(true), "invoke plan must require approval");
+
+    // invoke_tool: explicit provider must match supplied candidates
+    let invoke_bad_provider = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/echo",
+                "provider_package_id": "thirdparty/not-a-provider",
+                "providers": ["official/pkg-a", "thirdparty/pkg-b"]
+            }),
+        })
+        .await?;
+    anyhow::ensure!(invoke_bad_provider.output["status"] == json!("rejected"), "invoke explicit non-candidate provider should reject");
+    anyhow::ensure!(invoke_bad_provider.output["rejection_reason"] == json!("provider_not_in_candidates"), "invoke explicit non-candidate wrong reason");
+
+    // preview_tool_permissions: denied reports missing permission
+    let preview_denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/preview_tool_permissions".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "required_permissions": ["capabilities.invoke"],
+                "grants": [],
+                "provider_package_id": "official/echo"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(preview_denied.output["kind"] == json!("tool_bridge_permission_preview"), "preview wrong kind");
+    anyhow::ensure!(preview_denied.output["allowed"] == json!(false), "denied preview should not be allowed");
+    let missing = preview_denied.output["missing_permissions"].as_array().unwrap();
+    anyhow::ensure!(missing.len() == 1, "should report 1 missing permission");
+
+    // preview_tool_permissions: granted with wildcard
+    let preview_granted = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/preview_tool_permissions".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "required_permissions": ["capabilities.invoke"],
+                "grants": ["*"],
+                "provider_package_id": "official/echo"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(preview_granted.output["allowed"] == json!(true), "granted preview should be allowed");
+
+    // raw secret payload: unsafe_blocked
+    let raw_secret = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/echo",
+                "provider_package_id": "official/pkg",
+                "api_key": "sk-raw-secret-value-here"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(raw_secret.output["redaction_state"] == json!("unsafe_blocked"), "raw secret should be unsafe_blocked");
+    anyhow::ensure!(raw_secret.output["status"] == json!("rejected"), "raw secret invoke should be rejected");
+
+    // stream_tool: missing provider rejected
+    let stream_missing = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/stream_tool".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/stream"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(stream_missing.output["kind"] == json!("tool_bridge_stream_plan"), "stream_tool wrong kind");
+    anyhow::ensure!(stream_missing.output["status"] == json!("rejected"), "missing provider stream should be rejected");
+    anyhow::ensure!(stream_missing.output["method"] == json!("kernel.capability.stream"), "stream method should be kernel.capability.stream");
+
+    // stream_tool: explicit provider must match supplied candidates
+    let stream_bad_provider = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/stream_tool".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/stream",
+                "provider_package_id": "thirdparty/not-a-provider",
+                "providers": ["official/pkg-a", "thirdparty/pkg-b"]
+            }),
+        })
+        .await?;
+    anyhow::ensure!(stream_bad_provider.output["status"] == json!("rejected"), "stream explicit non-candidate provider should reject");
+    anyhow::ensure!(stream_bad_provider.output["rejection_reason"] == json!("provider_not_in_candidates"), "stream explicit non-candidate wrong reason");
+
+    // explain_tool_call: audit-safe summary
+    let explain = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/capability-tool-bridge-lab/explain_tool_call".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            version: None,
+            input: json!({
+                "capability_id": "example/echo",
+                "provider_package_id": "thirdparty/my-tool",
+                "method": "kernel.capability.invoke"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(explain.output["kind"] == json!("tool_bridge_explanation"), "explain wrong kind");
+    anyhow::ensure!(explain.output["redaction_state"] == json!("clean"), "explain with clean input should be clean");
+
+    // surfaces discoverable: forge_panel, assistant_action, home_card
+    let forge_surfaces = runtime.list_surface_contributions(Some("forge_panel".to_string())).await;
+    let has_forge = forge_surfaces
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("official/capability-tool-bridge-lab")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_forge, "tool bridge forge_panel surface missing");
+
+    let assistant_surfaces = runtime.list_surface_contributions(Some("assistant_action".to_string())).await;
+    let has_assistant = assistant_surfaces
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("official/capability-tool-bridge-lab")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_assistant, "tool bridge assistant_action surface missing");
+
+    let home_surfaces = runtime.list_surface_contributions(Some("home_card".to_string())).await;
+    let has_home = home_surfaces
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("official/capability-tool-bridge-lab")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_home, "tool bridge home_card surface missing");
+
+    Ok(())
+}
+
 pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/pi-agent-runtime-lab/manifest.yaml")).await?).await?;

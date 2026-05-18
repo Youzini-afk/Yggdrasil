@@ -16,6 +16,7 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/model-routing-lab`
 - `official/assistant-lab`
 - `official/pi-agent-runtime-lab`
+- `official/capability-tool-bridge-lab`
 - `official/blank-experience`
 - `official/playable-seed`
 
@@ -42,6 +43,8 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 `official/assistant-lab` intentionally produces proposals that require user approval. It is not a privileged mutation path.
 
 `official/pi-agent-runtime-lab` is a reference agent runtime package. It produces deterministic run plans, trace summaries, proposal drafts, and echo payloads without real model inference or network access. It is not a privileged agent path.
+
+`official/capability-tool-bridge-lab` discovers capabilities, previews permissions, resolves explicit provider selection, and drafts invocation/streaming plans through kernel.capability.invoke/stream. It does not perform real capability calls and gives no priority to official providers.
 
 `official/blank-experience` is a loop fixture, not a canonical game/runtime model.
 

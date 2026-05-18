@@ -45,11 +45,16 @@
   - `crates/ygg-cli/src/conformance/official_labs.rs` — `pi_agent_runtime_lab()` conformance 用例：验证 no-inference/no-network、approval-gated proposal、surfaces 可发现、provider_package_id 匹配。
   - Conformance 总数 +1（100 个具名用例）。
 
-## J4 — Capability Tool Bridge Lab
+## J4 — Capability Tool Bridge Lab ✅
 
 - 新增普通 tool bridge 包。
 - 发现 capabilities，预览权限，显式 provider selection，通过 `kernel.capability.invoke/stream` 调用。
 - hostile conformance 覆盖 ambiguous provider、denied invoke、official no-priority。
+- **交付**：
+  - `packages/official/capability-tool-bridge-lab/manifest.yaml` — 普通包，6 capabilities（discover_tools、preview_tool_permissions、invoke_tool、stream_tool、explain_tool_call、echo），3 surfaces（forge_panel + assistant_action + home_card），permissions {} 无网络声明。
+  - `crates/ygg-runtime/src/inproc/capability_tool_bridge_lab.rs` — inproc handler，返回 deterministic tool-bridge plans（discover_tools 标记 ambiguous/rejected 不偏袒 official；preview_tool_permissions 报告 missing_permissions；invoke_tool/stream_tool 要求显式 provider，ambiguous/missing rejected；explain_tool_call 返回 audit-safe summary；raw secret payload 返回 unsafe_blocked）。
+  - `crates/ygg-cli/src/conformance/official_labs.rs` — `capability_tool_bridge_lab()` conformance 用例：验证 load package；discover_tools 对 ambiguous providers 标记 rejected；explicit third-party provider works as plan；official provider not preferred；invoke_tool missing provider rejected；preview denied reports missing permission；raw secret payload unsafe_blocked；surfaces discoverable。
+  - Conformance 总数 +1（101 个具名用例）。
 
 ## J5 — Forge / Assist Observability
 
