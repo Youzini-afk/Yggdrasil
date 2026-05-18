@@ -1088,3 +1088,220 @@ pub(crate) async fn outbound_live_http_redacted_shape() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// L3: kernel.outbound.execute public protocol conformance cases
+// ---------------------------------------------------------------------------
+
+/// L3: Package principal calls kernel.outbound.execute with FakeOutboundExecutor
+/// and allowed network declaration. Response has executor_kind Fake,
+/// network_performed false, and a host audit event is produced.
+pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
+    let (store, runtime, fake) = runtime_with_fake_executor();
+    runtime
+        .load_package(network_package(
+            "example/l3-allowed",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("chat completions".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/l3-allowed", "in_process");
+
+    let response_value = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            serde_json::json!({
+                "capability_id": "example/l3-allowed/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "path": "/v1/chat/completions",
+                "secret_refs": ["secret_ref:env:OPENAI_KEY"],
+                "body_shape": {"model": "gpt-4o", "messages": []},
+                "metadata": {"provider": "openai"},
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+
+    // Executor was called
+    anyhow::ensure!(
+        fake.call_count() == 1,
+        "fake executor should be called once, but call_count={}",
+        fake.call_count()
+    );
+
+    // Response is from fake executor
+    anyhow::ensure!(
+        response_value.get("status").and_then(|v| v.as_str()) == Some("ok"),
+        "response status should be 'ok', got {:?}",
+        response_value.get("status")
+    );
+    anyhow::ensure!(
+        response_value.get("network_performed").and_then(|v| v.as_bool()) == Some(false),
+        "response network_performed should be false"
+    );
+    anyhow::ensure!(
+        response_value.get("executor_kind").and_then(|v| v.as_str()) == Some("fake"),
+        "response executor_kind should be 'fake'"
+    );
+
+    // Verify audit event was produced
+    let session_id = "kernel_outbound_example_l3-allowed".to_string();
+    let events = store.list_session(&session_id).await?;
+    let request_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_OUTBOUND_REQUEST)
+        .collect();
+    anyhow::ensure!(
+        !request_events.is_empty(),
+        "expected kernel/outbound.request audit event"
+    );
+
+    Ok(())
+}
+
+/// L3: Params that spoof a different package_id are overridden by the
+/// context principal. The package_id in the outbound request comes from
+/// the context, not from params — a package cannot call
+/// kernel.outbound.execute on behalf of another package.
+pub(crate) async fn outbound_execute_spoofed_package_id_rejected() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    // Load the "real" package with network permission
+    runtime
+        .load_package(network_package(
+            "example/l3-real",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
+    // Load the "victim" package with no network permission
+    runtime.load_package(network_package("example/l3-victim", vec![], vec![])).await?;
+
+    // The caller is example/l3-victim (package principal), but they try
+    // to specify package_id: "example/l3-real" in params — which has
+    // network permission. The dispatch must use the context principal's
+    // package_id, not the params one, so the request should be denied
+    // (example/l3-victim has no network permission).
+    let context = ygg_runtime::ProtocolContext::package("example/l3-victim", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            serde_json::json!({
+                "package_id": "example/l3-real",  // spoofed — should be ignored
+                "capability_id": "example/l3-real/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(
+        result.is_err(),
+        "outbound.execute with spoofed package_id should be denied (context overrides)"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor should not be called for spoofed package_id request"
+    );
+
+    Ok(())
+}
+
+/// L3: Package without network permission is denied and executor is not called
+/// through the public protocol dispatch.
+pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    runtime.load_package(network_package("example/l3-no-net", vec![], vec![])).await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/l3-no-net", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            serde_json::json!({
+                "capability_id": "example/l3-no-net/fetch",
+                "destination_host": "api.example.com",
+                "method": "GET",
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(
+        result.is_err(),
+        "outbound.execute without network permission should be denied"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor should not be called for denied request, but call_count={}",
+        fake.call_count()
+    );
+
+    Ok(())
+}
+
+/// L3: Response from kernel.outbound.execute never contains raw secrets.
+/// secret_refs in params are passed to the executor request, but the
+/// response JSON must not contain any raw secret patterns.
+pub(crate) async fn outbound_execute_no_raw_secret_in_response() -> anyhow::Result<()> {
+    let (_store, runtime, _fake) = runtime_with_fake_executor();
+    runtime
+        .load_package(network_package(
+            "example/l3-secret-check",
+            vec![NetworkDeclaration {
+                host: "api.example.com".to_string(),
+                methods: vec![],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/l3-secret-check", "in_process");
+
+    let response_value = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            serde_json::json!({
+                "capability_id": "example/l3-secret-check/fetch",
+                "destination_host": "api.example.com",
+                "method": "POST",
+                "secret_refs": ["secret_ref:env:MY_API_KEY"],
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+
+    let response_str = serde_json::to_string(&response_value)?;
+    anyhow::ensure!(
+        !response_str.contains("sk-"),
+        "response must not contain raw API key patterns"
+    );
+    anyhow::ensure!(
+        !response_str.contains("Bearer "),
+        "response must not contain Bearer token patterns"
+    );
+    anyhow::ensure!(
+        !response_str.contains("raw_secret"),
+        "response must not contain raw_secret field"
+    );
+    anyhow::ensure!(
+        !response_str.contains("api_key"),
+        "response must not contain api_key field"
+    );
+
+    Ok(())
+}

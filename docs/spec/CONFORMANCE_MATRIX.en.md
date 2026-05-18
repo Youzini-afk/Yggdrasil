@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 112 implemented rows, backed by 120 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 116 implemented rows, backed by 124 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -142,6 +142,10 @@ Current matrix coverage: 112 implemented rows, backed by 120 named CLI conforman
 | outbound | live HTTP executor disabled by default; RuntimeConfig::default remains DenyAll | implemented |
 | outbound | live HTTP executor rejects non-HTTPS URLs; no network attempted | implemented |
 | outbound | live HTTP executor response shape contains no raw body/header/secret | implemented |
+| outbound | kernel.outbound.execute public protocol: package principal determined from context (no spoofing), FakeOutboundExecutor + allowed network declaration succeeds with audit | implemented |
+| outbound | kernel.outbound.execute spoofed package_id rejected, cannot act as another package | implemented |
+| outbound | kernel.outbound.execute no network permission denied, executor not called | implemented |
+| outbound | kernel.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -289,6 +293,10 @@ package.faux_agent_readiness                   PASS
 outbound.live_http_default_disabled             PASS
 outbound.live_http_rejects_insecure_url         PASS
 outbound.live_http_redacted_shape               PASS
+outbound.execute_package_allowed                 PASS
+outbound.execute_spoofed_package_id_rejected     PASS
+outbound.execute_no_permission_denied             PASS
+outbound.execute_no_raw_secret_in_response        PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

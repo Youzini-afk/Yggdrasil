@@ -68,14 +68,14 @@ Implemented host live HTTP executor:
 - `LiveHttpOutboundExecutorConfig` provides `timeout_ms`, `connect_timeout_ms`, `allow_redirects`, `max_response_preview_bytes`, `allow_insecure_loopback_for_tests`.
 - Conformance adds 3 new cases: `outbound.live_http_default_disabled`, `outbound.live_http_rejects_insecure_url`, `outbound.live_http_redacted_shape`. No public internet dependency.
 
-## Phase L3 — Public outbound/secret boundary
+## Phase L3 — Public outbound/secret boundary ✅
 
 Expose content-free host boundary to ordinary capability packages:
 
-- `kernel.secret.resolve` or equivalent host protocol method (returns redacted/host-usable handles, not raw keys to packages).
-- `kernel.outbound.execute` / `kernel.outbound.stream` or equivalent capability-facing methods.
+- `kernel.outbound.execute` public protocol method: allows ordinary packages to make outbound requests through the host outbound executor. Params accept capability_id, destination_host, method, path, secret_refs, metadata, body_shape. package_id is enforced from the ProtocolContext principal — callers cannot spoof a different package_id in params (host_dev/host_admin principals may specify package_id in params for testing). Dispatch calls `execute_outbound_with_policy`; response undergoes additional defense-in-depth raw-secret sweep. Does not add `kernel.secret.resolve` (raw secrets are never returned to packages). L3 does not inject secret headers (real injection deferred to L4/L5).
 - Official and third-party provider packages use the same path.
 - Docs clarify arbitrary subprocess networking is still not OS-level intercepted; uncontrolled subprocess providers are not default live providers.
+- Conformance adds 4 new cases: `outbound.execute_package_allowed`, `outbound.execute_spoofed_package_id_rejected`, `outbound.execute_no_permission_denied`, `outbound.execute_no_raw_secret_in_response`. No public internet dependency.
 
 ## Phase L4 — First live provider canary
 

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：112 个 implemented rows，由 120 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：116 个 implemented rows，由 124 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -142,6 +142,10 @@ cargo run -p ygg-cli -- conformance
 | outbound | live HTTP executor 默认关闭；RuntimeConfig::default 仍 DenyAll | implemented |
 | outbound | live HTTP executor 拒绝非 HTTPS URL；无网络尝试 | implemented |
 | outbound | live HTTP executor response shape 不含 raw body/header/secret | implemented |
+| outbound | kernel.outbound.execute 公开协议：package principal 通过 context 确定 package_id 不能 spoof，FakeOutboundExecutor + allowed network declaration 成功且 audit 产生 | implemented |
+| outbound | kernel.outbound.execute spoofed package_id 被拒绝，不能代替其他 package | implemented |
+| outbound | kernel.outbound.execute 无 network permission denied，executor 不调用 | implemented |
+| outbound | kernel.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -289,6 +293,10 @@ package.faux_agent_readiness                   PASS
 outbound.live_http_default_disabled             PASS
 outbound.live_http_rejects_insecure_url         PASS
 outbound.live_http_redacted_shape               PASS
+outbound.execute_package_allowed                 PASS
+outbound.execute_spoofed_package_id_rejected     PASS
+outbound.execute_no_permission_denied             PASS
+outbound.execute_no_raw_secret_in_response        PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

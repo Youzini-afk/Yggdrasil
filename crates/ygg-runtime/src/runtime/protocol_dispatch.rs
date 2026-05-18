@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 
 use super::Runtime;
-use crate::{EventStore, KernelMethod, ProtocolContext, EventListRequest};
+use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal, EventListRequest};
 
 impl<S> Runtime<S>
 where
@@ -44,6 +44,108 @@ where
                     .ok_or_else(|| anyhow::anyhow!("kernel.outbound.audit requires package_id"))?
                     .to_string();
                 Ok(serde_json::to_value(self.list_outbound_audit(&package_id).await?)?)
+            }
+            KernelMethod::OutboundExecute => {
+                // --- L3: public outbound/secret boundary ---
+                // Determine package_id from the protocol context principal.
+                // The caller CANNOT self-assert a different package_id.
+                let package_id = match &context.principal {
+                    ProtocolPrincipal::Package { package_id } => package_id.clone(),
+                    ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
+                        // Host principals may supply package_id in params for testing.
+                        params
+                            .get("package_id")
+                            .and_then(Value::as_str)
+                            .map(str::to_string)
+                            .unwrap_or_else(|| "host/test".to_string())
+                    }
+                    other => {
+                        anyhow::bail!(
+                            "kernel.outbound.execute requires package or host principal, got {:?}",
+                            other
+                        )
+                    }
+                };
+
+                let capability_id = params
+                    .get("capability_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute requires capability_id"))?
+                    .to_string();
+                if !capability_id.starts_with(&format!("{package_id}/")) {
+                    anyhow::bail!(
+                        "kernel.outbound.execute capability_id must belong to the caller package namespace"
+                    );
+                }
+                let destination_host = params
+                    .get("destination_host")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute requires destination_host"))?
+                    .to_string();
+                let method = params
+                    .get("method")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute requires method"))?
+                    .to_string();
+                let path: Option<String> = params
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                let purpose: Option<String> = params
+                    .get("purpose")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                let secret_refs: Vec<String> = params
+                    .get("secret_refs")
+                    .and_then(Value::as_array)
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(str::to_string))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let metadata = params
+                    .get("metadata")
+                    .cloned()
+                    .unwrap_or(Value::Null);
+                let body_shape = params.get("body_shape").cloned();
+
+                let policy_request = super::OutboundRequest {
+                    principal: context.principal.clone(),
+                    package_id: package_id.clone(),
+                    capability_id: capability_id.clone(),
+                    destination_host: destination_host.clone(),
+                    method: method.clone(),
+                    purpose: purpose.clone(),
+                    secret_refs_used: secret_refs.clone(),
+                };
+
+                let executor_request = super::OutboundExecutorRequest {
+                    package_id: package_id.clone(),
+                    capability_id: capability_id.clone(),
+                    destination_host: destination_host.clone(),
+                    method: method.clone(),
+                    path,
+                    purpose,
+                    secret_refs: secret_refs.clone(),
+                    redaction_state: None,
+                    timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
+                    metadata,
+                    body_shape,
+                };
+
+                let response = self
+                    .execute_outbound_with_policy(policy_request, executor_request)
+                    .await?;
+
+                // Strip any raw-secret-like fields from the response before
+                // returning it to the caller. The OutboundExecutorResponse
+                // struct is already content-free by design, but we do an
+                // extra sweep to ensure conformance: no raw_secret,
+                // api_key, Bearer, sk- patterns in the serialized output.
+                let mut response_value = serde_json::to_value(&response)?;
+                strip_raw_secrets_from_value(&mut response_value);
+                Ok(response_value)
             }
             KernelMethod::PermissionGrant => {
                 let principal = params
@@ -289,5 +391,30 @@ where
                 anyhow::bail!("protocol method '{}' is not yet implemented", kernel_method)
             }
         }
+    }
+}
+
+/// Recursively strip raw-secret-like field values from a JSON value
+/// before returning it to a protocol caller.
+///
+/// This is a defense-in-depth sweep: replaces values of known secret
+/// field names with `"[redacted]"`. Does not touch non-secret fields.
+fn strip_raw_secrets_from_value(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            for (k, v) in map.iter_mut() {
+                if ygg_core::is_secret_field_name(k) {
+                    *v = Value::String("[redacted]".to_string());
+                } else {
+                    strip_raw_secrets_from_value(v);
+                }
+            }
+        }
+        Value::Array(arr) => {
+            for item in arr.iter_mut() {
+                strip_raw_secrets_from_value(item);
+            }
+        }
+        _ => {}
     }
 }

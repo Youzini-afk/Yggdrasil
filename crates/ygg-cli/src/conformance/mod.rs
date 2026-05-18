@@ -384,6 +384,27 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "outbound.live_http_redacted_shape",
         network::outbound_live_http_redacted_shape().await,
     );
+    // Phase L3 — kernel.outbound.execute public protocol boundary
+    record_case(
+        &mut results,
+        "outbound.execute_package_allowed",
+        network::outbound_execute_package_allowed().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.execute_spoofed_package_id_rejected",
+        network::outbound_execute_spoofed_package_id_rejected().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.execute_no_permission_denied",
+        network::outbound_execute_no_permission_denied().await,
+    );
+    record_case(
+        &mut results,
+        "outbound.execute_no_raw_secret_in_response",
+        network::outbound_execute_no_raw_secret_in_response().await,
+    );
     // Phase S3 — streaming and cancellation lifecycle
     record_case(
         &mut results,

@@ -68,14 +68,14 @@ secret_ref → host secret resolver → public outbound boundary → live HTTPS 
 - `LiveHttpOutboundExecutorConfig` 提供 timeout_ms、connect_timeout_ms、allow_redirects、max_response_preview_bytes、allow_insecure_loopback_for_tests。
 - Conformance 3 个新用例：`outbound.live_http_default_disabled`、`outbound.live_http_rejects_insecure_url`、`outbound.live_http_redacted_shape`。不依赖公网。
 
-## Phase L3 — Public outbound/secret boundary
+## Phase L3 — Public outbound/secret boundary ✅
 
 公开普通能力包可用的 content-free host boundary：
 
-- `kernel.secret.resolve` 或等价 host protocol method（只返回 redacted/usable-by-host handle，不把 raw key发给包）。
-- `kernel.outbound.execute` / `kernel.outbound.stream` 或等价 capability-facing method。
+- `kernel.outbound.execute` 公开协议方法：允许 ordinary package 通过 host outbound executor 发起出站请求。Params 接受 capability_id、destination_host、method、path、secret_refs、metadata、body_shape。package_id 从 ProtocolContext principal 强制确定——调用者不能在 params 中 spoof 不同的 package_id（host_dev/host_admin principal 可在 params 中指定用于测试）。Dispatch 调用 `execute_outbound_with_policy`，response 经过额外 raw-secret 防护 sweep。不新增 `kernel.secret.resolve`（raw secret 不返回给包）。L3 不注入 secret headers（真实注入延后至 L4/L5）。
 - Official 和 third-party provider 包走同一路径。
 - 文档明确 subprocess 任意联网仍不是 OS 级拦截；未受控 subprocess provider 不得作为 live provider 默认形态。
+- Conformance 新增 4 个用例：`outbound.execute_package_allowed`、`outbound.execute_spoofed_package_id_rejected`、`outbound.execute_no_permission_denied`、`outbound.execute_no_raw_secret_in_response`。不依赖公网。
 
 ## Phase L4 — First live provider canary
 
