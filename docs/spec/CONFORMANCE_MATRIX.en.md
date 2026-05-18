@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 93 implemented rows, backed by 101 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 96 implemented rows, backed by 104 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -106,6 +106,9 @@ Current matrix coverage: 93 implemented rows, backed by 101 named CLI conformanc
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
 | replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
 | replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
+| replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through kernel.surface.contribution.list | implemented |
+| replacement | third-party agent-runtime capability invocation produces no-inference/no-network, approval-gated proposal, provenance match | implemented |
+| replacement | composition descriptor passes with third-party agent-runtime replacement, official is replacement_candidate only | implemented |
 | network | package without network permission denied outbound, produces outbound.denied audit | implemented |
 | network | allowlisted host+method allowed, produces redacted outbound.request audit | implemented |
 | network | host/method mismatch denied | implemented |
@@ -230,6 +233,9 @@ replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_official_priority   PASS
 replacement.composition_thirdparty           PASS
+replacement.thirdparty_agent_runtime_surfaces   PASS
+replacement.thirdparty_agent_runtime_invocation PASS
+replacement.composition_agent_runtime_replacement PASS
 substrate.permission_grant_rehydrate          PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS

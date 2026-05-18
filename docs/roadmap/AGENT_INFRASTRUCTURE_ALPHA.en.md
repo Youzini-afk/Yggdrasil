@@ -68,10 +68,16 @@ Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like ca
   - `clients/web/src/styles.css` — Agent Observability and Agent Readiness styles.
   - `clients/web/README.md` — J5 docs.
 
-## J6 — Third-party Replacement Proof
+## J6 — Third-party Replacement Proof ✅
 
 - Add third-party agent runtime example and composition replacement.
 - Prove third-party and official agents can reach the same surface/capability/proposal/trace paths.
+- **Deliverables**:
+  - `examples/packages/thirdparty-agent-runtime/manifest.yaml` — ordinary third-party package, 5 capabilities (run streaming, explain_run, draft_proposal, summarize_trace, echo), 3 surfaces (assistant_action + forge_panel + home_card), permissions {} with no network declarations.
+  - `crates/ygg-runtime/src/inproc/thirdparty_agent_runtime.rs` — inproc handler returning deterministic/no-network/faux payloads (thirdparty_agent_run_plan, thirdparty_agent_run_explanation, thirdparty_agent_proposal, thirdparty_agent_trace_summary, thirdparty_agent_echo) with provenance containing provider_package_id.
+  - `examples/compositions/agent-runtime-replacement/composition.yaml` — required package points to third-party agent runtime, replacement_candidates includes official/pi-agent-runtime-lab, required_capabilities covers run/draft/explain/summarize, permission_expectations capabilities.invoke, compatibility notes explain official no-priority.
+  - `crates/ygg-cli/src/conformance/replacement.rs` — `thirdparty_agent_runtime_surfaces()`, `thirdparty_agent_runtime_invocation()`, `composition_agent_runtime_replacement()` conformance cases: verifies surfaces discoverable, no-inference/no-network, approval-gated proposal, provenance match, composition check passes.
+  - Conformance total +3 (104 named cases).
 
 ## J7 — Durable Docs + Cleanup
 

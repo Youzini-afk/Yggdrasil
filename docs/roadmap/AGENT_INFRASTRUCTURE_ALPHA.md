@@ -68,10 +68,16 @@
   - `clients/web/src/styles.css` — Agent Observability 与 Agent Readiness 样式。
   - `clients/web/README.md` — J5 文档。
 
-## J6 — Third-party Replacement Proof
+## J6 — Third-party Replacement Proof ✅
 
 - 新增第三方 agent runtime 示例与 composition replacement。
 - 证明 third-party agent 与 official agent 能到达同样 surface/capability/proposal/trace 路径。
+- **交付**：
+  - `examples/packages/thirdparty-agent-runtime/manifest.yaml` — 普通第三方包，5 capabilities（run streaming、explain_run、draft_proposal、summarize_trace、echo），3 surfaces（assistant_action + forge_panel + home_card），permissions {} 无网络声明。
+  - `crates/ygg-runtime/src/inproc/thirdparty_agent_runtime.rs` — inproc handler，返回 deterministic/no-network/faux payload（thirdparty_agent_run_plan、thirdparty_agent_run_explanation、thirdparty_agent_proposal、thirdparty_agent_trace_summary、thirdparty_agent_echo），provenance 含 provider_package_id。
+  - `examples/compositions/agent-runtime-replacement/composition.yaml` — required package 指向第三方 agent runtime，replacement_candidates 包含 official/pi-agent-runtime-lab，required_capabilities 覆盖 run/draft/explain/summarize，permission_expectations capabilities.invoke，compatibility notes 说明 official no-priority。
+  - `crates/ygg-cli/src/conformance/replacement.rs` — `thirdparty_agent_runtime_surfaces()`、`thirdparty_agent_runtime_invocation()`、`composition_agent_runtime_replacement()` conformance 用例：验证 surfaces 可发现、no-inference/no-network、approval-gated proposal、provenance 匹配、composition check 通过。
+  - Conformance 总数 +3（104 个具名用例）。
 
 ## J7 — Durable Docs + Cleanup
 

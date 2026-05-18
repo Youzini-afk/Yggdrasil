@@ -242,6 +242,22 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "replacement.composition_thirdparty",
         replacement::composition_thirdparty().await,
     );
+    // Phase J6 — third-party agent runtime replacement proof
+    record_case(
+        &mut results,
+        "replacement.thirdparty_agent_runtime_surfaces",
+        replacement::thirdparty_agent_runtime_surfaces().await,
+    );
+    record_case(
+        &mut results,
+        "replacement.thirdparty_agent_runtime_invocation",
+        replacement::thirdparty_agent_runtime_invocation().await,
+    );
+    record_case(
+        &mut results,
+        "replacement.composition_agent_runtime_replacement",
+        replacement::composition_agent_runtime_replacement().await,
+    );
     record_case(
         &mut results,
         "substrate.permission_grant_rehydrate",

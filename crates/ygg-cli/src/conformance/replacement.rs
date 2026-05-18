@@ -1,5 +1,8 @@
 //! Conformance cases for Phase H5: proving official seed is replaceable
 //! with a third-party package, no kernel privilege or hardcoding required.
+//!
+//! Also covers Phase J6: proving third-party agent runtime is replaceable
+//! with the official pi-agent-runtime-lab.
 
 use std::path::PathBuf;
 
@@ -192,5 +195,163 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
 /// composition descriptor.
 pub(crate) async fn composition_thirdparty() -> anyhow::Result<()> {
     composition::composition_check(PathBuf::from("examples/compositions/playable-seed-replacement/composition.yaml")).await?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Phase J6 — Third-party agent runtime replacement proof
+// ---------------------------------------------------------------------------
+
+/// Proves that the third-party agent-runtime replacement package loads and its
+/// surfaces (assistant_action, forge_panel, home_card) are discoverable through
+/// `kernel.surface.contribution.list`.
+pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-agent-runtime/manifest.yaml")).await?)
+        .await?;
+
+    // Check assistant_action slot
+    let assistants = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.surface.contribution.list",
+            json!({"slot": "assistant_action"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let has_assistant = assistants
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/agent-runtime")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_assistant, "third-party agent-runtime assistant_action surface missing");
+
+    // Check forge_panel slot
+    let forge_panels = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.surface.contribution.list",
+            json!({"slot": "forge_panel"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let has_forge = forge_panels
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/agent-runtime")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_forge, "third-party agent-runtime forge_panel surface missing");
+
+    // Check home_card slot
+    let home_cards = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.surface.contribution.list",
+            json!({"slot": "home_card"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let has_home = home_cards
+        .as_array()
+        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/agent-runtime")))
+        .unwrap_or(false);
+    anyhow::ensure!(has_home, "third-party agent-runtime home_card surface missing");
+
+    Ok(())
+}
+
+/// Proves that the third-party agent-runtime capabilities produce
+/// deterministic, no-network, no-inference, approval-gated output
+/// — the same constraints as the official pi-agent-runtime-lab.
+pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-agent-runtime/manifest.yaml")).await?)
+        .await?;
+
+    // run: deterministic no-inference no-network plan
+    let run_result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "thirdparty/agent-runtime/run".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("thirdparty/agent-runtime".to_string()),
+            version: None,
+            input: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(run_result.output["kind"] == json!("thirdparty_agent_run_plan"), "thirdparty agent-runtime run returned wrong kind");
+    anyhow::ensure!(run_result.output["inference_performed"] == json!(false), "thirdparty agent-runtime run must not perform inference");
+    anyhow::ensure!(run_result.output["network_performed"] == json!(false), "thirdparty agent-runtime run must not perform network");
+    anyhow::ensure!(run_result.output["trace_events"].is_array(), "thirdparty agent-runtime run missing trace_events");
+    anyhow::ensure!(run_result.output["stream_frames"].is_array(), "thirdparty agent-runtime run missing stream_frames");
+    anyhow::ensure!(run_result.output["proposal_draft"].is_object(), "thirdparty agent-runtime run missing proposal_draft");
+    anyhow::ensure!(run_result.output["provenance"]["package_id"] == json!("thirdparty/agent-runtime"), "thirdparty agent-runtime run provenance mismatch");
+
+    // draft_proposal: approval-gated
+    let proposal = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "thirdparty/agent-runtime/draft_proposal".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("thirdparty/agent-runtime".to_string()),
+            version: None,
+            input: json!({"change": "community-driven modification"}),
+        })
+        .await?;
+    anyhow::ensure!(proposal.output["kind"] == json!("thirdparty_agent_proposal"), "thirdparty agent-runtime draft_proposal wrong kind");
+    anyhow::ensure!(proposal.output["requires_user_approval"] == json!(true), "thirdparty agent-runtime proposal must require approval");
+    anyhow::ensure!(proposal.output["provenance"]["package_id"] == json!("thirdparty/agent-runtime"), "thirdparty agent-runtime proposal provenance mismatch");
+
+    // explain_run: no-inference explanation
+    let explain = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "thirdparty/agent-runtime/explain_run".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("thirdparty/agent-runtime".to_string()),
+            version: None,
+            input: json!({"trace_events": [{"step": 1}, {"step": 2}]}),
+        })
+        .await?;
+    anyhow::ensure!(explain.output["kind"] == json!("thirdparty_agent_run_explanation"), "thirdparty agent-runtime explain_run wrong kind");
+    anyhow::ensure!(explain.output["inference_performed"] == json!(false), "thirdparty agent-runtime explain_run must not claim inference");
+    anyhow::ensure!(explain.output["network_performed"] == json!(false), "thirdparty agent-runtime explain_run must not claim network");
+    anyhow::ensure!(explain.output["trace_event_count"] == json!(2), "thirdparty agent-runtime explain_run wrong event count");
+
+    // summarize_trace: no-inference summary
+    let trace = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "thirdparty/agent-runtime/summarize_trace".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("thirdparty/agent-runtime".to_string()),
+            version: None,
+            input: json!({"trace_events": [{"e": 1}, {"e": 2}, {"e": 3}]}),
+        })
+        .await?;
+    anyhow::ensure!(trace.output["kind"] == json!("thirdparty_agent_trace_summary"), "thirdparty agent-runtime summarize_trace wrong kind");
+    anyhow::ensure!(trace.output["event_count"] == json!(3), "thirdparty agent-runtime summarize_trace wrong event count");
+    anyhow::ensure!(trace.output["inference_performed"] == json!(false), "thirdparty agent-runtime summarize_trace must not claim inference");
+    anyhow::ensure!(trace.output["network_performed"] == json!(false), "thirdparty agent-runtime summarize_trace must not claim network");
+
+    // echo: passthrough
+    let echo = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "thirdparty/agent-runtime/echo".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("thirdparty/agent-runtime".to_string()),
+            version: None,
+            input: json!({"hello": "community"}),
+        })
+        .await?;
+    anyhow::ensure!(echo.output["kind"] == json!("thirdparty_agent_echo"), "thirdparty agent-runtime echo wrong kind");
+    anyhow::ensure!(echo.output["input"]["hello"] == json!("community"), "thirdparty agent-runtime echo did not pass through input");
+
+    Ok(())
+}
+
+/// Proves that when both the official pi-agent-runtime-lab and the third-party
+/// agent-runtime are loaded, the composition check with the third-party as the
+/// required package and official as replacement_candidate succeeds. This
+/// verifies no official priority: the third-party is the selected provider and
+/// official is only a candidate.
+pub(crate) async fn composition_agent_runtime_replacement() -> anyhow::Result<()> {
+    composition::composition_check(PathBuf::from("examples/compositions/agent-runtime-replacement/composition.yaml")).await?;
     Ok(())
 }

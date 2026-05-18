@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：93 个 implemented rows，由 101 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：96 个 implemented rows，由 104 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -106,6 +106,9 @@ cargo run -p ygg-cli -- conformance
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
 | replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
 | replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
+| replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 kernel.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 agent-runtime 能力调用产生 no-inference/no-network、approval-gated proposal、provenance 匹配 | implemented |
+| replacement | composition 描述符通过第三方 agent-runtime 替换，official 仅 replacement_candidate | implemented |
 | network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
 | network | allowlisted host+method 允许，产生 redacted outbound.request 审计 | implemented |
 | network | host/method 不匹配被拒绝 | implemented |
@@ -230,6 +233,9 @@ replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_official_priority   PASS
 replacement.composition_thirdparty           PASS
+replacement.thirdparty_agent_runtime_surfaces   PASS
+replacement.thirdparty_agent_runtime_invocation PASS
+replacement.composition_agent_runtime_replacement PASS
 substrate.permission_grant_rehydrate         PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS

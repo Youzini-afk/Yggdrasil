@@ -17,6 +17,7 @@ mod pi_agent_runtime_lab;
 mod playable_seed;
 mod projection_lab;
 mod text_transform_lab;
+mod thirdparty_agent_runtime;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InprocInvocation {
@@ -42,6 +43,7 @@ impl InprocPackageCatalog {
         entries.insert(entry_key("example-echo-rust-inproc", "register"), Arc::new(EchoInprocPackage));
         entries.insert(entry_key("example-hook-inproc", "register"), Arc::new(HookInprocPackage));
         entries.insert(entry_key("official-foundation", "register"), Arc::new(OfficialFoundationPackage));
+        entries.insert(entry_key("example-thirdparty-agent-runtime", "register"), Arc::new(ThirdpartyAgentRuntimePackage));
         Self { entries: Arc::new(entries) }
     }
 
@@ -122,6 +124,18 @@ impl InprocPackage for OfficialFoundationPackage {
             return result;
         }
         // No handler matched — fail loudly instead of returning permissive success
+        common::unhandled_capability(&request)
+    }
+}
+
+struct ThirdpartyAgentRuntimePackage;
+
+#[async_trait]
+impl InprocPackage for ThirdpartyAgentRuntimePackage {
+    async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
+        if let Some(result) = thirdparty_agent_runtime::try_handle(&request) {
+            return result;
+        }
         common::unhandled_capability(&request)
     }
 }
