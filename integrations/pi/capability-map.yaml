@@ -42,3 +42,7 @@ ygg_mappings:
   trace: package_owned_events_or_stream_frames
   state: package_owned_assets_projections_or_capabilities
   ui: surface_contributions_public_protocol
+j1_adapter_sdk:
+  module: sdk/typescript/ygg-agent-adapter
+  status: delivered
+  description: "J1 adapter SDK — capability-to-tool mapping, invoke/stream, trace, proposal, permission/provider diagnostics, raw-secret blocking. Pure TS, no private runtime dependency."

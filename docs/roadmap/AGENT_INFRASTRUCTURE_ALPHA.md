@@ -12,11 +12,15 @@
 - 新增 `integrations/pi` ledger、lock 和 capability map。
 - 固定 pi 能力吸收分级：adapter-now、package-internal optional、reference-only、deferred、rejected。
 
-## J1 — Ygg Agent Adapter SDK
+## J1 — Ygg Agent Adapter SDK ✅
 
 - 新增 `sdk/typescript/ygg-agent-adapter`。
 - 提供 capability-to-tool、tool invoke/stream、proposal helper、trace helper、permission/provider diagnostics。
 - 不 import private runtime，不依赖 `pi-coding-agent`。
+- **交付**：
+  - `sdk/typescript/ygg-agent-adapter/index.ts` — 纯 TS，无外部依赖，含 ProtocolClient interface、CapabilityDescriptor / CapabilityTool / ToolCall / ToolResult / AgentTraceEvent / AgentProposalDraft 等稳定类型；createYggAgentAdapter 工厂；capabilityToTool / createCapabilityTool / invokeCapabilityTool / streamCapabilityTool；createTraceEvent / createProposalDraft；diagnosePermissions / diagnoseProvider / blockRawSecrets；runYggAgentAdapterSelfTest 自测覆盖 tool mapping、ambiguous provider rejection、proposal draft、trace event、stream request、raw secret blocking。
+  - `sdk/typescript/ygg-agent-adapter/README.md` / `README.en.md` — 中英文文档。
+  - `integrations/pi/capability-map.yaml` — 标注 J1 adapter SDK。
 
 ## J2 — Agent Runtime Template
 

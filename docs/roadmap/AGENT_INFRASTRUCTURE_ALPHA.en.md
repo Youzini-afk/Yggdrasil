@@ -12,11 +12,15 @@ Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like ca
 - Add `integrations/pi` ledger, lock, and capability map.
 - Fix pi absorption tiers: adapter-now, package-internal optional, reference-only, deferred, rejected.
 
-## J1 — Ygg Agent Adapter SDK
+## J1 — Ygg Agent Adapter SDK ✅
 
 - Add `sdk/typescript/ygg-agent-adapter`.
 - Provide capability-to-tool, tool invoke/stream, proposal helper, trace helper, permission/provider diagnostics.
 - Do not import private runtime or depend on `pi-coding-agent`.
+- **Deliverables**:
+  - `sdk/typescript/ygg-agent-adapter/index.ts` — pure TS, no external dependencies. Contains ProtocolClient interface; stable types (CapabilityDescriptor / CapabilityTool / ToolCall / ToolResult / AgentTraceEvent / AgentProposalDraft); createYggAgentAdapter factory; capabilityToTool / createCapabilityTool / invokeCapabilityTool / streamCapabilityTool; createTraceEvent / createProposalDraft; diagnosePermissions / diagnoseProvider / blockRawSecrets; runYggAgentAdapterSelfTest covering tool mapping, ambiguous provider rejection, proposal draft, trace event, stream request, raw secret blocking.
+  - `sdk/typescript/ygg-agent-adapter/README.md` / `README.en.md` — Chinese & English docs.
+  - `integrations/pi/capability-map.yaml` — J1 adapter SDK annotation.
 
 ## J2 — Agent Runtime Template
 
