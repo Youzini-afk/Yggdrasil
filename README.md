@@ -135,6 +135,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.md) —— hostile conformance 路线图。
 - [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) —— 游创一体的产品立场。
 - [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) —— 第三方能力包创作 walkthrough。
+- [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md) —— agent-like 能力包创作指南。
 - [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.md) —— Yggdrasil-native creative capability package kit。
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) —— no-network model provider profile 与 route planning kit。
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
@@ -145,7 +146,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 下面这些方向有价值，但不属于内核。它们都将以普通能力包的形态到来。
 
 - SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
-- pi 集成 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md)。
+- pi / agent 包基础设施 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md) 与 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)。真实 agent loop、模型调用和记忆系统仍是未来普通能力包。
 - 外部游戏引擎（UE5、Godot、Unity、Web 端）—— 后续以包或 remote 入口形式接入。
 - 对话运行时、模型 provider、记忆模型、agent loop、世界模拟、director。
 - 最终视觉设计、完整 Studio、ComfyUI 风格节点编辑器、市场。

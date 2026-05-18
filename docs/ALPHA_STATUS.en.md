@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 104 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Next stage:** Agent Infrastructure Alpha (J6 complete).
+- **Current consolidation:** Agent Infrastructure Alpha is complete and documented; the next phase should continue around real-inference prerequisites, host hardening, or deeper package authoring rather than putting agent/model/prompt semantics into the kernel.
 
 ## What is implemented
 
@@ -153,7 +153,7 @@ These are non-goals for the kernel and are expected to ship as ordinary packages
 - Memory model, retrieval, summarization, agent loop, director.
 - World, scene, actor, rule, dice, inventory semantics.
 - SillyTavern resource and behavior compatibility (see `docs/tavern/TAVERN_COMPAT.md`).
-- pi integration (see `docs/architecture/PI_INTEGRATION.md`).
+- Real agent loops, model calls, and memory systems (agent-like infrastructure is complete; see `docs/architecture/PI_INTEGRATION.md` and `docs/guides/AGENT_PACKAGE_AUTHORING.md`).
 - External game engine bridges (UE5, Godot, Unity, web clients).
 - Marketplace, package signing, dependency resolver.
 - Final UI visual design, full Studio, ComfyUI-like node editors.
@@ -184,4 +184,5 @@ If any of the above fails, this document is wrong; the code is right. Update thi
 - `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` — executable alpha contract matrix.
 - `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
 - `docs/product/PLAY_CREATION_MODEL.md` — play-creation product stance.
+- `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like capability package authoring guide.
 - `docs/roadmap/NEXT_STEPS.md` — current and upcoming phases.

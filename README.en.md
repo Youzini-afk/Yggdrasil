@@ -133,6 +133,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.en.md) — hostile conformance roadmap.
 - [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md) — play-creation product stance.
 - [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough.
+- [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md) — agent-like capability package authoring guide.
 - [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.en.md) — Yggdrasil-native creative capability package kit.
 - [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.en.md) — no-network model provider profile and route planning kit.
 - [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) — living snapshot of what is done, partial, and deferred.
@@ -143,7 +144,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 These are valuable directions but not part of the kernel. They will arrive as ordinary capability packages.
 
 - SillyTavern compatibility — see [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md).
-- pi integration — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.en.md).
+- pi / agent package infrastructure — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.en.md) and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md). Real agent loops, model calls, and memory systems remain future ordinary capability packages.
 - External game engines (UE5, Godot, Unity, web clients) — future packages or remote-entry integrations.
 - Conversational runtime, model providers, memory model, agent loop, world simulation, director.
 - Final UI visual design, full Studio, ComfyUI-like node editors, marketplace.

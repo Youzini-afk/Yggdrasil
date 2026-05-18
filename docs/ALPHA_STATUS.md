@@ -12,7 +12,7 @@
 - **Conformance：** 104 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **下一阶段：** Agent Infrastructure Alpha（J6 完成）。
+- **当前收敛：** Agent Infrastructure Alpha 已完成并文档化；下一阶段应继续围绕真实 inference 前置条件、host hardening 或更深入的 package authoring，而不是把 agent/model/prompt 语义放进内核。
 
 ## 已实现
 
@@ -150,7 +150,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - 记忆模型、检索、摘要、agent loop、director。
 - 世界、场景、角色、规则、骰子、背包语义。
 - SillyTavern 资源和行为兼容（见 `docs/tavern/TAVERN_COMPAT.md`）。
-- pi 集成（见 `docs/architecture/PI_INTEGRATION.md`）。
+- 真实 agent loop、模型调用和记忆系统（agent-like 基础设施已完成；见 `docs/architecture/PI_INTEGRATION.md` 与 `docs/guides/AGENT_PACKAGE_AUTHORING.md`）。
 - 外部游戏引擎桥接（UE5、Godot、Unity、web 客户端）。
 - 市场、包签名、依赖解析器。
 - 最终 UI 视觉设计、完整 Studio、ComfyUI 风格节点编辑器。
@@ -181,4 +181,5 @@ tsc -p clients/web/tsconfig.json --noEmit
 - `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` —— 可执行的 alpha 契约矩阵。
 - `docs/spec/CONFORMANCE_MATRIX.md` —— hostile conformance 路线图。
 - `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
+- `docs/guides/AGENT_PACKAGE_AUTHORING.md` —— agent-like 能力包创作指南。
 - `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。

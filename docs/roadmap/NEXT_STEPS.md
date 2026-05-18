@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-下一个重心是 **Agent Infrastructure Alpha**：通过普通包、SDK adapter、capability/tool bridge 和 approval-gated proposals 来接入 pi 启发的 agent package 基础设施，而不是把 agent/model/prompt 语义加入内核。
+Agent Infrastructure Alpha 已完成：Yggdrasil 现在可以通过普通包、SDK adapter、capability/tool bridge、approval-gated proposals 和 public-protocol UI 观察面托管 agent-like packages，而不是把 agent/model/prompt 语义加入内核。
 
 ## 当前位置
 
@@ -16,6 +16,7 @@
 - Authoring & Composition Beta+：已完成；生成 package templates、fixture/reload tooling、composition v2 diagnostics、Forge authoring panels 与第三方 playable replacement proof 已就位。
 - Secure Execution Substrate：Alpha 切片已完成。持久 grants、`secret_ref`、host resolver placeholder、raw-secret blocking、网络权限声明、outbound audit/redaction、通用 streaming/cancel 生命周期、secure-execution TypeScript helpers、networked/streaming templates，以及 no-network model/agent readiness examples 已就位。
 - Text Surface Proof：Phase T1/T2/T3/T4/T5 已完成。`integrations/pretext` 记录 Pretext 参考边界，Assistant Drawer 中已有基于 `clients/web/src/text-layout` 的受限 mock streaming text proof，且没有 kernel/protocol/package 变更。`sdk/typescript/text-surface` 提供纯 TypeScript 前端 SDK 供第三方 UI 使用。字体加载、缓存诊断和自测模块已就位。
+- Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -74,25 +75,34 @@
 
 这些项目解除特定用例的阻塞。它们不阻塞 Agent Infrastructure Alpha，但所有 agent/model 包都必须使用现有 public protocol、permission、audit、redaction、streaming 和 proposal 路径。
 
-## Phase J — Agent Infrastructure Alpha（下一步）
+## Phase J — Agent Infrastructure Alpha（已完成）
 
 目标：让 Yggdrasil 能托管、约束、观察和替换 agent-like packages，同时保持 agent 语义在内核之外。
 
-推荐顺序：
+已交付：
 
-- 升级 `docs/architecture/PI_INTEGRATION.md`，新增 `integrations/pi` ledger，记录 pi 哪些能力是参考材料、哪些现在可复用、哪些继续延后。
-- 新增薄 TypeScript pi/Ygg adapter，把 Yggdrasil capabilities 通过公开协议映射为 pi-style tools；不允许访问私有 runtime。
-- 新增 agent runtime package template，默认 deterministic/no-network，发出 package-owned traces 和 approval-gated proposals。
-- 新增 `official/pi-agent-runtime-lab`，作为普通参考包；无特殊路由、无隐藏权限、无真实模型调用。
-- 新增 tool bridge package：发现 capabilities，歧义 provider 必须显式选择，检查权限，并且只通过 `kernel.capability.invoke` 或 `kernel.capability.stream` 调用。
-- 用 package-owned events 和 public protocol 在 Forge/Assist 中展示 agent traces 与 tool calls。
-- 新增第三方 agent replacement proof，证明官方 agent 包没有特权。
+- `docs/architecture/PI_INTEGRATION.md` 与 `integrations/pi` ledger 固定 pi 吸收边界。
+- `sdk/typescript/ygg-agent-adapter` 把 Yggdrasil capabilities 通过公开协议映射为 pi-style tools；不访问私有 runtime。
+- `--template agent-runtime` 生成 deterministic/no-network agent-like 包，发出 package-owned traces 和 approval-gated proposals。
+- `official/pi-agent-runtime-lab` 是普通参考包；无特殊路由、无隐藏权限、无真实模型调用。
+- `official/capability-tool-bridge-lab` 发现 capabilities、预览权限、强制显式 provider 选择，并只生成 `kernel.capability.invoke` / `kernel.capability.stream` plan，避免 confused deputy。
+- Forge/Assist 通过 package-owned events、proposals、surfaces 和 public protocol 展示 agent traces、tool diagnostics 与 readiness badges。
+- `examples/packages/thirdparty-agent-runtime` 与 `examples/compositions/agent-runtime-replacement` 证明官方 agent 包没有特权。
+- `docs/guides/AGENT_PACKAGE_AUTHORING.md` 作为 durable 创作指南。
 
 Phase J 非目标：
 
 - 不做真实 model inference，除非专门 package 使用安全执行底座和显式 host policy。
 - 不新增 kernel `agent`、`prompt`、`memory`、`turn` 或 `model` 方法。
 - 不整体嵌入 `pi-coding-agent` 的产品假设。
+
+## Phase K — 建议下一主线
+
+下一阶段不应把 agent/model/prompt/memory 塞进 kernel。更合适的方向是从以下三者中选择：
+
+- **Real Model Inference Prerequisites**：继续推进 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 中的 host policy、secret resolver、usage/audit、stream transport parity 和 provider error taxonomy，然后再做普通 `model-inference` 能力包。
+- **Host Hardening**：补齐 package-principal subscribe、hook timeout/error audit、持久 provider 选择策略、filesystem/resource policy 和更广传输一致性。
+- **Package Authoring Depth**：加强 package release/check/composition/reporting、SDK packaging、第三方 examples 和 Forge authoring flows。
 
 ## 内核范围内的无限期延后
 
@@ -107,4 +117,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha 和 Optional Text Engine Alpha 已完成。下一条主线应是 Agent Infrastructure Alpha；未来真实 model inference 仍推迟到 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 之后。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha 和 Agent Infrastructure Alpha 已完成。未来真实 model inference 仍推迟到 [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) 之后。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

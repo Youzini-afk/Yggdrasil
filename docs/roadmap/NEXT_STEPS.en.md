@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-The next center of gravity is **Agent Infrastructure Alpha**: integrate pi-inspired agent package infrastructure through ordinary packages, SDK adapters, capability/tool bridges, and approval-gated proposals — without adding agent/model/prompt semantics to the kernel.
+Agent Infrastructure Alpha is complete: Yggdrasil can now host agent-like packages through ordinary packages, SDK adapters, capability/tool bridges, approval-gated proposals, and public-protocol UI observability — without adding agent/model/prompt semantics to the kernel.
 
 ## Where we are
 
@@ -16,6 +16,7 @@ The next center of gravity is **Agent Infrastructure Alpha**: integrate pi-inspi
 - Authoring & Composition Beta+: complete; generated package templates, fixture/reload tooling, composition v2 diagnostics, Forge authoring panels, and a third-party playable replacement proof are in place.
 - Secure Execution Substrate: complete Alpha slice. Persistent grants, `secret_ref`, host resolver placeholder, raw-secret blocking, network permission declarations, outbound audit/redaction, generic streaming/cancel lifecycle, secure-execution TypeScript helpers, networked/streaming templates, and no-network model/agent readiness examples are in place.
 - Text Surface Proof: complete Phase T1/T2/T3/T4/T5. `integrations/pretext` documents the Pretext reference boundary, and the Assistant Drawer contains a bounded mock streaming text proof over `clients/web/src/text-layout` without kernel/protocol/package changes. `sdk/typescript/text-surface` provides a pure TypeScript frontend SDK for third-party UIs. Font loading, cache diagnostics, and a self-test harness are in place.
+- Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -74,25 +75,34 @@ Carried forward as background work, not the headline:
 
 These items unblock specific use cases. They do not block Agent Infrastructure Alpha, but every agent/model package must use the existing public protocol, permission, audit, redaction, streaming, and proposal paths.
 
-## Phase J — Agent Infrastructure Alpha (next)
+## Phase J — Agent Infrastructure Alpha (complete)
 
 Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like packages while keeping agent semantics outside the kernel.
 
-Recommended sequence:
+Delivered:
 
-- Upgrade `docs/architecture/PI_INTEGRATION.md` and add an `integrations/pi` ledger that records which pi capabilities are reference material, which are reusable now, and which remain deferred.
-- Add a thin TypeScript pi/Ygg adapter that maps Yggdrasil capabilities to pi-style tools through public protocol calls; no private runtime access.
-- Add an agent runtime package template that is deterministic/no-network by default and emits package-owned traces plus approval-gated proposals.
-- Add `official/pi-agent-runtime-lab` as an ordinary reference package with no special routing, no hidden permissions, and no real model calls.
-- Add a tool bridge package that discovers capabilities, requires explicit provider selection when ambiguous, checks permissions, and invokes only through `kernel.capability.invoke` or `kernel.capability.stream`.
-- Add Forge/Assist observability for agent traces and tool calls using package-owned events and public protocol.
-- Add a third-party agent replacement proof to show official agent packages are not privileged.
+- `docs/architecture/PI_INTEGRATION.md` and `integrations/pi` ledger fix the pi absorption boundary.
+- `sdk/typescript/ygg-agent-adapter` maps Yggdrasil capabilities to pi-style tools through public protocol calls; no private runtime access.
+- `--template agent-runtime` generates deterministic/no-network agent-like packages with package-owned traces and approval-gated proposals.
+- `official/pi-agent-runtime-lab` is an ordinary reference package with no special routing, no hidden permissions, and no real model calls.
+- `official/capability-tool-bridge-lab` discovers capabilities, previews permissions, requires explicit provider selection, and only builds `kernel.capability.invoke` / `kernel.capability.stream` plans, avoiding confused deputy behavior.
+- Forge/Assist show agent traces, tool diagnostics, and readiness badges using package-owned events, proposals, surfaces, and public protocol.
+- `examples/packages/thirdparty-agent-runtime` and `examples/compositions/agent-runtime-replacement` prove official agent packages are not privileged.
+- `docs/guides/AGENT_PACKAGE_AUTHORING.md` is the durable authoring guide.
 
 Non-goals for Phase J:
 
 - No real model inference until a dedicated package uses the secure execution substrate and explicit host policy.
 - No kernel `agent`, `prompt`, `memory`, `turn`, or `model` methods.
 - No wholesale embedding of `pi-coding-agent` product assumptions.
+
+## Phase K — recommended next headline
+
+The next phase should not put agent/model/prompt/memory semantics into the kernel. Better candidates are:
+
+- **Real Model Inference Prerequisites**: continue [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md) with host policy, secret resolver, usage/audit, stream transport parity, and provider error taxonomy before building an ordinary `model-inference` capability package.
+- **Host Hardening**: package-principal subscribe, hook timeout/error audit, persisted provider selection policy, filesystem/resource policy, and broader transport parity.
+- **Package Authoring Depth**: package release/check/composition/reporting, SDK packaging, third-party examples, and Forge authoring flows.
 
 ## Deferred indefinitely from kernel scope
 
@@ -107,4 +117,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, and Optional Text Engine Alpha are complete. The next headline work should be Agent Infrastructure Alpha, while future real model inference remains deferred behind [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md). Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, and Agent Infrastructure Alpha are complete. Future real model inference remains deferred behind [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.en.md). Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
