@@ -5,7 +5,8 @@
 //! eight families: openai, anthropic, gemini, openai_compatible, openrouter,
 //! deepseek, xai, fireworks.
 //!
-//! M4 adds `invoke` for openai, anthropic, gemini only (M5 covers the rest).
+//! M4 adds `invoke` for openai, anthropic, gemini.
+//! M5 extends `invoke` to openai_compatible, openrouter, deepseek, xai, fireworks.
 //! The invoke handler produces a fake/local result with an auditable
 //! `outbound_request_shape` but performs no real network I/O.
 
@@ -26,7 +27,16 @@ const SUPPORTED_FAMILIES: &[&str] = &[
     "fireworks",
 ];
 
-const INVOKE_FAMILIES: &[&str] = &["openai", "anthropic", "gemini"];
+const INVOKE_FAMILIES: &[&str] = &[
+    "openai",
+    "anthropic",
+    "gemini",
+    "openai_compatible",
+    "openrouter",
+    "deepseek",
+    "xai",
+    "fireworks",
+];
 
 // ---------------------------------------------------------------------------
 // Normalized request shape (shared between normalize_request and invoke)
@@ -353,7 +363,7 @@ fn normalize_request(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 // ---------------------------------------------------------------------------
-// invoke (M4 — openai, anthropic, gemini only)
+// invoke (M4+M5 — all eight families)
 // ---------------------------------------------------------------------------
 
 fn invoke(request: &InprocInvocation) -> anyhow::Result<Value> {
@@ -372,6 +382,23 @@ fn invoke(request: &InprocInvocation) -> anyhow::Result<Value> {
             "normalized_error": {
                 "error_kind": "secret_unavailable",
                 "message": "raw secrets are not accepted; use secret_ref: or host: reference",
+                "retryable": false,
+            },
+            "network_performed": false,
+            "inference_performed": false,
+            "executor_kind": "fake_local",
+            "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}
+        }));
+    }
+
+    // openai_compatible requires an explicit HTTPS base_url (no default)
+    if params.family == "openai_compatible" && params.base_url.is_empty() {
+        return Ok(serde_json::json!({
+            "kind": "model_provider_invoke_result",
+            "family": params.family,
+            "normalized_error": {
+                "error_kind": "bad_request",
+                "message": "openai_compatible requires an explicit base_url for invoke",
                 "retryable": false,
             },
             "network_performed": false,
@@ -404,7 +431,7 @@ fn invoke(request: &InprocInvocation) -> anyhow::Result<Value> {
             "family": params.family,
             "normalized_error": {
                 "error_kind": "bad_request",
-                "message": format!("invoke not yet implemented for family '{}'; supported: openai, anthropic, gemini", params.family),
+                "message": format!("invoke not implemented for family '{}'; supported: openai, anthropic, gemini, openai_compatible, openrouter, deepseek, xai, fireworks", params.family),
                 "retryable": false,
             },
             "network_performed": false,
@@ -465,6 +492,11 @@ fn build_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value
         "openai" => build_openai_fake_response(params, shape),
         "anthropic" => build_anthropic_fake_response(params),
         "gemini" => build_gemini_fake_response(params),
+        "openai_compatible" => build_openai_compatible_fake_response(params, shape),
+        "openrouter" => build_openrouter_fake_response(params, shape),
+        "deepseek" => build_deepseek_fake_response(params, shape),
+        "xai" => build_xai_fake_response(params, shape),
+        "fireworks" => build_fireworks_fake_response(params, shape),
         _ => serde_json::json!({}),
     }
 }
@@ -553,6 +585,195 @@ fn build_gemini_fake_response(_params: &ProfileParams) -> Value {
         },
         "provider_request_id": "req_fake_gemini_001"
     })
+}
+
+fn build_openai_compatible_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    // OpenAI-compatible always uses openai_chat dialect (no responses branch)
+    let _ = shape; // openai_compatible only has chat dialect
+    serde_json::json!({
+        "id": "chatcmpl-fake-compat-001",
+        "object": "chat.completion",
+        "model": params.model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "fake local response"},
+                "finish_reason": "stop"
+            }
+        ],
+        "stop_reason": "stop",
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15
+        },
+        "provider_request_id": "req_fake_openai_compatible_001"
+    })
+}
+
+fn build_openrouter_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    if shape.request_dialect == "stateless_responses" {
+        serde_json::json!({
+            "id": "resp_fake_or_001",
+            "object": "response",
+            "model": params.model,
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {"type": "output_text", "text": "fake local response"}
+                    ]
+                }
+            ],
+            "stop_reason": "complete",
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_openrouter_001"
+        })
+    } else {
+        serde_json::json!({
+            "id": "gen-fake-or-001",
+            "object": "chat.completion",
+            "model": params.model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "fake local response"},
+                    "finish_reason": "stop"
+                }
+            ],
+            "stop_reason": "stop",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_openrouter_001"
+        })
+    }
+}
+
+fn build_deepseek_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    // DeepSeek uses openai_chat dialect only (no responses branch)
+    let _ = shape;
+    serde_json::json!({
+        "id": "chatcmpl-fake-ds-001",
+        "object": "chat.completion",
+        "model": params.model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "fake local response"},
+                "finish_reason": "stop",
+                "reasoning_content": null
+            }
+        ],
+        "stop_reason": "stop",
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15,
+            "prompt_cache_hit_tokens": 0,
+            "prompt_cache_miss_tokens": 10
+        },
+        "provider_request_id": "req_fake_deepseek_001"
+    })
+}
+
+fn build_xai_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    if shape.request_dialect == "openai_responses" {
+        serde_json::json!({
+            "id": "resp_fake_xai_001",
+            "object": "response",
+            "model": params.model,
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {"type": "output_text", "text": "fake local response"}
+                    ]
+                }
+            ],
+            "stop_reason": "complete",
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_xai_001"
+        })
+    } else {
+        serde_json::json!({
+            "id": "chatcmpl-fake-xai-001",
+            "object": "chat.completion",
+            "model": params.model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "fake local response"},
+                    "finish_reason": "stop"
+                }
+            ],
+            "stop_reason": "stop",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_xai_001"
+        })
+    }
+}
+
+fn build_fireworks_fake_response(params: &ProfileParams, shape: &NormalizedShape) -> Value {
+    if shape.request_dialect == "fireworks_responses" {
+        serde_json::json!({
+            "id": "resp_fake_fw_001",
+            "object": "response",
+            "model": params.model,
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {"type": "output_text", "text": "fake local response"}
+                    ]
+                }
+            ],
+            "stop_reason": "complete",
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_fireworks_001"
+        })
+    } else {
+        serde_json::json!({
+            "id": "chatcmpl-fake-fw-001",
+            "object": "chat.completion",
+            "model": params.model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "fake local response"},
+                    "finish_reason": "stop"
+                }
+            ],
+            "stop_reason": "stop",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
+            },
+            "provider_request_id": "req_fake_fireworks_001"
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -80,7 +80,7 @@
 - `official/context-lab` —— bounded context block assembly、layer inspection、budget planning 与 template rendering。
 - `official/text-transform-lab` —— deterministic text transform import、validation、preview、pipeline explanation 与 diagnostics。
 - `official/model-connector-lab` —— no-network provider family metadata、profile validation、secret masking、discovery plans 与 compatibility reports。
-- `official/model-provider-lab` —— no-network 八家 provider 的 request normalization、profile validation（拒绝 raw secret）、fake/local invoke（OpenAI chat/responses、Anthropic messages、Gemini generateContent；outbound_request_shape 可审计）、error explanation、echo。覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks。invoke 仅 openai/anthropic/gemini（M4）。
+- `official/model-provider-lab` —— no-network 八家 provider 的 request normalization、profile validation（拒绝 raw secret）、fake/local invoke（覆盖全部八家：OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；outbound_request_shape 可审计）、error explanation、echo。invoke 要求 HTTPS base_url、拒绝 raw credential/header。
 - `official/model-routing-lab` —— no-inference consumer-slot binding、route planning、fallback planning 与 params normalization。
 - `official/assistant-lab` —— assistant-action 能力，返回需要审批的 proposal。
 - `official/pi-agent-runtime-lab` —— 参考代理运行时包，deterministic no-network run plan、trace summary、proposal draft 与 echo。

@@ -88,7 +88,7 @@ cargo run -p ygg-cli -- conformance
 | official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
 | official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
 | official packages | model-provider-lab 列出八家 provider families、validate profiles 拒绝 raw secret、normalize requests 覆盖八家 dialects/endpoints、explain errors（401/429/529）、output 含 network_performed:false/inference_performed:false、无 raw secret echo | implemented |
-| official packages | model-provider-lab invoke OpenAI chat/responses、Anthropic messages、Gemini generateContent（fake/local、outbound_request_shape 可审计、raw credential rejected、unsupported family diagnostic、executor_kind fake_local、live_call_supported false） | implemented |
+| official packages | model-provider-lab invoke 全部八家 provider（OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；fake/local、outbound_request_shape 可审计、raw credential rejected、openai_compatible 缺 base_url 或 http base_url 拒绝、unsupported family diagnostic、executor_kind fake_local、live_call_supported false） | implemented |
 | outbound | model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake） | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
 | official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |

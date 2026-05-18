@@ -101,7 +101,7 @@ Non-goals for Phase J:
 
 Goal: start real model provider integration directly while keeping the Yggdrasil shape: ordinary packages, `secret_ref`, network allowlists, redacted audit, stream/cancel, fake/local conformance, manual live opt-in, no official privilege, and no kernel model ontology.
 
-Execution sequence is tracked in [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.en.md): provider API research ledger (✅ M0), `sdk/typescript/model-provider-adapter` (✅ M1), `official/model-provider-lab` no-network normalization (✅ M2), host outbound executor boundary (✅ M3), OpenAI/Anthropic/Gemini invoke adapters (✅ M4), OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets, streaming normalization, examples/conformance/durable docs.
+Execution sequence is tracked in [`MODEL_PROVIDER_INTEGRATION_ALPHA.md`](MODEL_PROVIDER_INTEGRATION_ALPHA.en.md): provider API research ledger (✅ M0), `sdk/typescript/model-provider-adapter` (✅ M1), `official/model-provider-lab` no-network normalization (✅ M2), host outbound executor boundary (✅ M3), OpenAI/Anthropic/Gemini invoke adapters (✅ M4), OpenAI-compatible/OpenRouter/DeepSeek/xAI/Fireworks presets (✅ M5), streaming normalization, examples/conformance/durable docs.
 
 Non-goals: user balances, billing, channel admin, admin UI, hosted platform relay keys, `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, and `kernel.embedding.*`.
 

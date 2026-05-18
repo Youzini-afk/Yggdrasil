@@ -1175,8 +1175,79 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     anyhow::ensure!(inv_http_base.output["normalized_error"]["error_kind"] == json!("network_denied"), "non-HTTPS base_url invoke should be network_denied");
     anyhow::ensure!(inv_http_base.output["network_performed"] == json!(false), "non-HTTPS base_url invoke must not perform network");
 
-    // invoke unsupported family (openrouter) returns diagnostic
-    let inv_unsupported = runtime
+    // invoke openai_compatible (requires explicit HTTPS base_url)
+    let inv_compat = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai_compatible",
+                    "model": "my-custom-model",
+                    "credential": "secret_ref:env:COMPAT_KEY",
+                    "baseUrl": "https://my-llm.example.com/v1"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_compat.output["request_dialect"] == json!("openai_chat"), "openai_compatible invoke wrong dialect");
+    anyhow::ensure!(inv_compat.output["endpoint"] == json!("https://my-llm.example.com/v1/chat/completions"), "openai_compatible invoke wrong endpoint");
+    anyhow::ensure!(inv_compat.output["outbound_request_shape"]["destination_host"] == json!("my-llm.example.com"), "openai_compatible invoke wrong destination_host");
+    anyhow::ensure!(inv_compat.output["outbound_request_shape"]["path"] == json!("/v1/chat/completions"), "openai_compatible invoke wrong outbound path");
+    anyhow::ensure!(inv_compat.output["response"]["object"] == json!("chat.completion"), "openai_compatible invoke wrong response object");
+    anyhow::ensure!(inv_compat.output["response"]["choices"].is_array(), "openai_compatible invoke missing choices");
+    anyhow::ensure!(inv_compat.output["response"]["usage"].is_object(), "openai_compatible invoke missing usage");
+    anyhow::ensure!(inv_compat.output["executor_kind"] == json!("fake_local"), "openai_compatible invoke executor_kind must be fake_local");
+    anyhow::ensure!(inv_compat.output["network_performed"] == json!(false), "openai_compatible invoke must not perform network");
+
+    // invoke openai_compatible missing base_url → bad_request
+    let inv_compat_no_base = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai_compatible",
+                    "model": "my-model",
+                    "credential": "secret_ref:env:COMPAT_KEY"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_compat_no_base.output["normalized_error"]["error_kind"] == json!("bad_request"), "openai_compatible missing base_url should be bad_request");
+    anyhow::ensure!(inv_compat_no_base.output["network_performed"] == json!(false), "missing base_url invoke must not perform network");
+
+    // invoke openai_compatible http base_url → network_denied
+    let inv_compat_http = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openai_compatible",
+                    "model": "my-model",
+                    "credential": "secret_ref:env:COMPAT_KEY",
+                    "baseUrl": "http://insecure.example.com/v1"
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_compat_http.output["normalized_error"]["error_kind"] == json!("network_denied"), "openai_compatible http base_url should be network_denied");
+
+    // invoke openrouter (chat dialect)
+    let inv_or = runtime
         .invoke_capability(CapabilityInvocationRequest {
             capability_id: "official/model-provider-lab/invoke".to_string(),
             caller_package_id: None,
@@ -1188,13 +1259,156 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
                     "model": "openai/gpt-4o",
                     "credential": "secret_ref:env:OPENROUTER_KEY"
                 },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_or.output["request_dialect"] == json!("openai_chat"), "openrouter invoke wrong dialect");
+    anyhow::ensure!(inv_or.output["endpoint"].as_str().unwrap_or_default().ends_with("/chat/completions"), "openrouter invoke wrong endpoint");
+    anyhow::ensure!(inv_or.output["outbound_request_shape"]["destination_host"] == json!("openrouter.ai"), "openrouter invoke wrong destination_host");
+    anyhow::ensure!(inv_or.output["response"]["choices"].is_array(), "openrouter invoke missing choices");
+    anyhow::ensure!(inv_or.output["executor_kind"] == json!("fake_local"), "openrouter invoke executor_kind must be fake_local");
+
+    // invoke openrouter with preferResponses
+    let inv_or_resp = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "openrouter",
+                    "model": "openai/gpt-4o",
+                    "credential": "secret_ref:env:OPENROUTER_KEY",
+                    "extra": {"preferResponses": true}
+                },
                 "messages": [],
                 "stream": false
             }),
         })
         .await?;
-    anyhow::ensure!(inv_unsupported.output["normalized_error"]["error_kind"] == json!("bad_request"), "unsupported family invoke should produce bad_request error");
-    anyhow::ensure!(inv_unsupported.output["executor_kind"] == json!("fake_local"), "unsupported family invoke executor_kind must be fake_local");
+    anyhow::ensure!(inv_or_resp.output["request_dialect"] == json!("stateless_responses"), "openrouter responses wrong dialect");
+    anyhow::ensure!(inv_or_resp.output["endpoint"].as_str().unwrap_or_default().ends_with("/responses"), "openrouter responses wrong endpoint");
+    anyhow::ensure!(inv_or_resp.output["response"]["object"] == json!("response"), "openrouter responses wrong response object");
+
+    // invoke deepseek
+    let inv_ds = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "deepseek",
+                    "model": "deepseek-chat",
+                    "credential": "secret_ref:env:DEEPSEEK_KEY"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_ds.output["request_dialect"] == json!("openai_chat"), "deepseek invoke wrong dialect");
+    anyhow::ensure!(inv_ds.output["endpoint"].as_str().unwrap_or_default().ends_with("/chat/completions"), "deepseek invoke wrong endpoint");
+    anyhow::ensure!(inv_ds.output["outbound_request_shape"]["destination_host"] == json!("api.deepseek.com"), "deepseek invoke wrong destination_host");
+    anyhow::ensure!(inv_ds.output["response"]["choices"].is_array(), "deepseek invoke missing choices");
+    anyhow::ensure!(inv_ds.output["response"]["usage"]["prompt_cache_hit_tokens"].is_number(), "deepseek invoke missing cache usage");
+    anyhow::ensure!(inv_ds.output["executor_kind"] == json!("fake_local"), "deepseek invoke executor_kind must be fake_local");
+
+    // invoke xai (chat dialect)
+    let inv_xai = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "xai",
+                    "model": "grok-3",
+                    "credential": "secret_ref:env:XAI_KEY"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_xai.output["request_dialect"] == json!("openai_chat"), "xai invoke wrong dialect");
+    anyhow::ensure!(inv_xai.output["endpoint"].as_str().unwrap_or_default().ends_with("/v1/chat/completions"), "xai invoke wrong endpoint");
+    anyhow::ensure!(inv_xai.output["outbound_request_shape"]["destination_host"] == json!("api.x.ai"), "xai invoke wrong destination_host");
+    anyhow::ensure!(inv_xai.output["response"]["choices"].is_array(), "xai invoke missing choices");
+    anyhow::ensure!(inv_xai.output["executor_kind"] == json!("fake_local"), "xai invoke executor_kind must be fake_local");
+
+    // invoke xai with preferResponses
+    let inv_xai_resp = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "xai",
+                    "model": "grok-3",
+                    "credential": "secret_ref:env:XAI_KEY",
+                    "extra": {"preferResponses": true}
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_xai_resp.output["request_dialect"] == json!("openai_responses"), "xai responses wrong dialect");
+    anyhow::ensure!(inv_xai_resp.output["response"]["object"] == json!("response"), "xai responses wrong response object");
+
+    // invoke fireworks (chat dialect)
+    let inv_fw = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "fireworks",
+                    "model": "accounts/fireworks/models/llama-v3p1-8b-instruct",
+                    "credential": "secret_ref:env:FIREWORKS_KEY"
+                },
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_fw.output["request_dialect"] == json!("openai_chat"), "fireworks invoke wrong dialect");
+    anyhow::ensure!(inv_fw.output["endpoint"].as_str().unwrap_or_default().ends_with("/chat/completions"), "fireworks invoke wrong endpoint");
+    anyhow::ensure!(inv_fw.output["outbound_request_shape"]["destination_host"] == json!("api.fireworks.ai"), "fireworks invoke wrong destination_host");
+    anyhow::ensure!(inv_fw.output["response"]["choices"].is_array(), "fireworks invoke missing choices");
+    anyhow::ensure!(inv_fw.output["executor_kind"] == json!("fake_local"), "fireworks invoke executor_kind must be fake_local");
+
+    // invoke fireworks with preferResponses
+    let inv_fw_resp = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/model-provider-lab/invoke".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/model-provider-lab".to_string()),
+            version: None,
+            input: json!({
+                "profile": {
+                    "family": "fireworks",
+                    "model": "accounts/fireworks/models/llama-v3p1-8b-instruct",
+                    "credential": "secret_ref:env:FIREWORKS_KEY",
+                    "extra": {"preferResponses": true}
+                },
+                "messages": [],
+                "stream": false
+            }),
+        })
+        .await?;
+    anyhow::ensure!(inv_fw_resp.output["request_dialect"] == json!("fireworks_responses"), "fireworks responses wrong dialect");
+    anyhow::ensure!(inv_fw_resp.output["response"]["object"] == json!("response"), "fireworks responses wrong response object");
 
     Ok(())
 }

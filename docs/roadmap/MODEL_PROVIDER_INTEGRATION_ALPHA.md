@@ -35,10 +35,11 @@
 - 在 `model-provider-lab` 中实现三类非兼容代表的 fake/local invoke path。
 - 支持手动真实调用路径，但不进入默认 conformance。
 
-## M5 — OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks presets
+## M5 — OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks presets ✅
 
 - 增加 provider presets、base URL/header quirks、usage/error mapping。
 - OpenAI-compatible 是 adapter family，不是唯一协议。
+- 扩展 invoke 覆盖全部八家 provider。
 
 ## M6 — Streaming normalization
 

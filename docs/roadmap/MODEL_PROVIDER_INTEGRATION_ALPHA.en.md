@@ -35,10 +35,11 @@ Goal: implement multi-provider model access as ordinary capability packages, cov
 - Implement fake/local invoke paths for three representative non-compatible families inside `model-provider-lab`.
 - Support manual live call paths, but keep them out of default conformance.
 
-## M5 — OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks presets
+## M5 — OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks presets ✅
 
 - Add provider presets, base URL/header quirks, usage/error mapping.
 - OpenAI-compatible is an adapter family, not the only protocol.
+- Extended invoke to cover all eight provider families.
 
 ## M6 — Streaming normalization
 

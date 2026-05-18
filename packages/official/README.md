@@ -39,7 +39,7 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 
 `official/model-connector-lab` validates provider profiles, masks secret references, and drafts discovery plans without network calls or inference.
 
-`official/model-provider-lab` normalizes provider requests across eight families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, and explains provider errors, all without network calls or inference.
+`official/model-provider-lab` normalizes provider requests across eight families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, provides fake/local invoke for all eight families with auditable outbound request shapes, and explains provider errors, all without network calls or inference.
 
 `official/model-routing-lab` resolves package-owned consumer slots to static model profile route plans with explicit fallbacks and normalized params, without inference.
 
