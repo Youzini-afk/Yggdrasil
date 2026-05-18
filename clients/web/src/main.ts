@@ -1,8 +1,9 @@
 import { renderAssistantDrawer, type TextProofView } from "./drawer/assistant";
-import { YggProtocolClient, type KernelEvent, type PackageRecord, type SurfaceContributionRecord } from "./protocol/client";
+import { YggProtocolClient, type KernelEvent, type PackageRecord, type ProposalRecord, type RegisteredCapability, type SurfaceContributionRecord } from "./protocol/client";
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { renderPlaySurface } from "./surfaces/play";
+import { buildAgentObservability, filterAgentLikeCapabilities, renderAgentReadinessPanel } from "./agent/observability.js";
 import { buildMockChunks, createStreamingBuffer, getActiveTextEngine, getActiveTextEngineName, getTextEngineDiagnostics, initializeTextEnginePreference, getInitializationResult } from "./text-layout/index.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -158,13 +159,18 @@ async function render(error?: string) {
   if (!app) return;
   let body = "";
   let diagnostics: Record<string, unknown> = {};
+  let packages: PackageRecord[] = [];
+  let allSurfaces: SurfaceContributionRecord[] = [];
+  let proposals: ProposalRecord[] = [];
+  let capabilities: RegisteredCapability[] = [];
   try {
-    const [entries, capabilities, hostDiagnostics] = await Promise.all([
+    const [entries, caps, hostDiagnostics] = await Promise.all([
       client.surfaceContributions("experience_entry").catch(() => []),
       client.capabilities().catch(() => []),
       client.diagnostics().catch(() => ({})),
     ]);
-    const [assets, projections, proposals, forgeSurfaces, packages, allSurfaces] = route === "forge"
+    capabilities = caps;
+    const [assets, projections, props, forgeSurfaces, pkgs, surfaces] = route === "forge"
       ? await Promise.all([
           client.assets().catch(() => []),
           client.projections().catch(() => []),
@@ -174,6 +180,9 @@ async function render(error?: string) {
           client.surfaceContributions().catch(() => []),
         ])
       : [[], [], [], [], [], []];
+    packages = pkgs;
+    allSurfaces = surfaces;
+    proposals = props;
     surfaceEntries = entries;
     diagnostics = hostDiagnostics;
     body = route === "play"
@@ -185,7 +194,19 @@ async function render(error?: string) {
       ? renderPlaySurface([], sessionId)
       : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], packages: [], allSurfaces: [], sessionId });
   }
-  app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen, textProofView), error);
+  // Build agent readiness panel for Assistant Drawer (lightweight, no real model/network)
+  const observability = buildAgentObservability(
+    packages,
+    allSurfaces,
+    events,
+    proposals,
+    capabilities,
+  );
+  const agentReadinessHtml = renderAgentReadinessPanel(
+    observability.agentSurfaces,
+    filterAgentLikeCapabilities(capabilities),
+  );
+  app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen, textProofView, agentReadinessHtml), error);
   wireEvents();
 }
 

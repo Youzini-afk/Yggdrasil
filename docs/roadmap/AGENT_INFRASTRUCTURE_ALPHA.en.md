@@ -56,10 +56,17 @@ Goal: make Yggdrasil able to host, constrain, observe, and replace agent-like ca
   - `crates/ygg-cli/src/conformance/official_labs.rs` — `capability_tool_bridge_lab()` conformance case: verifies load package; discover_tools marks ambiguous providers rejected; explicit third-party provider works as plan; official provider not preferred; invoke_tool missing provider rejected; preview denied reports missing permission; raw secret payload unsafe_blocked; surfaces discoverable.
   - Conformance total +1 (101 named cases).
 
-## J5 — Forge / Assist Observability
+## J5 — Forge / Assist Observability ✅
 
 - Show agent trace, tool timeline, proposal explanation, stream text, audit/redaction badges.
 - Use only public protocol and surface discovery.
+- **Deliverables**:
+  - `clients/web/src/agent/observability.ts` — pure UI helper that extracts agent-like observability from events/proposals/surfaces/capabilities using generic string heuristics (no hardcoded official package).
+  - `clients/web/src/surfaces/forge.ts` — adds "Agent Observability" section: cards/summary (agent pkg/surf/run/tool/proposal/stream counts), trace timeline (latest package-owned trace/tool/run signals), tool bridge diagnostics badges (ambiguous/rejected/provider/permission/redaction), proposal explanation (reuses T4 text preview). Existing JSON inspectors preserved.
+  - `clients/web/src/drawer/assistant.ts` — adds lightweight "Agent Readiness" panel: counts of discovered agent-like surfaces/capabilities, emphasizing no real model / no network / proposal-gated / tool bridge plan-only. Buttons disabled; no real agent launch.
+  - `clients/web/src/main.ts` — passes auxiliary view data into Forge and Assistant Drawer.
+  - `clients/web/src/styles.css` — Agent Observability and Agent Readiness styles.
+  - `clients/web/README.md` — J5 docs.
 
 ## J6 — Third-party Replacement Proof
 

@@ -133,6 +133,43 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .text-preview-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
 .text-preview-stage { max-height: 180px; overflow: auto; padding: 0.5rem; border-radius: 0.6rem; background: rgba(255,255,255,0.04); font-family: var(--font-text-surface); font-size: 0.85rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: #e8e4f3; margin: 0; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
 
+/* J5: Agent Observability */
+.agent-observability-section { margin-top: 1.25rem; }
+.agent-metric strong { color: #c9a8ff; }
+.safety-badge-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+.safety-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-family: var(--font-text-surface-mono); }
+.safety-badge.severity-ok { background: rgba(100,255,180,0.15); color: #a0ffd0; }
+.safety-badge.severity-warn { background: rgba(255,220,100,0.15); color: #ffe8a0; }
+.safety-badge.severity-error { background: rgba(255,100,100,0.15); color: #ffb0b0; }
+.safety-badge.severity-info { background: rgba(42,167,255,0.15); color: #9fe8ff; }
+
+.agent-timeline { margin-top: 0.8rem; }
+.timeline-list { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.timeline-row { padding: 0.7rem; border-radius: 0.9rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.timeline-meta { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.35rem; }
+.timeline-badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 999px; font-size: 0.68rem; font-family: var(--font-text-surface-mono); }
+.timeline-badge.trace-badge { background: rgba(124,92,255,0.2); color: #c9a8ff; }
+.timeline-badge.tool-badge { background: rgba(255,220,100,0.15); color: #ffe8a0; }
+.timeline-badge.stream-badge { background: rgba(100,255,180,0.15); color: #a0ffd0; }
+.timeline-seq { color: #a79fc8; font-size: 0.72rem; font-family: var(--font-text-surface-mono); }
+.timeline-kind { color: #c9c2e8; font-size: 0.78rem; }
+.timeline-writer { color: #a79fc8; font-size: 0.72rem; }
+.timeline-payload { display: block; margin-top: 0.3rem; white-space: pre-wrap; color: #9fe8ff; font-size: 0.72rem; }
+
+.agent-proposal-list { margin-top: 0.8rem; }
+
+/* J5: Agent Readiness Panel (Assistant Drawer) */
+.agent-readiness-panel { margin: 0.8rem 0; padding: 0.8rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; background: rgba(0,0,0,0.2); }
+.agent-readiness-header { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem; }
+.agent-readiness-badge { font-size: 0.9rem; }
+.agent-readiness-badge.ready { color: #a0ffd0; }
+.agent-readiness-badge.empty { color: #a79fc8; }
+.agent-readiness-title { font-size: 0.85rem; color: #c9c2e8; font-weight: 600; }
+.agent-readiness-body { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.4rem; }
+.agent-readiness-note { margin: 0; font-size: 0.72rem; color: #a79fc8; line-height: 1.4; }
+.agent-readiness-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.agent-readiness-actions button { padding: 0.4rem 0.7rem; font-size: 0.75rem; }
+
 @media (max-width: 860px) {
   .surface-forge { grid-template-columns: 1fr; }
   .topbar { align-items: flex-start; flex-direction: column; }

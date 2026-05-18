@@ -99,6 +99,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - **Optional Pretext Engine（Phase T3）**：`PretextTextEngine` 通过 dynamic import 加载，运行时 feature flags（`auto`/`fallback`/`pretext`），优雅降级。仓库无需安装 `@chenglou/pretext` 即可 build。Assistant Drawer 显示引擎偏好、Pretext 可用性和 fallback 原因。
 - **Forge Text Preview（Phase T4）**：文本预览 helper，从 event payload、stream frame 和 proposal 对象中提取安全纯文本。Forge Events 和 Proposals 中新增可选 `<details>`，含预览文本、行数/高度估算和引擎徽章。不替换 JSON inspector。
 - **SDK 抽取与硬化（Phase T5）**：`sdk/typescript/text-surface` — 纯 TypeScript 前端 SDK，提供 `createTextSurfaceBuffer`、`applyStreamFrame`、`extractTextChunk`、`createScrollAnchor`（不依赖 `clients/web`）。字体加载 helper（`ensureTextSurfaceFontLoaded`、`describeFontLoadState`）。缓存诊断（`getCacheDiagnostics` 含 `totalEntries`/`fontCount`/`maxEntries`/`estimatedBytes`）。自测模块（`runTextLayoutSelfTest`），用纯 TS 断言覆盖 fallback engine、registry、stream adapter 和 text preview。
+- **Agent Observability（Phase J5）**：`clients/web/src/agent/observability.ts` — 纯 UI helper，用通用字符串启发式从 events、proposals、surfaces、capabilities 中提取 agent-like 观测数据（不 hardcode official 包，不做真实 model/network 调用）。Forge surface 新增 "Agent Observability" section：cards/summary、trace timeline、tool bridge diagnostics badges、proposal explanation（复用 T4 text preview）。Assistant Drawer 新增轻量 "Agent Readiness" panel：显示当前发现的 agent-like surfaces/capabilities count，强调 no real model / no network / proposal-gated / plan-only；按钮 disabled，不真正启动 agent。
 
 ### 创作
 

@@ -56,10 +56,17 @@
   - `crates/ygg-cli/src/conformance/official_labs.rs` — `capability_tool_bridge_lab()` conformance 用例：验证 load package；discover_tools 对 ambiguous providers 标记 rejected；explicit third-party provider works as plan；official provider not preferred；invoke_tool missing provider rejected；preview denied reports missing permission；raw secret payload unsafe_blocked；surfaces discoverable。
   - Conformance 总数 +1（101 个具名用例）。
 
-## J5 — Forge / Assist Observability
+## J5 — Forge / Assist 观测面 ✅
 
 - 展示 agent trace、tool timeline、proposal explanation、stream text、audit/redaction badges。
 - 仅用 public protocol 和 surface discovery。
+- **交付**：
+  - `clients/web/src/agent/observability.ts` — 纯 UI helper，用通用字符串启发式从 events/proposals/surfaces/capabilities 中提取 agent-like 观测数据（不 hardcode official 包）。
+  - `clients/web/src/surfaces/forge.ts` — 新增 "Agent Observability" section：cards/summary（agent pkg/surf/run/tool/proposal/stream 计数）、trace timeline（最新 package-owned trace/tool/run signals）、tool bridge diagnostics badges（ambiguous/rejected/provider/permission/redaction）、proposal explanation（复用 T4 text preview）。保留现有 JSON inspectors。
+  - `clients/web/src/drawer/assistant.ts` — 新增轻量 "Agent Readiness" panel：当前发现的 agent-like surfaces/capabilities count，强调 no real model / no network / proposal-gated / tool bridge plan-only。按钮 disabled，不真正启动 agent。
+  - `clients/web/src/main.ts` — 传入辅助 view 数据，wire 到 Forge 与 Assistant Drawer。
+  - `clients/web/src/styles.css` — Agent Observability 与 Agent Readiness 样式。
+  - `clients/web/README.md` — J5 文档。
 
 ## J6 — Third-party Replacement Proof
 

@@ -1,6 +1,7 @@
 import type { AssetRecord, KernelEvent, PackageRecord, ProjectionRecord, ProposalRecord, RegisteredCapability, SurfaceContributionRecord } from "../protocol/client";
 import { escapeHtml, formatJson } from "../utils/html";
 import { extractEventPreview, extractProposalPreview, kindBadgeLabel } from "../text-layout/text-preview.js";
+import { buildAgentObservability, renderAgentObservabilitySection } from "../agent/observability.js";
 
 export function renderForgeSurface(input: {
   capabilities: RegisteredCapability[];
@@ -14,6 +15,7 @@ export function renderForgeSurface(input: {
   sessionId?: string;
 }) {
   const { capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId } = input;
+  const observability = buildAgentObservability(packages, allSurfaces, events, proposals, capabilities);
   return `
     <section class="surface surface-forge" aria-labelledby="forge-title">
       <div class="workspace-column primary">
@@ -65,6 +67,8 @@ export function renderForgeSurface(input: {
           <h2>Proposals</h2>
           ${proposals.length ? proposals.map(renderProposal).join("") : "<p class='empty'>No proposals yet.</p>"}
         </div>
+
+        ${renderAgentObservabilitySection(observability, events, proposals)}
 
         <div class="forge-section event-tail-section">
           <h2>Events</h2>

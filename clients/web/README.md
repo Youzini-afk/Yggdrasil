@@ -198,3 +198,54 @@ Lightweight test harness that exercises the fallback engine, registry, stream ad
 - `runTextLayoutSelfTest()` — runs all tests and returns `SelfTestResult[]`
 - Call from browser console: `import { runTextLayoutSelfTest } from "./text-layout/self-test"; const results = runTextLayoutSelfTest(); console.table(results);`
 - Tests cover: FallbackTextEngine construction/activation/layout, BoundedWidthCache diagnostics, Registry defaults/activation/selection, Stream adapter frame dispatch, Text preview extraction, Async initialization result
+
+## Agent Observability (Phase J5)
+
+Phase J5 adds a purely client-side observability layer for agent-like packages, surfaces, events, and proposals. No kernel/protocol changes; no real model or network calls.
+
+### Agent observability helper (`src/agent/observability.ts`)
+
+Extracts agent-like observability using generic string heuristics (no hardcoded official package):
+
+- **Package detection**: package ids containing `agent`, `pi-agent`, `tool-bridge`, `trace`, `run`, or `assistant`
+- **Surface detection**: surface ids/slots/titles containing the same hints
+- **Signal detection**:
+  - `runSignals`: trace-like events (kind/payload containing `trace`, `tool`, `run`, `proposal`, or payload fields `trace_events`, `tool_calls`, `stream_frames`, `proposal_draft`)
+  - `toolSignals`: tool bridge events (kind containing `tool_bridge`, `tool-bridge`, or payload method `kernel.capability.invoke/stream`, or payload fields `tool_calls` / `tool_bridge_plan`)
+  - `streamSignals`: stream lifecycle events (`kernel/stream.*`)
+  - `proposalSignals`: proposals from agent-like packages or with trace-like `expected_effects`
+- **Safety badges**: inferred from payloads — `ambiguous provider`, `rejected`, `missing provider`, `permission denied`, `audit/redaction`
+
+Functions:
+
+- `buildAgentObservability(packages, allSurfaces, events, proposals, capabilities)` → `AgentObservabilityModel`
+- `renderAgentObservabilitySection(model, events, proposals)` → HTML string for Forge surface
+- `renderAgentReadinessPanel(agentSurfaces, agentCapabilities)` → HTML string for Assistant Drawer
+- `filterAgentLikeCapabilities(capabilities)` → agent-like capability subset
+
+### Forge surface (J5 additions)
+
+An "Agent Observability" section is rendered after Proposals and before Events:
+
+- **Cards/summary**: counts for agent packages, agent surfaces, run/tool/proposal/stream signals
+- **Safety badges row**: colored badges for ambiguous/rejected/provider/permission/redaction states
+- **Trace timeline**: latest package-owned trace/tool/run signals with kind, sequence, writer, and JSON payload preview + optional T4 text preview
+- **Proposal explanations**: agent-like proposals rendered with T4 text preview (expected_effects/operations), alongside the existing JSON inspector
+
+### Assistant Drawer (J5 additions)
+
+A lightweight "Agent Readiness" panel is shown above Host diagnostics:
+
+- **Readiness indicator**: `●` when agent-like surfaces/capabilities detected, `○` otherwise
+- **Counters**: agent-like surfaces and capabilities counts
+- **Note**: emphasizes no real model, no network, proposal-gated, plan-only behavior
+- **Placeholder buttons**: "Start agent" and "Run tool plan" are disabled (template only — no real agent loop or model call)
+
+### CSS additions (J5)
+
+- `.agent-observability-section` — Forge section spacing
+- `.agent-metric` — metric card accent color
+- `.safety-badge-row` / `.safety-badge` / `.severity-{ok,warn,error,info}` — diagnostics badges
+- `.agent-timeline` / `.timeline-list` / `.timeline-row` / `.timeline-meta` / `.timeline-badge` / `.timeline-seq` / `.timeline-kind` / `.timeline-writer` / `.timeline-payload` — trace timeline
+- `.agent-proposal-list` — proposal explanations list
+- `.agent-readiness-panel` / `.agent-readiness-header` / `.agent-readiness-badge` / `.agent-readiness-title` / `.agent-readiness-body` / `.agent-readiness-note` / `.agent-readiness-actions` — Assistant Drawer readiness panel

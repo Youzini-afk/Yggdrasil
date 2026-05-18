@@ -22,7 +22,12 @@ export type TextProofView = {
   pretextAvailable?: boolean;
 };
 
-export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open = false, textProof?: TextProofView) {
+export function renderAssistantDrawer(
+  diagnostics: Record<string, unknown>,
+  open = false,
+  textProof?: TextProofView,
+  agentReadinessHtml?: string,
+) {
   const proof = textProof ?? {
     text: "",
     state: "idle" as StreamingBufferState,
@@ -60,6 +65,7 @@ export function renderAssistantDrawer(diagnostics: Record<string, unknown>, open
           <button type="button" title="Template only">Explain events</button>
           <button type="button" title="Template only">Suggest capability</button>
         </div>
+        ${agentReadinessHtml ?? ""}
         <details><summary>Host diagnostics</summary><pre>${JSON.stringify(diagnostics, null, 2)}</pre></details>
         <details class="text-proof-details" open>
           <summary>Text Surface Proof (mock streaming)</summary>
