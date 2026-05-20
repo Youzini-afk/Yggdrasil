@@ -45,6 +45,25 @@ pub(crate) struct Cli {
     pub(crate) command: Command,
 }
 
+#[derive(Debug, Clone, ValueEnum)]
+pub(crate) enum BaselineFormat {
+    Text,
+    Json,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum PerfCommand {
+    /// Run deterministic performance baseline measurements.
+    Baseline {
+        /// Number of iterations per scenario (default 10).
+        #[arg(long, default_value = "10")]
+        iterations: u32,
+        /// Output format: text or json.
+        #[arg(long, value_enum, default_value = "text")]
+        format: BaselineFormat,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
     /// Run a content-free kernel event demo.
@@ -109,6 +128,11 @@ pub(crate) enum Command {
     PlayCreateDemo,
     /// Run the playable creation board vertical slice demo (Experience Beta 1).
     PlayableBoardDemo,
+    /// Run performance baseline measurements.
+    Perf {
+        #[command(subcommand)]
+        command: PerfCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]

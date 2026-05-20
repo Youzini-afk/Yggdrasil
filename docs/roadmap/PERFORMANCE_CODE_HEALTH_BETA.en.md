@@ -25,18 +25,21 @@ External references support this direction: the Rust Performance Book emphasizes
 - No large proc-macro / heavy codegen / arena / RawValue rewrite unless the baseline proves it is needed.
 - Do not replace the JSON boundary with private typed fast paths.
 
-## Phase P0 — Baseline & Measurement
+## Phase P0 — Baseline & Measurement (complete)
 
 Goal: establish facts before optimizing.
 
 Deliverables:
 
-- `ygg perf baseline` or equivalent CLI emitting deterministic baseline JSON / markdown summary.
-- Measures in-process invoke, official capability invoke, subprocess echo, event append/list/hydrate, composition check, profile load, Web render/TS metrics.
+- `ygg perf baseline` CLI emitting deterministic baseline JSON / markdown summary.
+- Measures in-process invoke, official capability invoke, subprocess echo (may be skipped), event store append/list/range (100 events), composition check, profile load.
+- `--iterations` and `--format text|json` parameters.
 - `docs/performance/BASELINE.md` and `.en.md` record commands, environment, sample sizes, and budgets.
 - Default no-network; no real provider required.
 
 Acceptance: repeatable baseline command; docs list metrics future optimizations must track; workspace tests, conformance, and doc links pass.
+
+Reference: [`docs/performance/BASELINE.en.md`](../performance/BASELINE.en.md)
 
 ## Phase P1 — Conformance Feedback Loop
 

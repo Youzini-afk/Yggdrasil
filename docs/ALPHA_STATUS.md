@@ -12,7 +12,7 @@
 - **Conformance：** 245 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Performance & Code Health Beta 执行中。目标是在进入第一个平台产品前建立 baseline、缩短 conformance 反馈环、收敛 Web 全量渲染、优化 SQLite event replay，并控制 runtime/CLI/Web 文件增长。临时计划见 `docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`；红线是不做官方包 fast path、不绕过 permission/hook/schema/redaction、不让 Web 读取 runtime internals、不用宏/codegen/RawValue 做无证据重写。
+- **当前主线：** Performance & Code Health Beta 执行中，Phase P0（Baseline & Measurement）已完成。目标是在进入第一个平台产品前建立 baseline、缩短 conformance 反馈环、收敛 Web 全量渲染、优化 SQLite event replay，并控制 runtime/CLI/Web 文件增长。临时计划见 `docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`；红线是不做官方包 fast path、不绕过 permission/hook/schema/redaction、不让 Web 读取 runtime internals、不用宏/codegen/RawValue 做无证据重写。Baseline 命令见 `docs/performance/BASELINE.md`。
 
 ## 已实现
 
@@ -125,6 +125,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - `ygg package reload <manifest>` 将包加载到内存 runtime，重启（仅 subprocess），输出重启前后状态和日志数量，然后卸载。使用现有 Runtime::restart_package 路径；不新增协议方法。
 - `ygg package run-fixture` 使用确定性 canned 输入调用所有声明的非 streaming 能力，并输出结构化 JSON 摘要。
 - `ygg play-create-demo` 通过普通公开协议调用端到端地编排空白游创循环。
+- `ygg perf baseline` 运行 deterministic performance baseline 测量（P0），覆盖 inproc invoke、official capability invoke、event store append/list/range、composition check、profile load、subprocess echo（可 skipped）。输出 text 或 JSON 格式。详见 `docs/performance/BASELINE.md`。
 
 ### 代码组织
 

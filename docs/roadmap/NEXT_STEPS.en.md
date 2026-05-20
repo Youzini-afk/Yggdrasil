@@ -29,7 +29,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Experience Beta 0 — Thin Experience Runtime Contract: complete; `official/experience-runtime-lab` provides describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run capabilities with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); `sdk/typescript/experience-runtime` TS SDK (85 self-test assertions); `--template experience-runtime` generates deterministic/no-network subprocess with contract/checkpoint/recovery capabilities; Forge profile autoloads; 7 conformance cases. Durable guide: [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.en.md). Conformance now has 187 named cases.
 - Experience Beta 1 — First Real Playable Vertical Slice: complete; `official/playable-creation-board` provides describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance (11 capabilities) with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); package-owned board/module/constraint/marker state; player action produces state_delta_asset_ref/projection_ref/sequence/provenance; request_change outputs structured agent objective / allowed_change_kinds / risk/budget / bindable refs (not chat messages); bind_agent_run produces scoped agentic-forge binding; explain_provenance outputs player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild causal chain; checkpoint/recovery aligned with experience-runtime-lab shapes; raw-secret blocking; third-party agentic-forge replacement composition proves no official priority; CLI demo `playable-board-demo`; Forge profile autoloads; 10 conformance cases. Conformance now has 197 named cases.
 - Experience Beta 2 — State + Asset Pipeline Alpha: complete; `official/asset-lab` extended with `content_address` and `provenance_graph` capabilities; `official/projection-lab` extended with `state_snapshot` capability; `official/playable-creation-board` extended with `preview_state_diff` and `describe_asset_provenance` capabilities (13 total); stable content-addressed asset helper (FNV-1a 64-bit, deterministic across runs, replaces unstable DefaultHasher); standard Beta 2 metadata convention (content_address, provenance, disclosure, source_refs, derived_refs, branch_ref, state_snapshot_ref, projection_ref, proposal_ref, inference_ref, large_output_policy); record_player_action produces content_address/state_snapshot_asset_ref/disclosure; create_checkpoint produces content_address/state_snapshot_asset_ref/disclosure; explain_provenance produces content_address per chain step and provenance_graph; branch-aware state diff preview; asset provenance graph with source/derived/disclosure metadata; large output asset_ref recommendation reinforced; package-scoped asset permission proof (origin_package_id enforcement, cross-package spoof fail-closed); raw-secret blocking in Beta 2 capabilities; no kernel.state/world/scene/character/turn/chat/memory/agent/model/prompt namespace; 9 more conformance cases. Conformance now has 206 named cases.
-- Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Observability, Memory/Knowledge Packages, Creator Loop, and Sharing/Distribution layers.
+- Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Observability, Memory/Knowledge Packages, Creator Loop, and Sharing/Distribution layers. Performance & Code Health Beta Phase P0 (Baseline & Measurement) is complete; now entering P1 (Conformance Feedback Loop).
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -273,6 +273,28 @@ Delivered:
 
 Non-goals: marketplace, package signing network, dependency resolver economy, hosted billing.
 
+## Performance & Code Health Beta
+
+Goal: establish baselines, shorten the conformance feedback loop, optimize SQLite event replay, and control runtime/CLI/Web file growth before the first platform product.
+
+### Phase P0 — Baseline & Measurement (complete)
+
+Goal: establish facts before optimizing.
+
+Delivered:
+
+- `ygg perf baseline` CLI emitting deterministic baseline JSON / markdown summary.
+- Measures in-process invoke, official capability invoke, subprocess echo (may be skipped), event store append/list/range (100 events), composition check, profile load.
+- `--iterations` and `--format text|json` parameters.
+- `docs/performance/BASELINE.md` and `.en.md` record commands, scenarios, sample limitations, and metric definitions.
+- Default no-network; no real provider required.
+
+Reference: [`docs/performance/BASELINE.en.md`](../performance/BASELINE.en.md), [`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.en.md`](./PERFORMANCE_CODE_HEALTH_BETA.en.md)
+
+### Phase P1 — Conformance Feedback Loop (current)
+
+Goal: make conformance filterable, timed, and diagnosable.
+
 ## Deferred indefinitely from kernel scope
 
 These remain non-goals for the kernel. They may exist as future packages.
@@ -286,4 +308,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, Experience Beta 4, Experience Beta 5, and Experience Beta 6 are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, Experience Beta 4, Experience Beta 5, Experience Beta 6, and Performance & Code Health Beta P0 are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

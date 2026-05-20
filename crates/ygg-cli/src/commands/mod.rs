@@ -4,3 +4,4 @@ pub(crate) mod demo;
 pub(crate) mod host;
 pub(crate) mod manifest;
 pub(crate) mod package;
+pub(crate) mod perf;

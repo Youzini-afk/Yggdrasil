@@ -28,7 +28,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase F：已完成；第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断，privilege escalation 拒绝）、budget/deadline 契约（describe_contract 中 run_constraints，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：[`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Conformance 包含 180 个具名用例；状态已收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
 - Experience Beta 0 — Thin Experience Runtime Contract：已完成；`official/experience-runtime-lab` 提供 describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run 能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；`sdk/typescript/experience-runtime` TS SDK（85 项自测断言）；`--template experience-runtime` 生成 deterministic/no-network subprocess；Forge profile 自动加载；7 个 conformance 用例。持久指南：[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.md)。Conformance 包含 187 个具名用例。
 - Experience Beta 1 — First Real Playable Vertical Slice：已完成；`official/playable-creation-board` 提供 describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance 共 11 项能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；package-owned board/module/constraint/marker state；player action 产生 state_delta_asset_ref/projection_ref/sequence/provenance；request_change 输出 structured agent objective / allowed_change_kinds / risk/budget / bindable refs（不是聊天消息）；bind_agent_run 产出 scoped agentic-forge binding；explain_provenance 输出 player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild 因果链；checkpoint/recovery 对齐 experience-runtime-lab 形状；raw-secret blocking；第三方 agentic-forge 替换 composition 证明无 official priority；CLI demo `playable-board-demo`；Forge profile 自动加载；10 个 conformance 用例。Conformance 包含 197 个具名用例。
-- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。Experience Beta 4 已完成。
+- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。Experience Beta 4 已完成。Performance & Code Health Beta Phase P0（Baseline & Measurement）已完成；当前进入 P1（Conformance Feedback Loop）。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -269,6 +269,28 @@ Phase J 非目标：
 
 非目标：marketplace、package signing network、dependency resolver economy、hosted billing。
 
+## Performance & Code Health Beta
+
+目标：在进入第一个平台产品前建立 baseline、缩短 conformance 反馈环、优化 SQLite event replay，并控制 runtime/CLI/Web 文件增长。
+
+### Phase P0 — Baseline & Measurement（已完成）
+
+目标：先建立事实，不凭感觉优化。
+
+已交付：
+
+- `ygg perf baseline` CLI，输出 deterministic baseline JSON / markdown summary。
+- 覆盖 inproc invoke、official capability invoke、subprocess echo（可 skipped）、event store append/list/range（100 events）、composition check、profile load。
+- `--iterations` 和 `--format text|json` 参数。
+- `docs/performance/BASELINE.md` 与 `.en.md` 记录命令、场景、样本限制和指标定义。
+- 保留默认 no-network；不需要真实 provider。
+
+参考：[`docs/performance/BASELINE.md`](../performance/BASELINE.md)、[`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`](./PERFORMANCE_CODE_HEALTH_BETA.md)
+
+### Phase P1 — Conformance Feedback Loop（当前）
+
+目标：让 conformance 可筛选、可计时、可定位。
+
 ## 内核范围内的无限期延后
 
 这些仍是内核的非目标。它们可能以未来包的形式存在。
@@ -282,4 +304,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2、Experience Beta 3、Experience Beta 4、Experience Beta 5 和 Experience Beta 6 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2、Experience Beta 3、Experience Beta 4、Experience Beta 5、Experience Beta 6 和 Performance & Code Health Beta P0 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。

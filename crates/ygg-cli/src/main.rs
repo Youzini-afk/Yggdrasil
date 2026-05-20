@@ -7,9 +7,9 @@ use clap::Parser;
 
 use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, HostCommand, ManifestCommand,
-    PackageCommand,
+    PackageCommand, PerfCommand,
 };
-use commands::{capability, composition, demo, host, manifest, package};
+use commands::{capability, composition, demo, host, manifest, package, perf};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -60,5 +60,10 @@ async fn main() -> anyhow::Result<()> {
         Command::Conformance => conformance::run().await,
         Command::PlayCreateDemo => demo::play_create_demo().await,
         Command::PlayableBoardDemo => demo::playable_board_demo().await,
+        Command::Perf { command } => match command {
+            PerfCommand::Baseline { iterations, format } => {
+                perf::perf_baseline(iterations, format).await
+            }
+        },
     }
 }

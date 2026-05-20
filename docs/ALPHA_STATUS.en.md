@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 245 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof, **outbound executor boundary with deny-all default and fake executor conformance**.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Current headline:** Performance & Code Health Beta is in progress. The goal is to establish baselines, shorten the conformance feedback loop, reduce Web full-render pressure, optimize SQLite event replay, and control runtime/CLI/Web file growth before the first platform product. Temporary plan: `docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`. Red lines: no official-package fast path, no permission/hook/schema/redaction bypass, no Web runtime-internal reads, and no macro/codegen/RawValue rewrites without evidence.
+- **Current headline:** Performance & Code Health Beta is in progress; Phase P0 (Baseline & Measurement) is complete. The goal is to establish baselines, shorten the conformance feedback loop, reduce Web full-render pressure, optimize SQLite event replay, and control runtime/CLI/Web file growth before the first platform product. Temporary plan: `docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`. Red lines: no official-package fast path, no permission/hook/schema/redaction bypass, no Web runtime-internal reads, and no macro/codegen/RawValue rewrites without evidence. Baseline command: `docs/performance/BASELINE.en.md`.
 
 ## What is implemented
 
@@ -126,6 +126,7 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - `ygg package reload <manifest>` loads a package into an in-memory runtime, restarts it (subprocess only), prints before/after status and logs count, then unloads. Uses existing Runtime::restart_package path; no new protocol methods. Beta 5 adds warnings when package status is unavailable or degraded after restart.
 - `ygg package run-fixture` invokes all declared non-streaming capabilities with deterministic canned inputs and prints a structured JSON summary. Beta 5 adds error-specific fix hints when capabilities fail.
 - `ygg play-create-demo` orchestrates the blank play-creation loop end-to-end through ordinary public-protocol calls.
+- `ygg perf baseline` runs deterministic performance baseline measurements (P0), covering inproc invoke, official capability invoke, event store append/list/range, composition check, profile load, and subprocess echo (may be skipped). Outputs text or JSON format. See `docs/performance/BASELINE.en.md`.
 
 ### Code organization
 
