@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, and Experience Beta 2 are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold, a package-owned experience runtime contract, a first real playable vertical slice with board/module/constraint/marker state, and a stable content-addressed asset helper with provenance graph and state snapshot convention. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline shifts to **Experience Beta 3**: experience observability.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, and Experience Beta 3 are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold, a package-owned experience runtime contract, a first real playable vertical slice with board/module/constraint/marker state, a stable content-addressed asset helper with provenance graph and state snapshot convention, and package-owned experience observability plus Forge observability panels (session health, package health, agent run health, proposal causal chain, failure breadcrumbs, cost/latency summary, asset provenance, guardrail/audit summary — all derived from protocol-visible refs, not from SQLite or runtime internals). Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline shifts to **Experience Beta 4**: memory/knowledge package.
 
 ## Where we are
 
@@ -209,13 +209,21 @@ Delivered:
 
 Non-goals: full media editor, unified media schema, kernel world state model.
 
-## Experience Beta 3 — Experience Observability (current direction)
+## Experience Beta 3 — Experience Observability (complete)
 
 Goal: show users and creators what happened, why it failed, and where cost/latency came from. This should start as an acceptance criterion during Experience Beta 1, then become systematic here.
 
-Deliverables: session health, package health, agent run health, model/inference cost and latency summary, proposal causal chain, asset provenance graph view, failure breadcrumbs, stuck run detection, guardrail/audit summary.
+Delivered:
 
-Non-goals: full APM, SaaS monitoring backend.
+- `official/experience-observability-lab`: package-owned experience observability — session health, package health, agent run health, proposal causal chain, failure breadcrumbs, cost/latency summary, guardrail/audit summary. 8 capabilities, 3 surfaces (forge_panel, assistant_action, home_card). Deterministic, no-network, no inference. All derived from protocol-visible refs, not from SQLite or runtime internals.
+- Runtime inproc handler: deterministic/no-network/no inference, outputs public protocol shapes (session_health, package_health, agent_run_health, proposal_causal_chain, failure_breadcrumbs, cost_latency_summary, guardrail_audit_summary). Must not output chat/message/prompt/world/scene/turn/memory shapes.
+- Linkage with playable-creation-board: added `summarize_experience_health` capability with observability cross-references.
+- Conformance: 10 named cases (contract/session_health/package_health/agent_run_health/proposal_causality/cost_latency/failure_breadcrumbs/guardrail_audit/no_forbidden_namespace/no_raw_secrets).
+- Profile autoload: forge-alpha.yaml auto-loads new package.
+- Web Forge Experience Observability panels: Experience Health, Causal Chain, Failure Breadcrumbs, Cost/Latency, Asset Provenance, Guardrail/Audit Summary. Public protocol types only; no SQLite or runtime internals.
+- No new kernel.observability.* or kernel.experience.*; no SQLite/runtime internals reads; no real-time monitoring backend or privileged Studio.
+
+Non-goals: full APM, SaaS monitoring backend, privileged Studio.
 
 ## Experience Beta 4 — Memory / Knowledge Package Alpha
 
@@ -254,4 +262,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, and Experience Beta 2 are complete. The roadmap now enters Experience Beta 3. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, and Experience Beta 2 are complete. The roadmap now enters Experience Beta 4. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

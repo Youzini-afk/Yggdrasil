@@ -10,6 +10,7 @@ mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
+mod experience_observability_lab;
 mod experience_runtime_lab;
 mod inference_local_lab;
 mod inference_playtest_lab;
@@ -162,6 +163,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // playable-creation-board handlers: Experience Beta 1 first real playable vertical slice
         if let Some(result) = playable_creation_board::try_handle(&request) {
+            return result;
+        }
+        // experience-observability-lab handlers: Experience Beta 3 experience observability
+        if let Some(result) = experience_observability_lab::try_handle(&request) {
             return result;
         }
         // Package-aware generic capability handlers (namespace-scoped matching)

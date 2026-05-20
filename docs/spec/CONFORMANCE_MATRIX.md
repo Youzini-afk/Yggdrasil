@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：165 个 implemented rows，由 180 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：170 个 implemented rows，由 216 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -177,6 +177,16 @@ cargo run -p ygg-cli -- conformance
 | stream | OpenRouter mid-stream error normalization：error object after HTTP 200 → error frame with mid_stream_error provider_event | implemented |
 | outbound | provider quirks sanitized fixtures：integrations/model-providers/fixtures/*.json 不含真实 key 或 provider-looking raw key，scan 无 findings | implemented |
 | outbound | static_headers OpenRouter safe：http-referer/x-title 在 allowlist 上，非 secret-bearing；Authorization/x-api-key 仍被阻止 | implemented |
+| official packages | experience-observability-lab describe_observability 返回 8 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
+| official packages | experience-observability-lab summarize_session_health 从协议可见引用派生状态，不读 SQLite | implemented |
+| official packages | experience-observability-lab summarize_package_health 从协议可见引用返回 package health | implemented |
+| official packages | experience-observability-lab summarize_agent_run_health 从协议可见引用返回 agent run health | implemented |
+| official packages | experience-observability-lab trace_proposal_causality 返回因果链，每步含 content_address | implemented |
+| official packages | experience-observability-lab summarize_cost_latency 从 outbound audit 引用返回 cost/latency summary，无 raw secret | implemented |
+| official packages | experience-observability-lab list_failure_breadcrumbs 从协议可见 event 引用返回 failure breadcrumbs | implemented |
+| official packages | experience-observability-lab summarize_guardrails 从协议可见 audit 引用返回 guardrail/audit summary | implemented |
+| official packages | experience-observability-lab 任何输出不含 kernel.observability.* / kernel.experience.* namespace | implemented |
+| official packages | experience-observability-lab 所有能力输入阻断 raw secret | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -403,6 +413,16 @@ playable_board.beta2_no_raw_secrets PASS
 official.asset_lab_content_address PASS
 official.asset_lab_provenance_graph PASS
 official.projection_lab_state_snapshot PASS
+experience_observability.contract_shape PASS
+experience_observability.session_health PASS
+experience_observability.package_health PASS
+experience_observability.agent_run_health PASS
+experience_observability.proposal_causality PASS
+experience_observability.cost_latency_summary PASS
+experience_observability.failure_breadcrumbs PASS
+experience_observability.guardrail_audit_summary PASS
+experience_observability.no_forbidden_namespace PASS
+experience_observability.no_raw_secrets PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

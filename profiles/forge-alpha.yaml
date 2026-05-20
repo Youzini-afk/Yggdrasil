@@ -25,3 +25,4 @@ autoload:
   - ../packages/official/blank-experience/manifest.yaml
   - ../packages/official/playable-seed/manifest.yaml
   - ../packages/official/playable-creation-board/manifest.yaml
+  - ../packages/official/experience-observability-lab/manifest.yaml

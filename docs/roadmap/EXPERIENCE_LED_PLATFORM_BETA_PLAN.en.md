@@ -81,20 +81,21 @@ Validation: content address stable, provenance graph, state snapshot convention,
 
 Red lines: no full media editor, no unified media schema, no state ontology in the kernel — all upheld.
 
-## Experience Beta 3 — Experience Observability
+## Experience Beta 3 — Experience Observability (complete)
 
 Goal: show users/creators what happened, why it failed, and where cost/latency came from.
 
-Deliverables:
+Delivered:
 
-- Observability package/surface pattern: session health, package health, agent run health, proposal causal chain, failure breadcrumbs, cost/latency summary.
-- Forge panels: experience health, causal chain, asset provenance, failure breadcrumbs.
-- Package-owned observability events/projections; no runtime internals.
-- Public-protocol guardrail/audit summary view.
+- `official/experience-observability-lab`: package-owned experience observability — session health, package health, agent run health, proposal causal chain, failure breadcrumbs, cost/latency summary, guardrail/audit summary. 8 capabilities, 3 surfaces (forge_panel, assistant_action, home_card). Deterministic, no-network, no inference. All derived from protocol-visible refs, not from SQLite or runtime internals.
+- Runtime inproc handler: deterministic/no-network/no inference, outputs public protocol shapes (session_health, package_health, agent_run_health, proposal_causal_chain, failure_breadcrumbs, cost_latency_summary, guardrail_audit_summary). Must not output chat/message/prompt/world/scene/turn/memory shapes.
+- Linkage with playable-creation-board: added `summarize_experience_health` capability with observability cross-references.
+- Conformance: 10 named cases (contract/session_health/package_health/agent_run_health/proposal_causality/cost_latency/failure_breadcrumbs/guardrail_audit/no_forbidden_namespace/no_raw_secrets).
+- Profile autoload: forge-alpha.yaml auto-loads new package.
 
-Validation: Web TS, conformance, vertical slice displays observability.
+Validation: `cargo test --workspace`, `cargo run -p ygg-cli -- conformance` (216 cases), `cargo run -p ygg-cli -- package check` for new package.
 
-Red lines: no SaaS APM, no SQLite reads.
+Red lines: no SaaS APM, no SQLite reads, no kernel.observability.*, no privileged Studio.
 
 ## Experience Beta 4 — Memory / Knowledge Package Alpha
 

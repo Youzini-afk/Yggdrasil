@@ -232,6 +232,8 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(preview_state_diff(request))
     } else if id.ends_with("/describe_asset_provenance") {
         Some(describe_asset_provenance(request))
+    } else if id.ends_with("/summarize_experience_health") {
+        Some(summarize_experience_health(request))
     } else {
         None
     }
@@ -260,6 +262,7 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/playable-creation-board/explain_provenance", "purpose": "explain causal chain with content_address and provenance graph fields"},
             {"id": "official/playable-creation-board/preview_state_diff", "purpose": "preview branch-aware state diff between snapshots"},
             {"id": "official/playable-creation-board/describe_asset_provenance", "purpose": "describe asset provenance graph with source/derived/disclosure metadata"},
+            {"id": "official/playable-creation-board/summarize_experience_health", "purpose": "summarize board experience health with observability refs"},
         ],
         "surfaces": {
             "experience_entry": "official/playable-creation-board/entry",
@@ -1232,6 +1235,87 @@ fn describe_asset_provenance(request: &InprocInvocation) -> anyhow::Result<Value
 }
 
 // ---------------------------------------------------------------------------
+// Beta 3 capability: summarize_experience_health (observability linkage)
+// ---------------------------------------------------------------------------
+
+fn summarize_experience_health(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "playable_creation_board_health_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+
+    let sequence = request
+        .input
+        .get("sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let checkpoint_count = request
+        .input
+        .get("checkpoint_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let proposal_count = request
+        .input
+        .get("proposal_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let failure_count = request
+        .input
+        .get("failure_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+
+    let status = if failure_count > 0 {
+        "degraded"
+    } else if sequence == 0 {
+        "created"
+    } else {
+        "running"
+    };
+
+    // Link to observability package (ref, not invoke)
+    let observability_ref = serde_json::json!({
+        "package_id": "official/experience-observability-lab",
+        "session_health_capability": "official/experience-observability-lab/summarize_session_health",
+        "failure_breadcrumbs_capability": "official/experience-observability-lab/list_failure_breadcrumbs",
+    });
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_experience_health",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "status": status,
+        "sequence": sequence,
+        "checkpoint_count": checkpoint_count,
+        "proposal_count": proposal_count,
+        "failure_count": failure_count,
+        "observability_refs": observability_ref,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id,
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1282,7 +1366,7 @@ mod tests {
     }
 
     #[test]
-    fn describe_contract_lists_13_capabilities() {
+    fn describe_contract_lists_14_capabilities() {
         let req = make_request(
             "official/playable-creation-board/describe_contract",
             json!({}),
@@ -1293,8 +1377,8 @@ mod tests {
                 .as_array()
                 .map(|a| a.len())
                 .unwrap_or(0),
-            13,
-            "must list 13 capabilities"
+            14,
+            "must list 14 capabilities"
         );
     }
 

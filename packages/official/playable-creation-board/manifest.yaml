@@ -87,6 +87,12 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/playable-creation-board/summarize_experience_health
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []

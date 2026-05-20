@@ -94,14 +94,14 @@ pub(crate) async fn playable_board_describe_contract() -> anyhow::Result<()> {
         "must have assistant_action surface"
     );
 
-    // 11 capabilities (Beta 1: 11, Beta 2: +2 = 13)
+    // 11 capabilities (Beta 1: 11, Beta 2: +2 = 13, Beta 3: +1 = 14)
     anyhow::ensure!(
         contract.output["capabilities"]
             .as_array()
             .map(|a| a.len())
             .unwrap_or(0)
-            == 13,
-        "describe_contract must list 13 capabilities"
+            == 14,
+        "describe_contract must list 14 capabilities"
     );
 
     // No inference / no network
@@ -500,6 +500,7 @@ pub(crate) async fn playable_board_no_forbidden_namespace() -> anyhow::Result<()
         "draft_recovery",
         "bind_agent_run",
         "explain_provenance",
+        "summarize_experience_health",
     ];
 
     let forbidden = [

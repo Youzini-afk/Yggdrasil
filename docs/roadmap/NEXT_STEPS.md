@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1 与 Experience Beta 2 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof、package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold、package-owned experience runtime contract、首个真实 playable vertical slice（含 board/module/constraint/marker state），以及稳定 content-addressed asset helper 与 provenance graph 和 state snapshot convention。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线转向 **Experience Beta 3**：体验可观测性。
+Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2 与 Experience Beta 3 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof、package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold、package-owned experience runtime contract、首个真实 playable vertical slice（含 board/module/constraint/marker state），稳定 content-addressed asset helper 与 provenance graph 和 state snapshot convention，以及包拥有的体验可观测性实验室和 Forge 体验观测面板（session health、package health、agent run health、proposal causal chain、failure breadcrumbs、cost/latency summary、asset provenance、guardrail/audit summary——全部从协议可见引用派生，不读 SQLite 或 runtime internals）。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线转向 **Experience Beta 4**：记忆/知识包。
 
 ## 当前位置
 
@@ -207,13 +207,21 @@ Phase J 非目标：
 
 非目标：完整媒体编辑器、统一 media schema、内核世界状态模型——均已遵守。
 
-## Experience Beta 3 — Experience Observability（当前方向）
+## Experience Beta 3 — Experience Observability（已完成）
 
-目标：让用户和创作者知道发生了什么、为什么失败、成本/延迟在哪里。此项应从 Experience Beta 1 起就作为验收条件出现，然后在本阶段系统化。
+目标：让用户和创作者看懂一次 experience 中发生了什么、为什么失败、成本/延迟在哪里。
 
-交付方向：session health、package health、agent run health、model/inference cost and latency summary、proposal causal chain、asset provenance graph view、failure breadcrumbs、stuck run detection、guardrail/audit summary。
+已交付：
 
-非目标：完整 APM、SaaS monitoring backend。
+- `official/experience-observability-lab`：包拥有的体验可观测性——session health、package health、agent run health、proposal causal chain、failure breadcrumbs、cost/latency summary、guardrail/audit summary。8 项能力、3 个 surface（forge_panel、assistant_action、home_card）。Deterministic、no-network、no inference。全部从协议可见引用派生，不读 SQLite 或 runtime internals。
+- Runtime inproc handler：deterministic/no-network/no inference，输出 public protocol shapes（session_health、package_health、agent_run_health、proposal_causal_chain、failure_breadcrumbs、cost_latency_summary、guardrail_audit_summary）。不得输出 chat/message/prompt/world/scene/turn/memory 等形态。
+- 与 playable-creation-board 关联：新增 `summarize_experience_health` 能力，输出含 observability 交叉引用。
+- Conformance：10 个具名用例（contract/session_health/package_health/agent_run_health/proposal_causality/cost_latency/failure_breadcrumbs/guardrail_audit/no_forbidden_namespace/no_raw_secrets）。
+- Profile autoload：forge-alpha.yaml 自动加载新包。
+- Web Forge Experience Observability panels：Experience Health、Causal Chain、Failure Breadcrumbs、Cost/Latency、Asset Provenance、Guardrail/Audit Summary。只使用 public protocol types，不读 SQLite 或 runtime internals。
+- 不新增 kernel.observability.* 或 kernel.experience.*；不读取 SQLite/runtime internals；不做实时监控后台或特权 Studio。
+
+非目标：完整 APM、SaaS monitoring backend、特权 Studio。
 
 ## Experience Beta 4 — Memory / Knowledge Package Alpha
 
@@ -252,4 +260,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1 和 Experience Beta 2 已完成。后续进入 Experience Beta 3。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2 和 Experience Beta 3 已完成。后续进入 Experience Beta 4。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。

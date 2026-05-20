@@ -305,3 +305,65 @@ The Forge surface now includes:
 - `.button-disabled-safe` — dashed-border disabled button for protocol preview affordances
 - `.protocol-preview-details` / `.protocol-preview-summary` / `.protocol-preview-code` — collapsible protocol shape documentation
 - `.workspace-controls-panel` — controls panel with top margin
+
+## Experience Observability (Beta 3)
+
+Phase Beta 3 adds a set of public-protocol-only observability panels to the Forge surface. These panels give users and creators insight into session health, package health, agent run health, proposal causal chains, failure breadcrumbs, cost/latency summaries, asset provenance, and guardrail/audit summaries — all derived without kernel internals, model/network calls, or SQLite access.
+
+### Experience observability helper (`src/agent/experience-observability.ts`)
+
+New view model types:
+
+- `ExperienceObservabilityModel` — top-level view model containing all sub-panels
+- `SessionHealth` — session id, status (active/forked/closed/unknown), event count/range, duration, fork count
+- `PackageHealth` — per-package state, entry kind, capability/event/surface counts, last active sequence
+- `AgentRunHealth` — run id, label, status, package, node/edge counts, duration, start/end sequence, failure flag/reason
+- `ProposalCausalChain` — proposal id, status, parent/child proposal ids, operation count, event sequence, derivation source
+- `FailureBreadcrumb` — event/proposal/inference failures with severity, kind, package, reason, related run/proposal
+- `CostLatencySummary` — total events, symbolic estimated cost, latency, inference/tool/stream/proposal breakdown
+- `AssetProvenanceSummary` — asset id, origin package, mime, size, proposal/approval trail, run references, hash
+- `GuardrailAuditSummary` — total guardrail checks, blocked/warning/passed/redaction/ambiguous/rejection/permission counts, detailed guardrail log
+
+Functions:
+
+- `buildExperienceObservability(events, proposals, packages, capabilities, allSurfaces, assets, sessionId?)` → `ExperienceObservabilityModel`
+- `renderExperienceObservabilitySection(model)` → HTML string for the Forge surface
+
+### Forge surface (Beta 3 additions)
+
+The Forge surface now includes an "Experience Observability (Beta 3)" section rendered after the Agentic Forge Workspace and before Events. It contains:
+
+1. **Session Health** — session status indicator, event range, duration, fork count. Public protocol shape documented in collapsible details.
+2. **Package Health** — per-package cards showing state, entry kind, capability/event/surface counts, last active event sequence.
+3. **Agent Run Health** — per-run cards with status dot, node/edge counts, duration, failure reason highlight when detected.
+4. **Proposal Causal Chain** — proposals linked by parent/child relationships showing causal flow through the session. Root proposals and child links are visually distinguished.
+5. **Failure Breadcrumbs** — chronologically sorted failure events from event payloads and proposal rejections. Each entry shows severity badge, source (event/proposal/inference), kind, package, and reason code.
+6. **Cost / Latency Summary** — metric grid with total events, inference/tool/stream/proposal counts, estimated latency, and symbolic cost estimate. Breakdown by category.
+7. **Asset Provenance** — per-asset cards showing origin, mime, size, proposal/approval trail, run references, and hash. Assets without proposal trails are flagged.
+8. **Guardrail / Audit Summary** — aggregated guardrail metrics (blocked/warning/passed/redaction/ambiguous/rejection/permission) plus detailed guardrail log with verdict badges.
+
+### Key design decisions (Beta 3)
+
+- **No chat-first UI**: Panels show observability data (session state, run health, causal chains, breadcrumbs, cost, provenance, guardrails) — not chat history, assistant messages, or prompt boxes.
+- **Public protocol only**: All data is heuristically extracted from public protocol events, proposals, packages, surfaces, and assets. No kernel internals, no model/network calls, no direct SQLite access, no runtime private modules.
+- **Mock/protocol-shaped data by default**: When no packages emit relevant events, panels show explanatory empty states describing what protocol shapes would populate them. No hardcoded official package ids.
+- **Symbolic cost estimation**: Cost/latency values are estimated from observable event counts and timestamp spreads. No real model calls are made — all inference is proposal-gated and plan-only.
+- **Proposal-driven causality**: Causal chains are built from proposal target_session_id groupings and event payload references to parent/child proposal ids. This reflects the Yggdrasil architecture where proposals are the authoritative record of change.
+- **No runtime internals**: The builder functions accept only public protocol types (`KernelEvent`, `ProposalRecord`, `PackageRecord`, etc.) and never import from runtime crates or access SQLite.
+
+### CSS additions (Beta 3)
+
+- `.experience-observability-section` — section with blue-tinted border and dark background
+- `.phase-badge` — small badge for "Beta 3" phase label
+- `.exp-obs-grid` / `.exp-obs-panel` / `.exp-obs-panel-wide` / `.exp-obs-panel-header` / `.exp-obs-panel-body` — collapsible panel layout
+- `.exp-obs-metrics` / `.exp-obs-metric` — metric grid with centered values
+- `.exp-obs-list` / `.exp-obs-entry` / `.exp-obs-entry-header` / `.exp-obs-entry-meta` — list entry cards
+- `.exp-obs-entry-error` — error-highlighted entry border/background
+- `.exp-obs-cost-note` — cost estimate note with amber code color
+- `.exp-obs-breakdown` / `.exp-obs-breakdown-list` / `.exp-obs-breakdown-item` — cost breakdown rows
+- `.exp-obs-asset-runs` — asset run reference chips
+- `.exp-obs-failure-reason` — failure reason block with red tint
+- `.exp-obs-breadcrumb-list` / `.exp-obs-breadcrumb-entry` / `.exp-obs-breadcrumb-header` / `.exp-obs-breadcrumb-reason` / `.exp-obs-breadcrumb-meta` — breadcrumb entry layout
+- `.exp-obs-causal-chain` / `.exp-obs-chain-entry` / `.exp-obs-chain-header` / `.exp-obs-chain-links` / `.exp-obs-chain-link` — causal chain layout
+- `.exp-obs-guardrail-entries` — guardrail log container
+- `.verdict-block` / `.verdict-warn` / `.verdict-pass` — guardrail verdict border accents

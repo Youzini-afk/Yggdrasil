@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 175 implemented rows, backed by 206 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 180 implemented rows, backed by 216 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -177,6 +177,16 @@ Current matrix coverage: 175 implemented rows, backed by 206 named CLI conforman
 | stream | OpenRouter mid-stream error normalization: error object after HTTP 200 → error frame with mid_stream_error provider_event | implemented |
 | outbound | provider quirks sanitized fixtures: integrations/model-providers/fixtures/*.json contain no real keys or provider-looking raw keys, scan finds nothing | implemented |
 | outbound | static_headers OpenRouter safe: http-referer/x-title on allowlist, not secret-bearing; Authorization/x-api-key still blocked | implemented |
+| official packages | experience-observability-lab describe_observability returns 8 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
+| official packages | experience-observability-lab summarize_session_health derives status from protocol-visible refs, no SQLite reads | implemented |
+| official packages | experience-observability-lab summarize_package_health returns package health from protocol-visible refs | implemented |
+| official packages | experience-observability-lab summarize_agent_run_health returns agent run health from protocol-visible refs | implemented |
+| official packages | experience-observability-lab trace_proposal_causality returns causal chain with content_address per step | implemented |
+| official packages | experience-observability-lab summarize_cost_latency returns cost/latency summary from outbound audit refs, no raw secrets | implemented |
+| official packages | experience-observability-lab list_failure_breadcrumbs returns breadcrumbs from protocol-visible event refs | implemented |
+| official packages | experience-observability-lab summarize_guardrails returns guardrail/audit summary from protocol-visible audit refs | implemented |
+| official packages | experience-observability-lab no kernel.observability.* / kernel.experience.* namespace in any output | implemented |
+| official packages | experience-observability-lab raw secret blocked in all capability inputs | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -403,6 +413,16 @@ playable_board.beta2_no_raw_secrets PASS
 official.asset_lab_content_address PASS
 official.asset_lab_provenance_graph PASS
 official.projection_lab_state_snapshot PASS
+experience_observability.contract_shape PASS
+experience_observability.session_health PASS
+experience_observability.package_health PASS
+experience_observability.agent_run_health PASS
+experience_observability.proposal_causality PASS
+experience_observability.cost_latency_summary PASS
+experience_observability.failure_breadcrumbs PASS
+experience_observability.guardrail_audit_summary PASS
+experience_observability.no_forbidden_namespace PASS
+experience_observability.no_raw_secrets PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

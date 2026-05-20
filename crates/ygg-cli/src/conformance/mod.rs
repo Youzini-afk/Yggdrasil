@@ -1,5 +1,6 @@
 mod agentic_forge;
 mod core;
+mod experience_observability;
 mod experience_runtime;
 mod fixtures;
 mod generated;
@@ -1081,6 +1082,57 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "official.projection_lab_state_snapshot",
         official_labs::projection_lab_state_snapshot().await,
+    );
+    // Experience Beta 3 — Experience Observability (backend/package part)
+    record_case(
+        &mut results,
+        "experience_observability.contract_shape",
+        experience_observability::experience_observability_contract().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.session_health",
+        experience_observability::experience_observability_session_health().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.package_health",
+        experience_observability::experience_observability_package_health().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.agent_run_health",
+        experience_observability::experience_observability_agent_run_health().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.proposal_causality",
+        experience_observability::experience_observability_proposal_causality().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.cost_latency_summary",
+        experience_observability::experience_observability_cost_latency().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.failure_breadcrumbs",
+        experience_observability::experience_observability_failure_breadcrumbs().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.guardrail_audit_summary",
+        experience_observability::experience_observability_guardrail_summary().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.no_forbidden_namespace",
+        experience_observability::experience_observability_no_forbidden_namespace().await,
+    );
+    record_case(
+        &mut results,
+        "experience_observability.no_raw_secrets",
+        experience_observability::experience_observability_no_raw_secrets().await,
     );
 
     let mut failed = false;

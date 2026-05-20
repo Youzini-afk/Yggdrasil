@@ -2,6 +2,7 @@ import type { AssetRecord, KernelEvent, PackageRecord, ProjectionRecord, Proposa
 import { escapeHtml, formatJson } from "../utils/html";
 import { extractEventPreview, extractProposalPreview, kindBadgeLabel } from "../text-layout/text-preview.js";
 import { buildAgentObservability, buildForgeAgentWorkspace, renderAgentObservabilitySection, renderForgeAgentWorkspaceSections } from "../agent/observability.js";
+import { buildExperienceObservability, renderExperienceObservabilitySection } from "../agent/experience-observability.js";
 
 export function renderForgeSurface(input: {
   capabilities: RegisteredCapability[];
@@ -71,6 +72,8 @@ export function renderForgeSurface(input: {
         ${renderAgentObservabilitySection(observability, events, proposals)}
 
         ${renderForgeAgentWorkspaceSections(buildForgeAgentWorkspace(events, proposals, capabilities, packages, assets, projections))}
+
+        ${renderExperienceObservabilitySection(buildExperienceObservability(events, proposals, packages, capabilities, allSurfaces, assets, sessionId))}
 
         <div class="forge-section event-tail-section">
           <h2>Events</h2>

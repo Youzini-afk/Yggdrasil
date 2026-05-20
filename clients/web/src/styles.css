@@ -240,3 +240,48 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .protocol-preview-summary { cursor: pointer; color: #7c5cff; font-size: 0.72rem; padding: 0.15rem 0; font-family: var(--font-text-surface-mono); }
 .protocol-preview-summary:hover { color: #9fe8ff; }
 .protocol-preview-code { display: block; margin-top: 0.3rem; padding: 0.5rem; border-radius: 0.5rem; background: rgba(0,0,0,0.3); color: #9fe8ff; font-size: 0.68rem; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+
+/* Experience Beta 3 — Experience Observability panels */
+.experience-observability-section { margin-top: 1.25rem; padding: 1rem; border: 1px solid rgba(42, 167, 255, 0.25); border-radius: 1.2rem; background: rgba(7,8,18,0.5); }
+.phase-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(42,167,255,0.15); color: #9fe8ff; font-size: 0.65rem; vertical-align: middle; font-family: var(--font-text-surface-mono); }
+.exp-obs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0.8rem; }
+.exp-obs-panel { border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; background: rgba(255,255,255,0.04); }
+.exp-obs-panel-wide { grid-column: 1 / -1; }
+.exp-obs-panel-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0.9rem; cursor: pointer; color: #c9c2e8; font-size: 0.88rem; user-select: none; }
+.exp-obs-panel-header::-webkit-details-marker { color: #a79fc8; }
+.exp-obs-panel-header:hover { background: rgba(255,255,255,0.04); border-radius: 1rem 1rem 0 0; }
+.exp-obs-panel-body { padding: 0.5rem 0.9rem 0.9rem; }
+.exp-obs-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-bottom: 0.6rem; }
+.exp-obs-metric { padding: 0.5rem; border-radius: 0.7rem; background: rgba(255,255,255,0.04); text-align: center; }
+.exp-obs-metric strong { display: block; font-size: 1.1rem; color: #f6f3ff; }
+.exp-obs-metric .run-status-dot { display: inline-block; margin-bottom: 0.2rem; }
+.exp-obs-list { display: grid; gap: 0.4rem; margin-bottom: 0.5rem; }
+.exp-obs-entry { padding: 0.6rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.exp-obs-entry.exp-obs-entry-error { border-color: rgba(255,100,100,0.25); background: rgba(255,100,100,0.06); }
+.exp-obs-entry-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem; }
+.exp-obs-entry-meta { display: flex; flex-wrap: wrap; gap: 0.35rem; font-size: 0.75rem; color: #a79fc8; }
+.exp-obs-cost-note { display: flex; align-items: center; gap: 0.4rem; margin: 0.5rem 0; padding: 0.5rem; border-radius: 0.6rem; background: rgba(0,0,0,0.15); }
+.exp-obs-cost-note code { color: #ffe8a0; font-size: 0.78rem; }
+.exp-obs-breakdown { margin-top: 0.5rem; }
+.exp-obs-breakdown-list { display: grid; gap: 0.3rem; margin-top: 0.3rem; }
+.exp-obs-breakdown-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; border-radius: 0.5rem; background: rgba(255,255,255,0.04); }
+.exp-obs-asset-runs { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.25rem; }
+.exp-obs-failure-reason { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.35rem; padding: 0.35rem 0.5rem; border-radius: 0.5rem; background: rgba(255,100,100,0.08); }
+.exp-obs-failure-reason code { color: #ffb0b0; font-size: 0.75rem; }
+.exp-obs-breadcrumb-list { display: grid; gap: 0.4rem; margin-bottom: 0.5rem; }
+.exp-obs-breadcrumb-entry { padding: 0.6rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.exp-obs-breadcrumb-entry.severity-error { border-color: rgba(255,100,100,0.3); background: rgba(255,100,100,0.06); }
+.exp-obs-breadcrumb-entry.severity-warn { border-color: rgba(255,220,100,0.25); background: rgba(255,220,100,0.05); }
+.exp-obs-breadcrumb-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem; }
+.exp-obs-breadcrumb-reason { padding: 0.35rem 0.5rem; border-radius: 0.5rem; background: rgba(0,0,0,0.15); margin-top: 0.25rem; }
+.exp-obs-breadcrumb-reason code { font-size: 0.75rem; color: #e8e4f3; word-break: break-word; }
+.exp-obs-breadcrumb-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
+.exp-obs-causal-chain { display: grid; gap: 0.4rem; margin-bottom: 0.5rem; }
+.exp-obs-chain-entry { padding: 0.6rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.exp-obs-chain-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem; }
+.exp-obs-chain-links { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.2rem; }
+.exp-obs-chain-link { display: inline-flex; align-items: center; }
+.exp-obs-guardrail-entries { margin-top: 0.5rem; }
+.verdict-block { border-left: 3px solid #ff7a90; }
+.verdict-warn { border-left: 3px solid #ffe8a0; }
+.verdict-pass { border-left: 3px solid #a0ffd0; }

@@ -78,20 +78,21 @@
 
 红线：不做完整媒体编辑器，不统一所有 media schema，不把 state ontology 放入 kernel — 全部遵守。
 
-## Experience Beta 3 — Experience Observability
+## Experience Beta 3 — Experience Observability（已完成）
 
 目标：让用户/创作者看懂一次 experience 中发生了什么、为什么失败、成本/延迟在哪里。
 
-交付：
+已交付：
 
-- Observability package/surface pattern：session health、package health、agent run health、proposal causal chain、failure breadcrumbs、cost/latency summary。
-- Forge panels：experience health、causal chain、asset provenance、failure breadcrumbs。
-- Package-owned observability events/projections，不读 runtime internals。
-- Guardrail/audit summary 的公开协议 view。
+- `official/experience-observability-lab`：包拥有的体验可观测性——session health、package health、agent run health、proposal causal chain、failure breadcrumbs、cost/latency summary、guardrail/audit summary。8 项能力、3 个 surface（forge_panel、assistant_action、home_card）。Deterministic、no-network、no inference。全部从协议可见引用派生，不读 SQLite 或 runtime internals。
+- Runtime inproc handler：deterministic/no-network/no inference，输出 public protocol shapes（session_health、package_health、agent_run_health、proposal_causal_chain、failure_breadcrumbs、cost_latency_summary、guardrail_audit_summary）。不得输出 chat/message/prompt/world/scene/turn/memory 等形态。
+- 与 playable-creation-board 关联：新增 `summarize_experience_health` 能力，含 observability 交叉引用。
+- Conformance：10 个具名用例。
+- Profile autoload：forge-alpha.yaml 自动加载新包。
 
-验证：Web TS、conformance、vertical slice 中展示 observability。
+验证：`cargo test --workspace`、`cargo run -p ygg-cli -- conformance`（216 用例）、`cargo run -p ygg-cli -- package check` 对新包通过。
 
-红线：不做 SaaS APM，不读 SQLite。
+红线：不做 SaaS APM，不读 SQLite，不新增 kernel.observability.*，不做特权 Studio。
 
 ## Experience Beta 4 — Memory / Knowledge Package Alpha
 
