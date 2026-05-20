@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, and Experience Beta 3 are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold, a package-owned experience runtime contract, a first real playable vertical slice with board/module/constraint/marker state, a stable content-addressed asset helper with provenance graph and state snapshot convention, and package-owned experience observability plus Forge observability panels (session health, package health, agent run health, proposal causal chain, failure breadcrumbs, cost/latency summary, asset provenance, guardrail/audit summary — all derived from protocol-visible refs, not from SQLite or runtime internals). Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline shifts to **Experience Beta 4**: memory/knowledge package.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, and Experience Beta 4 are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold, a package-owned experience runtime contract, a first real playable vertical slice with board/module/constraint/marker state, a stable content-addressed asset helper with provenance graph and state snapshot convention, package-owned experience observability plus Forge observability panels, and package-owned long-term memory and knowledge with proposal-gated update/correction/forget-redaction/branch-aware view — all deterministic, no-network, no inference. The current headline shifts to **Experience Beta 5**: creator loop.
 
 ## Where we are
 
@@ -225,11 +225,17 @@ Delivered:
 
 Non-goals: full APM, SaaS monitoring backend, privileged Studio.
 
-## Experience Beta 4 — Memory / Knowledge Package Alpha
+## Experience Beta 4 — Memory / Knowledge Package Alpha (Complete)
 
 Goal: provide long-term memory and knowledge as ordinary packages, not kernel ontology.
 
-Deliverables: memory record package schema examples, branch-aware memory views, retrieval traces, proposal-gated memory updates, user correction, forgetting/redaction workflows, memory provenance, and knowledge source refs. If the first real experience needs cross-session / cross-branch long-term memory, build the minimum slice earlier; otherwise this should be pulled after the first vertical slice.
+Delivered:
+
+- `official/memory-lab` — package-owned long-term memory and knowledge lab with 9 capabilities (describe_memory_contract / record_memory / retrieve_memory / trace_retrieval / draft_memory_update / apply_memory_correction / draft_forget_redaction / branch_memory_view / explain_memory_provenance) and 3 surfaces (forge_panel, assistant_action, home_card). Deterministic, no-network, no inference. Raw-secret blocking. Proposal-gated update (draft_memory_update produces proposal/update draft only, no direct state mutation). Forget/redaction produces redaction plan, not deletion. Branch-aware view. Provenance chain with content_address per step. No kernel.memory.* namespace.
+- `official/playable-creation-board` adds `memory_refs` / `knowledge_refs` / `retrieve_context_plan` optional cross-references. Board does not depend on memory-lab to operate.
+- Third-party replacement proof: `thirdparty/memory-lab` manifest + `examples/compositions/memory-lab-replacement/` composition proves no official priority.
+- Conformance: 10 named cases covering contract, record/retrieve/trace, proposal-gated update, correction, forget/redaction, branch-aware view, no forbidden namespace, no raw secrets.
+- Durable guide: [`docs/guides/MEMORY_PACKAGE_AUTHORING.md`](../guides/MEMORY_PACKAGE_AUTHORING.md).
 
 Non-goals: `kernel.memory.*`, one official RAG, chat memory system.
 

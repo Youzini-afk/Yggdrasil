@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 180 implemented rows, backed by 216 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 180 implemented rows, backed by 226 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -187,6 +187,16 @@ Current matrix coverage: 180 implemented rows, backed by 216 named CLI conforman
 | official packages | experience-observability-lab summarize_guardrails returns guardrail/audit summary from protocol-visible audit refs | implemented |
 | official packages | experience-observability-lab no kernel.observability.* / kernel.experience.* namespace in any output | implemented |
 | official packages | experience-observability-lab raw secret blocked in all capability inputs | implemented |
+| official packages | memory-lab describe_memory_contract returns 9 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
+| official packages | memory-lab record_memory produces memory_record with content_address / branch_ref / knowledge_refs | implemented |
+| official packages | memory-lab retrieve_memory deterministic keyword match, branch-aware filtering, no embedding/network | implemented |
+| official packages | memory-lab trace_retrieval produces deterministic retrieval trace | implemented |
+| official packages | memory-lab draft_memory_update produces proposal/update draft only, no direct state mutation, requires_user_approval=true | implemented |
+| official packages | memory-lab apply_memory_correction produces correction shape, proposal-gated | implemented |
+| official packages | memory-lab draft_forget_redaction produces redaction plan, not deletion | implemented |
+| official packages | memory-lab branch_memory_view filters memory records by branch | implemented |
+| official packages | memory-lab no output contains kernel.memory.* / kernel.experience.* namespace | implemented |
+| official packages | memory-lab raw secret blocked in all capability inputs | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -423,6 +433,16 @@ experience_observability.failure_breadcrumbs PASS
 experience_observability.guardrail_audit_summary PASS
 experience_observability.no_forbidden_namespace PASS
 experience_observability.no_raw_secrets PASS
+memory_lab.contract_shape PASS
+memory_lab.record_memory PASS
+memory_lab.retrieve_memory PASS
+memory_lab.trace_retrieval PASS
+memory_lab.draft_update_proposal_only PASS
+memory_lab.correction_proposal_gated PASS
+memory_lab.forget_redaction_plan PASS
+memory_lab.branch_view PASS
+memory_lab.no_forbidden_namespace PASS
+memory_lab.no_raw_secrets PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

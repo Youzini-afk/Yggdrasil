@@ -291,7 +291,7 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
         ],
         "request_change_output_fields": [
             "objective", "allowed_change_kinds", "risk",
-            "budget", "bindable_refs",
+            "budget", "bindable_refs", "memory_refs",
             "agent_run_binding_ref", "provenance",
             "content_address", "disclosure"
         ],
@@ -582,6 +582,18 @@ fn request_change(request: &InprocInvocation) -> anyhow::Result<Value> {
             "target_branch_ref": target_branch_ref,
             "scratch_branch_ref": scratch_branch_ref,
             "agent_run_binding_ref": agent_run_binding_ref,
+        },
+        "memory_refs": {
+            "memory_package_id": request.input
+                .get("memory_package_id")
+                .and_then(Value::as_str)
+                .unwrap_or("official/memory-lab"),
+            "retrieve_context_plan": {
+                "capability_id": "official/memory-lab/retrieve_memory",
+                "optional": true,
+                "description": "Optional memory context retrieval for board change planning; board does not depend on memory-lab to operate",
+            },
+            "knowledge_refs": request.input.get("knowledge_refs").cloned().unwrap_or(serde_json::json!([])),
         },
         "agent_run_binding": {
             "binding_ref": agent_run_binding_ref,

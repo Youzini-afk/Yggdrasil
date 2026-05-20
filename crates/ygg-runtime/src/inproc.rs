@@ -15,6 +15,7 @@ mod experience_runtime_lab;
 mod inference_local_lab;
 mod inference_playtest_lab;
 mod knowledge_lab;
+mod memory_lab;
 mod model_connector_lab;
 mod model_provider_lab;
 mod model_routing_lab;
@@ -163,6 +164,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // playable-creation-board handlers: Experience Beta 1 first real playable vertical slice
         if let Some(result) = playable_creation_board::try_handle(&request) {
+            return result;
+        }
+        // memory-lab handlers: Experience Beta 4 memory/knowledge package
+        if let Some(result) = memory_lab::try_handle(&request) {
             return result;
         }
         // experience-observability-lab handlers: Experience Beta 3 experience observability

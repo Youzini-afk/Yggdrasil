@@ -9,6 +9,7 @@ mod inference_local;
 mod inference_playtest;
 mod inproc;
 mod live_model;
+mod memory_lab;
 mod network;
 mod official_foundation;
 mod official_labs;
@@ -1133,6 +1134,57 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "experience_observability.no_raw_secrets",
         experience_observability::experience_observability_no_raw_secrets().await,
+    );
+    // Experience Beta 4 — Memory / Knowledge Package Alpha
+    record_case(
+        &mut results,
+        "memory_lab.contract_shape",
+        memory_lab::memory_lab_contract().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.record_memory",
+        memory_lab::memory_lab_record_memory().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.retrieve_memory",
+        memory_lab::memory_lab_retrieve_memory().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.trace_retrieval",
+        memory_lab::memory_lab_trace_retrieval().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.draft_update_proposal_only",
+        memory_lab::memory_lab_draft_update().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.correction_proposal_gated",
+        memory_lab::memory_lab_correction().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.forget_redaction_plan",
+        memory_lab::memory_lab_forget_redaction().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.branch_view",
+        memory_lab::memory_lab_branch_view().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.no_forbidden_namespace",
+        memory_lab::memory_lab_no_forbidden_namespace().await,
+    );
+    record_case(
+        &mut results,
+        "memory_lab.no_raw_secrets",
+        memory_lab::memory_lab_no_raw_secrets().await,
     );
 
     let mut failed = false;

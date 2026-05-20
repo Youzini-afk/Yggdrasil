@@ -296,20 +296,25 @@ Deliverables:
 
 Non-goals: full APM, SaaS monitoring backend.
 
-### Experience Beta 4 — Memory / Knowledge Package Alpha
+### Experience Beta 4 — Memory / Knowledge Package Alpha (Complete)
 
-Provide long-term memory and knowledge as ordinary packages, not kernel ontology. If the first real experience needs cross-session / cross-branch long-term memory, build the minimum slice earlier; otherwise this should be pulled after the first vertical slice.
+Provide long-term memory and knowledge as ordinary packages, not kernel ontology.
 
-Deliverables:
+Delivered:
 
-- Memory record package schema examples.
-- Branch-aware memory view.
-- Retrieval trace.
-- Proposal-gated memory update.
-- User correction.
-- Forgetting / redaction workflow.
-- Memory provenance.
-- Knowledge source refs.
+- `official/memory-lab`: 9 capabilities (describe_memory_contract / record_memory / retrieve_memory / trace_retrieval / draft_memory_update / apply_memory_correction / draft_forget_redaction / branch_memory_view / explain_memory_provenance) + 3 surfaces (forge_panel / assistant_action / home_card).
+- Memory record with content_address / branch_ref / disclosure / knowledge_refs / source_refs.
+- Branch-aware memory view (current_branch / all_branches / specified_branch / branch_diff).
+- Retrieval trace (deterministic keyword match, no embedding/network).
+- Proposal-gated memory update (draft_memory_update produces proposal draft only, no direct state mutation).
+- User correction (apply_memory_correction produces correction shape, proposal-gated).
+- Forgetting / redaction workflow (draft_forget_redaction produces redaction plan, not deletion).
+- Memory provenance (explain_memory_provenance produces chain with content_address per step).
+- Knowledge source refs (record_memory and request_change support knowledge_refs).
+- `official/playable-creation-board` adds `memory_refs` / `knowledge_refs` / `retrieve_context_plan` optional cross-references (board does not depend on memory-lab to operate).
+- Third-party replacement proof: `thirdparty/memory-lab` + `examples/compositions/memory-lab-replacement/` composition.
+- 10 conformance cases.
+- Guide: `docs/guides/MEMORY_PACKAGE_AUTHORING.md`.
 
 Non-goals: `kernel.memory.*`, one official RAG, chat memory system.
 

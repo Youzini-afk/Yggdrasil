@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：170 个 implemented rows，由 216 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：180 个 implemented rows，由 226 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -187,6 +187,16 @@ cargo run -p ygg-cli -- conformance
 | official packages | experience-observability-lab summarize_guardrails 从协议可见 audit 引用返回 guardrail/audit summary | implemented |
 | official packages | experience-observability-lab 任何输出不含 kernel.observability.* / kernel.experience.* namespace | implemented |
 | official packages | experience-observability-lab 所有能力输入阻断 raw secret | implemented |
+| official packages | memory-lab describe_memory_contract 返回 9 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
+| official packages | memory-lab record_memory 产出 memory_record 含 content_address / branch_ref / knowledge_refs | implemented |
+| official packages | memory-lab retrieve_memory 确定性关键词匹配，branch-aware 过滤，无 embedding/network | implemented |
+| official packages | memory-lab trace_retrieval 产出确定性 retrieval trace | implemented |
+| official packages | memory-lab draft_memory_update 仅产出 proposal/update draft，不直接改持久状态，requires_user_approval=true | implemented |
+| official packages | memory-lab apply_memory_correction 产出 correction shape，proposal-gated | implemented |
+| official packages | memory-lab draft_forget_redaction 产出 redaction plan，不直接删除 | implemented |
+| official packages | memory-lab branch_memory_view 按 branch 过滤记忆记录 | implemented |
+| official packages | memory-lab 任何输出不含 kernel.memory.* / kernel.experience.* namespace | implemented |
+| official packages | memory-lab 所有能力输入阻断 raw secret | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -423,6 +433,16 @@ experience_observability.failure_breadcrumbs PASS
 experience_observability.guardrail_audit_summary PASS
 experience_observability.no_forbidden_namespace PASS
 experience_observability.no_raw_secrets PASS
+memory_lab.contract_shape PASS
+memory_lab.record_memory PASS
+memory_lab.retrieve_memory PASS
+memory_lab.trace_retrieval PASS
+memory_lab.draft_update_proposal_only PASS
+memory_lab.correction_proposal_gated PASS
+memory_lab.forget_redaction_plan PASS
+memory_lab.branch_view PASS
+memory_lab.no_forbidden_namespace PASS
+memory_lab.no_raw_secrets PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。
