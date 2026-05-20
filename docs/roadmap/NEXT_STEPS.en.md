@@ -25,6 +25,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Agentic Forge Beta Phase C: complete; extends `official/agentic-forge-lab` with run_inference_node/replay_inference_node/validate_inference_output/explain_inference_failure capabilities; 8 explicit plan node kinds; inference providers (deterministic/recorded/cloud_adapter_plan/local_fake); cloud_adapter_plan returns needs_host_policy with no network; replay mismatches flagged never silently passed; inference output action allowlist with forbidden actions; 9-item failure taxonomy with typed recovery hints; 5 more conformance cases. Conformance now has 170 named cases.
 - Agentic Forge Beta Phase D: complete; extends `official/capability-tool-bridge-lab` with explain_tool_call (scoped grant summary, branch-aware tool call context, no_execution, no_ambient_authority)/record_tool_observation (untrusted=true, large output asset_ref, raw-secret blocking)/summarize_tool_risk (prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output with typed mitigations)/replay_tool_plan (fingerprint match/mismatch)/plan_toolchain (multi-step plan-only, explicit provider required, nested delegation blocked without explicit_delegation, target branch write blocked without promote grant); 5 more conformance cases. Conformance now has 175 named cases.
 - Agentic Forge Beta Phase E: complete; adds six Agentic Forge workspace panels to the Forge surface (Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls). All data sourced from public protocol only. No chat-first UI. `clients/web/src/agent/observability.ts` adds `ForgeAgentWorkspaceModel` and build/render functions. `tsc -p clients/web/tsconfig.json --noEmit` passes.
+- Agentic Forge Beta Phase F: complete; third-party replacement proof (`thirdparty/agentic-forge` manifest + replacement composition, no official priority), hostile conformance (prompt injection + secret exfiltration blocked cross-package, privilege escalation rejected), budget/deadline contract (`run_constraints` in `describe_contract`, cancellation consistent), cross-package replay mismatch flagged; 5 more conformance cases. Durable guide: [`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.en.md). Conformance now has 180 named cases; status converged to ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -133,13 +134,18 @@ Goal: keep Yggdrasil's near-term product path cloud API first, but prevent the p
 
 Non-goals: local LLM platform, weight/GPU/scheduling system, more provider zoo expansion, unified chat schema, API gateway, and `kernel.model.*`.
 
-## Phase N — Agentic Forge Beta (in progress)
+## Phase N — Agentic Forge Beta (complete)
 
-Goal: promote Agent Infrastructure Alpha from safe-hosting proof into a Yggdrasil-native creative agent runtime. Agentic Forge agents are ordinary package-owned creative processes: they maintain run lifecycle, working state, plan graph, and candidates; explore in scratch branches by default; interact with target branches through candidate compare / proposal / inspection / approval / promote; use scoped grants and audit for tool calls; support replaceable live inference and deterministic fallback; and present run timelines, plan graphs, scratch diffs, candidate comparison, and tool/inference traces in Forge instead of chat transcripts.
+Goal: promote Agent Infrastructure Alpha from safe-hosting proof into a Yggdrasil-native creative agent runtime. Agentic Forge agents are ordinary package-owned creative processes: they maintain run lifecycle, working state, plan graph, and candidates; explore in scratch branches by default; interact with target branches through candidate compare / proposal / inspection / approval / promote; use scoped grants and audit for tool calls; support replaceable live inference and deterministic fallback; and present run timelines, plan graphs, scratch diffs, candidate comparison, and tool/inference traces in Forge instead of chat transcripts. All phases (A–F) are complete. See `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.en.md` for the durable guide.
 
-Stages are tracked in [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.en.md):
+Phases completed:
 
-- Phase 0: plan and boundary lock (in progress).
+- Phase A: package-owned run lifecycle, plan graph, working state, raw-secret blocking, TS SDK.
+- Phase B: branch-aware scratch branch / candidate / compare / promote proof.
+- Phase C: inference-backed agent run with deterministic fallback.
+- Phase D: tool bridge v2 — scoped toolchain observation / risk / replay.
+- Phase E: Forge workspace observability panels.
+- Phase F: third-party replacement proof, hostile conformance, budget/deadline contract, durable docs cleanup.
 - Phase A: package-owned run lifecycle / working state / plan graph.
 - Phase B: branch-aware scratch branch / candidate / compare / promote proof.
 - Phase C: inference-backed agent run with deterministic fallback.
@@ -162,4 +168,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha are complete. Agentic Forge Beta is in progress. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, and Agentic Forge Beta are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.

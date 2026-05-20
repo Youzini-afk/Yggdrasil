@@ -25,6 +25,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase C：已完成；扩展 `official/agentic-forge-lab` 增加 run_inference_node/replay_inference_node/validate_inference_output/explain_inference_failure 能力；8 个显式 plan node kind；inference provider（deterministic/recorded/cloud_adapter_plan/local_fake）；cloud_adapter_plan 返回 needs_host_policy 且不执行网络；replay 指纹不匹配时标记而非静默通过；inference output action allowlist 与 forbidden actions；9 项 failure taxonomy 含 typed recovery hint；5 个 conformance 用例。Conformance 包含 170 个具名用例。
 - Agentic Forge Beta Phase D：已完成；扩展 `official/capability-tool-bridge-lab` 增加 explain_tool_call（scoped grant summary，branch-aware tool call context，no_execution，no_ambient_authority）/record_tool_observation（untrusted=true，大输出 asset_ref，raw-secret 阻断）/summarize_tool_risk（prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output 含 typed mitigations）/replay_tool_plan（指纹匹配/不匹配）/plan_toolchain（多步 plan-only，显式 provider 必需，嵌套 delegation 无 explicit_delegation 时阻止，target branch 写入无 promote grant 时阻止）；5 个 conformance 用例。Conformance 包含 175 个具名用例。
 - Agentic Forge Beta Phase E：已完成；Forge 中新增 Agentic Forge 六个 workspace panels（Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls），所有数据来自 public protocol，不做 chat-first UI。`clients/web/src/agent/observability.ts` 新增 `ForgeAgentWorkspaceModel` 及 build/render 函数。`tsc -p clients/web/tsconfig.json --noEmit` 通过。
+- Agentic Forge Beta Phase F：已完成；第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断，privilege escalation 拒绝）、budget/deadline 契约（describe_contract 中 run_constraints，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：[`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Conformance 包含 180 个具名用例；状态已收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -133,19 +134,18 @@ Phase J 非目标：
 
 非目标：本地大模型平台、权重/GPU/调度系统、继续扩 provider zoo、统一 chat schema、API gateway、`kernel.model.*`。
 
-## Phase N — Agentic Forge Beta（执行中）
+## Phase N — Agentic Forge Beta（已完成）
 
-目标：把 Agent Infrastructure Alpha 从安全托管 proof 推进为 Yggdrasil-native creative agent runtime。Agentic Forge 的 agent 是普通 package 拥有的 creative process：它维护 run lifecycle、working state、plan graph 和 candidates；默认在 scratch branch 中探索；通过 candidate compare / proposal / inspection / approval / promote 与目标 branch 交互；tool 调用使用 scoped grants 和 audit；live inference 与 deterministic fallback 可替换；Forge UI 展示 run timeline、plan graph、scratch diff、candidate compare、tool/inference trace，而不是聊天记录。
+目标：把 Agent Infrastructure Alpha 从安全托管 proof 推进为 Yggdrasil-native creative agent runtime。Agentic Forge 的 agent 是普通 package 拥有的 creative process：它维护 run lifecycle、working state、plan graph 和 candidates；默认在 scratch branch 中探索；通过 candidate compare / proposal / inspection / approval / promote 与目标 branch 交互；tool 调用使用 scoped grants 和 audit；live inference 与 deterministic fallback 可替换；Forge UI 展示 run timeline、plan graph、scratch diff、candidate compare、tool/inference trace，而不是聊天记录。所有阶段（A–F）已完成。持久指南见 `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`。
 
-阶段见 [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.md)：
+已完成阶段：
 
-- Phase 0：计划与边界锁定（执行中）。
 - Phase A：package-owned run lifecycle / working state / plan graph。
 - Phase B：branch-aware scratch branch / candidate / compare / promote proof。
 - Phase C：inference-backed agent run with deterministic fallback。
 - Phase D：tool bridge v2 scoped toolchain observation / risk / replay。
-- Phase E：Forge Agent Workspace / Observability UI shell（已完成）。
-- Phase F：third-party replacement proof、hostile conformance、durable docs cleanup。
+- Phase E：Forge Agent Workspace / Observability UI shell。
+- Phase F：third-party replacement proof、hostile conformance、budget/deadline 契约、durable docs cleanup。
 
 非目标：LangChain clone、chat shell、coding-agent clone、agent marketplace、always-on autonomous background agents、provider zoo、OpenAI-compatible agent endpoint、`kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`。
 
@@ -162,4 +162,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 和 Creative Inference Capability Alpha 已完成。Agentic Forge Beta 正在执行。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha 和 Agentic Forge Beta 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

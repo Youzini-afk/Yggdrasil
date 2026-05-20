@@ -709,6 +709,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked",
         agentic_forge::agentic_forge_plan_toolchain_requires_provider().await,
     );
+    // Phase F — Agentic Forge Beta: third-party replacement, hostile, budget/deadline
+    record_case(
+        &mut results,
+        "agentic_forge.thirdparty_replacement_shape_no_official_priority",
+        agentic_forge::agentic_forge_thirdparty_replacement_shape().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.no_official_priority_ordinary_package",
+        agentic_forge::agentic_forge_no_official_priority().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.hostile_injection_secret_blocked_cross_package",
+        agentic_forge::agentic_forge_hostile_injection_secret_blocked().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.budget_deadline_contract_cancellation_consistent",
+        agentic_forge::agentic_forge_budget_deadline_contract().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.cross_package_replay_mismatch_flagged",
+        agentic_forge::agentic_forge_cross_package_replay_consistency().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

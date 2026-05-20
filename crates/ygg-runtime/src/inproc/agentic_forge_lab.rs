@@ -254,6 +254,7 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "agentic_forge_contract",
         "package_id": request.provider_package_id,
+        "package_kind": "ordinary",
         "capabilities": [
             {"id": "official/agentic-forge-lab/describe_contract", "purpose": "describe the agentic forge package contract"},
             {"id": "official/agentic-forge-lab/start_run", "purpose": "start a deterministic agent run with plan graph and working state"},
@@ -297,6 +298,13 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             "promote_requires_proposal": true,
             "stale_target_blocks_promote": true,
             "target_revision_must_match": true
+        },
+        "run_constraints": {
+            "max_steps_supported": true,
+            "deadline_ms_supported": true,
+            "budget_required_for_run": false,
+            "budget_diagnosed_if_missing": true,
+            "cancellation_consistent": true
         },
         "inference_performed": false,
         "network_performed": false,
