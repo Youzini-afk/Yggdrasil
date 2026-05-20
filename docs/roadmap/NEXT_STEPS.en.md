@@ -19,7 +19,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Cal
 - Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
 - Model Provider Integration Alpha: complete; `integrations/model-providers` research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab`, provider profile examples, and [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md) are in place.
 - Live Model Calls Alpha: complete; results are folded into [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), and the conformance matrix.
-- Creative Inference Capability Alpha: C0, C1, C2, C3, and C4 delivered; C1 includes `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers and `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` guide; C2 includes `official/inference-local-lab` deterministic non-HTTP fake inference provider proof (5 conformance cases); C3 downgrades `official/model-provider-lab` into a cloud API adapter lab; C4 includes `official/inference-playtest-lab` Ygg-native inference proposal vertical slice (5 conformance cases, proving inference output is an approval-gated proposal, not a chat message). Next stage is C5 durable docs cleanup. Temporary plan in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md).
+- Creative Inference Capability Alpha: complete; `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers, [`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`](../guides/INFERENCE_CAPABILITY_AUTHORING.en.md), `official/inference-local-lab` deterministic non-HTTP fake inference provider proof, `official/model-provider-lab` cloud API adapter reposition, and `official/inference-playtest-lab` Ygg-native inference proposal vertical slice are in place. Conformance now has 155 named cases.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -115,18 +115,16 @@ Delivered: L0 live-call contract, L1 `EnvSecretResolver`, L2 `LiveHttpOutboundEx
 
 Non-goals: relay gateway, user balances/billing, channel admin, hosted platform relay keys, default networked CI, provider direct env access, provider direct HTTP bypassing the host, and `kernel.model.*`.
 
-## Phase M — Creative Inference Capability Alpha (in progress)
+## Phase M — Creative Inference Capability Alpha (complete)
 
 Goal: keep Yggdrasil's near-term product path cloud API first, but prevent the platform abstraction from becoming cloud API shaped. Cloud API adapters are ordinary packages, not the Ygg model abstraction. This phase proves a transport-neutral inference capability seam, a non-HTTP fake provider, and an inference → proposal/inspection/branch/fork creative runtime loop.
-
-Stages are tracked in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md):
 
 - C0: API-first but not API-shaped ADR and temporary plan (complete).
 - C1: transport-neutral inference capability contract (complete; `sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`).
 - C2: non-HTTP fake local provider proof (complete; `official/inference-local-lab` + 5 conformance cases).
 - C3: cloud adapter package reposition (complete; `official/model-provider-lab` is a cloud adapter, not the platform abstraction).
 - C4: Ygg-native inference proposal vertical slice (complete; `official/inference-playtest-lab` + 5 conformance cases).
-- C5: durable docs cleanup.
+- C5: durable docs cleanup (complete; temporary plan removed, durable content folded into guides/status/next steps).
 
 Non-goals: local LLM platform, weight/GPU/scheduling system, more provider zoo expansion, unified chat schema, API gateway, and `kernel.model.*`.
 
@@ -143,4 +141,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha C0/C1/C2/C3/C4 are complete. Creative Inference Capability Alpha has completed the core proof — the inference-to-creative-runtime loop is validated; C5 durable docs cleanup is the final step. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.

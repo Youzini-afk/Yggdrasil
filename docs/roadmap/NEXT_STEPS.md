@@ -19,7 +19,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Cal
 - Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
 - Live Model Calls Alpha：已完成；成果已收敛进 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 conformance matrix。
-- Creative Inference Capability Alpha：C0、C1、C2、C3、C4 已交付；C1 包含 `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers 与 `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` 指南；C2 包含 `official/inference-local-lab` deterministic non-HTTP fake inference provider proof（5 个 conformance 用例）；C3 把 `official/model-provider-lab` 降级为 cloud API adapter lab；C4 包含 `official/inference-playtest-lab` Ygg-native inference proposal vertical slice（5 个 conformance 用例，证明推理输出是 approval-gated proposal，不是 chat message）。下一阶段 C5 durable docs cleanup。临时计划见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)。
+- Creative Inference Capability Alpha：已完成；`sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers、[`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`](../guides/INFERENCE_CAPABILITY_AUTHORING.md)、`official/inference-local-lab` deterministic non-HTTP fake inference provider proof、`official/model-provider-lab` cloud API adapter 降级定位、`official/inference-playtest-lab` Ygg-native inference proposal vertical slice 均已就位。Conformance 包含 155 个具名用例。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -115,18 +115,16 @@ Phase J 非目标：
 
 非目标：中转站、用户金额/计费系统、渠道后台、平台代理 key、默认联网 CI、provider 直接读 env、provider 直接 HTTP 绕过 host、`kernel.model.*`。
 
-## Phase M — Creative Inference Capability Alpha（执行中）
+## Phase M — Creative Inference Capability Alpha（已完成）
 
 目标：Yggdrasil 近期产品路径保持 cloud API first，但平台抽象不能 cloud API shaped。Cloud API adapter 只是普通包，不是 Ygg 的模型抽象。下一阶段要证明 transport-neutral inference capability seam、非 HTTP fake provider，以及 inference 参与 proposal/inspection/branch/fork 的创作运行时闭环。
-
-阶段见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)：
 
 - C0：API-first but not API-shaped ADR 与临时计划（已完成）。
 - C1：transport-neutral inference capability contract（已完成；`sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`）。
 - C2：non-HTTP fake local provider proof（已完成；`official/inference-local-lab` + 5 个 conformance 用例）。
 - C3：cloud adapter package reposition（已完成；`official/model-provider-lab` 是 cloud adapter，不是平台抽象）。
 - C4：Ygg-native inference proposal vertical slice（已完成；`official/inference-playtest-lab` + 5 个 conformance 用例）。
-- C5：durable docs cleanup。
+- C5：durable docs cleanup（已完成；临时计划删除，持久内容收敛到 guide/status/next steps）。
 
 非目标：本地大模型平台、权重/GPU/调度系统、继续扩 provider zoo、统一 chat schema、API gateway、`kernel.model.*`。
 
@@ -143,4 +141,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 和 Creative Inference Capability Alpha C0/C1/C2/C3/C4 已完成。Creative Inference Capability Alpha 已完成核心 proof——inference 参与 Ygg 创作运行时闭环已验证，C5 durable docs cleanup 是收尾。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 和 Creative Inference Capability Alpha 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

@@ -125,8 +125,8 @@ Manifest 辅助检测：
 
 ## 延伸阅读
 
-- `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md` — 临时计划
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — cloud API 接入指南
+- `docs/roadmap/NEXT_STEPS.md` — 已完成阶段与后续方向
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like 包创作指南
 - `docs/architecture/CAPABILITY_PACKAGE.md` — 能力包契约
 - `sdk/typescript/secure-execution/index.ts` — 安全执行辅助

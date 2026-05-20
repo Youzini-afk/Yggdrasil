@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 155 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof, **outbound executor boundary with deny-all default and fake executor conformance**.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Current headline:** Creative Inference Capability Alpha C4 delivered. C0 ADR, C1 transport-neutral inference capability contract, C2 non-HTTP fake local provider proof, and C3 cloud adapter reposition are complete; C4 Ygg-native inference proposal vertical slice is complete (`official/inference-playtest-lab` + 5 conformance cases, proving inference output is an approval-gated proposal, not a chat message, and inference participates in session/branch/proposal/inspection/fork creative runtime loop). Next stage is C5 durable docs cleanup.
+- **Current headline:** Creative Inference Capability Alpha is complete. Yggdrasil remains API-first in delivery but not API-shaped in architecture: cloud providers are ordinary adapters; the transport-neutral inference contract, non-HTTP fake local provider proof, and Ygg-native inference proposal vertical slice are in place, proving inference participates in session/branch/proposal/inspection/fork creative runtime flows instead of collapsing into provider request/response.
 
 ## What is implemented
 
@@ -192,5 +192,4 @@ If any of the above fails, this document is wrong; the code is right. Update thi
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like capability package authoring guide.
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — multi-provider cloud API integration guide.
 - `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` — transport-neutral inference capability package authoring guide.
-- `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md` — current Creative Inference Capability Alpha temporary plan.
 - `docs/roadmap/NEXT_STEPS.md` — current and upcoming phases.

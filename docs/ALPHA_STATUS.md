@@ -12,7 +12,7 @@
 - **Conformance：** 155 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Creative Inference Capability Alpha C4 已交付。C0 ADR、C1 transport-neutral inference capability contract、C2 non-HTTP fake local provider proof、C3 cloud adapter reposition 已完成；C4 Ygg-native inference proposal vertical slice 已完成（`official/inference-playtest-lab` + 5 个 conformance 用例，证明推理输出是 approval-gated proposal，不是 chat message，inference 参与 session/branch/proposal/inspection/fork 创作运行时闭环）。下一阶段是 C5 durable docs cleanup。
+- **当前主线：** Creative Inference Capability Alpha 已完成。Yggdrasil 现在保持交付上 API-first，但架构上 not API-shaped：cloud provider 被降级为普通 adapter；transport-neutral inference contract、non-HTTP fake local provider proof 和 Ygg-native inference proposal vertical slice 均已落地，证明 inference 能参与 session/branch/proposal/inspection/fork 创作运行时，而不是退化成 provider request/response。
 
 ## 已实现
 
@@ -189,5 +189,4 @@ tsc -p clients/web/tsconfig.json --noEmit
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` —— agent-like 能力包创作指南。
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` —— 多 provider cloud API 接入指南。
 - `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` —— transport-neutral 推理能力包创作指南。
-- `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md` —— 当前 Creative Inference Capability Alpha 临时计划。
 - `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。
