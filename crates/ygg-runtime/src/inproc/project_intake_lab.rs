@@ -21,7 +21,7 @@
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
 //! - Unsafe local path rejection (path traversal, home path, absolute sensitive paths)
-//! - No kernel.project/workspace/git/npm/deploy/ide namespace references
+//! - No reserved external-project kernel namespace references
 //! - No filesystem reads, no shell, no outbound, no execution
 
 use serde_json::Value;
