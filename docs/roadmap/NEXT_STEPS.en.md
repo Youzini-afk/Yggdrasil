@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, and live loopback provider shapes. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline is **Creative Inference Capability Alpha**: deliver API-first while preventing the architecture from becoming API-shaped, downgrade cloud providers into ordinary adapters, and prove inference can participate in session / branch / proposal / inspection / fork creative runtime flows.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, and inference→proposal proof. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline is **Agentic Forge Beta**: promote agents from lab/proof code into a package-owned, branch-aware, tool-safe, inference-backed, deterministically testable creative agent runtime.
 
 ## Where we are
 
@@ -20,6 +20,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Cal
 - Model Provider Integration Alpha: complete; `integrations/model-providers` research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab`, provider profile examples, and [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md) are in place.
 - Live Model Calls Alpha: complete; results are folded into [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), and the conformance matrix.
 - Creative Inference Capability Alpha: complete; `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers, [`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`](../guides/INFERENCE_CAPABILITY_AUTHORING.en.md), `official/inference-local-lab` deterministic non-HTTP fake inference provider proof, `official/model-provider-lab` cloud API adapter reposition, and `official/inference-playtest-lab` Ygg-native inference proposal vertical slice are in place. Conformance now has 155 named cases.
+- Agentic Forge Beta: in progress; temporary plan in [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.en.md). The goal is: agents stay out of the kernel; run/state/plan/candidate are package-owned; agents explore scratch branches and enter target branches through candidate/compare/proposal/promote; tool bridge uses scoped grants; Forge becomes a run/plan/candidate/diff/proposal/trace control room instead of a chat shell.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -128,6 +129,22 @@ Goal: keep Yggdrasil's near-term product path cloud API first, but prevent the p
 
 Non-goals: local LLM platform, weight/GPU/scheduling system, more provider zoo expansion, unified chat schema, API gateway, and `kernel.model.*`.
 
+## Phase N — Agentic Forge Beta (in progress)
+
+Goal: promote Agent Infrastructure Alpha from safe-hosting proof into a Yggdrasil-native creative agent runtime. Agentic Forge agents are ordinary package-owned creative processes: they maintain run lifecycle, working state, plan graph, and candidates; explore in scratch branches by default; interact with target branches through candidate compare / proposal / inspection / approval / promote; use scoped grants and audit for tool calls; support replaceable live inference and deterministic fallback; and present run timelines, plan graphs, scratch diffs, candidate comparison, and tool/inference traces in Forge instead of chat transcripts.
+
+Stages are tracked in [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.en.md):
+
+- Phase 0: plan and boundary lock (in progress).
+- Phase A: package-owned run lifecycle / working state / plan graph.
+- Phase B: branch-aware scratch branch / candidate / compare / promote proof.
+- Phase C: inference-backed agent run with deterministic fallback.
+- Phase D: tool bridge v2 scoped toolchain observation / risk / replay.
+- Phase E: Forge Agent Workspace / Observability UI shell.
+- Phase F: third-party replacement proof, hostile conformance, durable docs cleanup.
+
+Non-goals: LangChain clone, chat shell, coding-agent clone, agent marketplace, always-on autonomous background agents, provider zoo, OpenAI-compatible agent endpoint, `kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`.
+
 ## Deferred indefinitely from kernel scope
 
 These remain non-goals for the kernel. They may exist as future packages.
@@ -141,4 +158,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha are complete. Agentic Forge Beta is in progress. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.

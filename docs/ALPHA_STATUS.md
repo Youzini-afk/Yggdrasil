@@ -12,7 +12,7 @@
 - **Conformance：** 155 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Creative Inference Capability Alpha 已完成。Yggdrasil 现在保持交付上 API-first，但架构上 not API-shaped：cloud provider 被降级为普通 adapter；transport-neutral inference contract、non-HTTP fake local provider proof 和 Ygg-native inference proposal vertical slice 均已落地，证明 inference 能参与 session/branch/proposal/inspection/fork 创作运行时，而不是退化成 provider request/response。
+- **当前主线：** Agentic Forge Beta 已启动。目标是把 Agent Infrastructure Alpha 从 lab/proof 推进为 package-owned、branch-aware、tool-safe、inference-backed、deterministically testable 的 creative agent runtime：agent 仍是普通包，不进入 kernel ontology；agent 在 scratch branch 探索并产生 candidate/proposal，而不是直接修改 target branch 或退化成 chat/coding-agent/API gateway。
 
 ## 已实现
 

@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Calls Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit 和 live loopback provider shapes。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线是 **Creative Inference Capability Alpha**：承认交付上 API-first，但防止架构 API-shaped，把 cloud provider 降级为普通 adapter，并证明 inference 能参与 session / branch / proposal / inspection / fork 创作运行时。
+Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 与 Creative Inference Capability Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam 与 inference→proposal proof。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线是 **Agentic Forge Beta**：把 agent 从 lab/proof 推进为 package-owned、branch-aware、tool-safe、inference-backed、deterministically testable 的 creative agent runtime。
 
 ## 当前位置
 
@@ -20,6 +20,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Cal
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
 - Live Model Calls Alpha：已完成；成果已收敛进 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 conformance matrix。
 - Creative Inference Capability Alpha：已完成；`sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers、[`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`](../guides/INFERENCE_CAPABILITY_AUTHORING.md)、`official/inference-local-lab` deterministic non-HTTP fake inference provider proof、`official/model-provider-lab` cloud API adapter 降级定位、`official/inference-playtest-lab` Ygg-native inference proposal vertical slice 均已就位。Conformance 包含 155 个具名用例。
+- Agentic Forge Beta：执行中；临时计划见 [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.md)。目标是 Agent 不进 kernel，run/state/plan/candidate 都由 package 拥有；agent 默认在 scratch branch 探索，通过 candidate/compare/proposal/promote 进入目标 branch；tool bridge 使用 scoped grants；Forge UI 成为 run/plan/candidate/diff/proposal/trace control room，而不是 chat shell。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -128,6 +129,22 @@ Phase J 非目标：
 
 非目标：本地大模型平台、权重/GPU/调度系统、继续扩 provider zoo、统一 chat schema、API gateway、`kernel.model.*`。
 
+## Phase N — Agentic Forge Beta（执行中）
+
+目标：把 Agent Infrastructure Alpha 从安全托管 proof 推进为 Yggdrasil-native creative agent runtime。Agentic Forge 的 agent 是普通 package 拥有的 creative process：它维护 run lifecycle、working state、plan graph 和 candidates；默认在 scratch branch 中探索；通过 candidate compare / proposal / inspection / approval / promote 与目标 branch 交互；tool 调用使用 scoped grants 和 audit；live inference 与 deterministic fallback 可替换；Forge UI 展示 run timeline、plan graph、scratch diff、candidate compare、tool/inference trace，而不是聊天记录。
+
+阶段见 [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.md)：
+
+- Phase 0：计划与边界锁定（执行中）。
+- Phase A：package-owned run lifecycle / working state / plan graph。
+- Phase B：branch-aware scratch branch / candidate / compare / promote proof。
+- Phase C：inference-backed agent run with deterministic fallback。
+- Phase D：tool bridge v2 scoped toolchain observation / risk / replay。
+- Phase E：Forge Agent Workspace / Observability UI shell。
+- Phase F：third-party replacement proof、hostile conformance、durable docs cleanup。
+
+非目标：LangChain clone、chat shell、coding-agent clone、agent marketplace、always-on autonomous background agents、provider zoo、OpenAI-compatible agent endpoint、`kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`。
+
 ## 内核范围内的无限期延后
 
 这些仍是内核的非目标。它们可能以未来包的形式存在。
@@ -141,4 +158,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 和 Creative Inference Capability Alpha 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 和 Creative Inference Capability Alpha 已完成。Agentic Forge Beta 正在执行。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
