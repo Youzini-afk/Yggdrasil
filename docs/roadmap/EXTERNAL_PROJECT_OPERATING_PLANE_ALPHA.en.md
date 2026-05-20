@@ -42,7 +42,7 @@ Deliverables: this temporary bilingual plan, README / ALPHA_STATUS / NEXT_STEPS 
 
 Acceptance: doc links, diff check, clean commit/push.
 
-## Phase E1 — Project Intake Lab (no execution)
+## Phase E1 — Project Intake Lab (no execution) — COMPLETE
 
 Goal: accept git/npm/local/archive refs and produce static intake report, stack guess, workspace plan, risk summary, candidate entrypoints, and adapter plan without clone/install/run.
 

@@ -146,4 +146,4 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Conformance includes 10 sharing-lab cases (245 total), covering contract shape, export/import, lockfile, compatibility report, AI disclosure, read-only sharing, async fork, and red-line constraints.
+Conformance includes 10 sharing-lab cases (253 total), covering contract shape, export/import, lockfile, compatibility report, AI disclosure, read-only sharing, async fork, and red-line constraints.

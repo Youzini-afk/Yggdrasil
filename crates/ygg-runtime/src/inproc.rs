@@ -24,6 +24,7 @@ mod pi_agent_runtime_lab;
 mod playable_creation_board;
 mod playable_seed;
 mod projection_lab;
+mod project_intake_lab;
 pub mod safety;
 mod sharing_lab;
 mod text_transform_lab;
@@ -138,6 +139,7 @@ fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
         "official/memory-lab" => memory_lab::try_handle(request),
         "official/experience-observability-lab" => experience_observability_lab::try_handle(request),
         "official/sharing-lab" => sharing_lab::try_handle(request),
+        "official/project-intake-lab" => project_intake_lab::try_handle(request),
         _ => None,
     };
 

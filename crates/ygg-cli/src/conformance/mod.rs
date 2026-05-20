@@ -17,6 +17,7 @@ mod official_labs;
 mod official_play_creation;
 mod permissions;
 mod playable_creation_board;
+mod project_intake_lab;
 mod proposals;
 mod protocol;
 mod replacement;
@@ -339,6 +340,15 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("creator_loop.composition_experience_diagnostics", ["experience", "composition", "generated"], creator_loop::creator_loop_composition_experience_diagnostics),
         c!("creator_loop.walkthrough_reference", ["experience", "generated"], creator_loop::creator_loop_walkthrough_reference),
         c!("creator_loop.thirdparty_no_privilege", ["experience", "replacement", "generated"], creator_loop::creator_loop_thirdparty_no_privilege),
+        // --- project-intake-lab (External Project Operating Plane Alpha E1) ---
+        c!("project_intake.contract_shape", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_contract),
+        c!("project_intake.source_classification", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_source_classification),
+        c!("project_intake.stack_detection_npm_lifecycle", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_stack_detection),
+        c!("project_intake.workspace_plan_no_execution", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_workspace_plan),
+        c!("project_intake.local_path_rejection", ["official", "external_project", "project_intake", "no_execution", "secret"], project_intake_lab::project_intake_local_path_rejection),
+        c!("project_intake.adapter_plan_no_execution", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_adapter_plan),
+        c!("project_intake.no_forbidden_namespace", ["official", "external_project", "project_intake", "no_execution", "protocol"], project_intake_lab::project_intake_no_forbidden_namespace),
+        c!("project_intake.no_raw_secrets", ["official", "external_project", "project_intake", "no_execution", "secret"], project_intake_lab::project_intake_no_raw_secrets),
         // --- sharing lab Beta 6 ---
         c!("sharing_lab.contract_shape", ["sharing"], sharing_lab::sharing_contract),
         c!("sharing_lab.export_composition_bundle", ["sharing", "composition"], sharing_lab::sharing_export_bundle),
