@@ -29,3 +29,4 @@ autoload:
   - ../packages/official/memory-lab/manifest.yaml
   - ../packages/official/sharing-lab/manifest.yaml
   - ../packages/official/project-intake-lab/manifest.yaml
+  - ../packages/official/workspace-lab/manifest.yaml

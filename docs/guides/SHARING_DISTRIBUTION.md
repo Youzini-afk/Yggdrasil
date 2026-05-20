@@ -146,4 +146,4 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Conformance 包含 10 个 sharing-lab 用例（253 总计），覆盖契约形状、export/import、lockfile、compatibility report、AI disclosure、只读共享、异步 fork、红线约束。
+Conformance 包含 10 个 sharing-lab 用例（260 总计），覆盖契约形状、export/import、lockfile、compatibility report、AI disclosure、只读共享、异步 fork、红线约束。

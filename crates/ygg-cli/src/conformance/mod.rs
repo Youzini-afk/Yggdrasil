@@ -23,6 +23,7 @@ mod protocol;
 mod replacement;
 mod secret_conformance;
 mod sharing_lab;
+mod workspace_lab;
 mod streaming;
 mod subprocess;
 mod substrate;
@@ -349,6 +350,14 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("project_intake.adapter_plan_no_execution", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_adapter_plan),
         c!("project_intake.no_forbidden_namespace", ["official", "external_project", "project_intake", "no_execution", "protocol"], project_intake_lab::project_intake_no_forbidden_namespace),
         c!("project_intake.no_raw_secrets", ["official", "external_project", "project_intake", "no_execution", "secret"], project_intake_lab::project_intake_no_raw_secrets),
+        // --- workspace-lab (External Project Operating Plane Alpha E2) ---
+        c!("workspace_lab.contract_shape", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_contract),
+        c!("workspace_lab.action_taxonomy_deny_default", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_action_deny_default),
+        c!("workspace_lab.policy_mismatch_fail_closed", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_policy_mismatch),
+        c!("workspace_lab.raw_secret_blocked", ["official", "external_project", "workspace_lab", "policy", "no_execution", "secret"], workspace_lab::workspace_lab_raw_secret_blocked),
+        c!("workspace_lab.audit_redacted", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_audit_redacted),
+        c!("workspace_lab.no_forbidden_namespace", ["official", "external_project", "workspace_lab", "policy", "no_execution", "protocol"], workspace_lab::workspace_lab_no_forbidden_namespace),
+        c!("workspace_lab.no_execution", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_no_execution),
         // --- sharing lab Beta 6 ---
         c!("sharing_lab.contract_shape", ["sharing"], sharing_lab::sharing_contract),
         c!("sharing_lab.export_composition_bundle", ["sharing", "composition"], sharing_lab::sharing_export_bundle),

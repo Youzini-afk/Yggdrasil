@@ -57,7 +57,7 @@ Deliverables:
 
 Acceptance: package check, workspace tests, conformance, and no `kernel.project.*` residue.
 
-## Phase E2 — Workspace Action Policy Boundary (deny-by-default fake executor)
+## Phase E2 — Workspace Action Policy Boundary (deny-by-default fake executor) — COMPLETE
 
 Goal: define policy/audit/proposal shapes for dangerous workspace actions, still without real execution by default.
 
@@ -65,10 +65,12 @@ Deliverables:
 
 - Ordinary official package `official/workspace-lab`.
 - Capabilities: `describe_workspace_contract`, `draft_workspace_creation`, `explain_required_permissions`, `request_workspace_action`, `summarize_workspace_audit`.
-- Action taxonomy: clone/read_metadata/install/run/test/stop/read_logs/discover_entrypoints/write_patch/deploy_plan.
+- Action taxonomy: clone_project/read_metadata/install_dependencies/run_command/run_tests/stop_process/read_logs/discover_entrypoints/write_patch/deploy_plan. Each action annotated with risk_level, requires_approval, executes_code, network_required, filesystem_write_required.
 - Default `denied_by_default` / `requires_approval`; fake executor shape; no host shell.
-- Package-owned audit event shape and redaction.
-- Conformance for unapproved dangerous action not executing, policy/action mismatch fail-closed, raw-secret blocking, and audit without raw env/logs.
+- Approval tokens not honored in Alpha; `approval_token_honored=false` always.
+- Policy/action mismatch fail-closed; unknown action fail-closed.
+- Package-owned audit event shape and redaction (no raw env/logs/commands/secrets).
+- Conformance for unapproved dangerous action not executing (7 cases: contract shape / action taxonomy deny-default / policy mismatch fail-closed / raw-secret blocked / audit redacted / no forbidden namespace / no execution).
 
 Acceptance: default no execution; workspace does not enter package registry; UI/public-protocol shape stable.
 
