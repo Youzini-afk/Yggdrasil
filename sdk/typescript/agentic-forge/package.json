@@ -1,0 +1,16 @@
+{
+  "name": "@yggdrasil/agentic-forge",
+  "version": "0.1.0",
+  "description": "Agentic Forge SDK — package-owned run lifecycle, plan graph, working state, and candidate shapes for Yggdrasil",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node dist/test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

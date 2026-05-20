@@ -20,5 +20,6 @@ autoload:
   - ../packages/official/capability-tool-bridge-lab/manifest.yaml
   - ../packages/official/inference-local-lab/manifest.yaml
   - ../packages/official/inference-playtest-lab/manifest.yaml
+  - ../packages/official/agentic-forge-lab/manifest.yaml
   - ../packages/official/blank-experience/manifest.yaml
   - ../packages/official/playable-seed/manifest.yaml

@@ -41,13 +41,13 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
 - 文档链接通过。
 - 无临时计划引用错误。
 
-## Phase A — Package-owned run lifecycle / working state / plan graph
+## Phase A — Package-owned run lifecycle / working state / plan graph（已完成）
 
-**目标：** 把当前 agent lab 从“一次 run 产 trace/proposal”提升为 package-owned run contract。
+**目标：** 把当前 agent lab 从"一次 run 产 trace/proposal"提升为 package-owned run contract。
 
-计划交付：
+已交付：
 
-- `official/agentic-forge-lab` 或扩展 `official/pi-agent-runtime-lab`，提供稳定 capabilities：
+- `official/agentic-forge-lab` 提供稳定 capabilities：
   - `describe_contract`
   - `start_run`
   - `inspect_run`
@@ -56,9 +56,10 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
   - `export_plan_graph`
 - Package-owned run lifecycle：`created`、`prepared`、`running`、`paused`、`waiting_for_approval`、`completed`、`failed`、`cancelled`、`archived`。
 - Plan graph artifact：nodes/edges/status/revision/input_refs/output_refs/approval_policy/retry_policy/deterministic_mode。
-- Working state artifact：run_id、target_branch_ref、scratch_branch_ref、objective、plan_graph_ref、candidate_refs、tool_observation_refs、inference_trace_refs、policy_state。
+- Working state artifact：run_id、owner_package、target_branch_ref、scratch_branch_ref、current_objective、local_context_refs、plan_graph_ref、candidate_refs、tool_observation_refs、inference_trace_refs、policy_state。
 - TypeScript SDK helper：`sdk/typescript/agentic-forge`，用于构建 run event、plan graph、working state、candidate shape。
-- Conformance：run lifecycle、plan graph validation、raw-secret blocking、no kernel agent namespace。
+- Conformance：5 个用例覆盖 describe_contract、start_run plan graph/working state、inspect/cancel/summarize、raw-secret blocking、no kernel agent namespace。
+- 未新增 `kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*`、`kernel.memory.*` 或 `kernel.turn.*` 协议方法。
 
 非目标：真实模型、真实长期后台 agent、多 agent 编排。
 

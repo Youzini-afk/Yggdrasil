@@ -1,3 +1,4 @@
+mod agentic_forge;
 mod core;
 mod fixtures;
 mod generated;
@@ -603,6 +604,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "official.inference_playtest_lab_no_chat_kernel_terms",
         inference_playtest::inference_playtest_no_chat_kernel_terms().await,
+    );
+    // Phase A — Agentic Forge Beta: package-owned run lifecycle / working state / plan graph
+    record_case(
+        &mut results,
+        "agentic_forge.describe_contract",
+        agentic_forge::agentic_forge_describe_contract().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.start_run_plan_graph_working_state",
+        agentic_forge::agentic_forge_start_run().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.inspect_cancel_summarize",
+        agentic_forge::agentic_forge_inspect_cancel_summarize().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.raw_secret_blocked",
+        agentic_forge::agentic_forge_raw_secret_blocked().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.no_kernel_agent_namespace",
+        agentic_forge::agentic_forge_no_kernel_agent_namespace().await,
     );
 
     let mut failed = false;

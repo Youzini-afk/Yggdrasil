@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ygg_core::{CapabilityId, PackageId};
 
+mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
@@ -111,6 +112,10 @@ impl InprocPackage for OfficialFoundationPackage {
             return result;
         }
         if let Some(result) = pi_agent_runtime_lab::try_handle(&request) {
+            return result;
+        }
+        // agentic-forge-lab handlers: package-owned run lifecycle / working state / plan graph
+        if let Some(result) = agentic_forge_lab::try_handle(&request) {
             return result;
         }
         // projection-lab /diff must be tried before the generic /diff

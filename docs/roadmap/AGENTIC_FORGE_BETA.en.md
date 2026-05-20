@@ -41,13 +41,13 @@ Acceptance:
 - Documentation links pass.
 - No stale temporary-plan references.
 
-## Phase A — Package-owned run lifecycle / working state / plan graph
+## Phase A — Package-owned run lifecycle / working state / plan graph (complete)
 
-**Goal:** Upgrade the agent lab from “one run emits trace/proposal” into a package-owned run contract.
+**Goal:** Upgrade the agent lab from "one run emits trace/proposal" into a package-owned run contract.
 
-Planned deliverables:
+Delivered:
 
-- `official/agentic-forge-lab` or an extension of `official/pi-agent-runtime-lab`, exposing stable capabilities:
+- `official/agentic-forge-lab` exposing stable capabilities:
   - `describe_contract`
   - `start_run`
   - `inspect_run`
@@ -56,9 +56,10 @@ Planned deliverables:
   - `export_plan_graph`
 - Package-owned run lifecycle: `created`, `prepared`, `running`, `paused`, `waiting_for_approval`, `completed`, `failed`, `cancelled`, `archived`.
 - Plan graph artifact: nodes/edges/status/revision/input_refs/output_refs/approval_policy/retry_policy/deterministic_mode.
-- Working state artifact: run_id, target_branch_ref, scratch_branch_ref, objective, plan_graph_ref, candidate_refs, tool_observation_refs, inference_trace_refs, policy_state.
+- Working state artifact: run_id, owner_package, target_branch_ref, scratch_branch_ref, current_objective, local_context_refs, plan_graph_ref, candidate_refs, tool_observation_refs, inference_trace_refs, policy_state.
 - TypeScript SDK helper: `sdk/typescript/agentic-forge`, for run events, plan graphs, working state, and candidate shapes.
-- Conformance: run lifecycle, plan graph validation, raw-secret blocking, no kernel agent namespace.
+- Conformance: 5 cases covering describe_contract, start_run plan graph/working state, inspect/cancel/summarize, raw-secret blocking, no kernel agent namespace.
+- No `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, `kernel.memory.*`, or `kernel.turn.*` protocol methods added.
 
 Non-goals: real models, real long-running background agents, multi-agent orchestration.
 
