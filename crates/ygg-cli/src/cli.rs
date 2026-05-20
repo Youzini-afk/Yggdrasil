@@ -24,6 +24,17 @@ pub(crate) enum PackageTemplate {
     /// descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface
     /// binding capabilities; all four experience surfaces declared.
     ExperienceRuntime,
+    /// Playable board template: deterministic/no-network subprocess with launch,
+    /// project_state, render_payload, record_player_action, request_change,
+    /// create_checkpoint capabilities; all four experience surfaces declared.
+    /// Closest to the official/playable-creation-board shape for third-party creators.
+    PlayableBoard,
+    /// Playable experience template: deterministic/no-network subprocess with launch,
+    /// project_state, render_payload, record_player_action, request_change,
+    /// create_checkpoint, inspect_checkpoint, draft_recovery capabilities; all four
+    /// experience surfaces declared. Slightly richer than playable-board for
+    /// experiences that need checkpoint inspection and recovery planning.
+    PlayableExperience,
 }
 
 #[derive(Debug, Parser)]

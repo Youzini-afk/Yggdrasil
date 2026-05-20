@@ -113,14 +113,19 @@
 
 目标：一个新创作者不读源码，只靠 docs/template/Forge，一天内做出可玩的 package。
 
-交付：
+已交付（核心 / 非 Web）：
 
-- 更好的 experience templates、fixture runner UX、reload flow polish。
-- Composition diagnostics 针对 experience package set、surface slots、replacement candidates、permissions、state/checkpoint capability。
-- Forge authoring workflow：package inventory、experience descriptor preview、fixture controls、diagnostics explainability。
-- Walkthrough：从 template 到 playable package。
+- `--template playable-board` 和 `--template playable-experience` 模板：deterministic/no-network playable package 骨架，最接近 `official/playable-creation-board` 形态。
+- 面向创作者的 `package check` 诊断：experience surface coverage、缺失 checkpoint/recovery capability 警告、危险 permissions 警告、non-deterministic path hint。
+- 面向创作者的 `package run-fixture` 诊断：capability 失败时提供针对性修复提示。
+- 面向创作者的 `package reload` 诊断：状态不可用或 degraded 时发出警告。
+- Experience package set 的 `composition check` 诊断：experience surface coverage、replacement candidates、checkpoint/recovery coverage、memory/observability hints。
+- Walkthrough §8：template-to-playable 路径。
+- 9 个新 conformance 用例（共 235 个）。
 
-验证：generated package checks、fixture/reload tests、Web TS、doc links。
+剩余（UI）：Forge authoring workflow panels。
+
+验证：generated package checks、fixture/reload tests、doc links、conformance。
 
 红线：不做 marketplace/monetization。
 

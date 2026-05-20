@@ -403,3 +403,214 @@ serveSubprocessPackage({{
 "#
     )
 }
+
+/// TypeScript subprocess template for a playable-board package.
+/// Demonstrates: deterministic/no-network playable board with launch,
+/// project_state, render_payload, record_player_action, request_change,
+/// create_checkpoint capabilities and 4 experience surfaces.
+/// No real model inference, no real network calls, no raw secrets.
+pub(crate) fn typescript_playable_board_template(id: &str) -> String {
+    format!(
+        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
+
+serveSubprocessPackage({{
+  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
+  onInvoke: ({{ capability_id, input }}) => {{
+    // Deterministic / no-network: no real model, no real network, no raw secrets.
+
+    if (capability_id === "{id}/launch") {{
+      return {{
+        kind: "playable_board_launched",
+        board_id: input.board_id ?? "board:default",
+        title: input.title ?? "Generated Playable Board",
+        lifecycle_state: "created",
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/project_state") {{
+      return {{
+        kind: "playable_board_state_projection",
+        board_id: input.board_id ?? "board:default",
+        state_snapshot: input.state_snapshot ?? {{}},
+        markers: input.markers ?? [],
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/render_payload") {{
+      return {{
+        kind: "playable_board_render_payload",
+        board_id: input.board_id ?? "board:default",
+        render_hint: "grid",
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/record_player_action") {{
+      const seq = input.sequence ?? 1;
+      return {{
+        kind: "playable_board_action_recorded",
+        board_id: input.board_id ?? "board:default",
+        action_kind: input.action_kind ?? "place_marker",
+        sequence: seq,
+        state_delta_asset_ref: "asset:state_delta:" + (input.board_id ?? "board:default") + ":" + seq,
+        projection_ref: "projection:" + (input.board_id ?? "board:default"),
+        provenance: {{ package_id: "{id}" }},
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/request_change") {{
+      return {{
+        kind: "playable_board_change_request",
+        board_id: input.board_id ?? "board:default",
+        objective: input.objective ?? "modify board",
+        allowed_change_kinds: ["add_module", "remove_module", "add_constraint", "add_marker"],
+        risk: "low",
+        budget: 1,
+        bindable_refs: {{ forge_panel: "{id}/forge-panel", assistant_action: "{id}/assistant-action" }},
+        requires_user_approval: true,
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/create_checkpoint") {{
+      return {{
+        kind: "playable_board_checkpoint",
+        board_id: input.board_id ?? "board:default",
+        checkpoint_id: "cp:" + Date.now(),
+        format: "snapshot",
+        sequence: input.sequence ?? 1,
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/echo") {{
+      return input ?? null;
+    }}
+    throw new Error(`unsupported capability: ${{capability_id}}`);
+  }},
+}});
+"#
+    )
+}
+
+/// TypeScript subprocess template for a playable-experience package.
+/// Demonstrates: deterministic/no-network playable experience with launch,
+/// project_state, render_payload, record_player_action, request_change,
+/// create_checkpoint, inspect_checkpoint, draft_recovery capabilities and
+/// 4 experience surfaces. Full checkpoint/recovery lifecycle.
+/// No real model inference, no real network calls, no raw secrets.
+pub(crate) fn typescript_playable_experience_template(id: &str) -> String {
+    format!(
+        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
+
+serveSubprocessPackage({{
+  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
+  onInvoke: ({{ capability_id, input }}) => {{
+    // Deterministic / no-network: no real model, no real network, no raw secrets.
+
+    if (capability_id === "{id}/launch") {{
+      return {{
+        kind: "playable_experience_launched",
+        experience_id: input.experience_id ?? "experience:default",
+        title: input.title ?? "Generated Playable Experience",
+        lifecycle_state: "created",
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/project_state") {{
+      return {{
+        kind: "playable_experience_state_projection",
+        experience_id: input.experience_id ?? "experience:default",
+        state_snapshot: input.state_snapshot ?? {{}},
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/render_payload") {{
+      return {{
+        kind: "playable_experience_render_payload",
+        experience_id: input.experience_id ?? "experience:default",
+        render_hint: "scene",
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/record_player_action") {{
+      const seq = input.sequence ?? 1;
+      return {{
+        kind: "playable_experience_action_recorded",
+        experience_id: input.experience_id ?? "experience:default",
+        action_kind: input.action_kind ?? "interact",
+        sequence: seq,
+        state_delta_asset_ref: "asset:state_delta:" + (input.experience_id ?? "experience:default") + ":" + seq,
+        projection_ref: "projection:" + (input.experience_id ?? "experience:default"),
+        provenance: {{ package_id: "{id}" }},
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/request_change") {{
+      return {{
+        kind: "playable_experience_change_request",
+        experience_id: input.experience_id ?? "experience:default",
+        objective: input.objective ?? "modify experience",
+        allowed_change_kinds: ["add_scene", "modify_rule", "add_event"],
+        risk: "low",
+        budget: 1,
+        bindable_refs: {{ forge_panel: "{id}/forge-panel", assistant_action: "{id}/assistant-action" }},
+        requires_user_approval: true,
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/create_checkpoint") {{
+      return {{
+        kind: "playable_experience_checkpoint",
+        experience_id: input.experience_id ?? "experience:default",
+        checkpoint_id: "cp:" + Date.now(),
+        format: "snapshot",
+        sequence: input.sequence ?? 1,
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/inspect_checkpoint") {{
+      return {{
+        kind: "playable_experience_checkpoint_inspection",
+        experience_id: input.experience_id ?? "experience:default",
+        checkpoint_id: input.checkpoint_id ?? "cp:0",
+        valid: true,
+        format: input.format ?? "snapshot",
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/draft_recovery") {{
+      const hasCheckpoint = !!input.last_checkpoint_ref;
+      return {{
+        kind: "playable_experience_recovery_plan",
+        experience_id: input.experience_id ?? "experience:default",
+        recommended_strategy: hasCheckpoint ? "restore_last_checkpoint" : "restart_session",
+        plan: {{
+          checkpoint_available: hasCheckpoint,
+          steps: hasCheckpoint
+            ? ["validate_checkpoint", "restore_state", "resume_from_checkpoint"]
+            : ["restart_session", "reinitialize_state"],
+        }},
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/echo") {{
+      return input ?? null;
+    }}
+    throw new Error(`unsupported capability: ${{capability_id}}`);
+  }},
+}});
+"#
+    )
+}

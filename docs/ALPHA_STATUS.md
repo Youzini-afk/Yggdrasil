@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4。
-- **Conformance：** 226 个具名 CLI 用例，加上 crate 和 service 单元测试。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 (核心)。
+- **Conformance：** 235 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Experience Beta 4 已完成；Yggdrasil 现在具备包拥有的长期记忆与知识实验室（`official/memory-lab`），提供 memory record / retrieval trace / proposal-gated update / correction / forget-redaction / branch-aware view / provenance——全部确定性、无网络、无推理、无 kernel memory。playable-creation-board 新增 `memory_refs` / `knowledge_refs` / `retrieve_context_plan` 可选交叉引用，board 不依赖 memory-lab 才能运行。第三方替换证明（`thirdparty/memory-lab` + composition）证明无 official 优先级。10 个新 conformance 用例。未引入 `kernel.memory.*`。下一阶段方向为 **Experience Beta 5**：Creator Loop。
+- **当前主线：** Experience Beta 5 核心已完成；Yggdrasil 现在具备 `playable-board` 和 `playable-experience` templates，让新创作者可以在几秒内生成 playable package 骨架——最接近 `official/playable-creation-board` 形态的第三方创作者模板。`package check` 输出面向创作者的诊断（experience surface coverage、缺失 checkpoint/recovery capability、危险 permissions、non-deterministic hint）。`package run-fixture` 在 capability 失败时提供针对性修复提示。`package reload` 在 degraded 状态时发出警告。`composition check` 提供 experience package set 诊断（surface coverage、replacement candidates、checkpoint/recovery coverage、memory/observability optional packages）。新增 walkthrough §8 展示 template-to-playable 路径。9 个新 conformance 用例。未引入 kernel creator/studio/experience 方法。无 official 包特权。
 
 ## 已实现
 

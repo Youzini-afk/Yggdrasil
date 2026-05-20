@@ -239,11 +239,23 @@ Delivered:
 
 Non-goals: `kernel.memory.*`, one official RAG, chat memory system.
 
-## Experience Beta 5 — Creator Loop Beta
+## Experience Beta 5 — Creator Loop Beta (core complete)
 
 Goal: let a new creator build a playable package in a day using docs, templates, and Forge, without reading source code.
 
-Deliverables: better experience templates, fixture runner UX, reload flow polish, composition diagnostics, authoring walkthrough based on a real package, package error explainability, and Forge authoring workflow.
+Delivered (core / non-Web):
+
+- `--template playable-board` — deterministic/no-network playable board subprocess package with launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/echo capabilities and 4 experience surfaces. Closest to `official/playable-creation-board` shape for third-party creators.
+- `--template playable-experience` — deterministic/no-network playable experience subprocess package with all `playable-board` capabilities plus `inspect_checkpoint`/`draft_recovery` for the full save/inspect/recover lifecycle. 4 experience surfaces, 9 capabilities.
+- Creator-facing `package check` diagnostics: experience surface coverage (warns when `experience_entry` present but `play_renderer`/`forge_panel`/`assistant_action` missing), checkpoint/recovery capability coverage, dangerous permissions (wildcard invoke, empty network methods), non-deterministic path hint (network access requested).
+- Creator-facing `package run-fixture` diagnostics: error-specific fix hints when capabilities fail (e.g., "check that the capability id in the surface's capability_id field matches a provided capability").
+- Creator-facing `package reload` diagnostics: warns when package status unavailable or degraded after restart.
+- Experience package set `composition check` diagnostics: experience surface coverage summary, replacement candidates status and replacement hints for multi-provider slots, checkpoint/recovery capability coverage, memory/observability optional package hints.
+- Walkthrough §8: template-to-playable path documented in `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md` / `.en.md` using the `playable-board` template.
+- 9 new conformance cases (235 total).
+- No kernel creator/studio/experience methods. No official package privilege. No marketplace/monetization. No default network/model.
+
+Remaining (UI / designer): Forge authoring workflow panels in `clients/web`.
 
 Non-goals: marketplace, creator monetization.
 

@@ -112,18 +112,23 @@ Validation: memory conformance, raw-secret blocking, branch-aware view, proposal
 
 Red lines: no `kernel.memory.*`, no one official RAG, no chat memory system.
 
-## Experience Beta 5 — Creator Loop Beta
+## Experience Beta 5 — Creator Loop Beta (core complete)
 
 Goal: let a new creator build a playable package in a day using docs, templates, and Forge, without reading source code.
 
-Deliverables:
+Delivered (core / non-Web):
 
-- Better experience templates, fixture runner UX, reload flow polish.
-- Composition diagnostics for experience package sets, surface slots, replacement candidates, permissions, and state/checkpoint capabilities.
-- Forge authoring workflow: package inventory, experience descriptor preview, fixture controls, diagnostics explainability.
-- Walkthrough: template to playable package.
+- `--template playable-board` and `--template playable-experience` templates: deterministic/no-network playable package skeletons closest to the `official/playable-creation-board` shape.
+- Creator-facing `package check` diagnostics: experience surface coverage, missing checkpoint/recovery capability warnings, dangerous permissions warnings, non-deterministic path hints.
+- Creator-facing `package run-fixture` diagnostics: error-specific fix hints.
+- Creator-facing `package reload` diagnostics: warnings for unavailable or degraded status.
+- Experience package set `composition check` diagnostics: experience surface coverage, replacement candidates, checkpoint/recovery coverage, memory/observability hints.
+- Walkthrough §8: template-to-playable path in `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md` / `.en.md`.
+- 9 new conformance cases (235 total).
 
-Validation: generated package checks, fixture/reload tests, Web TS, doc links.
+Remaining (UI): Forge authoring workflow panels.
+
+Validation: generated package checks, fixture/reload tests, doc links, conformance.
 
 Red lines: no marketplace/monetization.
 

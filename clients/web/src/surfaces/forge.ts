@@ -3,6 +3,7 @@ import { escapeHtml, formatJson } from "../utils/html";
 import { extractEventPreview, extractProposalPreview, kindBadgeLabel } from "../text-layout/text-preview.js";
 import { buildAgentObservability, buildForgeAgentWorkspace, renderAgentObservabilitySection, renderForgeAgentWorkspaceSections } from "../agent/observability.js";
 import { buildExperienceObservability, renderExperienceObservabilitySection } from "../agent/experience-observability.js";
+import { buildCreatorLoopModel, renderCreatorLoopSection } from "../agent/creator-loop.js";
 
 export function renderForgeSurface(input: {
   capabilities: RegisteredCapability[];
@@ -74,6 +75,8 @@ export function renderForgeSurface(input: {
         ${renderForgeAgentWorkspaceSections(buildForgeAgentWorkspace(events, proposals, capabilities, packages, assets, projections))}
 
         ${renderExperienceObservabilitySection(buildExperienceObservability(events, proposals, packages, capabilities, allSurfaces, assets, sessionId))}
+
+        ${renderCreatorLoopSection(buildCreatorLoopModel(packages, capabilities, allSurfaces, events, proposals, assets, projections, sessionId))}
 
         <div class="forge-section event-tail-section">
           <h2>Events</h2>

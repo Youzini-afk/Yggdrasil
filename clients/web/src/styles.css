@@ -285,3 +285,106 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .verdict-block { border-left: 3px solid #ff7a90; }
 .verdict-warn { border-left: 3px solid #ffe8a0; }
 .verdict-pass { border-left: 3px solid #a0ffd0; }
+
+/* Experience Beta 5 — Creator Loop panels */
+.creator-loop-section { margin-top: 1.25rem; padding: 1rem; border: 1px solid rgba(201, 168, 255, 0.25); border-radius: 1.2rem; background: rgba(7,8,18,0.5); }
+.cloop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0.8rem; }
+.cloop-panel { border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; background: rgba(255,255,255,0.04); }
+.cloop-panel-wide { grid-column: 1 / -1; }
+.cloop-panel-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0.9rem; cursor: pointer; color: #c9c2e8; font-size: 0.88rem; user-select: none; }
+.cloop-panel-header::-webkit-details-marker { color: #a79fc8; }
+.cloop-panel-header:hover { background: rgba(255,255,255,0.04); border-radius: 1rem 1rem 0 0; }
+.cloop-panel-body { padding: 0.5rem 0.9rem 0.9rem; }
+.cloop-readiness-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-family: var(--font-text-surface-mono); }
+.cloop-readiness-badge.severity-ok { background: rgba(100,255,180,0.15); color: #a0ffd0; }
+.cloop-readiness-badge.severity-info { background: rgba(42,167,255,0.15); color: #9fe8ff; }
+.cloop-readiness-badge.severity-warn { background: rgba(255,220,100,0.15); color: #ffe8a0; }
+.cloop-readiness-badge.severity-error { background: rgba(255,100,100,0.15); color: #ffb0b0; }
+.cloop-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.5rem; margin-bottom: 0.6rem; }
+.cloop-metric { padding: 0.5rem; border-radius: 0.7rem; background: rgba(255,255,255,0.04); text-align: center; }
+.cloop-metric strong { display: block; font-size: 1.1rem; color: #f6f3ff; }
+.cloop-metric .run-status-dot { display: inline-block; margin-bottom: 0.2rem; }
+.cloop-missing-section { margin: 0.5rem 0; }
+.cloop-issue-list { display: grid; gap: 0.3rem; margin: 0.3rem 0; }
+.cloop-recommendations { margin-top: 0.5rem; }
+.cloop-rec-list { margin: 0.3rem 0; padding-left: 1.2rem; }
+.cloop-rec-list li { margin-bottom: 0.2rem; }
+
+/* Walkthrough */
+.cloop-walkthrough { margin-bottom: 1rem; }
+.cloop-step-list { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.cloop-step-entry { padding: 0.6rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.cloop-step-entry.status-complete { border-color: rgba(100,255,180,0.2); background: rgba(100,255,180,0.04); }
+.cloop-step-entry.status-in_progress { border-color: rgba(42,167,255,0.2); background: rgba(42,167,255,0.04); }
+.cloop-step-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; }
+.cloop-step-number { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: rgba(124,92,255,0.2); color: #c9a8ff; font-size: 0.72rem; font-family: var(--font-text-surface-mono); font-weight: 600; }
+.cloop-step-icon { font-size: 0.8rem; }
+.cloop-step-icon.severity-ok { color: #a0ffd0; }
+.cloop-step-icon.severity-info { color: #9fe8ff; }
+.cloop-step-icon.severity-warn { color: #ffe8a0; }
+.cloop-step-title { font-size: 0.82rem; }
+.cloop-step-badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 999px; font-size: 0.68rem; font-family: var(--font-text-surface-mono); }
+.cloop-step-badge.severity-ok { background: rgba(100,255,180,0.15); color: #a0ffd0; }
+.cloop-step-badge.severity-info { background: rgba(42,167,255,0.15); color: #9fe8ff; }
+.cloop-step-badge.severity-warn { background: rgba(255,220,100,0.15); color: #ffe8a0; }
+.cloop-step-desc { margin: 0; font-size: 0.75rem; color: #a79fc8; line-height: 1.4; }
+.cloop-step-command { margin-top: 0.3rem; }
+.cloop-step-command code { display: inline-block; padding: 0.3rem 0.5rem; border-radius: 0.5rem; background: rgba(0,0,0,0.25); color: #9fe8ff; font-size: 0.7rem; white-space: pre-wrap; word-break: break-word; max-width: 100%; }
+
+/* Template recommendations */
+.cloop-template-section { margin-top: 0.8rem; }
+.cloop-template-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.6rem; }
+.cloop-template-card { padding: 0.6rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(124,92,255,0.15); }
+.cloop-template-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; }
+.cloop-template-desc { margin: 0 0 0.3rem; font-size: 0.75rem; color: #a79fc8; line-height: 1.4; }
+.cloop-template-commands { display: grid; gap: 0.25rem; margin-top: 0.3rem; }
+.cloop-template-commands code { display: block; padding: 0.3rem 0.5rem; border-radius: 0.4rem; background: rgba(0,0,0,0.2); color: #9fe8ff; font-size: 0.68rem; white-space: pre-wrap; word-break: break-word; }
+
+/* Package diagnostics */
+.cloop-diagnostics-list { display: grid; gap: 0.5rem; margin-bottom: 0.5rem; }
+.cloop-diag-entry { padding: 0.7rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.cloop-diag-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem; }
+.cloop-diag-summary { margin: 0 0 0.4rem; font-size: 0.75rem; color: #c9c2e8; line-height: 1.4; }
+.cloop-diag-section { margin-top: 0.3rem; }
+.cloop-strength-list { display: grid; gap: 0.2rem; margin-top: 0.2rem; }
+
+/* Checklist items (shared between panels) */
+.cloop-checklist-item { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 0.35rem 0.5rem; border-radius: 0.5rem; font-size: 0.75rem; }
+.cloop-checklist-item.severity-ok { background: rgba(100,255,180,0.08); }
+.cloop-checklist-item.severity-warn { background: rgba(255,220,100,0.08); }
+.cloop-checklist-item.severity-error { background: rgba(255,100,100,0.08); }
+.cloop-checklist-item.severity-info { background: rgba(42,167,255,0.08); }
+.cloop-checklist-icon { font-size: 0.8rem; flex-shrink: 0; }
+.cloop-checklist-item.severity-ok .cloop-checklist-icon { color: #a0ffd0; }
+.cloop-checklist-item.severity-warn .cloop-checklist-icon { color: #ffe8a0; }
+.cloop-checklist-item.severity-error .cloop-checklist-icon { color: #ffb0b0; }
+.cloop-checklist-item.severity-info .cloop-checklist-icon { color: #9fe8ff; }
+.cloop-checklist-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; width: 100%; }
+.cloop-checklist-detail { margin: 0.15rem 0 0; width: 100%; font-size: 0.72rem; color: #a79fc8; }
+.cloop-checklist-action { margin: 0.15rem 0 0; width: 100%; font-size: 0.72rem; color: #ffe8a0; }
+
+/* Checklist categories */
+.cloop-checklist-categories { display: grid; gap: 0.8rem; }
+.cloop-checklist-category { }
+.cloop-checklist-items { display: grid; gap: 0.3rem; margin-top: 0.3rem; }
+
+/* Composition readiness */
+.cloop-composition-list { display: grid; gap: 0.5rem; margin-bottom: 0.5rem; }
+.cloop-composition-entry { padding: 0.7rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.cloop-composition-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem; }
+.cloop-composition-detail { display: grid; gap: 0.3rem; }
+.cloop-composition-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; font-size: 0.75rem; }
+.cloop-composition-result { margin-top: 0.2rem; padding: 0.35rem 0.5rem; border-radius: 0.5rem; background: rgba(0,0,0,0.15); }
+.cloop-composition-result code { font-size: 0.72rem; color: #e8e4f3; word-break: break-word; }
+
+/* Fixture controls */
+.cloop-fixture-section { }
+.cloop-fixture-list { display: grid; gap: 0.5rem; margin-top: 0.3rem; }
+.cloop-fixture-entry { padding: 0.7rem; border-radius: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+.cloop-fixture-entry.cloop-disabled-safe { opacity: 0.65; }
+.cloop-fixture-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; }
+.cloop-fixture-icon { font-size: 0.85rem; color: #7c5cff; }
+.cloop-fixture-desc { margin: 0 0 0.2rem; font-size: 0.75rem; color: #a79fc8; }
+.cloop-fixture-reason { margin: 0.15rem 0 0.3rem; font-size: 0.72rem; color: #a79fc8; font-style: italic; }
+.cloop-fixture-action { margin-top: 0.3rem; }
+.cloop-fixture-action button { padding: 0.35rem 0.65rem; font-size: 0.72rem; }

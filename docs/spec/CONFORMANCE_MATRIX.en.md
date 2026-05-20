@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 180 implemented rows, backed by 226 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 190 implemented rows, backed by 235 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -197,6 +197,15 @@ Current matrix coverage: 180 implemented rows, backed by 226 named CLI conforman
 | official packages | memory-lab branch_memory_view filters memory records by branch | implemented |
 | official packages | memory-lab no output contains kernel.memory.* / kernel.experience.* namespace | implemented |
 | official packages | memory-lab raw secret blocked in all capability inputs | implemented |
+| creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
+| creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
+| creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
+| creator loop | missing create_checkpoint capability warns for experience packages | implemented |
+| creator loop | dangerous permissions (wildcard invoke, empty network methods) produce creator warnings | implemented |
+| creator loop | network access triggers non-deterministic hint in package diagnostics | implemented |
+| creator loop | composition check provides experience surface coverage, replacement hints, checkpoint/recovery coverage, memory/observability hints | implemented |
+| creator loop | playable-creation-board package check output is verifiable with expected diagnostic fields | implemented |
+| creator loop | third-party playable-seed replaces official playable-seed without privilege | implemented |
 
 ## Required hostile conformance for Platform Host Alpha
 
@@ -443,6 +452,15 @@ memory_lab.forget_redaction_plan PASS
 memory_lab.branch_view PASS
 memory_lab.no_forbidden_namespace PASS
 memory_lab.no_raw_secrets PASS
+creator_loop.playable_board_template PASS
+creator_loop.playable_experience_template PASS
+creator_loop.experience_surface_warnings PASS
+creator_loop.missing_checkpoint_warning PASS
+creator_loop.dangerous_permissions_warning PASS
+creator_loop.network_nondeterministic_hint PASS
+creator_loop.composition_experience_diagnostics PASS
+creator_loop.walkthrough_reference PASS
+creator_loop.thirdparty_no_privilege PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

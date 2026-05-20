@@ -367,3 +367,78 @@ The Forge surface now includes an "Experience Observability (Beta 3)" section re
 - `.exp-obs-causal-chain` / `.exp-obs-chain-entry` / `.exp-obs-chain-header` / `.exp-obs-chain-links` / `.exp-obs-chain-link` — causal chain layout
 - `.exp-obs-guardrail-entries` — guardrail log container
 - `.verdict-block` / `.verdict-warn` / `.verdict-pass` — guardrail verdict border accents
+
+## Experience Beta 5 — Forge Creator Loop UI
+
+Phase Beta 5 adds a set of public-protocol-only creator loop panels to the Forge surface. These panels scaffold the authoring workflow: creator readiness assessment, template-to-playable guidance, package diagnostics explainability, composition readiness verification, fixture/reload controls with payload previews, and a replacement & permission checklist — all derived without runtime internals, privileged Studio, marketplace/monetization UI, or SQLite access.
+
+### Creator loop view model (`src/agent/creator-loop.ts`)
+
+New view model types:
+
+- `CreatorLoopModel` — top-level view model containing all sub-panels
+- `CreatorReadiness` — overall readiness state (ready/almost_ready/needs_work/unknown) with package/capability/surface/experience counts, missing pieces, and recommendations
+- `TemplateRecommendation` — template card with label, description, template type, suggested-for context, CLI commands, and prerequisites
+- `PackageDiagnosticCard` — per-package diagnostics showing state, entry kind, issues (error/warn/info with codes), strengths, and a human-readable summary
+- `DiagnosticIssue` — individual issue with severity, message, and optional diagnostic code
+- `CompositionReadiness` — composition state (valid/incomplete/invalid/unknown), package list, missing packages, surface slots, uncovered slots, and check result text
+- `FixtureControl` — fixture/reload control with action type (check/conformance/run-fixture/reload), disabled state, disabled reason, and public-protocol payload preview
+- `ReplacementChecklistItem` — checklist item with category, label, status (ok/warn/error/info), detail, and optional action-needed guidance
+- `WalkthroughStep` — walkthrough step with order, title, description, status (complete/in_progress/pending/skipped), optional action, and optional CLI command
+
+Functions:
+
+- `buildCreatorLoopModel(packages, capabilities, allSurfaces, events, proposals, assets, projections, sessionId?)` → `CreatorLoopModel`
+- `renderCreatorLoopSection(model)` → HTML string for the Forge surface
+
+### Forge surface (Beta 5 additions)
+
+The Forge surface now includes a "Creator Loop (Beta 5)" section rendered after Experience Observability (Beta 3) and before Events. It contains:
+
+1. **Creator Readiness** — Overall readiness indicator with package/capability/surface/experience entry counts, session status dot, missing pieces list, and recommendations. Shows green "ready" when all pieces are present and a session is active; amber/red states guide the creator toward what's missing.
+
+2. **Template to Playable** — An 8-step walkthrough from "Initialize Package" through "Launch Experience," with each step's status (complete/in_progress/pending) detected from current workspace state. Includes a "Recommended Templates" section that suggests template types not yet present (e.g., suggests "Experience Package" when no `experience_entry` surface is detected, "Forge Panel" when no `forge_panel` slot is covered). Each recommendation shows description, CLI commands, and prerequisites.
+
+3. **Package Diagnostics Explainability** — Per-package cards that explain why each package is in its current state. Diagnostics include state-based errors (loaded/activated/error), missing capabilities, missing surfaces, high-risk permission warnings, and entry-kind concerns. Strengths are listed alongside issues for balanced assessment. Each card has a human-readable summary.
+
+4. **Composition Readiness** — Evaluates the structural completeness of the loaded workspace as a "composition." Checks for required surface slots (`experience_entry`), missing package references, uncovered recommended slots (`forge_panel`, `assistant_action`), and overall validity. Shows per-composition status badge and detailed slot/package breakdown.
+
+5. **Fixture / Reload Controls** — Per-package control affordances for check, conformance, run-fixture, and reload actions. Each control shows a public-protocol payload preview (expected method, params, and response shape) — no actual runtime invocation. Disabled-safe stubs are provided when no packages are loaded, with explanatory reasons. Controls document what a third-party fixture/lab package would consume.
+
+6. **Replacement & Permission Checklist** — Comprehensive checklist organized by category: Package Health, Surface Coverage, Permissions, Session & Events, and Assets & Projections. Each item shows status, detail, and actionable guidance. Covers package health (errors, missing capabilities, missing surfaces), surface coverage (experience entries, forge panels, assistant actions), permissions (high-risk review, approval policies), session state (events flowing, proposal tracking), and asset/projection coverage.
+
+### Key design decisions (Beta 5)
+
+- **No chat-first UI**: Panels show creator loop data (readiness, walkthrough, diagnostics, composition, fixtures, checklist) — not chat history, assistant messages, or prompt boxes.
+
+- **Public protocol only**: All data is heuristically extracted from public protocol packages, capabilities, surfaces, events, proposals, assets, and projections. No kernel internals, no model/network calls, no direct SQLite access, no runtime private modules.
+
+- **No marketplace/monetization UI**: No pricing, licensing, publishing, storefront, or distribution panels. The checklist explicitly focuses on technical readiness, not commercial readiness.
+
+- **No privileged Studio**: All panels work with the same public protocol data available to any third-party package. No special access to runtime internals.
+
+- **Example package IDs as public descriptor samples**: Template recommendations use example ids (`example/my-package`, `example/my-experience`) — never hardcoded official package ids or privileges.
+
+- **Disabled-safe affordances with protocol documentation**: Fixture controls and checklist items carry public-protocol payload previews and explanatory reasons. When no target package is loaded, disabled stubs show the expected protocol shape.
+
+- **Third-party replaceable walkthrough**: The walkthrough steps are derived from current workspace state — any package that contributes the right surfaces and capabilities drives the step completion detection. No official package hardcoding.
+
+- **No chat interface**: The creator loop is a diagnostic and guidance surface, not a conversational assistant. The existing Assistant Drawer remains as a lightweight entry point for quick actions.
+
+### CSS additions (Beta 5)
+
+- `.creator-loop-section` — section with purple-tinted border and dark background
+- `.cloop-grid` / `.cloop-panel` / `.cloop-panel-wide` / `.cloop-panel-header` / `.cloop-panel-body` — collapsible panel layout
+- `.cloop-readiness-badge` — readiness indicator badge with severity color classes
+- `.cloop-metrics` / `.cloop-metric` — metric grid with centered values
+- `.cloop-missing-section` / `.cloop-issue-list` — missing pieces section
+- `.cloop-recommendations` / `.cloop-rec-list` — recommendations list
+- `.cloop-walkthrough` / `.cloop-step-list` / `.cloop-step-entry` / `.cloop-step-header` / `.cloop-step-number` / `.cloop-step-icon` / `.cloop-step-title` / `.cloop-step-badge` / `.cloop-step-desc` / `.cloop-step-command` — walkthrough step layout with status variants
+- `.cloop-template-section` / `.cloop-template-grid` / `.cloop-template-card` / `.cloop-template-header` / `.cloop-template-desc` / `.cloop-template-commands` — template recommendation cards
+- `.cloop-diagnostics-list` / `.cloop-diag-entry` / `.cloop-diag-header` / `.cloop-diag-summary` / `.cloop-diag-section` / `.cloop-strength-list` — package diagnostic entry layout
+- `.cloop-checklist-item` / `.cloop-checklist-header` / `.cloop-checklist-icon` / `.cloop-checklist-detail` / `.cloop-checklist-action` — shared checklist item with severity colors
+- `.cloop-checklist-categories` / `.cloop-checklist-category` / `.cloop-checklist-items` — checklist category grouping
+- `.cloop-composition-list` / `.cloop-composition-entry` / `.cloop-composition-header` / `.cloop-composition-detail` / `.cloop-composition-meta` / `.cloop-composition-result` — composition readiness layout
+- `.cloop-fixture-section` / `.cloop-fixture-list` / `.cloop-fixture-entry` / `.cloop-fixture-header` / `.cloop-fixture-icon` / `.cloop-fixture-desc` / `.cloop-fixture-reason` / `.cloop-fixture-action` — fixture control layout with disabled-safe variant
+- `.cloop-disabled-safe` — faded opacity for disabled fixture controls
+- Status modifier classes: `.status-complete`, `.status-in_progress` on step entries for border/background tinting

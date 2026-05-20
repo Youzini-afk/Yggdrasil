@@ -207,6 +207,97 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         println!("  WARNING: {warning}");
     }
 
+    // --- Experience package set diagnostics (Beta 5) ---
+
+    // Entry surface check
+    let entry_surface_slot = surface_ids.iter()
+        .zip(slots.iter())
+        .find(|(id, _)| id.as_str() == composition.entry_surface_id)
+        .map(|(_, slot)| slot.as_str());
+    if let Some(slot) = entry_surface_slot {
+        println!("  entry surface slot: {slot}");
+    } else if !composition.entry_surface_id.is_empty() {
+        println!("  entry surface slot: (not found among loaded packages)");
+    }
+
+    // Surface slot coverage summary
+    let required_experience_slots = ["experience_entry", "play_renderer", "forge_panel", "assistant_action"];
+    println!("  experience surface coverage:");
+    for slot in &required_experience_slots {
+        let count = slots.iter().filter(|s| s.as_str() == *slot).count();
+        let status = if count > 0 { "covered" } else { "missing" };
+        println!("    {slot}: {status} ({count} package(s))");
+    }
+
+    // Replacement candidates diagnostics
+    if !composition.replacement_candidates.is_empty() {
+        println!("  replacement candidates:");
+        for cand in &composition.replacement_candidates {
+            // Check if any loaded package could serve as replacement
+            let is_loaded = capability_ids.iter().any(|cap| cap.starts_with(cand));
+            let status = if is_loaded { "available" } else { "not loaded" };
+            println!("    - {cand} ({status})");
+        }
+    } else {
+        // No explicit replacement candidates declared
+        // Check if multiple packages provide the same slot
+        let mut slot_providers: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
+        for (slot, surface_id) in slots.iter().zip(surface_ids.iter()) {
+            // Extract package id from surface id (prefix before last /)
+            let pkg_id = surface_id.rfind('/').map(|i| &surface_id[..i]).unwrap_or(surface_id);
+            slot_providers.entry(slot).or_default().push(pkg_id);
+        }
+        let multi_slots: Vec<(&str, usize)> = slot_providers.iter()
+            .filter(|(_, pkgs)| pkgs.len() > 1)
+            .map(|(slot, pkgs)| (*slot, pkgs.len()))
+            .collect();
+        if !multi_slots.is_empty() {
+            println!("  replacement hint: multiple packages provide the same surface slot(s):");
+            for (slot, count) in &multi_slots {
+                println!("    - {slot}: {count} provider(s) — consider declaring replacement_candidates for explicit selection");
+            }
+        }
+    }
+
+    // Permission expectations diagnostics
+    if !composition.permission_expectations.is_empty() {
+        println!("  permission expectations:");
+        for perm in &composition.permission_expectations {
+            println!("    - {perm}");
+        }
+    }
+
+    // Checkpoint/state capability coverage
+    let checkpoint_count = capability_ids.iter()
+        .filter(|cap| cap.contains("/create_checkpoint") || cap.contains("/create-checkpoint"))
+        .count();
+    let recovery_count = capability_ids.iter()
+        .filter(|cap| cap.contains("/draft_recovery") || cap.contains("/draft-recovery"))
+        .count();
+    let has_experience_entry_slot = slots.iter().any(|s| s.as_str() == "experience_entry");
+    if has_experience_entry_slot {
+        println!("  state capability coverage:");
+        let cp_status = if checkpoint_count == 0 { "missing".to_string() } else { format!("{} provider(s)", checkpoint_count) };
+        let rec_status = if recovery_count == 0 { "missing".to_string() } else { format!("{} provider(s)", recovery_count) };
+        println!("    create_checkpoint: {}", cp_status);
+        println!("    draft_recovery: {}", rec_status);
+        if checkpoint_count == 0 {
+            println!("    hint: add a checkpoint capability for session save/restore support");
+        }
+        if recovery_count == 0 {
+            println!("    hint: add a draft_recovery capability for failure recovery support");
+        }
+    }
+
+    // Memory/observability optional packages hint
+    let has_memory = capability_ids.iter().any(|cap| cap.contains("/record_memory") || cap.contains("/record-memory") || cap.contains("/retrieve_memory") || cap.contains("/retrieve-memory"));
+    let has_observability = capability_ids.iter().any(|cap| cap.contains("/summarize_session_health") || cap.contains("/summarize-session-health") || cap.contains("/summarize_experience_health") || cap.contains("/summarize-experience-health"));
+    if has_experience_entry_slot {
+        println!("  optional package coverage:");
+        println!("    memory: {}", if has_memory { "present" } else { "not present — consider adding memory-lab for long-term memory" });
+        println!("    observability: {}", if has_observability { "present" } else { "not present — consider adding experience-observability-lab for health/diagnostics" });
+    }
+
     println!("composition check: {}@{} ok", composition.id, composition.version);
     Ok(())
 }

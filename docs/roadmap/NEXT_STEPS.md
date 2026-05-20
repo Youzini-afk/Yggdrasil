@@ -241,7 +241,17 @@ Phase J 非目标：
 
 目标：一个新创作者不读源码，只靠 docs、template、Forge，一天内做出可玩的 package。
 
-交付方向：better experience templates、fixture runner UX、reload flow polish、composition diagnostics、基于真实 package 的 authoring walkthrough、package error explainability、Forge authoring workflow。
+已交付（核心 / 非 Web）：
+
+- `--template playable-board` 和 `--template playable-experience` 模板：deterministic/no-network playable package 骨架，最接近 `official/playable-creation-board` 形态。
+- 面向创作者的 `package check` 诊断：experience surface coverage、缺失 checkpoint/recovery capability 警告、危险 permissions 警告、non-deterministic path hint。
+- 面向创作者的 `package run-fixture` 诊断：capability 失败时提供针对性修复提示。
+- 面向创作者的 `package reload` 诊断：状态不可用或 degraded 时发出警告。
+- Experience package set 的 `composition check` 诊断：experience surface coverage、replacement candidates、checkpoint/recovery coverage、memory/observability hints。
+- Walkthrough §8：template-to-playable 路径，记录在 `docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md` / `.en.md`。
+- 9 个新 conformance 用例（共 235 个）。
+
+剩余（UI）：Forge authoring workflow panels。
 
 非目标：marketplace、creator monetization。
 

@@ -88,6 +88,67 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         warnings.push("package requests network access — ensure allowlist is minimal".to_string());
     }
 
+    // --- Creator-facing diagnostics (Beta 5) ---
+
+    // Experience surface coverage: check for common surface slots
+    let has_experience_entry = surfaces_by_slot.contains_key("experience_entry");
+    let has_play_renderer = surfaces_by_slot.contains_key("play_renderer");
+    let has_forge_panel = surfaces_by_slot.contains_key("forge_panel");
+    let has_assistant_action = surfaces_by_slot.contains_key("assistant_action");
+
+    if has_experience_entry && !has_play_renderer {
+        warnings.push("experience_entry surface present but no play_renderer — playable experiences usually need both".to_string());
+    }
+    if has_experience_entry && !has_forge_panel {
+        warnings.push("experience_entry surface present but no forge_panel — creators cannot inspect state through Forge".to_string());
+    }
+    if has_experience_entry && !has_assistant_action {
+        warnings.push("experience_entry surface present but no assistant_action — no way to request changes via assistant".to_string());
+    }
+
+    // Checkpoint/recovery capability coverage for experience packages
+    let cap_ids: Vec<&str> = manifest.provides.iter().map(|c| c.id.as_str()).collect();
+    if has_experience_entry {
+        let has_launch = cap_ids.iter().any(|c| c.contains("/launch") || c.contains("/describe_contract") || c.contains("/describe-contract"));
+        if !has_launch {
+            warnings.push("experience_entry surface has no launch/describe_contract capability — surface activation may fail".to_string());
+        }
+        let has_checkpoint = cap_ids.iter().any(|c| c.contains("/create_checkpoint") || c.contains("/create-checkpoint"));
+        let has_recovery = cap_ids.iter().any(|c| c.contains("/draft_recovery") || c.contains("/draft-recovery"));
+        if !has_checkpoint {
+            warnings.push("missing create_checkpoint capability — experience cannot be saved/restored mid-session".to_string());
+        }
+        if !has_recovery {
+            warnings.push("missing draft_recovery capability — experience cannot recover from failures".to_string());
+        }
+        let has_request_change = cap_ids.iter().any(|c| c.contains("/request_change") || c.contains("/request-change") || c.contains("/draft-recovery") || c.contains("/draft_recovery"));
+        if has_assistant_action && !has_request_change {
+            warnings.push("assistant_action surface present but no request_change/draft_recovery capability — assistant cannot propose changes".to_string());
+        }
+    }
+
+    // Dangerous permissions check
+    if !perm.network.declarations.is_empty() {
+        let has_wildcard = perm.network.declarations.iter().any(|d| d.methods.is_empty());
+        if has_wildcard {
+            warnings.push("network declaration with empty methods list allows any HTTP method — consider restricting".to_string());
+        }
+    }
+    if perm.capabilities.invoke.iter().any(|p| p == "*") {
+        warnings.push("capabilities.invoke: [\"*\"] grants access to all capabilities — consider narrowing".to_string());
+    }
+
+    // Deterministic path check: network or secret refs make package non-deterministic
+    let has_network = !perm.network.declarations.is_empty() || !perm.network.hosts.is_empty();
+    if has_network {
+        warnings.push("package requests network access — not deterministic by default; consider providing a no-network path".to_string());
+    }
+
+    // Replacement metadata hint
+    if has_experience_entry && manifest.contributes.extension_points.is_empty() {
+        // This is informational, not a warning
+    }
+
     println!("package check: {}@{} ok", manifest.id, manifest.version);
     println!("  entry_kind:   {}", entry_kind);
     println!("  trust_level:  {}", trust_level);
@@ -191,6 +252,30 @@ pub(crate) async fn package_run_fixture(path: PathBuf) -> Result<()> {
         "failed": failed,
     });
     println!("{}", serde_json::to_string_pretty(&summary)?);
+
+    // Creator-facing fixture diagnostics (Beta 5)
+    if failed > 0 {
+        println!("\n  creator diagnostics:");
+        for result in &capability_results {
+            if result["status"] == "error" {
+                let cap_id = result["capability_id"].as_str().unwrap_or("unknown");
+                let error_msg = result["error"].as_str().unwrap_or("unknown error");
+                println!("    - {}: {}", cap_id, error_msg);
+                // Provide common fix hints
+                if error_msg.contains("not found") || error_msg.contains("no provider") {
+                    println!("      hint: check that the capability id in the surface's capability_id field matches a provided capability");
+                }
+                if error_msg.contains("timeout") {
+                    println!("      hint: the capability may be waiting for external I/O; consider a deterministic/no-network path for fixture testing");
+                }
+            }
+        }
+    }
+    if passed == 0 && failed == 0 {
+        println!("\n  creator diagnostics: no capabilities were tested (streaming capabilities are skipped in fixtures)");
+        println!("    hint: add at least one non-streaming capability to run fixture checks");
+    }
+
     Ok(())
 }
 
@@ -262,6 +347,7 @@ pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
 
     if !can_restart {
         println!("restart: skipped (entry kind '{}' does not support restart)", entry_kind);
+        println!("  hint: only subprocess packages support restart; rust_inproc/wasm/remote require re-load");
         runtime.unload_package(&package_id).await?;
         return Ok(());
     }
@@ -274,9 +360,19 @@ pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
     let logs_after = runtime.package_logs(&package_id).await;
 
     println!("restart: {}@{} ({:?})", restart_record.id, restart_record.version, restart_record.state);
-    println!("status before: {:?}", before.map(|r| r.state));
-    println!("status after:  {:?}", after.map(|r| r.state));
+    println!("status before: {:?}", before.as_ref().map(|r| &r.state));
+    println!("status after:  {:?}", after.as_ref().map(|r| &r.state));
     println!("logs after restart: {}", logs_after.len());
+
+    // Creator-facing reload diagnostics (Beta 5)
+    if after.is_none() {
+        println!("  WARNING: package status unavailable after restart — package may be degraded");
+    }
+    if let Some(record) = after.as_ref() {
+        if let ygg_runtime::PackageState::Degraded = &record.state {
+            println!("  WARNING: package is in degraded state after restart — check subprocess logs for errors");
+        }
+    }
 
     // Unload
     runtime.unload_package(&package_id).await?;
@@ -302,6 +398,8 @@ enum EffectiveTemplate {
     Streaming,
     AgentRuntime,
     ExperienceRuntime,
+    PlayableBoard,
+    PlayableExperience,
 }
 
 impl std::fmt::Debug for EffectiveTemplate {
@@ -319,6 +417,8 @@ impl std::fmt::Debug for EffectiveTemplate {
             EffectiveTemplate::Streaming => write!(f, "Streaming"),
             EffectiveTemplate::AgentRuntime => write!(f, "AgentRuntime"),
             EffectiveTemplate::ExperienceRuntime => write!(f, "ExperienceRuntime"),
+            EffectiveTemplate::PlayableBoard => write!(f, "PlayableBoard"),
+            EffectiveTemplate::PlayableExperience => write!(f, "PlayableExperience"),
         }
     }
 }
@@ -339,6 +439,8 @@ fn resolve_template(template: &Option<PackageTemplate>, language: &str) -> Effec
         Some(PackageTemplate::Streaming) => EffectiveTemplate::Streaming,
         Some(PackageTemplate::AgentRuntime) => EffectiveTemplate::AgentRuntime,
         Some(PackageTemplate::ExperienceRuntime) => EffectiveTemplate::ExperienceRuntime,
+        Some(PackageTemplate::PlayableBoard) => EffectiveTemplate::PlayableBoard,
+        Some(PackageTemplate::PlayableExperience) => EffectiveTemplate::PlayableExperience,
         None => {
             if language.contains("experience") {
                 EffectiveTemplate::LegacyExperience
@@ -536,6 +638,74 @@ fn build_surfaces_yaml(template: &EffectiveTemplate, id: &str) -> String {
       approval_policy: fork_then_approve
 "#
         ),
+        EffectiveTemplate::PlayableBoard => format!(
+            r#"  surfaces:
+    - id: {id}/entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Playable Board Entry
+      description: Launchable playable board entry surface — board/module/constraint/marker state.
+      capability_id: {id}/launch
+      activation:
+        launch_capability_id: {id}/launch
+        session_template:
+          labels: [generated, playable, board]
+      approval_policy: none
+    - id: {id}/play-renderer
+      version: 0.1.0
+      slot: play_renderer
+      title: Playable Board Renderer
+      description: Protocol-visible render payload for the playable board.
+      capability_id: {id}/render_payload
+    - id: {id}/forge-panel
+      version: 0.1.0
+      slot: forge_panel
+      title: Playable Board Inspector
+      description: Inspect board state, modules, constraints, markers, and checkpoints.
+      capability_id: {id}/project_state
+    - id: {id}/assistant-action
+      version: 0.1.0
+      slot: assistant_action
+      title: Request Board Change
+      description: Draft a user-approved change proposal for the playable board.
+      capability_id: {id}/request_change
+      approval_policy: fork_then_approve
+"#
+        ),
+        EffectiveTemplate::PlayableExperience => format!(
+            r#"  surfaces:
+    - id: {id}/entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Playable Experience Entry
+      description: Launchable playable experience entry surface — full checkpoint/recovery lifecycle.
+      capability_id: {id}/launch
+      activation:
+        launch_capability_id: {id}/launch
+        session_template:
+          labels: [generated, playable, experience]
+      approval_policy: none
+    - id: {id}/play-renderer
+      version: 0.1.0
+      slot: play_renderer
+      title: Playable Experience Renderer
+      description: Protocol-visible render payload for the playable experience.
+      capability_id: {id}/render_payload
+    - id: {id}/forge-panel
+      version: 0.1.0
+      slot: forge_panel
+      title: Playable Experience Inspector
+      description: Inspect experience state, checkpoints, and recovery plans.
+      capability_id: {id}/project_state
+    - id: {id}/assistant-action
+      version: 0.1.0
+      slot: assistant_action
+      title: Request Experience Change
+      description: Draft a user-approved change proposal for the playable experience.
+      capability_id: {id}/request_change
+      approval_policy: fork_then_approve
+"#
+        ),
     }
 }
 
@@ -552,13 +722,18 @@ pub(crate) async fn init_package(
     let package_py = path.join("package.py").display().to_string();
     let package_mjs = path.join("package.mjs").display().to_string();
     let is_typescript = language.starts_with("typescript");
+    let effective_entry = if is_typescript && entry == "rust_inproc" {
+        "subprocess"
+    } else {
+        entry.as_str()
+    };
     let subprocess_command = if is_typescript {
         format!("    - node\n    - {package_mjs}")
     } else {
         format!("    - python3\n    - {package_py}")
     };
     let surfaces = build_surfaces_yaml(&effective_template, &id);
-    let manifest = match entry.as_str() {
+    let manifest = match effective_entry {
         "wasm" => format!(
             r#"schema_version: 1
 id: {id}
@@ -774,6 +949,148 @@ sandbox_policy:
   wall_clock_ms: 30000
 "#
         ),
+        "subprocess" if matches!(effective_template, EffectiveTemplate::PlayableBoard) => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+display_name: Generated Playable Board
+description: "Deterministic/no-network playable board package skeleton. Board/module/constraint/marker state with play, Forge inspection, assistant proposals. No real model inference, no network, no kernel privilege."
+entry:
+  kind: subprocess
+  command:
+{subprocess_command}
+  transport: json_rpc_stdio
+provides:
+  - id: {id}/launch
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/project_state
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/render_payload
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/record_player_action
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/request_change
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/create_checkpoint
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+{surfaces}permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
+        "subprocess" if matches!(effective_template, EffectiveTemplate::PlayableExperience) => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+display_name: Generated Playable Experience
+description: "Deterministic/no-network playable experience package skeleton. Full checkpoint/recovery lifecycle with play, Forge inspection, assistant proposals. No real model inference, no network, no kernel privilege."
+entry:
+  kind: subprocess
+  command:
+{subprocess_command}
+  transport: json_rpc_stdio
+provides:
+  - id: {id}/launch
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/project_state
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/render_payload
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/record_player_action
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/request_change
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/create_checkpoint
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/inspect_checkpoint
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/draft_recovery
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+    side_effects: []
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+{surfaces}permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
         "subprocess" => format!(
             r#"schema_version: 1
 id: {id}
@@ -826,9 +1143,9 @@ sandbox_policy:
         ),
     };
     fs::write(path.join("manifest.yaml"), manifest)?;
-    if entry == "subprocess" && language.starts_with("python") {
+    if effective_entry == "subprocess" && language.starts_with("python") {
         fs::write(path.join("package.py"), templates::PYTHON_SUBPROCESS_TEMPLATE)?;
-    } else if entry == "subprocess" && is_typescript {
+    } else if effective_entry == "subprocess" && is_typescript {
         if matches!(effective_template, EffectiveTemplate::Networked) {
             fs::write(path.join("package.ts"), templates::typescript_networked_template(&id))?;
         } else if matches!(effective_template, EffectiveTemplate::Streaming) {
@@ -837,6 +1154,10 @@ sandbox_policy:
             fs::write(path.join("package.ts"), templates::typescript_agent_runtime_template(&id))?;
         } else if matches!(effective_template, EffectiveTemplate::ExperienceRuntime) {
             fs::write(path.join("package.ts"), templates::typescript_experience_runtime_template(&id))?;
+        } else if matches!(effective_template, EffectiveTemplate::PlayableBoard) {
+            fs::write(path.join("package.ts"), templates::typescript_playable_board_template(&id))?;
+        } else if matches!(effective_template, EffectiveTemplate::PlayableExperience) {
+            fs::write(path.join("package.ts"), templates::typescript_playable_experience_template(&id))?;
         } else {
             fs::write(path.join("package.ts"), templates::typescript_subprocess_template(&id))?;
         }

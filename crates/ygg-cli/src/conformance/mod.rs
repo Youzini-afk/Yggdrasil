@@ -1,5 +1,6 @@
 mod agentic_forge;
 mod core;
+mod creator_loop;
 mod experience_observability;
 mod experience_runtime;
 mod fixtures;
@@ -1185,6 +1186,52 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "memory_lab.no_raw_secrets",
         memory_lab::memory_lab_no_raw_secrets().await,
+    );
+    // Experience Beta 5 — Creator Loop Beta
+    record_case(
+        &mut results,
+        "creator_loop.playable_board_template",
+        creator_loop::creator_loop_playable_board_template().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.playable_experience_template",
+        creator_loop::creator_loop_playable_experience_template().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.experience_surface_warnings",
+        creator_loop::creator_loop_experience_surface_warnings().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.missing_checkpoint_warning",
+        creator_loop::creator_loop_missing_checkpoint_warning().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.dangerous_permissions_warning",
+        creator_loop::creator_loop_dangerous_permissions_warning().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.network_nondeterministic_hint",
+        creator_loop::creator_loop_network_nondeterministic_hint().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.composition_experience_diagnostics",
+        creator_loop::creator_loop_composition_experience_diagnostics().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.walkthrough_reference",
+        creator_loop::creator_loop_walkthrough_reference().await,
+    );
+    record_case(
+        &mut results,
+        "creator_loop.thirdparty_no_privilege",
+        creator_loop::creator_loop_thirdparty_no_privilege().await,
     );
 
     let mut failed = false;

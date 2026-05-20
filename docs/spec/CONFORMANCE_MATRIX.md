@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：180 个 implemented rows，由 226 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：190 个 implemented rows，由 235 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -443,6 +443,15 @@ memory_lab.forget_redaction_plan PASS
 memory_lab.branch_view PASS
 memory_lab.no_forbidden_namespace PASS
 memory_lab.no_raw_secrets PASS
+creator_loop.playable_board_template PASS
+creator_loop.playable_experience_template PASS
+creator_loop.experience_surface_warnings PASS
+creator_loop.missing_checkpoint_warning PASS
+creator_loop.dangerous_permissions_warning PASS
+creator_loop.network_nondeterministic_hint PASS
+creator_loop.composition_experience_diagnostics PASS
+creator_loop.walkthrough_reference PASS
+creator_loop.thirdparty_no_privilege PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。
