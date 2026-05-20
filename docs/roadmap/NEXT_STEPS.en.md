@@ -19,7 +19,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Cal
 - Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
 - Model Provider Integration Alpha: complete; `integrations/model-providers` research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab`, provider profile examples, and [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md) are in place.
 - Live Model Calls Alpha: complete; results are folded into [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), and the conformance matrix.
-- Creative Inference Capability Alpha: in progress; temporary plan in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md).
+- Creative Inference Capability Alpha: C0 and C1 delivered; C1 includes `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers and `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` guide. Next stage is C2 non-HTTP fake local provider proof. Temporary plan in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md).
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -121,8 +121,8 @@ Goal: keep Yggdrasil's near-term product path cloud API first, but prevent the p
 
 Stages are tracked in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md):
 
-- C0: API-first but not API-shaped ADR and temporary plan.
-- C1: transport-neutral inference capability contract (package layer, not kernel).
+- C0: API-first but not API-shaped ADR and temporary plan (complete).
+- C1: transport-neutral inference capability contract (complete; `sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`).
 - C2: non-HTTP fake local provider proof.
 - C3: cloud adapter package reposition.
 - C4: Ygg-native inference proposal vertical slice.
@@ -143,4 +143,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Creative Inference Capability Alpha is moving the center of gravity from “can call cloud APIs” back to “how inference participates in Ygg creative runtime.” Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha C0/C1 are complete. Creative Inference Capability Alpha is moving the center of gravity from “can call cloud APIs” back to “how inference participates in Ygg creative runtime” — C1 transport-neutral SDK delivered, C2 non-HTTP proof is next. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.

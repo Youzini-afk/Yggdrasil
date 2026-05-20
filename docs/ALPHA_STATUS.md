@@ -12,7 +12,7 @@
 - **Conformance：** 145 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Creative Inference Capability Alpha C0 执行中。立场：Yggdrasil 近期交付 API-first，但架构不能 API-shaped；cloud provider 只是普通 adapter package，不是平台模型抽象。下一阶段会定义 transport-neutral inference capability contract、non-HTTP fake provider proof、cloud adapter 降级文档，以及 inference → proposal/inspection/branch/fork 的 Ygg-native vertical slice。临时计划见 `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`。
+- **当前主线：** Creative Inference Capability Alpha C1 已交付。C0 ADR 和 C1 transport-neutral inference capability contract（`sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`）已完成；下一阶段是 C2 non-HTTP fake provider proof。立场保持：Yggdrasil 近期交付 API-first，但架构不能 API-shaped；cloud provider 只是普通 adapter package，不是平台模型抽象。临时计划见 `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`。
 
 ## 已实现
 
@@ -38,6 +38,7 @@
 - **Streaming capability 生命周期**：`kernel.capability.stream` 启动 streaming invocation（验证 descriptor 中 `streaming=true`），`kernel.capability.cancel` 取消进行中的 invocation。Runtime 方法按序发出 kernel 事件：`kernel/stream.started`、`kernel/stream.chunk`、`kernel/stream.progress`、`kernel/stream.ended`、`kernel/stream.error`、`kernel/stream.cancelled`、`kernel/stream.timeout`。Cancel 和 timeout 阻断后续 chunk。非 streaming 能力（descriptor `streaming=false`）被拒绝。
 - **Streaming invocation 记录**：`StreamInvocationRecord` 追踪 invocation_id、stream_id、capability_id、provider_package_id、session_id、状态（active/ended/error/cancelled/timeout）、frame_count、时间戳和 metadata。终态阻断后续 frame 追加。
 - **Secure-execution TypeScript helpers**（`sdk/typescript/secure-execution/index.ts`）：`secretRef()`/`isValidSecretRef()`/`looksLikeRawSecret()`/`isSecretFieldName()` 用于 secret reference 构造和验证。`NetworkDeclaration` 类用于构建 manifest 兼容的网络权限条目，支持 host/method 匹配。`OutboundAuditHelper` 类用于构建审计安全的出站请求 payload，拒绝 raw secrets，仅包含 `secret_ref` 标识符。`StreamFrameClient` 类用于构建 faux stream frame envelope，支持完整生命周期（start/chunk/progress/end/error/cancel/timeout）。所有 helper 只包装公开协议和类型——无私有内部、无协议绕过。
+- **Inference capability TypeScript SDK**（`sdk/typescript/inference-capability/index.ts`）：Transport-neutral 推理能力契约 SDK。`InferenceRequest`/`InferenceResponse`/`InferenceStreamFrame`/`InferenceError` 类型，`InferenceOperationKind`/`TransportKind`/`ModalityKind`/`RuntimeKind` 枚举，`ProviderCapabilityManifest` provider 声明。`createInferenceRequest` 构造请求并拒绝 raw secrets。`classifyInferenceError` 映射 cloud 和 local/resource 错误。`InferenceStreamLifecycle` 管理 start→chunk→end/error/cancel/timeout 生命周期。`createProviderCapabilityManifest`/`validateProviderCapabilityManifest` 构建和验证 provider manifest。69 项纯 TS 自测通过。不包含 URL/header/status code/OpenAI messages 字段；cloud adapter 只是 `transport_kind="http"` 的一类 provider。
 - **包模板**：`--template networked` 生成带网络权限声明的 subprocess package（`host`、`methods`、`purpose`），包含带 `network` side effect 的 `fetch` capability 和 `echo` capability。演示 `secretRef`、`NetworkDeclaration` 和 `OutboundAuditHelper` 用法。`--template streaming` 生成带 streaming capability（`streaming: true`）的 subprocess package，演示 `StreamFrameClient` faux frame 生命周期。`--template agent-runtime` 生成 deterministic/no-network agent-like subprocess package，包含 streaming run、trace summary、proposal draft 与 echo capabilities，以及 assistant_action + forge_panel surfaces。使用 `StreamFrameClient`（secure-execution）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（ygg-agent-adapter）。三个模板默认安全：无 raw secrets、无隐式 network 访问。
 - **No-network readiness proof 示例**：`examples/packages/faux-model-readiness/` 证明 model-like 包的 substrate shape（网络声明、secret_ref 用法、discovery plans、faux streaming frames——不做真实 inference）。`examples/packages/faux-agent-readiness/` 证明 agent-like 包的 substrate shape（proposal/trace 模式、无网络权限、faux streaming trace——不做真实 agent loop 或 pi runtime coupling）。
 
@@ -185,5 +186,6 @@ tsc -p clients/web/tsconfig.json --noEmit
 - `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` —— agent-like 能力包创作指南。
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` —— 多 provider cloud API 接入指南。
+- `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` —— transport-neutral 推理能力包创作指南。
 - `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md` —— 当前 Creative Inference Capability Alpha 临时计划。
 - `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。

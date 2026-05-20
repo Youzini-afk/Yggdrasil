@@ -19,7 +19,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Cal
 - Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
 - Live Model Calls Alpha：已完成；成果已收敛进 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 conformance matrix。
-- Creative Inference Capability Alpha：执行中；临时计划见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)。
+- Creative Inference Capability Alpha：C0 和 C1 已交付；C1 包含 `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers 与 `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` 指南。下一阶段 C2 non-HTTP fake local provider proof。临时计划见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -121,8 +121,8 @@ Phase J 非目标：
 
 阶段见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)：
 
-- C0：API-first but not API-shaped ADR 与临时计划。
-- C1：transport-neutral inference capability contract（包层，不进 kernel）。
+- C0：API-first but not API-shaped ADR 与临时计划（已完成）。
+- C1：transport-neutral inference capability contract（已完成；`sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`）。
 - C2：non-HTTP fake local provider proof。
 - C3：cloud adapter package reposition。
 - C4：Ygg-native inference proposal vertical slice。
@@ -143,4 +143,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha 和 Live Model Calls Alpha 已完成。Creative Inference Capability Alpha 正在把重心从“能调云 API”拉回“推理如何参与 Ygg 创作运行时”。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha 、Live Model Calls Alpha 和 Creative Inference Capability Alpha C0/C1 已完成。Creative Inference Capability Alpha 正在把重心从“能调云 API”拉回“推理如何参与 Ygg 创作运行时”——C1 transport-neutral SDK 已交付，C2 non-HTTP proof 是下一步。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

@@ -22,7 +22,7 @@ Architecture principles:
 - No `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, or `kernel.embedding.*`.
 - No unified chat schema, messages/system/user/assistant shape, or OpenAI-compatible request as a public platform protocol.
 
-## Phase C0 — ADR and plan (current)
+## Phase C0 — ADR and plan (complete)
 
 Deliver:
 
@@ -35,17 +35,19 @@ Acceptance:
 - Documentation links pass.
 - No new kernel model/prompt/chat terms as protocol or code methods.
 
-## Phase C1 — Transport-neutral inference capability contract
+## Phase C1 — Transport-neutral inference capability contract (complete)
 
 Goal: define inference as an ordinary package/capability-layer contract, not a kernel feature.
 
-Candidate deliverables:
+Delivered:
 
-- `sdk/typescript/inference-capability`: transport-neutral envelope and stream/error/capability manifest helpers.
-- `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`: package authoring guide.
-- The contract must not require URL/header/status-code/OpenAI messages fields.
+- `sdk/typescript/inference-capability`: transport-neutral envelope and stream/error/capability manifest helpers. Includes `InferenceRequest`/`InferenceResponse`/`InferenceStreamFrame`/`InferenceError` types, `createInferenceRequest`/`validateInferenceRequest`/`classifyInferenceError`/`InferenceStreamLifecycle`/`createProviderCapabilityManifest`/`validateProviderCapabilityManifest` helper functions, 69 pure-TS self-tests passing.
+- `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` and `.en.md`: package authoring guide.
+- The contract does not require URL/header/status-code/OpenAI messages fields.
+- Error taxonomy covers cloud (authentication/rate_limit/billing/provider_overloaded/…) and local/resource (local_process_failed/local_resource_exhausted/local_model_not_loaded/…) errors.
+- Provider capability manifest supports modality/transport/secret/network/local runtime hints.
 
-The contract should express:
+The contract expresses:
 
 - operation id / operation kind;
 - input artifacts or opaque input payload refs;
@@ -53,7 +55,7 @@ The contract should express:
 - deadline / cancellation;
 - resource hints;
 - secret refs;
-- transport kind hint (`http`, `local_process`, `in_memory`, `ipc`, `websocket`, `remote`, etc.);
+- transport kind hint (`http`, `local_process`, `in_memory`, `ipc`, `websocket`, `remote`, `custom`);
 - canonical stream frames;
 - transport-neutral error taxonomy.
 

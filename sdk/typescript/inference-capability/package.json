@@ -1,0 +1,16 @@
+{
+  "name": "@yggdrasil/inference-capability",
+  "version": "0.1.0",
+  "description": "Transport-neutral inference capability contract SDK for Yggdrasil",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node dist/test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
