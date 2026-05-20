@@ -89,13 +89,19 @@ Deliverables:
 
 Acceptance: still no arbitrary shell; no real install/run; all writes proposal-gated.
 
-## Phase E4 — Web Project Aggregation UI
+## Phase E4 — Web Project Aggregation UI — COMPLETE
 
 Goal: Home/Forge display External Projects / Managed Workspaces / risk / entrypoints / logs / adapter candidates, still public-protocol-only.
 
-Deliverables: Home operating-plane card, Forge intake panel, workspace cards, risk badges, entrypoint/log/proposal previews, and view-model/render helpers that follow Performance & Code Health render discipline.
+Delivered:
 
-Acceptance: Web TypeScript; no render-discipline regression; UI does not read private runtime state.
+- `clients/web/src/projects/external-projects.ts` adds an External Project aggregation model that calls `project-intake-lab` and `workspace-lab` no-execution capabilities.
+- Home/Play adds an External Project Operating Plane rail showing an unadapted Git project and fixture managed workspace cards.
+- Forge adds an External Projects / Managed Workspaces panel showing source intake, stack/lifecycle risk, workspace plan, fixture workspace, entrypoints, run plan, patch proposal, and adapter candidate.
+- Assistant drawer adds an external project assistant lane with no-execution CTAs for inspect/draft patch/generate adapter plan.
+- Graceful degradation when packages are not loaded; UI does not read SQLite, runtime internals, or local filesystem.
+
+Acceptance: Web TypeScript; workspace-lab conformance; doc links; diff check; UI remains public-protocol-only.
 
 ## Phase E5 — Adapter / Wrapper Generation Proof
 

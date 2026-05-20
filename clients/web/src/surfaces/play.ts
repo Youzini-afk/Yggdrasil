@@ -1,7 +1,9 @@
 import type { SurfaceContributionRecord } from "../protocol/client";
+import type { ExternalProjectAggregation } from "../projects/external-projects";
+import { renderHomeExternalProjects } from "../projects/external-projects";
 import { escapeHtml } from "../utils/html";
 
-export function renderPlaySurface(entries: SurfaceContributionRecord[], sessionId?: string) {
+export function renderPlaySurface(entries: SurfaceContributionRecord[], sessionId?: string, externalProjects?: ExternalProjectAggregation) {
   const cards = entries.length ? entries.map((entry) => experienceCard(entry)).join("") : placeholderCards();
   return `
     <section class="surface surface-play" aria-labelledby="play-title">
@@ -20,6 +22,7 @@ export function renderPlaySurface(entries: SurfaceContributionRecord[], sessionI
         </div>
         <div class="experience-grid">${cards}</div>
       </section>
+      ${renderHomeExternalProjects(externalProjects)}
     </section>
   `;
 }

@@ -27,6 +27,7 @@ export function renderAssistantDrawer(
   open = false,
   textProof?: TextProofView,
   agentReadinessHtml?: string,
+  externalProjectHtml?: string,
 ) {
   const proof = textProof ?? {
     text: "",
@@ -66,6 +67,7 @@ export function renderAssistantDrawer(
           <button type="button" title="Template only">Suggest capability</button>
         </div>
         ${agentReadinessHtml ?? ""}
+        ${externalProjectHtml ?? ""}
         <details><summary>Host diagnostics</summary><pre>${JSON.stringify(diagnostics, null, 2)}</pre></details>
         <details class="text-proof-details" open>
           <summary>Text Surface Proof (mock streaming)</summary>

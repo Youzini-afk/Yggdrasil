@@ -4,6 +4,8 @@ import { extractEventPreview, extractProposalPreview, kindBadgeLabel } from "../
 import { buildAgentObservability, buildForgeAgentWorkspace, renderAgentObservabilitySection, renderForgeAgentWorkspaceSections } from "../agent/observability.js";
 import { buildExperienceObservability, renderExperienceObservabilitySection } from "../agent/experience-observability.js";
 import { buildCreatorLoopModel, renderCreatorLoopSection } from "../agent/creator-loop.js";
+import type { ExternalProjectAggregation } from "../projects/external-projects";
+import { renderForgeExternalProjectPanel } from "../projects/external-projects";
 
 export function renderForgeSurface(input: {
   capabilities: RegisteredCapability[];
@@ -15,8 +17,9 @@ export function renderForgeSurface(input: {
   packages: PackageRecord[];
   allSurfaces: SurfaceContributionRecord[];
   sessionId?: string;
+  externalProjects?: ExternalProjectAggregation;
 }) {
-  const { capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId } = input;
+  const { capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId, externalProjects } = input;
   const observability = buildAgentObservability(packages, allSurfaces, events, proposals, capabilities);
   return `
     <section class="surface surface-forge" aria-labelledby="forge-title">
@@ -77,6 +80,8 @@ export function renderForgeSurface(input: {
         ${renderExperienceObservabilitySection(buildExperienceObservability(events, proposals, packages, capabilities, allSurfaces, assets, sessionId))}
 
         ${renderCreatorLoopSection(buildCreatorLoopModel(packages, capabilities, allSurfaces, events, proposals, assets, projections, sessionId))}
+
+        ${renderForgeExternalProjectPanel(externalProjects)}
 
         <div class="forge-section event-tail-section">
           <h2>Events</h2>

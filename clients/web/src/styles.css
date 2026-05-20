@@ -99,6 +99,17 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .diagnostic-ok { color: #a0ffd0; font-size: 0.82rem; margin: 0; }
 .diagnostic-warn { color: #ffe8a0; font-size: 0.82rem; margin: 0; }
 
+/* External Project Operating Plane */
+.project-aggregation-home { margin-top: 1.5rem; }
+.project-aggregation-panel { border: 1px solid rgba(159,232,255,0.16); border-radius: 1.2rem; padding: 1rem; background: rgba(42,167,255,0.06); }
+.project-aggregation-panel.muted { opacity: 0.72; }
+.project-card .card-glow { background: #2aa7ff; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.8rem; margin-top: 0.8rem; }
+.project-tile { padding: 0.85rem; border-radius: 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+.project-tile h3 { margin: 0 0 0.55rem; font-size: 0.9rem; color: #c9c2e8; }
+.project-cta-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.9rem; }
+.project-assist-panel { border-color: rgba(159,232,255,0.18); }
+
 .guidance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
 .guidance-card { padding: 0.9rem; border-radius: 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
 .guidance-card h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: #c9c2e8; }

@@ -4,6 +4,7 @@ import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { renderPlaySurface } from "./surfaces/play";
 import { buildAgentObservability, filterAgentLikeCapabilities, renderAgentReadinessPanel } from "./agent/observability.js";
+import { buildExternalProjectAggregation, renderAssistantExternalProjectHints, type ExternalProjectAggregation } from "./projects/external-projects.js";
 import { buildMockChunks, createStreamingBuffer, getActiveTextEngine, getActiveTextEngineName, getTextEngineDiagnostics, initializeTextEnginePreference, getInitializationResult } from "./text-layout/index.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -165,6 +166,7 @@ async function render(error?: string) {
   let allSurfaces: SurfaceContributionRecord[] = [];
   let proposals: ProposalRecord[] = [];
   let capabilities: RegisteredCapability[] = [];
+  let externalProjects: ExternalProjectAggregation | undefined;
   try {
     const [entries, caps, hostDiagnostics] = await Promise.all([
       client.surfaceContributions("experience_entry").catch(() => []),
@@ -172,6 +174,13 @@ async function render(error?: string) {
       client.diagnostics().catch(() => ({})),
     ]);
     capabilities = caps;
+    externalProjects = await buildExternalProjectAggregation(client, capabilities).catch((caught) => ({
+      available: false,
+      missing_capabilities: [],
+      demo_source_ref: "",
+      demo_workspace_ref: "",
+      errors: [caught instanceof Error ? caught.message : String(caught)],
+    }));
     const [assets, projections, props, forgeSurfaces, pkgs, surfaces] = route === "forge"
       ? await Promise.all([
           client.assets().catch(() => []),
@@ -188,13 +197,13 @@ async function render(error?: string) {
     surfaceEntries = entries;
     diagnostics = hostDiagnostics;
     body = route === "play"
-      ? renderPlaySurface(surfaceEntries, sessionId)
-      : renderForgeSurface({ capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId });
+      ? renderPlaySurface(surfaceEntries, sessionId, externalProjects)
+      : renderForgeSurface({ capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId, externalProjects });
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
     body = route === "play"
-      ? renderPlaySurface([], sessionId)
-      : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], packages: [], allSurfaces: [], sessionId });
+      ? renderPlaySurface([], sessionId, externalProjects)
+      : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], packages: [], allSurfaces: [], sessionId, externalProjects });
   }
   // Build agent readiness panel for Assistant Drawer (lightweight, no real model/network)
   const observability = buildAgentObservability(
@@ -208,7 +217,8 @@ async function render(error?: string) {
     observability.agentSurfaces,
     filterAgentLikeCapabilities(capabilities),
   );
-  app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen, textProofView, agentReadinessHtml), error);
+  const externalProjectHtml = renderAssistantExternalProjectHints(externalProjects);
+  app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen, textProofView, agentReadinessHtml, externalProjectHtml), error);
   wireEvents();
 }
 
