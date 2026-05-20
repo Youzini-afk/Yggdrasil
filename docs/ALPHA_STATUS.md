@@ -12,7 +12,7 @@
 - **Conformance：** 145 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Live Model Calls Alpha L6 已实现（在 L5 基础上扩展 OpenRouter / xAI / Fireworks / DeepSeek provider quirks。OpenRouter：Authorization bearer + `http-referer`/`x-title` safe static headers 扩展 `STATIC_HEADER_ALLOWLIST`；loopback 验证三个 headers 到达 server、POST `/api/v1/chat/completions`。xAI：Authorization bearer，loopback 验证 `/v1/chat/completions`。Fireworks：Authorization bearer，loopback 验证 `/inference/v1/chat/completions`。DeepSeek：`normalize_stream` 增强 `reasoning_content`→`reasoning_delta` frames、cache usage progress、SSE keep-alive comments→progress heartbeat、mid-stream error events→error frame。Sanitized fixtures：`integrations/model-providers/fixtures/` 下 5 个 .json fixture，全部不含真实 key。Conformance 新增 7 个用例。L0-L5 功能继续完全支持。）
+- **当前主线：** Creative Inference Capability Alpha C0 执行中。立场：Yggdrasil 近期交付 API-first，但架构不能 API-shaped；cloud provider 只是普通 adapter package，不是平台模型抽象。下一阶段会定义 transport-neutral inference capability contract、non-HTTP fake provider proof、cloud adapter 降级文档，以及 inference → proposal/inspection/branch/fork 的 Ygg-native vertical slice。临时计划见 `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`。
 
 ## 已实现
 
@@ -184,5 +184,6 @@ tsc -p clients/web/tsconfig.json --noEmit
 - `docs/spec/CONFORMANCE_MATRIX.md` —— hostile conformance 路线图。
 - `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` —— agent-like 能力包创作指南。
-- `docs/guides/MODEL_PROVIDER_INTEGRATION.md` —— 多 provider 模型接入指南。
+- `docs/guides/MODEL_PROVIDER_INTEGRATION.md` —— 多 provider cloud API 接入指南。
+- `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md` —— 当前 Creative Inference Capability Alpha 临时计划。
 - `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。

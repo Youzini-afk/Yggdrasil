@@ -12,7 +12,7 @@ For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/
 - **Conformance:** 145 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof, **outbound executor boundary with deny-all default and fake executor conformance**.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Current headline:** Live Model Calls Alpha L6 is implemented (extends L5 with OpenRouter / xAI / Fireworks / DeepSeek provider quirks. OpenRouter: Authorization bearer + `http-referer`/`x-title` safe static headers extending `STATIC_HEADER_ALLOWLIST`; loopback verifies all three headers arrive at server, POST `/api/v1/chat/completions`. xAI: Authorization bearer, loopback verifies `/v1/chat/completions`. Fireworks: Authorization bearer, loopback verifies `/inference/v1/chat/completions`. DeepSeek: `normalize_stream` enhanced with `reasoning_content`→`reasoning_delta` frames, cache usage progress, SSE keep-alive comments→progress heartbeat, mid-stream error events→error frame. Sanitized fixtures: 5 `.json` fixtures under `integrations/model-providers/fixtures/`, all containing no real keys. 7 new conformance cases added. L0-L5 features remain fully supported.)
+- **Current headline:** Creative Inference Capability Alpha C0 is in progress. Position: Yggdrasil ships API-first in the near term, but the architecture must not become API-shaped; cloud providers are ordinary adapter packages, not the platform model abstraction. The next stages define a transport-neutral inference capability contract, a non-HTTP fake provider proof, cloud adapter downgrade documentation, and a Ygg-native inference → proposal/inspection/branch/fork vertical slice. Temporary plan: `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`.
 
 ## What is implemented
 
@@ -187,5 +187,6 @@ If any of the above fails, this document is wrong; the code is right. Update thi
 - `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
 - `docs/product/PLAY_CREATION_MODEL.md` — play-creation product stance.
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like capability package authoring guide.
-- `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — multi-provider model integration guide.
+- `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — multi-provider cloud API integration guide.
+- `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md` — current Creative Inference Capability Alpha temporary plan.
 - `docs/roadmap/NEXT_STEPS.md` — current and upcoming phases.

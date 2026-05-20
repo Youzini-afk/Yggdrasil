@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Calls Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit 和 live loopback provider shapes。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。下一条主线应转向 provider package 产品化、真实包 authoring/SDK 使用体验或更广 host hardening，而不是把模型语义放入 kernel。
+Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Calls Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit 和 live loopback provider shapes。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线是 **Creative Inference Capability Alpha**：承认交付上 API-first，但防止架构 API-shaped，把 cloud provider 降级为普通 adapter，并证明 inference 能参与 session / branch / proposal / inspection / fork 创作运行时。
 
 ## 当前位置
 
@@ -19,6 +19,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Cal
 - Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
 - Live Model Calls Alpha：已完成；成果已收敛进 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 conformance matrix。
+- Creative Inference Capability Alpha：执行中；临时计划见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -114,6 +115,21 @@ Phase J 非目标：
 
 非目标：中转站、用户金额/计费系统、渠道后台、平台代理 key、默认联网 CI、provider 直接读 env、provider 直接 HTTP 绕过 host、`kernel.model.*`。
 
+## Phase M — Creative Inference Capability Alpha（执行中）
+
+目标：Yggdrasil 近期产品路径保持 cloud API first，但平台抽象不能 cloud API shaped。Cloud API adapter 只是普通包，不是 Ygg 的模型抽象。下一阶段要证明 transport-neutral inference capability seam、非 HTTP fake provider，以及 inference 参与 proposal/inspection/branch/fork 的创作运行时闭环。
+
+阶段见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)：
+
+- C0：API-first but not API-shaped ADR 与临时计划。
+- C1：transport-neutral inference capability contract（包层，不进 kernel）。
+- C2：non-HTTP fake local provider proof。
+- C3：cloud adapter package reposition。
+- C4：Ygg-native inference proposal vertical slice。
+- C5：durable docs cleanup。
+
+非目标：本地大模型平台、权重/GPU/调度系统、继续扩 provider zoo、统一 chat schema、API gateway、`kernel.model.*`。
+
 ## 内核范围内的无限期延后
 
 这些仍是内核的非目标。它们可能以未来包的形式存在。
@@ -127,4 +143,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha 和 Live Model Calls Alpha 已完成。后续阶段应在普通 provider packages、SDK、host policy 和 UI authoring flows 上产品化这些能力，而不是变成中转站或 kernel model ontology。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha 和 Live Model Calls Alpha 已完成。Creative Inference Capability Alpha 正在把重心从“能调云 API”拉回“推理如何参与 Ygg 创作运行时”。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。

@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, and live loopback provider shapes. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The next headline should move toward provider-package productization, real package authoring/SDK experience, or broader host hardening — not kernel model semantics.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, and live loopback provider shapes. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline is **Creative Inference Capability Alpha**: deliver API-first while preventing the architecture from becoming API-shaped, downgrade cloud providers into ordinary adapters, and prove inference can participate in session / branch / proposal / inspection / fork creative runtime flows.
 
 ## Where we are
 
@@ -19,6 +19,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Cal
 - Agent Infrastructure Alpha: complete; `integrations/pi` ledger, `sdk/typescript/ygg-agent-adapter`, `--template agent-runtime`, `official/pi-agent-runtime-lab`, `official/capability-tool-bridge-lab`, Forge/Assist Agent Observability, `thirdparty/agent-runtime` replacement proof, and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.en.md) are in place.
 - Model Provider Integration Alpha: complete; `integrations/model-providers` research ledger, `sdk/typescript/model-provider-adapter`, `official/model-provider-lab`, provider profile examples, and [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md) are in place.
 - Live Model Calls Alpha: complete; results are folded into [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), and the conformance matrix.
+- Creative Inference Capability Alpha: in progress; temporary plan in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md).
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -114,6 +115,21 @@ Delivered: L0 live-call contract, L1 `EnvSecretResolver`, L2 `LiveHttpOutboundEx
 
 Non-goals: relay gateway, user balances/billing, channel admin, hosted platform relay keys, default networked CI, provider direct env access, provider direct HTTP bypassing the host, and `kernel.model.*`.
 
+## Phase M — Creative Inference Capability Alpha (in progress)
+
+Goal: keep Yggdrasil's near-term product path cloud API first, but prevent the platform abstraction from becoming cloud API shaped. Cloud API adapters are ordinary packages, not the Ygg model abstraction. This phase proves a transport-neutral inference capability seam, a non-HTTP fake provider, and an inference → proposal/inspection/branch/fork creative runtime loop.
+
+Stages are tracked in [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.en.md):
+
+- C0: API-first but not API-shaped ADR and temporary plan.
+- C1: transport-neutral inference capability contract (package layer, not kernel).
+- C2: non-HTTP fake local provider proof.
+- C3: cloud adapter package reposition.
+- C4: Ygg-native inference proposal vertical slice.
+- C5: durable docs cleanup.
+
+Non-goals: local LLM platform, weight/GPU/scheduling system, more provider zoo expansion, unified chat schema, API gateway, and `kernel.model.*`.
+
 ## Deferred indefinitely from kernel scope
 
 These remain non-goals for the kernel. They may exist as future packages.
@@ -127,4 +143,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Future phases should productize these capabilities through ordinary provider packages, SDKs, host policy, and UI authoring flows — not a relay gateway or kernel model ontology. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, and Live Model Calls Alpha are complete. Creative Inference Capability Alpha is moving the center of gravity from “can call cloud APIs” back to “how inference participates in Ygg creative runtime.” Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
