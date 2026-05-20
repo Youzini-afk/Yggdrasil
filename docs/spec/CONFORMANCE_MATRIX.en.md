@@ -13,6 +13,27 @@ cargo run -p ygg-cli -- conformance
 
 Current matrix coverage: 200 implemented rows, backed by 245 named CLI conformance cases plus crate/service unit tests.
 
+## Conformance Feedback Loop
+
+The conformance command supports filtering, timing, and diagnostics (Performance & Code Health Beta Phase P1). See [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md).
+
+```bash
+# List all case ids and tags
+cargo run -p ygg-cli -- conformance --list
+
+# Filter by substring
+cargo run -p ygg-cli -- conformance --case sharing_lab
+
+# Filter by tag
+cargo run -p ygg-cli -- conformance --tag sharing
+
+# Fail-fast
+cargo run -p ygg-cli -- conformance --fail-fast
+
+# Custom slowest report
+cargo run -p ygg-cli -- conformance --slowest 3
+```
+
 ## Current conformance coverage
 
 | Area | Case | Status |

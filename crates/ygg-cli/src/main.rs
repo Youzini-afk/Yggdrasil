@@ -57,7 +57,20 @@ async fn main() -> anyhow::Result<()> {
         Command::Composition { command } => match command {
             CompositionCommand::Check { path } => composition::composition_check(path).await,
         },
-        Command::Conformance => conformance::run().await,
+        Command::Conformance {
+            list,
+            case,
+            tag,
+            fail_fast,
+            slowest,
+        } => conformance::run(conformance::ConformanceOptions {
+            list,
+            case,
+            tag,
+            fail_fast,
+            slowest,
+        })
+        .await,
         Command::PlayCreateDemo => demo::play_create_demo().await,
         Command::PlayableBoardDemo => demo::playable_board_demo().await,
         Command::Perf { command } => match command {

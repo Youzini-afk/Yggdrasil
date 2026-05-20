@@ -41,13 +41,15 @@ Acceptance: repeatable baseline command; docs list metrics future optimizations 
 
 Reference: [`docs/performance/BASELINE.en.md`](../performance/BASELINE.en.md)
 
-## Phase P1 — Conformance Feedback Loop
+## Phase P1 — Conformance Feedback Loop (complete)
 
 Goal: make conformance filterable, timed, and diagnosable.
 
-Deliverables: `--list`, `--case <pattern>`, `--tag <tag>`, `--fail-fast`, per-case duration, slowest-N report, and case tags such as runtime, subprocess, official, generated, network, stream, agentic, experience, memory, sharing, slow.
+Deliverables: `--list`, `--case <pattern>`, `--tag <tag>`, `--fail-fast`, per-case duration, slowest-N report, and case tags (runtime, event, capability, package, subprocess, official, generated, network, outbound, stream, agentic, experience, memory, sharing, secret, composition, replacement, surface, protocol, permission, hook, host, asset, projection, substrate, live, slow, etc.). Structured `ConformanceCase { id, tags, run }` registry replaces the former `record_case` calls. Default `ygg conformance` still runs all 245 cases.
 
-Acceptance: default `ygg conformance` still runs all cases; single-case and tag-filter runs work; new cases must declare tags; output locates failures and slow cases.
+Acceptance: default `ygg conformance` still runs all cases; `--list` prints ids and tags; single-case (`--case sharing_lab.contract_shape`) and tag-filter (`--tag sharing`) runs work; new cases must declare tags; output includes per-case duration, slowest-N report, and failure location.
+
+Reference: [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md)
 
 ## Phase P2 — Low-risk Structural Split
 

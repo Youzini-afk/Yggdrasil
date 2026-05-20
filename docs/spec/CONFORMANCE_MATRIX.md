@@ -13,6 +13,27 @@ cargo run -p ygg-cli -- conformance
 
 当前矩阵覆盖：200 个 implemented rows，由 245 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
+## Conformance Feedback Loop
+
+Conformance 命令支持过滤、计时和诊断（Performance & Code Health Beta Phase P1）。详见 [`docs/performance/CONFORMANCE_FEEDBACK.md`](../performance/CONFORMANCE_FEEDBACK.md)。
+
+```bash
+# 列出所有 case id 和 tags
+cargo run -p ygg-cli -- conformance --list
+
+# 按 substring 过滤
+cargo run -p ygg-cli -- conformance --case sharing_lab
+
+# 按 tag 过滤
+cargo run -p ygg-cli -- conformance --tag sharing
+
+# fail-fast
+cargo run -p ygg-cli -- conformance --fail-fast
+
+# 自定义 slowest 报告
+cargo run -p ygg-cli -- conformance --slowest 3
+```
+
 ## 当前 conformance 覆盖
 
 | 领域 | 用例 | 状态 |

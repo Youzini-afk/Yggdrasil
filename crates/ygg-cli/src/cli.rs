@@ -123,7 +123,23 @@ pub(crate) enum Command {
         command: CompositionCommand,
     },
     /// Run local kernel conformance checks.
-    Conformance,
+    Conformance {
+        /// List case ids and tags without executing.
+        #[arg(long)]
+        list: bool,
+        /// Filter cases by substring match on case id (can be repeated).
+        #[arg(long, value_name = "PATTERN")]
+        case: Vec<String>,
+        /// Filter cases by tag (can be repeated; case matches if it has ANY of the specified tags).
+        #[arg(long, value_name = "TAG")]
+        tag: Vec<String>,
+        /// Stop on first failure.
+        #[arg(long)]
+        fail_fast: bool,
+        /// Show the N slowest cases at the end (default 10).
+        #[arg(long, default_value = "10")]
+        slowest: usize,
+    },
     /// Run the first blank play-creation loop demo.
     PlayCreateDemo,
     /// Run the playable creation board vertical slice demo (Experience Beta 1).

@@ -28,7 +28,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase F：已完成；第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断，privilege escalation 拒绝）、budget/deadline 契约（describe_contract 中 run_constraints，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：[`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Conformance 包含 180 个具名用例；状态已收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
 - Experience Beta 0 — Thin Experience Runtime Contract：已完成；`official/experience-runtime-lab` 提供 describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run 能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；`sdk/typescript/experience-runtime` TS SDK（85 项自测断言）；`--template experience-runtime` 生成 deterministic/no-network subprocess；Forge profile 自动加载；7 个 conformance 用例。持久指南：[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.md)。Conformance 包含 187 个具名用例。
 - Experience Beta 1 — First Real Playable Vertical Slice：已完成；`official/playable-creation-board` 提供 describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance 共 11 项能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；package-owned board/module/constraint/marker state；player action 产生 state_delta_asset_ref/projection_ref/sequence/provenance；request_change 输出 structured agent objective / allowed_change_kinds / risk/budget / bindable refs（不是聊天消息）；bind_agent_run 产出 scoped agentic-forge binding；explain_provenance 输出 player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild 因果链；checkpoint/recovery 对齐 experience-runtime-lab 形状；raw-secret blocking；第三方 agentic-forge 替换 composition 证明无 official priority；CLI demo `playable-board-demo`；Forge profile 自动加载；10 个 conformance 用例。Conformance 包含 197 个具名用例。
-- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。Experience Beta 4 已完成。Performance & Code Health Beta Phase P0（Baseline & Measurement）已完成；当前进入 P1（Conformance Feedback Loop）。
+- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。Experience Beta 4 已完成。Performance & Code Health Beta Phase P0（Baseline & Measurement）已完成；Phase P1（Conformance Feedback Loop）已完成，当前转向 P2（Low-risk Structural Split）。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -287,9 +287,22 @@ Phase J 非目标：
 
 参考：[`docs/performance/BASELINE.md`](../performance/BASELINE.md)、[`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`](./PERFORMANCE_CODE_HEALTH_BETA.md)
 
-### Phase P1 — Conformance Feedback Loop（当前）
+### Phase P1 — Conformance Feedback Loop（已完成）
 
 目标：让 conformance 可筛选、可计时、可定位。
+
+已交付：
+
+- `--list`、`--case <pattern>`、`--tag <tag>`、`--fail-fast`、`--slowest <N>` CLI 选项。
+- 结构化 `ConformanceCase { id, tags, run }` registry，每个 case 带有 tags（runtime/event/capability/package/subprocess/official/generated/network/outbound/stream/agentic/experience/memory/sharing/secret/composition/replacement/surface/protocol/permission/hook/host/asset/projection/substrate/live/slow 等）。
+- Per-case duration 输出和 slowest-N 报告。
+- 默认 `ygg conformance` 仍跑全部 245 cases。
+
+参考：[`docs/performance/CONFORMANCE_FEEDBACK.md`](../performance/CONFORMANCE_FEEDBACK.md)、[`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`](./PERFORMANCE_CODE_HEALTH_BETA.md)
+
+### Phase P2 — Low-risk Structural Split（当前）
+
+目标：控制增长，不改外部行为。
 
 ## 内核范围内的无限期延后
 
