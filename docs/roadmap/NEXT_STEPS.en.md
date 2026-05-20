@@ -29,7 +29,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Experience Beta 0 — Thin Experience Runtime Contract: complete; `official/experience-runtime-lab` provides describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run capabilities with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); `sdk/typescript/experience-runtime` TS SDK (85 self-test assertions); `--template experience-runtime` generates deterministic/no-network subprocess with contract/checkpoint/recovery capabilities; Forge profile autoloads; 7 conformance cases. Durable guide: [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.en.md). Conformance now has 187 named cases.
 - Experience Beta 1 — First Real Playable Vertical Slice: complete; `official/playable-creation-board` provides describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance (11 capabilities) with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); package-owned board/module/constraint/marker state; player action produces state_delta_asset_ref/projection_ref/sequence/provenance; request_change outputs structured agent objective / allowed_change_kinds / risk/budget / bindable refs (not chat messages); bind_agent_run produces scoped agentic-forge binding; explain_provenance outputs player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild causal chain; checkpoint/recovery aligned with experience-runtime-lab shapes; raw-secret blocking; third-party agentic-forge replacement composition proves no official priority; CLI demo `playable-board-demo`; Forge profile autoloads; 10 conformance cases. Conformance now has 197 named cases.
 - Experience Beta 2 — State + Asset Pipeline Alpha: complete; `official/asset-lab` extended with `content_address` and `provenance_graph` capabilities; `official/projection-lab` extended with `state_snapshot` capability; `official/playable-creation-board` extended with `preview_state_diff` and `describe_asset_provenance` capabilities (13 total); stable content-addressed asset helper (FNV-1a 64-bit, deterministic across runs, replaces unstable DefaultHasher); standard Beta 2 metadata convention (content_address, provenance, disclosure, source_refs, derived_refs, branch_ref, state_snapshot_ref, projection_ref, proposal_ref, inference_ref, large_output_policy); record_player_action produces content_address/state_snapshot_asset_ref/disclosure; create_checkpoint produces content_address/state_snapshot_asset_ref/disclosure; explain_provenance produces content_address per chain step and provenance_graph; branch-aware state diff preview; asset provenance graph with source/derived/disclosure metadata; large output asset_ref recommendation reinforced; package-scoped asset permission proof (origin_package_id enforcement, cross-package spoof fail-closed); raw-secret blocking in Beta 2 capabilities; no kernel.state/world/scene/character/turn/chat/memory/agent/model/prompt namespace; 9 more conformance cases. Conformance now has 206 named cases.
-- Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Observability, Memory/Knowledge Packages, Creator Loop, and Sharing/Distribution layers. Performance & Code Health Beta Phase P0 (Baseline & Measurement), Phase P1 (Conformance Feedback Loop), Phase P2 (Low-risk Structural Split), Phase P3 (Event Store & Replay Optimization), and Phase P4 (Web Render & UI Organization) are complete; now entering P5 (Evidence-based Advanced Optimization & Cleanup).
+- Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Observability, Memory/Knowledge Packages, Creator Loop, and Sharing/Distribution layers. Performance & Code Health Beta is complete; durable guide: [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.en.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.en.md).
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -273,52 +273,20 @@ Delivered:
 
 Non-goals: marketplace, package signing network, dependency resolver economy, hosted billing.
 
-## Performance & Code Health Beta
+## Performance & Code Health Beta (complete)
 
-Goal: establish baselines, shorten the conformance feedback loop, optimize SQLite event replay, and control runtime/CLI/Web file growth before the first platform product.
-
-### Phase P0 — Baseline & Measurement (complete)
-
-Goal: establish facts before optimizing.
+Goal: establish baselines, shorten the conformance feedback loop, optimize SQLite event replay, reduce Web full-render pressure, and control runtime/CLI/Web file growth before the first platform product.
 
 Delivered:
 
-- `ygg perf baseline` CLI emitting deterministic baseline JSON / markdown summary.
-- Measures in-process invoke, official capability invoke, subprocess echo (may be skipped), event store append/list/range (100 events), composition check, profile load.
-- `--iterations` and `--format text|json` parameters.
-- `docs/performance/BASELINE.md` and `.en.md` record commands, scenarios, sample limitations, and metric definitions.
-- Default no-network; no real provider required.
+- **P0 — Baseline & Measurement**: `ygg perf baseline` CLI covering inproc invoke, official capability invoke, subprocess echo, event-store append/list/range, 1k/10k/100k event scale, composition check, and profile load; JSON stdout is script-readable, and `--iterations 0` fails closed. Reference: [`docs/performance/BASELINE.en.md`](../performance/BASELINE.en.md).
+- **P1 — Conformance Feedback Loop**: `--list`, `--case <pattern>`, `--tag <tag>`, `--fail-fast`, `--slowest <N>`, per-case duration, and slowest report; the default still runs all 245 cases. Reference: [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md).
+- **P2 — Low-risk Structural Split**: protocol dispatch domain helpers, provider-indexed inproc dispatch, shared safety helper, and set/index-based composition/package diagnostics; public protocol shape, package-aware routing, and no-official-priority behavior are preserved.
+- **P3 — Event Store & Replay Optimization**: `EventStore::append_with_sequence` atomic append, no duplicate sequence under concurrent same-session append for SQLite/in-memory stores, `list_kind_prefix` / `list_session_kind_prefix` query pushdown, SQLite `kind` and `session+kind+sequence` indexes, and permission/outbound audit paths avoiding routine `list_all()` full filtering.
+- **P4 — Web Render & UI Organization**: 16ms render scheduler, bounded JSON preview, display caps for Forge events/proposals/assets/projections/surfaces, payload preview details, and a pure TS Forge render diagnostics helper.
+- **P5 — Durable cleanup**: temporary plan deleted, [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.en.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.en.md) added, and README / ALPHA_STATUS / NEXT_STEPS / CONFORMANCE_MATRIX converged to durable guidance.
 
-Reference: [`docs/performance/BASELINE.en.md`](../performance/BASELINE.en.md), [`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.en.md`](./PERFORMANCE_CODE_HEALTH_BETA.en.md)
-
-### Phase P1 — Conformance Feedback Loop (complete)
-
-Goal: make conformance filterable, timed, and diagnosable.
-
-Delivered:
-
-- `--list`, `--case <pattern>`, `--tag <tag>`, `--fail-fast`, `--slowest <N>` CLI options.
-- Structured `ConformanceCase { id, tags, run }` registry with per-case tags (runtime, event, capability, package, subprocess, official, generated, network, outbound, stream, agentic, experience, memory, sharing, secret, composition, replacement, surface, protocol, permission, hook, host, asset, projection, substrate, live, slow, etc.).
-- Per-case duration output and slowest-N report.
-- Default `ygg conformance` still runs all 245 cases.
-
-Reference: [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md), [`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.en.md`](./PERFORMANCE_CODE_HEALTH_BETA.en.md)
-
-### Phase P2 — Low-risk Structural Split (complete)
-
-### Phase P3 — Event Store & Replay Optimization (complete)
-
-Delivered:
-
-- `EventStore::append_with_sequence` atomic append API: guarantees no duplicate sequences under concurrent same-session access. `SqliteEventStore` atomically allocates within the same connection mutex; `InMemoryEventStore` atomically allocates within the same write lock.
-- `EventStore::list_kind_prefix` and `list_session_kind_prefix` query pushdown APIs. SQLite override uses SQL range/LIKE; InMemory override uses single read+filter.
-- SQLite indexes: `kind`, `session+kind+sequence`.
-- `append_event_unchecked` uses store-level atomic append; hook veto/schema failure no longer consumes a sequence.
-- `dispatch_permission_audit()` uses `list_kind_prefix("kernel/permission")` pushdown.
-- `list_outbound_audit()` uses `list_session_kind_prefix(session, "kernel/outbound")` pushdown.
-- Concurrent append correctness test (50 concurrent appends → contiguous sequences, no duplicates).
-- `ygg perf baseline` extended with 1k/10k/100k event scale scenarios.
-- `docs/performance/BASELINE*` updated.
+Red lines: no official-package fast path; no permission/hook/schema/redaction/audit bypass; Web does not read SQLite/runtime internals; no kernel content/product namespaces; no evidence-free macro/codegen/RawValue/arena rewrite.
 
 ## Deferred indefinitely from kernel scope
 
@@ -333,4 +301,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, Experience Beta 4, Experience Beta 5, Experience Beta 6, and Performance & Code Health Beta P0–P4 are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, Experience Beta 4, Experience Beta 5, Experience Beta 6, and Performance & Code Health Beta is complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

@@ -4,7 +4,7 @@
 
 本文档记录 `ygg perf baseline` 命令的用法、测量场景、样本限制和指标定义。当前 baseline 是 developer-machine reference，不是 CI budget。
 
-临时计划见 [`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`](../roadmap/PERFORMANCE_CODE_HEALTH_BETA.md)。
+性能与代码健康指南见 [`PERFORMANCE_AND_CODE_HEALTH.md`](./PERFORMANCE_AND_CODE_HEALTH.md)。
 
 ## 命令
 

@@ -4,7 +4,7 @@
 
 This document records the usage, measurement scenarios, sample limitations, and metric definitions for `ygg perf baseline`. The current baseline is a **developer-machine reference**, not a CI budget.
 
-Temporary plan: [`docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`](../roadmap/PERFORMANCE_CODE_HEALTH_BETA.md).
+Performance/code-health guide: [`PERFORMANCE_AND_CODE_HEALTH.en.md`](./PERFORMANCE_AND_CODE_HEALTH.en.md).
 
 ## Command
 

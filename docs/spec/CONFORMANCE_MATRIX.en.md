@@ -15,7 +15,7 @@ Current matrix coverage: 200 implemented rows, backed by 245 named CLI conforman
 
 ## Conformance Feedback Loop
 
-The conformance command supports filtering, timing, and diagnostics (Performance & Code Health Beta Phase P1). See [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md).
+The conformance command supports filtering, timing, and diagnostics (Performance & Code Health Beta). See [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md) and [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.en.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.en.md).
 
 ```bash
 # List all case ids and tags

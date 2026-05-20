@@ -15,7 +15,7 @@ cargo run -p ygg-cli -- conformance
 
 ## Conformance Feedback Loop
 
-Conformance 命令支持过滤、计时和诊断（Performance & Code Health Beta Phase P1）。详见 [`docs/performance/CONFORMANCE_FEEDBACK.md`](../performance/CONFORMANCE_FEEDBACK.md)。
+Conformance 命令支持过滤、计时和诊断（Performance & Code Health Beta）。详见 [`docs/performance/CONFORMANCE_FEEDBACK.md`](../performance/CONFORMANCE_FEEDBACK.md) 与 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.md)。
 
 ```bash
 # 列出所有 case id 和 tags
