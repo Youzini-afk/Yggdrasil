@@ -6,6 +6,11 @@
 //! Phase B: branch-aware candidate, compare with stale detection,
 //! draft promote proposal (no direct mutation), stale target blocked,
 //! archive candidate leaves target unchanged.
+//!
+//! Phase C: inference-backed agent run with deterministic fallback.
+//! Inference output can only produce candidate/proposal seeds.
+//! Replay mismatches are flagged. Cloud adapter plan returns needs_host_policy.
+//! Failure taxonomy returns typed recovery hints.
 
 use std::path::PathBuf;
 
@@ -52,8 +57,8 @@ pub(crate) async fn agentic_forge_describe_contract() -> anyhow::Result<()> {
         "describe_contract must list 9 lifecycle states"
     );
     anyhow::ensure!(
-        contract.output["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 11,
-        "describe_contract must list 11 capabilities"
+        contract.output["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 15,
+        "describe_contract must list 15 capabilities"
     );
     anyhow::ensure!(
         contract.output["plan_graph_fields"].is_array(),
@@ -677,6 +682,281 @@ pub(crate) async fn agentic_forge_archive_candidate() -> anyhow::Result<()> {
     // Verify no direct mutation terms
     let output_str = serde_json::to_string(&result.output).unwrap();
     anyhow::ensure!(!output_str.contains("kernel.agent"), "archive output must not contain kernel.agent");
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Phase C conformance cases
+// ---------------------------------------------------------------------------
+
+/// Phase C case 1: deterministic inference node produces candidate_seed or
+/// proposal_seed but no direct mutation (target_branch_unchanged, direct_mutation=false).
+pub(crate) async fn agentic_forge_inference_node_deterministic() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/run_inference_node"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "run_id": "run_inf_conf",
+                "node_id": "node_infer_1",
+                "provider_kind": "deterministic",
+                "objective": "analyze composition",
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_inference_node_result"),
+        "run_inference_node must return agentic_forge_inference_node_result kind"
+    );
+    // Output action must be candidate_seed or proposal_seed (no direct mutation)
+    let action = result.output["node_result"]["output_action"].as_str().unwrap_or("");
+    anyhow::ensure!(
+        action == "candidate_seed" || action == "proposal_seed",
+        "inference output_action must be candidate_seed or proposal_seed, got: {action}"
+    );
+    anyhow::ensure!(
+        result.output["node_result"]["target_branch_unchanged"] == json!(true),
+        "inference node must confirm target_branch_unchanged"
+    );
+    anyhow::ensure!(
+        result.output["node_result"]["direct_mutation"] == json!(false),
+        "inference node must confirm direct_mutation=false"
+    );
+    anyhow::ensure!(
+        result.output["network_performed"] == json!(false),
+        "deterministic inference must not perform network"
+    );
+
+    // No kernel namespace
+    let output_str = serde_json::to_string(&result.output).unwrap();
+    anyhow::ensure!(!output_str.contains("kernel.agent"), "inference output must not contain kernel.agent");
+    anyhow::ensure!(!output_str.contains("auto_promote"), "inference output must not contain auto_promote");
+
+    Ok(())
+}
+
+/// Phase C case 2: recorded replay match ok / mismatch flagged (never silently passed).
+pub(crate) async fn agentic_forge_replay_match_mismatch() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    // Mismatch → flagged
+    let mismatch = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/replay_inference_node"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "run_id": "run_replay_conf",
+                "node_id": "node_infer_1",
+                "expected_fingerprint": "fp_WRONG_FINGERPRINT",
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        mismatch.output["kind"] == json!("agentic_forge_replay_mismatch"),
+        "replay with wrong fingerprint must return agentic_forge_replay_mismatch"
+    );
+    anyhow::ensure!(
+        mismatch.output["fingerprint_match"] == json!(false),
+        "mismatched replay must have fingerprint_match=false"
+    );
+
+    // Match → ok
+    // Compute expected fingerprint from same input (without expected_fingerprint field)
+    let base_input: serde_json::Value = json!({
+        "run_id": "run_replay_ok",
+        "node_id": "node_infer_1",
+    });
+    let expected_fp = format!("fp_{}", {
+        let obj = base_input.get("objective").and_then(serde_json::Value::as_str).unwrap_or("default");
+        let len = obj.len();
+        format!("{:04x}", len.wrapping_mul(31).wrapping_add(0xaf))
+    });
+
+    let matched = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/replay_inference_node"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "run_id": "run_replay_ok",
+                "node_id": "node_infer_1",
+                "expected_fingerprint": expected_fp,
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        matched.output["kind"] == json!("agentic_forge_replay_ok"),
+        "replay with correct fingerprint must return agentic_forge_replay_ok"
+    );
+    anyhow::ensure!(
+        matched.output["fingerprint_match"] == json!(true),
+        "matched replay must have fingerprint_match=true"
+    );
+
+    Ok(())
+}
+
+/// Phase C case 3: invalid model output (privilege_escalation, auto_promote, etc.) rejected.
+pub(crate) async fn agentic_forge_inference_output_validation() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    // Test forbidden actions are rejected
+    for forbidden in &["privilege_escalation", "auto_promote", "secret_request", "target_branch_write"] {
+        let result = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: format!("{PACKAGE_ID}/validate_inference_output"),
+                caller_package_id: None,
+                provider_package_id: Some(PACKAGE_ID.to_string()),
+                version: None,
+                input: json!({
+                    "action": forbidden,
+                }),
+            })
+            .await?;
+
+        anyhow::ensure!(
+            result.output["validation_result"] == json!("rejected"),
+            "forbidden action '{forbidden}' must be rejected"
+        );
+        anyhow::ensure!(
+            result.output["allowed"] == json!(false),
+            "forbidden action '{forbidden}' must have allowed=false"
+        );
+    }
+
+    // Test allowed actions are accepted
+    for allowed in &["candidate_seed", "proposal_seed", "observation", "needs_repair"] {
+        let result = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: format!("{PACKAGE_ID}/validate_inference_output"),
+                caller_package_id: None,
+                provider_package_id: Some(PACKAGE_ID.to_string()),
+                version: None,
+                input: json!({
+                    "action": allowed,
+                }),
+            })
+            .await?;
+
+        anyhow::ensure!(
+            result.output["validation_result"] == json!("accepted"),
+            "allowed action '{allowed}' must be accepted"
+        );
+        anyhow::ensure!(
+            result.output["allowed"] == json!(true),
+            "allowed action '{allowed}' must have allowed=true"
+        );
+    }
+
+    Ok(())
+}
+
+/// Phase C case 4: cloud_adapter_plan returns needs_host_policy / no network performed.
+pub(crate) async fn agentic_forge_cloud_adapter_no_network() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/run_inference_node"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "run_id": "run_cloud_conf",
+                "node_id": "node_infer_cloud",
+                "provider_kind": "cloud_adapter_plan",
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_inference_node_plan"),
+        "cloud_adapter_plan must return agentic_forge_inference_node_plan kind"
+    );
+    anyhow::ensure!(
+        result.output["node_result"]["status"] == json!("needs_host_policy"),
+        "cloud_adapter_plan must return needs_host_policy status"
+    );
+    anyhow::ensure!(
+        result.output["inference_performed"] == json!(false),
+        "cloud_adapter_plan must record inference_performed=false"
+    );
+    anyhow::ensure!(
+        result.output["network_performed"] == json!(false),
+        "cloud_adapter_plan must record network_performed=false"
+    );
+
+    // No raw network or endpoint data in output
+    let output_str = serde_json::to_string(&result.output).unwrap();
+    anyhow::ensure!(!output_str.contains("kernel.agent"), "cloud adapter output must not contain kernel.agent");
+
+    Ok(())
+}
+
+/// Phase C case 5: inference failure taxonomy returns typed recovery hints.
+pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    // Test all known failure kinds
+    for kind in &["rate_limit", "quota", "timeout", "auth", "network_denied", "invalid_output", "malformed_output", "replay_mismatch", "policy_reject"] {
+        let result = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: format!("{PACKAGE_ID}/explain_inference_failure"),
+                caller_package_id: None,
+                provider_package_id: Some(PACKAGE_ID.to_string()),
+                version: None,
+                input: json!({
+                    "failure_kind": kind,
+                }),
+            })
+            .await?;
+
+        anyhow::ensure!(
+            result.output["kind"] == json!("agentic_forge_inference_failure_explanation"),
+            "explain_inference_failure must return agentic_forge_inference_failure_explanation kind"
+        );
+        anyhow::ensure!(
+            result.output["is_known"] == json!(true),
+            "failure kind '{kind}' must be known"
+        );
+        anyhow::ensure!(
+            result.output["recovery_hint"].as_str().map(|s| s.len() > 0).unwrap_or(false),
+            "failure kind '{kind}' must have a non-empty recovery_hint"
+        );
+        anyhow::ensure!(
+            result.output["taxonomy"].is_array(),
+            "explain_inference_failure must have taxonomy"
+        );
+    }
+
+    // Unknown kind
+    let unknown = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/explain_inference_failure"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "failure_kind": "nonexistent_failure",
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        unknown.output["is_known"] == json!(false),
+        "unknown failure kind must have is_known=false"
+    );
 
     Ok(())
 }

@@ -657,6 +657,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "agentic_forge.archive_candidate_target_unchanged",
         agentic_forge::agentic_forge_archive_candidate().await,
     );
+    // Phase C — Agentic Forge Beta: inference-backed agent run with deterministic fallback
+    record_case(
+        &mut results,
+        "agentic_forge.inference_node_deterministic_candidate_seed",
+        agentic_forge::agentic_forge_inference_node_deterministic().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.replay_match_mismatch_flagged",
+        agentic_forge::agentic_forge_replay_match_mismatch().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.inference_output_privilege_escalation_rejected",
+        agentic_forge::agentic_forge_inference_output_validation().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.cloud_adapter_needs_host_policy_no_network",
+        agentic_forge::agentic_forge_cloud_adapter_no_network().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.inference_failure_taxonomy_recovery_hints",
+        agentic_forge::agentic_forge_inference_failure_taxonomy().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

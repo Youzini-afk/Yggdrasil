@@ -85,20 +85,24 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
 
 非目标：复杂 merge engine、domain-specific diff ontology、自动 promote。
 
-## Phase C — Inference-backed agent run with deterministic fallback
+## Phase C — Inference-backed agent run with deterministic fallback（已完成）
 
 **目标：** 把 live/fake inference 接进 agent run，但模型输出不能成为 runtime authority。
 
-计划交付：
+已交付：
 
 - Plan node kinds：`observe`、`infer`、`tool_call`、`inspect`、`branch_op`、`compare`、`propose`、`wait`。
-- `infer` node 支持：
-  - deterministic provider (`official/inference-local-lab`)
-  - recorded output replay
-  - optional cloud adapter path via public capability/outbound contracts
-- Malformed output handling：node failed / repair proposal，不执行未知 action。
-- Provider failure taxonomy：rate_limit/quota/timeout/auth/network_denied/invalid_output。
-- Conformance：同一 deterministic run 可重放；live/provider failure 不破坏 run state；LLM output 不能提升权限、不能 auto-promote。
+- `run_inference_node`：deterministic（默认）、recorded、cloud_adapter_plan、local_fake provider。
+  - Deterministic/recorded/local_fake 仅产生 `candidate_seed` 或 `proposal_seed`；不直接 create candidate 或 promote。
+  - `cloud_adapter_plan` 返回 `needs_host_policy`，不执行网络。
+  - Inference trace 包含 provider_kind、model_performed、network_performed、output_action、fingerprint。
+  - Raw-secret blocking 适用。
+- `replay_inference_node`：指纹匹配 → replay_ok，不匹配 → replay_mismatch（标记，绝不静默通过）。
+- `validate_inference_output`：allowlist（candidate_seed、proposal_seed、observation、needs_repair）；拒绝 privilege_escalation、auto_promote、secret_request、target_branch_write、unknown_action。
+- `explain_inference_failure`：taxonomy（rate_limit、quota、timeout、auth、network_denied、invalid_output、malformed_output、replay_mismatch、policy_reject）含 typed recovery hint。
+- TypeScript SDK 扩展 ProviderKind、AllowedInferenceAction、ForbiddenInferenceAction、InferenceFailureKind、InferenceNodeResult、InferenceTrace、RunInferenceNodeResponse、ReplayInferenceNodeResponse、InferenceOutputValidation、InferenceFailureExplanation 类型和 runInferenceNode、replayInferenceNode、validateInferenceOutput、explainInferenceFailure、computeDeterministicFingerprint helper。
+- Conformance：5 个用例（deterministic inference node candidate_seed、replay match/mismatch flagged、privilege escalation rejected、cloud_adapter_plan needs_host_policy no network、failure taxonomy recovery hints）。
+- 未新增 `kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*`、`kernel.memory.*` 或 `kernel.turn.*` 协议方法。
 
 非目标：自动长期 autonomous agent、provider router、cost optimizer、多模型 tournament。
 

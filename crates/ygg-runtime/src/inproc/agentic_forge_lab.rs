@@ -7,6 +7,11 @@
 //! Phase B: branch-aware scratch branch / candidate / compare / promote proof.
 //! Candidates never mutate target branch; promote only produces proposal drafts.
 //! Stale target branch detection (revision mismatch) blocks promote.
+//!
+//! Phase C: inference-backed agent run with deterministic fallback.
+//! Model output can only produce candidate/proposal seeds, never escalate
+//! privileges or auto-promote. Cloud adapter plan returns needs_host_policy,
+//! no network performed. Replay mismatches are flagged, never silently passed.
 
 use serde_json::Value;
 
@@ -53,6 +58,67 @@ const CANDIDATE_STATES: &[&str] = &[
 fn is_valid_candidate_state(s: &str) -> bool {
     CANDIDATE_STATES.contains(&s)
 }
+
+// ---------------------------------------------------------------------------
+// Plan node kinds (Phase C: explicit coverage)
+// ---------------------------------------------------------------------------
+
+const PLAN_NODE_KINDS: &[&str] = &[
+    "observe",
+    "infer",
+    "tool_call",
+    "inspect",
+    "branch_op",
+    "compare",
+    "propose",
+    "wait",
+];
+
+// ---------------------------------------------------------------------------
+// Inference provider kinds
+// ---------------------------------------------------------------------------
+
+const PROVIDER_KINDS: &[&str] = &[
+    "deterministic",
+    "recorded",
+    "cloud_adapter_plan",
+    "local_fake",
+];
+
+// ---------------------------------------------------------------------------
+// Inference failure taxonomy
+// ---------------------------------------------------------------------------
+
+const INFERENCE_FAILURE_KINDS: &[&str] = &[
+    "rate_limit",
+    "quota",
+    "timeout",
+    "auth",
+    "network_denied",
+    "invalid_output",
+    "malformed_output",
+    "replay_mismatch",
+    "policy_reject",
+];
+
+// ---------------------------------------------------------------------------
+// Allowed inference output actions (Phase C safety boundary)
+// ---------------------------------------------------------------------------
+
+const ALLOWED_INFERENCE_ACTIONS: &[&str] = &[
+    "candidate_seed",
+    "proposal_seed",
+    "observation",
+    "needs_repair",
+];
+
+const FORBIDDEN_INFERENCE_ACTIONS: &[&str] = &[
+    "privilege_escalation",
+    "auto_promote",
+    "secret_request",
+    "target_branch_write",
+    "unknown_action",
+];
 
 // ---------------------------------------------------------------------------
 // Raw-secret detection (conservative, shared with kernel scanning)
@@ -167,6 +233,14 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(archive_candidate(request))
     } else if id.ends_with("/explain_branch_policy") {
         Some(explain_branch_policy(request))
+    } else if id.ends_with("/run_inference_node") {
+        Some(run_inference_node(request))
+    } else if id.ends_with("/replay_inference_node") {
+        Some(replay_inference_node(request))
+    } else if id.ends_with("/validate_inference_output") {
+        Some(validate_inference_output(request))
+    } else if id.ends_with("/explain_inference_failure") {
+        Some(explain_inference_failure(request))
     } else {
         None
     }
@@ -192,9 +266,17 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/agentic-forge-lab/draft_promote_proposal", "purpose": "draft a promote proposal without direct target mutation; stale target blocked"},
             {"id": "official/agentic-forge-lab/archive_candidate", "purpose": "archive a candidate without modifying target branch"},
             {"id": "official/agentic-forge-lab/explain_branch_policy", "purpose": "explain the scratch/target branch policy and promote constraints"},
+            {"id": "official/agentic-forge-lab/run_inference_node", "purpose": "run an inference node with deterministic/recorded/cloud_adapter_plan provider; produces candidate/proposal seeds only"},
+            {"id": "official/agentic-forge-lab/replay_inference_node", "purpose": "replay a recorded inference output; mismatch flagged, never silently passed"},
+            {"id": "official/agentic-forge-lab/validate_inference_output", "purpose": "validate inference output action allowlist; reject privilege_escalation/auto_promote/secret_request/target_branch_write/unknown_action"},
+            {"id": "official/agentic-forge-lab/explain_inference_failure", "purpose": "explain inference failure taxonomy with recovery hints"},
         ],
         "lifecycle_states": LIFECYCLE_STATES,
         "candidate_states": CANDIDATE_STATES,
+        "plan_node_kinds": PLAN_NODE_KINDS,
+        "provider_kinds": PROVIDER_KINDS,
+        "inference_failure_taxonomy": INFERENCE_FAILURE_KINDS,
+        "allowed_inference_actions": ALLOWED_INFERENCE_ACTIONS,
         "plan_graph_fields": [
             "nodes", "edges", "status", "revision", "input_refs",
             "output_refs", "approval_policy", "retry_policy", "deterministic_mode"
@@ -676,6 +758,260 @@ fn explain_branch_policy(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 // ---------------------------------------------------------------------------
+// Phase C capabilities: inference node / replay / validation / failure
+// ---------------------------------------------------------------------------
+
+fn run_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_inference_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let run_id = request.input
+        .get("run_id")
+        .and_then(Value::as_str)
+        .unwrap_or("run_unknown");
+    let node_id = request.input
+        .get("node_id")
+        .and_then(Value::as_str)
+        .unwrap_or("node_infer_default");
+    let provider_kind = request.input
+        .get("provider_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("deterministic");
+
+    // Validate provider_kind
+    if !PROVIDER_KINDS.contains(&provider_kind) {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_inference_rejected",
+            "reason": "invalid_provider_kind",
+            "provider_kind": provider_kind,
+            "allowed_kinds": PROVIDER_KINDS,
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    // cloud_adapter_plan: return plan/needs_host_policy, no network
+    if provider_kind == "cloud_adapter_plan" {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_inference_node_plan",
+            "run_id": run_id,
+            "node_id": node_id,
+            "provider_kind": provider_kind,
+            "node_result": {
+                "status": "needs_host_policy",
+                "description": "cloud adapter requires host-managed network policy and outbound execution; no network performed by package"
+            },
+            "inference_trace": {
+                "provider_kind": provider_kind,
+                "model_performed": false,
+                "network_performed": false,
+                "output_action": "observation"
+            },
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    // deterministic / recorded / local_fake: produce candidate_seed or proposal_seed
+    let objective = request.input
+        .get("objective")
+        .and_then(Value::as_str)
+        .unwrap_or("deterministic inference");
+
+    let output_action = if objective.contains("proposal") {
+        "proposal_seed"
+    } else {
+        "candidate_seed"
+    };
+
+    let model_performed = provider_kind == "local_fake";
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_inference_node_result",
+        "run_id": run_id,
+        "node_id": node_id,
+        "provider_kind": provider_kind,
+        "node_result": {
+            "status": "completed",
+            "output_action": output_action,
+            "content_hint": format!("deterministic {} from {}", output_action, provider_kind),
+            "target_branch_unchanged": true,
+            "direct_mutation": false
+        },
+        "inference_trace": {
+            "provider_kind": provider_kind,
+            "model_performed": model_performed,
+            "network_performed": false,
+            "output_action": output_action,
+            "fingerprint": format!("fp_{}", deterministic_id(&request.input))
+        },
+        "inference_performed": model_performed,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn replay_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_replay_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let run_id = request.input
+        .get("run_id")
+        .and_then(Value::as_str)
+        .unwrap_or("run_unknown");
+    let node_id = request.input
+        .get("node_id")
+        .and_then(Value::as_str)
+        .unwrap_or("node_infer_default");
+
+    let recorded_fingerprint = request.input
+        .get("expected_fingerprint")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let computed_fingerprint = format!("fp_{}", deterministic_id(&request.input));
+
+    if recorded_fingerprint == computed_fingerprint {
+        Ok(serde_json::json!({
+            "kind": "agentic_forge_replay_ok",
+            "run_id": run_id,
+            "node_id": node_id,
+            "fingerprint_match": true,
+            "fingerprint": recorded_fingerprint,
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "kind": "agentic_forge_replay_mismatch",
+            "run_id": run_id,
+            "node_id": node_id,
+            "fingerprint_match": false,
+            "expected_fingerprint": recorded_fingerprint,
+            "actual_fingerprint": computed_fingerprint,
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }))
+    }
+}
+
+fn validate_inference_output(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let action = request.input
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown_action");
+
+    let is_allowed = ALLOWED_INFERENCE_ACTIONS.contains(&action);
+    let is_forbidden = FORBIDDEN_INFERENCE_ACTIONS.contains(&action);
+
+    let validation_result = if is_forbidden || !is_allowed {
+        "rejected"
+    } else {
+        "accepted"
+    };
+
+    let reason = if is_forbidden {
+        format!("action '{}' is in the forbidden list; model output cannot escalate privileges, auto-promote, request secrets, write target branches, or execute unknown actions", action)
+    } else if !is_allowed {
+        format!("action '{}' is not in the allowed list; only candidate_seed, proposal_seed, observation, needs_repair are permitted", action)
+    } else {
+        "action is permitted".to_string()
+    };
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_inference_validation",
+        "action": action,
+        "validation_result": validation_result,
+        "allowed": is_allowed && !is_forbidden,
+        "reason": reason,
+        "allowed_actions": ALLOWED_INFERENCE_ACTIONS,
+        "forbidden_actions": FORBIDDEN_INFERENCE_ACTIONS,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn explain_inference_failure(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let failure_kind = request.input
+        .get("failure_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+
+    let (is_known, recovery_hint) = match failure_kind {
+        "rate_limit" => (true, "reduce request frequency or implement backoff; consider recorded replay for deterministic re-runs"),
+        "quota" => (true, "check usage limits; switch to deterministic or recorded provider for quota-free runs"),
+        "timeout" => (true, "increase timeout budget or use recorded replay to avoid network dependency"),
+        "auth" => (true, "verify secret_ref resolves correctly; do not embed raw credentials; check provider identity"),
+        "network_denied" => (true, "network access was denied by policy; use deterministic or local_fake provider; cloud_adapter_plan only returns plan shape"),
+        "invalid_output" => (true, "model output failed validation; run validate_inference_output to check; repair with needs_repair action"),
+        "malformed_output" => (true, "model output could not be parsed; treat as node_failed; generate repair proposal"),
+        "replay_mismatch" => (true, "recorded output fingerprint does not match expected; re-run with correct recorded output or update expected fingerprint"),
+        "policy_reject" => (true, "inference output action was rejected by policy; only candidate_seed/proposal_seed/observation/needs_repair are allowed; model output cannot escalate or auto-promote"),
+        _ => (false, "unknown failure kind; consult inference_failure_taxonomy for valid kinds"),
+    };
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_inference_failure_explanation",
+        "failure_kind": failure_kind,
+        "is_known": is_known,
+        "recovery_hint": recovery_hint,
+        "taxonomy": INFERENCE_FAILURE_KINDS,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Shape builders
 // ---------------------------------------------------------------------------
 
@@ -1047,5 +1383,204 @@ mod tests {
             assert!(!output_str.contains("kernel.memory"), "{cap} must not contain kernel.memory");
             assert!(!output_str.contains("kernel.turn"), "{cap} must not contain kernel.turn");
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase C unit tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn run_inference_node_deterministic_produces_candidate_seed() {
+        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
+            "run_id": "run_inf",
+            "node_id": "node_infer_1",
+            "provider_kind": "deterministic",
+            "objective": "analyze composition",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_inference_node_result"));
+        assert_eq!(result["node_result"]["output_action"], json!("candidate_seed"));
+        assert_eq!(result["node_result"]["target_branch_unchanged"], json!(true));
+        assert_eq!(result["node_result"]["direct_mutation"], json!(false));
+        assert_eq!(result["inference_trace"]["network_performed"], json!(false));
+        assert_eq!(result["network_performed"], json!(false));
+    }
+
+    #[test]
+    fn run_inference_node_objective_with_proposal_produces_proposal_seed() {
+        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
+            "run_id": "run_inf",
+            "node_id": "node_infer_2",
+            "provider_kind": "deterministic",
+            "objective": "draft proposal for changes",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["node_result"]["output_action"], json!("proposal_seed"));
+    }
+
+    #[test]
+    fn run_inference_node_cloud_adapter_returns_needs_host_policy() {
+        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
+            "run_id": "run_cloud",
+            "node_id": "node_infer_cloud",
+            "provider_kind": "cloud_adapter_plan",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_inference_node_plan"));
+        assert_eq!(result["node_result"]["status"], json!("needs_host_policy"));
+        assert_eq!(result["network_performed"], json!(false));
+        assert_eq!(result["inference_performed"], json!(false));
+    }
+
+    #[test]
+    fn run_inference_node_rejects_invalid_provider() {
+        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
+            "run_id": "run_bad",
+            "provider_kind": "cloud_real",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_inference_rejected"));
+        assert_eq!(result["reason"], json!("invalid_provider_kind"));
+    }
+
+    #[test]
+    fn run_inference_node_blocks_raw_secret() {
+        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
+            "run_id": "run_inf",
+            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_inference_rejected"));
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+    }
+
+    #[test]
+    fn replay_inference_node_match_ok() {
+        // Compute the expected fingerprint first from an identical input
+        let input = json!({
+            "run_id": "run_replay",
+            "node_id": "node_infer_1",
+        });
+        let expected_fp = format!("fp_{}", deterministic_id(&input));
+        let req = make_request("official/agentic-forge-lab/replay_inference_node", json!({
+            "run_id": "run_replay",
+            "node_id": "node_infer_1",
+            "expected_fingerprint": expected_fp,
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_replay_ok"));
+        assert_eq!(result["fingerprint_match"], json!(true));
+    }
+
+    #[test]
+    fn replay_inference_node_mismatch_flagged() {
+        let req = make_request("official/agentic-forge-lab/replay_inference_node", json!({
+            "run_id": "run_replay",
+            "node_id": "node_infer_1",
+            "expected_fingerprint": "fp_WRONG",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_replay_mismatch"));
+        assert_eq!(result["fingerprint_match"], json!(false));
+        assert_ne!(result["expected_fingerprint"], result["actual_fingerprint"]);
+    }
+
+    #[test]
+    fn validate_inference_output_accepts_allowed_actions() {
+        for action in ALLOWED_INFERENCE_ACTIONS {
+            let req = make_request("official/agentic-forge-lab/validate_inference_output", json!({
+                "action": action,
+            }));
+            let result = try_handle(&req).unwrap().unwrap();
+            assert_eq!(result["validation_result"], json!("accepted"), "action {} should be accepted", action);
+            assert_eq!(result["allowed"], json!(true));
+        }
+    }
+
+    #[test]
+    fn validate_inference_output_rejects_forbidden_actions() {
+        for action in FORBIDDEN_INFERENCE_ACTIONS {
+            let req = make_request("official/agentic-forge-lab/validate_inference_output", json!({
+                "action": action,
+            }));
+            let result = try_handle(&req).unwrap().unwrap();
+            assert_eq!(result["validation_result"], json!("rejected"), "action {} should be rejected", action);
+            assert_eq!(result["allowed"], json!(false));
+        }
+    }
+
+    #[test]
+    fn validate_inference_output_rejects_unknown_action() {
+        let req = make_request("official/agentic-forge-lab/validate_inference_output", json!({
+            "action": "arbitrary_exec",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["validation_result"], json!("rejected"));
+        assert_eq!(result["allowed"], json!(false));
+    }
+
+    #[test]
+    fn explain_inference_failure_returns_recovery_hints() {
+        for kind in INFERENCE_FAILURE_KINDS {
+            let req = make_request("official/agentic-forge-lab/explain_inference_failure", json!({
+                "failure_kind": kind,
+            }));
+            let result = try_handle(&req).unwrap().unwrap();
+            assert_eq!(result["kind"], json!("agentic_forge_inference_failure_explanation"));
+            assert_eq!(result["is_known"], json!(true));
+            assert!(result["recovery_hint"].as_str().unwrap().len() > 0, "failure {} should have recovery hint", kind);
+        }
+    }
+
+    #[test]
+    fn explain_inference_failure_unknown_kind() {
+        let req = make_request("official/agentic-forge-lab/explain_inference_failure", json!({
+            "failure_kind": "unknown_error",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["is_known"], json!(false));
+    }
+
+    #[test]
+    fn no_kernel_namespace_in_phase_c_outputs() {
+        for cap in &[
+            "official/agentic-forge-lab/run_inference_node",
+            "official/agentic-forge-lab/replay_inference_node",
+            "official/agentic-forge-lab/validate_inference_output",
+            "official/agentic-forge-lab/explain_inference_failure",
+        ] {
+            let req = make_request(cap, json!({"run_id": "run_ns", "node_id": "n1", "provider_kind": "deterministic", "failure_kind": "timeout", "action": "candidate_seed", "expected_fingerprint": "fp_test"}));
+            let result = try_handle(&req).unwrap().unwrap();
+            let output_str = serde_json::to_string(&result).unwrap();
+            assert!(!output_str.contains("kernel.agent"), "{cap} must not contain kernel.agent");
+            assert!(!output_str.contains("kernel.model"), "{cap} must not contain kernel.model");
+            assert!(!output_str.contains("kernel.prompt"), "{cap} must not contain kernel.prompt");
+            assert!(!output_str.contains("kernel.memory"), "{cap} must not contain kernel.memory");
+            assert!(!output_str.contains("kernel.turn"), "{cap} must not contain kernel.turn");
+        }
+    }
+
+    #[test]
+    fn describe_contract_includes_phase_c_fields() {
+        let req = make_request("official/agentic-forge-lab/describe_contract", json!({}));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert!(result["plan_node_kinds"].is_array(), "describe_contract must have plan_node_kinds");
+        assert!(result["provider_kinds"].is_array(), "describe_contract must have provider_kinds");
+        assert!(result["inference_failure_taxonomy"].is_array(), "describe_contract must have inference_failure_taxonomy");
+        assert!(result["allowed_inference_actions"].is_array(), "describe_contract must have allowed_inference_actions");
+        assert_eq!(result["capabilities"].as_array().unwrap().len(), 15, "describe_contract must list 15 capabilities");
+    }
+
+    #[test]
+    fn local_fake_provider_sets_inference_performed() {
+        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
+            "run_id": "run_local",
+            "node_id": "node_infer_local",
+            "provider_kind": "local_fake",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["inference_performed"], json!(true));
+        assert_eq!(result["inference_trace"]["model_performed"], json!(true));
+        assert_eq!(result["network_performed"], json!(false));
     }
 }

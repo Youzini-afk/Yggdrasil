@@ -75,6 +75,30 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/agentic-forge-lab/run_inference_node
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/replay_inference_node
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/validate_inference_output
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/explain_inference_failure
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []

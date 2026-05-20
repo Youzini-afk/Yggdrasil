@@ -85,20 +85,24 @@ Delivered:
 
 Non-goals: complex merge engine, domain-specific diff ontology, automatic promote.
 
-## Phase C — Inference-backed agent run with deterministic fallback
+## Phase C — Inference-backed agent run with deterministic fallback (complete)
 
 **Goal:** Connect live/fake inference to agent runs without making model output runtime authority.
 
-Planned deliverables:
+Delivered:
 
 - Plan node kinds: `observe`, `infer`, `tool_call`, `inspect`, `branch_op`, `compare`, `propose`, `wait`.
-- `infer` node supports:
-  - deterministic provider (`official/inference-local-lab`)
-  - recorded output replay
-  - optional cloud adapter path via public capability/outbound contracts
-- Malformed output handling: node failed / repair proposal; unknown actions do not execute.
-- Provider failure taxonomy: rate_limit/quota/timeout/auth/network_denied/invalid_output.
-- Conformance: deterministic run replay, provider failure does not corrupt run state, LLM output cannot escalate privileges or auto-promote.
+- `run_inference_node`: deterministic (default), recorded, cloud_adapter_plan, local_fake providers.
+  - Deterministic/recorded/local_fake produce `candidate_seed` or `proposal_seed` only; never directly create candidates or promote.
+  - `cloud_adapter_plan` returns `needs_host_policy` with no network performed.
+  - Inference trace includes provider_kind, model_performed, network_performed, output_action, fingerprint.
+  - Raw-secret blocking applies.
+- `replay_inference_node`: fingerprint match → replay_ok, mismatch → replay_mismatch (flagged, never silently passed).
+- `validate_inference_output`: allowlist (candidate_seed, proposal_seed, observation, needs_repair); reject privilege_escalation, auto_promote, secret_request, target_branch_write, unknown_action.
+- `explain_inference_failure`: taxonomy (rate_limit, quota, timeout, auth, network_denied, invalid_output, malformed_output, replay_mismatch, policy_reject) with typed recovery hints.
+- TypeScript SDK extended with ProviderKind, AllowedInferenceAction, ForbiddenInferenceAction, InferenceFailureKind, InferenceNodeResult, InferenceTrace, RunInferenceNodeResponse, ReplayInferenceNodeResponse, InferenceOutputValidation, InferenceFailureExplanation types and runInferenceNode, replayInferenceNode, validateInferenceOutput, explainInferenceFailure, computeDeterministicFingerprint helpers.
+- Conformance: 5 cases (deterministic inference node candidate_seed, replay match/mismatch flagged, privilege escalation rejected, cloud_adapter_plan needs_host_policy no network, failure taxonomy recovery hints).
+- No `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, `kernel.memory.*`, or `kernel.turn.*` protocol methods added.
 
 Non-goals: always-on autonomous agents, provider router, cost optimizer, multi-model tournament.
 

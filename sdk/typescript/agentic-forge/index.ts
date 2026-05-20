@@ -262,6 +262,145 @@ export interface BranchPolicy {
 }
 
 // ---------------------------------------------------------------------------
+// Phase C: inference node, replay, validation, failure taxonomy
+// ---------------------------------------------------------------------------
+
+/** Inference provider kinds. */
+export type ProviderKind =
+  | "deterministic"
+  | "recorded"
+  | "cloud_adapter_plan"
+  | "local_fake";
+
+export const VALID_PROVIDER_KINDS: ProviderKind[] = [
+  "deterministic", "recorded", "cloud_adapter_plan", "local_fake",
+];
+
+export function isValidProviderKind(s: string): s is ProviderKind {
+  return (VALID_PROVIDER_KINDS as string[]).includes(s);
+}
+
+/** Plan node kinds (explicit Phase C coverage). */
+export type ExplicitPlanNodeKind =
+  | "observe"
+  | "infer"
+  | "tool_call"
+  | "inspect"
+  | "branch_op"
+  | "compare"
+  | "propose"
+  | "wait";
+
+export const EXPLICIT_PLAN_NODE_KINDS: ExplicitPlanNodeKind[] = [
+  "observe", "infer", "tool_call", "inspect", "branch_op", "compare", "propose", "wait",
+];
+
+/** Allowed inference output actions. */
+export type AllowedInferenceAction =
+  | "candidate_seed"
+  | "proposal_seed"
+  | "observation"
+  | "needs_repair";
+
+export const ALLOWED_INFERENCE_ACTIONS: AllowedInferenceAction[] = [
+  "candidate_seed", "proposal_seed", "observation", "needs_repair",
+];
+
+/** Forbidden inference output actions. */
+export type ForbiddenInferenceAction =
+  | "privilege_escalation"
+  | "auto_promote"
+  | "secret_request"
+  | "target_branch_write"
+  | "unknown_action";
+
+export const FORBIDDEN_INFERENCE_ACTIONS: ForbiddenInferenceAction[] = [
+  "privilege_escalation", "auto_promote", "secret_request", "target_branch_write", "unknown_action",
+];
+
+/** Inference failure taxonomy kinds. */
+export type InferenceFailureKind =
+  | "rate_limit"
+  | "quota"
+  | "timeout"
+  | "auth"
+  | "network_denied"
+  | "invalid_output"
+  | "malformed_output"
+  | "replay_mismatch"
+  | "policy_reject";
+
+export const INFERENCE_FAILURE_KINDS: InferenceFailureKind[] = [
+  "rate_limit", "quota", "timeout", "auth", "network_denied",
+  "invalid_output", "malformed_output", "replay_mismatch", "policy_reject",
+];
+
+export function isInferenceFailureKind(s: string): s is InferenceFailureKind {
+  return (INFERENCE_FAILURE_KINDS as string[]).includes(s);
+}
+
+/** Inference node result from run_inference_node. */
+export interface InferenceNodeResult {
+  status: string;
+  output_action: string;
+  content_hint: string;
+  target_branch_unchanged: boolean;
+  direct_mutation: boolean;
+}
+
+/** Inference trace record. */
+export interface InferenceTrace {
+  provider_kind: ProviderKind;
+  model_performed: boolean;
+  network_performed: boolean;
+  output_action: string;
+  fingerprint: string;
+}
+
+/** Full run_inference_node response shape. */
+export interface RunInferenceNodeResponse {
+  kind: string;
+  run_id: string;
+  node_id: string;
+  provider_kind: ProviderKind;
+  node_result: InferenceNodeResult;
+  inference_trace: InferenceTrace;
+  inference_performed: boolean;
+  network_performed: boolean;
+}
+
+/** Replay result (match or mismatch). */
+export interface ReplayInferenceNodeResponse {
+  kind: string;
+  run_id: string;
+  node_id: string;
+  fingerprint_match: boolean;
+  fingerprint?: string;
+  expected_fingerprint?: string;
+  actual_fingerprint?: string;
+  inference_performed: boolean;
+  network_performed: boolean;
+}
+
+/** Inference output validation result. */
+export interface InferenceOutputValidation {
+  action: string;
+  validation_result: "accepted" | "rejected";
+  allowed: boolean;
+  reason: string;
+  allowed_actions: string[];
+  forbidden_actions: string[];
+}
+
+/** Inference failure explanation. */
+export interface InferenceFailureExplanation {
+  failure_kind: string;
+  is_known: boolean;
+  recovery_hint: string;
+  taxonomy: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Observability summary
 // ---------------------------------------------------------------------------
 
@@ -561,6 +700,163 @@ export function validateCandidate(c: Partial<Candidate>): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Phase C helpers: inference node / replay / validation / failure
+// ---------------------------------------------------------------------------
+
+/** Compute a deterministic fingerprint from input content. */
+export function computeDeterministicFingerprint(input: Record<string, unknown>): string {
+  const objective = (typeof input.objective === "string") ? input.objective : "default";
+  const len = objective.length;
+  const hash = ((len * 31) + 0xaf) >>> 0;  // unsigned 32-bit
+  return `fp_${hash.toString(16).padStart(4, "0")}`;
+}
+
+/** Build a run_inference_node result (deterministic/default mode). */
+export function runInferenceNode(
+  runId: string,
+  nodeId: string,
+  providerKind: ProviderKind = "deterministic",
+  objective: string = "deterministic inference",
+): RunInferenceNodeResponse {
+  // cloud_adapter_plan: return plan shape, no network
+  if (providerKind === "cloud_adapter_plan") {
+    return {
+      kind: "agentic_forge_inference_node_plan",
+      run_id: runId,
+      node_id: nodeId,
+      provider_kind: providerKind,
+      node_result: {
+        status: "needs_host_policy",
+        output_action: "observation",
+        content_hint: "cloud adapter requires host-managed network policy and outbound execution; no network performed by package",
+        target_branch_unchanged: true,
+        direct_mutation: false,
+      },
+      inference_trace: {
+        provider_kind: providerKind,
+        model_performed: false,
+        network_performed: false,
+        output_action: "observation",
+        fingerprint: computeDeterministicFingerprint({ objective, run_id: runId, node_id: nodeId }),
+      },
+      inference_performed: false,
+      network_performed: false,
+    };
+  }
+
+  const outputAction = objective.includes("proposal") ? "proposal_seed" : "candidate_seed";
+  const modelPerformed = providerKind === "local_fake";
+
+  return {
+    kind: "agentic_forge_inference_node_result",
+    run_id: runId,
+    node_id: nodeId,
+    provider_kind: providerKind,
+    node_result: {
+      status: "completed",
+      output_action: outputAction,
+      content_hint: `deterministic ${outputAction} from ${providerKind}`,
+      target_branch_unchanged: true,
+      direct_mutation: false,
+    },
+    inference_trace: {
+      provider_kind: providerKind,
+      model_performed: modelPerformed,
+      network_performed: false,
+      output_action: outputAction,
+      fingerprint: computeDeterministicFingerprint({ objective, run_id: runId, node_id: nodeId }),
+    },
+    inference_performed: modelPerformed,
+    network_performed: false,
+  };
+}
+
+/** Replay a recorded inference node. Mismatches are flagged, never silently passed. */
+export function replayInferenceNode(
+  runId: string,
+  nodeId: string,
+  expectedFingerprint: string,
+  objective: string = "default",
+): ReplayInferenceNodeResponse {
+  const actualFingerprint = computeDeterministicFingerprint({ objective, run_id: runId, node_id: nodeId });
+  const match = expectedFingerprint === actualFingerprint;
+
+  if (match) {
+    return {
+      kind: "agentic_forge_replay_ok",
+      run_id: runId,
+      node_id: nodeId,
+      fingerprint_match: true,
+      fingerprint: expectedFingerprint,
+      inference_performed: false,
+      network_performed: false,
+    };
+  } else {
+    return {
+      kind: "agentic_forge_replay_mismatch",
+      run_id: runId,
+      node_id: nodeId,
+      fingerprint_match: false,
+      expected_fingerprint: expectedFingerprint,
+      actual_fingerprint: actualFingerprint,
+      inference_performed: false,
+      network_performed: false,
+    };
+  }
+}
+
+/** Validate an inference output action against the allowlist. */
+export function validateInferenceOutput(action: string): InferenceOutputValidation {
+  const isAllowed = (ALLOWED_INFERENCE_ACTIONS as string[]).includes(action);
+  const isForbidden = (FORBIDDEN_INFERENCE_ACTIONS as string[]).includes(action);
+  const result = (isForbidden || !isAllowed) ? "rejected" : "accepted";
+
+  let reason: string;
+  if (isForbidden) {
+    reason = `action '${action}' is in the forbidden list; model output cannot escalate privileges, auto-promote, request secrets, write target branches, or execute unknown actions`;
+  } else if (!isAllowed) {
+    reason = `action '${action}' is not in the allowed list; only candidate_seed, proposal_seed, observation, needs_repair are permitted`;
+  } else {
+    reason = "action is permitted";
+  }
+
+  return {
+    action,
+    validation_result: result,
+    allowed: isAllowed && !isForbidden,
+    reason,
+    allowed_actions: [...ALLOWED_INFERENCE_ACTIONS],
+    forbidden_actions: [...FORBIDDEN_INFERENCE_ACTIONS],
+  };
+}
+
+/** Explain an inference failure with recovery hint. */
+const FAILURE_RECOVERY_HINTS: Record<string, string> = {
+  rate_limit: "reduce request frequency or implement backoff; consider recorded replay for deterministic re-runs",
+  quota: "check usage limits; switch to deterministic or recorded provider for quota-free runs",
+  timeout: "increase timeout budget or use recorded replay to avoid network dependency",
+  auth: "verify secret_ref resolves correctly; do not embed raw credentials; check provider identity",
+  network_denied: "network access was denied by policy; use deterministic or local_fake provider; cloud_adapter_plan only returns plan shape",
+  invalid_output: "model output failed validation; run validate_inference_output to check; repair with needs_repair action",
+  malformed_output: "model output could not be parsed; treat as node_failed; generate repair proposal",
+  replay_mismatch: "recorded output fingerprint does not match expected; re-run with correct recorded output or update expected fingerprint",
+  policy_reject: "inference output action was rejected by policy; only candidate_seed/proposal_seed/observation/needs_repair are allowed; model output cannot escalate or auto-promote",
+};
+
+export function explainInferenceFailure(failureKind: string): InferenceFailureExplanation {
+  const isKnown = isInferenceFailureKind(failureKind);
+  const recoveryHint = FAILURE_RECOVERY_HINTS[failureKind]
+    ?? "unknown failure kind; consult inference_failure_taxonomy for valid kinds";
+
+  return {
+    failure_kind: failureKind,
+    is_known: isKnown,
+    recovery_hint: recoveryHint,
+    taxonomy: [...INFERENCE_FAILURE_KINDS],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Self-test
 // ---------------------------------------------------------------------------
 
@@ -705,6 +1001,95 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
 
   // Raw secret blocking in candidate
   assert(blockRawSecrets({ api_key: "RawSecretExample1234567890abcdefABCDEF123456" }), "raw secret in candidate blocked");
+
+  // --- Phase C ---
+
+  // Provider kinds
+  assert(isValidProviderKind("deterministic"), "deterministic is valid provider kind");
+  assert(isValidProviderKind("cloud_adapter_plan"), "cloud_adapter_plan is valid provider kind");
+  assert(!isValidProviderKind("cloud_real"), "cloud_real is not valid provider kind");
+  assert(VALID_PROVIDER_KINDS.length === 4, "4 provider kinds");
+
+  // Inference failure taxonomy
+  assert(isInferenceFailureKind("rate_limit"), "rate_limit is valid failure kind");
+  assert(isInferenceFailureKind("policy_reject"), "policy_reject is valid failure kind");
+  assert(!isInferenceFailureKind("unknown_failure"), "unknown_failure is not valid failure kind");
+  assert(INFERENCE_FAILURE_KINDS.length === 9, "9 inference failure kinds");
+
+  // Run inference node — deterministic → candidate_seed
+  const infResult = runInferenceNode("run_inf", "node_1", "deterministic", "analyze composition");
+  assert(infResult.kind === "agentic_forge_inference_node_result", "inference node result kind");
+  assert(infResult.node_result.output_action === "candidate_seed", "deterministic → candidate_seed");
+  assert(infResult.node_result.target_branch_unchanged === true, "inference: target unchanged");
+  assert(infResult.node_result.direct_mutation === false, "inference: no direct mutation");
+  assert(infResult.network_performed === false, "deterministic: no network");
+  assert(infResult.inference_trace.fingerprint.startsWith("fp_"), "inference trace has fingerprint");
+
+  // Run inference node — objective with proposal → proposal_seed
+  const infProposal = runInferenceNode("run_inf", "node_2", "deterministic", "draft proposal");
+  assert(infProposal.node_result.output_action === "proposal_seed", "proposal objective → proposal_seed");
+
+  // Run inference node — cloud_adapter_plan → needs_host_policy, no network
+  const infCloud = runInferenceNode("run_cloud", "node_cloud", "cloud_adapter_plan");
+  assert(infCloud.kind === "agentic_forge_inference_node_plan", "cloud adapter kind");
+  assert(infCloud.node_result.status === "needs_host_policy", "cloud adapter needs host policy");
+  assert(infCloud.network_performed === false, "cloud adapter: no network performed");
+  assert(infCloud.inference_performed === false, "cloud adapter: no inference performed");
+
+  // Run inference node — local_fake → inference_performed=true
+  const infLocal = runInferenceNode("run_local", "node_local", "local_fake");
+  assert(infLocal.inference_performed === true, "local_fake: inference performed");
+  assert(infLocal.network_performed === false, "local_fake: no network");
+
+  // Replay — match
+  const expectedFp = computeDeterministicFingerprint({ objective: "default", run_id: "run_replay", node_id: "node_1" });
+  const replayOk = replayInferenceNode("run_replay", "node_1", expectedFp);
+  assert(replayOk.kind === "agentic_forge_replay_ok", "replay match kind");
+  assert(replayOk.fingerprint_match === true, "replay match");
+
+  // Replay — mismatch
+  const replayMismatch = replayInferenceNode("run_replay", "node_1", "fp_WRONG");
+  assert(replayMismatch.kind === "agentic_forge_replay_mismatch", "replay mismatch kind");
+  assert(replayMismatch.fingerprint_match === false, "replay mismatch flag");
+  assert(replayMismatch.expected_fingerprint === "fp_WRONG", "replay records expected fingerprint");
+  assert(replayMismatch.actual_fingerprint !== "fp_WRONG", "replay records actual fingerprint");
+
+  // Validate inference output — allowed
+  for (const action of ALLOWED_INFERENCE_ACTIONS) {
+    const v = validateInferenceOutput(action);
+    assert(v.validation_result === "accepted", `allowed action ${action} accepted`);
+    assert(v.allowed === true, `allowed action ${action} allowed=true`);
+  }
+
+  // Validate inference output — forbidden
+  for (const action of FORBIDDEN_INFERENCE_ACTIONS) {
+    const v = validateInferenceOutput(action);
+    assert(v.validation_result === "rejected", `forbidden action ${action} rejected`);
+    assert(v.allowed === false, `forbidden action ${action} allowed=false`);
+  }
+
+  // Validate inference output — unknown
+  const vUnknown = validateInferenceOutput("arbitrary_exec");
+  assert(vUnknown.validation_result === "rejected", "unknown action rejected");
+  assert(vUnknown.allowed === false, "unknown action allowed=false");
+
+  // Explain inference failure — all known kinds
+  for (const kind of INFERENCE_FAILURE_KINDS) {
+    const exp = explainInferenceFailure(kind);
+    assert(exp.is_known === true, `failure ${kind} is known`);
+    assert(exp.recovery_hint.length > 0, `failure ${kind} has recovery hint`);
+  }
+
+  // Explain inference failure — unknown
+  const expUnknown = explainInferenceFailure("nonexistent");
+  assert(expUnknown.is_known === false, "unknown failure is_known=false");
+
+  // No kernel namespace in Phase C outputs
+  assert(!hasKernelAgentNamespace(infResult), "inference result has no kernel namespace");
+  assert(!hasKernelAgentNamespace(replayOk), "replay result has no kernel namespace");
+  assert(!hasKernelAgentNamespace(replayMismatch), "replay mismatch has no kernel namespace");
+  assert(!hasKernelAgentNamespace(validateInferenceOutput("candidate_seed")), "validation result has no kernel namespace");
+  assert(!hasKernelAgentNamespace(explainInferenceFailure("timeout")), "failure explanation has no kernel namespace");
 
   return { passed, failed: failures.length, failures };
 }
