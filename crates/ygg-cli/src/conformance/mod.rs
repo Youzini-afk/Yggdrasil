@@ -358,6 +358,14 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("workspace_lab.audit_redacted", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_audit_redacted),
         c!("workspace_lab.no_forbidden_namespace", ["official", "external_project", "workspace_lab", "policy", "no_execution", "protocol"], workspace_lab::workspace_lab_no_forbidden_namespace),
         c!("workspace_lab.no_execution", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_no_execution),
+        // --- workspace-lab E3 (External Project Operating Plane Alpha E3: Managed Workspace Deterministic Proof) ---
+        c!("workspace_lab.fixture_workspace_creation", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture"], workspace_lab::workspace_lab_fixture_workspace_creation),
+        c!("workspace_lab.inspect_read_no_filesystem", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture"], workspace_lab::workspace_lab_inspect_read_no_filesystem),
+        c!("workspace_lab.run_plan_requires_approval", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture"], workspace_lab::workspace_lab_run_plan_requires_approval),
+        c!("workspace_lab.fixture_process_result_redacted", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture"], workspace_lab::workspace_lab_fixture_process_result_redacted),
+        c!("workspace_lab.entrypoint_discovery", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture"], workspace_lab::workspace_lab_entrypoint_discovery),
+        c!("workspace_lab.patch_draft_proposal", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture"], workspace_lab::workspace_lab_patch_draft_proposal),
+        c!("workspace_lab.e3_raw_secret_no_forbidden_namespace", ["official", "external_project", "workspace_lab", "managed_workspace", "no_execution", "fixture", "secret", "protocol"], workspace_lab::workspace_lab_e3_raw_secret_no_forbidden_namespace),
         // --- sharing lab Beta 6 ---
         c!("sharing_lab.contract_shape", ["sharing"], sharing_lab::sharing_contract),
         c!("sharing_lab.export_composition_bundle", ["sharing", "composition"], sharing_lab::sharing_export_bundle),

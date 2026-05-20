@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：215 个 implemented rows，由 260 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：222 个 implemented rows，由 267 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## Conformance Feedback Loop
 

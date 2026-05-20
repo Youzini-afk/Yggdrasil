@@ -74,13 +74,13 @@ Deliverables:
 
 Acceptance: default no execution; workspace does not enter package registry; UI/public-protocol shape stable.
 
-## Phase E3 — Managed Workspace Deterministic Proof
+## Phase E3 — Managed Workspace Deterministic Proof — COMPLETE
 
 Goal: prove workspace state/projection/log/entrypoint/patch flow with deterministic fixtures, not arbitrary real project execution.
 
 Deliverables:
 
-- `workspace-lab` fixture capabilities: `create_managed_workspace`, `inspect_workspace`, `read_workspace_metadata`, `plan_run`, `record_fixture_process_result`, `discover_workspace_entrypoints`, `draft_workspace_patch`.
+- `workspace-lab` fixture capabilities: `create_fixture_workspace`, `inspect_workspace`, `read_workspace_metadata`, `plan_workspace_run`, `record_fixture_process_result`, `discover_workspace_entrypoints`, `draft_workspace_patch`.
 - Workspace state through package-owned events/assets/projections/proposals.
 - Bounded redacted logs, opaque process_ref / workspace_ref.
 - Patch as proposal only; no direct real-file writes.

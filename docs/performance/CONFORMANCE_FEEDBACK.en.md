@@ -7,7 +7,7 @@ The `ygg conformance` command supports filtering, timing, and diagnostics to hel
 ## Basic usage
 
 ```bash
-# Run all 260 conformance cases (default behavior unchanged)
+# Run all 267 conformance cases (default behavior unchanged)
 cargo run -p ygg-cli -- conformance
 ```
 
