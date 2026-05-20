@@ -383,7 +383,7 @@ pub(crate) async fn memory_lab_no_raw_secrets() -> anyhow::Result<()> {
         "draft_forget_redaction",
         json!({
             "target_record_ref": "mem:test",
-            "secret": "sk-1234567890abcdefABCDEF1234567890",
+            "secret": "RawSecretExample1234567890abcdefABCDEF123456",
         }),
     )
     .await?;

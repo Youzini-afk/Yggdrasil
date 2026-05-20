@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, and Experience Beta 4 are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold, a package-owned experience runtime contract, a first real playable vertical slice with board/module/constraint/marker state, a stable content-addressed asset helper with provenance graph and state snapshot convention, package-owned experience observability plus Forge observability panels, and package-owned long-term memory and knowledge with proposal-gated update/correction/forget-redaction/branch-aware view — all deterministic, no-network, no inference. The current headline shifts to **Experience Beta 5**: creator loop.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, Experience Beta 4, and Experience Beta 5 are complete. Experience Beta 6 (Sharing / Distribution Alpha) is complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold, a package-owned experience runtime contract, a first real playable vertical slice with board/module/constraint/marker state, a stable content-addressed asset helper with provenance graph and state snapshot convention, package-owned experience observability plus Forge observability panels, package-owned long-term memory and knowledge with proposal-gated update/correction/forget-redaction/branch-aware view — all deterministic, no-network, no inference — creator loop with template-to-playable path and creator-facing diagnostics, and package-owned sharing and distribution with export/import composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata bundles, read-only shared session manifests, and async fork sharing plans — all deterministic, no-network, no marketplace, no billing. The temporary phase plan has been deleted; results are converged to durable docs.
 
 ## Where we are
 
@@ -259,11 +259,17 @@ Remaining (UI / designer): Forge authoring workflow panels in `clients/web`.
 
 Non-goals: marketplace, creator monetization.
 
-## Experience Beta 6 — Sharing / Distribution Alpha
+## Experience Beta 6 — Sharing / Distribution Alpha (complete)
 
 Goal: support shareability, reproducibility, and import before marketplace.
 
-Deliverables: export/import composition, export/import branch/session bundle, package-set lockfile, compatibility/migration report, AI disclosure metadata bundle, read-only shared session, async fork sharing.
+Delivered:
+
+- `official/sharing-lab` — package-owned sharing and distribution lab with 9 capabilities (describe_sharing_contract / export_composition_bundle / import_composition_bundle / create_branch_session_bundle / create_package_set_lockfile / compatibility_report / ai_disclosure_bundle / read_only_share_manifest / async_fork_share_plan) and 3 surfaces (forge_panel, assistant_action, home_card). Deterministic, no-network, no marketplace, no billing, no signing network. Raw-secret blocking + marketplace/billing/signing field blocking. No kernel.sharing/marketplace/billing/distribution namespace.
+- Example artifacts: `examples/bundles/playable-creation-board-composition-bundle/` (bundle.json, branch-session-bundle.json, read-only-share-manifest.json, async-fork-share-plan.json).
+- Durable guide: [`docs/guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.md).
+- Temporary phase plan deleted; results converged to ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix.
+- Conformance: 10 named cases covering contract shape, export/import bundle, lockfile, compatibility report, AI disclosure, read-only share, async fork, no marketplace/no raw secrets.
 
 Non-goals: marketplace, package signing network, dependency resolver economy, hosted billing.
 
@@ -276,8 +282,8 @@ These remain non-goals for the kernel. They may exist as future packages.
 - External game engine bridges (UE5/Godot/Unity, web clients).
 - Privileged built-in Studio surfaces, UI that bypasses public protocol, or kernel-owned official inspectors. Public-protocol clients and ordinary package-contributed surfaces may continue to evolve.
 - Memory model, world simulation, director, prompt rendering, and model provider abstraction in the kernel. Agent loops, production-grade live model calls, and model providers may exist only as ordinary packages.
-- Marketplace, package signing, dependency resolver.
+- Marketplace, package signing, dependency resolver (local sharing proof is complete; see [`docs/guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.md)).
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, and Experience Beta 2 are complete. The roadmap now enters Experience Beta 4. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, Experience Beta 1, Experience Beta 2, Experience Beta 3, Experience Beta 4, Experience Beta 5, and Experience Beta 6 are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

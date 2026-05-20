@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2、Experience Beta 3 与 Experience Beta 4 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof、package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold、package-owned experience runtime contract、首个真实 playable vertical slice（含 board/module/constraint/marker state），稳定 content-addressed asset helper 与 provenance graph 和 state snapshot convention，包拥有的体验可观测性实验室和 Forge 体验观测面板，以及包拥有的长期记忆与知识实验室（proposal-gated update / correction / forget-redaction / branch-aware view——全部确定性、无网络、无推理）。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线转向 **Experience Beta 5**：Creator Loop。
+Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2、Experience Beta 3、Experience Beta 4 与 Experience Beta 5 已完成。Experience Beta 6（Sharing / Distribution Alpha）已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof、package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold、package-owned experience runtime contract、首个真实 playable vertical slice（含 board/module/constraint/marker state），稳定 content-addressed asset helper 与 provenance graph 和 state snapshot convention，包拥有的体验可观测性实验室和 Forge 体验观测面板，包拥有的长期记忆与知识实验室（proposal-gated update / correction / forget-redaction / branch-aware view——全部确定性、无网络、无推理），创作者循环（template-to-playable 路径、面向创作者的诊断），以及包拥有的分享与分发实验室（export/import composition bundle、branch/session bundle manifest、package-set lockfile、compatibility/migration report、AI disclosure metadata bundle、read-only shared session manifest、async fork sharing plan——全部确定性、无网络、无 marketplace、无 billing）。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。临时阶段计划已删除，结果收敛到 durable docs。
 
 ## 当前位置
 
@@ -255,11 +255,17 @@ Phase J 非目标：
 
 非目标：marketplace、creator monetization。
 
-## Experience Beta 6 — Sharing / Distribution Alpha
+## Experience Beta 6 — Sharing / Distribution Alpha（已完成）
 
 目标：先支持可分享、可复现、可导入，再考虑市场。
 
-交付方向：export/import composition、export/import branch/session bundle、package-set lockfile、compatibility/migration report、AI disclosure metadata bundle、read-only shared session、async fork sharing。
+已交付：
+
+- `official/sharing-lab` — 包拥有的分享与分发实验室，提供 describe_sharing_contract / export_composition_bundle / import_composition_bundle / create_branch_session_bundle / create_package_set_lockfile / compatibility_report / ai_disclosure_bundle / read_only_share_manifest / async_fork_share_plan 共 9 项能力与 3 个 surface（forge_panel、assistant_action、home_card）。Deterministic、no-network、no marketplace、no billing、no signing network。Raw-secret blocking + marketplace/billing/signing field blocking。无 kernel.sharing/marketplace/billing/distribution 命名空间。
+- 示例 artifacts：`examples/bundles/playable-creation-board-composition-bundle/`（bundle.json、branch-session-bundle.json、read-only-share-manifest.json、async-fork-share-plan.json）。
+- 持久指南：[`docs/guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.md)。
+- 临时阶段计划已删除，结果收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
+- Conformance：10 个具名用例，覆盖 contract shape、export/import bundle、lockfile、compatibility report、AI disclosure、read-only share、async fork、no marketplace/no raw secrets。
 
 非目标：marketplace、package signing network、dependency resolver economy、hosted billing。
 
@@ -272,8 +278,8 @@ Phase J 非目标：
 - 外部游戏引擎桥接（UE5/Godot/Unity，web 客户端）。
 - 特权内置 Studio、绕过公开协议的 UI、或由 kernel 拥有的官方检查器。公开协议客户端和普通 package-contributed surfaces 可以继续演进。
 - 内核中的记忆模型、世界模拟、director、提示词渲染和模型 provider 抽象。Agent loops、production-grade live model calls 和 model providers 只能作为普通包存在。
-- 市场、包签名、依赖解析器。
+- 市场、包签名、依赖解析器（本地分享 proof 已完成；见 [`docs/guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.md)）。
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2、Experience Beta 3 和 Experience Beta 4 已完成。后续进入 Experience Beta 5。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1、Experience Beta 2、Experience Beta 3、Experience Beta 4、Experience Beta 5 和 Experience Beta 6 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。

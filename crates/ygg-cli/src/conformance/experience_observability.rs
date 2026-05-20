@@ -456,7 +456,7 @@ pub(crate) async fn experience_observability_no_raw_secrets() -> anyhow::Result<
         "summarize_guardrails",
         json!({
             "session_id": "session:secret",
-            "secret": "sk-1234567890abcdefABCDEF1234567890",
+            "secret": "RawSecretExample1234567890abcdefABCDEF123456",
         }),
     )
     .await?;

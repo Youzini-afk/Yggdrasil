@@ -1,0 +1,15 @@
+{
+  "kind": "async_fork_share_plan",
+  "plan_id": "async-fork-plan:example-session:sess:friend-fork:fnv1a64:example",
+  "format_version": "1",
+  "source_session": "sess:example-play-session",
+  "target_session": "sess:friend-fork-session",
+  "fork_intent": "collaborate_on_alternative_path",
+  "branch_ref": "branch:friend-fork-1",
+  "status": "draft",
+  "share_scope": "local_file",
+  "no_remote_service": true,
+  "requires_user_approval": true,
+  "plan_only": true,
+  "content_address": "fnv1a64:async-fork-example"
+}

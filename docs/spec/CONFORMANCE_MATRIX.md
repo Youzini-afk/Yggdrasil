@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：190 个 implemented rows，由 235 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：200 个 implemented rows，由 245 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -197,6 +197,16 @@ cargo run -p ygg-cli -- conformance
 | official packages | memory-lab branch_memory_view 按 branch 过滤记忆记录 | implemented |
 | official packages | memory-lab 任何输出不含 kernel.memory.* / kernel.experience.* namespace | implemented |
 | official packages | memory-lab 所有能力输入阻断 raw secret | implemented |
+| official packages | sharing-lab describe_sharing_contract 返回 9 项能力、3 个 surface、output shapes、red lines，无 forbidden namespace | implemented |
+| official packages | sharing-lab export_composition_bundle 产出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing fields | implemented |
+| official packages | sharing-lab import_composition_bundle 验证 bundle 形状/兼容性/no raw secrets，plan-only | implemented |
+| official packages | sharing-lab create_branch_session_bundle 产出 branch/session bundle manifest 含 content_address 和 AI disclosure | implemented |
+| official packages | sharing-lab create_package_set_lockfile 锁定包版本和 content_address | implemented |
+| official packages | sharing-lab compatibility_report 对比两个 bundle 版本，deterministic 比较，检测 incompatibilities | implemented |
+| official packages | sharing-lab ai_disclosure_bundle 产出 AI disclosure metadata，标记内容来源 | implemented |
+| official packages | sharing-lab read_only_share_manifest 只读共享 session manifest，local_file proof，no remote service | implemented |
+| official packages | sharing-lab async_fork_share_plan 异步 fork 分享计划，draft/plan-only/requires_user_approval | implemented |
+| official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 kernel.sharing/marketplace/billing namespace | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -452,6 +462,16 @@ creator_loop.network_nondeterministic_hint PASS
 creator_loop.composition_experience_diagnostics PASS
 creator_loop.walkthrough_reference PASS
 creator_loop.thirdparty_no_privilege PASS
+sharing_lab.contract_shape PASS
+sharing_lab.export_composition_bundle PASS
+sharing_lab.import_composition_bundle PASS
+sharing_lab.branch_session_bundle PASS
+sharing_lab.package_set_lockfile PASS
+sharing_lab.compatibility_report PASS
+sharing_lab.ai_disclosure_bundle PASS
+sharing_lab.read_only_share_manifest PASS
+sharing_lab.async_fork_share_plan PASS
+sharing_lab.no_marketplace_no_raw_secrets PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

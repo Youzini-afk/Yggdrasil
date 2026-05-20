@@ -21,6 +21,7 @@ mod proposals;
 mod protocol;
 mod replacement;
 mod secret_conformance;
+mod sharing_lab;
 mod streaming;
 mod subprocess;
 mod substrate;
@@ -1232,6 +1233,57 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "creator_loop.thirdparty_no_privilege",
         creator_loop::creator_loop_thirdparty_no_privilege().await,
+    );
+    // Experience Beta 6 — Sharing / Distribution Alpha
+    record_case(
+        &mut results,
+        "sharing_lab.contract_shape",
+        sharing_lab::sharing_contract().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.export_composition_bundle",
+        sharing_lab::sharing_export_bundle().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.import_composition_bundle",
+        sharing_lab::sharing_import_bundle().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.branch_session_bundle",
+        sharing_lab::sharing_branch_session_bundle().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.package_set_lockfile",
+        sharing_lab::sharing_package_set_lockfile().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.compatibility_report",
+        sharing_lab::sharing_compatibility_report().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.ai_disclosure_bundle",
+        sharing_lab::sharing_ai_disclosure_bundle().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.read_only_share_manifest",
+        sharing_lab::sharing_read_only_manifest().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.async_fork_share_plan",
+        sharing_lab::sharing_async_fork_plan().await,
+    );
+    record_case(
+        &mut results,
+        "sharing_lab.no_marketplace_no_raw_secrets",
+        sharing_lab::sharing_no_marketplace_no_raw_secrets().await,
     );
 
     let mut failed = false;

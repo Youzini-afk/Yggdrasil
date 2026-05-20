@@ -24,6 +24,7 @@ mod pi_agent_runtime_lab;
 mod playable_creation_board;
 mod playable_seed;
 mod projection_lab;
+mod sharing_lab;
 mod text_transform_lab;
 mod thirdparty_agent_runtime;
 
@@ -172,6 +173,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // experience-observability-lab handlers: Experience Beta 3 experience observability
         if let Some(result) = experience_observability_lab::try_handle(&request) {
+            return result;
+        }
+        // sharing-lab handlers: Experience Beta 6 sharing / distribution alpha
+        if let Some(result) = sharing_lab::try_handle(&request) {
             return result;
         }
         // Package-aware generic capability handlers (namespace-scoped matching)

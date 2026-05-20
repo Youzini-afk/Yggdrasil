@@ -896,7 +896,7 @@ mod tests {
     fn raw_secret_blocked() {
         let req = make_request(
             "official/experience-observability-lab/summarize_session_health",
-            json!({"session_id": "s3", "api_key": "sk-1234567890abcdefABCDEF1234567890"}),
+            json!({"session_id": "s3", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("experience_observability_rejected"));

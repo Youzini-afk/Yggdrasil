@@ -908,7 +908,7 @@ mod tests {
     fn raw_secret_blocked() {
         let req = make_request(
             "official/memory-lab/record_memory",
-            json!({"key": "test", "api_key": "sk-1234567890abcdefABCDEF1234567890"}),
+            json!({"key": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("memory_lab_rejected"));

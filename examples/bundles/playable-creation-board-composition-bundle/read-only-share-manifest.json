@@ -1,0 +1,12 @@
+{
+  "kind": "read_only_share_manifest",
+  "manifest_id": "readonly-share:example-session:fnv1a64:example",
+  "format_version": "1",
+  "session_ref": "sess:example-play-session",
+  "branch_ref": "branch:main",
+  "sequence": 42,
+  "readonly": true,
+  "share_scope": "local_file",
+  "no_remote_service": true,
+  "content_address": "fnv1a64:readonly-share-example-session"
+}

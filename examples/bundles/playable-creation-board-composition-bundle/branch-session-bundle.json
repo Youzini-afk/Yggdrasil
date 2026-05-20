@@ -1,0 +1,22 @@
+{
+  "kind": "branch_session_bundle",
+  "bundle_id": "branch-bundle:example-session:branch:main:fnv1a64:example",
+  "format_version": "1",
+  "session_id": "sess:example-play-session",
+  "branch_ref": "branch:main",
+  "sequence": 42,
+  "content_address": "fnv1a64:example-branch-session-bundle",
+  "ai_disclosure": {
+    "disclosure_id": "ai-disclosure:branch-bundle:example-session",
+    "items": [
+      {
+        "content_ref": "sess:example-play-session:branch:main",
+        "disclosure_kind": "mixed",
+        "description": "Session state includes both player-initiated and AI-assisted actions"
+      }
+    ],
+    "content_address": "fnv1a64:disclosure-example-branch-session"
+  },
+  "requires_user_approval": true,
+  "plan_only": true
+}

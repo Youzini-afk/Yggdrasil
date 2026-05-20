@@ -27,3 +27,4 @@ autoload:
   - ../packages/official/playable-creation-board/manifest.yaml
   - ../packages/official/experience-observability-lab/manifest.yaml
   - ../packages/official/memory-lab/manifest.yaml
+  - ../packages/official/sharing-lab/manifest.yaml

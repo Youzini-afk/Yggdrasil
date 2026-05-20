@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 190 implemented rows, backed by 235 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 200 implemented rows, backed by 245 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -197,6 +197,16 @@ Current matrix coverage: 190 implemented rows, backed by 235 named CLI conforman
 | official packages | memory-lab branch_memory_view filters memory records by branch | implemented |
 | official packages | memory-lab no output contains kernel.memory.* / kernel.experience.* namespace | implemented |
 | official packages | memory-lab raw secret blocked in all capability inputs | implemented |
+| official packages | sharing-lab describe_sharing_contract returns 9 capabilities, 3 surfaces, output shapes, red lines, no forbidden namespace | implemented |
+| official packages | sharing-lab export_composition_bundle produces self-contained bundle with manifest/lockfile/disclosure, no marketplace/billing fields | implemented |
+| official packages | sharing-lab import_composition_bundle validates bundle shape/compatibility/no raw secrets, plan-only | implemented |
+| official packages | sharing-lab create_branch_session_bundle produces branch/session bundle manifest with content_address and AI disclosure | implemented |
+| official packages | sharing-lab create_package_set_lockfile pins package versions and content addresses | implemented |
+| official packages | sharing-lab compatibility_report compares two bundle versions, deterministic, detects incompatibilities | implemented |
+| official packages | sharing-lab ai_disclosure_bundle produces AI disclosure metadata marking content provenance | implemented |
+| official packages | sharing-lab read_only_share_manifest read-only shared session manifest, local_file proof, no remote service | implemented |
+| official packages | sharing-lab async_fork_share_plan async fork sharing plan, draft/plan-only/requires_user_approval | implemented |
+| official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no kernel.sharing/marketplace/billing namespace | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
 | creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
 | creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
@@ -461,6 +471,16 @@ creator_loop.network_nondeterministic_hint PASS
 creator_loop.composition_experience_diagnostics PASS
 creator_loop.walkthrough_reference PASS
 creator_loop.thirdparty_no_privilege PASS
+sharing_lab.contract_shape PASS
+sharing_lab.export_composition_bundle PASS
+sharing_lab.import_composition_bundle PASS
+sharing_lab.branch_session_bundle PASS
+sharing_lab.package_set_lockfile PASS
+sharing_lab.compatibility_report PASS
+sharing_lab.ai_disclosure_bundle PASS
+sharing_lab.read_only_share_manifest PASS
+sharing_lab.async_fork_share_plan PASS
+sharing_lab.no_marketplace_no_raw_secrets PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
