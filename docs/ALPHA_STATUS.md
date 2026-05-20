@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（执行中）。
 - **Conformance：** 245 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Experience Beta 6 已完成；Yggdrasil 现在具备 `official/sharing-lab`，提供本地/文件级分享 proof——export/import composition bundle、branch/session bundle manifest、package-set lockfile、compatibility/migration report、AI disclosure metadata bundle、read-only shared session manifest、async fork sharing plan。全部 deterministic、no-network、no marketplace、no billing、no signing network。10 个新 conformance 用例。临时阶段计划已删除，结果收敛到 durable docs。未引入 kernel.sharing.* / kernel.marketplace.*。无 official 包特权。
+- **当前主线：** Performance & Code Health Beta 执行中。目标是在进入第一个平台产品前建立 baseline、缩短 conformance 反馈环、收敛 Web 全量渲染、优化 SQLite event replay，并控制 runtime/CLI/Web 文件增长。临时计划见 `docs/roadmap/PERFORMANCE_CODE_HEALTH_BETA.md`；红线是不做官方包 fast path、不绕过 permission/hook/schema/redaction、不让 Web 读取 runtime internals、不用宏/codegen/RawValue 做无证据重写。
 
 ## 已实现
 
