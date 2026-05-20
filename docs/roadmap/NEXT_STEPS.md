@@ -24,6 +24,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase B：已完成；扩展 `official/agentic-forge-lab` 增加 create_candidate/compare_candidate/draft_promote_proposal/archive_candidate/explain_branch_policy 能力；branch-aware scratch branch intent/metadata；candidate artifacts 含 stale 检测；proposal draft 不直接修改 target branch；stale target revision 不匹配时阻止 promote；5 个 conformance 用例。Conformance 包含 165 个具名用例。
 - Agentic Forge Beta Phase C：已完成；扩展 `official/agentic-forge-lab` 增加 run_inference_node/replay_inference_node/validate_inference_output/explain_inference_failure 能力；8 个显式 plan node kind；inference provider（deterministic/recorded/cloud_adapter_plan/local_fake）；cloud_adapter_plan 返回 needs_host_policy 且不执行网络；replay 指纹不匹配时标记而非静默通过；inference output action allowlist 与 forbidden actions；9 项 failure taxonomy 含 typed recovery hint；5 个 conformance 用例。Conformance 包含 170 个具名用例。
 - Agentic Forge Beta Phase D：已完成；扩展 `official/capability-tool-bridge-lab` 增加 explain_tool_call（scoped grant summary，branch-aware tool call context，no_execution，no_ambient_authority）/record_tool_observation（untrusted=true，大输出 asset_ref，raw-secret 阻断）/summarize_tool_risk（prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output 含 typed mitigations）/replay_tool_plan（指纹匹配/不匹配）/plan_toolchain（多步 plan-only，显式 provider 必需，嵌套 delegation 无 explicit_delegation 时阻止，target branch 写入无 promote grant 时阻止）；5 个 conformance 用例。Conformance 包含 175 个具名用例。
+- Agentic Forge Beta Phase E：已完成；Forge 中新增 Agentic Forge 六个 workspace panels（Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls），所有数据来自 public protocol，不做 chat-first UI。`clients/web/src/agent/observability.ts` 新增 `ForgeAgentWorkspaceModel` 及 build/render 函数。`tsc -p clients/web/tsconfig.json --noEmit` 通过。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -143,7 +144,7 @@ Phase J 非目标：
 - Phase B：branch-aware scratch branch / candidate / compare / promote proof。
 - Phase C：inference-backed agent run with deterministic fallback。
 - Phase D：tool bridge v2 scoped toolchain observation / risk / replay。
-- Phase E：Forge Agent Workspace / Observability UI shell。
+- Phase E：Forge Agent Workspace / Observability UI shell（已完成）。
 - Phase F：third-party replacement proof、hostile conformance、durable docs cleanup。
 
 非目标：LangChain clone、chat shell、coding-agent clone、agent marketplace、always-on autonomous background agents、provider zoo、OpenAI-compatible agent endpoint、`kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`。

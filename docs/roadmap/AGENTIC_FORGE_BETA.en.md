@@ -125,11 +125,11 @@ Delivered:
 
 Non-goals: all-powerful ToolExecutor, default shell/fs/git tools, automatic permission escalation.
 
-## Phase E — Forge Agent Workspace / Observability UI shell
+## Phase E — Forge Agent Workspace / Observability UI shell (Completed)
 
 **Goal:** Upgrade Forge from “can view agent proof” to the first agentic control room.
 
-Planned deliverables:
+Delivered:
 
 - New Agentic Forge sections in Forge:
   - Run timeline
@@ -137,14 +137,12 @@ Planned deliverables:
   - Scratch branch diff / branch lineage panel
   - Candidate compare/promote panel
   - Tool/inference trace panel
-  - Approval/reject/cancel/promote/fork affordances, initially as public-protocol payloads / disabled-safe controls
+  - Approval/reject/cancel/promote/fork affordances, expressed as public-protocol payloads and disabled-safe controls
 - UI reads only public protocol / surfaces / events / proposals / assets / projections, never runtime internals.
-- No chat-first UI.
-
-Acceptance:
-
-- `tsc -p clients/web/tsconfig.json --noEmit` passes.
+- No chat-first UI — the Forge object model focuses on runs, plans, candidates, diffs, proposals, and traces.
+- `clients/web/src/agent/observability.ts` adds `ForgeAgentWorkspaceModel` types plus `buildForgeAgentWorkspace`/`renderForgeAgentWorkspaceSections` functions.
 - UI copy makes clear that agent output is candidate/proposal, not assistant message.
+- `tsc -p clients/web/tsconfig.json --noEmit` passes.
 
 ## Phase F — Third-party replacement proof, hostile conformance, docs cleanup
 

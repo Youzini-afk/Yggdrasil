@@ -24,6 +24,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Agentic Forge Beta Phase B: complete; extends `official/agentic-forge-lab` with create_candidate/compare_candidate/draft_promote_proposal/archive_candidate/explain_branch_policy capabilities; branch-aware scratch branch intent/metadata; candidate artifacts with stale detection; proposal drafts that never directly mutate target branches; stale target revision mismatch blocks promote; 5 more conformance cases. Conformance now has 165 named cases.
 - Agentic Forge Beta Phase C: complete; extends `official/agentic-forge-lab` with run_inference_node/replay_inference_node/validate_inference_output/explain_inference_failure capabilities; 8 explicit plan node kinds; inference providers (deterministic/recorded/cloud_adapter_plan/local_fake); cloud_adapter_plan returns needs_host_policy with no network; replay mismatches flagged never silently passed; inference output action allowlist with forbidden actions; 9-item failure taxonomy with typed recovery hints; 5 more conformance cases. Conformance now has 170 named cases.
 - Agentic Forge Beta Phase D: complete; extends `official/capability-tool-bridge-lab` with explain_tool_call (scoped grant summary, branch-aware tool call context, no_execution, no_ambient_authority)/record_tool_observation (untrusted=true, large output asset_ref, raw-secret blocking)/summarize_tool_risk (prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output with typed mitigations)/replay_tool_plan (fingerprint match/mismatch)/plan_toolchain (multi-step plan-only, explicit provider required, nested delegation blocked without explicit_delegation, target branch write blocked without promote grant); 5 more conformance cases. Conformance now has 175 named cases.
+- Agentic Forge Beta Phase E: complete; adds six Agentic Forge workspace panels to the Forge surface (Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls). All data sourced from public protocol only. No chat-first UI. `clients/web/src/agent/observability.ts` adds `ForgeAgentWorkspaceModel` and build/render functions. `tsc -p clients/web/tsconfig.json --noEmit` passes.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -143,7 +144,7 @@ Stages are tracked in [`AGENTIC_FORGE_BETA.md`](AGENTIC_FORGE_BETA.en.md):
 - Phase B: branch-aware scratch branch / candidate / compare / promote proof.
 - Phase C: inference-backed agent run with deterministic fallback.
 - Phase D: tool bridge v2 scoped toolchain observation / risk / replay.
-- Phase E: Forge Agent Workspace / Observability UI shell.
+- Phase E: Forge Agent Workspace / Observability UI shell (Completed).
 - Phase F: third-party replacement proof, hostile conformance, durable docs cleanup.
 
 Non-goals: LangChain clone, chat shell, coding-agent clone, agent marketplace, always-on autonomous background agents, provider zoo, OpenAI-compatible agent endpoint, `kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`.

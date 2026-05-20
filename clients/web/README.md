@@ -249,3 +249,59 @@ A lightweight "Agent Readiness" panel is shown above Host diagnostics:
 - `.agent-timeline` / `.timeline-list` / `.timeline-row` / `.timeline-meta` / `.timeline-badge` / `.timeline-seq` / `.timeline-kind` / `.timeline-writer` / `.timeline-payload` — trace timeline
 - `.agent-proposal-list` — proposal explanations list
 - `.agent-readiness-panel` / `.agent-readiness-header` / `.agent-readiness-badge` / `.agent-readiness-title` / `.agent-readiness-body` / `.agent-readiness-note` / `.agent-readiness-actions` — Assistant Drawer readiness panel
+
+## Forge Agent Workspace / Observability UI Shell (Phase E)
+
+Phase E upgrades the Forge surface from "agent observability proof" to the first version of an Agentic Forge control room. The UI is product-architecture scaffolding — not final visual design — structured, Ygg-native, and deliberately not chat-first.
+
+### Agentic Forge Workspace sections
+
+Six new workspace panels appear in a dedicated `.forge-workspace-section` within the Forge surface:
+
+1. **Run Timeline** — Detects run lifecycle events (`run.*`, `lifecycle_state`, `working_state`) from package-owned events. Shows run status, package ID, node/edge counts, and working state fields.
+2. **Plan Graph (read-only)** — Detects plan graph node events (`plan_node`, `plan_graph`, node kinds like `observe`, `infer`, `tool_call`, `inspect`, `branch_op`, `compare`, `propose`, `wait`). Shows node kind badges, input/output refs, and approval policy.
+3. **Branch Diff / Lineage Panel** — Detects branch policy events (`scratch_branch`, `target_branch`, `branch_policy`, `fork`, `stale`). Shows branch type (scratch/target/fork/lineage), revision, intent, and stale/promote-requires-proposal badges.
+4. **Candidate Compare / Promote Panel** — Detects candidate-like proposals and events (`candidate_id`, `candidate_seed`, `create_candidate`, `compare_candidate`). Shows candidate status, target/scratch branches, diff summary, confidence/uncertainty, changed asset refs, and inspection refs.
+5. **Tool / Inference Trace Panel** — Two sub-panels: tool traces (`tool_call`, `tool_observation`, `tool_risk`, `tool_bridge`) and inference traces (`inference`, `provider_kind`, `model_performed`, `network_performed`, `replay`). Shows plan/observation/risk chips and replay match/mismatch badges.
+6. **Controls** — Approval/reject/cancel/promote/fork/archive affordances. Live actions for current state; disabled-safe affordances with public-protocol payload previews explaining what payload shape a third-party agentic-forge package would expect.
+
+### Key design decisions
+
+- **No chat-first UI**: The Forge workspace object model is run/plan/candidate/diff/proposal/trace — not chat history or prompt boxes. The existing Assistant Drawer remains as a lightweight entry point.
+- **Public protocol only**: All data is heuristically extracted from public protocol events, proposals, surfaces, capabilities, packages, assets, and projections. No kernel internals, no real model/network calls, no direct SQLite access.
+- **Third-party replaceable**: All panels carry protocol-shape documentation (collapsible `<details>` with JSON examples) and text emphasizing that any third-party agentic-forge-lab package can drive these panels. No official package hardcoding.
+- **Disabled-safe affordances**: Control actions that have no current target are shown as disabled affordances with their expected protocol payload, making the protocol contract visible even when no agent package is loaded.
+
+### Forge Agent Workspace view model (`src/agent/observability.ts`)
+
+New types and functions:
+
+- `ForgeAgentWorkspaceModel` — top-level view model containing `runs`, `planNodes`, `branchEntries`, `candidates`, `toolTraces`, `inferenceTraces`, `controlActions`
+- `RunTimelineEntry`, `PlanGraphNode`, `BranchLineageEntry`, `CandidateCard`, `ToolTraceEntry`, `InferenceTraceEntry`, `ControlAction` — typed view models derived from heuristics on public protocol data
+- `buildForgeAgentWorkspace(events, proposals, capabilities, packages, assets, projections)` → `ForgeAgentWorkspaceModel`
+- `renderForgeAgentWorkspaceSections(model)` → HTML string for the Forge surface
+
+### Forge surface (Phase E additions)
+
+The Forge surface now includes:
+
+- A `.forge-workspace-section` block rendered after the existing Agent Observability section, before Events
+- Six workspace panels (details/summary), each with collapsible protocol-shape documentation
+- A controls section with live and disabled-safe action affordances
+
+### CSS additions (Phase E)
+
+- `.forge-workspace-section` — dedicated section with purple-tinted border and dark background
+- `.workspace-note` — explanatory text for third-party replaceability
+- `.forge-workspace-grid` / `.workspace-panel` / `.workspace-panel-header` / `.workspace-panel-body` — collapsible panel layout
+- `.run-entry` / `.plan-node-entry` / `.branch-entry` / `.candidate-entry` / `.trace-entry` / `.control-action-entry` — entry card styles
+- `.run-status-dot.status-{ok,error,warn,info}` — colored status indicators
+- `.run-label`, `.run-meta-item`, `.run-meta-label` — typography helpers
+- `.plan-node-kind-badge` — node kind pill badge
+- `.branch-type-icon` — branch type visual indicator
+- `.candidate-diff` / `.candidate-stats` / `.candidate-refs` — candidate detail sections
+- `.trace-chip` — tool/inference capability indicator chips
+- `.control-action-icon` / `.control-action-reason` — control affordance styling
+- `.button-disabled-safe` — dashed-border disabled button for protocol preview affordances
+- `.protocol-preview-details` / `.protocol-preview-summary` / `.protocol-preview-code` — collapsible protocol shape documentation
+- `.workspace-controls-panel` — controls panel with top margin

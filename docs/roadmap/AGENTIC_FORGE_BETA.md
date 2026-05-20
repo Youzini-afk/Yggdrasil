@@ -125,11 +125,11 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
 
 非目标：全能 ToolExecutor、shell/fs/git 默认工具、自动权限提升。
 
-## Phase E — Forge Agent Workspace / Observability UI shell
+## Phase E — Forge Agent Workspace / Observability UI shell（已完成）
 
-**目标：** 把 Forge 从“能看 agent proof”升级为 agentic control room 的第一版。
+**目标：** 把 Forge 从"能看 agent proof"升级为 agentic control room 的第一版。
 
-计划交付：
+已交付：
 
 - Forge 中新增 Agentic Forge sections：
   - Run timeline
@@ -137,14 +137,12 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
   - Scratch branch diff / branch lineage panel
   - Candidate compare/promote panel
   - Tool/inference trace panel
-  - Approval/reject/cancel/promote/fork affordances（先以 public protocol payload/disabled-safe controls 表达）
-- UI 只读 public protocol / surfaces / events / proposals / assets / projections，不读 runtime internals。
+  - Approval/reject/cancel/promote/fork affordances（以 public protocol payload/disabled-safe controls 表达）
+- 所有数据只来自 public protocol / surfaces / events / proposals / assets / projections，不读 runtime internals。
 - 不做 chat-first UI。
-
-验收：
-
-- `tsc -p clients/web/tsconfig.json --noEmit` 通过。
+- `clients/web/src/agent/observability.ts` 新增 `ForgeAgentWorkspaceModel` 类型及 `buildForgeAgentWorkspace`/`renderForgeAgentWorkspaceSections` 函数。
 - UI 文案明确 agent 输出是 candidate/proposal，不是 assistant message。
+- `tsc -p clients/web/tsconfig.json --noEmit` 通过。
 
 ## Phase F — Third-party replacement proof, hostile conformance, docs cleanup
 
