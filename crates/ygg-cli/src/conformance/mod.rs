@@ -3,6 +3,7 @@ mod fixtures;
 mod generated;
 mod hooks;
 mod inference_local;
+mod inference_playtest;
 mod inproc;
 mod live_model;
 mod network;
@@ -576,6 +577,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "official.inference_local_lab_explain_error",
         inference_local::inference_local_lab_explain_error().await,
+    );
+    // Phase C4 — inference-playtest-lab Ygg-native inference proposal vertical slice
+    record_case(
+        &mut results,
+        "official.inference_playtest_lab_draft",
+        inference_playtest::inference_playtest_draft().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_playtest_lab_inspect",
+        inference_playtest::inference_playtest_inspect().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_playtest_lab_reject_apply_denied",
+        inference_playtest::inference_playtest_reject_apply_denied().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_playtest_lab_apply_and_branch",
+        inference_playtest::inference_playtest_apply_and_branch().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_playtest_lab_no_chat_kernel_terms",
+        inference_playtest::inference_playtest_no_chat_kernel_terms().await,
     );
 
     let mut failed = false;

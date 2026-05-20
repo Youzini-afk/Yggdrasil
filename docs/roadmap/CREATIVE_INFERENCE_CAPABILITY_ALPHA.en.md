@@ -88,16 +88,25 @@ Candidate deliverables:
 - `normalize_request` is described only as a package-local adapter helper, not a canonical platform schema.
 - Conformance/status wording changes from “model provider abstraction” to “cloud adapter coverage”.
 
-## Phase C4 — Ygg-native inference proposal vertical slice
+## Phase C4 — Ygg-native inference proposal vertical slice (complete)
 
-Goal: prove inference is not “prompt -> text response”, but participation in the Yggdrasil creative runtime.
+Goal: prove inference is not "prompt -> text response", but participation in the Yggdrasil creative runtime.
 
-Candidate deliverables:
+Delivered:
 
-- `packages/official/inference-playtest-lab` or an extension of `inference-local-lab`.
-- Flow: session state → inference capability → proposal → inspect → approve/reject → apply → branch/fork → replay/audit.
-- Output must be an approval-gated proposal or package-owned events, not a chat message.
-- Provider can be fake local or cloud adapter; the vertical slice must not require public internet.
+- `packages/official/inference-playtest-lab`: Ygg-native inference proposal vertical slice package.
+- Capabilities: `draft_proposal`, `inspect_proposal`, `branch_plan`, `explain_flow`.
+- Surfaces: `forge_panel` + `assistant_action` (requires user_approval).
+- `crates/ygg-runtime/src/inproc/inference_playtest_lab.rs`: in-process handler registration.
+- Conformance: 5 named cases proving inference output is an approval-gated proposal, not a chat message.
+  - `official.inference_playtest_lab_draft`: draft_proposal produces proposal_draft with requires_user_approval=true, asset.put, source_inference provenance, no raw secret, not a chat message.
+  - `official.inference_playtest_lab_inspect`: inspect_proposal returns risk/operations/permissions/provenance.
+  - `official.inference_playtest_lab_reject_apply_denied`: rejected proposal cannot apply.
+  - `official.inference_playtest_lab_apply_and_branch`: approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance in metadata.
+  - `official.inference_playtest_lab_no_chat_kernel_terms`: output contains no messages/prompt/chat/kernel.model terms.
+- Forge profile autoload includes this package.
+- Flow closure: session → inference-local-lab/invoke → inference-playtest-lab/draft_proposal → kernel.proposal.create → inspect_proposal → approve/reject → apply → branch_plan → kernel.session.fork.
+- No new kernel protocol methods, no kernel.model/prompt/chat; proposal apply uses existing asset.put/projection.rebuild.
 
 ## Phase C5 — Durable docs cleanup
 

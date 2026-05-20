@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 135 implemented rows, backed by 150 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 140 implemented rows, backed by 155 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -102,6 +102,11 @@ Current matrix coverage: 135 implemented rows, backed by 150 named CLI conforman
 | official packages | inference-local-lab invoke rejects http transport, HTTP-shaped fields (url/header/status_code), messages-shaped fields (messages/system/user/assistant), raw secret | implemented |
 | official packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames, no URL/header/status/provider_schema | implemented |
 | official packages | inference-local-lab explain_error covers local/resource error classes (local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled) | implemented |
+| official packages | inference-playtest-lab draft_proposal produces proposal_draft with requires_user_approval=true, asset.put, source_inference provenance, no raw secret, not a chat message | implemented |
+| official packages | inference-playtest-lab inspect_proposal returns risk/operations/permissions/provenance summary without applying | implemented |
+| official packages | inference-playtest-lab rejected proposal cannot apply | implemented |
+| official packages | inference-playtest-lab approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance | implemented |
+| official packages | inference-playtest-lab output contains no messages/prompt/chat/kernel.model terms | implemented |
 | in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
@@ -281,6 +286,11 @@ official.inference_local_lab_invoke          PASS
 official.inference_local_lab_invoke_rejects_http PASS
 official.inference_local_lab_stream          PASS
 official.inference_local_lab_explain_error   PASS
+official.inference_playtest_lab_draft         PASS
+official.inference_playtest_lab_inspect       PASS
+official.inference_playtest_lab_reject_apply_denied PASS
+official.inference_playtest_lab_apply_and_branch PASS
+official.inference_playtest_lab_no_chat_kernel_terms PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS

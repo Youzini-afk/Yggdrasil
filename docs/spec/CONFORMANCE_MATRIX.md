@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：135 个 implemented rows，由 150 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：140 个 implemented rows，由 155 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -102,6 +102,11 @@ cargo run -p ygg-cli -- conformance
 | official packages | inference-local-lab invoke rejects http transport、HTTP-shaped 字段（url/header/status_code）、messages-shaped 字段（messages/system/user/assistant）、raw secret | implemented |
 | official packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames，无 URL/header/status/provider_schema | implemented |
 | official packages | inference-local-lab explain_error 覆盖 local/resource 错误类（local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled） | implemented |
+| official packages | inference-playtest-lab draft_proposal 产 proposal_draft，含 requires_user_approval=true、asset.put、source_inference provenance、无 raw secret、不是 chat message | implemented |
+| official packages | inference-playtest-lab inspect_proposal 返回 risk/operations/permissions/provenance summary，不 apply | implemented |
+| official packages | inference-playtest-lab 被拒绝的 proposal 不能 apply | implemented |
+| official packages | inference-playtest-lab approve/apply 成功，asset 被写入，branch_plan + fork 创建 branch，branch metadata 包含 proposal/source inference provenance | implemented |
+| official packages | inference-playtest-lab 输出不含 messages/prompt/chat/kernel.model 等术语 | implemented |
 | in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
@@ -281,6 +286,11 @@ official.inference_local_lab_invoke          PASS
 official.inference_local_lab_invoke_rejects_http PASS
 official.inference_local_lab_stream          PASS
 official.inference_local_lab_explain_error   PASS
+official.inference_playtest_lab_draft         PASS
+official.inference_playtest_lab_inspect       PASS
+official.inference_playtest_lab_reject_apply_denied PASS
+official.inference_playtest_lab_apply_and_branch PASS
+official.inference_playtest_lab_no_chat_kernel_terms PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS
