@@ -34,6 +34,7 @@ cargo run -p ygg-cli -- perf baseline --format json
 | `composition_check` | Composition descriptor 验证与包加载。使用 `examples/compositions/playable-seed-replacement/`。 |
 | `profile_load` | Profile YAML 解析。使用 `profiles/forge-alpha.yaml`。 |
 | `subprocess_echo_invoke` | Subprocess echo 能力调用（需要 Python；不可用时 status=skipped）。 |
+| `forge_render_diagnostics_50/500` | Web Forge pure TS render diagnostics helper。使用 mock public-protocol events，不读 runtime internals；P4 新增。 |
 
 ## 输出字段
 
@@ -58,6 +59,7 @@ cargo run -p ygg-cli -- perf baseline --format json
 - `event_store_append_list_range_100k` 当 `--iterations > 1` 时自动限制为 1 次迭代以避免过慢。
 - P3 新增 `EventStore::append_with_sequence` 原子追加 API，保证同 session 并发不重复 sequence。
 - P3 新增 `EventStore::list_kind_prefix` 和 `list_session_kind_prefix` 查询下推 API，audit/range 查询不再常规 `list_all()` + 全量 filter。
+- P4 新增 `clients/web/src/performance/render-diagnostics.ts`，用于前端侧 50/500 events Forge render diagnostics。该 helper 是 pure TypeScript，不连接 host，不读取 SQLite/runtime internals。
 - 不使用 criterion 或统计框架；当前目标是建立 developer-machine reference，不是 CI 合规预算。
 
 ## 红线
@@ -74,9 +76,10 @@ cargo run -p ygg-cli -- perf baseline --format json
 1. **inproc invoke 延迟** — P2/P5 中如引入 resolve cache 或 handler table，应观测此指标变化。
 2. **event store 批量吞吐** — P3 原子 append + 查询 pushdown 后，100-event / 1k / 10k / 100k append+list+range+kind-prefix 延迟可量化比较。
 3. **event store scale 指标** — P3 新增 1k/10k/100k event scale 场景，可跨版本比较增长趋势。
-3. **composition check 延迟** — P2 中 O(n²) 诊断扫描改为 set/index 后应改善。
-4. **profile load 延迟** — 作为 YAML 解析基线；后续如 profile 增大应重新测量。
-5. **subprocess invoke 延迟** — P1/P3 阶段将用更稳定的 subprocess 环境重新测量。
+4. **composition check 延迟** — P2 中 O(n²) 诊断扫描改为 set/index 后应改善。
+5. **profile load 延迟** — 作为 YAML 解析基线；后续如 profile 增大应重新测量。
+6. **subprocess invoke 延迟** — P1/P3 阶段将用更稳定的 subprocess 环境重新测量。
+7. **Forge render diagnostics** — P4 新增 50/500 mock events 的 front-end render helper，后续 UI 优化应比较 HTML bytes 和 elapsed_ms。
 
 ## 样本参考输出
 

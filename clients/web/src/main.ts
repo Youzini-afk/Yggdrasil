@@ -16,6 +16,8 @@ let surfaceEntries: SurfaceContributionRecord[] = [];
 let latestSequence = 0;
 let closeEvents: (() => void) | undefined;
 let assistOpen = false;
+let scheduledRender: ReturnType<typeof setTimeout> | undefined;
+let pendingRenderError: string | undefined;
 
 // --- Text Surface Proof state ---
 const STREAM_PROOF_FONT = "16px Inter, Helvetica Neue, Arial, sans-serif";
@@ -210,16 +212,27 @@ async function render(error?: string) {
   wireEvents();
 }
 
+function scheduleRender(error?: string) {
+  if (error) pendingRenderError = error;
+  if (scheduledRender) return;
+  scheduledRender = setTimeout(() => {
+    scheduledRender = undefined;
+    const errorToRender = pendingRenderError;
+    pendingRenderError = undefined;
+    void render(errorToRender);
+  }, 16);
+}
+
 function wireEvents() {
   document.querySelectorAll<HTMLButtonElement>("[data-route]").forEach((button) => {
     button.addEventListener("click", () => {
       route = button.dataset.route as RouteName;
-      render();
+      scheduleRender();
     });
   });
   document.querySelector<HTMLButtonElement>("[data-action='toggle-assist']")?.addEventListener("click", () => {
     assistOpen = !assistOpen;
-    render();
+    scheduleRender();
   });
   document.querySelector<HTMLButtonElement>("[data-action='open-session']")?.addEventListener("click", async () => {
     try {
@@ -230,11 +243,11 @@ function wireEvents() {
       closeEvents = client.subscribeEvents(session.id, (event) => {
         events = [...events, event].slice(-50);
         latestSequence = event.sequence;
-        render();
+        scheduleRender();
       });
-      render();
+      scheduleRender();
     } catch (caught) {
-      render(caught instanceof Error ? caught.message : String(caught));
+      scheduleRender(caught instanceof Error ? caught.message : String(caught));
     }
   });
   document.querySelectorAll<HTMLButtonElement>("[data-action='launch-surface']").forEach((button) => {
@@ -256,11 +269,11 @@ function wireEvents() {
         closeEvents = client.subscribeEvents(session.id, (event) => {
           events = [...events, event].slice(-50);
           latestSequence = event.sequence;
-          render();
+          scheduleRender();
         });
-        render();
+        scheduleRender();
       } catch (caught) {
-        render(caught instanceof Error ? caught.message : String(caught));
+        scheduleRender(caught instanceof Error ? caught.message : String(caught));
       }
     });
   });
@@ -275,11 +288,11 @@ function wireEvents() {
       closeEvents = client.subscribeEvents(forked.id, (event) => {
         events = [...events, event].slice(-50);
         latestSequence = event.sequence;
-        render();
+        scheduleRender();
       });
-      render();
+      scheduleRender();
     } catch (caught) {
-      render(caught instanceof Error ? caught.message : String(caught));
+      scheduleRender(caught instanceof Error ? caught.message : String(caught));
     }
   });
   document.querySelectorAll<HTMLButtonElement>("[data-action='approve-proposal']").forEach((button) => {
@@ -287,9 +300,9 @@ function wireEvents() {
       try {
         const proposalId = button.dataset.proposalId;
         if (proposalId) await client.approveProposal(proposalId);
-        render();
+        scheduleRender();
       } catch (caught) {
-        render(caught instanceof Error ? caught.message : String(caught));
+        scheduleRender(caught instanceof Error ? caught.message : String(caught));
       }
     });
   });
@@ -298,9 +311,9 @@ function wireEvents() {
       try {
         const proposalId = button.dataset.proposalId;
         if (proposalId) await client.applyProposal(proposalId);
-        render();
+        scheduleRender();
       } catch (caught) {
-        render(caught instanceof Error ? caught.message : String(caught));
+        scheduleRender(caught instanceof Error ? caught.message : String(caught));
       }
     });
   });

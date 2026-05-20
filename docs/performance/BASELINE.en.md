@@ -34,6 +34,7 @@ All scenarios are **no-network / deterministic** — no real network or provider
 | `composition_check` | Composition descriptor validation and package loading. Uses `examples/compositions/playable-seed-replacement/`. |
 | `profile_load` | Profile YAML parsing. Uses `profiles/forge-alpha.yaml`. |
 | `subprocess_echo_invoke` | Subprocess echo capability invocation (requires Python; status=skipped if unavailable). |
+| `forge_render_diagnostics_50/500` | Web Forge pure TS render diagnostics helper. Uses mock public-protocol events and does not read runtime internals; added in P4. |
 
 ## Output fields
 
@@ -58,6 +59,7 @@ All scenarios are **no-network / deterministic** — no real network or provider
 - `event_store_append_list_range_100k` auto-caps to 1 iteration when `--iterations > 1` to avoid excessive runtime.
 - P3 adds `EventStore::append_with_sequence` atomic append API, guaranteeing no duplicate sequences under concurrent same-session access.
 - P3 adds `EventStore::list_kind_prefix` and `list_session_kind_prefix` query pushdown APIs; audit/range queries no longer routinely call `list_all()` + full filter.
+- P4 adds `clients/web/src/performance/render-diagnostics.ts` for front-end 50/500 event Forge render diagnostics. The helper is pure TypeScript: no host connection, no SQLite/runtime internals.
 - No criterion or statistical framework; the goal is a developer-machine reference, not CI compliance budgets.
 
 ## Red lines
@@ -74,9 +76,10 @@ These metrics serve as comparison baselines for later optimization phases:
 1. **inproc invoke latency** — Should be watched if resolve cache or handler table is introduced in P2/P5.
 2. **event store batch throughput** — After P3 atomic append + query pushdown, 100-event / 1k / 10k / 100k append+list+range+kind-prefix latencies are quantifiable.
 3. **event store scale metrics** — P3 adds 1k/10k/100k event scale scenarios for cross-version trend comparison.
-3. **composition check latency** — Should improve after P2 replaces O(n²) diagnostics with sets/indexes.
-4. **profile load latency** — Serves as YAML parsing baseline; re-measure if profiles grow.
-5. **subprocess invoke latency** — Will be re-measured in P1/P3 with a stable subprocess environment.
+4. **composition check latency** — Should improve after P2 replaces O(n²) diagnostics with sets/indexes.
+5. **profile load latency** — Serves as YAML parsing baseline; re-measure if profiles grow.
+6. **subprocess invoke latency** — Will be re-measured in P1/P3 with a stable subprocess environment.
+7. **Forge render diagnostics** — P4 adds a front-end render helper for 50/500 mock events; future UI optimization should compare HTML bytes and elapsed_ms.
 
 ## Sample reference output
 

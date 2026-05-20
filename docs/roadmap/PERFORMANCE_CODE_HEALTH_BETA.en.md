@@ -86,9 +86,13 @@ Acceptance: concurrent same-session append is stable; SQLite-backed substrate re
 
 Goal: make Forge usable under realistic product data.
 
-Deliverables: SSE batching/debounce or local event-tail updates; partitioned Forge panels; separated view-model builders / detectors / renderers; lazy stringify / collapsed-by-default large JSON payloads; pagination or caps for events, proposals, and assets; frontend performance self-test or diagnostics helper.
+Delivered:
+- `clients/web/src/main.ts` adds a 16ms render scheduler so SSE / action bursts no longer trigger immediate repeated full renders.
+- `clients/web/src/utils/html.ts` adds a bounded JSON preview helper limiting depth, array items, object keys, and string length so large payloads are not fully stringified by default.
+- `clients/web/src/surfaces/forge.ts` caps displayed events, proposals, assets, projections, and surfaces, and renders event/proposal/surface/projection payloads as preview details.
+- `clients/web/src/performance/render-diagnostics.ts` adds a pure TS Forge render diagnostics helper that records HTML bytes and elapsed_ms for 50/500 mock events.
 
-Acceptance: Web TypeScript passes; public-protocol-only; no SQLite/runtime internals; 500-event Forge mock/render metrics recorded in baseline.
+Acceptance: Web TypeScript passes; public-protocol-only; no SQLite/runtime internals; 500-event Forge mock/render metrics recorded in the baseline docs.
 
 ## Phase P5 — Evidence-based Advanced Optimization & Cleanup
 

@@ -1,5 +1,5 @@
 import type { AssetRecord, KernelEvent, PackageRecord, ProjectionRecord, ProposalRecord, RegisteredCapability, SurfaceContributionRecord } from "../protocol/client";
-import { escapeHtml, formatJson } from "../utils/html";
+import { escapeHtml, formatJsonPreview } from "../utils/html";
 import { extractEventPreview, extractProposalPreview, kindBadgeLabel } from "../text-layout/text-preview.js";
 import { buildAgentObservability, buildForgeAgentWorkspace, renderAgentObservabilitySection, renderForgeAgentWorkspaceSections } from "../agent/observability.js";
 import { buildExperienceObservability, renderExperienceObservabilitySection } from "../agent/experience-observability.js";
@@ -43,7 +43,7 @@ export function renderForgeSurface(input: {
             <h2>Surface Inventory</h2>
             <span class="section-meta">${allSurfaces.length} surface${allSurfaces.length === 1 ? "" : "s"}</span>
           </div>
-          ${allSurfaces.length ? renderSurfaceInventory(allSurfaces) : "<p class='empty'>No surface contributions.</p>"}
+          ${allSurfaces.length ? renderSurfaceInventory(capList(allSurfaces, 120)) : "<p class='empty'>No surface contributions.</p>"}
         </div>
 
         <div class="forge-section">
@@ -62,12 +62,12 @@ export function renderForgeSurface(input: {
 
         <div class="forge-section">
           <h2>Package Forge Panels</h2>
-          ${forgeSurfaces.length ? forgeSurfaces.map(renderSurface).join("") : "<p class='empty'>No package-contributed Forge panels.</p>"}
+          ${forgeSurfaces.length ? capList(forgeSurfaces, 40).map(renderSurface).join("") : "<p class='empty'>No package-contributed Forge panels.</p>"}
         </div>
 
         <div class="forge-section">
           <h2>Proposals</h2>
-          ${proposals.length ? proposals.map(renderProposal).join("") : "<p class='empty'>No proposals yet.</p>"}
+          ${proposals.length ? capList(proposals, 40).map(renderProposal).join("") : "<p class='empty'>No proposals yet.</p>"}
         </div>
 
         ${renderAgentObservabilitySection(observability, events, proposals)}
@@ -81,7 +81,7 @@ export function renderForgeSurface(input: {
         <div class="forge-section event-tail-section">
           <h2>Events</h2>
           <div class="event-tail">
-            ${events.length ? events.map(renderEvent).join("") : "<p class='empty'>Open a session to inspect events.</p>"}
+            ${events.length ? capList(events, 80).map(renderEvent).join("") : "<p class='empty'>Open a session to inspect events.</p>"}
           </div>
         </div>
       </div>
@@ -99,13 +99,13 @@ export function renderForgeSurface(input: {
           <h2>Assets</h2>
           <span class="section-meta">${assets.length}</span>
         </div>
-        <div class="capability-list">${assets.length ? assets.map(renderAsset).join("") : "<p class='empty'>No assets.</p>"}</div>
+        <div class="capability-list">${assets.length ? capList(assets, 80).map(renderAsset).join("") : "<p class='empty'>No assets.</p>"}</div>
 
         <div class="section-header">
           <h2>Projections</h2>
           <span class="section-meta">${projections.length}</span>
         </div>
-        <div class="capability-list">${projections.length ? projections.map(renderProjection).join("") : "<p class='empty'>No projections.</p>"}</div>
+        <div class="capability-list">${projections.length ? capList(projections, 80).map(renderProjection).join("") : "<p class='empty'>No projections.</p>"}</div>
       </aside>
     </section>
   `;
@@ -119,6 +119,10 @@ function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
     result[key].push(item);
   }
   return result;
+}
+
+function capList<T>(items: T[], limit: number): T[] {
+  return items.length > limit ? items.slice(-limit) : items;
 }
 
 function renderPackageInventory(packages: PackageRecord[], capabilities: RegisteredCapability[], allSurfaces: SurfaceContributionRecord[]) {
@@ -243,7 +247,7 @@ function renderSurface(record: SurfaceContributionRecord) {
       <strong>${escapeHtml(record.surface.title)}</strong>
       <span>${escapeHtml(record.package_id)} · ${escapeHtml(record.surface.slot)} · ${escapeHtml(record.surface.id)}</span>
       <p>${escapeHtml(record.surface.description ?? "No description supplied.")}</p>
-      <details class="surface-metadata"><summary>Inspect descriptor</summary><code>${formatJson(record.surface)}</code></details>
+      <details class="surface-metadata"><summary>Inspect descriptor preview</summary><code>${formatJsonPreview(record.surface)}</code></details>
     </article>
   `;
 }
@@ -262,7 +266,7 @@ function renderProposal(proposal: ProposalRecord) {
       <strong>${escapeHtml(proposal.id)} · ${escapeHtml(proposal.status)}</strong>
       <span>${operationCount} operation${operationCount === 1 ? "" : "s"}${proposal.target_session_id ? ` · ${escapeHtml(proposal.target_session_id.slice(0, 8))}` : ""}</span>
       <div class="proposal-timeline"><span class="${proposal.status === "created" ? "active" : ""}">created</span><span class="${proposal.status === "approved" ? "active" : ""}">approved</span><span class="${proposal.status === "applied" ? "active" : ""}">applied</span></div>
-      <details class="surface-metadata"><summary>Inspect proposal</summary><code>${formatJson(proposal)}</code></details>
+      <details class="surface-metadata"><summary>Inspect proposal preview</summary><code>${formatJsonPreview(proposal)}</code></details>
       ${previewHtml}
       <div class="proposal-actions">
         ${proposal.status === "created" ? `<button type="button" class="button-warn" data-action="approve-proposal" data-proposal-id="${escapeHtml(proposal.id)}">Approve</button>` : ""}
@@ -306,7 +310,7 @@ function renderAsset(asset: AssetRecord) {
 function renderProjection(projection: ProjectionRecord) {
   const state = projection.state as Record<string, unknown> | undefined;
   const hint = state && typeof state === "object" && "status" in state ? String(state.status) : projection.source_kind_prefix ?? "snapshot";
-  return `<article class="capability-row"><strong>${escapeHtml(projection.id)}</strong><span>${escapeHtml(projection.session_id)} · ${escapeHtml(hint)}</span><code>${formatJson(projection.state)}</code></article>`;
+  return `<article class="capability-row"><strong>${escapeHtml(projection.id)}</strong><span>${escapeHtml(projection.session_id)} · ${escapeHtml(hint)}</span><code>${formatJsonPreview(projection.state)}</code></article>`;
 }
 
 function mimeIcon(mime: string) {
@@ -325,7 +329,7 @@ function renderEvent(event: KernelEvent) {
     <article class="event-row">
       <span>#${event.sequence}</span>
       <strong>${escapeHtml(event.kind)}</strong>
-      <code>${formatJson(event.payload)}</code>
+      <details class="surface-metadata"><summary>Payload preview</summary><code>${formatJsonPreview(event.payload)}</code></details>
       ${previewHtml}
     </article>
   `;
