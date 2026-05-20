@@ -631,6 +631,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "agentic_forge.no_kernel_agent_namespace",
         agentic_forge::agentic_forge_no_kernel_agent_namespace().await,
     );
+    // Phase B — Agentic Forge Beta: branch-aware candidate / compare / promote / archive
+    record_case(
+        &mut results,
+        "agentic_forge.create_candidate_branch_aware",
+        agentic_forge::agentic_forge_create_candidate().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.compare_candidate_stale_detection",
+        agentic_forge::agentic_forge_compare_candidate().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.draft_promote_proposal_no_mutation",
+        agentic_forge::agentic_forge_draft_promote_proposal().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.stale_promote_blocked",
+        agentic_forge::agentic_forge_stale_promote_blocked().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.archive_candidate_target_unchanged",
+        agentic_forge::agentic_forge_archive_candidate().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

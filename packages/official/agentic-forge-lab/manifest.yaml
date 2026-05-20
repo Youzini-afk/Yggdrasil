@@ -45,6 +45,36 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/agentic-forge-lab/create_candidate
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/compare_candidate
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/draft_promote_proposal
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/archive_candidate
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/agentic-forge-lab/explain_branch_policy
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []

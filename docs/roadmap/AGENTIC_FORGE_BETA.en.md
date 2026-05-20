@@ -63,22 +63,25 @@ Delivered:
 
 Non-goals: real models, real long-running background agents, multi-agent orchestration.
 
-## Phase B — Branch-aware scratch branch / candidate / compare / promote proof
+## Phase B — Branch-aware scratch branch / candidate / compare / promote proof (complete)
 
 **Goal:** Make the default agent workflow target branch → scratch branch → candidate → compare → proposal/promotion.
 
-Planned deliverables:
+Delivered:
 
-- `start_run` produces a scratch branch metadata plan by default, or conformance/demo creates it through public branch APIs.
-- Candidate artifact: candidate_id, run_id, target_branch_ref, scratch_branch_ref, changed_asset_refs, projection_refs, diff_summary, inspection_refs, confidence/uncertainty, provenance.
+- `start_run` produces scratch branch policy metadata by default (intent, target_revision, promote_requires_proposal, stale_target_blocks_promote).
+- Candidate artifact: candidate_id, run_id, target_branch_ref, scratch_branch_ref, changed_asset_refs, projection_refs, diff_summary, inspection_refs, confidence, uncertainty, provenance, status, target_revision.
+- Candidate states: draft, ready, comparing, promoting, promoted, rejected, archived, failed.
 - Capabilities:
-  - `create_candidate`
-  - `compare_candidate`
-  - `draft_promote_proposal`
-  - `archive_candidate`
-- Promote emits a proposal draft and never mutates target directly.
-- Stale target branch detection requires re-compare/re-inspect after target changes.
-- Conformance: reject leaves target unchanged, multiple candidates isolated, unauthorized target write denied, stale promote blocked.
+  - `create_candidate` — deterministic candidate generation, never writes target branch.
+  - `compare_candidate` — scratch vs target diff summary with stale detection (revision mismatch).
+  - `draft_promote_proposal` — produces proposal_draft only, no direct mutation; stale target revision mismatch blocks promote with `stale_target_branch`.
+  - `archive_candidate` — sets archived status, target branch unchanged.
+  - `explain_branch_policy` — explains scratch/target/promote constraints.
+- Raw-secret blocking applies to all new capabilities.
+- TypeScript SDK extended with Candidate, CandidateComparison, PromoteProposalDraft, BranchPolicy types and createCandidate/compareCandidate/createPromoteProposalDraft/archiveCandidate/validateCandidate helpers.
+- Conformance: 5 cases (create_candidate branch-aware, compare_candidate stale=false on matching revision, draft_promote_proposal no direct mutation, stale_promote_blocked on revision mismatch, archive_candidate target unchanged).
+- No `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, `kernel.memory.*`, or `kernel.turn.*` protocol methods added.
 
 Non-goals: complex merge engine, domain-specific diff ontology, automatic promote.
 

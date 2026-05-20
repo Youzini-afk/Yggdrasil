@@ -3,6 +3,10 @@
 //! Phase A of Agentic Forge Beta: package-owned agent run lifecycle,
 //! working state, plan graph contract. Deterministic, no-network,
 //! no real model inference.
+//!
+//! Phase B: branch-aware scratch branch / candidate / compare / promote proof.
+//! Candidates never mutate target branch; promote only produces proposal drafts.
+//! Stale target branch detection (revision mismatch) blocks promote.
 
 use serde_json::Value;
 
@@ -28,6 +32,26 @@ const LIFECYCLE_STATES: &[&str] = &[
 
 fn is_valid_lifecycle_state(s: &str) -> bool {
     LIFECYCLE_STATES.contains(&s)
+}
+
+// ---------------------------------------------------------------------------
+// Candidate states
+// ---------------------------------------------------------------------------
+
+const CANDIDATE_STATES: &[&str] = &[
+    "draft",
+    "ready",
+    "comparing",
+    "promoting",
+    "promoted",
+    "rejected",
+    "archived",
+    "failed",
+];
+
+#[cfg(test)]
+fn is_valid_candidate_state(s: &str) -> bool {
+    CANDIDATE_STATES.contains(&s)
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +157,16 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(summarize_run(request))
     } else if id.ends_with("/export_plan_graph") {
         Some(export_plan_graph(request))
+    } else if id.ends_with("/create_candidate") {
+        Some(create_candidate(request))
+    } else if id.ends_with("/compare_candidate") {
+        Some(compare_candidate(request))
+    } else if id.ends_with("/draft_promote_proposal") {
+        Some(draft_promote_proposal(request))
+    } else if id.ends_with("/archive_candidate") {
+        Some(archive_candidate(request))
+    } else if id.ends_with("/explain_branch_policy") {
+        Some(explain_branch_policy(request))
     } else {
         None
     }
@@ -153,8 +187,14 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/agentic-forge-lab/cancel_run", "purpose": "cancel a running or paused run"},
             {"id": "official/agentic-forge-lab/summarize_run", "purpose": "produce an observability summary of a run"},
             {"id": "official/agentic-forge-lab/export_plan_graph", "purpose": "export the plan graph artifact of a run"},
+            {"id": "official/agentic-forge-lab/create_candidate", "purpose": "create a branch-aware candidate from a scratch branch, never write target"},
+            {"id": "official/agentic-forge-lab/compare_candidate", "purpose": "compare scratch vs target branch diff summary with stale detection"},
+            {"id": "official/agentic-forge-lab/draft_promote_proposal", "purpose": "draft a promote proposal without direct target mutation; stale target blocked"},
+            {"id": "official/agentic-forge-lab/archive_candidate", "purpose": "archive a candidate without modifying target branch"},
+            {"id": "official/agentic-forge-lab/explain_branch_policy", "purpose": "explain the scratch/target branch policy and promote constraints"},
         ],
         "lifecycle_states": LIFECYCLE_STATES,
+        "candidate_states": CANDIDATE_STATES,
         "plan_graph_fields": [
             "nodes", "edges", "status", "revision", "input_refs",
             "output_refs", "approval_policy", "retry_policy", "deterministic_mode"
@@ -165,6 +205,17 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             "candidate_refs", "tool_observation_refs", "inference_trace_refs",
             "policy_state"
         ],
+        "candidate_fields": [
+            "candidate_id", "run_id", "target_branch_ref", "scratch_branch_ref",
+            "changed_asset_refs", "projection_refs", "diff_summary",
+            "inspection_refs", "confidence", "uncertainty", "provenance", "status"
+        ],
+        "branch_policy": {
+            "default_scratch_intent": "explore_without_mutating_target",
+            "promote_requires_proposal": true,
+            "stale_target_blocks_promote": true,
+            "target_revision_must_match": true
+        },
         "inference_performed": false,
         "network_performed": false,
         "provenance": {
@@ -209,6 +260,14 @@ fn start_run(request: &InprocInvocation) -> anyhow::Result<Value> {
         "lifecycle_state": "prepared",
         "plan_graph": plan_graph,
         "working_state": working_state,
+        "scratch_branch_policy": {
+            "intent": "explore_without_mutating_target",
+            "scratch_branch_ref": working_state["scratch_branch_ref"],
+            "target_branch_ref": working_state["target_branch_ref"],
+            "target_revision": 1,
+            "promote_requires_proposal": true,
+            "stale_target_blocks_promote": true
+        },
         "trace_events": [
             {
                 "event_type": "run_created",
@@ -345,6 +404,268 @@ fn export_plan_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
         "kind": "agentic_forge_plan_graph",
         "run_id": run_id,
         "plan_graph": plan_graph,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// Phase B capabilities: candidate / compare / promote / archive
+// ---------------------------------------------------------------------------
+
+fn create_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_candidate_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let run_id = request.input
+        .get("run_id")
+        .and_then(Value::as_str)
+        .unwrap_or("run_unknown");
+    let target_branch = request.input
+        .get("target_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:target:default");
+    let scratch_branch = request.input
+        .get("scratch_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:scratch:default");
+
+    let candidate_id = format!("cand_{}", deterministic_id(&request.input));
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_candidate_created",
+        "candidate": {
+            "candidate_id": candidate_id,
+            "run_id": run_id,
+            "target_branch_ref": target_branch,
+            "scratch_branch_ref": scratch_branch,
+            "changed_asset_refs": request.input.get("changed_asset_refs").cloned().unwrap_or(serde_json::json!([])),
+            "projection_refs": request.input.get("projection_refs").cloned().unwrap_or(serde_json::json!([])),
+            "diff_summary": request.input.get("diff_summary").and_then(Value::as_str).unwrap_or("deterministic diff: no real changes"),
+            "inspection_refs": request.input.get("inspection_refs").cloned().unwrap_or(serde_json::json!([])),
+            "confidence": request.input.get("confidence").and_then(Value::as_f64).unwrap_or(0.5),
+            "uncertainty": request.input.get("uncertainty").and_then(Value::as_f64).unwrap_or(0.5),
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            },
+            "status": "draft",
+            "target_revision": request.input.get("target_revision").and_then(Value::as_u64).unwrap_or(1)
+        },
+        "target_branch_unchanged": true,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn compare_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let candidate_id = request.input
+        .get("candidate_id")
+        .and_then(Value::as_str)
+        .unwrap_or("cand_unknown");
+    let target_branch = request.input
+        .get("target_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:target:default");
+    let scratch_branch = request.input
+        .get("scratch_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:scratch:default");
+
+    // Determine staleness: compare target_revision from candidate vs current_target_revision
+    let candidate_revision = request.input
+        .get("target_revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let current_target_revision = request.input
+        .get("current_target_revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let is_stale = candidate_revision != current_target_revision;
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_candidate_comparison",
+        "candidate_id": candidate_id,
+        "target_branch_ref": target_branch,
+        "scratch_branch_ref": scratch_branch,
+        "diff_summary": request.input.get("diff_summary").and_then(Value::as_str).unwrap_or("deterministic diff: no real changes"),
+        "affected_assets": request.input.get("changed_asset_refs").cloned().unwrap_or(serde_json::json!([])),
+        "affected_projections": request.input.get("projection_refs").cloned().unwrap_or(serde_json::json!([])),
+        "lineage_impact": {
+            "target_branch_modified": false,
+            "scratch_branch_source": scratch_branch,
+            "requires_rebase": is_stale,
+        },
+        "stale": is_stale,
+        "candidate_target_revision": candidate_revision,
+        "current_target_revision": current_target_revision,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_promote_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let candidate_id = request.input
+        .get("candidate_id")
+        .and_then(Value::as_str)
+        .unwrap_or("cand_unknown");
+    let run_id = request.input
+        .get("run_id")
+        .and_then(Value::as_str)
+        .unwrap_or("run_unknown");
+    let target_branch = request.input
+        .get("target_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:target:default");
+    let scratch_branch = request.input
+        .get("scratch_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:scratch:default");
+
+    // Stale target check: revision mismatch blocks promote
+    let candidate_revision = request.input
+        .get("target_revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let current_target_revision = request.input
+        .get("current_target_revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+
+    if candidate_revision != current_target_revision {
+        return Ok(serde_json::json!({
+            "kind": "agentic_forge_promote_blocked",
+            "reason": "stale_target_branch",
+            "candidate_id": candidate_id,
+            "candidate_target_revision": candidate_revision,
+            "current_target_revision": current_target_revision,
+            "target_branch_unchanged": true,
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    // Produce a proposal draft — package-owned ops, not kernel.proposal.create call
+    let changed_assets = request.input
+        .get("changed_asset_refs")
+        .cloned()
+        .unwrap_or(serde_json::json!([]));
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_promote_proposal_draft",
+        "candidate_id": candidate_id,
+        "run_id": run_id,
+        "proposal_draft": {
+            "requires_user_approval": true,
+            "operations": [
+                {
+                    "op": "asset.put",
+                    "payload": {
+                        "ref": changed_assets,
+                        "source_branch": scratch_branch,
+                        "target_branch": target_branch
+                    }
+                }
+            ],
+            "required_permissions": [],
+            "expected_effects": [
+                "candidate assets promoted to target branch via proposal approval"
+            ],
+            "source_candidate": candidate_id,
+            "source_run": run_id,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        },
+        "target_branch_unchanged": true,
+        "direct_mutation": false,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn archive_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let candidate_id = request.input
+        .get("candidate_id")
+        .and_then(Value::as_str)
+        .unwrap_or("cand_unknown");
+
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_candidate_archived",
+        "candidate_id": candidate_id,
+        "previous_status": request.input.get("status").and_then(Value::as_str).unwrap_or("draft"),
+        "status": "archived",
+        "target_branch_unchanged": true,
+        "summary": format!("Candidate {} archived; target branch not modified", candidate_id),
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn explain_branch_policy(request: &InprocInvocation) -> anyhow::Result<Value> {
+    Ok(serde_json::json!({
+        "kind": "agentic_forge_branch_policy",
+        "policy": {
+            "scratch_branch_intent": "explore_without_mutating_target",
+            "promote_requires_proposal": true,
+            "stale_target_blocks_promote": true,
+            "target_revision_must_match": true,
+            "reject_leaves_target_unchanged": true,
+            "archive_does_not_modify_target": true
+        },
+        "explanation": "Agents explore in scratch branches. Candidates are compared against target branches. Promote produces a proposal draft that must be approved through the proposal lifecycle; it never directly mutates the target branch. If the target branch has advanced since the candidate was created (revision mismatch), promote is blocked as stale. Archiving or rejecting a candidate leaves the target branch unchanged.",
         "inference_performed": false,
         "network_performed": false,
         "provenance": {
@@ -559,5 +880,172 @@ mod tests {
         assert!(!contains_raw_secret(&json!({"api_key": "secret-ref:env:MY_KEY"})));
         assert!(!contains_raw_secret(&json!({"api_key": "host:env:MY_KEY"})));
         assert!(!contains_raw_secret(&json!({"objective": "safe text"})));
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase B unit tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn create_candidate_returns_branch_aware_candidate() {
+        let req = make_request("official/agentic-forge-lab/create_candidate", json!({
+            "run_id": "run_test",
+            "target_branch_ref": "branch:target:main",
+            "scratch_branch_ref": "branch:scratch:s1",
+            "target_revision": 1,
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_candidate_created"));
+        assert_eq!(result["target_branch_unchanged"], json!(true));
+        let cand = &result["candidate"];
+        assert!(cand["candidate_id"].is_string());
+        assert_eq!(cand["run_id"], json!("run_test"));
+        assert_eq!(cand["target_branch_ref"], json!("branch:target:main"));
+        assert_eq!(cand["scratch_branch_ref"], json!("branch:scratch:s1"));
+        assert!(cand["changed_asset_refs"].is_array());
+        assert!(cand["projection_refs"].is_array());
+        assert!(cand["diff_summary"].is_string());
+        assert!(cand["inspection_refs"].is_array());
+        assert!(cand["confidence"].is_number());
+        assert!(cand["uncertainty"].is_number());
+        assert!(cand["provenance"]["package_id"].is_string());
+        assert_eq!(cand["status"], json!("draft"));
+    }
+
+    #[test]
+    fn compare_candidate_reports_diff_and_stale() {
+        // Matching revisions → stale=false
+        let req = make_request("official/agentic-forge-lab/compare_candidate", json!({
+            "candidate_id": "cand_test",
+            "target_revision": 1,
+            "current_target_revision": 1,
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_candidate_comparison"));
+        assert_eq!(result["stale"], json!(false));
+
+        // Mismatched revisions → stale=true
+        let req_stale = make_request("official/agentic-forge-lab/compare_candidate", json!({
+            "candidate_id": "cand_test",
+            "target_revision": 1,
+            "current_target_revision": 3,
+        }));
+        let result_stale = try_handle(&req_stale).unwrap().unwrap();
+        assert_eq!(result_stale["stale"], json!(true));
+        assert_eq!(result_stale["candidate_target_revision"], json!(1));
+        assert_eq!(result_stale["current_target_revision"], json!(3));
+    }
+
+    #[test]
+    fn draft_promote_proposal_returns_proposal_draft() {
+        let req = make_request("official/agentic-forge-lab/draft_promote_proposal", json!({
+            "candidate_id": "cand_test",
+            "run_id": "run_test",
+            "target_revision": 1,
+            "current_target_revision": 1,
+            "target_branch_ref": "branch:target:main",
+            "scratch_branch_ref": "branch:scratch:s1",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_promote_proposal_draft"));
+        assert_eq!(result["target_branch_unchanged"], json!(true));
+        assert_eq!(result["direct_mutation"], json!(false));
+        assert_eq!(result["proposal_draft"]["requires_user_approval"], json!(true));
+        assert!(result["proposal_draft"]["operations"].is_array());
+    }
+
+    #[test]
+    fn draft_promote_blocked_on_stale_target() {
+        let req = make_request("official/agentic-forge-lab/draft_promote_proposal", json!({
+            "candidate_id": "cand_test",
+            "run_id": "run_test",
+            "target_revision": 1,
+            "current_target_revision": 2,
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_promote_blocked"));
+        assert_eq!(result["reason"], json!("stale_target_branch"));
+        assert_eq!(result["target_branch_unchanged"], json!(true));
+    }
+
+    #[test]
+    fn archive_candidate_sets_archived_status() {
+        let req = make_request("official/agentic-forge-lab/archive_candidate", json!({
+            "candidate_id": "cand_test",
+            "status": "draft",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_candidate_archived"));
+        assert_eq!(result["status"], json!("archived"));
+        assert_eq!(result["target_branch_unchanged"], json!(true));
+    }
+
+    #[test]
+    fn explain_branch_policy_returns_policy() {
+        let req = make_request("official/agentic-forge-lab/explain_branch_policy", json!({}));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_branch_policy"));
+        assert_eq!(result["policy"]["promote_requires_proposal"], json!(true));
+        assert_eq!(result["policy"]["stale_target_blocks_promote"], json!(true));
+    }
+
+    #[test]
+    fn start_run_includes_scratch_branch_policy() {
+        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "branch test"}));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["scratch_branch_policy"]["intent"], json!("explore_without_mutating_target"));
+        assert_eq!(result["scratch_branch_policy"]["promote_requires_proposal"], json!(true));
+        assert_eq!(result["scratch_branch_policy"]["stale_target_blocks_promote"], json!(true));
+    }
+
+    #[test]
+    fn create_candidate_blocks_raw_secret() {
+        let req = make_request("official/agentic-forge-lab/create_candidate", json!({
+            "run_id": "run_test",
+            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_candidate_rejected"));
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+    }
+
+    #[test]
+    fn draft_promote_blocks_raw_secret() {
+        let req = make_request("official/agentic-forge-lab/draft_promote_proposal", json!({
+            "candidate_id": "cand_test",
+            "run_id": "run_test",
+            "token": "Bearer abc123",
+        }));
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("agentic_forge_promote_rejected"));
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+    }
+
+    #[test]
+    fn all_candidate_states_valid() {
+        for state in CANDIDATE_STATES {
+            assert!(is_valid_candidate_state(state));
+        }
+        assert!(!is_valid_candidate_state("unknown_state"));
+    }
+
+    #[test]
+    fn no_kernel_namespace_in_phase_b_outputs() {
+        for cap in &[
+            "official/agentic-forge-lab/create_candidate",
+            "official/agentic-forge-lab/compare_candidate",
+            "official/agentic-forge-lab/draft_promote_proposal",
+            "official/agentic-forge-lab/archive_candidate",
+            "official/agentic-forge-lab/explain_branch_policy",
+        ] {
+            let req = make_request(cap, json!({"run_id": "run_ns", "candidate_id": "cand_ns", "target_revision": 1, "current_target_revision": 1}));
+            let result = try_handle(&req).unwrap().unwrap();
+            let output_str = serde_json::to_string(&result).unwrap();
+            assert!(!output_str.contains("kernel.agent"), "{cap} must not contain kernel.agent");
+            assert!(!output_str.contains("kernel.model"), "{cap} must not contain kernel.model");
+            assert!(!output_str.contains("kernel.prompt"), "{cap} must not contain kernel.prompt");
+            assert!(!output_str.contains("kernel.memory"), "{cap} must not contain kernel.memory");
+            assert!(!output_str.contains("kernel.turn"), "{cap} must not contain kernel.turn");
+        }
     }
 }

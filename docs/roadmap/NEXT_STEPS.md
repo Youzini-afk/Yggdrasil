@@ -20,7 +20,8 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
 - Live Model Calls Alpha：已完成；成果已收敛进 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 conformance matrix。
 - Creative Inference Capability Alpha：已完成；`sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers、[`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`](../guides/INFERENCE_CAPABILITY_AUTHORING.md)、`official/inference-local-lab` deterministic non-HTTP fake inference provider proof、`official/model-provider-lab` cloud API adapter 降级定位、`official/inference-playtest-lab` Ygg-native inference proposal vertical slice 均已就位。Conformance 包含 155 个具名用例。
-- Agentic Forge Beta Phase A：已完成；`official/agentic-forge-lab` 提供 describe_contract/start_run/inspect_run/cancel_run/summarize_run/export_plan_graph 能力，`sdk/typescript/agentic-forge` TS SDK，5 个 conformance 用例。Conformance 包含 160 个具名用例。下一阶段为 Phase B。
+- Agentic Forge Beta Phase A：已完成；`official/agentic-forge-lab` 提供 describe_contract/start_run/inspect_run/cancel_run/summarize_run/export_plan_graph 能力，`sdk/typescript/agentic-forge` TS SDK，5 个 conformance 用例。Conformance 包含 160 个具名用例。
+- Agentic Forge Beta Phase B：已完成；扩展 `official/agentic-forge-lab` 增加 create_candidate/compare_candidate/draft_promote_proposal/archive_candidate/explain_branch_policy 能力；branch-aware scratch branch intent/metadata；candidate artifacts 含 stale 检测；proposal draft 不直接修改 target branch；stale target revision 不匹配时阻止 promote；5 个 conformance 用例。Conformance 包含 165 个具名用例。下一阶段为 Phase C。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 

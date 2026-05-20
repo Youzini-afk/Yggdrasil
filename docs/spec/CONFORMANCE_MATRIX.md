@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：145 个 implemented rows，由 160 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：150 个 implemented rows，由 165 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -364,6 +364,11 @@ agentic_forge.start_run_plan_graph_working_state      PASS
 agentic_forge.inspect_cancel_summarize                PASS
 agentic_forge.raw_secret_blocked                      PASS
 agentic_forge.no_kernel_agent_namespace                PASS
+agentic_forge.create_candidate_branch_aware            PASS
+agentic_forge.compare_candidate_stale_detection        PASS
+agentic_forge.draft_promote_proposal_no_mutation       PASS
+agentic_forge.stale_promote_blocked                    PASS
+agentic_forge.archive_candidate_target_unchanged       PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

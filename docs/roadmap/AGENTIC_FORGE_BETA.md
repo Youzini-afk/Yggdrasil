@@ -63,22 +63,25 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
 
 非目标：真实模型、真实长期后台 agent、多 agent 编排。
 
-## Phase B — Branch-aware scratch branch / candidate / compare / promote proof
+## Phase B — Branch-aware scratch branch / candidate / compare / promote proof（已完成）
 
 **目标：** 让 agent 的默认工作模式变成 target branch → scratch branch → candidate → compare → proposal/promotion。
 
-计划交付：
+已交付：
 
-- `start_run` 默认生成 scratch branch metadata plan（或在 demo/conformance 中通过 public branch API 创建）。
-- Candidate artifact：candidate_id、run_id、target_branch_ref、scratch_branch_ref、changed_asset_refs、projection_refs、diff_summary、inspection_refs、confidence/uncertainty、provenance。
+- `start_run` 默认生成 scratch branch policy metadata（intent、target_revision、promote_requires_proposal、stale_target_blocks_promote）。
+- Candidate artifact：candidate_id、run_id、target_branch_ref、scratch_branch_ref、changed_asset_refs、projection_refs、diff_summary、inspection_refs、confidence、uncertainty、provenance、status、target_revision。
+- Candidate states：draft、ready、comparing、promoting、promoted、rejected、archived、failed。
 - Capabilities：
-  - `create_candidate`
-  - `compare_candidate`
-  - `draft_promote_proposal`
-  - `archive_candidate`
-- Promote 必须生成 proposal draft，不直接 mutate target。
-- Stale target branch detection：target state 变化后要求重新 compare/reinspect。
-- Conformance：reject 不改变 target，多 candidate 隔离，unauthorized target write 拒绝，stale promote 阻断。
+  - `create_candidate` — 确定性 candidate 生成，不写 target branch。
+  - `compare_candidate` — scratch vs target diff summary，含 stale 检测（revision 不匹配）。
+  - `draft_promote_proposal` — 仅生成 proposal_draft，不直接修改 target；stale target revision 不匹配时返回 `stale_target_branch` 阻断 promote。
+  - `archive_candidate` — 设置 archived 状态，target branch 不变。
+  - `explain_branch_policy` — 说明 scratch/target/promote 约束。
+- Raw-secret blocking 适用于所有新增 capabilities。
+- TypeScript SDK 扩展 Candidate、CandidateComparison、PromoteProposalDraft、BranchPolicy 类型和 createCandidate/compareCandidate/createPromoteProposalDraft/archiveCandidate/validateCandidate helper。
+- Conformance：5 个用例（create_candidate branch-aware、compare_candidate stale=false for matching revision、draft_promote_proposal no direct mutation、stale_promote_blocked on revision mismatch、archive_candidate target unchanged）。
+- 未新增 `kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*`、`kernel.memory.*` 或 `kernel.turn.*` 协议方法。
 
 非目标：复杂 merge engine、domain-specific diff ontology、自动 promote。
 

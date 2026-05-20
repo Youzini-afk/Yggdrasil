@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 145 implemented rows, backed by 160 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 150 implemented rows, backed by 165 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -364,6 +364,11 @@ agentic_forge.start_run_plan_graph_working_state      PASS
 agentic_forge.inspect_cancel_summarize                PASS
 agentic_forge.raw_secret_blocked                      PASS
 agentic_forge.no_kernel_agent_namespace                PASS
+agentic_forge.create_candidate_branch_aware            PASS
+agentic_forge.compare_candidate_stale_detection        PASS
+agentic_forge.draft_promote_proposal_no_mutation       PASS
+agentic_forge.stale_promote_blocked                    PASS
+agentic_forge.archive_candidate_target_unchanged       PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

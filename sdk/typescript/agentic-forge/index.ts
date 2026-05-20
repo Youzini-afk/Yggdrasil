@@ -25,7 +25,11 @@
  * - `WorkingState` — run working state artifact
  * - `RunEvent` — trace event
  * - `CandidateShell` — candidate shape (Phase A shell)
+ * - `Candidate` — full branch-aware candidate (Phase B)
+ * - `CandidateComparison` — candidate comparison result
+ * - `PromoteProposalDraft` — promote proposal draft
  * - `ObservabilitySummary` — run observability summary
+ * - `BranchPolicy` — scratch/target branch policy
  *
  * Helpers:
  * - `createRunEvent()` — build a valid run event
@@ -33,6 +37,11 @@
  * - `createPlanGraph()` — build a minimal plan graph
  * - `createWorkingState()` — build a working state
  * - `createCandidateShell()` — build a candidate shell (Phase A)
+ * - `createCandidate()` — build a branch-aware candidate (Phase B)
+ * - `compareCandidate()` — compare scratch vs target with stale detection
+ * - `createPromoteProposalDraft()` — build a promote proposal draft
+ * - `archiveCandidate()` — build an archived candidate shape
+ * - `validateCandidate()` — validate a candidate structure
  * - `blockRawSecrets()` — check for raw-secret-like content
  * - `runAgenticForgeSelfTest()` — pure-TS self-test
  */
@@ -162,6 +171,94 @@ export interface CandidateShell {
     package_id: string;
     capability_id: string;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Phase B: full candidate, comparison, promote, archive
+// ---------------------------------------------------------------------------
+
+export type CandidateState =
+  | "draft"
+  | "ready"
+  | "comparing"
+  | "promoting"
+  | "promoted"
+  | "rejected"
+  | "archived"
+  | "failed";
+
+const VALID_CANDIDATE_STATES: CandidateState[] = [
+  "draft", "ready", "comparing", "promoting", "promoted",
+  "rejected", "archived", "failed",
+];
+
+export function isValidCandidateState(s: string): s is CandidateState {
+  return (VALID_CANDIDATE_STATES as string[]).includes(s);
+}
+
+/** Full branch-aware candidate artifact (Phase B). */
+export interface Candidate {
+  candidate_id: string;
+  run_id: string;
+  target_branch_ref: string;
+  scratch_branch_ref: string;
+  changed_asset_refs: string[];
+  projection_refs: string[];
+  diff_summary: string;
+  inspection_refs: string[];
+  confidence: number;
+  uncertainty: number;
+  provenance: {
+    package_id: string;
+    capability_id: string;
+  };
+  status: CandidateState;
+  target_revision: number;
+}
+
+/** Result of comparing a candidate's scratch branch against target. */
+export interface CandidateComparison {
+  candidate_id: string;
+  target_branch_ref: string;
+  scratch_branch_ref: string;
+  diff_summary: string;
+  affected_assets: string[];
+  affected_projections: string[];
+  lineage_impact: {
+    target_branch_modified: boolean;
+    scratch_branch_source: string;
+    requires_rebase: boolean;
+  };
+  stale: boolean;
+  candidate_target_revision: number;
+  current_target_revision: number;
+}
+
+/** Promote proposal draft — never directly mutates target. */
+export interface PromoteProposalDraft {
+  requires_user_approval: boolean;
+  operations: Array<{
+    op: string;
+    payload: Record<string, unknown>;
+  }>;
+  required_permissions: string[];
+  expected_effects: string[];
+  source_candidate: string;
+  source_run: string;
+  provenance: {
+    package_id: string;
+    capability_id: string;
+  };
+}
+
+/** Branch policy explanation. */
+export interface BranchPolicy {
+  scratch_branch_intent: string;
+  promote_requires_proposal: boolean;
+  stale_target_blocks_promote: boolean;
+  target_revision_must_match: boolean;
+  reject_leaves_target_unchanged: boolean;
+  archive_does_not_modify_target: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +449,118 @@ export function createCandidateShell(
 }
 
 // ---------------------------------------------------------------------------
+// Phase B helpers
+// ---------------------------------------------------------------------------
+
+/** Build a full branch-aware candidate (Phase B). */
+export function createCandidate(
+  candidateId: string,
+  runId: string,
+  targetBranchRef: string,
+  scratchBranchRef: string,
+  packageId: string,
+  capabilityId: string,
+  options: Partial<Omit<Candidate, "candidate_id" | "run_id" | "target_branch_ref" | "scratch_branch_ref" | "provenance">> = {},
+): Candidate {
+  return {
+    candidate_id: candidateId,
+    run_id: runId,
+    target_branch_ref: targetBranchRef,
+    scratch_branch_ref: scratchBranchRef,
+    changed_asset_refs: options.changed_asset_refs ?? [],
+    projection_refs: options.projection_refs ?? [],
+    diff_summary: options.diff_summary ?? "deterministic diff: no real changes",
+    inspection_refs: options.inspection_refs ?? [],
+    confidence: options.confidence ?? 0.5,
+    uncertainty: options.uncertainty ?? 0.5,
+    provenance: { package_id: packageId, capability_id: capabilityId },
+    status: options.status ?? "draft",
+    target_revision: options.target_revision ?? 1,
+  };
+}
+
+/** Compare scratch vs target, detecting stale branches. */
+export function compareCandidate(
+  candidate: Candidate,
+  currentTargetRevision: number,
+): CandidateComparison {
+  const stale = candidate.target_revision !== currentTargetRevision;
+  return {
+    candidate_id: candidate.candidate_id,
+    target_branch_ref: candidate.target_branch_ref,
+    scratch_branch_ref: candidate.scratch_branch_ref,
+    diff_summary: candidate.diff_summary,
+    affected_assets: candidate.changed_asset_refs,
+    affected_projections: candidate.projection_refs,
+    lineage_impact: {
+      target_branch_modified: false,
+      scratch_branch_source: candidate.scratch_branch_ref,
+      requires_rebase: stale,
+    },
+    stale,
+    candidate_target_revision: candidate.target_revision,
+    current_target_revision: currentTargetRevision,
+  };
+}
+
+/** Build a promote proposal draft. Never directly mutates target. */
+export function createPromoteProposalDraft(
+  candidate: Candidate,
+  packageId: string,
+  capabilityId: string,
+): PromoteProposalDraft {
+  return {
+    requires_user_approval: true,
+    operations: [
+      {
+        op: "asset.put",
+        payload: {
+          ref: candidate.changed_asset_refs,
+          source_branch: candidate.scratch_branch_ref,
+          target_branch: candidate.target_branch_ref,
+        },
+      },
+    ],
+    required_permissions: [],
+    expected_effects: [
+      "candidate assets promoted to target branch via proposal approval",
+    ],
+    source_candidate: candidate.candidate_id,
+    source_run: candidate.run_id,
+    provenance: { package_id: packageId, capability_id: capabilityId },
+  };
+}
+
+/** Build an archived candidate shape. */
+export function archiveCandidate(
+  candidate: Candidate,
+): Candidate {
+  return {
+    ...candidate,
+    status: "archived",
+  };
+}
+
+/** Validate a candidate structure. Returns diagnostics. */
+export function validateCandidate(c: Partial<Candidate>): string[] {
+  const diagnostics: string[] = [];
+  if (!c.candidate_id) diagnostics.push("candidate must have candidate_id");
+  if (!c.run_id) diagnostics.push("candidate must have run_id");
+  if (!c.target_branch_ref) diagnostics.push("candidate must have target_branch_ref");
+  if (!c.scratch_branch_ref) diagnostics.push("candidate must have scratch_branch_ref");
+  if (c.status && !isValidCandidateState(c.status)) {
+    diagnostics.push(`unknown candidate status: ${c.status}`);
+  }
+  if (c.confidence !== undefined && (c.confidence < 0 || c.confidence > 1)) {
+    diagnostics.push("confidence must be between 0 and 1");
+  }
+  if (c.uncertainty !== undefined && (c.uncertainty < 0 || c.uncertainty > 1)) {
+    diagnostics.push("uncertainty must be between 0 and 1");
+  }
+  return diagnostics;
+}
+
+// ---------------------------------------------------------------------------
 // Self-test
 // ---------------------------------------------------------------------------
 
@@ -428,6 +637,74 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(isSecretFieldName("api_key"), "api_key is secret field");
   assert(isSecretFieldName("token"), "token is secret field");
   assert(!isSecretFieldName("objective"), "objective is not secret field");
+
+  // --- Phase B ---
+
+  // Candidate states
+  assert(isValidCandidateState("draft"), "draft is valid candidate state");
+  assert(isValidCandidateState("archived"), "archived is valid candidate state");
+  assert(!isValidCandidateState("unknown"), "unknown is not valid candidate state");
+  assert(VALID_CANDIDATE_STATES.length === 8, "8 candidate states");
+
+  // Full candidate creation
+  const cand = createCandidate(
+    "c1", "run_test", "branch:target:main", "branch:scratch:s1",
+    "official/agentic-forge-lab", "official/agentic-forge-lab/create_candidate",
+    { changed_asset_refs: ["asset:x"], confidence: 0.8, uncertainty: 0.2, target_revision: 1 },
+  );
+  assert(cand.candidate_id === "c1", "candidate id");
+  assert(cand.status === "draft", "candidate default status is draft");
+  assert(cand.changed_asset_refs.length === 1, "candidate changed_asset_refs");
+  assert(cand.confidence === 0.8, "candidate confidence");
+  assert(cand.uncertainty === 0.2, "candidate uncertainty");
+  assert(cand.target_revision === 1, "candidate target_revision");
+
+  // Candidate validation
+  const validCandDiags = validateCandidate(cand);
+  assert(validCandDiags.length === 0, "valid candidate has no diagnostics");
+
+  const badCandDiags = validateCandidate({});
+  assert(badCandDiags.length > 0, "empty candidate has diagnostics");
+
+  const badStatusDiags = validateCandidate({
+    candidate_id: "c1", run_id: "r1",
+    target_branch_ref: "b:t", scratch_branch_ref: "b:s", status: "unknown" as CandidateState,
+  });
+  assert(badStatusDiags.some(d => d.includes("unknown candidate status")), "bad status detected");
+
+  // Compare candidate — matching revision → stale=false
+  const comp = compareCandidate(cand, 1);
+  assert(comp.stale === false, "matching revision → not stale");
+  assert(comp.lineage_impact.target_branch_modified === false, "compare: target not modified");
+  assert(comp.candidate_target_revision === 1, "compare: candidate revision");
+  assert(comp.current_target_revision === 1, "compare: current revision");
+
+  // Compare candidate — mismatched revision → stale=true
+  const compStale = compareCandidate(cand, 3);
+  assert(compStale.stale === true, "mismatched revision → stale");
+  assert(compStale.lineage_impact.requires_rebase === true, "stale requires rebase");
+
+  // Promote proposal draft
+  const draft = createPromoteProposalDraft(
+    cand, "official/agentic-forge-lab", "official/agentic-forge-lab/draft_promote_proposal",
+  );
+  assert(draft.requires_user_approval === true, "promote requires approval");
+  assert(draft.operations.length > 0, "promote has operations");
+  assert(draft.source_candidate === "c1", "promote source candidate");
+  assert(draft.provenance.package_id === "official/agentic-forge-lab", "promote provenance");
+
+  // Archived candidate
+  const archived = archiveCandidate(cand);
+  assert(archived.status === "archived", "archived candidate status");
+  assert(archived.candidate_id === "c1", "archived preserves id");
+
+  // No kernel namespace in Phase B outputs
+  assert(!hasKernelAgentNamespace(comp), "compare output has no kernel namespace");
+  assert(!hasKernelAgentNamespace(draft), "promote draft has no kernel namespace");
+  assert(!hasKernelAgentNamespace(archived), "archived candidate has no kernel namespace");
+
+  // Raw secret blocking in candidate
+  assert(blockRawSecrets({ api_key: "RawSecretExample1234567890abcdefABCDEF123456" }), "raw secret in candidate blocked");
 
   return { passed, failed: failures.length, failures };
 }

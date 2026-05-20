@@ -1,7 +1,11 @@
-//! Conformance tests for `official/agentic-forge-lab` (Agentic Forge Beta Phase A).
+//! Conformance tests for `official/agentic-forge-lab` (Agentic Forge Beta).
 //!
-//! Proves: describe_contract, start_run plan graph/working state,
+//! Phase A: describe_contract, start_run plan graph/working state,
 //! inspect/cancel/summarize, raw-secret blocking, no kernel agent namespace.
+//!
+//! Phase B: branch-aware candidate, compare with stale detection,
+//! draft promote proposal (no direct mutation), stale target blocked,
+//! archive candidate leaves target unchanged.
 
 use std::path::PathBuf;
 
@@ -48,8 +52,8 @@ pub(crate) async fn agentic_forge_describe_contract() -> anyhow::Result<()> {
         "describe_contract must list 9 lifecycle states"
     );
     anyhow::ensure!(
-        contract.output["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 6,
-        "describe_contract must list 6 capabilities"
+        contract.output["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 11,
+        "describe_contract must list 11 capabilities"
     );
     anyhow::ensure!(
         contract.output["plan_graph_fields"].is_array(),
@@ -405,6 +409,274 @@ pub(crate) async fn agentic_forge_no_kernel_agent_namespace() -> anyhow::Result<
             "{label} must not contain kernel.turn"
         );
     }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Phase B conformance cases
+// ---------------------------------------------------------------------------
+
+/// Phase B case 1: create_candidate emits a branch-aware candidate with
+/// all required fields and target_branch_unchanged=true.
+pub(crate) async fn agentic_forge_create_candidate() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/create_candidate"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "run_id": "run_conf_b",
+                "target_branch_ref": "branch:target:main",
+                "scratch_branch_ref": "branch:scratch:s1",
+                "target_revision": 1,
+                "changed_asset_refs": ["asset:composition:demo"],
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_candidate_created"),
+        "create_candidate must return agentic_forge_candidate_created kind"
+    );
+    anyhow::ensure!(
+        result.output["target_branch_unchanged"] == json!(true),
+        "create_candidate must confirm target_branch_unchanged"
+    );
+
+    let cand = &result.output["candidate"];
+    anyhow::ensure!(cand["candidate_id"].is_string(), "candidate must have candidate_id");
+    anyhow::ensure!(cand["run_id"] == json!("run_conf_b"), "candidate run_id");
+    anyhow::ensure!(cand["target_branch_ref"] == json!("branch:target:main"), "candidate target_branch_ref");
+    anyhow::ensure!(cand["scratch_branch_ref"] == json!("branch:scratch:s1"), "candidate scratch_branch_ref");
+    anyhow::ensure!(cand["changed_asset_refs"].is_array(), "candidate must have changed_asset_refs");
+    anyhow::ensure!(cand["projection_refs"].is_array(), "candidate must have projection_refs");
+    anyhow::ensure!(cand["diff_summary"].is_string(), "candidate must have diff_summary");
+    anyhow::ensure!(cand["inspection_refs"].is_array(), "candidate must have inspection_refs");
+    anyhow::ensure!(cand["confidence"].is_number(), "candidate must have confidence");
+    anyhow::ensure!(cand["uncertainty"].is_number(), "candidate must have uncertainty");
+    anyhow::ensure!(cand["provenance"]["package_id"].is_string(), "candidate must have provenance");
+    anyhow::ensure!(cand["status"] == json!("draft"), "candidate initial status is draft");
+    anyhow::ensure!(cand["target_revision"] == json!(1), "candidate target_revision");
+
+    // No kernel namespace
+    let output_str = serde_json::to_string(&result.output).unwrap();
+    anyhow::ensure!(!output_str.contains("kernel.agent"), "create_candidate must not contain kernel.agent");
+    anyhow::ensure!(!output_str.contains("kernel.proposal.create"), "create_candidate must not call kernel.proposal.create");
+
+    Ok(())
+}
+
+/// Phase B case 2: compare_candidate reports scratch vs target diff summary
+/// and stale=false for matching revision.
+pub(crate) async fn agentic_forge_compare_candidate() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    // Matching revisions → stale=false
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/compare_candidate"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "candidate_id": "cand_conf",
+                "target_branch_ref": "branch:target:main",
+                "scratch_branch_ref": "branch:scratch:s1",
+                "target_revision": 1,
+                "current_target_revision": 1,
+                "changed_asset_refs": ["asset:composition:demo"],
+                "diff_summary": "modified composition",
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_candidate_comparison"),
+        "compare_candidate must return agentic_forge_candidate_comparison kind"
+    );
+    anyhow::ensure!(
+        result.output["stale"] == json!(false),
+        "compare_candidate with matching revision must be stale=false"
+    );
+    anyhow::ensure!(
+        result.output["candidate_target_revision"] == json!(1),
+        "compare must record candidate_target_revision"
+    );
+    anyhow::ensure!(
+        result.output["current_target_revision"] == json!(1),
+        "compare must record current_target_revision"
+    );
+    anyhow::ensure!(
+        result.output["diff_summary"].is_string(),
+        "compare must have diff_summary"
+    );
+    anyhow::ensure!(
+        result.output["affected_assets"].is_array(),
+        "compare must have affected_assets"
+    );
+    anyhow::ensure!(
+        result.output["lineage_impact"]["target_branch_modified"] == json!(false),
+        "compare lineage_impact.target_branch_modified must be false"
+    );
+    anyhow::ensure!(
+        result.output["lineage_impact"]["requires_rebase"] == json!(false),
+        "compare requires_rebase=false when not stale"
+    );
+
+    Ok(())
+}
+
+/// Phase B case 3: draft_promote_proposal creates proposal draft only,
+/// no direct mutation terms (no kernel.proposal.create).
+pub(crate) async fn agentic_forge_draft_promote_proposal() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/draft_promote_proposal"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "candidate_id": "cand_conf",
+                "run_id": "run_conf_b",
+                "target_branch_ref": "branch:target:main",
+                "scratch_branch_ref": "branch:scratch:s1",
+                "target_revision": 1,
+                "current_target_revision": 1,
+                "changed_asset_refs": ["asset:composition:demo"],
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_promote_proposal_draft"),
+        "draft_promote_proposal must return agentic_forge_promote_proposal_draft kind"
+    );
+    anyhow::ensure!(
+        result.output["target_branch_unchanged"] == json!(true),
+        "promote must confirm target_branch_unchanged"
+    );
+    anyhow::ensure!(
+        result.output["direct_mutation"] == json!(false),
+        "promote must confirm direct_mutation=false"
+    );
+    anyhow::ensure!(
+        result.output["proposal_draft"]["requires_user_approval"] == json!(true),
+        "proposal_draft must require user approval"
+    );
+    anyhow::ensure!(
+        result.output["proposal_draft"]["operations"].is_array(),
+        "proposal_draft must have operations"
+    );
+    anyhow::ensure!(
+        result.output["proposal_draft"]["source_candidate"] == json!("cand_conf"),
+        "proposal_draft must reference source candidate"
+    );
+    anyhow::ensure!(
+        result.output["proposal_draft"]["provenance"]["package_id"].is_string(),
+        "proposal_draft must have provenance"
+    );
+
+    // No kernel mutation namespace
+    let output_str = serde_json::to_string(&result.output).unwrap();
+    anyhow::ensure!(!output_str.contains("kernel.proposal.create"), "must not reference kernel.proposal.create");
+    anyhow::ensure!(!output_str.contains("kernel.agent"), "must not contain kernel.agent");
+
+    Ok(())
+}
+
+/// Phase B case 4: stale promote blocked on revision mismatch.
+pub(crate) async fn agentic_forge_stale_promote_blocked() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/draft_promote_proposal"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "candidate_id": "cand_stale",
+                "run_id": "run_stale",
+                "target_branch_ref": "branch:target:main",
+                "scratch_branch_ref": "branch:scratch:s1",
+                "target_revision": 1,
+                "current_target_revision": 3,
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_promote_blocked"),
+        "stale promote must return agentic_forge_promote_blocked kind"
+    );
+    anyhow::ensure!(
+        result.output["reason"] == json!("stale_target_branch"),
+        "stale promote reason must be stale_target_branch"
+    );
+    anyhow::ensure!(
+        result.output["candidate_target_revision"] == json!(1),
+        "blocked promote must record candidate revision"
+    );
+    anyhow::ensure!(
+        result.output["current_target_revision"] == json!(3),
+        "blocked promote must record current revision"
+    );
+    anyhow::ensure!(
+        result.output["target_branch_unchanged"] == json!(true),
+        "stale promote must confirm target_branch_unchanged"
+    );
+
+    Ok(())
+}
+
+/// Phase B case 5: archive/reject-style flow leaves target unchanged;
+/// output marks candidate as archived.
+pub(crate) async fn agentic_forge_archive_candidate() -> anyhow::Result<()> {
+    let runtime = load_forge_lab().await?;
+
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{PACKAGE_ID}/archive_candidate"),
+            caller_package_id: None,
+            provider_package_id: Some(PACKAGE_ID.to_string()),
+            version: None,
+            input: json!({
+                "candidate_id": "cand_archive",
+                "status": "draft",
+            }),
+        })
+        .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("agentic_forge_candidate_archived"),
+        "archive_candidate must return agentic_forge_candidate_archived kind"
+    );
+    anyhow::ensure!(
+        result.output["status"] == json!("archived"),
+        "archive_candidate must set status to archived"
+    );
+    anyhow::ensure!(
+        result.output["previous_status"] == json!("draft"),
+        "archive_candidate must record previous_status"
+    );
+    anyhow::ensure!(
+        result.output["target_branch_unchanged"] == json!(true),
+        "archive_candidate must confirm target_branch_unchanged"
+    );
+    anyhow::ensure!(
+        result.output["summary"].is_string(),
+        "archive_candidate must have summary"
+    );
+
+    // Verify no direct mutation terms
+    let output_str = serde_json::to_string(&result.output).unwrap();
+    anyhow::ensure!(!output_str.contains("kernel.agent"), "archive output must not contain kernel.agent");
 
     Ok(())
 }
