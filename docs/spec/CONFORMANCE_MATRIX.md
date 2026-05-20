@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：130 个 implemented rows，由 145 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：135 个 implemented rows，由 150 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## 当前 conformance 覆盖
 
@@ -97,6 +97,11 @@ cargo run -p ygg-cli -- conformance
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
 | official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
 | official packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
+| official packages | inference-local-lab describe_capabilities 不需要 network/secret，transports include in_memory/local_process，operation_kinds include generate/classify/transform | implemented |
+| official packages | inference-local-lab invoke non-HTTP succeeds，无 URL/header/status/messages 字段，network_performed=false，transport_performed=in_memory_fake | implemented |
+| official packages | inference-local-lab invoke rejects http transport、HTTP-shaped 字段（url/header/status_code）、messages-shaped 字段（messages/system/user/assistant）、raw secret | implemented |
+| official packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames，无 URL/header/status/provider_schema | implemented |
+| official packages | inference-local-lab explain_error 覆盖 local/resource 错误类（local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled） | implemented |
 | in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
@@ -271,6 +276,11 @@ official.model_provider_lab_normalize_stream  PASS
 official.model_routing_lab                 PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS
+official.inference_local_lab_describe_capabilities PASS
+official.inference_local_lab_invoke          PASS
+official.inference_local_lab_invoke_rejects_http PASS
+official.inference_local_lab_stream          PASS
+official.inference_local_lab_explain_error   PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS

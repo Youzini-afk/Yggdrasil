@@ -9,6 +9,7 @@ use ygg_core::{CapabilityId, PackageId};
 mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
+mod inference_local_lab;
 mod knowledge_lab;
 mod model_connector_lab;
 mod model_provider_lab;
@@ -121,6 +122,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // capability-tool-bridge-lab handlers checked before generic capability suffixes
         if let Some(result) = capability_tool_bridge_lab::try_handle(&request) {
+            return result;
+        }
+        // inference-local-lab handlers: deterministic non-HTTP fake inference provider proof
+        if let Some(result) = inference_local_lab::try_handle(&request) {
             return result;
         }
         // Package-aware generic capability handlers (namespace-scoped matching)

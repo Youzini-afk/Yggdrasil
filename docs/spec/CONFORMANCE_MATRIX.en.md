@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 130 implemented rows, backed by 145 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 135 implemented rows, backed by 150 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -97,6 +97,11 @@ Current matrix coverage: 130 implemented rows, backed by 145 named CLI conforman
 | official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
 | official packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
 | official packages | capability-tool-bridge-lab marks ambiguous provider rejected, explicit third-party provider available, official not preferred, missing provider rejected, denied preview reports missing permission, raw secret unsafe_blocked | implemented |
+| official packages | inference-local-lab describe_capabilities: no network/secret required, transports include in_memory/local_process, operation_kinds include generate/classify/transform | implemented |
+| official packages | inference-local-lab invoke non-HTTP succeeds with no URL/header/status/messages fields, network_performed=false, transport_performed=in_memory_fake | implemented |
+| official packages | inference-local-lab invoke rejects http transport, HTTP-shaped fields (url/header/status_code), messages-shaped fields (messages/system/user/assistant), raw secret | implemented |
+| official packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames, no URL/header/status/provider_schema | implemented |
+| official packages | inference-local-lab explain_error covers local/resource error classes (local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled) | implemented |
 | in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
@@ -271,6 +276,11 @@ official.model_provider_lab_normalize_stream  PASS
 official.model_routing_lab                 PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS
+official.inference_local_lab_describe_capabilities PASS
+official.inference_local_lab_invoke          PASS
+official.inference_local_lab_invoke_rejects_http PASS
+official.inference_local_lab_stream          PASS
+official.inference_local_lab_explain_error   PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS

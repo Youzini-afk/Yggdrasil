@@ -59,15 +59,21 @@ The contract expresses:
 - canonical stream frames;
 - transport-neutral error taxonomy.
 
-## Phase C2 — Non-HTTP fake local provider proof
+## Phase C2 — Non-HTTP fake local provider proof (complete)
 
 Goal: prove the inference pipeline does not depend on HTTP, bearer tokens, or JSON provider schemas.
 
-Candidate deliverables:
+Delivered:
 
 - `packages/official/inference-local-lab`: deterministic non-HTTP fake inference provider.
 - Capabilities: `describe_capabilities`, `invoke`, `stream`, `explain_error`.
-- Conformance: deterministic stream frames without URL, Authorization, HTTP status, or provider schema.
+- `crates/ygg-runtime/src/inproc/inference_local_lab.rs`: in-process handler registration.
+- Conformance: 5 named cases proving deterministic stream frames without URL, Authorization, HTTP status, or provider schema.
+  - `official.inference_local_lab_describe_capabilities`: no network/secret required, transports include in_memory/local_process.
+  - `official.inference_local_lab_invoke`: non-HTTP invoke succeeds with no URL/header/status/messages fields, network_performed=false.
+  - `official.inference_local_lab_invoke_rejects_http`: http transport rejected, HTTP-shaped and messages-shaped fields rejected, raw secret rejected.
+  - `official.inference_local_lab_stream`: deterministic start/chunk/progress/end frames, no URL/header/status/provider_schema.
+  - `official.inference_local_lab_explain_error`: covers local/resource error classes.
 
 This is not a local model platform; it is a seam proof that prevents the abstraction from hardening into an HTTP proxy.
 

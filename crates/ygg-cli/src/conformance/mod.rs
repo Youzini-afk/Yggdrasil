@@ -2,6 +2,7 @@ mod core;
 mod fixtures;
 mod generated;
 mod hooks;
+mod inference_local;
 mod inproc;
 mod live_model;
 mod network;
@@ -549,6 +550,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "outbound.static_headers_openrouter_safe",
         live_model::static_headers_openrouter_safe().await,
+    );
+    // Phase C2 — inference-local-lab deterministic non-HTTP fake local inference provider proof
+    record_case(
+        &mut results,
+        "official.inference_local_lab_describe_capabilities",
+        inference_local::inference_local_lab_describe_capabilities().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_local_lab_invoke",
+        inference_local::inference_local_lab_invoke().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_local_lab_invoke_rejects_http",
+        inference_local::inference_local_lab_invoke_rejects_http().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_local_lab_stream",
+        inference_local::inference_local_lab_stream().await,
+    );
+    record_case(
+        &mut results,
+        "official.inference_local_lab_explain_error",
+        inference_local::inference_local_lab_explain_error().await,
     );
 
     let mut failed = false;

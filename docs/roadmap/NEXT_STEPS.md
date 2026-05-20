@@ -19,7 +19,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha 与 Live Model Cal
 - Agent Infrastructure Alpha：已完成；`integrations/pi` ledger、`sdk/typescript/ygg-agent-adapter`、`--template agent-runtime`、`official/pi-agent-runtime-lab`、`official/capability-tool-bridge-lab`、Forge/Assist Agent Observability、`thirdparty/agent-runtime` replacement proof 和 [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](../guides/AGENT_PACKAGE_AUTHORING.md) 已就位。
 - Model Provider Integration Alpha：已完成；`integrations/model-providers` research ledger、`sdk/typescript/model-provider-adapter`、`official/model-provider-lab`、provider profile examples 和 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md) 已就位。
 - Live Model Calls Alpha：已完成；成果已收敛进 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](../guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 conformance matrix。
-- Creative Inference Capability Alpha：C0 和 C1 已交付；C1 包含 `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers 与 `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` 指南。下一阶段 C2 non-HTTP fake local provider proof。临时计划见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)。
+- Creative Inference Capability Alpha：C0、C1 和 C2 已交付；C1 包含 `sdk/typescript/inference-capability` transport-neutral envelope/stream/error/manifest helpers 与 `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` 指南；C2 包含 `official/inference-local-lab` deterministic non-HTTP fake inference provider proof（5 个 conformance 用例）。下一阶段 C3 cloud adapter package reposition。临时计划见 [`CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`](CREATIVE_INFERENCE_CAPABILITY_ALPHA.md)。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -123,7 +123,7 @@ Phase J 非目标：
 
 - C0：API-first but not API-shaped ADR 与临时计划（已完成）。
 - C1：transport-neutral inference capability contract（已完成；`sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`）。
-- C2：non-HTTP fake local provider proof。
+- C2：non-HTTP fake local provider proof（已完成；`official/inference-local-lab` + 5 个 conformance 用例）。
 - C3：cloud adapter package reposition。
 - C4：Ygg-native inference proposal vertical slice。
 - C5：durable docs cleanup。

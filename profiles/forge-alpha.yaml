@@ -18,5 +18,6 @@ autoload:
   - ../packages/official/assistant-lab/manifest.yaml
   - ../packages/official/pi-agent-runtime-lab/manifest.yaml
   - ../packages/official/capability-tool-bridge-lab/manifest.yaml
+  - ../packages/official/inference-local-lab/manifest.yaml
   - ../packages/official/blank-experience/manifest.yaml
   - ../packages/official/playable-seed/manifest.yaml
