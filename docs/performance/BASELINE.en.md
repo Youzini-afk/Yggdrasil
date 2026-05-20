@@ -28,6 +28,9 @@ All scenarios are **no-network / deterministic** — no real network or provider
 | `inproc_echo_invoke` | Rust inproc package echo capability invocation. Uses `examples/packages/echo-rust-inproc/manifest.yaml`. |
 | `official_capability_invoke` | Official package capability invocation. Uses `official/composition-lab/describe`. |
 | `event_store_append_list_range` | In-memory event store batch append (100 events), full list, range query. |
+| `event_store_append_list_range_1k` | In-memory event store atomic append (1,000 events), full list, kind-prefix query. Added in P3. |
+| `event_store_append_list_range_10k` | In-memory event store atomic append (10,000 events), full list, kind-prefix query. Added in P3. |
+| `event_store_append_list_range_100k` | In-memory event store atomic append (100,000 events), full list, kind-prefix query. Auto-capped to 1 iteration when iterations > 1. Added in P3. |
 | `composition_check` | Composition descriptor validation and package loading. Uses `examples/compositions/playable-seed-replacement/`. |
 | `profile_load` | Profile YAML parsing. Uses `profiles/forge-alpha.yaml`. |
 | `subprocess_echo_invoke` | Subprocess echo capability invocation (requires Python; status=skipped if unavailable). |
@@ -51,7 +54,10 @@ All scenarios are **no-network / deterministic** — no real network or provider
 - `--iterations 0` is rejected; every scenario must run at least once.
 - Each iteration is independently timed; no cross-iteration warm-up or cool-down.
 - Measurement uses `std::time::Instant`; precision depends on OS (typically 1 µs or better).
-- Event store scenario appends 100 events per iteration; P3 will extend to 1k/10k/100k.
+- Event store scenario appends 100 events per iteration; P3 extends to 1k/10k/100k atomic append scenarios. Scale scenarios use an independent store/session per iteration so fixed-size metrics are not distorted by accumulated events.
+- `event_store_append_list_range_100k` auto-caps to 1 iteration when `--iterations > 1` to avoid excessive runtime.
+- P3 adds `EventStore::append_with_sequence` atomic append API, guaranteeing no duplicate sequences under concurrent same-session access.
+- P3 adds `EventStore::list_kind_prefix` and `list_session_kind_prefix` query pushdown APIs; audit/range queries no longer routinely call `list_all()` + full filter.
 - No criterion or statistical framework; the goal is a developer-machine reference, not CI compliance budgets.
 
 ## Red lines
@@ -66,7 +72,8 @@ All scenarios are **no-network / deterministic** — no real network or provider
 These metrics serve as comparison baselines for later optimization phases:
 
 1. **inproc invoke latency** — Should be watched if resolve cache or handler table is introduced in P2/P5.
-2. **event store batch throughput** — Should improve significantly after P3 SQLite optimization.
+2. **event store batch throughput** — After P3 atomic append + query pushdown, 100-event / 1k / 10k / 100k append+list+range+kind-prefix latencies are quantifiable.
+3. **event store scale metrics** — P3 adds 1k/10k/100k event scale scenarios for cross-version trend comparison.
 3. **composition check latency** — Should improve after P2 replaces O(n²) diagnostics with sets/indexes.
 4. **profile load latency** — Serves as YAML parsing baseline; re-measure if profiles grow.
 5. **subprocess invoke latency** — Will be re-measured in P1/P3 with a stable subprocess environment.

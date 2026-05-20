@@ -335,13 +335,10 @@ where
     }
 
     async fn dispatch_permission_audit(&self) -> anyhow::Result<Value> {
-        let events: Vec<_> = self
+        let events = self
             .store
-            .list_all()
-            .await?
-            .into_iter()
-            .filter(|event| event.kind.starts_with("kernel/permission"))
-            .collect();
+            .list_kind_prefix("kernel/permission")
+            .await?;
         Ok(serde_json::to_value(events)?)
     }
 

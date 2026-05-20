@@ -96,39 +96,56 @@ where
     }
 
     pub(crate) async fn append_event_unchecked(&self, request: AppendEventRequest) -> anyhow::Result<EventEnvelope> {
-        let sequence = self.store.next_sequence(&request.session_id).await?;
-        let mut event = EventEnvelope::new(
-            ygg_core::new_id("evt"),
-            request.session_id,
-            sequence,
-            request.writer_package_id,
-            request.kind,
-            request.payload,
-        );
+        // Build a preliminary envelope to check writer_owns_kind before
+        // allocating a sequence number. This prevents hook vetoes or
+        // schema validation failures from consuming a sequence.
+        let prelim = EventEnvelope {
+            id: String::new(), // placeholder; real ID assigned atomically
+            session_id: request.session_id.clone(),
+            sequence: 0, // placeholder
+            timestamp: chrono::Utc::now(),
+            writer_package_id: request.writer_package_id.clone(),
+            kind: request.kind.clone(),
+            schema_version: 1,
+            payload: request.payload.clone(),
+            metadata: request.metadata.clone(),
+        };
 
-        if !event.writer_owns_kind() {
+        if !prelim.writer_owns_kind() {
             anyhow::bail!(
                 "package '{}' cannot write event kind '{}'",
-                event.writer_package_id,
-                event.kind
+                prelim.writer_package_id,
+                prelim.kind
             );
         }
 
-        event.metadata = request.metadata;
-        if event.writer_package_id != KERNEL_PACKAGE_ID {
-            if let Some(manifest) = self.packages.manifest(&event.writer_package_id).await {
+        if prelim.writer_package_id != KERNEL_PACKAGE_ID {
+            if let Some(manifest) = self.packages.manifest(&prelim.writer_package_id).await {
                 if let Some(schema) = manifest
                     .contributes
                     .schemas
                     .iter()
-                    .find(|schema| schema.id == event.kind)
+                    .find(|schema| schema.id == prelim.kind)
                     .map(|schema| &schema.schema)
                 {
-                    validate_json_schema_subset(schema, &event.payload)?;
+                    validate_json_schema_subset(schema, &prelim.payload)?;
                 }
             }
         }
-        self.store.append(event.clone()).await?;
+
+        // All pre-checks passed — use store-level atomic append so
+        // the sequence is allocated atomically with the insert.
+        let event = self
+            .store
+            .append_with_sequence(
+                request.session_id,
+                request.writer_package_id,
+                request.kind,
+                prelim.schema_version,
+                request.payload,
+                request.metadata,
+            )
+            .await?;
         Ok(event)
     }
 

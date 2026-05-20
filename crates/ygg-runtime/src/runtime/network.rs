@@ -231,13 +231,12 @@ where
         package_id: &PackageId,
     ) -> anyhow::Result<Vec<ygg_core::EventEnvelope>> {
         let session_id = format!("kernel_outbound_{}", package_id.replace('/', "_"));
-        let events = self.store.list_session(&session_id).await?;
-        Ok(events
-            .into_iter()
-            .filter(|e| {
-                e.kind == EVENT_OUTBOUND_REQUEST || e.kind == EVENT_OUTBOUND_DENIED
-            })
-            .collect())
+        // Use session+kind-prefix pushdown instead of list_session + full filter.
+        let request_events = self
+            .store
+            .list_session_kind_prefix(&session_id, "kernel/outbound")
+            .await?;
+        Ok(request_events)
     }
 }
 

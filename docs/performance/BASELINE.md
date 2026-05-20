@@ -28,6 +28,9 @@ cargo run -p ygg-cli -- perf baseline --format json
 | `inproc_echo_invoke` | Rust inproc 包 echo 能力调用。使用 `examples/packages/echo-rust-inproc/manifest.yaml`。 |
 | `official_capability_invoke` | 官方包能力调用。使用 `official/composition-lab/describe`。 |
 | `event_store_append_list_range` | 内存 event store 批量追加（100 events）、全量 list、range 查询。 |
+| `event_store_append_list_range_1k` | 内存 event store 原子追加（1,000 events）、全量 list、kind-prefix 查询。P3 新增。 |
+| `event_store_append_list_range_10k` | 内存 event store 原子追加（10,000 events）、全量 list、kind-prefix 查询。P3 新增。 |
+| `event_store_append_list_range_100k` | 内存 event store 原子追加（100,000 events）、全量 list、kind-prefix 查询。当 iterations > 1 时自动限制为 1 次迭代。P3 新增。 |
 | `composition_check` | Composition descriptor 验证与包加载。使用 `examples/compositions/playable-seed-replacement/`。 |
 | `profile_load` | Profile YAML 解析。使用 `profiles/forge-alpha.yaml`。 |
 | `subprocess_echo_invoke` | Subprocess echo 能力调用（需要 Python；不可用时 status=skipped）。 |
@@ -51,7 +54,10 @@ cargo run -p ygg-cli -- perf baseline --format json
 - `--iterations 0` 会被拒绝；所有场景必须至少运行一次。
 - 每次迭代独立计时；不跨迭代 warm up 或 cooldown。
 - 测量使用 `std::time::Instant`，精度取决于 OS（通常 1 µs 或更优）。
-- 内存 event store 场景中每迭代追加 100 events；后续 P3 阶段将扩展到 1k/10k/100k。
+- 内存 event store 场景中每迭代追加 100 events；P3 已扩展到 1k/10k/100k 原子追加场景。规模场景每次迭代使用独立 store/session，避免跨迭代累计事件影响固定规模指标。
+- `event_store_append_list_range_100k` 当 `--iterations > 1` 时自动限制为 1 次迭代以避免过慢。
+- P3 新增 `EventStore::append_with_sequence` 原子追加 API，保证同 session 并发不重复 sequence。
+- P3 新增 `EventStore::list_kind_prefix` 和 `list_session_kind_prefix` 查询下推 API，audit/range 查询不再常规 `list_all()` + 全量 filter。
 - 不使用 criterion 或统计框架；当前目标是建立 developer-machine reference，不是 CI 合规预算。
 
 ## 红线
@@ -66,7 +72,8 @@ cargo run -p ygg-cli -- perf baseline --format json
 这些指标将作为后续优化阶段的比较基准：
 
 1. **inproc invoke 延迟** — P2/P5 中如引入 resolve cache 或 handler table，应观测此指标变化。
-2. **event store 批量吞吐** — P3 SQLite 优化后，100-event append+list 延迟应显著改善。
+2. **event store 批量吞吐** — P3 原子 append + 查询 pushdown 后，100-event / 1k / 10k / 100k append+list+range+kind-prefix 延迟可量化比较。
+3. **event store scale 指标** — P3 新增 1k/10k/100k event scale 场景，可跨版本比较增长趋势。
 3. **composition check 延迟** — P2 中 O(n²) 诊断扫描改为 set/index 后应改善。
 4. **profile load 延迟** — 作为 YAML 解析基线；后续如 profile 增大应重新测量。
 5. **subprocess invoke 延迟** — P1/P3 阶段将用更稳定的 subprocess 环境重新测量。

@@ -65,11 +65,20 @@ Deliverables:
 
 Acceptance: public protocol unchanged; replacement/no-official-priority conformance still passes; no macro/codegen; workspace tests, conformance, and package checks pass.
 
-## Phase P3 — Event Store & Replay Optimization
+## Phase P3 — Event Store & Replay Optimization (complete)
 
 Goal: harden durable substrate for real product sessions.
 
-Deliverables: SQLite store-level atomic append with sequence; needed indexes and range/audit queries; reduced routine `list_all()` in hydrate/audit paths; concurrent append correctness test; baseline update for 1k/10k/100k event metrics.
+Deliverables:
+- `EventStore::append_with_sequence` atomic append API: inputs are session_id, writer_package_id, kind, schema_version, payload_json, metadata_json; output is the inserted EventEnvelope. Default implementation uses `next_sequence + append`; `SqliteEventStore` override reads max sequence, constructs event, and inserts within the same connection mutex; `InMemoryEventStore` override allocates sequence and pushes within the same write lock. Guarantees no duplicate sequences under concurrent same-session access.
+- `EventStore::list_kind_prefix` and `list_session_kind_prefix` query APIs: default implementation lists and filters; SQLite override uses SQL range/LIKE pushdown; InMemory override uses single read+filter. Stable ordering preserved.
+- SQLite indexes: `kind`, `session+kind+sequence` for audit/range query pushdown.
+- `append_event_unchecked` uses store-level atomic append; hook veto/schema failure no longer consumes a sequence.
+- `dispatch_permission_audit()` uses `list_kind_prefix("kernel/permission")` pushdown instead of `list_all()` + filter.
+- `list_outbound_audit()` uses `list_session_kind_prefix(session, "kernel/outbound")` pushdown instead of `list_session()` + full filter.
+- Concurrent append correctness test: 50 concurrent appends to the same session produce contiguous sequences with no duplicates.
+- `ygg perf baseline` extended with event scale scenarios: `event_store_append_list_range_1k` (1,000 events), `event_store_append_list_range_10k` (10,000 events), `event_store_append_list_range_100k` (100,000 events, auto-capped to 1 iteration when >1 requested).
+- `docs/performance/BASELINE*` updated with new event scale metrics.
 
 Acceptance: concurrent same-session append is stable; SQLite-backed substrate rehydrate tests pass; audit/permission/proposal/event conformance passes; no redaction/schema/hook bypass.
 

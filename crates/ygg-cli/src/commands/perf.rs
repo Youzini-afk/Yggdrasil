@@ -239,6 +239,67 @@ async fn scenario_event_store_append_list_range(iterations: u32) -> ScenarioResu
     r
 }
 
+/// Generic event scale scenario for 1k/10k/100k event counts.
+/// Uses store-level atomic append directly for maximum throughput.
+async fn scenario_event_store_scale(event_count: u32, iterations: u32, scenario_id: &'static str) -> ScenarioResult {
+    let mut durations = Vec::with_capacity(iterations as usize);
+
+    for iteration in 0..iterations {
+        let store = Arc::new(InMemoryEventStore::default());
+        let session_id = format!("ses_scale_{}_{}", event_count, iteration);
+        let start = Instant::now();
+
+        // Append events via store-level atomic append
+        for i in 0..event_count {
+            if let Err(e) = store
+                .append_with_sequence(
+                    session_id.clone(),
+                    "example/echo-rust-inproc".to_string(),
+                    "example/echo-rust-inproc/scale.event".to_string(),
+                    1,
+                    json!({"i": i}),
+                    json!({}),
+                )
+                .await
+            {
+                return error_result(scenario_id, iterations, e);
+            }
+        }
+
+        // List all
+        let events = match store.list_session(&session_id).await {
+            Ok(v) => v,
+            Err(e) => return error_result(scenario_id, iterations, e),
+        };
+        if events.len() < event_count as usize {
+            return error_result(
+                scenario_id,
+                iterations,
+                "list_session returned too few events",
+            );
+        }
+
+        // Kind-prefix query pushdown
+        let prefix_events = match store.list_session_kind_prefix(&session_id, "example/echo-rust-inproc/scale").await {
+            Ok(v) => v,
+            Err(e) => return error_result(scenario_id, iterations, e),
+        };
+        if prefix_events.len() < event_count as usize {
+            return error_result(
+                scenario_id,
+                iterations,
+                "kind-prefix query returned too few events",
+            );
+        }
+
+        durations.push(start.elapsed().as_secs_f64() * 1000.0);
+    }
+
+    let mut r = build_result(scenario_id, iterations, &durations);
+    r.notes = Some(format!("{event_count} events per iteration"));
+    r
+}
+
 async fn scenario_composition_check(iterations: u32) -> ScenarioResult {
     let composition_path =
         manifest_path("examples/compositions/playable-seed-replacement/composition.yaml");
@@ -391,16 +452,30 @@ pub(crate) async fn perf_baseline(iterations: u32, format: BaselineFormat) -> Re
     // 2. Official capability invoke
     results.push(scenario_official_capability_invoke(iterations).await);
 
-    // 3. Event store append/list/range
+    // 3. Event store append/list/range (100 events)
     results.push(scenario_event_store_append_list_range(iterations).await);
 
-    // 4. Composition check
+    // 4. Event store scale 1k
+    results.push(scenario_event_store_scale(1_000, iterations, "event_store_append_list_range_1k").await);
+
+    // 5. Event store scale 10k
+    results.push(scenario_event_store_scale(10_000, iterations, "event_store_append_list_range_10k").await);
+
+    // 6. Event store scale 100k (may be slow; run 1 iteration if >1 requested)
+    let scale_100k_iters = if iterations > 1 { 1 } else { iterations };
+    let mut scale_100k = scenario_event_store_scale(100_000, scale_100k_iters, "event_store_append_list_range_100k").await;
+    if iterations > 1 && scale_100k.status == "ok" {
+        scale_100k.notes = Some(format!("100000 events per iteration (capped to 1 iteration from {})", iterations));
+    }
+    results.push(scale_100k);
+
+    // 7. Composition check
     results.push(scenario_composition_check(iterations).await);
 
-    // 5. Profile load
+    // 8. Profile load
     results.push(scenario_profile_load(iterations).await);
 
-    // 6. Subprocess echo (may skip)
+    // 9. Subprocess echo (may skip)
     results.push(scenario_subprocess_echo_invoke(iterations).await);
 
     match format {
