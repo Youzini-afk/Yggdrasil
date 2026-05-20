@@ -19,6 +19,7 @@ mod model_provider_lab;
 mod model_routing_lab;
 mod persona_lab;
 mod pi_agent_runtime_lab;
+mod playable_creation_board;
 mod playable_seed;
 mod projection_lab;
 mod text_transform_lab;
@@ -45,11 +46,25 @@ pub struct InprocPackageCatalog {
 impl InprocPackageCatalog {
     pub fn with_default_examples() -> Self {
         let mut entries: HashMap<String, Arc<dyn InprocPackage>> = HashMap::new();
-        entries.insert(entry_key("example-echo-rust-inproc", "register"), Arc::new(EchoInprocPackage));
-        entries.insert(entry_key("example-hook-inproc", "register"), Arc::new(HookInprocPackage));
-        entries.insert(entry_key("official-foundation", "register"), Arc::new(OfficialFoundationPackage));
-        entries.insert(entry_key("example-thirdparty-agent-runtime", "register"), Arc::new(ThirdpartyAgentRuntimePackage));
-        Self { entries: Arc::new(entries) }
+        entries.insert(
+            entry_key("example-echo-rust-inproc", "register"),
+            Arc::new(EchoInprocPackage),
+        );
+        entries.insert(
+            entry_key("example-hook-inproc", "register"),
+            Arc::new(HookInprocPackage),
+        );
+        entries.insert(
+            entry_key("official-foundation", "register"),
+            Arc::new(OfficialFoundationPackage),
+        );
+        entries.insert(
+            entry_key("example-thirdparty-agent-runtime", "register"),
+            Arc::new(ThirdpartyAgentRuntimePackage),
+        );
+        Self {
+            entries: Arc::new(entries),
+        }
     }
 
     pub fn lookup(&self, crate_ref: &str, symbol: &str) -> Option<Arc<dyn InprocPackage>> {
@@ -78,7 +93,9 @@ impl InprocPackage for HookInprocPackage {
         if request.capability_id.ends_with("/veto") {
             Ok(serde_json::json!({"decision": "veto", "reason": "hook package veto"}))
         } else if request.capability_id.ends_with("/trace") {
-            Ok(serde_json::json!({"decision": "allow", "metadata_patch": {"hook_trace": request.provider_package_id}}))
+            Ok(
+                serde_json::json!({"decision": "allow", "metadata_patch": {"hook_trace": request.provider_package_id}}),
+            )
         } else {
             Ok(serde_json::json!({"decision": "allow"}))
         }
@@ -141,6 +158,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // experience-runtime-lab handlers: Experience Beta 0 thin runtime contract
         if let Some(result) = experience_runtime_lab::try_handle(&request) {
+            return result;
+        }
+        // playable-creation-board handlers: Experience Beta 1 first real playable vertical slice
+        if let Some(result) = playable_creation_board::try_handle(&request) {
             return result;
         }
         // Package-aware generic capability handlers (namespace-scoped matching)

@@ -17,13 +17,16 @@ use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "official/experience-runtime-lab";
 
-async fn load_experience_runtime_lab() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
+async fn load_experience_runtime_lab(
+) -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/experience-runtime-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/experience-runtime-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
     Ok(runtime)
 }
@@ -54,32 +57,60 @@ pub(crate) async fn experience_runtime_describe_contract() -> anyhow::Result<()>
 
     // 4 surfaces
     let surfaces = contract.output["surfaces"].as_object().unwrap();
-    anyhow::ensure!(surfaces.contains_key("experience_entry"), "must have experience_entry surface");
-    anyhow::ensure!(surfaces.contains_key("play_renderer"), "must have play_renderer surface");
-    anyhow::ensure!(surfaces.contains_key("forge_panel"), "must have forge_panel surface");
-    anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action surface");
+    anyhow::ensure!(
+        surfaces.contains_key("experience_entry"),
+        "must have experience_entry surface"
+    );
+    anyhow::ensure!(
+        surfaces.contains_key("play_renderer"),
+        "must have play_renderer surface"
+    );
+    anyhow::ensure!(
+        surfaces.contains_key("forge_panel"),
+        "must have forge_panel surface"
+    );
+    anyhow::ensure!(
+        surfaces.contains_key("assistant_action"),
+        "must have assistant_action surface"
+    );
 
     // 5 capabilities
     anyhow::ensure!(
-        contract.output["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 5,
+        contract.output["capabilities"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            == 5,
         "describe_contract must list 5 capabilities"
     );
 
     // Lifecycle states
     anyhow::ensure!(
-        contract.output["lifecycle_states"].as_array().map(|a| a.len()).unwrap_or(0) == 9,
+        contract.output["lifecycle_states"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            == 9,
         "describe_contract must have 9 lifecycle states"
     );
 
     // Checkpoint formats
     anyhow::ensure!(
-        contract.output["checkpoint_formats"].as_array().map(|a| a.len()).unwrap_or(0) == 3,
+        contract.output["checkpoint_formats"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            == 3,
         "describe_contract must have 3 checkpoint formats"
     );
 
     // Recovery strategies
     anyhow::ensure!(
-        contract.output["recovery_strategies"].as_array().map(|a| a.len()).unwrap_or(0) == 5,
+        contract.output["recovery_strategies"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            == 5,
         "describe_contract must have 5 recovery strategies"
     );
 
@@ -94,9 +125,18 @@ pub(crate) async fn experience_runtime_describe_contract() -> anyhow::Result<()>
 
     // No kernel experience namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.experience."), "must not contain kernel.experience.");
-    anyhow::ensure!(!output_str.contains("kernel.world."), "must not contain kernel.world.");
-    anyhow::ensure!(!output_str.contains("kernel.turn."), "must not contain kernel.turn.");
+    anyhow::ensure!(
+        !output_str.contains("kernel.experience."),
+        "must not contain kernel.experience."
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.world."),
+        "must not contain kernel.world."
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.turn."),
+        "must not contain kernel.turn."
+    );
 
     Ok(())
 }
@@ -115,7 +155,7 @@ pub(crate) async fn experience_runtime_checkpoint_shape() -> anyhow::Result<()> 
             input: json!({
                 "session_id": "session_conf",
                 "state_snapshot": {"health": 100, "step_index": 5},
-                "asset_refs": ["asset:scene:forest"],
+                "asset_refs": ["asset:module:seed"],
                 "branch_ref": "branch:target:main",
                 "sequence": 3,
             }),
@@ -209,7 +249,11 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
         "plan must reflect checkpoint_available=true"
     );
     anyhow::ensure!(
-        recovery_with_cp.output["plan"]["steps"].as_array().map(|a| a.len()).unwrap_or(0) > 0,
+        recovery_with_cp.output["plan"]["steps"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            > 0,
         "recovery plan must have steps"
     );
     anyhow::ensure!(
@@ -242,8 +286,14 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
 
     // No kernel namespace
     let output_str = serde_json::to_string(&recovery_with_cp.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.experience."), "recovery must not contain kernel.experience.");
-    anyhow::ensure!(!output_str.contains("kernel.turn."), "recovery must not contain kernel.turn.");
+    anyhow::ensure!(
+        !output_str.contains("kernel.experience."),
+        "recovery must not contain kernel.experience."
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.turn."),
+        "recovery must not contain kernel.turn."
+    );
 
     Ok(())
 }
@@ -273,11 +323,26 @@ pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<(
             .await?;
 
         let output_str = serde_json::to_string(&result.output).unwrap();
-        anyhow::ensure!(!output_str.contains("kernel.experience."), "{cap} must not contain kernel.experience.");
-        anyhow::ensure!(!output_str.contains("kernel.world."), "{cap} must not contain kernel.world.");
-        anyhow::ensure!(!output_str.contains("kernel.turn."), "{cap} must not contain kernel.turn.");
-        anyhow::ensure!(!output_str.contains("kernel.chat."), "{cap} must not contain kernel.chat.");
-        anyhow::ensure!(!output_str.contains("kernel.memory."), "{cap} must not contain kernel.memory.");
+        anyhow::ensure!(
+            !output_str.contains("kernel.experience."),
+            "{cap} must not contain kernel.experience."
+        );
+        anyhow::ensure!(
+            !output_str.contains("kernel.world."),
+            "{cap} must not contain kernel.world."
+        );
+        anyhow::ensure!(
+            !output_str.contains("kernel.turn."),
+            "{cap} must not contain kernel.turn."
+        );
+        anyhow::ensure!(
+            !output_str.contains("kernel.chat."),
+            "{cap} must not contain kernel.chat."
+        );
+        anyhow::ensure!(
+            !output_str.contains("kernel.memory."),
+            "{cap} must not contain kernel.memory."
+        );
     }
 
     Ok(())
@@ -287,7 +352,10 @@ pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<(
 /// (experience_entry, play_renderer, forge_panel, assistant_action),
 /// contract/checkpoint/recovery capabilities, and passes check/conformance.
 pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-experience-runtime-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "ygg-generated-experience-runtime-{}",
+        std::process::id()
+    ));
     if path.exists() {
         std::fs::remove_dir_all(&path)?;
     }
@@ -313,18 +381,35 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
         manifest.contributes.surfaces.len()
     );
 
-    let slots: Vec<&str> = manifest.contributes.surfaces.iter().map(|s| match s.slot {
-        ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
-        ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
-        ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
-        ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
-        ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
-        ygg_core::SurfaceSlot::HomeCard => "home_card",
-    }).collect();
-    anyhow::ensure!(slots.contains(&"experience_entry"), "experience-runtime should have experience_entry");
-    anyhow::ensure!(slots.contains(&"play_renderer"), "experience-runtime should have play_renderer");
-    anyhow::ensure!(slots.contains(&"forge_panel"), "experience-runtime should have forge_panel");
-    anyhow::ensure!(slots.contains(&"assistant_action"), "experience-runtime should have assistant_action");
+    let slots: Vec<&str> = manifest
+        .contributes
+        .surfaces
+        .iter()
+        .map(|s| match s.slot {
+            ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+            ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+            ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+            ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+            ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+            ygg_core::SurfaceSlot::HomeCard => "home_card",
+        })
+        .collect();
+    anyhow::ensure!(
+        slots.contains(&"experience_entry"),
+        "experience-runtime should have experience_entry"
+    );
+    anyhow::ensure!(
+        slots.contains(&"play_renderer"),
+        "experience-runtime should have play_renderer"
+    );
+    anyhow::ensure!(
+        slots.contains(&"forge_panel"),
+        "experience-runtime should have forge_panel"
+    );
+    anyhow::ensure!(
+        slots.contains(&"assistant_action"),
+        "experience-runtime should have assistant_action"
+    );
 
     // Contract/checkpoint/recovery capabilities (5 + echo = 6)
     anyhow::ensure!(
@@ -342,7 +427,13 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
     // No kernel namespace in manifest or package.ts
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
-    for token in &["kernel.experience.", "kernel.world.", "kernel.turn.", "kernel.chat.", "kernel.memory."] {
+    for token in &[
+        "kernel.experience.",
+        "kernel.world.",
+        "kernel.turn.",
+        "kernel.chat.",
+        "kernel.memory.",
+    ] {
         anyhow::ensure!(
             !manifest_str.contains(token),
             "experience-runtime manifest must not contain '{}' text",
@@ -351,7 +442,13 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
     }
 
     let package_ts = std::fs::read_to_string(path.join("package.ts"))?;
-    for token in &["kernel.experience.", "kernel.world.", "kernel.turn.", "kernel.chat.", "kernel.memory."] {
+    for token in &[
+        "kernel.experience.",
+        "kernel.world.",
+        "kernel.turn.",
+        "kernel.chat.",
+        "kernel.memory.",
+    ] {
         anyhow::ensure!(
             !package_ts.contains(token),
             "experience-runtime package.ts must not contain '{}' text",
@@ -410,7 +507,10 @@ pub(crate) async fn experience_runtime_bind_agent_run() -> anyhow::Result<()> {
 
     // No kernel namespace
     let output_str = serde_json::to_string(&binding.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.experience."), "binding must not contain kernel.experience.");
+    anyhow::ensure!(
+        !output_str.contains("kernel.experience."),
+        "binding must not contain kernel.experience."
+    );
 
     Ok(())
 }

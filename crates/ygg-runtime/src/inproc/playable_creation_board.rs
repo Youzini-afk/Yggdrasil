@@ -1,0 +1,1315 @@
+//! Handler for `official/playable-creation-board` capabilities.
+//!
+//! Experience Beta 1 — First Real Playable Vertical Slice.
+//!
+//! Package-owned playable creation board with board/module/constraint/marker
+//! state. Play→record_player_action→request_change→agentic forge
+//! candidate/proposal→inspect/approve/reject→fork/compare→recovery.
+//!
+//! Deterministic, no-network, no real model inference.
+//!
+//! No `kernel.experience.*`, `kernel.world.*`, `kernel.scene.*`,
+//! `kernel.character.*`, `kernel.turn.*`, `kernel.chat.*`,
+//! `kernel.memory.*`, `kernel.agent.*`, `kernel.model.*`,
+//! `kernel.prompt.*`, or `kernel.director.*` namespace references.
+//!
+//! State terminology: board, module, constraint, marker — not
+//! world/scene/character/chat/message/turn/memory/prompt/director.
+
+use serde_json::Value;
+
+use super::InprocInvocation;
+
+const PACKAGE_ID: &str = "official/playable-creation-board";
+
+// ---------------------------------------------------------------------------
+// Board lifecycle states
+// ---------------------------------------------------------------------------
+
+const BOARD_LIFECYCLE_STATES: &[&str] = &[
+    "created",
+    "running",
+    "paused",
+    "checkpointed",
+    "recovering",
+    "recovered",
+    "failed",
+    "completed",
+    "archived",
+];
+
+// ---------------------------------------------------------------------------
+// Player action kinds
+// ---------------------------------------------------------------------------
+
+const PLAYER_ACTION_KINDS: &[&str] = &[
+    "place_marker",
+    "move_marker",
+    "remove_marker",
+    "set_constraint",
+    "modify_module",
+    "request_change",
+];
+
+// ---------------------------------------------------------------------------
+// Change kinds (for request_change)
+// ---------------------------------------------------------------------------
+
+const ALLOWED_CHANGE_KINDS: &[&str] = &[
+    "add_module",
+    "remove_module",
+    "modify_module",
+    "add_constraint",
+    "remove_constraint",
+    "modify_constraint",
+    "add_marker",
+    "remove_marker",
+    "move_marker",
+];
+
+// ---------------------------------------------------------------------------
+// Checkpoint formats
+// ---------------------------------------------------------------------------
+
+const CHECKPOINT_FORMATS: &[&str] = &["snapshot", "incremental", "delta"];
+
+// ---------------------------------------------------------------------------
+// Recovery strategies
+// ---------------------------------------------------------------------------
+
+const RECOVERY_STRATEGIES: &[&str] = &[
+    "restore_last_checkpoint",
+    "replay_from_checkpoint",
+    "restart_session",
+    "manual_intervention",
+    "discard_and_reset",
+];
+
+// ---------------------------------------------------------------------------
+// Failure kinds
+// ---------------------------------------------------------------------------
+
+const FAILURE_KINDS: &[&str] = &[
+    "state_corruption",
+    "checkpoint_missing",
+    "checkpoint_corrupt",
+    "constraint_violation",
+    "module_failure",
+    "resource_exhausted",
+    "unknown",
+];
+
+// ---------------------------------------------------------------------------
+// Risk levels for request_change
+// ---------------------------------------------------------------------------
+
+const RISK_LEVELS: &[&str] = &["low", "medium", "high", "critical"];
+
+// ---------------------------------------------------------------------------
+// Raw-secret detection (shared conservative heuristic)
+// ---------------------------------------------------------------------------
+
+const SECRET_FIELD_NAMES: &[&str] = &[
+    "api_key",
+    "secret",
+    "token",
+    "password",
+    "private_key",
+    "access_token",
+    "refresh_token",
+    "auth_token",
+];
+
+const SECRET_VALUE_PREFIXES: &[&str] = &["sk-", "Bearer ", "bearer "];
+
+fn is_secret_ref_value(val: &str) -> bool {
+    val.starts_with("secret_ref:")
+        || val.starts_with("secretRef:")
+        || val.starts_with("secret-ref:")
+        || val.starts_with("host:")
+}
+
+fn looks_like_raw_secret_value(val: &str) -> bool {
+    for prefix in SECRET_VALUE_PREFIXES {
+        if val.starts_with(prefix) {
+            return true;
+        }
+    }
+    if val.len() >= 40 {
+        let has_upper = val.chars().any(|c| c.is_ascii_uppercase());
+        let has_lower = val.chars().any(|c| c.is_ascii_lowercase());
+        let has_digit = val.chars().any(|c| c.is_ascii_digit());
+        if has_upper && has_lower && has_digit {
+            return true;
+        }
+    }
+    false
+}
+
+fn contains_raw_secret(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => {
+            for (key, val) in map {
+                let key_lower = key.to_lowercase();
+                for secret_name in SECRET_FIELD_NAMES {
+                    if key_lower == *secret_name || key_lower.contains(secret_name) {
+                        if let Some(s) = val.as_str() {
+                            if !is_secret_ref_value(s) {
+                                return true;
+                            }
+                        } else if !val.is_null() {
+                            return true;
+                        }
+                    }
+                }
+                if let Some(s) = val.as_str() {
+                    if looks_like_raw_secret_value(s) {
+                        return true;
+                    }
+                }
+                if contains_raw_secret(val) {
+                    return true;
+                }
+            }
+        }
+        Value::Array(arr) => {
+            for item in arr {
+                if contains_raw_secret(item) {
+                    return true;
+                }
+            }
+        }
+        _ => {}
+    }
+    false
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic ID helper
+// ---------------------------------------------------------------------------
+
+fn deterministic_id(input: &Value) -> String {
+    let objective = input
+        .get("objective")
+        .and_then(Value::as_str)
+        .unwrap_or("default");
+    let len = objective.len();
+    format!("{:04x}", len.wrapping_mul(31).wrapping_add(0xcb))
+}
+
+// ---------------------------------------------------------------------------
+// Dispatch
+// ---------------------------------------------------------------------------
+
+pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
+    if request.provider_package_id != PACKAGE_ID {
+        return None;
+    }
+    let id = request.capability_id.as_str();
+    if id.ends_with("/describe_contract") {
+        Some(describe_contract(request))
+    } else if id.ends_with("/launch") {
+        Some(launch(request))
+    } else if id.ends_with("/project_state") {
+        Some(project_state(request))
+    } else if id.ends_with("/render_payload") {
+        Some(render_payload(request))
+    } else if id.ends_with("/record_player_action") {
+        Some(record_player_action(request))
+    } else if id.ends_with("/request_change") {
+        Some(request_change(request))
+    } else if id.ends_with("/create_checkpoint") {
+        Some(create_checkpoint(request))
+    } else if id.ends_with("/inspect_checkpoint") {
+        Some(inspect_checkpoint(request))
+    } else if id.ends_with("/draft_recovery") {
+        Some(draft_recovery(request))
+    } else if id.ends_with("/bind_agent_run") {
+        Some(bind_agent_run(request))
+    } else if id.ends_with("/explain_provenance") {
+        Some(explain_provenance(request))
+    } else {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Capability implementations
+// ---------------------------------------------------------------------------
+
+fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_contract",
+        "package_id": request.provider_package_id,
+        "package_kind": "ordinary",
+        "capabilities": [
+            {"id": "official/playable-creation-board/describe_contract", "purpose": "describe the playable creation board package contract"},
+            {"id": "official/playable-creation-board/launch", "purpose": "launch a playable creation board with board/module/constraint/marker state"},
+            {"id": "official/playable-creation-board/project_state", "purpose": "project the current board state as a package-owned opaque state snapshot"},
+            {"id": "official/playable-creation-board/render_payload", "purpose": "produce a protocol-visible render payload for the board"},
+            {"id": "official/playable-creation-board/record_player_action", "purpose": "record a player action producing state_delta_asset_ref/projection_ref/sequence/provenance"},
+            {"id": "official/playable-creation-board/request_change", "purpose": "produce a structured agent objective, allowed_change_kinds, risk/budget, and bindable refs for agentic forge"},
+            {"id": "official/playable-creation-board/create_checkpoint", "purpose": "create a deterministic board checkpoint asset"},
+            {"id": "official/playable-creation-board/inspect_checkpoint", "purpose": "inspect a board checkpoint's shape and validity"},
+            {"id": "official/playable-creation-board/draft_recovery", "purpose": "draft a recovery plan for a failed board session"},
+            {"id": "official/playable-creation-board/bind_agent_run", "purpose": "bind an agentic forge run to the board session with scoped branch binding"},
+            {"id": "official/playable-creation-board/explain_provenance", "purpose": "explain causal chain from player_action to state_delta to checkpoint to agent_run to candidate to proposal to projection_rebuild"},
+        ],
+        "surfaces": {
+            "experience_entry": "official/playable-creation-board/entry",
+            "play_renderer": "official/playable-creation-board/play-renderer",
+            "forge_panel": "official/playable-creation-board/forge-panel",
+            "assistant_action": "official/playable-creation-board/assistant-action",
+        },
+        "lifecycle_states": BOARD_LIFECYCLE_STATES,
+        "player_action_kinds": PLAYER_ACTION_KINDS,
+        "allowed_change_kinds": ALLOWED_CHANGE_KINDS,
+        "checkpoint_formats": CHECKPOINT_FORMATS,
+        "recovery_strategies": RECOVERY_STRATEGIES,
+        "failure_kinds": FAILURE_KINDS,
+        "risk_levels": RISK_LEVELS,
+        "board_state_fields": [
+            "board_id", "modules", "constraints", "markers",
+            "sequence", "lifecycle_state", "asset_refs",
+            "branch_ref", "provenance"
+        ],
+        "player_action_output_fields": [
+            "action_id", "action_kind", "board_id",
+            "state_delta_asset_ref", "projection_ref",
+            "sequence", "provenance"
+        ],
+        "request_change_output_fields": [
+            "objective", "allowed_change_kinds", "risk",
+            "budget", "bindable_refs",
+            "agent_run_binding_ref", "provenance"
+        ],
+        "checkpoint_fields": [
+            "checkpoint_id", "board_id", "format", "state_snapshot",
+            "asset_refs", "branch_ref", "sequence",
+            "inference_performed", "network_performed", "provenance"
+        ],
+        "recovery_fields": [
+            "failure_kind", "failure_detail", "last_checkpoint_ref",
+            "recovery_strategy", "recovery_plan", "inference_performed",
+            "network_performed", "provenance"
+        ],
+        "forge_binding_fields": [
+            "board_id", "surface_id", "inspect_capabilities",
+            "proposal_capabilities", "branch_aware",
+            "inference_performed", "network_performed", "provenance"
+        ],
+        "provenance_chain_fields": [
+            "player_action_event", "state_delta_asset",
+            "checkpoint", "agent_run", "candidate",
+            "proposal", "projection_rebuild"
+        ],
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn launch(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let title = request
+        .input
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or("Playable Creation Board");
+    let modules = request
+        .input
+        .get("modules")
+        .cloned()
+        .unwrap_or(serde_json::json!([]));
+    let constraints = request
+        .input
+        .get("constraints")
+        .cloned()
+        .unwrap_or(serde_json::json!([]));
+    let markers = request
+        .input
+        .get("markers")
+        .cloned()
+        .unwrap_or(serde_json::json!([]));
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_launched",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "title": title,
+        "lifecycle_state": "created",
+        "initial_state": {
+            "modules": modules,
+            "constraints": constraints,
+            "markers": markers,
+        },
+        "render_capability_id": "official/playable-creation-board/render_payload",
+        "forge_panel_id": "official/playable-creation-board/forge-panel",
+        "assistant_action_id": "official/playable-creation-board/assistant-action",
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn project_state(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_state",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "state": request.input.get("state").cloned().unwrap_or_else(|| serde_json::json!({
+            "modules": [],
+            "constraints": [],
+            "markers": [],
+            "sequence": 0,
+        })),
+        "lifecycle_state": request.input
+            .get("lifecycle_state")
+            .and_then(Value::as_str)
+            .filter(|s| BOARD_LIFECYCLE_STATES.contains(s))
+            .unwrap_or("running"),
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn render_payload(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_render_payload",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "blocks": request.input
+            .get("blocks")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([
+                {"type": "board_summary", "board_id": board_id},
+                {"type": "modules", "text": "No modules yet"},
+                {"type": "constraints", "text": "No constraints yet"},
+                {"type": "markers", "text": "No markers placed"},
+            ])),
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn record_player_action(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "playable_creation_board_action_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let action_kind = request
+        .input
+        .get("action_kind")
+        .and_then(Value::as_str)
+        .filter(|k| PLAYER_ACTION_KINDS.contains(k))
+        .unwrap_or("place_marker");
+    let sequence = request
+        .input
+        .get("sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+
+    let action_id = format!("action:{}:{}", board_id, sequence);
+    let state_delta_asset_ref = format!("asset:state_delta:{}:{}", board_id, sequence);
+    let projection_ref = format!("projection:board:{}:{}", board_id, sequence);
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_action_recorded",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "action_id": action_id,
+        "action_kind": action_kind,
+        "state_delta_asset_ref": state_delta_asset_ref,
+        "projection_ref": projection_ref,
+        "sequence": sequence,
+        "payload": request.input.get("payload").cloned().unwrap_or(serde_json::json!({})),
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn request_change(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "playable_creation_board_change_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let objective = request
+        .input
+        .get("objective")
+        .and_then(Value::as_str)
+        .unwrap_or("modify board state according to player request");
+    let change_kind = request
+        .input
+        .get("change_kind")
+        .and_then(Value::as_str)
+        .filter(|k| ALLOWED_CHANGE_KINDS.contains(k))
+        .unwrap_or("modify_module");
+
+    let risk = request
+        .input
+        .get("risk")
+        .and_then(Value::as_str)
+        .filter(|r| RISK_LEVELS.contains(r))
+        .unwrap_or("medium");
+
+    let budget = request
+        .input
+        .get("budget")
+        .and_then(Value::as_u64)
+        .unwrap_or(100);
+
+    let target_branch_ref = request
+        .input
+        .get("target_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:target:default");
+    let scratch_branch_ref = request
+        .input
+        .get("scratch_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:scratch:default");
+
+    let agent_run_binding_ref = format!(
+        "binding:forge:{}:{}",
+        board_id,
+        deterministic_id(&request.input)
+    );
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_change_request",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "objective": objective,
+        "allowed_change_kinds": ALLOWED_CHANGE_KINDS,
+        "requested_change_kind": change_kind,
+        "risk": risk,
+        "budget": budget,
+        "bindable_refs": {
+            "board_state_ref": format!("asset:board_state:{}", board_id),
+            "target_branch_ref": target_branch_ref,
+            "scratch_branch_ref": scratch_branch_ref,
+            "agent_run_binding_ref": agent_run_binding_ref,
+        },
+        "agent_run_binding": {
+            "binding_ref": agent_run_binding_ref,
+            "forge_package_id": request.input
+                .get("forge_package_id")
+                .and_then(Value::as_str)
+                .unwrap_or("official/agentic-forge-lab"),
+            "run_capabilities": [
+                "official/agentic-forge-lab/start_run",
+                "official/agentic-forge-lab/create_candidate",
+                "official/agentic-forge-lab/draft_promote_proposal"
+            ],
+            "scoped_to_branch": true,
+        },
+        "requires_user_approval": true,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn create_checkpoint(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "playable_creation_board_checkpoint_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let format = request
+        .input
+        .get("format")
+        .and_then(Value::as_str)
+        .filter(|f| CHECKPOINT_FORMATS.contains(f))
+        .unwrap_or("snapshot");
+    let branch_ref = request
+        .input
+        .get("branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:default");
+    let sequence = request
+        .input
+        .get("sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+
+    let state_snapshot = request
+        .input
+        .get("state_snapshot")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
+
+    let asset_refs = request
+        .input
+        .get("asset_refs")
+        .cloned()
+        .unwrap_or(serde_json::json!([]));
+
+    let checkpoint_id = format!("checkpoint:{}:{}", board_id, sequence);
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_checkpoint",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "checkpoint_id": checkpoint_id,
+        "format": format,
+        "state_snapshot": state_snapshot,
+        "asset_refs": asset_refs,
+        "branch_ref": branch_ref,
+        "sequence": sequence,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn inspect_checkpoint(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let checkpoint_id = request
+        .input
+        .get("checkpoint_id")
+        .and_then(Value::as_str)
+        .unwrap_or("checkpoint_unknown");
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let format = request
+        .input
+        .get("format")
+        .and_then(Value::as_str)
+        .filter(|f| CHECKPOINT_FORMATS.contains(f))
+        .unwrap_or("snapshot");
+    let sequence = request
+        .input
+        .get("sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+
+    let has_state = request.input.get("state_snapshot").is_some();
+    let asset_count = request
+        .input
+        .get("asset_refs")
+        .and_then(Value::as_array)
+        .map(|a| a.len())
+        .unwrap_or(0);
+
+    let mut errors: Vec<String> = Vec::new();
+    if checkpoint_id.is_empty() {
+        errors.push("checkpoint_id must be non-empty".to_string());
+    }
+    if board_id.is_empty() {
+        errors.push("board_id must be non-empty".to_string());
+    }
+    if !has_state {
+        errors.push("state_snapshot must be present".to_string());
+    }
+    if !CHECKPOINT_FORMATS.contains(&format) {
+        errors.push(format!("invalid checkpoint format: {}", format));
+    }
+    if sequence < 1 {
+        errors.push("sequence must be >= 1".to_string());
+    }
+
+    let valid = errors.is_empty();
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_checkpoint_inspection",
+        "checkpoint_id": checkpoint_id,
+        "board_id": board_id,
+        "valid": valid,
+        "errors": errors,
+        "format": format,
+        "sequence": sequence,
+        "asset_count": asset_count,
+        "summary": if valid {
+            format!("Board checkpoint {} valid (format={}, sequence={}, assets={})", checkpoint_id, format, sequence, asset_count)
+        } else {
+            format!("Board checkpoint {} invalid: {}", checkpoint_id, errors.join("; "))
+        },
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn draft_recovery(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "playable_creation_board_recovery_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let failure_kind = request
+        .input
+        .get("failure_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let last_checkpoint_ref = request
+        .input
+        .get("last_checkpoint_ref")
+        .and_then(Value::as_str);
+
+    let checkpoint_available = last_checkpoint_ref.is_some();
+
+    let recommended_strategy = if checkpoint_available {
+        "restore_last_checkpoint"
+    } else {
+        "restart_session"
+    };
+
+    let recovery_strategy = request
+        .input
+        .get("recovery_strategy")
+        .and_then(Value::as_str)
+        .filter(|s| RECOVERY_STRATEGIES.contains(s))
+        .unwrap_or(recommended_strategy);
+
+    let (steps, requires_user_approval) = match recovery_strategy {
+        "restore_last_checkpoint" => (
+            vec![
+                "locate last board checkpoint asset".to_string(),
+                "restore board state from checkpoint".to_string(),
+                "resume from checkpoint sequence".to_string(),
+            ],
+            false,
+        ),
+        "replay_from_checkpoint" => (
+            vec![
+                "locate last board checkpoint".to_string(),
+                "restore board state".to_string(),
+                "replay player actions after checkpoint".to_string(),
+                "verify board state consistency".to_string(),
+            ],
+            true,
+        ),
+        "restart_session" => (
+            vec![
+                "create new board session".to_string(),
+                "re-initialize board from descriptor".to_string(),
+                "notify user of restart".to_string(),
+            ],
+            true,
+        ),
+        "manual_intervention" => (
+            vec![
+                "pause board".to_string(),
+                "present failure breadcrumbs to user".to_string(),
+                "await user action".to_string(),
+            ],
+            true,
+        ),
+        "discard_and_reset" => (
+            vec![
+                "discard current board state".to_string(),
+                "reset to initial board descriptor".to_string(),
+                "archive failed session".to_string(),
+            ],
+            true,
+        ),
+        _ => (vec!["unknown strategy".to_string()], true),
+    };
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_recovery_plan",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "failure_kind": failure_kind,
+        "recommended_strategy": recommended_strategy,
+        "recovery_strategy": recovery_strategy,
+        "available_strategies": RECOVERY_STRATEGIES,
+        "plan": {
+            "steps": steps,
+            "requires_user_approval": requires_user_approval,
+            "checkpoint_available": checkpoint_available,
+            "affected_asset_refs": request.input.get("asset_refs").cloned().unwrap_or(serde_json::json!([])),
+        },
+        "failure_kinds": FAILURE_KINDS,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
+    // Raw-secret check
+    if contains_raw_secret(&request.input) {
+        return Ok(serde_json::json!({
+            "kind": "playable_creation_board_binding_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "input contains raw-secret-like content; use secret_ref references instead",
+            "inference_performed": false,
+            "network_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let agent_package_id = request
+        .input
+        .get("agent_package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("official/agentic-forge-lab");
+    let target_branch_ref = request
+        .input
+        .get("target_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:target:default");
+    let scratch_branch_ref = request
+        .input
+        .get("scratch_branch_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("branch:scratch:default");
+
+    let run_capabilities =
+        request
+            .input
+            .get("run_capabilities")
+            .cloned()
+            .unwrap_or(serde_json::json!([
+                "official/agentic-forge-lab/start_run",
+                "official/agentic-forge-lab/create_candidate",
+                "official/agentic-forge-lab/draft_promote_proposal"
+            ]));
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_agent_run_binding",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "agent_package_id": agent_package_id,
+        "run_capabilities": run_capabilities,
+        "scoped_to_branch": true,
+        "target_branch_ref": target_branch_ref,
+        "scratch_branch_ref": scratch_branch_ref,
+        "forge_panel_binding": {
+            "surface_id": "official/playable-creation-board/forge-panel",
+            "inspect_capabilities": [
+                "official/playable-creation-board/describe_contract",
+                "official/playable-creation-board/inspect_checkpoint",
+                "official/playable-creation-board/explain_provenance"
+            ],
+            "proposal_capabilities": [
+                "official/playable-creation-board/request_change",
+                "official/playable-creation-board/draft_recovery"
+            ],
+            "branch_aware": true,
+        },
+        "assist_binding": {
+            "surface_id": "official/playable-creation-board/assistant-action",
+            "action_capabilities": [
+                "official/playable-creation-board/request_change",
+                "official/playable-creation-board/draft_recovery",
+                "official/playable-creation-board/bind_agent_run"
+            ],
+            "approval_policy": "fork_then_approve",
+        },
+        "play_subscription": {
+            "surface_id": "official/playable-creation-board/play-renderer",
+            "subscription_type": "board_state_change",
+        },
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn explain_provenance(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let board_id = request
+        .input
+        .get("board_id")
+        .and_then(Value::as_str)
+        .unwrap_or("board:default");
+    let action_id = request
+        .input
+        .get("action_id")
+        .and_then(Value::as_str)
+        .unwrap_or("action:default:1");
+
+    let checkpoint_ref = request
+        .input
+        .get("checkpoint_ref")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("checkpoint:{}:1", board_id));
+    let agent_run_ref = request
+        .input
+        .get("agent_run_ref")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("run:forge:{}", board_id));
+    let candidate_ref = request
+        .input
+        .get("candidate_ref")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("cand:forge:{}", board_id));
+    let proposal_ref = request
+        .input
+        .get("proposal_ref")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string())
+        .unwrap_or("proposal:default".to_string());
+
+    // Build a causal chain: player_action → state_delta → checkpoint → agent_run → candidate → proposal → projection_rebuild
+    let chain = serde_json::json!([
+        {
+            "step": "player_action_event",
+            "ref": action_id,
+            "description": "Player action recorded on the board"
+        },
+        {
+            "step": "state_delta_asset",
+            "ref": format!("asset:state_delta:{}:{}", board_id, request.input.get("sequence").and_then(Value::as_u64).unwrap_or(1)),
+            "description": "State delta asset produced by the player action"
+        },
+        {
+            "step": "checkpoint",
+            "ref": checkpoint_ref,
+            "description": "Board checkpoint containing the accumulated state"
+        },
+        {
+            "step": "agent_run",
+            "ref": agent_run_ref,
+            "description": "Agentic forge run started to evaluate requested change"
+        },
+        {
+            "step": "candidate",
+            "ref": candidate_ref,
+            "description": "Candidate produced by agent run on scratch branch"
+        },
+        {
+            "step": "proposal",
+            "ref": proposal_ref,
+            "description": "Promote proposal drafted from candidate"
+        },
+        {
+            "step": "projection_rebuild",
+            "ref": format!("projection:board:{}:latest", board_id),
+            "description": "Projection rebuild after proposal approval"
+        }
+    ]);
+
+    Ok(serde_json::json!({
+        "kind": "playable_creation_board_provenance_chain",
+        "package_id": request.provider_package_id,
+        "board_id": board_id,
+        "action_id": action_id,
+        "chain": chain,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn make_request(cap: &str, input: Value) -> InprocInvocation {
+        InprocInvocation {
+            capability_id: cap.to_string(),
+            provider_package_id: PACKAGE_ID.to_string(),
+            input,
+        }
+    }
+
+    #[test]
+    fn try_handle_matches_package_id() {
+        let req = make_request(
+            "official/playable-creation-board/describe_contract",
+            json!({}),
+        );
+        assert!(try_handle(&req).is_some());
+    }
+
+    #[test]
+    fn try_handle_rejects_wrong_package() {
+        let req = InprocInvocation {
+            capability_id: "official/playable-creation-board/describe_contract".to_string(),
+            provider_package_id: "official/other".to_string(),
+            input: json!({}),
+        };
+        assert!(try_handle(&req).is_none());
+    }
+
+    #[test]
+    fn describe_contract_has_all_surfaces() {
+        let req = make_request(
+            "official/playable-creation-board/describe_contract",
+            json!({}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let surfaces = result["surfaces"].as_object().unwrap();
+        assert!(surfaces.contains_key("experience_entry"));
+        assert!(surfaces.contains_key("play_renderer"));
+        assert!(surfaces.contains_key("forge_panel"));
+        assert!(surfaces.contains_key("assistant_action"));
+    }
+
+    #[test]
+    fn describe_contract_lists_11_capabilities() {
+        let req = make_request(
+            "official/playable-creation-board/describe_contract",
+            json!({}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["capabilities"]
+                .as_array()
+                .map(|a| a.len())
+                .unwrap_or(0),
+            11,
+            "must list 11 capabilities"
+        );
+    }
+
+    #[test]
+    fn launch_returns_board_id() {
+        let req = make_request(
+            "official/playable-creation-board/launch",
+            json!({
+                "board_id": "board:test",
+                "title": "Test Board",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("playable_creation_board_launched"));
+        assert_eq!(result["board_id"], json!("board:test"));
+        assert_eq!(result["lifecycle_state"], json!("created"));
+    }
+
+    #[test]
+    fn record_player_action_returns_state_delta() {
+        let req = make_request(
+            "official/playable-creation-board/record_player_action",
+            json!({
+                "board_id": "board:test",
+                "action_kind": "place_marker",
+                "sequence": 1,
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_action_recorded")
+        );
+        assert_eq!(result["action_kind"], json!("place_marker"));
+        assert!(result["state_delta_asset_ref"].is_string());
+        assert!(result["projection_ref"].is_string());
+        assert_eq!(result["sequence"], json!(1));
+    }
+
+    #[test]
+    fn request_change_returns_agent_objective() {
+        let req = make_request(
+            "official/playable-creation-board/request_change",
+            json!({
+                "board_id": "board:test",
+                "objective": "add a new module to the board",
+                "change_kind": "add_module",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_change_request")
+        );
+        assert_eq!(result["objective"], json!("add a new module to the board"));
+        assert!(result["allowed_change_kinds"].is_array());
+        assert!(result["risk"].is_string());
+        assert!(result["budget"].is_number());
+        assert!(result["bindable_refs"].is_object());
+        assert!(result["agent_run_binding"].is_object());
+        assert_eq!(result["requires_user_approval"], json!(true));
+    }
+
+    #[test]
+    fn create_checkpoint_returns_deterministic() {
+        let req = make_request(
+            "official/playable-creation-board/create_checkpoint",
+            json!({"board_id": "board:test", "state_snapshot": {"modules": 3}, "sequence": 2}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("playable_creation_board_checkpoint"));
+        assert_eq!(result["board_id"], json!("board:test"));
+        assert_eq!(result["format"], json!("snapshot"));
+        assert_eq!(result["sequence"], json!(2));
+    }
+
+    #[test]
+    fn draft_recovery_returns_plan() {
+        let req = make_request(
+            "official/playable-creation-board/draft_recovery",
+            json!({"board_id": "board:test", "failure_kind": "constraint_violation", "last_checkpoint_ref": "cp:1"}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_recovery_plan")
+        );
+        assert_eq!(
+            result["recommended_strategy"],
+            json!("restore_last_checkpoint")
+        );
+    }
+
+    #[test]
+    fn bind_agent_run_returns_scoped_binding() {
+        let req = make_request(
+            "official/playable-creation-board/bind_agent_run",
+            json!({"board_id": "board:test", "agent_package_id": "official/agentic-forge-lab"}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_agent_run_binding")
+        );
+        assert_eq!(result["scoped_to_branch"], json!(true));
+        assert_eq!(result["forge_panel_binding"]["branch_aware"], json!(true));
+        assert_eq!(
+            result["assist_binding"]["approval_policy"],
+            json!("fork_then_approve")
+        );
+    }
+
+    #[test]
+    fn explain_provenance_returns_causal_chain() {
+        let req = make_request(
+            "official/playable-creation-board/explain_provenance",
+            json!({"board_id": "board:test", "action_id": "action:board:test:1"}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_provenance_chain")
+        );
+        let chain = result["chain"].as_array().unwrap();
+        assert_eq!(chain.len(), 7);
+        assert_eq!(chain[0]["step"], json!("player_action_event"));
+        assert_eq!(chain[6]["step"], json!("projection_rebuild"));
+    }
+
+    #[test]
+    fn create_checkpoint_blocks_raw_secret() {
+        let req = make_request(
+            "official/playable-creation-board/create_checkpoint",
+            json!({"board_id": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_checkpoint_rejected")
+        );
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+    }
+
+    #[test]
+    fn record_player_action_blocks_raw_secret() {
+        let req = make_request(
+            "official/playable-creation-board/record_player_action",
+            json!({"board_id": "test", "token": "Bearer abc123"}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_action_rejected")
+        );
+    }
+
+    #[test]
+    fn no_forbidden_kernel_namespace_in_output() {
+        let caps = [
+            "official/playable-creation-board/describe_contract",
+            "official/playable-creation-board/launch",
+            "official/playable-creation-board/project_state",
+            "official/playable-creation-board/render_payload",
+            "official/playable-creation-board/record_player_action",
+            "official/playable-creation-board/request_change",
+            "official/playable-creation-board/create_checkpoint",
+            "official/playable-creation-board/inspect_checkpoint",
+            "official/playable-creation-board/draft_recovery",
+            "official/playable-creation-board/bind_agent_run",
+            "official/playable-creation-board/explain_provenance",
+        ];
+        let forbidden = [
+            "kernel.experience.",
+            "kernel.world.",
+            "kernel.scene.",
+            "kernel.character.",
+            "kernel.turn.",
+            "kernel.chat.",
+            "kernel.memory.",
+            "kernel.agent.",
+            "kernel.model.",
+            "kernel.prompt.",
+            "kernel.director.",
+        ];
+        for cap in &caps {
+            let req = make_request(cap, json!({"board_id": "test"}));
+            let result = try_handle(&req).unwrap().unwrap();
+            let output_str = serde_json::to_string(&result).unwrap();
+            for token in &forbidden {
+                assert!(
+                    !output_str.contains(token),
+                    "{} must not contain {}",
+                    cap,
+                    token
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn contains_raw_secret_detects_known_patterns() {
+        assert!(contains_raw_secret(
+            &json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})
+        ));
+        assert!(contains_raw_secret(&json!({"token": "Bearer xyz"})));
+        assert!(!contains_raw_secret(
+            &json!({"api_key": "secret_ref:env:MY_KEY"})
+        ));
+        assert!(!contains_raw_secret(&json!({"objective": "safe text"})));
+    }
+
+    #[test]
+    fn no_chat_or_conversation_terminology_in_output() {
+        let req = make_request(
+            "official/playable-creation-board/request_change",
+            json!({
+                "board_id": "board:test",
+                "objective": "add module",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let output_str = serde_json::to_string(&result).unwrap();
+        assert!(!output_str.contains("assistant_message"));
+        assert!(!output_str.contains("conversation"));
+        assert!(!output_str.contains("prompt_transcript"));
+        assert!(!output_str.contains("chat_message"));
+    }
+}

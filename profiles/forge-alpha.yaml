@@ -24,3 +24,4 @@ autoload:
   - ../packages/official/experience-runtime-lab/manifest.yaml
   - ../packages/official/blank-experience/manifest.yaml
   - ../packages/official/playable-seed/manifest.yaml
+  - ../packages/official/playable-creation-board/manifest.yaml

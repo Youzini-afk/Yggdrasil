@@ -35,11 +35,7 @@ const LIFECYCLE_STATES: &[&str] = &[
 // Checkpoint formats
 // ---------------------------------------------------------------------------
 
-const CHECKPOINT_FORMATS: &[&str] = &[
-    "snapshot",
-    "incremental",
-    "delta",
-];
+const CHECKPOINT_FORMATS: &[&str] = &["snapshot", "incremental", "delta"];
 
 // ---------------------------------------------------------------------------
 // Recovery strategies
@@ -247,30 +243,36 @@ fn create_checkpoint(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let session_id = request.input
+    let session_id = request
+        .input
         .get("session_id")
         .and_then(Value::as_str)
         .unwrap_or("session_default");
-    let format = request.input
+    let format = request
+        .input
         .get("format")
         .and_then(Value::as_str)
         .filter(|f| CHECKPOINT_FORMATS.contains(f))
         .unwrap_or("snapshot");
-    let branch_ref = request.input
+    let branch_ref = request
+        .input
         .get("branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:default");
-    let sequence = request.input
+    let sequence = request
+        .input
         .get("sequence")
         .and_then(Value::as_u64)
         .unwrap_or(1);
 
-    let state_snapshot = request.input
+    let state_snapshot = request
+        .input
         .get("state_snapshot")
         .cloned()
         .unwrap_or(serde_json::json!({}));
 
-    let asset_refs = request.input
+    let asset_refs = request
+        .input
         .get("asset_refs")
         .cloned()
         .unwrap_or(serde_json::json!([]));
@@ -297,26 +299,31 @@ fn create_checkpoint(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn inspect_checkpoint(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let checkpoint_id = request.input
+    let checkpoint_id = request
+        .input
         .get("checkpoint_id")
         .and_then(Value::as_str)
         .unwrap_or("checkpoint_unknown");
-    let session_id = request.input
+    let session_id = request
+        .input
         .get("session_id")
         .and_then(Value::as_str)
         .unwrap_or("session_default");
-    let format = request.input
+    let format = request
+        .input
         .get("format")
         .and_then(Value::as_str)
         .filter(|f| CHECKPOINT_FORMATS.contains(f))
         .unwrap_or("snapshot");
-    let sequence = request.input
+    let sequence = request
+        .input
         .get("sequence")
         .and_then(Value::as_u64)
         .unwrap_or(1);
 
     let has_state = request.input.get("state_snapshot").is_some();
-    let asset_count = request.input
+    let asset_count = request
+        .input
         .get("asset_refs")
         .and_then(Value::as_array)
         .map(|a| a.len())
@@ -380,15 +387,18 @@ fn draft_recovery(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let session_id = request.input
+    let session_id = request
+        .input
         .get("session_id")
         .and_then(Value::as_str)
         .unwrap_or("session_default");
-    let failure_kind = request.input
+    let failure_kind = request
+        .input
         .get("failure_kind")
         .and_then(Value::as_str)
         .unwrap_or("unknown");
-    let last_checkpoint_ref = request.input
+    let last_checkpoint_ref = request
+        .input
         .get("last_checkpoint_ref")
         .and_then(Value::as_str);
 
@@ -400,7 +410,8 @@ fn draft_recovery(request: &InprocInvocation) -> anyhow::Result<Value> {
         "restart_session"
     };
 
-    let recovery_strategy = request.input
+    let recovery_strategy = request
+        .input
         .get("recovery_strategy")
         .and_then(Value::as_str)
         .filter(|s| RECOVERY_STRATEGIES.contains(s))
@@ -448,10 +459,7 @@ fn draft_recovery(request: &InprocInvocation) -> anyhow::Result<Value> {
             ],
             true,
         ),
-        _ => (
-            vec!["unknown strategy".to_string()],
-            true,
-        ),
+        _ => (vec!["unknown strategy".to_string()], true),
     };
 
     Ok(serde_json::json!({
@@ -494,31 +502,37 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let session_id = request.input
+    let session_id = request
+        .input
         .get("session_id")
         .and_then(Value::as_str)
         .unwrap_or("session_default");
-    let agent_package_id = request.input
+    let agent_package_id = request
+        .input
         .get("agent_package_id")
         .and_then(Value::as_str)
         .unwrap_or("official/agentic-forge-lab");
-    let target_branch_ref = request.input
+    let target_branch_ref = request
+        .input
         .get("target_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:target:default");
-    let scratch_branch_ref = request.input
+    let scratch_branch_ref = request
+        .input
         .get("scratch_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:scratch:default");
 
-    let run_capabilities = request.input
-        .get("run_capabilities")
-        .cloned()
-        .unwrap_or(serde_json::json!([
-            "official/agentic-forge-lab/start_run",
-            "official/agentic-forge-lab/create_candidate",
-            "official/agentic-forge-lab/draft_promote_proposal"
-        ]));
+    let run_capabilities =
+        request
+            .input
+            .get("run_capabilities")
+            .cloned()
+            .unwrap_or(serde_json::json!([
+                "official/agentic-forge-lab/start_run",
+                "official/agentic-forge-lab/create_candidate",
+                "official/agentic-forge-lab/draft_promote_proposal"
+            ]));
 
     Ok(serde_json::json!({
         "kind": "experience_agent_run_binding",
@@ -580,7 +594,10 @@ mod tests {
 
     #[test]
     fn try_handle_matches_package_id() {
-        let req = make_request("official/experience-runtime-lab/describe_contract", json!({}));
+        let req = make_request(
+            "official/experience-runtime-lab/describe_contract",
+            json!({}),
+        );
         assert!(try_handle(&req).is_some());
     }
 
@@ -596,7 +613,10 @@ mod tests {
 
     #[test]
     fn describe_contract_returns_lifecycle_states() {
-        let req = make_request("official/experience-runtime-lab/describe_contract", json!({}));
+        let req = make_request(
+            "official/experience-runtime-lab/describe_contract",
+            json!({}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         let states = result["lifecycle_states"].as_array().unwrap();
         assert_eq!(states.len(), 9);
@@ -606,7 +626,10 @@ mod tests {
 
     #[test]
     fn describe_contract_has_surfaces() {
-        let req = make_request("official/experience-runtime-lab/describe_contract", json!({}));
+        let req = make_request(
+            "official/experience-runtime-lab/describe_contract",
+            json!({}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         let surfaces = result["surfaces"].as_object().unwrap();
         assert!(surfaces.contains_key("experience_entry"));
@@ -619,7 +642,7 @@ mod tests {
     fn create_checkpoint_returns_deterministic() {
         let req = make_request(
             "official/experience-runtime-lab/create_checkpoint",
-            json!({"session_id": "session_test", "state_snapshot": {"health": 100}, "asset_refs": ["asset:scene:forest"]}),
+            json!({"session_id": "session_test", "state_snapshot": {"health": 100}, "asset_refs": ["asset:module:seed"]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("experience_checkpoint"));
@@ -658,7 +681,10 @@ mod tests {
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("experience_recovery_plan"));
-        assert_eq!(result["recommended_strategy"], json!("restore_last_checkpoint"));
+        assert_eq!(
+            result["recommended_strategy"],
+            json!("restore_last_checkpoint")
+        );
         assert_eq!(result["inference_performed"], json!(false));
     }
 
@@ -697,19 +723,43 @@ mod tests {
             let req = make_request(cap, json!({"session_id": "test"}));
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
-            assert!(!output_str.contains("kernel.experience."), "{} must not contain kernel.experience.", cap);
-            assert!(!output_str.contains("kernel.world."), "{} must not contain kernel.world.", cap);
-            assert!(!output_str.contains("kernel.turn."), "{} must not contain kernel.turn.", cap);
-            assert!(!output_str.contains("kernel.chat."), "{} must not contain kernel.chat.", cap);
-            assert!(!output_str.contains("kernel.memory."), "{} must not contain kernel.memory.", cap);
+            assert!(
+                !output_str.contains("kernel.experience."),
+                "{} must not contain kernel.experience.",
+                cap
+            );
+            assert!(
+                !output_str.contains("kernel.world."),
+                "{} must not contain kernel.world.",
+                cap
+            );
+            assert!(
+                !output_str.contains("kernel.turn."),
+                "{} must not contain kernel.turn.",
+                cap
+            );
+            assert!(
+                !output_str.contains("kernel.chat."),
+                "{} must not contain kernel.chat.",
+                cap
+            );
+            assert!(
+                !output_str.contains("kernel.memory."),
+                "{} must not contain kernel.memory.",
+                cap
+            );
         }
     }
 
     #[test]
     fn contains_raw_secret_detects_known_patterns() {
-        assert!(contains_raw_secret(&json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})));
+        assert!(contains_raw_secret(
+            &json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})
+        ));
         assert!(contains_raw_secret(&json!({"token": "Bearer xyz"})));
-        assert!(!contains_raw_secret(&json!({"api_key": "secret_ref:env:MY_KEY"})));
+        assert!(!contains_raw_secret(
+            &json!({"api_key": "secret_ref:env:MY_KEY"})
+        ));
         assert!(!contains_raw_secret(&json!({"objective": "safe text"})));
     }
 }

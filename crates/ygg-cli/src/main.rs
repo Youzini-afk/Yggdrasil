@@ -9,9 +9,7 @@ use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, HostCommand, ManifestCommand,
     PackageCommand,
 };
-use commands::{
-    capability, composition, demo, host, manifest, package,
-};
+use commands::{capability, composition, demo, host, manifest, package};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,21 +31,34 @@ async fn main() -> anyhow::Result<()> {
             PackageCommand::Load { path } => package::package_load(path).await,
             PackageCommand::Check { path } => package::package_check(path).await,
             PackageCommand::RunFixture { path } => package::package_run_fixture(path).await,
-            PackageCommand::InvokeLocal { path, capability_id, input } => package::package_invoke_local(path, capability_id, input).await,
+            PackageCommand::InvokeLocal {
+                path,
+                capability_id,
+                input,
+            } => package::package_invoke_local(path, capability_id, input).await,
             PackageCommand::Conformance { path } => package::package_conformance(path).await,
             PackageCommand::Reload { path } => package::package_reload(path).await,
         },
         Command::Capability { command } => match command {
-            CapabilityCommand::Invoke { manifest, capability_id, input } => {
-                capability::capability_invoke(manifest, capability_id, input).await
-            }
+            CapabilityCommand::Invoke {
+                manifest,
+                capability_id,
+                input,
+            } => capability::capability_invoke(manifest, capability_id, input).await,
         },
-        Command::InitPackage { path, id, entry, language, template } => package::init_package(path, id, entry, language, template).await,
+        Command::InitPackage {
+            path,
+            id,
+            entry,
+            language,
+            template,
+        } => package::init_package(path, id, entry, language, template).await,
         Command::InitComposition { path, id } => composition::init_composition(path, id).await,
         Command::Composition { command } => match command {
             CompositionCommand::Check { path } => composition::composition_check(path).await,
         },
         Command::Conformance => conformance::run().await,
         Command::PlayCreateDemo => demo::play_create_demo().await,
+        Command::PlayableBoardDemo => demo::playable_board_demo().await,
     }
 }

@@ -96,6 +96,8 @@ pub(crate) enum Command {
     Conformance,
     /// Run the first blank play-creation loop demo.
     PlayCreateDemo,
+    /// Run the playable creation board vertical slice demo (Experience Beta 1).
+    PlayableBoardDemo,
 }
 
 #[derive(Debug, Subcommand)]
@@ -105,18 +107,28 @@ pub(crate) enum ManifestCommand {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum PackageCommand {
-    Load { path: PathBuf },
-    Check { path: PathBuf },
-    RunFixture { path: PathBuf },
+    Load {
+        path: PathBuf,
+    },
+    Check {
+        path: PathBuf,
+    },
+    RunFixture {
+        path: PathBuf,
+    },
     InvokeLocal {
         path: PathBuf,
         capability_id: String,
         #[arg(long, default_value = "{}")]
         input: String,
     },
-    Conformance { path: PathBuf },
+    Conformance {
+        path: PathBuf,
+    },
     /// Local dev reload/restart smoke: load package, restart if supported, print status/logs.
-    Reload { path: PathBuf },
+    Reload {
+        path: PathBuf,
+    },
 }
 
 #[derive(Debug, Subcommand)]

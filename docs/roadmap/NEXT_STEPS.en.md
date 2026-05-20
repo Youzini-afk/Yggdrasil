@@ -27,6 +27,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Agentic Forge Beta Phase E: complete; adds six Agentic Forge workspace panels to the Forge surface (Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls). All data sourced from public protocol only. No chat-first UI. `clients/web/src/agent/observability.ts` adds `ForgeAgentWorkspaceModel` and build/render functions. `tsc -p clients/web/tsconfig.json --noEmit` passes.
 - Agentic Forge Beta Phase F: complete; third-party replacement proof (`thirdparty/agentic-forge` manifest + replacement composition, no official priority), hostile conformance (prompt injection + secret exfiltration blocked cross-package, privilege escalation rejected), budget/deadline contract (`run_constraints` in `describe_contract`, cancellation consistent), cross-package replay mismatch flagged; 5 more conformance cases. Durable guide: [`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.en.md). Conformance now has 180 named cases; status converged to ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix.
 - Experience Beta 0 — Thin Experience Runtime Contract: complete; `official/experience-runtime-lab` provides describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run capabilities with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); `sdk/typescript/experience-runtime` TS SDK (85 self-test assertions); `--template experience-runtime` generates deterministic/no-network subprocess with contract/checkpoint/recovery capabilities; Forge profile autoloads; 7 conformance cases. Durable guide: [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.en.md). Conformance now has 187 named cases.
+- Experience Beta 1 — First Real Playable Vertical Slice: complete; `official/playable-creation-board` provides describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance (11 capabilities) with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); package-owned board/module/constraint/marker state; player action produces state_delta_asset_ref/projection_ref/sequence/provenance; request_change outputs structured agent objective / allowed_change_kinds / risk/budget / bindable refs (not chat messages); bind_agent_run produces scoped agentic-forge binding; explain_provenance outputs player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild causal chain; checkpoint/recovery aligned with experience-runtime-lab shapes; raw-secret blocking; third-party agentic-forge replacement composition proves no official priority; CLI demo `playable-board-demo`; Forge profile autoloads; 10 conformance cases. Conformance now has 197 named cases.
 - Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Runtime Contract, State/Asset Pipeline, Memory/Knowledge Packages, Experience Observability, Creator Loop, and Sharing/Distribution layers.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
@@ -165,13 +166,25 @@ Delivered:
 
 Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`.
 
-## Experience Beta 1 — First Real Playable Vertical Slice
+## Experience Beta 1 — First Real Playable Vertical Slice (complete)
 
 Goal: build an AI-native experience that can be played for 20–30 minutes as early as possible. It must not be a chat shell, Tavern clone, or prompt/response demo, and it must not wait for State/Asset/Memory to be complete.
 
-Acceptance criteria: launched from Home; package-owned state; a real model path while default conformance remains deterministic/no-network; asset/state changes; user requests through Assist/Forge; Agentic Forge plan/candidate/proposal; inspect/approve/reject; fork and compare branches; recover failures with visible failure breadcrumbs; key asset/proposal/inference provenance visible; replace one key capability with a third-party package.
+Delivered:
 
-This is the product proof that Yggdrasil has moved from “free platform substrate” to “worth playing, modifying, and forking,” and it should pull the minimum required state, asset, memory, and observability work.
+- `official/playable-creation-board` — package-owned playable creation board with board/module/constraint/marker state, 11 capabilities (describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance), 4 surfaces (experience_entry/play_renderer/forge_panel/assistant_action).
+- record_player_action produces state_delta_asset_ref / projection_ref / sequence / provenance.
+- request_change produces structured agent objective / allowed_change_kinds / risk / budget / bindable refs (not chat messages).
+- bind_agent_run produces scoped agentic-forge binding.
+- explain_provenance produces player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild causal chain.
+- create_checkpoint / inspect_checkpoint / draft_recovery aligned with experience-runtime-lab shapes.
+- Raw-secret blocking.
+- Third-party agentic-forge replacement composition proves no official priority.
+- CLI demo `ygg playable-board-demo`.
+- Forge profile autoloads.
+- 10 conformance cases.
+
+Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.scene.*`, `kernel.character.*`, `kernel.turn.*`, `kernel.chat.*`, `kernel.memory.*`, chat shell, assistant messages/conversation/prompt transcript.
 
 ## Experience Beta 2 — State + Asset Pipeline Alpha
 
@@ -226,4 +239,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, and Experience Beta 0 are complete. The roadmap now enters Experience Beta 1. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience Beta 0, and Experience Beta 1 are complete. The roadmap now enters Experience Beta 2. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

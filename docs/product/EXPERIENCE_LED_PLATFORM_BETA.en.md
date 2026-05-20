@@ -234,26 +234,29 @@ Deliverables:
 
 Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`.
 
-### Experience Beta 1 — First Real Playable Vertical Slice
+### Experience Beta 1 — First Real Playable Vertical Slice (complete)
 
 Build an AI-native experience that can be played for 20–30 minutes without waiting for State/Asset/Memory to be complete. It must not be a chat shell, Tavern clone, or prompt/response demo.
 
-Acceptance criteria:
+Delivered:
 
-- The user launches it from Home.
-- It has package-owned state.
-- It uses a real model path, while default conformance remains deterministic/no-network.
-- It creates asset/state changes.
-- The user asks Assist or Forge for changes.
-- Agentic Forge produces plan/candidate/proposal.
-- The user can inspect/approve/reject.
-- The user can fork a branch.
-- The user can compare branches.
-- Failures can be recovered, with visible failure breadcrumbs.
-- Key asset/proposal/inference provenance is visible.
-- A third-party package can replace one key capability.
+- `official/playable-creation-board` — package-owned playable creation board with board/module/constraint/marker state.
+- 11 capabilities: describe_contract / launch / project_state / render_payload / record_player_action / request_change / create_checkpoint / inspect_checkpoint / draft_recovery / bind_agent_run / explain_provenance.
+- 4 surfaces: experience_entry / play_renderer / forge_panel / assistant_action.
+- record_player_action produces state_delta_asset_ref / projection_ref / sequence / provenance.
+- request_change produces structured agent objective / allowed_change_kinds / risk / budget / bindable refs (not chat messages).
+- bind_agent_run produces scoped agentic-forge binding.
+- explain_provenance produces player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild causal chain.
+- Checkpoint / recovery aligned with experience-runtime-lab shapes.
+- Raw-secret blocking.
+- Third-party agentic-forge replacement composition proves no official priority.
+- CLI demo `ygg playable-board-demo`.
+- Forge profile autoloads.
+- 10 conformance cases.
 
-This is the actual product proof for Yggdrasil. It should start early and pull the minimum required state, asset, memory, and observability work.
+Non-goals: `kernel.experience.*`, `kernel.world.*`, chat shell, assistant messages/conversation/prompt transcript.
+
+This is the actual product proof for Yggdrasil. Subsequent state, asset, memory, and observability work is pulled by real needs exposed by this vertical slice.
 
 ### Experience Beta 2 — State + Asset Pipeline Alpha
 

@@ -826,7 +826,7 @@ export function runExperienceRuntimeSelfTest(): {
     package_id: "official/experience-runtime-lab",
     session_id: "session_test",
     state_snapshot: { health: 100, step_index: 5 },
-    asset_refs: ["asset:scene:forest"],
+    asset_refs: ["asset:module:seed"],
     capability_id: "official/experience-runtime-lab/create_checkpoint",
   });
   assert("checkpoint kind", cp.kind === "experience_checkpoint");

@@ -33,7 +33,10 @@ pub(crate) async fn demo() -> Result<()> {
     println!("kernel_package_id: {KERNEL_PACKAGE_ID}");
     println!("\nevents:");
     for event in events {
-        println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
+        println!(
+            "- #{} {} {}",
+            event.sequence, event.writer_package_id, event.kind
+        );
     }
 
     Ok(())
@@ -41,8 +44,8 @@ pub(crate) async fn demo() -> Result<()> {
 
 pub(crate) fn demo_event_writer_manifest() -> ygg_core::PackageManifest {
     use ygg_core::{
-        EventPermissions, PackageContributions, PackageEntry,
-        PackageManifest, PermissionSet, SandboxPolicy,
+        EventPermissions, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
+        SandboxPolicy,
     };
 
     PackageManifest {
@@ -62,7 +65,10 @@ pub(crate) fn demo_event_writer_manifest() -> ygg_core::PackageManifest {
         consumes: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
-            events: EventPermissions { read: false, append: true },
+            events: EventPermissions {
+                read: false,
+                append: true,
+            },
             ..PermissionSet::default()
         },
         sandbox_policy: SandboxPolicy::default(),
@@ -91,7 +97,10 @@ pub(crate) async fn sqlite_demo(path: PathBuf) -> Result<()> {
     println!("sqlite_path: {}", path.display());
     println!("session_id: {}", session.id);
     for event in events {
-        println!("- #{} {} {}", event.sequence, event.writer_package_id, event.kind);
+        println!(
+            "- #{} {} {}",
+            event.sequence, event.writer_package_id, event.kind
+        );
     }
     Ok(())
 }
@@ -118,17 +127,24 @@ pub(crate) struct BlankLoopResult {
     pub(crate) projection_id: String,
 }
 
-pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(runtime: &Runtime<S>) -> Result<BlankLoopResult> {
+pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
+    runtime: &Runtime<S>,
+) -> Result<BlankLoopResult> {
     for manifest in [
         "packages/official/assistant-lab/manifest.yaml",
         "packages/official/blank-experience/manifest.yaml",
     ] {
-        runtime.load_package(read_manifest(PathBuf::from(manifest)).await?).await?;
+        runtime
+            .load_package(read_manifest(PathBuf::from(manifest)).await?)
+            .await?;
     }
     let session = runtime
         .open_session(OpenSessionRequest {
             labels: vec!["play-create".to_string()],
-            active_package_set: vec!["official/blank-experience".to_string(), "official/assistant-lab".to_string()],
+            active_package_set: vec![
+                "official/blank-experience".to_string(),
+                "official/assistant-lab".to_string(),
+            ],
             metadata: json!({"surface": "play"}),
         })
         .await?;
@@ -150,7 +166,10 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(runtime: &Runtim
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant)?, transport: "demo".to_string() };
+    let assistant_context = ProtocolContext {
+        principal: serde_json::from_value(assistant)?,
+        transport: "demo".to_string(),
+    };
     let proposal = runtime
         .call_protocol(
             &assistant_context,
@@ -159,8 +178,17 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(runtime: &Runtim
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(proposal["output"]["requires_user_approval"] == json!(true), "assistant proposal must require approval");
-    let branch = runtime.fork_session(session.id.clone(), 0, json!({"proposal": proposal["output"].clone()})).await?;
+    anyhow::ensure!(
+        proposal["output"]["requires_user_approval"] == json!(true),
+        "assistant proposal must require approval"
+    );
+    let branch = runtime
+        .fork_session(
+            session.id.clone(),
+            0,
+            json!({"proposal": proposal["output"].clone()}),
+        )
+        .await?;
     let asset = runtime
         .put_asset(ygg_runtime::runtime::AssetPutRequest {
             origin_package_id: Some("official/blank-experience".to_string()),
@@ -179,7 +207,12 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(runtime: &Runtim
         })
         .await?;
     runtime.projection_rebuild(&projection_id).await?;
-    Ok(BlankLoopResult { session_id: session.id, branch_id: branch.id, asset_id: asset.id, projection_id })
+    Ok(BlankLoopResult {
+        session_id: session.id,
+        branch_id: branch.id,
+        asset_id: asset.id,
+        projection_id,
+    })
 }
 
 pub(crate) async fn play_create_demo() -> Result<()> {
@@ -191,5 +224,314 @@ pub(crate) async fn play_create_demo() -> Result<()> {
     println!("branch_id: {}", result.branch_id);
     println!("asset_id: {}", result.asset_id);
     println!("projection_id: {}", result.projection_id);
+    Ok(())
+}
+
+pub(crate) async fn playable_board_demo() -> Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+
+    // Load required packages
+    for manifest_path in [
+        "packages/official/playable-creation-board/manifest.yaml",
+        "packages/official/agentic-forge-lab/manifest.yaml",
+        "packages/official/experience-runtime-lab/manifest.yaml",
+    ] {
+        runtime
+            .load_package(read_manifest(PathBuf::from(manifest_path)).await?)
+            .await?;
+    }
+
+    let pkg = "official/playable-creation-board";
+
+    // 1. Launch
+    let launch = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/launch"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({"board_id": "board:demo", "title": "Demo Board", "modules": [{"id": "mod_1", "kind": "grid"}], "constraints": [{"id": "c_1", "rule": "max_markers=10"}]}),
+        })
+        .await?;
+    anyhow::ensure!(
+        launch.output["kind"] == json!("playable_creation_board_launched"),
+        "launch must succeed"
+    );
+    println!("[1] launch: board_id={}", launch.output["board_id"]);
+
+    // 2. Three player actions
+    for seq in 1..=3 {
+        let action = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                capability_id: format!("{pkg}/record_player_action"),
+                caller_package_id: None,
+                provider_package_id: Some(pkg.to_string()),
+                version: None,
+                input: json!({
+                    "board_id": "board:demo",
+                    "action_kind": "place_marker",
+                    "sequence": seq,
+                    "payload": {"marker_id": format!("m{}", seq), "position": [seq, seq]}
+                }),
+            })
+            .await?;
+        anyhow::ensure!(
+            action.output["kind"] == json!("playable_creation_board_action_recorded"),
+            "action {} must succeed",
+            seq
+        );
+        println!(
+            "[2.{seq}] action: action_id={}, state_delta={}",
+            action.output["action_id"], action.output["state_delta_asset_ref"]
+        );
+    }
+
+    // 3. project_state and render_payload
+    let state = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/project_state"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({"board_id": "board:demo", "lifecycle_state": "running"}),
+        })
+        .await?;
+    println!("[3] project_state: kind={}", state.output["kind"]);
+
+    let render = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/render_payload"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({"board_id": "board:demo"}),
+        })
+        .await?;
+    println!("[3b] render_payload: kind={}", render.output["kind"]);
+
+    // 4. Checkpoint + recovery
+    let checkpoint = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/create_checkpoint"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({
+                "board_id": "board:demo",
+                "state_snapshot": {"markers": 3},
+                "sequence": 1,
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        checkpoint.output["kind"] == json!("playable_creation_board_checkpoint"),
+        "checkpoint must succeed"
+    );
+    println!("[4] checkpoint: id={}", checkpoint.output["checkpoint_id"]);
+
+    let inspect = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/inspect_checkpoint"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({
+                "checkpoint_id": checkpoint.output["checkpoint_id"],
+                "board_id": "board:demo",
+                "state_snapshot": {"markers": 3},
+                "format": "snapshot",
+                "sequence": 1,
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        inspect.output["valid"] == json!(true),
+        "checkpoint must be valid"
+    );
+    println!("[4b] inspect: valid={}", inspect.output["valid"]);
+
+    let recovery = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/draft_recovery"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({
+                "board_id": "board:demo",
+                "failure_kind": "constraint_violation",
+                "last_checkpoint_ref": checkpoint.output["checkpoint_id"],
+            }),
+        })
+        .await?;
+    println!(
+        "[4c] recovery: strategy={}",
+        recovery.output["recovery_strategy"]
+    );
+
+    // 5. request_change + bind_agent_run
+    let change_req = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/request_change"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({
+                "board_id": "board:demo",
+                "objective": "add a new grid module with placement constraint",
+                "change_kind": "add_module",
+                "risk": "medium",
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        change_req.output["kind"] == json!("playable_creation_board_change_request"),
+        "request_change must succeed"
+    );
+    println!(
+        "[5] request_change: objective={}",
+        change_req.output["objective"]
+    );
+
+    let binding = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/bind_agent_run"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({
+                "board_id": "board:demo",
+                "agent_package_id": "official/agentic-forge-lab",
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        binding.output["kind"] == json!("playable_creation_board_agent_run_binding"),
+        "bind_agent_run must succeed"
+    );
+    println!(
+        "[5b] bind_agent_run: scoped={}",
+        binding.output["scoped_to_branch"]
+    );
+
+    // 6. Agentic forge loop (start_run → export_plan → create_candidate → compare → draft_promote)
+    let forge_pkg = "official/agentic-forge-lab";
+    let start_run = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{forge_pkg}/start_run"),
+            caller_package_id: None,
+            provider_package_id: Some(forge_pkg.to_string()),
+            version: None,
+            input: json!({"objective": "add grid module with placement constraint"}),
+        })
+        .await?;
+    let run_id = start_run.output["run_id"].as_str().unwrap_or("run_unknown");
+    println!("[6] forge start_run: run_id={}", run_id);
+
+    let export_plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{forge_pkg}/export_plan_graph"),
+            caller_package_id: None,
+            provider_package_id: Some(forge_pkg.to_string()),
+            version: None,
+            input: json!({"run_id": run_id}),
+        })
+        .await?;
+    println!(
+        "[6b] export_plan: nodes={}",
+        export_plan.output["plan_graph"]["nodes"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+    );
+
+    let create_cand = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{forge_pkg}/create_candidate"),
+            caller_package_id: None,
+            provider_package_id: Some(forge_pkg.to_string()),
+            version: None,
+            input: json!({
+                "run_id": run_id,
+                "target_branch_ref": "branch:target:default",
+                "scratch_branch_ref": "branch:scratch:default",
+                "target_revision": 1,
+                "changed_asset_refs": ["asset:board_state:board:demo"],
+                "diff_summary": "add grid module with placement constraint",
+            }),
+        })
+        .await?;
+    let cand_id = create_cand.output["candidate"]["candidate_id"]
+        .as_str()
+        .unwrap_or("cand_unknown");
+    println!(
+        "[6c] create_candidate: id={}, target_unchanged={}",
+        cand_id, create_cand.output["target_branch_unchanged"]
+    );
+
+    let compare = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{forge_pkg}/compare_candidate"),
+            caller_package_id: None,
+            provider_package_id: Some(forge_pkg.to_string()),
+            version: None,
+            input: json!({
+                "candidate_id": cand_id,
+                "target_revision": 1,
+                "current_target_revision": 1,
+            }),
+        })
+        .await?;
+    println!("[6d] compare: stale={}", compare.output["stale"]);
+
+    let promote = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{forge_pkg}/draft_promote_proposal"),
+            caller_package_id: None,
+            provider_package_id: Some(forge_pkg.to_string()),
+            version: None,
+            input: json!({
+                "candidate_id": cand_id,
+                "run_id": run_id,
+                "target_revision": 1,
+                "current_target_revision": 1,
+                "target_branch_ref": "branch:target:default",
+                "scratch_branch_ref": "branch:scratch:default",
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        promote.output["kind"] == json!("agentic_forge_promote_proposal_draft"),
+        "promote must produce proposal draft"
+    );
+    println!(
+        "[6e] draft_promote: target_unchanged={}, direct_mutation={}",
+        promote.output["target_branch_unchanged"], promote.output["direct_mutation"]
+    );
+
+    // 7. Provenance
+    let provenance = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: format!("{pkg}/explain_provenance"),
+            caller_package_id: None,
+            provider_package_id: Some(pkg.to_string()),
+            version: None,
+            input: json!({
+                "board_id": "board:demo",
+                "action_id": "action:board:demo:1",
+                "agent_run_ref": run_id,
+                "candidate_ref": cand_id,
+            }),
+        })
+        .await?;
+    println!(
+        "[7] provenance: chain_len={}",
+        provenance.output["chain"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+    );
+
+    println!("playable-creation-board demo ok");
     Ok(())
 }
