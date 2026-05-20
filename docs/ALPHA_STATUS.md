@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（执行中）。
 - **Conformance：** 245 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch（按领域委托的 helper）、runtime official in-process handlers（provider-package indexed dispatch、共享 safety 模块）、event store（P3 原子 append + 查询 pushdown + 并发 correctness）已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Performance & Code Health Beta 已完成。Yggdrasil 现在具备可重复 `ygg perf baseline`、可筛选/计时 conformance feedback loop、低风险 dispatch/diagnostics 结构收敛、SQLite/in-memory atomic append 与 audit query pushdown、Web render scheduler / bounded JSON preview / Forge render diagnostics。临时计划已删除，持久指南见 `docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`；红线是不做官方包 fast path、不绕过 permission/hook/schema/redaction、不让 Web 读取 runtime internals、不用宏/codegen/RawValue 做无证据重写。
+- **当前主线：** External Project Operating Plane Alpha 执行中。目标是让 Yggdrasil 不只接受已适配 package，也能围绕未适配的 git/npm/local 项目提供静态 intake、workspace plan、风险摘要、受控 workspace、项目聚合 UI 与 adapter/wrapper 生成，同时保持 kernel content-free。临时计划见 `docs/roadmap/EXTERNAL_PROJECT_OPERATING_PLANE_ALPHA.md`；外部调研证据位于 `/tmp/opencode/ygg-external-project-plane-20260520/`。红线：external project 不是 package，managed workspace 不是 kernel object，adapter/wrapper 才是普通 package；危险动作必须 policy/proposal/audit gated。
 
 ## 已实现
 

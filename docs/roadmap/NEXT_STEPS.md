@@ -28,7 +28,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase F：已完成；第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断，privilege escalation 拒绝）、budget/deadline 契约（describe_contract 中 run_constraints，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：[`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Conformance 包含 180 个具名用例；状态已收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
 - Experience Beta 0 — Thin Experience Runtime Contract：已完成；`official/experience-runtime-lab` 提供 describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run 能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；`sdk/typescript/experience-runtime` TS SDK（85 项自测断言）；`--template experience-runtime` 生成 deterministic/no-network subprocess；Forge profile 自动加载；7 个 conformance 用例。持久指南：[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.md)。Conformance 包含 187 个具名用例。
 - Experience Beta 1 — First Real Playable Vertical Slice：已完成；`official/playable-creation-board` 提供 describe_contract/launch/project_state/render_payload/record_player_action/request_change/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run/explain_provenance 共 11 项能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；package-owned board/module/constraint/marker state；player action 产生 state_delta_asset_ref/projection_ref/sequence/provenance；request_change 输出 structured agent objective / allowed_change_kinds / risk/budget / bindable refs（不是聊天消息）；bind_agent_run 产出 scoped agentic-forge binding；explain_provenance 输出 player_action_event→state_delta_asset→checkpoint→agent_run→candidate→proposal→projection_rebuild 因果链；checkpoint/recovery 对齐 experience-runtime-lab 形状；raw-secret blocking；第三方 agentic-forge 替换 composition 证明无 official priority；CLI demo `playable-board-demo`；Forge profile 自动加载；10 个 conformance 用例。Conformance 包含 197 个具名用例。
-- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。Experience Beta 0–6 已完成。Performance & Code Health Beta 已完成，持久指南见 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.md)。
+- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。Experience Beta 0–6 已完成。Performance & Code Health Beta 已完成，持久指南见 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.md)。External Project Operating Plane Alpha 执行中，临时计划见 [`docs/roadmap/EXTERNAL_PROJECT_OPERATING_PLANE_ALPHA.md`](./EXTERNAL_PROJECT_OPERATING_PLANE_ALPHA.md)。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -283,6 +283,23 @@ Phase J 非目标：
 - **P5 — Durable cleanup**：删除临时计划，新增 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.md)，并把 README、ALPHA_STATUS、NEXT_STEPS、CONFORMANCE_MATRIX 收敛到持久指南。
 
 红线：不做官方包 fast path；不绕过 permission/hook/schema/redaction/audit；Web 不读 SQLite/runtime internals；不新增 kernel content/product namespace；不做无证据的 macro/codegen/RawValue/arena 重写。
+
+
+## External Project Operating Plane Alpha（执行中）
+
+目标：让 Yggdrasil 能围绕未适配的 git/npm/local/archive 项目提供静态 intake、workspace plan、风险摘要、受控 workspace、项目聚合 UI 和 adapter/wrapper 生成，而不是要求所有项目先成为 Ygg package。
+
+阶段：
+
+- **E0 — Plan, Research, ADR**：写入双语临时计划，保存外部证据，切换当前主线。
+- **E1 — Project Intake Lab**：`official/project-intake-lab`，no-execution 项目识别、stack detection、workspace plan、risk summary、candidate entrypoints、adapter plan。
+- **E2 — Workspace Action Policy Boundary**：`official/workspace-lab`，危险动作 taxonomy、deny-by-default fake executor shape、policy/audit/proposal gate。
+- **E3 — Managed Workspace Deterministic Proof**：fixture workspace state/projection/log/entrypoint/patch flow，不做任意项目真实执行。
+- **E4 — Web Project Aggregation UI**：Home/Forge 显示 external projects、workspaces、risk、entrypoints、logs、adapter candidates，public protocol-only。
+- **E5 — Adapter / Wrapper Generation Proof**：`official/adapter-lab` 从 fixture workspace 生成 ordinary subprocess adapter package。
+- **E6 — Durable cleanup**：删除临时计划，收敛到外部项目操作平面指南、ALPHA_STATUS、NEXT_STEPS、CONFORMANCE_MATRIX。
+
+红线：external project 不是 package；managed workspace 不是 kernel object；adapter/wrapper 才是 package；不新增 `kernel.project.*` / `kernel.workspace.*` / `kernel.git.*` / `kernel.npm.*` / `kernel.deploy.*`；危险动作必须 policy/proposal/audit gated。
 
 ## 内核范围内的无限期延后
 
