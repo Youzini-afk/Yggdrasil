@@ -15,6 +15,7 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `official/model-connector-lab`
 - `official/model-provider-lab`
 - `official/model-routing-lab`
+- `official/inference-local-lab`
 - `official/assistant-lab`
 - `official/pi-agent-runtime-lab`
 - `official/capability-tool-bridge-lab`
@@ -39,9 +40,11 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 
 `official/model-connector-lab` validates provider profiles, masks secret references, and drafts discovery plans without network calls or inference.
 
-`official/model-provider-lab` normalizes provider requests across eight families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, provides fake/local invoke for all eight families with auditable outbound request shapes, normalizes provider stream events (delta SSE, semantic SSE, typed chunk stream) into StreamFrameEnvelope frames, and explains provider errors, all without network calls or inference.
+`official/model-provider-lab` is a cloud API adapter lab, not the Yggdrasil model abstraction. It builds adapter-local request shapes across eight cloud families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, provides fake/local invoke for all eight families with auditable outbound request shapes, normalizes provider stream events (delta SSE, semantic SSE, typed chunk stream) into StreamFrameEnvelope frames, and explains provider errors, all without private kernel privilege.
 
 `official/model-routing-lab` resolves package-owned consumer slots to static model profile route plans with explicit fallbacks and normalized params, without inference.
+
+`official/inference-local-lab` is a deterministic non-HTTP fake local inference provider proof. It proves inference capability seams can work without HTTP, bearer tokens, JSON cloud provider schemas, network access, or secrets. It is not a local model platform.
 
 `official/assistant-lab` intentionally produces proposals that require user approval. It is not a privileged mutation path.
 

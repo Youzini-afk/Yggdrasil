@@ -1,16 +1,29 @@
-# Model Provider Integration
+# Cloud Model Provider Integration
 
 > [English](./MODEL_PROVIDER_INTEGRATION.en.md) · [中文](./MODEL_PROVIDER_INTEGRATION.md)
 
-本指南记录 Yggdrasil 的 model provider 接入方式。它不是中转站、不是计费系统、不是 provider 后台，也不是内核模型抽象。模型接入必须作为普通能力包工作，并遵守同一套 manifest、权限、`secret_ref`、outbound audit、stream/cancel 和 conformance 边界。
+本指南记录 Yggdrasil 的 **cloud model provider adapter** 接入方式。它不是中转站、不是计费系统、不是 provider 后台，也不是内核模型抽象。云模型接入必须作为普通能力包工作，并遵守同一套 manifest、权限、`secret_ref`、outbound audit、stream/cancel 和 conformance 边界。
+
+## Scope：cloud adapter，不是平台抽象
+
+`official/model-provider-lab` 已被明确降级为 **cloud API adapter lab**：
+
+- 它不是 Yggdrasil 的模型抽象。
+- 它不是 LiteLLM / OneAPI compatible gateway。
+- 它不是 provider marketplace、计费系统或渠道后台。
+- 它没有 kernel privilege；官方包和第三方包必须走同一套 public protocol / permission / secret / outbound boundary。
+- OpenAI、Anthropic、Gemini、OpenRouter、DeepSeek、xAI、Fireworks 的 schema 是 adapter-local details，不是平台公共协议。
+- `normalize_request` 是 cloud adapter 内部 request builder helper，不是 Yggdrasil canonical inference request。
+
+如果你要编写 transport-neutral inference 包，请看 [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.md)。如果你要证明非 HTTP / 本地 / 自托管 seam，请参考 `official/inference-local-lab`。
 
 ## 当前交付
 
 Model Provider Integration Alpha 与 Live Model Calls Alpha 已完成：
 
 - `integrations/model-providers/` 保存 provider research ledger、provider matrix、stream compatibility notes 和 error taxonomy。
-- `sdk/typescript/model-provider-adapter` 提供纯 TypeScript adapter，用于 provider profile、请求归一化、错误分类和 stream event 解析；它不出网、不做计费、不访问私有 runtime。
-- `official/model-provider-lab` 是普通官方能力包，覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 八类 provider family。
+- `sdk/typescript/model-provider-adapter` 提供纯 TypeScript **cloud adapter**，用于 provider profile、adapter-local request builder、错误分类和 stream event 解析；它不出网、不做计费、不访问私有 runtime。
+- `official/model-provider-lab` 是普通官方 **cloud adapter** 能力包，覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 八类 cloud provider family。
 - `official/model-provider-lab` 能力包括：`list_supported_families`、`validate_profile`、`normalize_request`、`invoke`、`normalize_stream`、`explain_error`、`echo`。
 - `invoke` 保留 fake/local provider adapter path：产出 provider 形状的 response 和可审计 `outbound_request_shape`，`network_performed=false`、`inference_performed=false`、`executor_kind=fake_local`，用于默认 conformance 和 adapter 形状验证。
 - Host 侧已有 content-free `OutboundExecutor` boundary，默认 deny-all，并有 fake executor、loopback live HTTP executor 和 hostile conformance；这证明 request shape 可以走 host policy/audit 边界，但不声称 OS 级拦截 subprocess 任意联网。
@@ -78,7 +91,9 @@ OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观
 
 ### `normalize_request`
 
-把统一输入转成 provider-specific request shape。示例：
+`normalize_request` 是 cloud adapter package 的内部 request-builder helper：把 adapter-local input 转成 provider-specific request shape。它不是 Yggdrasil 的 canonical inference request，也不应被第三方包当成平台统一 chat schema。Transport-neutral inference contract 位于 `sdk/typescript/inference-capability`。
+
+示例：
 
 - OpenAI Chat：`/v1/chat/completions`
 - OpenAI Responses：`/v1/responses`
@@ -181,12 +196,21 @@ YGG_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p ygg-cli -- conformance
 
 默认 CI / 默认 conformance 不会访问公网。
 
+## 与 `inference-capability` / `inference-local-lab` 的关系
+
+- `sdk/typescript/inference-capability`：transport-neutral inference envelope、stream frame、error taxonomy、provider capability manifest helper；不要求 URL/header/status code/OpenAI messages。
+- `official/inference-local-lab`：deterministic non-HTTP fake local provider proof；证明 inference seam 不依赖 HTTP、Bearer、JSON provider schema 或网络。
+- `official/model-provider-lab`：cloud API adapter lab；用于现实云 API 接入，不定义平台抽象。
+
+三者的依赖方向是：transport-neutral contract → cloud/local adapter packages。Kernel 不导入、不知道、不硬编码这些 provider 语义。
+
 ## 非目标
 
 - 用户余额、充值、计费后台、倍率、渠道管理系统。
 - 托管平台代理 key。
 - `kernel.model.*`、`kernel.prompt.*`、`kernel.chat.*`、`kernel.embedding.*`。
 - 把 OpenAI-compatible 当作唯一模型协议。
+- 把 `normalize_request` 当作平台 canonical request。
 - 让官方包绕过 manifest、permission、secret、network 或 audit 边界。
 
 ## 验证
@@ -198,4 +222,4 @@ cargo run -p ygg-cli -- package check packages/official/model-provider-lab/manif
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-当前 conformance 包含 `official.model_provider_lab`、`official.model_provider_lab_invoke_core`、`official.model_provider_lab_normalize_stream`、public `kernel.outbound.execute`、secret header injection、live loopback provider shapes、provider quirk fixtures 和 outbound hostile cases，共 145 个具名 CLI 用例。
+当前 conformance 包含 `official.model_provider_lab`、`official.model_provider_lab_invoke_core`、`official.model_provider_lab_normalize_stream`、`official.inference_local_lab_*`、public `kernel.outbound.execute`、secret header injection、live loopback provider shapes、provider quirk fixtures、non-HTTP inference seam proof 和 outbound hostile cases，共 150 个具名 CLI 用例。

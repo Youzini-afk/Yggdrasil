@@ -12,7 +12,7 @@
 - **Conformance：** 150 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Creative Inference Capability Alpha C2 已交付。C0 ADR 和 C1 transport-neutral inference capability contract（`sdk/typescript/inference-capability` + `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`）已完成；C2 non-HTTP fake local provider proof（`official/inference-local-lab` + 5 个 conformance 用例）已完成；下一阶段是 C3 cloud adapter package reposition。立场保持：Yggdrasil 近期交付 API-first，但架构不能 API-shaped；cloud provider 只是普通 adapter package，不是平台模型抽象。临时计划见 `docs/roadmap/CREATIVE_INFERENCE_CAPABILITY_ALPHA.md`。
+- **当前主线：** Creative Inference Capability Alpha C3 已交付。C0 ADR、C1 transport-neutral inference capability contract、C2 non-HTTP fake local provider proof 已完成；C3 已把 `official/model-provider-lab` 明确降级为 cloud API adapter lab（不是 Yggdrasil 模型抽象、不是 API gateway、无 kernel privilege）。下一阶段是 C4 Ygg-native inference proposal vertical slice。
 
 ## 已实现
 
@@ -81,7 +81,7 @@
 - `official/context-lab` —— bounded context block assembly、layer inspection、budget planning 与 template rendering。
 - `official/text-transform-lab` —— deterministic text transform import、validation、preview、pipeline explanation 与 diagnostics。
 - `official/model-connector-lab` —— no-network provider family metadata、profile validation、secret masking、discovery plans 与 compatibility reports。
-- `official/model-provider-lab` —— no-network 八家 provider 的 request normalization、profile validation（拒绝 raw secret）、fake/local invoke（覆盖全部八家：OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；outbound_request_shape 可审计）、stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；覆盖全部八家；terminal_frame_consistent 校验；provider event 输入归一化）、error explanation、echo。invoke 要求 HTTPS base_url、拒绝 raw credential/header。
+- `official/model-provider-lab` —— cloud API adapter lab，不是 Yggdrasil 模型抽象、不是 API gateway、无 kernel privilege。提供 no-network 八家 cloud provider 的 adapter-local request builders/profile validation（拒绝 raw secret）、fake/local invoke（覆盖全部八家：OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；outbound_request_shape 可审计）、stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；覆盖全部八家；terminal_frame_consistent 校验；provider event 输入归一化）、error explanation、echo。`normalize_request` 是 package-local helper，不是平台 canonical inference request。
 - `official/model-routing-lab` —— no-inference consumer-slot binding、route planning、fallback planning 与 params normalization。
 - `official/assistant-lab` —— assistant-action 能力，返回需要审批的 proposal。
 - `official/pi-agent-runtime-lab` —— 参考代理运行时包，deterministic no-network run plan、trace summary、proposal draft 与 echo。

@@ -1,8 +1,8 @@
 schema_version: 1
 id: official/model-provider-lab
 version: 0.1.0
-display_name: Official Model Provider Lab
-description: No-network model provider family metadata, profile validation, request normalization, fake/local invoke (all eight families), stream normalization (delta SSE, semantic SSE, typed chunk stream → StreamFrameEnvelope frames), and error explanation across eight provider families.
+display_name: Official Cloud Provider Adapter Lab
+description: Ordinary cloud API adapter lab for eight provider families. Not the Yggdrasil model abstraction, not an API gateway, and not privileged by the kernel. Provides package-local profile validation, cloud request builders, fake/local invoke shapes, stream normalization, and error explanation.
 entry:
   kind: rust_inproc
   crate_ref: official-foundation
@@ -59,18 +59,18 @@ contributes:
   surfaces:
     - id: official/model-provider-lab/home-card
       slot: home_card
-      title: Model Provider Lab
-      description: Inspect provider families, validate profiles, and normalize requests without network calls.
+      title: Cloud Provider Adapter Lab
+      description: Inspect cloud API adapter families, validate profiles, and build adapter-local request shapes without network calls.
       capability_id: official/model-provider-lab/list_supported_families
     - id: official/model-provider-lab/forge-panel
       slot: forge_panel
-      title: Model Provider Inspector
-      description: Validate provider profiles, normalize requests, and explain errors across eight provider families.
+      title: Cloud Provider Adapter Inspector
+      description: Validate cloud provider profiles, build adapter-local request shapes, and explain errors across eight cloud API families.
       capability_id: official/model-provider-lab/validate_profile
     - id: official/model-provider-lab/assistant-action
       slot: assistant_action
-      title: Draft Provider Profile Plan
-      description: Prepare approval-gated provider profile normalization without raw secrets or network.
+      title: Draft Cloud Provider Profile Plan
+      description: Prepare approval-gated cloud adapter profile normalization without raw secrets or network.
       capability_id: official/model-provider-lab/normalize_request
       approval_policy: user_approval
 permissions:

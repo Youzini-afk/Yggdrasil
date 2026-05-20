@@ -77,7 +77,7 @@ Delivered:
 
 This is not a local model platform; it is a seam proof that prevents the abstraction from hardening into an HTTP proxy.
 
-## Phase C3 — Cloud adapter package reposition
+## Phase C3 — Cloud adapter package reposition (complete)
 
 Goal: downgrade existing `official/model-provider-lab` into a cloud adapter package, not a platform abstraction.
 
@@ -86,7 +86,7 @@ Candidate deliverables:
 - Documentation and manifest descriptions call it a cloud API adapter lab.
 - `MODEL_PROVIDER_INTEGRATION` adds negative claims: not the Ygg model abstraction, not an API gateway, no kernel privilege.
 - `normalize_request` is described only as a package-local adapter helper, not a canonical platform schema.
-- Conformance wording changes from “model provider abstraction” to “cloud adapter coverage”.
+- Conformance/status wording changes from “model provider abstraction” to “cloud adapter coverage”.
 
 ## Phase C4 — Ygg-native inference proposal vertical slice
 

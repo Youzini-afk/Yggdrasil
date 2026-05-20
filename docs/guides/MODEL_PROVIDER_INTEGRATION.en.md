@@ -1,16 +1,29 @@
-# Model Provider Integration
+# Cloud Model Provider Integration
 
 > [English](./MODEL_PROVIDER_INTEGRATION.en.md) · [中文](./MODEL_PROVIDER_INTEGRATION.md)
 
-This guide documents Yggdrasil's model provider integration path. It is not a relay gateway, billing system, provider admin backend, or kernel model abstraction. Model integration must be delivered as ordinary capability packages using the same manifest, permission, `secret_ref`, outbound audit, stream/cancel, and conformance boundaries as every other package.
+This guide documents Yggdrasil's **cloud model provider adapter** integration path. It is not a relay gateway, billing system, provider admin backend, or kernel model abstraction. Cloud model integration must be delivered as ordinary capability packages using the same manifest, permission, `secret_ref`, outbound audit, stream/cancel, and conformance boundaries as every other package.
+
+## Scope: cloud adapter, not platform abstraction
+
+`official/model-provider-lab` has been explicitly downgraded to a **cloud API adapter lab**:
+
+- It is not the Yggdrasil model abstraction.
+- It is not a LiteLLM / OneAPI compatible gateway.
+- It is not a provider marketplace, billing system, or channel admin backend.
+- It has no kernel privilege; first-party and third-party packages must use the same public protocol / permission / secret / outbound boundary.
+- OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, xAI, and Fireworks schemas are adapter-local details, not platform public protocol.
+- `normalize_request` is a cloud-adapter-local request builder helper, not the Yggdrasil canonical inference request.
+
+For transport-neutral inference packages, read [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.en.md). For the non-HTTP / local / self-host seam proof, see `official/inference-local-lab`.
 
 ## Current delivery
 
 Model Provider Integration Alpha and Live Model Calls Alpha are complete:
 
 - `integrations/model-providers/` stores the provider research ledger, provider matrix, stream compatibility notes, and error taxonomy.
-- `sdk/typescript/model-provider-adapter` provides a pure TypeScript adapter for provider profiles, request normalization, error classification, and stream event parsing. It does not go online, do billing, or access private runtime APIs.
-- `official/model-provider-lab` is an ordinary official capability package covering eight provider families: OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks.
+- `sdk/typescript/model-provider-adapter` provides a pure TypeScript **cloud adapter** for provider profiles, adapter-local request builders, error classification, and stream event parsing. It does not go online, do billing, or access private runtime APIs.
+- `official/model-provider-lab` is an ordinary official **cloud adapter** capability package covering eight cloud provider families: OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks.
 - `official/model-provider-lab` exposes `list_supported_families`, `validate_profile`, `normalize_request`, `invoke`, `normalize_stream`, `explain_error`, and `echo`.
 - `invoke` remains a fake/local provider adapter path for deterministic default conformance and adapter-shape validation: it returns provider-shaped responses and auditable `outbound_request_shape`, while keeping `network_performed=false`, `inference_performed=false`, and `executor_kind=fake_local`.
 - The host has a content-free `OutboundExecutor` boundary. It defaults to deny-all and has fake executor, loopback live HTTP executor, and hostile conformance coverage. This proves request shapes can flow through host policy/audit boundaries, but it does not claim OS-level interception of arbitrary subprocess networking.
@@ -78,7 +91,9 @@ Checks family, model, credential, base URL, and headers, returning:
 
 ### `normalize_request`
 
-Turns common input into provider-specific request shapes, such as:
+`normalize_request` is an internal request-builder helper for the cloud adapter package: it converts adapter-local input into provider-specific request shapes. It is not the Yggdrasil canonical inference request and should not be treated as a platform-wide unified chat schema. The transport-neutral inference contract lives in `sdk/typescript/inference-capability`.
+
+Examples:
 
 - OpenAI Chat: `/v1/chat/completions`
 - OpenAI Responses: `/v1/responses`
@@ -181,12 +196,21 @@ YGG_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p ygg-cli -- conformance
 
 Default CI / default conformance never accesses public internet.
 
+## Relationship to `inference-capability` / `inference-local-lab`
+
+- `sdk/typescript/inference-capability`: transport-neutral inference envelope, stream frame, error taxonomy, and provider capability manifest helpers; does not require URL/header/status-code/OpenAI messages fields.
+- `official/inference-local-lab`: deterministic non-HTTP fake local provider proof; proves the inference seam does not depend on HTTP, bearer tokens, JSON provider schemas, or network.
+- `official/model-provider-lab`: cloud API adapter lab for realistic cloud provider integration; not the platform abstraction.
+
+The dependency direction is: transport-neutral contract → cloud/local adapter packages. The kernel does not import, know, or hardcode these provider semantics.
+
 ## Non-goals
 
 - User balances, top-ups, billing admin, multipliers, or channel management systems.
 - Hosted platform relay keys.
 - `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, or `kernel.embedding.*`.
 - Treating OpenAI-compatible as the only model protocol.
+- Treating `normalize_request` as the platform canonical request.
 - Letting official packages bypass manifest, permission, secret, network, or audit boundaries.
 
 ## Validation
@@ -198,4 +222,4 @@ cargo run -p ygg-cli -- package check packages/official/model-provider-lab/manif
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-Current conformance includes `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, public `kernel.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, and outbound hostile cases: 145 named CLI cases total.
+Current conformance includes `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, `official.inference_local_lab_*`, public `kernel.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound hostile cases: 150 named CLI cases total.
