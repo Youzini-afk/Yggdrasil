@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -107,21 +107,30 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     }
 
     // Checkpoint/recovery capability coverage for experience packages
+    // Build a BTreeSet for exact capability suffix lookups
     let cap_ids: Vec<&str> = manifest.provides.iter().map(|c| c.id.as_str()).collect();
+    let cap_suffix_set: BTreeSet<&str> = cap_ids.iter()
+        .filter_map(|c| c.rfind('/').map(|i| &c[i..]))
+        .collect();
     if has_experience_entry {
-        let has_launch = cap_ids.iter().any(|c| c.contains("/launch") || c.contains("/describe_contract") || c.contains("/describe-contract"));
+        let has_launch = cap_suffix_set.contains("/launch")
+            || cap_suffix_set.contains("/describe_contract")
+            || cap_suffix_set.contains("/describe-contract");
         if !has_launch {
             warnings.push("experience_entry surface has no launch/describe_contract capability — surface activation may fail".to_string());
         }
-        let has_checkpoint = cap_ids.iter().any(|c| c.contains("/create_checkpoint") || c.contains("/create-checkpoint"));
-        let has_recovery = cap_ids.iter().any(|c| c.contains("/draft_recovery") || c.contains("/draft-recovery"));
+        let has_checkpoint = cap_suffix_set.contains("/create_checkpoint") || cap_suffix_set.contains("/create-checkpoint");
+        let has_recovery = cap_suffix_set.contains("/draft_recovery") || cap_suffix_set.contains("/draft-recovery");
         if !has_checkpoint {
             warnings.push("missing create_checkpoint capability — experience cannot be saved/restored mid-session".to_string());
         }
         if !has_recovery {
             warnings.push("missing draft_recovery capability — experience cannot recover from failures".to_string());
         }
-        let has_request_change = cap_ids.iter().any(|c| c.contains("/request_change") || c.contains("/request-change") || c.contains("/draft-recovery") || c.contains("/draft_recovery"));
+        let has_request_change = cap_suffix_set.contains("/request_change")
+            || cap_suffix_set.contains("/request-change")
+            || cap_suffix_set.contains("/draft-recovery")
+            || cap_suffix_set.contains("/draft_recovery");
         if has_assistant_action && !has_request_change {
             warnings.push("assistant_action surface present but no request_change/draft_recovery capability — assistant cannot propose changes".to_string());
         }

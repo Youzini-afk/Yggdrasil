@@ -51,16 +51,17 @@ Acceptance: default `ygg conformance` still runs all cases; `--list` prints ids 
 
 Reference: [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md)
 
-## Phase P2 — Low-risk Structural Split
+## Phase P2 — Low-risk Structural Split (complete)
 
 Goal: control growth without changing external behavior.
 
 Deliverables:
 
-- Split `runtime/protocol_dispatch.rs` by domain into focused modules/functions while keeping `KernelMethod` as source of truth.
-- Replace linear official in-process `try_handle` chain with explicit registry / handler table while preserving package-aware routing.
-- Behavior-preserving split/helper extraction for the largest in-process labs, especially repeated raw-secret/rejection/contract builders.
-- Replace obvious O(n²) composition/package diagnostics scans with sets/indexes.
+- Split `runtime/protocol_dispatch.rs` by domain into focused helper functions while keeping `KernelMethod` as source of truth. Top-level match delegates to host/surface/outbound/permission/proposal/session/event/package/capability/extension/hook/asset/projection helpers.
+- Replace linear official in-process `try_handle` chain with `provider_package_id` indexed dispatch. `dispatch_official` matches `provider_package_id.as_str()` for direct dispatch to the corresponding module; unknown official packages fall through to `common::try_handle`; non-official packages are never served by the official fallback.
+- Safety helper convergence: the 5 inproc labs (agentic_forge, experience_observability, memory, playable_creation_board, sharing) with identical `is_secret_ref_value` / `looks_like_raw_secret_value` / `contains_raw_secret` now share a `inproc/safety.rs` module. Marketplace/billing/signing field checks remain local to `sharing_lab`. No change to rejection output text or JSON shape.
+- Replace obvious `.iter().any()` in composition/package diagnostics with `BTreeSet`/`BTreeMap`/`HashSet` index lookups. Suffix/contains semantics carefully preserved via helpers.
+- Web `forge.ts` uses `surfacesByPackage` group index for `packagesWithoutSurfaces`, avoiding repeated O(packages × surfaces) filter.
 
 Acceptance: public protocol unchanged; replacement/no-official-priority conformance still passes; no macro/codegen; workspace tests, conformance, and package checks pass.
 

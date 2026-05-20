@@ -184,8 +184,10 @@ function renderAuthoringDiagnostics(
   projections: ProjectionRecord[]
 ) {
   const experienceEntries = allSurfaces.filter((s) => s.surface.slot === "experience_entry");
+  // Build indexed lookup for packages without caps/surfaces (avoids repeated O(n) filter per package)
+  const surfacesByPackage: Record<string, SurfaceContributionRecord[]> = groupBy(allSurfaces, (s) => s.package_id);
   const packagesWithoutCaps = packages.filter((p) => p.capability_count === 0);
-  const packagesWithoutSurfaces = packages.filter((p) => allSurfaces.filter((s) => s.package_id === p.id).length === 0);
+  const packagesWithoutSurfaces = packages.filter((p) => (surfacesByPackage[p.id] ?? []).length === 0);
   return `
     <div class="diagnostics-grid">
       <div class="metric-card"><strong>${packages.length}</strong><span>Packages</span></div>

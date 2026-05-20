@@ -121,86 +121,10 @@ const FORBIDDEN_INFERENCE_ACTIONS: &[&str] = &[
 ];
 
 // ---------------------------------------------------------------------------
-// Raw-secret detection (conservative, shared with kernel scanning)
+// Raw-secret detection (delegated to shared safety module)
 // ---------------------------------------------------------------------------
 
-const SECRET_FIELD_NAMES: &[&str] = &[
-    "api_key",
-    "secret",
-    "token",
-    "password",
-    "private_key",
-    "access_token",
-    "refresh_token",
-    "auth_token",
-];
-
-const SECRET_VALUE_PREFIXES: &[&str] = &["sk-", "Bearer ", "bearer "];
-
-fn is_secret_ref_value(val: &str) -> bool {
-    val.starts_with("secret_ref:")
-        || val.starts_with("secretRef:")
-        || val.starts_with("secret-ref:")
-        || val.starts_with("host:")
-}
-
-fn looks_like_raw_secret_value(val: &str) -> bool {
-    for prefix in SECRET_VALUE_PREFIXES {
-        if val.starts_with(prefix) {
-            return true;
-        }
-    }
-    // High-entropy heuristic: long strings with mixed case/digits
-    if val.len() >= 32 {
-        let has_upper = val.chars().any(|c| c.is_ascii_uppercase());
-        let has_lower = val.chars().any(|c| c.is_ascii_lowercase());
-        let has_digit = val.chars().any(|c| c.is_ascii_digit());
-        if has_upper && has_lower && has_digit && val.len() >= 40 {
-            return true;
-        }
-    }
-    false
-}
-
-/// Recursively scan a value for raw-secret-like content.
-/// Returns true if any suspicious field name or value pattern is found.
-fn contains_raw_secret(value: &Value) -> bool {
-    match value {
-        Value::Object(map) => {
-            for (key, val) in map {
-                let key_lower = key.to_lowercase();
-                for secret_name in SECRET_FIELD_NAMES {
-                    if key_lower == *secret_name || key_lower.contains(secret_name) {
-                        if let Some(s) = val.as_str() {
-                            if !is_secret_ref_value(s) {
-                                return true;
-                            }
-                        } else if !val.is_null() {
-                            return true;
-                        }
-                    }
-                }
-                if let Some(s) = val.as_str() {
-                    if looks_like_raw_secret_value(s) {
-                        return true;
-                    }
-                }
-                if contains_raw_secret(val) {
-                    return true;
-                }
-            }
-        }
-        Value::Array(arr) => {
-            for item in arr {
-                if contains_raw_secret(item) {
-                    return true;
-                }
-            }
-        }
-        _ => {}
-    }
-    false
-}
+use super::safety;
 
 // ---------------------------------------------------------------------------
 // Dispatch
@@ -317,7 +241,7 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn start_run(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Check for raw-secret-like content in input
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "agentic_forge_run_rejected",
             "redaction_state": "unsafe_blocked",
@@ -509,7 +433,7 @@ fn export_plan_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn create_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Raw-secret check
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "agentic_forge_candidate_rejected",
             "redaction_state": "unsafe_blocked",
@@ -620,7 +544,7 @@ fn compare_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Raw-secret check
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "agentic_forge_promote_rejected",
             "redaction_state": "unsafe_blocked",
@@ -771,7 +695,7 @@ fn explain_branch_policy(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn run_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Raw-secret check
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "agentic_forge_inference_rejected",
             "redaction_state": "unsafe_blocked",
@@ -884,7 +808,7 @@ fn run_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn replay_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Raw-secret check
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "agentic_forge_replay_rejected",
             "redaction_state": "unsafe_blocked",
@@ -1218,12 +1142,12 @@ mod tests {
 
     #[test]
     fn contains_raw_secret_detects_sk_prefix() {
-        assert!(contains_raw_secret(&json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})));
-        assert!(contains_raw_secret(&json!({"token": "Bearer xyz"})));
-        assert!(!contains_raw_secret(&json!({"api_key": "secret_ref:env:MY_KEY"})));
-        assert!(!contains_raw_secret(&json!({"api_key": "secret-ref:env:MY_KEY"})));
-        assert!(!contains_raw_secret(&json!({"api_key": "host:env:MY_KEY"})));
-        assert!(!contains_raw_secret(&json!({"objective": "safe text"})));
+        assert!(safety::contains_raw_secret(&json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})));
+        assert!(safety::contains_raw_secret(&json!({"token": "Bearer xyz"})));
+        assert!(!safety::contains_raw_secret(&json!({"api_key": "secret_ref:env:MY_KEY"})));
+        assert!(!safety::contains_raw_secret(&json!({"api_key": "secret-ref:env:MY_KEY"})));
+        assert!(!safety::contains_raw_secret(&json!({"api_key": "host:env:MY_KEY"})));
+        assert!(!safety::contains_raw_secret(&json!({"objective": "safe text"})));
     }
 
     // -----------------------------------------------------------------------

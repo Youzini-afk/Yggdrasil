@@ -120,83 +120,10 @@ const CAUSAL_STEP_KINDS: &[&str] = &[
 ];
 
 // ---------------------------------------------------------------------------
-// Raw-secret detection (shared conservative heuristic)
+// Raw-secret detection (delegated to shared safety module)
 // ---------------------------------------------------------------------------
 
-const SECRET_FIELD_NAMES: &[&str] = &[
-    "api_key",
-    "secret",
-    "token",
-    "password",
-    "private_key",
-    "access_token",
-    "refresh_token",
-    "auth_token",
-];
-
-const SECRET_VALUE_PREFIXES: &[&str] = &["sk-", "Bearer ", "bearer "];
-
-fn is_secret_ref_value(val: &str) -> bool {
-    val.starts_with("secret_ref:")
-        || val.starts_with("secretRef:")
-        || val.starts_with("secret-ref:")
-        || val.starts_with("host:")
-}
-
-fn looks_like_raw_secret_value(val: &str) -> bool {
-    for prefix in SECRET_VALUE_PREFIXES {
-        if val.starts_with(prefix) {
-            return true;
-        }
-    }
-    if val.len() >= 40 {
-        let has_upper = val.chars().any(|c| c.is_ascii_uppercase());
-        let has_lower = val.chars().any(|c| c.is_ascii_lowercase());
-        let has_digit = val.chars().any(|c| c.is_ascii_digit());
-        if has_upper && has_lower && has_digit {
-            return true;
-        }
-    }
-    false
-}
-
-fn contains_raw_secret(value: &Value) -> bool {
-    match value {
-        Value::Object(map) => {
-            for (key, val) in map {
-                let key_lower = key.to_lowercase();
-                for secret_name in SECRET_FIELD_NAMES {
-                    if key_lower == *secret_name || key_lower.contains(secret_name) {
-                        if let Some(s) = val.as_str() {
-                            if !is_secret_ref_value(s) {
-                                return true;
-                            }
-                        } else if !val.is_null() {
-                            return true;
-                        }
-                    }
-                }
-                if let Some(s) = val.as_str() {
-                    if looks_like_raw_secret_value(s) {
-                        return true;
-                    }
-                }
-                if contains_raw_secret(val) {
-                    return true;
-                }
-            }
-        }
-        Value::Array(arr) => {
-            for item in arr {
-                if contains_raw_secret(item) {
-                    return true;
-                }
-            }
-        }
-        _ => {}
-    }
-    false
-}
+use super::safety;
 
 // ---------------------------------------------------------------------------
 // Dispatch
@@ -278,7 +205,7 @@ fn describe_observability(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn summarize_session_health(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Raw-secret check
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",
@@ -368,7 +295,7 @@ fn summarize_session_health(request: &InprocInvocation) -> anyhow::Result<Value>
 }
 
 fn summarize_package_health(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",
@@ -438,7 +365,7 @@ fn summarize_package_health(request: &InprocInvocation) -> anyhow::Result<Value>
 }
 
 fn summarize_agent_run_health(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",
@@ -505,7 +432,7 @@ fn summarize_agent_run_health(request: &InprocInvocation) -> anyhow::Result<Valu
 }
 
 fn trace_proposal_causality(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",
@@ -605,7 +532,7 @@ fn trace_proposal_causality(request: &InprocInvocation) -> anyhow::Result<Value>
 }
 
 fn summarize_cost_latency(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",
@@ -674,7 +601,7 @@ fn summarize_cost_latency(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn list_failure_breadcrumbs(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",
@@ -737,7 +664,7 @@ fn list_failure_breadcrumbs(request: &InprocInvocation) -> anyhow::Result<Value>
 }
 
 fn summarize_guardrails(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(serde_json::json!({
             "kind": "experience_observability_rejected",
             "redaction_state": "unsafe_blocked",

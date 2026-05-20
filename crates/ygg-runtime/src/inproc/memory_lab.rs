@@ -103,83 +103,10 @@ const PROVENANCE_STEP_KINDS: &[&str] = &[
 ];
 
 // ---------------------------------------------------------------------------
-// Raw-secret detection (shared conservative heuristic)
+// Raw-secret detection (delegated to shared safety module)
 // ---------------------------------------------------------------------------
 
-const SECRET_FIELD_NAMES: &[&str] = &[
-    "api_key",
-    "secret",
-    "token",
-    "password",
-    "private_key",
-    "access_token",
-    "refresh_token",
-    "auth_token",
-];
-
-const SECRET_VALUE_PREFIXES: &[&str] = &["sk-", "Bearer ", "bearer "];
-
-fn is_secret_ref_value(val: &str) -> bool {
-    val.starts_with("secret_ref:")
-        || val.starts_with("secretRef:")
-        || val.starts_with("secret-ref:")
-        || val.starts_with("host:")
-}
-
-fn looks_like_raw_secret_value(val: &str) -> bool {
-    for prefix in SECRET_VALUE_PREFIXES {
-        if val.starts_with(prefix) {
-            return true;
-        }
-    }
-    if val.len() >= 40 {
-        let has_upper = val.chars().any(|c| c.is_ascii_uppercase());
-        let has_lower = val.chars().any(|c| c.is_ascii_lowercase());
-        let has_digit = val.chars().any(|c| c.is_ascii_digit());
-        if has_upper && has_lower && has_digit {
-            return true;
-        }
-    }
-    false
-}
-
-fn contains_raw_secret(value: &Value) -> bool {
-    match value {
-        Value::Object(map) => {
-            for (key, val) in map {
-                let key_lower = key.to_lowercase();
-                for secret_name in SECRET_FIELD_NAMES {
-                    if key_lower == *secret_name || key_lower.contains(secret_name) {
-                        if let Some(s) = val.as_str() {
-                            if !is_secret_ref_value(s) {
-                                return true;
-                            }
-                        } else if !val.is_null() {
-                            return true;
-                        }
-                    }
-                }
-                if let Some(s) = val.as_str() {
-                    if looks_like_raw_secret_value(s) {
-                        return true;
-                    }
-                }
-                if contains_raw_secret(val) {
-                    return true;
-                }
-            }
-        }
-        Value::Array(arr) => {
-            for item in arr {
-                if contains_raw_secret(item) {
-                    return true;
-                }
-            }
-        }
-        _ => {}
-    }
-    false
-}
+use super::safety;
 
 fn rejected_output(request: &InprocInvocation) -> Value {
     serde_json::json!({
@@ -277,7 +204,7 @@ fn describe_memory_contract(request: &InprocInvocation) -> anyhow::Result<Value>
 }
 
 fn record_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -348,7 +275,7 @@ fn record_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn retrieve_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -429,7 +356,7 @@ fn retrieve_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn trace_retrieval(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -488,7 +415,7 @@ fn trace_retrieval(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn draft_memory_update(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -549,7 +476,7 @@ fn draft_memory_update(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn apply_memory_correction(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -600,7 +527,7 @@ fn apply_memory_correction(request: &InprocInvocation) -> anyhow::Result<Value> 
 }
 
 fn draft_forget_redaction(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -666,7 +593,7 @@ fn draft_forget_redaction(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn branch_memory_view(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
@@ -725,7 +652,7 @@ fn branch_memory_view(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn explain_memory_provenance(request: &InprocInvocation) -> anyhow::Result<Value> {
-    if contains_raw_secret(&request.input) {
+    if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
 
