@@ -58,22 +58,28 @@ Validation: workspace tests, conformance, playable vertical CLI demo, package ch
 
 Red lines: not a chat shell, not a Tavern clone, no canonical game runtime.
 
-## Experience Beta 2 — State + Asset Pipeline Alpha
+## Experience Beta 2 — State + Asset Pipeline Alpha (complete)
 
 Goal: add only the minimum state/asset substrate exposed by the First Real Playable Vertical Slice.
 
-Deliverables:
+Delivered:
 
-- Content-addressed asset blob helper or metadata convention.
+- Stable content-addressed asset helper using FNV-1a 64-bit hash (`fnv1a64:` prefix, deterministic across runs, replaces unstable `DefaultHasher`).
+- Standard Beta 2 metadata convention: `content_address`, `provenance`, `disclosure`, `source_refs`, `derived_refs`, `branch_ref`, `state_snapshot_ref`, `projection_ref`, `proposal_ref`, `inference_ref`, `large_output_policy`.
+- `official/asset-lab` extended with `content_address` capability (stable content address + metadata convention) and `provenance_graph` capability (asset provenance graph shape with source/derived/disclosure metadata).
+- `official/projection-lab` extended with `state_snapshot` capability (state snapshot asset convention and branch-aware diff preview shape).
+- `official/playable-creation-board` extended with `preview_state_diff` (branch-aware state diff preview with before/after content addresses) and `describe_asset_provenance` (asset provenance graph with source/derived/disclosure metadata). 13 total capabilities.
 - Asset provenance graph: source refs, derived refs, package/provider/inference refs, AI-generated/live-generated/disclosure metadata.
 - State snapshot asset convention: checkpoint/recovery/replay hints.
 - State/asset diff preview: branch-aware, projection-backed, package-owned.
-- Large output handling: tool/model large output through asset refs.
-- Minimal proof of package-scoped asset permission checks.
+- Large output handling: tool/model large output through asset refs (existing capability-tool-bridge-lab recommendation reinforced).
+- Package-scoped asset permission proof: origin_package_id enforcement, cross-package spoof fail-closed.
+- Raw-secret blocking in all Beta 2 capabilities.
+- 9 more conformance cases (206 total).
 
-Validation: state snapshot/diff/provenance conformance, vertical slice uses new metadata, doc links.
+Validation: content address stable, provenance graph, state snapshot convention, state diff preview, playable board metadata, large output asset_ref, package scoped proof — all conformance PASS; `cargo run -p ygg-cli -- playable-board-demo` ok; `cargo run -p ygg-cli -- package check` ok for asset-lab, projection-lab, playable-creation-board.
 
-Red lines: no full media editor, no unified media schema, no state ontology in the kernel.
+Red lines: no full media editor, no unified media schema, no state ontology in the kernel — all upheld.
 
 ## Experience Beta 3 — Experience Observability
 

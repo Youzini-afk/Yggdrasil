@@ -1036,6 +1036,52 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "playable_board.no_raw_secrets",
         playable_creation_board::playable_board_no_raw_secrets().await,
     );
+    // Experience Beta 2 — State + Asset Pipeline Alpha
+    record_case(
+        &mut results,
+        "playable_board.content_address_stable",
+        playable_creation_board::playable_board_content_address_stable().await,
+    );
+    record_case(
+        &mut results,
+        "playable_board.checkpoint_metadata",
+        playable_creation_board::playable_board_checkpoint_metadata().await,
+    );
+    record_case(
+        &mut results,
+        "playable_board.provenance_graph",
+        playable_creation_board::playable_board_provenance_graph().await,
+    );
+    record_case(
+        &mut results,
+        "playable_board.state_diff_preview",
+        playable_creation_board::playable_board_state_diff_preview().await,
+    );
+    record_case(
+        &mut results,
+        "playable_board.describe_asset_provenance",
+        playable_creation_board::playable_board_describe_asset_provenance().await,
+    );
+    record_case(
+        &mut results,
+        "playable_board.beta2_no_raw_secrets",
+        playable_creation_board::playable_board_beta2_no_raw_secrets().await,
+    );
+    record_case(
+        &mut results,
+        "official.asset_lab_content_address",
+        official_labs::asset_lab_content_address().await,
+    );
+    record_case(
+        &mut results,
+        "official.asset_lab_provenance_graph",
+        official_labs::asset_lab_provenance_graph().await,
+    );
+    record_case(
+        &mut results,
+        "official.projection_lab_state_snapshot",
+        official_labs::projection_lab_state_snapshot().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

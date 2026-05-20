@@ -58,22 +58,25 @@
 
 红线：不是 chat shell，不是 Tavern clone，不新增 canonical game runtime。
 
-## Experience Beta 2 — State + Asset Pipeline Alpha
+## Experience Beta 2 — State + Asset Pipeline Alpha（已完成）
 
 目标：只补 First Real Playable Vertical Slice 暴露出的最小 state/asset substrate。
 
-交付：
+已交付：
 
-- Content-addressed asset blob helper 或 metadata convention。
-- Asset provenance graph：source refs、derived refs、package/provider/inference refs、AI-generated/live-generated/disclosure metadata。
-- State snapshot asset convention：checkpoint/recovery/replay hints。
-- State/asset diff preview：branch-aware, projection-backed, package-owned。
-- Large output handling：tool/model 大输出以 asset ref 表达。
-- Package-scoped asset permission checks 的最小 proof。
+- 稳定 content-addressed asset helper，使用 FNV-1a 64-bit hash（`fnv1a64:` 前缀，跨运行确定性，替代不稳定的 DefaultHasher）。
+- 标准 Beta 2 元数据约定：`content_address`、`provenance`、`disclosure`、`source_refs`、`derived_refs`、`branch_ref`、`state_snapshot_ref`、`projection_ref`、`proposal_ref`、`inference_ref`、`large_output_policy`。
+- `official/asset-lab` 扩展 `content_address` 和 `provenance_graph` 能力。
+- `official/projection-lab` 扩展 `state_snapshot` 能力。
+- `official/playable-creation-board` 扩展 `preview_state_diff` 和 `describe_asset_provenance` 能力（共 13 个）。
+- Asset provenance graph、state snapshot convention、branch-aware diff preview 均已实现。
+- Large output 通过 asset ref（已有 capability-tool-bridge-lab 推荐已强化）。
+- Package-scoped asset permission proof（origin_package_id 强制，跨包 spoof fail-closed）。
+- 新增 9 个 conformance 用例（总计 206 个）。
 
-验证：state snapshot/diff/provenance conformance，vertical slice 使用新 metadata，doc links。
+验证：content address stable、provenance graph、state snapshot convention、state diff preview、playable board metadata、large output asset_ref、package scoped proof — 全部 conformance PASS。
 
-红线：不做完整媒体编辑器，不统一所有 media schema，不把 state ontology 放入 kernel。
+红线：不做完整媒体编辑器，不统一所有 media schema，不把 state ontology 放入 kernel — 全部遵守。
 
 ## Experience Beta 3 — Experience Observability
 

@@ -1702,3 +1702,133 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Experience Beta 2 — asset-lab and projection-lab Beta 2 conformance cases
+// ---------------------------------------------------------------------------
+
+/// asset-lab content_address capability: returns stable content address and metadata convention.
+pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;
+
+    // content_address: deterministic for same content
+    let ca1 = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/asset-lab/content_address".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/asset-lab".to_string()),
+            version: None,
+            input: json!({"content": "hello world", "disclosure": "test"}),
+        })
+        .await?;
+    anyhow::ensure!(ca1.output["kind"] == json!("asset_content_address"), "content_address wrong kind");
+    anyhow::ensure!(
+        ca1.output["content_address"].as_str().map(|s| s.starts_with("fnv1a64:")).unwrap_or(false),
+        "content_address must use fnv1a64 scheme"
+    );
+    anyhow::ensure!(ca1.output["metadata_convention"].is_object(), "must have metadata_convention");
+    anyhow::ensure!(
+        ca1.output["metadata_convention"]["disclosure"] == json!("test"),
+        "metadata_convention must have disclosure"
+    );
+    anyhow::ensure!(ca1.output["inference_performed"] == json!(false));
+    anyhow::ensure!(ca1.output["network_performed"] == json!(false));
+
+    // Deterministic: same content → same address
+    let ca2 = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/asset-lab/content_address".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/asset-lab".to_string()),
+            version: None,
+            input: json!({"content": "hello world"}),
+        })
+        .await?;
+    anyhow::ensure!(
+        ca1.output["content_address"] == ca2.output["content_address"],
+        "content_address must be deterministic"
+    );
+
+    // Different content → different address
+    let ca3 = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/asset-lab/content_address".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/asset-lab".to_string()),
+            version: None,
+            input: json!({"content": "different content"}),
+        })
+        .await?;
+    anyhow::ensure!(
+        ca1.output["content_address"] != ca3.output["content_address"],
+        "different content must produce different address"
+    );
+
+    Ok(())
+}
+
+/// asset-lab provenance_graph capability: returns provenance graph shape.
+pub(crate) async fn asset_lab_provenance_graph() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;
+
+    let pg = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/asset-lab/provenance_graph".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/asset-lab".to_string()),
+            version: None,
+            input: json!({
+                "asset_id": "ast_test_123",
+                "nodes": [{"id": "source", "kind": "player_action"}],
+                "edges": [{"from": "source", "to": "derived", "relation": "produces"}],
+                "source_refs": ["asset:source:1"],
+                "derived_refs": ["asset:derived:1"],
+                "disclosure": "debug",
+            }),
+        })
+        .await?;
+    anyhow::ensure!(pg.output["kind"] == json!("asset_provenance_graph"), "provenance_graph wrong kind");
+    anyhow::ensure!(pg.output["asset_id"] == json!("ast_test_123"));
+    anyhow::ensure!(pg.output["nodes"].is_array(), "must have nodes");
+    anyhow::ensure!(pg.output["edges"].is_array(), "must have edges");
+    anyhow::ensure!(pg.output["source_refs"].is_array(), "must have source_refs");
+    anyhow::ensure!(pg.output["derived_refs"].is_array(), "must have derived_refs");
+    anyhow::ensure!(pg.output["disclosure"] == json!("debug"));
+    anyhow::ensure!(pg.output["inference_performed"] == json!(false));
+    anyhow::ensure!(pg.output["network_performed"] == json!(false));
+
+    Ok(())
+}
+
+/// projection-lab state_snapshot capability: returns state snapshot convention and diff preview shape.
+pub(crate) async fn projection_lab_state_snapshot() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/projection-lab/manifest.yaml")).await?).await?;
+
+    let ss = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/projection-lab/state_snapshot".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/projection-lab".to_string()),
+            version: None,
+            input: json!({
+                "projection_id": "example/projection/state",
+                "branch_ref": "branch:target:default",
+            }),
+        })
+        .await?;
+    anyhow::ensure!(ss.output["kind"] == json!("projection_state_snapshot"), "state_snapshot wrong kind");
+    anyhow::ensure!(ss.output["state_snapshot_convention"].is_object(), "must have state_snapshot_convention");
+    anyhow::ensure!(
+        ss.output["state_snapshot_convention"]["snapshot_metadata_fields"].is_array(),
+        "must have snapshot_metadata_fields"
+    );
+    anyhow::ensure!(ss.output["diff_preview_shape"].is_object(), "must have diff_preview_shape");
+    anyhow::ensure!(ss.output["diff_preview_shape"]["branch_aware"] == json!(true), "diff must be branch_aware");
+    anyhow::ensure!(ss.output["inference_performed"] == json!(false));
+    anyhow::ensure!(ss.output["network_performed"] == json!(false));
+
+    Ok(())
+}

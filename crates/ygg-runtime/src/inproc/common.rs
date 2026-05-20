@@ -58,6 +58,9 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         "draft_branch_change" => Some(draft_branch_change(request)),
         "create_seed" => Some(create_seed(request)),
         "project" => Some(project(request)),
+        "content_address" => Some(content_address(request)),
+        "provenance_graph" => Some(provenance_graph(request)),
+        "state_snapshot" => Some(state_snapshot(request)),
         _ => None,
     }
 }
@@ -276,6 +279,102 @@ fn project(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "blank_experience_projection",
         "state": request.input,
+    }))
+}
+
+/// content_address: returns content-address shape and convention metadata.
+/// No network, no inference. Used by asset-lab and other packages needing
+/// stable content-addressed asset metadata.
+fn content_address(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let content = request.input.get("content").and_then(Value::as_str).unwrap_or_default();
+    let scheme = request.input.get("scheme").and_then(Value::as_str).unwrap_or("fnv1a64");
+    let ca = crate::runtime::content_address(content);
+    Ok(serde_json::json!({
+        "kind": "asset_content_address",
+        "package_id": request.provider_package_id,
+        "content_address": ca,
+        "scheme": scheme,
+        "size_bytes": content.len(),
+        "metadata_convention": {
+            "content_address": ca,
+            "content_address_scheme": scheme,
+            "provenance": {
+                "origin_package_id": request.input.get("origin_package_id").and_then(Value::as_str).unwrap_or(request.provider_package_id.as_str()),
+            },
+            "disclosure": request.input.get("disclosure").and_then(Value::as_str).unwrap_or("unspecified"),
+            "source_refs": request.input.get("source_refs").cloned().unwrap_or(serde_json::json!([])),
+            "derived_refs": request.input.get("derived_refs").cloned().unwrap_or(serde_json::json!([])),
+            "branch_ref": request.input.get("branch_ref").cloned().unwrap_or(Value::Null),
+            "state_snapshot_ref": request.input.get("state_snapshot_ref").cloned().unwrap_or(Value::Null),
+            "projection_ref": request.input.get("projection_ref").cloned().unwrap_or(Value::Null),
+            "proposal_ref": request.input.get("proposal_ref").cloned().unwrap_or(Value::Null),
+            "inference_ref": request.input.get("inference_ref").cloned().unwrap_or(Value::Null),
+            "large_output_policy": request.input.get("large_output_policy").and_then(Value::as_str).unwrap_or("inline"),
+        },
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id,
+        }
+    }))
+}
+
+/// provenance_graph: returns asset provenance graph shape with source/derived/ref slots.
+/// No network, no inference. Used by asset-lab and other packages needing
+/// asset lineage metadata.
+fn provenance_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let asset_id = request.input.get("asset_id").and_then(Value::as_str).unwrap_or_default();
+    Ok(serde_json::json!({
+        "kind": "asset_provenance_graph",
+        "package_id": request.provider_package_id,
+        "asset_id": if asset_id.is_empty() { Value::Null } else { serde_json::json!(asset_id) },
+        "nodes": request.input.get("nodes").cloned().unwrap_or(serde_json::json!([])),
+        "edges": request.input.get("edges").cloned().unwrap_or(serde_json::json!([])),
+        "source_refs": request.input.get("source_refs").cloned().unwrap_or(serde_json::json!([])),
+        "derived_refs": request.input.get("derived_refs").cloned().unwrap_or(serde_json::json!([])),
+        "disclosure": request.input.get("disclosure").and_then(Value::as_str).unwrap_or("unspecified"),
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id,
+        }
+    }))
+}
+
+/// state_snapshot: returns state snapshot asset convention and branch-aware diff preview shape.
+/// No network, no inference. Used by projection-lab and other packages needing
+/// state snapshot metadata.
+fn state_snapshot(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let projection_id = request.input.get("projection_id").cloned().unwrap_or(Value::Null);
+    let branch_ref = request.input.get("branch_ref").cloned().unwrap_or(Value::Null);
+    Ok(serde_json::json!({
+        "kind": "projection_state_snapshot",
+        "package_id": request.provider_package_id,
+        "projection_id": projection_id,
+        "state_snapshot_convention": {
+            "snapshot_asset_mime": "application/vnd.yggdrasil.state-snapshot+json",
+            "snapshot_metadata_fields": [
+                "content_address", "provenance", "disclosure",
+                "source_refs", "derived_refs", "branch_ref",
+                "state_snapshot_ref", "projection_ref",
+                "proposal_ref", "inference_ref", "large_output_policy"
+            ],
+        },
+        "diff_preview_shape": {
+            "branch_aware": true,
+            "requires_before_ref": true,
+            "requires_after_ref": true,
+            "output_fields": ["diff_summary", "changed_asset_refs", "branch_ref", "sequence"],
+        },
+        "branch_ref": branch_ref,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id,
+        }
     }))
 }
 

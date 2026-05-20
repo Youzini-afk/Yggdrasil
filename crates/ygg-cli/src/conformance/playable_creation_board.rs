@@ -1,4 +1,4 @@
-//! Conformance tests for `official/playable-creation-board` (Experience Beta 1).
+//! Conformance tests for `official/playable-creation-board` (Experience Beta 1 + Beta 2).
 //!
 //! Covers:
 //! 1. Surface discovery / launch shape
@@ -11,6 +11,12 @@
 //! 8. Third-party replacement: no official priority
 //! 9. No forbidden namespace (kernel.experience/world/scene/character/turn/chat/memory/agent/model/prompt/director)
 //! 10. No raw secrets in any capability output
+//! 11. content_address is stable and deterministic (Beta 2)
+//! 12. create_checkpoint includes content_address and Beta 2 metadata (Beta 2)
+//! 13. explain_provenance includes content_address per chain step and provenance_graph (Beta 2)
+//! 14. preview_state_diff produces branch-aware diff preview (Beta 2)
+//! 15. describe_asset_provenance returns provenance graph with disclosure (Beta 2)
+//! 16. Beta 2 capabilities block raw secrets (Beta 2)
 
 use std::path::PathBuf;
 
@@ -88,14 +94,14 @@ pub(crate) async fn playable_board_describe_contract() -> anyhow::Result<()> {
         "must have assistant_action surface"
     );
 
-    // 11 capabilities
+    // 11 capabilities (Beta 1: 11, Beta 2: +2 = 13)
     anyhow::ensure!(
         contract.output["capabilities"]
             .as_array()
             .map(|a| a.len())
             .unwrap_or(0)
-            == 11,
-        "describe_contract must list 11 capabilities"
+            == 13,
+        "describe_contract must list 13 capabilities"
     );
 
     // No inference / no network
@@ -562,7 +568,7 @@ pub(crate) async fn playable_board_no_raw_secrets() -> anyhow::Result<()> {
         json!({
             "board_id": "board:secret",
             "objective": "test",
-            "api_key": "sk-fake-key-1234567890abcdefABCDEF",
+            "api_key": "RawSecretExample1234567890abcdefABCDEF",
         }),
     )
     .await?;
@@ -579,6 +585,255 @@ pub(crate) async fn playable_board_no_raw_secrets() -> anyhow::Result<()> {
     )
     .await?;
     anyhow::ensure!(binding.output["kind"] == json!("playable_creation_board_binding_rejected"));
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Experience Beta 2 — State + Asset Pipeline Alpha conformance cases
+// ---------------------------------------------------------------------------
+
+/// Case 11: content_address is stable and deterministic in record_player_action.
+pub(crate) async fn playable_board_content_address_stable() -> anyhow::Result<()> {
+    let runtime = load_playable_creation_board().await?;
+
+    // Same payload twice should produce same content_address
+    let action1 = invoke(
+        &runtime,
+        "record_player_action",
+        json!({
+            "board_id": "board:b2",
+            "action_kind": "place_marker",
+            "sequence": 1,
+            "payload": {"marker_id": "stable_test"},
+        }),
+    )
+    .await?;
+    let action2 = invoke(
+        &runtime,
+        "record_player_action",
+        json!({
+            "board_id": "board:b2",
+            "action_kind": "place_marker",
+            "sequence": 1,
+            "payload": {"marker_id": "stable_test"},
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        action1.output["content_address"] == action2.output["content_address"],
+        "content_address must be deterministic"
+    );
+    anyhow::ensure!(
+        action1.output["content_address"]
+            .as_str()
+            .map(|s| s.starts_with("fnv1a64:"))
+            .unwrap_or(false),
+        "content_address must use fnv1a64 scheme"
+    );
+    anyhow::ensure!(
+        action1.output["state_snapshot_asset_ref"].is_string(),
+        "must have state_snapshot_asset_ref"
+    );
+
+    Ok(())
+}
+
+/// Case 12: create_checkpoint includes content_address and Beta 2 metadata.
+pub(crate) async fn playable_board_checkpoint_metadata() -> anyhow::Result<()> {
+    let runtime = load_playable_creation_board().await?;
+
+    let checkpoint = invoke(
+        &runtime,
+        "create_checkpoint",
+        json!({
+            "board_id": "board:b2",
+            "state_snapshot": {"markers": 3},
+            "asset_refs": ["asset:board:b2"],
+            "sequence": 1,
+            "disclosure": "checkpoint_debug",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(checkpoint.output["kind"] == json!("playable_creation_board_checkpoint"));
+    anyhow::ensure!(
+        checkpoint.output["content_address"]
+            .as_str()
+            .map(|s| s.starts_with("fnv1a64:"))
+            .unwrap_or(false),
+        "checkpoint must have fnv1a64 content_address"
+    );
+    anyhow::ensure!(
+        checkpoint.output["state_snapshot_asset_ref"].is_string(),
+        "checkpoint must have state_snapshot_asset_ref"
+    );
+    anyhow::ensure!(
+        checkpoint.output["disclosure"] == json!("checkpoint_debug"),
+        "checkpoint must have disclosure"
+    );
+    anyhow::ensure!(
+        checkpoint.output["provenance"]["content_address"].is_string(),
+        "checkpoint provenance must have content_address"
+    );
+
+    Ok(())
+}
+
+/// Case 13: explain_provenance includes content_address per chain step and provenance graph.
+pub(crate) async fn playable_board_provenance_graph() -> anyhow::Result<()> {
+    let runtime = load_playable_creation_board().await?;
+
+    let provenance = invoke(
+        &runtime,
+        "explain_provenance",
+        json!({
+            "board_id": "board:b2",
+            "action_id": "action:board:b2:1",
+            "sequence": 1,
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        provenance.output["kind"] == json!("playable_creation_board_provenance_chain")
+    );
+
+    // Every chain step must have content_address
+    let chain = provenance.output["chain"].as_array().unwrap();
+    for (i, step) in chain.iter().enumerate() {
+        anyhow::ensure!(
+            step["content_address"].is_string(),
+            "chain step {} must have content_address",
+            i
+        );
+    }
+
+    // Must have provenance_graph with nodes and edges
+    anyhow::ensure!(
+        provenance.output["provenance_graph"].is_object(),
+        "must have provenance_graph"
+    );
+    anyhow::ensure!(
+        provenance.output["provenance_graph"]["nodes"]
+            .as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false),
+        "provenance_graph must have nodes"
+    );
+    anyhow::ensure!(
+        provenance.output["provenance_graph"]["edges"]
+            .as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false),
+        "provenance_graph must have edges"
+    );
+
+    Ok(())
+}
+
+/// Case 14: preview_state_diff produces branch-aware diff preview.
+pub(crate) async fn playable_board_state_diff_preview() -> anyhow::Result<()> {
+    let runtime = load_playable_creation_board().await?;
+
+    let diff = invoke(
+        &runtime,
+        "preview_state_diff",
+        json!({
+            "board_id": "board:b2",
+            "before_snapshot_ref": "asset:state_snapshot:board:b2:1",
+            "after_snapshot_ref": "asset:state_snapshot:board:b2:2",
+            "branch_ref": "branch:target:default",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        diff.output["kind"] == json!("playable_creation_board_state_diff_preview")
+    );
+    anyhow::ensure!(diff.output["branch_aware"] == json!(true));
+    anyhow::ensure!(
+        diff.output["before_content_address"].is_string(),
+        "must have before_content_address"
+    );
+    anyhow::ensure!(
+        diff.output["after_content_address"].is_string(),
+        "must have after_content_address"
+    );
+    anyhow::ensure!(diff.output["diff_summary"].is_string());
+    anyhow::ensure!(diff.output["inference_performed"] == json!(false));
+    anyhow::ensure!(diff.output["network_performed"] == json!(false));
+
+    Ok(())
+}
+
+/// Case 15: describe_asset_provenance returns provenance graph with disclosure.
+pub(crate) async fn playable_board_describe_asset_provenance() -> anyhow::Result<()> {
+    let runtime = load_playable_creation_board().await?;
+
+    let desc = invoke(
+        &runtime,
+        "describe_asset_provenance",
+        json!({
+            "board_id": "board:b2",
+            "asset_ref": "asset:state_delta:board:b2:1",
+            "disclosure": "debug",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        desc.output["kind"] == json!("playable_creation_board_asset_provenance")
+    );
+    anyhow::ensure!(
+        desc.output["content_address"].is_string(),
+        "must have content_address"
+    );
+    anyhow::ensure!(
+        desc.output["provenance_graph"].is_object(),
+        "must have provenance_graph"
+    );
+    anyhow::ensure!(
+        desc.output["provenance_graph"]["disclosure"] == json!("debug"),
+        "provenance_graph must have disclosure"
+    );
+    anyhow::ensure!(desc.output["inference_performed"] == json!(false));
+
+    Ok(())
+}
+
+/// Case 16: preview_state_diff blocks raw secrets.
+pub(crate) async fn playable_board_beta2_no_raw_secrets() -> anyhow::Result<()> {
+    let runtime = load_playable_creation_board().await?;
+
+    // preview_state_diff blocks raw secret
+    let diff = invoke(
+        &runtime,
+        "preview_state_diff",
+        json!({
+            "board_id": "board:secret",
+            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        diff.output["kind"] == json!("playable_creation_board_state_diff_rejected")
+    );
+
+    // describe_asset_provenance blocks raw secret
+    let desc = invoke(
+        &runtime,
+        "describe_asset_provenance",
+        json!({
+            "board_id": "board:secret",
+            "token": "Bearer abc123",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        desc.output["kind"] == json!("playable_creation_board_provenance_describe_rejected")
+    );
 
     Ok(())
 }

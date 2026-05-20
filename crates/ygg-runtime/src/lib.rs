@@ -34,6 +34,7 @@ pub use runtime::{
     StreamRegistry, SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
     StaticHeader, is_static_header_allowed, is_secret_header_name, STATIC_HEADER_ALLOWLIST,
     check_network_policy,
+    content_address, standard_asset_metadata,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver, SecretResolverConfig, extract_env_name};

@@ -75,6 +75,18 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/playable-creation-board/preview_state_diff
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/playable-creation-board/describe_asset_provenance
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []

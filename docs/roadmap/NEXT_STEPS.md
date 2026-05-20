@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha 与 Agentic Forge Beta 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof，以及 package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线转向 **Experience-Led Platform Beta**：停止 foundation-first 扩张，用真实 AI-native playable experience 牵引后续 state、asset、memory、observability、creator loop 与 sharing substrate。
+Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1 与 Experience Beta 2 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof、package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold、package-owned experience runtime contract、首个真实 playable vertical slice（含 board/module/constraint/marker state），以及稳定 content-addressed asset helper 与 provenance graph 和 state snapshot convention。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线转向 **Experience Beta 3**：体验可观测性。
 
 ## 当前位置
 
@@ -186,15 +186,28 @@ Phase J 非目标：
 
 非目标：`kernel.experience.*`、`kernel.world.*`、聊天壳、assistant messages/conversation/prompt transcript。
 
-## Experience Beta 2 — State + Asset Pipeline Alpha
+## Experience Beta 2 — State + Asset Pipeline Alpha（已完成）
 
 目标：让体验状态和生成资产真正可追踪、可比较、可恢复。
 
-交付方向：content-addressed asset blobs、asset provenance graph、derived asset refs、AI-generated/live-generated metadata、rights/licensing/disclosure metadata slots、state snapshot asset、state diff preview、branch-aware asset/state views、safe preview descriptors、large output handling、package-scoped asset permission checks。此阶段只交付 First Real Playable Vertical Slice 暴露出的最小必要集，其余内容进入后续 hardening。
+已交付：
 
-非目标：完整媒体编辑器、统一 media schema、内核世界状态模型。
+- 稳定 content-addressed asset helper，使用 FNV-1a 64-bit hash（`fnv1a64:` 前缀，跨运行确定性，替代不稳定的 DefaultHasher）。
+- 标准 Beta 2 元数据约定：`content_address`、`provenance`、`disclosure`、`source_refs`、`derived_refs`、`branch_ref`、`state_snapshot_ref`、`projection_ref`、`proposal_ref`、`inference_ref`、`large_output_policy`。
+- `official/asset-lab` 扩展 `content_address` 能力（稳定内容地址 + 元数据约定）和 `provenance_graph` 能力（asset provenance graph 形状，含 source/derived/disclosure 元数据）。
+- `official/projection-lab` 扩展 `state_snapshot` 能力（state snapshot asset 约定和 branch-aware diff preview 形状）。
+- `official/playable-creation-board` 扩展 `preview_state_diff`（branch-aware state diff preview，含 before/after content addresses）和 `describe_asset_provenance`（asset provenance graph，含 source/derived/disclosure 元数据），共 13 个能力。
+- Asset provenance graph：source refs、derived refs、package/provider/inference refs、AI-generated/live-generated/disclosure 元数据。
+- State snapshot asset 约定：checkpoint/recovery/replay hints。
+- State/asset diff preview：branch-aware、projection-backed、package-owned。
+- 大输出处理：tool/model 大输出通过 asset refs（已有 capability-tool-bridge-lab 推荐已强化）。
+- Package-scoped asset permission proof：origin_package_id 强制，跨包 spoof fail-closed。
+- Beta 2 能力阻止 raw secret。
+- 新增 9 个 conformance 用例（总计 206 个）。
 
-## Experience Beta 3 — Experience Observability
+非目标：完整媒体编辑器、统一 media schema、内核世界状态模型——均已遵守。
+
+## Experience Beta 3 — Experience Observability（当前方向）
 
 目标：让用户和创作者知道发生了什么、为什么失败、成本/延迟在哪里。此项应从 Experience Beta 1 起就作为验收条件出现，然后在本阶段系统化。
 
@@ -239,4 +252,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0 和 Experience Beta 1 已完成。后续进入 Experience Beta 2。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience Beta 0、Experience Beta 1 和 Experience Beta 2 已完成。后续进入 Experience Beta 3。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。

@@ -23,7 +23,7 @@ mod streaming;
 mod outbound;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
-pub use self::assets::{AssetGetResponse, AssetPutRequest};
+pub use self::assets::{AssetGetResponse, AssetPutRequest, content_address, standard_asset_metadata};
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::network::{NetworkPolicyDecision, OutboundRequest, check_network_policy};
