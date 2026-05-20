@@ -4,7 +4,7 @@
 
 平台基础已经就位。Yggdrasil 现在拥有内容无关的内核、基于 manifest 的包、真正的 `rust_inproc` 和 subprocess 执行、权限/principal 系统、hook fabric 切片、surface 贡献、proposal/approval lifecycle、asset/branch/projection 底座、安全执行原语、官方平台包、assistant 包、`official/playable-seed`、空白游创循环，以及走公开协议的 Home/Play、Forge、Assist 和受限文字界面 proof 的 Web shell。
 
-Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha 与 Creative Inference Capability Alpha 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam 与 inference→proposal proof。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线是 **Agentic Forge Beta**：把 agent 从 lab/proof 推进为 package-owned、branch-aware、tool-safe、inference-backed、deterministically testable 的 creative agent runtime。
+Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha 与 Agentic Forge Beta 已完成。Yggdrasil 现在可以用普通能力包描述、验证、归一化并 fake/local 调用 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 provider API 差异；也具备 host-owned `secret_ref:env:*`、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、redacted audit、live loopback provider shapes、transport-neutral inference seam、inference→proposal proof，以及 package-owned / branch-aware / tool-safe 的 Agentic Forge runtime scaffold。默认 conformance 不依赖公网；手动 live smoke 必须显式 opt-in。当前主线转向 **Experience-Led Platform Beta**：停止 foundation-first 扩张，用真实 AI-native playable experience 牵引后续 state、asset、memory、observability、creator loop 与 sharing substrate。
 
 ## 当前位置
 
@@ -26,6 +26,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase D：已完成；扩展 `official/capability-tool-bridge-lab` 增加 explain_tool_call（scoped grant summary，branch-aware tool call context，no_execution，no_ambient_authority）/record_tool_observation（untrusted=true，大输出 asset_ref，raw-secret 阻断）/summarize_tool_risk（prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output 含 typed mitigations）/replay_tool_plan（指纹匹配/不匹配）/plan_toolchain（多步 plan-only，显式 provider 必需，嵌套 delegation 无 explicit_delegation 时阻止，target branch 写入无 promote grant 时阻止）；5 个 conformance 用例。Conformance 包含 175 个具名用例。
 - Agentic Forge Beta Phase E：已完成；Forge 中新增 Agentic Forge 六个 workspace panels（Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls），所有数据来自 public protocol，不做 chat-first UI。`clients/web/src/agent/observability.ts` 新增 `ForgeAgentWorkspaceModel` 及 build/render 函数。`tsc -p clients/web/tsconfig.json --noEmit` 通过。
 - Agentic Forge Beta Phase F：已完成；第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断，privilege escalation 拒绝）、budget/deadline 契约（describe_contract 中 run_constraints，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：[`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Conformance 包含 180 个具名用例；状态已收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
+- Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
 
@@ -33,7 +34,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 
 目标：停止扩大表面积。打磨粗糙边缘，锁定契约，让现有基础便于 demo、文档和扩展。
 
-- 跨 `README.md`、`README.md` 和文档树刷新文档。
+- 跨 `README.md`、`README.en.md` 和文档树刷新文档。
 - 添加 `docs/product/PLAY_CREATION_MODEL.md` 以固定游创产品立场。
 - 添加 `docs/ALPHA_STATUS.md` 作为已完成、partial 和 deferred 内容的活快照。
 - 在代价较低处解决 Platform Host Alpha 的剩余 partial 项目。
@@ -149,6 +150,69 @@ Phase J 非目标：
 
 非目标：LangChain clone、chat shell、coding-agent clone、agent marketplace、always-on autonomous background agents、provider zoo、OpenAI-compatible agent endpoint、`kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`。
 
+## Experience Beta 0 — Thin Experience Runtime Contract（下一主线）
+
+目标：定义普通 package-owned experience 如何连续运行、暂停、恢复、checkpoint、fork，并被 Agentic Forge 修改。
+
+交付方向：
+
+- Experience package authoring pattern。
+- Session-state projection convention。
+- Checkpoint asset convention。
+- Failure/recovery event shape。
+- Play surface state subscription pattern。
+- Forge/Assist 与 experience session 的关联说明。
+
+非目标：`kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`。
+
+## Experience Beta 1 — First Real Playable Vertical Slice
+
+目标：尽早做一个可以连续玩 20–30 分钟的 AI-native experience。它不是聊天壳、不是 Tavern clone、不是只有 prompt/response 的 demo，也不等待 State/Asset/Memory 全部补完。
+
+验收标准：用户能从 Home 启动；体验有 package-owned state；体验中有真实模型参与但默认 conformance 仍可 deterministic/no-network；体验产生 asset/state changes；用户通过 Assist/Forge 请求修改；Agentic Forge 生成 plan/candidate/proposal；用户 inspect/approve/reject；可 fork/compare branch；失败可恢复且有 failure breadcrumbs；关键 asset/proposal/inference provenance 可见；第三方 package 可替换一个关键能力。
+
+这一步是真正检验 Yggdrasil 是否已经从“自由平台底座”进入“值得玩、值得改、值得 fork”的产品证明，并且应反过来决定后续 state、asset、memory、observability 的最小实现范围。
+
+## Experience Beta 2 — State + Asset Pipeline Alpha
+
+目标：让体验状态和生成资产真正可追踪、可比较、可恢复。
+
+交付方向：content-addressed asset blobs、asset provenance graph、derived asset refs、AI-generated/live-generated metadata、rights/licensing/disclosure metadata slots、state snapshot asset、state diff preview、branch-aware asset/state views、safe preview descriptors、large output handling、package-scoped asset permission checks。此阶段只交付 First Real Playable Vertical Slice 暴露出的最小必要集，其余内容进入后续 hardening。
+
+非目标：完整媒体编辑器、统一 media schema、内核世界状态模型。
+
+## Experience Beta 3 — Experience Observability
+
+目标：让用户和创作者知道发生了什么、为什么失败、成本/延迟在哪里。此项应从 Experience Beta 1 起就作为验收条件出现，然后在本阶段系统化。
+
+交付方向：session health、package health、agent run health、model/inference cost and latency summary、proposal causal chain、asset provenance graph view、failure breadcrumbs、stuck run detection、guardrail/audit summary。
+
+非目标：完整 APM、SaaS monitoring backend。
+
+## Experience Beta 4 — Memory / Knowledge Package Alpha
+
+目标：普通包形式的长期记忆与知识，不进入 kernel。
+
+交付方向：memory record package schema examples、branch-aware memory view、retrieval trace、proposal-gated memory update、user correction、forgetting/redaction workflow、memory provenance、knowledge source refs。如果第一个真实体验需要跨 session / branch 的长期记忆，则提前做最小切片；否则应在 First Real Playable Vertical Slice 后由真实需求牵引推进。
+
+非目标：`kernel.memory.*`、官方唯一 RAG、聊天记忆系统。
+
+## Experience Beta 5 — Creator Loop Beta
+
+目标：一个新创作者不读源码，只靠 docs、template、Forge，一天内做出可玩的 package。
+
+交付方向：better experience templates、fixture runner UX、reload flow polish、composition diagnostics、基于真实 package 的 authoring walkthrough、package error explainability、Forge authoring workflow。
+
+非目标：marketplace、creator monetization。
+
+## Experience Beta 6 — Sharing / Distribution Alpha
+
+目标：先支持可分享、可复现、可导入，再考虑市场。
+
+交付方向：export/import composition、export/import branch/session bundle、package-set lockfile、compatibility/migration report、AI disclosure metadata bundle、read-only shared session、async fork sharing。
+
+非目标：marketplace、package signing network、dependency resolver economy、hosted billing。
+
 ## 内核范围内的无限期延后
 
 这些仍是内核的非目标。它们可能以未来包的形式存在。
@@ -156,10 +220,10 @@ Phase J 非目标：
 - SillyTavern 兼容 —— 见 `docs/tavern/TAVERN_COMPAT.md`。
 - pi 产品嵌入 —— 见 `docs/architecture/PI_INTEGRATION.md`。Agent 基础设施只能作为普通 package/SDK 工作推进。
 - 外部游戏引擎桥接（UE5/Godot/Unity，web 客户端）。
-- 任何超出公开协议 Web shell 骨架的 UI shell、检查器或 studio。
+- 特权内置 Studio、绕过公开协议的 UI、或由 kernel 拥有的官方检查器。公开协议客户端和普通 package-contributed surfaces 可以继续演进。
 - 内核中的记忆模型、世界模拟、director、提示词渲染和模型 provider 抽象。Agent loops、production-grade live model calls 和 model providers 只能作为普通包存在。
 - 市场、包签名、依赖解析器。
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha 和 Agentic Forge Beta 已完成。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha 和 Agentic Forge Beta 已完成。后续进入 Experience-Led Platform Beta。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。

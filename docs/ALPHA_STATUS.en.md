@@ -4,15 +4,15 @@
 
 This is the living snapshot of what Yggdrasil is right now. It is updated whenever a milestone closes. It is not aspirational: every line below has code and conformance behind it (or is explicitly marked partial/deferred).
 
-For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/architecture/VISION.md`, and `docs/product/PLAY_CREATION_MODEL.md`. For where this is going, see `docs/roadmap/NEXT_STEPS.md`.
+For the long-term architecture and product stance, see `docs/CHARTER.md`, `docs/architecture/VISION.md`, `docs/product/PLAY_CREATION_MODEL.md`, and `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`. For where this is going, see `docs/roadmap/NEXT_STEPS.md`.
 
 ## Headline
 
-- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5 + Agentic Forge Beta Phase A/B/C/D/E.
+- **Stage:** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta.
 - **Conformance:** 180 named CLI cases plus crate and service unit tests.
 - **Charter discipline:** kernel content-free, official packages no privilege, public protocol only, package equality across entry forms, raw-secret blocking in trusted paths, secret_ref references only, permission grants survive rehydrate, network permission enforcement with outbound audit/redaction, generic streaming and cancellation lifecycle, SDK secure-execution helpers, networked/streaming package templates, no-network readiness proof, **outbound executor boundary with deny-all default and fake executor conformance**.
 - **Code health:** CLI commands/templates/conformance, runtime domain behavior, protocol dispatch, and runtime official in-process handlers are split by domain instead of accumulating in monolithic files.
-- **Current headline:** Agentic Forge Beta complete. The goal was to promote Agent Infrastructure Alpha from lab/proof code into a package-owned, branch-aware, tool-safe, inference-backed, deterministically testable creative agent runtime: agents remain ordinary packages outside kernel ontology; agents explore scratch branches and produce candidates/proposals instead of directly mutating target branches or collapsing into a chat/coding-agent/API-gateway shape. Phase A delivers `official/agentic-forge-lab` with describe_contract, start_run, inspect_run, cancel_run, summarize_run, export_plan_graph capabilities; 9 lifecycle states; plan graph with nodes/edges/status/revision/input_refs/output_refs/approval_policy/retry_policy/deterministic_mode; working state with run_id/owner_package/target_branch_ref/scratch_branch_ref/current_objective/local_context_refs/plan_graph_ref/candidate_refs/tool_observation_refs/inference_trace_refs/policy_state; raw-secret blocking with redaction_state=unsafe_blocked; `sdk/typescript/agentic-forge` TS SDK; and 5 conformance cases. Phase B adds create_candidate, compare_candidate, draft_promote_proposal, archive_candidate, explain_branch_policy; branch-aware scratch branch intent/metadata; candidate artifacts (candidate_id/run_id/target_branch_ref/scratch_branch_ref/changed_asset_refs/projection_refs/diff_summary/inspection_refs/confidence/uncertainty/provenance/status/target_revision); stale target detection that blocks promote on revision mismatch; proposal drafts that never directly mutate target branches; 5 more conformance cases. Phase C adds run_inference_node, replay_inference_node, validate_inference_output, explain_inference_failure; 8 explicit plan node kinds (observe/infer/tool_call/inspect/branch_op/compare/propose/wait); inference providers (deterministic/recorded/cloud_adapter_plan/local_fake); cloud_adapter_plan returns needs_host_policy with no network performed; replay mismatches flagged never silently passed; inference output action allowlist (candidate_seed/proposal_seed/observation/needs_repair) with forbidden actions (privilege_escalation/auto_promote/secret_request/target_branch_write/unknown_action); 9-item failure taxonomy with typed recovery hints; 5 more conformance cases. Phase D extends `official/capability-tool-bridge-lab` with explain_tool_call (scoped grant summary, no_execution, no_ambient_authority, branch-aware tool call context), record_tool_observation (untrusted=true, large output asset_ref, raw secret blocking), summarize_tool_risk (prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output with typed mitigations), replay_tool_plan (fingerprint match/mismatch, never silently passed), plan_toolchain (multi-step plan-only, explicit provider required, nested delegation blocked without explicit_delegation, target branch write blocked without promote grant, provider mismatch fails closed); 5 more conformance cases. Phase F adds third-party replacement proof (`thirdparty/agentic-forge` manifest + replacement composition, no official priority), hostile conformance (prompt injection + secret exfiltration blocked cross-package, privilege escalation rejected), budget/deadline contract (run_constraints in describe_contract, cancellation consistent), cross-package replay mismatch flagged; 5 more conformance cases. Durable guide: `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING`. No `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, `kernel.memory.*`, or `kernel.turn.*` protocol methods added.
+- **Current headline:** Agentic Forge Beta is complete. Yggdrasil now has a package-owned, branch-aware, tool-safe, inference-backed, deterministically testable creative agent runtime scaffold. Agents remain ordinary packages outside kernel ontology; they explore scratch branches and produce candidates/proposals instead of directly mutating target branches or collapsing into a chat/coding-agent/API-gateway shape. The next direction is **Experience-Led Platform Beta**, but this is a roadmap direction rather than an implemented capability: stop foundation-first expansion and use a real AI-native playable experience to pull the next substrate layers — Experience Runtime Contract, State/Asset Pipeline, Memory/Knowledge Packages, Experience Observability, Creator Loop, and Sharing/Distribution. See `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` for the long-term design.
 
 ## What is implemented
 
@@ -143,15 +143,14 @@ The Forge profile (`profiles/forge-alpha.yaml`) autoloads these alongside exampl
 - Package-principal `event.subscribe` permissions.
 - Hook handler timeout/error audit for package-owned handlers.
 - Persisted capability provider selection policy beyond per-invocation explicit selection.
-- Richer resource policy coverage (filesystem enforcement matrices) — Phase S4+ target.
+- Richer resource policy coverage (filesystem enforcement matrices) — Secure Execution follow-up hardening target.
 - Content-addressed asset blob storage and package-principal asset permission checks.
 - Package-owned projection execution.
 - Richer crash monitoring and health-check beyond lifecycle events.
 - Broader transport parity coverage in conformance beyond the current core protocol dispatcher and service tests.
 - Richer TypeScript SDK packaging beyond the current thin subprocess helper and secure-execution helpers.
 - Full `kernel.session.get|list`, `kernel.package.describe`, `kernel.capability.describe`, `kernel.extension_point.describe`, `kernel.host.principal`, `kernel.host.ping` route exposure.
-- Production secret vault integration (Phase S1 provides the contract, `DenyAllSecretResolver`, and `EnvSecretResolver`; full vault integration deferred).
-- Network permission declarations and outbound audit/redaction records (Phase S2 — implemented).
+- Production secret vault integration (`DenyAllSecretResolver` and `EnvSecretResolver` are implemented; full vault integration is deferred).
 
 ## What is deferred
 
@@ -161,7 +160,7 @@ These are non-goals for the kernel and are expected to ship as ordinary packages
 - Memory model, retrieval, summarization, agent loop, director.
 - World, scene, actor, rule, dice, inventory semantics.
 - SillyTavern resource and behavior compatibility (see `docs/tavern/TAVERN_COMPAT.md`).
-- Real agent loops, production-grade live model calls, and memory systems (agent-like infrastructure plus provider adapter/fake-local invoke are complete; see `docs/architecture/PI_INTEGRATION.md`, `docs/guides/AGENT_PACKAGE_AUTHORING.md`, and `docs/guides/MODEL_PROVIDER_INTEGRATION.md`).
+- Production-grade long-running autonomous agents, multi-agent collaboration, production memory systems, and richer live-ops (Agentic Forge, provider adapters, live calls, and inference capability substrate are complete; see `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`, `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md`, and `docs/guides/MODEL_PROVIDER_INTEGRATION.md`).
 - External game engine bridges (UE5, Godot, Unity, web clients).
 - Marketplace, package signing, dependency resolver.
 - Final UI visual design, full Studio, ComfyUI-like node editors.
@@ -192,6 +191,7 @@ If any of the above fails, this document is wrong; the code is right. Update thi
 - `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` — executable alpha contract matrix.
 - `docs/spec/CONFORMANCE_MATRIX.md` — hostile conformance roadmap.
 - `docs/product/PLAY_CREATION_MODEL.md` — play-creation product stance.
+- `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` — experience-led platform direction after Agentic Forge.
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like capability package authoring guide.
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — multi-provider cloud API integration guide.
 - `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` — transport-neutral inference capability package authoring guide.

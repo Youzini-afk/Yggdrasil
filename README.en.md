@@ -23,11 +23,12 @@ The platform's job is to make radical AI-native creation possible without privil
 
 ## Status
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha.**
+**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta.**
 
 The current foundation includes a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, principals and scoped permissions, surface contributions, generic proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives (`secret_ref`, EnvSecretResolver allowlists, network declarations, outbound audit/redaction, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, stream/cancel lifecycle), official platform packages (`composition-lab`, `asset-lab`, `projection-lab`), Creative Capability Kit packages (`persona-lab`, `knowledge-lab`, `context-lab`, `text-transform-lab`), Cloud Model Provider Adapter packages (`model-connector-lab`, `model-provider-lab`, `model-routing-lab`; covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks with adapter-local normalization, fake/local invoke, stream normalization, live loopback shapes, and provider quirks), the transport-neutral inference SDK (`sdk/typescript/inference-capability`), a non-HTTP fake local inference proof (`official/inference-local-lab`), a Ygg-native inference proposal vertical slice (`official/inference-playtest-lab`: inference → proposal → inspect → approve/reject → apply → branch/fork), an assistant-as-package, `official/playable-seed`, reference agent runtime package `official/pi-agent-runtime-lab`, capability tool bridge package `official/capability-tool-bridge-lab`, Agentic Forge Beta (complete: `official/agentic-forge-lab` with run lifecycle / plan graph / scratch branch candidates / promote proposals / inference fallback / tool bridge scoped grants; `official/capability-tool-bridge-lab` Phase D tool bridge v2; third-party replacement proof `thirdparty/agentic-forge`; durable guide `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING`), third-party agent runtime replacement proof (`thirdparty/agent-runtime`), a blank play-creation loop, a public-protocol web shell with Home/Play, Forge, and Assist surfaces, an optional frontend text engine substrate (fallback engine, optional Pretext engine, Forge text preview, `sdk/typescript/text-surface`), and an agent runtime package template (`--template agent-runtime`). 180 named conformance cases plus crate and service unit tests cover the boundary.
 
 For the executable snapshot, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md).
+For the long-term direction after Agentic Forge Beta, see [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](docs/product/EXPERIENCE_LED_PLATFORM_BETA.en.md): Yggdrasil should converge the foundation-first phase and shift toward Experience-Led Platform Beta, where real AI-native playable experiences pull the remaining substrate work.
 For where this is going, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 
 ## Repository layout
@@ -132,6 +133,7 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 - [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.en.md) — executable alpha contract matrix.
 - [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.en.md) — hostile conformance roadmap.
 - [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md) — play-creation product stance.
+- [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](docs/product/EXPERIENCE_LED_PLATFORM_BETA.en.md) — experience-led platform direction after Agentic Forge.
 - [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough.
 - [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md) — agent-like capability package authoring guide.
 - [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.en.md) — Yggdrasil-native creative capability package kit.
@@ -146,9 +148,9 @@ cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
 These are valuable directions but not part of the kernel. They will arrive as ordinary capability packages.
 
 - SillyTavern compatibility — see [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md).
-- pi / agent package infrastructure — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.en.md) and [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md). Real agent loops and memory systems remain future ordinary capability packages; model provider integration substrate is documented in [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md).
+- pi / agent package infrastructure — see [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.en.md), [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), and [`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.en.md). Agentic Forge Beta is complete; production-grade long-running autonomy, multi-agent collaboration, and memory systems remain future ordinary capability-package work. Model provider integration substrate is documented in [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md).
 - External game engines (UE5, Godot, Unity, web clients) — future packages or remote-entry integrations.
-- Conversational runtime, production-grade provider-package productization, memory model, agent loop, world simulation, director.
+- Conversational runtime, production-grade provider-package productization, production memory systems, long-running autonomous agents, multi-agent collaboration, world simulation, director.
 - Final UI visual design, full Studio, ComfyUI-like node editors, marketplace.
 
 ## License

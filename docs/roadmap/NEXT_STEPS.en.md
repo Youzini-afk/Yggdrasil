@@ -4,7 +4,7 @@
 
 The platform foundation is in place. Yggdrasil now has a content-free kernel, manifest-driven packages, real `rust_inproc` and subprocess execution, a permission/principal system, the hook fabric slice, surface contributions, the proposal/approval lifecycle, asset/branch/projection substrate, secure execution primitives, official platform packages, an assistant package, `official/playable-seed`, a blank play-creation loop, and a public-protocol web shell with Home/Play, Forge, Assist, and a bounded text-surface proof.
 
-Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, and Creative Inference Capability Alpha are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, and inference→proposal proof. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline is **Agentic Forge Beta**: promote agents from lab/proof code into a package-owned, branch-aware, tool-safe, inference-backed, deterministically testable creative agent runtime.
+Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, and Agentic Forge Beta are complete. Yggdrasil can now describe, validate, normalize, and fake/local invoke API differences across OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks as ordinary capability packages; it also has host-owned `secret_ref:env:*`, public `kernel.outbound.execute`, LiveHttpOutboundExecutor, redacted audit, live loopback provider shapes, a transport-neutral inference seam, inference→proposal proof, and a package-owned / branch-aware / tool-safe Agentic Forge runtime scaffold. Default conformance does not require public internet; manual live smoke must be explicitly opted in. The current headline shifts to **Experience-Led Platform Beta**: stop foundation-first expansion and use real AI-native playable experiences to pull the next state, asset, memory, observability, creator-loop, and sharing substrate layers.
 
 ## Where we are
 
@@ -26,6 +26,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Agentic Forge Beta Phase D: complete; extends `official/capability-tool-bridge-lab` with explain_tool_call (scoped grant summary, branch-aware tool call context, no_execution, no_ambient_authority)/record_tool_observation (untrusted=true, large output asset_ref, raw-secret blocking)/summarize_tool_risk (prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output with typed mitigations)/replay_tool_plan (fingerprint match/mismatch)/plan_toolchain (multi-step plan-only, explicit provider required, nested delegation blocked without explicit_delegation, target branch write blocked without promote grant); 5 more conformance cases. Conformance now has 175 named cases.
 - Agentic Forge Beta Phase E: complete; adds six Agentic Forge workspace panels to the Forge surface (Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls). All data sourced from public protocol only. No chat-first UI. `clients/web/src/agent/observability.ts` adds `ForgeAgentWorkspaceModel` and build/render functions. `tsc -p clients/web/tsconfig.json --noEmit` passes.
 - Agentic Forge Beta Phase F: complete; third-party replacement proof (`thirdparty/agentic-forge` manifest + replacement composition, no official priority), hostile conformance (prompt injection + secret exfiltration blocked cross-package, privilege escalation rejected), budget/deadline contract (`run_constraints` in `describe_contract`, cancellation consistent), cross-package replay mismatch flagged; 5 more conformance cases. Durable guide: [`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.en.md). Conformance now has 180 named cases; status converged to ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix.
+- Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Runtime Contract, State/Asset Pipeline, Memory/Knowledge Packages, Experience Observability, Creator Loop, and Sharing/Distribution layers.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
@@ -33,7 +34,7 @@ See `docs/ALPHA_STATUS.md` for a detailed snapshot.
 
 Goal: stop expanding surface area. Sand the rough edges, lock the contract, and make the existing foundation easy to demo, document, and extend.
 
-- Documentation refresh across `README.md`, `README.md`, and the docs tree.
+- Documentation refresh across `README.md`, `README.en.md`, and the docs tree.
 - Add `docs/product/PLAY_CREATION_MODEL.md` to fix the play-creation product stance.
 - Add `docs/ALPHA_STATUS.md` as the living snapshot of what is done, partial, and deferred.
 - Resolve remaining Platform Host Alpha partial items where they are cheap.
@@ -146,14 +147,71 @@ Phases completed:
 - Phase D: tool bridge v2 — scoped toolchain observation / risk / replay.
 - Phase E: Forge workspace observability panels.
 - Phase F: third-party replacement proof, hostile conformance, budget/deadline contract, durable docs cleanup.
-- Phase A: package-owned run lifecycle / working state / plan graph.
-- Phase B: branch-aware scratch branch / candidate / compare / promote proof.
-- Phase C: inference-backed agent run with deterministic fallback.
-- Phase D: tool bridge v2 scoped toolchain observation / risk / replay.
-- Phase E: Forge Agent Workspace / Observability UI shell (Completed).
-- Phase F: third-party replacement proof, hostile conformance, durable docs cleanup.
 
 Non-goals: LangChain clone, chat shell, coding-agent clone, agent marketplace, always-on autonomous background agents, provider zoo, OpenAI-compatible agent endpoint, `kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`.
+
+## Experience Beta 0 — Thin Experience Runtime Contract (next headline)
+
+Goal: define how ordinary package-owned experiences run continuously, pause, recover, checkpoint, fork, and receive Agentic Forge changes.
+
+Deliverables:
+
+- Experience package authoring pattern.
+- Session-state projection convention.
+- Checkpoint asset convention.
+- Failure/recovery event shape.
+- Play surface state subscription pattern.
+- How Forge/Assist connect to an experience session.
+
+Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`.
+
+## Experience Beta 1 — First Real Playable Vertical Slice
+
+Goal: build an AI-native experience that can be played for 20–30 minutes as early as possible. It must not be a chat shell, Tavern clone, or prompt/response demo, and it must not wait for State/Asset/Memory to be complete.
+
+Acceptance criteria: launched from Home; package-owned state; a real model path while default conformance remains deterministic/no-network; asset/state changes; user requests through Assist/Forge; Agentic Forge plan/candidate/proposal; inspect/approve/reject; fork and compare branches; recover failures with visible failure breadcrumbs; key asset/proposal/inference provenance visible; replace one key capability with a third-party package.
+
+This is the product proof that Yggdrasil has moved from “free platform substrate” to “worth playing, modifying, and forking,” and it should pull the minimum required state, asset, memory, and observability work.
+
+## Experience Beta 2 — State + Asset Pipeline Alpha
+
+Goal: make experience state and generated assets trackable, comparable, and recoverable.
+
+Deliverables: content-addressed asset blobs, asset provenance graph, derived asset refs, AI-generated/live-generated metadata, rights/licensing/disclosure metadata slots, state snapshot assets, state diff previews, branch-aware asset/state views, safe preview descriptors, large output handling, and package-scoped asset permission checks. This phase should deliver only the minimum set exposed by the First Real Playable Vertical Slice; everything else stays as later hardening.
+
+Non-goals: full media editors, unified media schema, kernel world state model.
+
+## Experience Beta 3 — Experience Observability
+
+Goal: show users and creators what happened, why it failed, and where cost/latency came from. This should start as an acceptance criterion during Experience Beta 1, then become systematic here.
+
+Deliverables: session health, package health, agent run health, model/inference cost and latency summary, proposal causal chain, asset provenance graph view, failure breadcrumbs, stuck run detection, guardrail/audit summary.
+
+Non-goals: full APM, SaaS monitoring backend.
+
+## Experience Beta 4 — Memory / Knowledge Package Alpha
+
+Goal: provide long-term memory and knowledge as ordinary packages, not kernel ontology.
+
+Deliverables: memory record package schema examples, branch-aware memory views, retrieval traces, proposal-gated memory updates, user correction, forgetting/redaction workflows, memory provenance, and knowledge source refs. If the first real experience needs cross-session / cross-branch long-term memory, build the minimum slice earlier; otherwise this should be pulled after the first vertical slice.
+
+Non-goals: `kernel.memory.*`, one official RAG, chat memory system.
+
+## Experience Beta 5 — Creator Loop Beta
+
+Goal: let a new creator build a playable package in a day using docs, templates, and Forge, without reading source code.
+
+Deliverables: better experience templates, fixture runner UX, reload flow polish, composition diagnostics, authoring walkthrough based on a real package, package error explainability, and Forge authoring workflow.
+
+Non-goals: marketplace, creator monetization.
+
+## Experience Beta 6 — Sharing / Distribution Alpha
+
+Goal: support shareability, reproducibility, and import before marketplace.
+
+Deliverables: export/import composition, export/import branch/session bundle, package-set lockfile, compatibility/migration report, AI disclosure metadata bundle, read-only shared session, async fork sharing.
+
+Non-goals: marketplace, package signing network, dependency resolver economy, hosted billing.
 
 ## Deferred indefinitely from kernel scope
 
@@ -162,10 +220,10 @@ These remain non-goals for the kernel. They may exist as future packages.
 - SillyTavern compatibility — see `docs/tavern/TAVERN_COMPAT.md`.
 - pi product embedding — see `docs/architecture/PI_INTEGRATION.md`. Agent infrastructure may proceed only as ordinary package/SDK work.
 - External game engine bridges (UE5/Godot/Unity, web clients).
-- Any UI shell, inspector, or studio beyond the public-protocol web shell skeleton.
+- Privileged built-in Studio surfaces, UI that bypasses public protocol, or kernel-owned official inspectors. Public-protocol clients and ordinary package-contributed surfaces may continue to evolve.
 - Memory model, world simulation, director, prompt rendering, and model provider abstraction in the kernel. Agent loops, production-grade live model calls, and model providers may exist only as ordinary packages.
 - Marketplace, package signing, dependency resolver.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, and Agentic Forge Beta are complete. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, and all package/UI behavior using public protocol boundaries.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, and Agentic Forge Beta are complete. The roadmap now enters Experience-Led Platform Beta. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

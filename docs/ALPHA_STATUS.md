@@ -4,15 +4,15 @@
 
 这是 Yggdrasil 当前状态的实时快照。每当一个里程碑关闭时更新。它不是愿景：下面每一行都有代码和 conformance 支撑（或被明确标注为 partial/deferred）。
 
-长期架构和产品立场见 `docs/CHARTER.md`、`docs/architecture/VISION.md` 和 `docs/product/PLAY_CREATION_MODEL.md`。后续方向见 `docs/roadmap/NEXT_STEPS.md`。
+长期架构和产品立场见 `docs/CHARTER.md`、`docs/architecture/VISION.md`、`docs/product/PLAY_CREATION_MODEL.md` 和 `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`。后续方向见 `docs/roadmap/NEXT_STEPS.md`。
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Phase S1/S2/S3/S4 + Text Surface Proof Phase T1/T2/T3/T4/T5 + Agentic Forge Beta Phase A/B/C/D/E。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta。
 - **Conformance：** 180 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch 与 runtime official in-process handlers 已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Agentic Forge Beta 已完成。Phase E 已完成：Forge surface 中新增六个 Agentic Forge workspace panels（Run timeline / Plan graph read-only / Branch diff & lineage / Candidate compare & promote / Tool & inference trace / Controls），所有数据仅来自 public protocol events、proposals、surfaces、capabilities、packages、assets、projections，无 runtime internals、无 chat-first UI。clients/web/src/agent/observability.ts 新增 ForgeAgentWorkspaceModel 类型及 build/render 函数，tsc -p clients/web/tsconfig.json --noEmit 通过。Phase F 已完成：第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断）、budget/deadline 契约（run_constraints in describe_contract，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING`。。目标是把 Agent Infrastructure Alpha 从 lab/proof 推进为 package-owned、branch-aware、tool-safe、inference-backed、deterministically testable 的 creative agent runtime：agent 仍是普通包，不进入 kernel ontology；agent 在 scratch branch 探索并产生 candidate/proposal，而不是直接修改 target branch 或退化成 chat/coding-agent/API gateway。Phase A 交付 `official/agentic-forge-lab`，提供 describe_contract、start_run、inspect_run、cancel_run、summarize_run、export_plan_graph 六个能力；9 个 lifecycle 状态；plan graph 含 nodes/edges/status/revision/input_refs/output_refs/approval_policy/retry_policy/deterministic_mode；working state 含 run_id/owner_package/target_branch_ref/scratch_branch_ref/current_objective/local_context_refs/plan_graph_ref/candidate_refs/tool_observation_refs/inference_trace_refs/policy_state；raw-secret 阻断并返回 redaction_state=unsafe_blocked；`sdk/typescript/agentic-forge` TS SDK；5 个 conformance 用例。Phase B 新增 create_candidate、compare_candidate、draft_promote_proposal、archive_candidate、explain_branch_policy；branch-aware scratch branch intent/metadata；candidate artifacts（candidate_id/run_id/target_branch_ref/scratch_branch_ref/changed_asset_refs/projection_refs/diff_summary/inspection_refs/confidence/uncertainty/provenance/status/target_revision）；stale target 检测在 revision 不匹配时阻止 promote；proposal draft 不直接修改 target branch；5 个 conformance 用例。Phase C 新增 run_inference_node、replay_inference_node、validate_inference_output、explain_inference_failure；8 个显式 plan node kind（observe/infer/tool_call/inspect/branch_op/compare/propose/wait）；inference provider（deterministic/recorded/cloud_adapter_plan/local_fake）；cloud_adapter_plan 返回 needs_host_policy 且不执行网络；replay 指纹不匹配时标记而非静默通过；inference output action allowlist（candidate_seed/proposal_seed/observation/needs_repair）禁止 privilege_escalation/auto_promote/secret_request/target_branch_write/unknown_action；9 项 failure taxonomy 含 typed recovery hint；5 个 conformance 用例。Phase D 扩展 `official/capability-tool-bridge-lab` 新增 explain_tool_call（scoped grant summary，含 branch-aware tool call context，no_execution，no_ambient_authority）、record_tool_observation（untrusted=true，大输出 asset_ref，raw-secret 阻断）、summarize_tool_risk（prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output 含 typed mitigations）、replay_tool_plan（指纹匹配/不匹配，绝不静默通过）、plan_toolchain（多步 plan-only，显式 provider 必需，嵌套 delegation 无 explicit_delegation 时阻止，target branch 写入无 promote grant 时阻止，provider 不匹配 fail closed）；5 个 conformance 用例。未新增 `kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*`、`kernel.memory.*` 或 `kernel.turn.*` 协议方法。
+- **当前主线：** Agentic Forge Beta 已完成；Yggdrasil 已具备 package-owned、branch-aware、tool-safe、inference-backed、deterministically testable 的 creative agent runtime scaffold。Agent 仍是普通包，不进入 kernel ontology；agent 在 scratch branch 探索并产生 candidate/proposal，而不是直接修改 target branch 或退化成 chat/coding-agent/API gateway。下一阶段方向已确定为 **Experience-Led Platform Beta**，但这是路线而非已实现能力：停止 foundation-first 扩张，用一个真实 AI-native playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution 的后续底座建设。长期设计见 `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`。
 
 ## 已实现
 
@@ -143,7 +143,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - Package-principal 的 `event.subscribe` 权限。
 - Hook handler 超时/错误审计，面向包拥有的 handler。
 - 持久化的能力 provider 选择策略（超越单次调用显式选择）。
-- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Phase S4+ 目标。
+- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Secure Execution 后续 hardening 目标。
 - 内容寻址的 asset blob 存储和 package-principal asset 权限检查。
 - 包拥有的 projection 执行。
 - 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。
@@ -159,7 +159,7 @@ Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 
 - 记忆模型、检索、摘要、agent loop、director。
 - 世界、场景、角色、规则、骰子、背包语义。
 - SillyTavern 资源和行为兼容（见 `docs/tavern/TAVERN_COMPAT.md`）。
-- 真实 agent loop、生产级 live model calls 和记忆系统（agent-like 基础设施与 provider adapter/fake-local invoke 已完成；见 `docs/architecture/PI_INTEGRATION.md`、`docs/guides/AGENT_PACKAGE_AUTHORING.md` 与 `docs/guides/MODEL_PROVIDER_INTEGRATION.md`）。
+- 生产级长期自治 agent、多 agent 协作、生产级记忆系统与更完整 live-ops（Agentic Forge、provider adapter、live calls 与 inference capability 底座已完成；见 `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`、`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` 与 `docs/guides/MODEL_PROVIDER_INTEGRATION.md`）。
 - 外部游戏引擎桥接（UE5、Godot、Unity、web 客户端）。
 - 市场、包签名、依赖解析器。
 - 最终 UI 视觉设计、完整 Studio、ComfyUI 风格节点编辑器。
@@ -190,6 +190,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 - `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` —— 可执行的 alpha 契约矩阵。
 - `docs/spec/CONFORMANCE_MATRIX.md` —— hostile conformance 路线图。
 - `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
+- `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` —— Agentic Forge 之后的体验牵引平台路线。
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` —— agent-like 能力包创作指南。
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` —— 多 provider cloud API 接入指南。
 - `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` —— transport-neutral 推理能力包创作指南。
