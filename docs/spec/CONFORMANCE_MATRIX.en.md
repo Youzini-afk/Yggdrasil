@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 222 implemented rows, backed by 267 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 230 implemented rows, backed by 275 named CLI conformance cases plus crate/service unit tests.
 
 ## Conformance Feedback Loop
 

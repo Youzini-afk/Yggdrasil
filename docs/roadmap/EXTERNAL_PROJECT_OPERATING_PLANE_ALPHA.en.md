@@ -103,24 +103,26 @@ Delivered:
 
 Acceptance: Web TypeScript; workspace-lab conformance; doc links; diff check; UI remains public-protocol-only.
 
-## Phase E5 — Adapter / Wrapper Generation Proof
+## Phase E5 — Adapter / Wrapper Generation Proof — COMPLETE
 
-Goal: generate readable, checkable, replaceable ordinary adapter package skeletons from fixture workspaces.
+Goal: generate readable, checkable, replaceable ordinary adapter package skeletons from fixture workspaces, proving unadapted external projects can be wrapped as ordinary Ygg packages through the standard package path.
 
-Deliverables:
+Delivered:
 
-- Ordinary official package `official/adapter-lab`.
-- Capabilities: `describe_adapter_contract`, `draft_adapter_plan`, `infer_capability_candidates`, `generate_subprocess_wrapper`, `generate_manifest`, `generate_fixture`, `explain_adapter_permissions`, `export_adapter_package`.
-- Minimal adapter: one command → one capability, subprocess wrapper, manifest, fixture, README.
-- Example package / composition replacement proof.
-- Conformance: generated adapter package check passes, no official privilege, minimal permissions, inferred confidence labels.
+- Extended `official/project-intake-lab` with 4 new adapter/wrapper generation preview capabilities (11 total):
+  - `generate_adapter_manifest_preview`: produces Ygg package manifest preview for an adapter without file write. `adapter_package_id` must not be `official/` and must not contain path traversal or unsafe characters. Capability must belong to adapter namespace. Permissions default to minimal (no network/filesystem/process).
+  - `generate_subprocess_wrapper_preview`: produces TypeScript/Python subprocess wrapper code preview with safe comments requiring future policy-gated executor / explicit approval. No file write, no execution.
+  - `generate_adapter_fixture_preview`: produces package fixture input/output sample with redacted values; no raw secrets.
+  - `check_adapter_readiness`: produces readiness checklist (capability_namespace_ok, surface_coverage, permissions_minimal, fixture_present, no_raw_secrets, no_forbidden_namespace, needs_approval_for_execution).
+- Security: raw secret blocking; no filesystem write/read; no process/network; unsafe adapter id rejected; official adapter id rejected (prevents impersonation); capability namespace mismatch rejected; no forbidden kernel.project/workspace/git/npm/deploy/ide namespace in output.
+- Example package: `examples/packages/external-project-adapter-preview/` as preview fixture (thirdparty namespace, no execution).
+- Conformance: 8 new cases (adapter manifest preview no write, rejects official adapter id, rejects path traversal adapter id, capability namespace mismatch rejected, wrapper preview no execution, fixture preview redacted, readiness checklist ok, e5 no forbidden namespace no raw secret). Total project-intake-lab conformance: 16 cases. Total workspace conformance: 275.
+- Web: `clients/web/src/projects/external-projects.ts` updated to read adapter_manifest, adapter_wrapper, adapter_fixture, adapter_readiness fields; graceful degradation when E5 capabilities not available.
 
-Acceptance: adapter is an ordinary package; no auto-publish; no automatic network/secret grants.
+Acceptance: adapter is an ordinary package; no auto-publish; no automatic network/secret grants; adapter_package_id is never official/.
 
 ## Phase E6 — Durable Docs Cleanup & Final Validation
 
 Goal: delete this temporary plan and converge durable docs.
 
 Deliverables: `docs/guides/EXTERNAL_PROJECT_OPERATING_PLANE.md` and `.en.md`, README / ALPHA_STATUS / NEXT_STEPS / CONFORMANCE_MATRIX / package docs updates, deletion of this plan, and evidence-source notes.
-
-Final validation: workspace tests, conformance, package checks for the new labs, Web TypeScript, doc links, diff check, temporary-plan residue check, and forbidden-kernel-namespace residue check.

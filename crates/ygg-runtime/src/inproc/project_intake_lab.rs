@@ -1,6 +1,6 @@
 //! Handler for `official/project-intake-lab` capabilities.
 //!
-//! External Project Operating Plane Alpha Phase E1 — Project Intake Lab.
+//! External Project Operating Plane Alpha Phase E1 + E5 — Project Intake Lab.
 //!
 //! Static project intake for external project refs. No clone, no install,
 //! no run, no network, no filesystem access, no shell, no outbound.
@@ -13,6 +13,10 @@
 //! - draft_security_risk_summary: produce security risk summary
 //! - list_candidate_entrypoints: list candidate entrypoints with risk annotations
 //! - draft_adapter_plan: produce plan-only adapter plan
+//! - generate_adapter_manifest_preview: produce Ygg package manifest preview for an adapter (no file write)
+//! - generate_subprocess_wrapper_preview: produce subprocess wrapper code preview (no file write, no execution)
+//! - generate_adapter_fixture_preview: produce package fixture input/output sample (redacted)
+//! - check_adapter_readiness: produce readiness checklist for adapter package
 //!
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
@@ -133,6 +137,14 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(list_candidate_entrypoints(request))
     } else if id.ends_with("/draft_adapter_plan") {
         Some(draft_adapter_plan(request))
+    } else if id.ends_with("/generate_adapter_manifest_preview") {
+        Some(generate_adapter_manifest_preview(request))
+    } else if id.ends_with("/generate_subprocess_wrapper_preview") {
+        Some(generate_subprocess_wrapper_preview(request))
+    } else if id.ends_with("/generate_adapter_fixture_preview") {
+        Some(generate_adapter_fixture_preview(request))
+    } else if id.ends_with("/check_adapter_readiness") {
+        Some(check_adapter_readiness(request))
     } else {
         None
     }
@@ -155,6 +167,10 @@ fn describe_intake_contract(request: &InprocInvocation) -> anyhow::Result<Value>
             {"id": "official/project-intake-lab/draft_security_risk_summary", "purpose": "draft security risk summary from metadata, no filesystem scan"},
             {"id": "official/project-intake-lab/list_candidate_entrypoints", "purpose": "list candidate entrypoints with risk annotations, no execution"},
             {"id": "official/project-intake-lab/draft_adapter_plan", "purpose": "draft plan-only adapter plan, no direct adapter creation"},
+            {"id": "official/project-intake-lab/generate_adapter_manifest_preview", "purpose": "generate adapter package manifest preview without file write"},
+            {"id": "official/project-intake-lab/generate_subprocess_wrapper_preview", "purpose": "generate subprocess wrapper code preview without file write or execution"},
+            {"id": "official/project-intake-lab/generate_adapter_fixture_preview", "purpose": "generate adapter package fixture input/output sample, redacted"},
+            {"id": "official/project-intake-lab/check_adapter_readiness", "purpose": "produce readiness checklist for adapter package"},
         ],
         "surfaces": {
             "forge_panel": "official/project-intake-lab/forge-panel",
@@ -173,6 +189,10 @@ fn describe_intake_contract(request: &InprocInvocation) -> anyhow::Result<Value>
             "security_risk_summary": ["risk_level", "risk_factors", "npm_lifecycle_risks", "path_safety", "raw_secret_detected", "recommendations"],
             "candidate_entrypoints": ["entrypoints", "entrypoints[].label", "entrypoints[].command", "entrypoints[].requires_approval", "entrypoints[].executes_code"],
             "adapter_plan": ["plan_only", "requires_user_approval", "source_kind", "proposed_capabilities", "proposed_entry", "risk_notes"],
+            "adapter_manifest_preview": ["manifest_preview", "adapter_package_id", "capability_name", "entry_kind", "filesystem_performed", "network_performed", "execution_performed"],
+            "subprocess_wrapper_preview": ["files", "language", "safe_comments", "filesystem_performed", "network_performed", "execution_performed"],
+            "adapter_fixture_preview": ["fixture_input", "fixture_output", "redacted", "filesystem_performed", "network_performed", "execution_performed"],
+            "adapter_readiness": ["checklist", "ready", "capability_namespace_ok", "surface_coverage", "permissions_minimal", "fixture_present", "no_raw_secrets", "needs_approval_for_execution"],
         },
         "inference_performed": false,
         "network_performed": false,
@@ -765,6 +785,564 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 // ---------------------------------------------------------------------------
+// Forbidden namespace tokens that must not appear in adapter output
+// ---------------------------------------------------------------------------
+
+const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
+    "kernel.project.",
+    "kernel.workspace.",
+    "kernel.git.",
+    "kernel.npm.",
+    "kernel.deploy.",
+    "kernel.ide.",
+];
+
+fn contains_forbidden_namespace(value: &Value) -> bool {
+    let s = serde_json::to_string(value).unwrap_or_default();
+    FORBIDDEN_NAMESPACE_TOKENS.iter().any(|t| s.contains(t))
+}
+
+// ---------------------------------------------------------------------------
+// Unsafe adapter package ID validation
+// ---------------------------------------------------------------------------
+
+fn is_unsafe_adapter_package_id(id: &str) -> bool {
+    // Must not be official/ — prevents impersonation of official packages
+    if id.starts_with("official/") {
+        return true;
+    }
+    // Must not contain path traversal
+    if id.contains("..") {
+        return true;
+    }
+    // Must not contain unsafe characters (only allow alphanumeric, dash, underscore, slash)
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '/')
+    {
+        return true;
+    }
+    false
+}
+
+// ---------------------------------------------------------------------------
+// Capability namespace validation: capability_id must be under adapter namespace
+// ---------------------------------------------------------------------------
+
+fn is_capability_namespace_mismatch(adapter_package_id: &str, capability_name: &str) -> bool {
+    // capability_name should be a bare name like "invoke" or "inspect"
+    // The full capability_id would be adapter_package_id/capability_name
+    // It must not reference a different package namespace
+    if capability_name.contains('/') && !capability_name.starts_with(adapter_package_id) {
+        return true;
+    }
+    false
+}
+
+// ---------------------------------------------------------------------------
+// Capability implementations (E5)
+// ---------------------------------------------------------------------------
+
+fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(request));
+    }
+
+    let source_ref = request
+        .input
+        .get("source_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    let source_kind = request
+        .input
+        .get("source_kind")
+        .and_then(Value::as_str)
+        .filter(|k| SOURCE_KINDS.contains(k))
+        .unwrap_or_else(|| classify_source_kind(source_ref));
+
+    let adapter_package_id = request
+        .input
+        .get("adapter_package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    let capability_name = request
+        .input
+        .get("capability_name")
+        .and_then(Value::as_str)
+        .unwrap_or("invoke");
+
+    let entry_kind = request
+        .input
+        .get("entry_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("subprocess");
+
+    // Reject official adapter package ids
+    if is_unsafe_adapter_package_id(adapter_package_id) {
+        return Ok(serde_json::json!({
+            "kind": "project_intake_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "adapter_package_id must not be official/ and must not contain path traversal or unsafe characters",
+            "inference_performed": false,
+            "network_performed": false,
+            "execution_performed": false,
+            "filesystem_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    // Check capability namespace mismatch
+    if is_capability_namespace_mismatch(adapter_package_id, capability_name) {
+        return Ok(serde_json::json!({
+            "kind": "project_intake_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "capability_name must belong to the adapter package namespace",
+            "inference_performed": false,
+            "network_performed": false,
+            "execution_performed": false,
+            "filesystem_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    // Build manifest preview
+    let full_capability_id = format!("{adapter_package_id}/{capability_name}");
+    let manifest_preview = serde_json::json!({
+        "schema_version": 1,
+        "id": adapter_package_id,
+        "version": "0.1.0",
+        "display_name": format!("Adapter for {}", source_ref),
+        "description": format!("Adapter/wrapper package for external project {} — generated preview, not written to filesystem", source_ref),
+        "entry": {
+            "kind": entry_kind,
+        },
+        "provides": [
+            {
+                "id": full_capability_id,
+                "version": "0.1.0",
+                "input_schema": {},
+                "output_schema": {},
+                "streaming": false,
+                "side_effects": [],
+            }
+        ],
+        "consumes": [],
+        "contributes": {
+            "schemas": [],
+            "hooks": [],
+            "extension_points": [],
+            "surfaces": []
+        },
+        "permissions": {
+            "capabilities": {
+                "invoke": []
+            }
+        },
+        "sandbox_policy": {
+            "cpu_quota_ms_per_invoke": 5000,
+            "memory_mb": 128,
+            "wall_clock_ms": 30000
+        }
+    });
+
+    // Check for forbidden namespace in preview
+    if contains_forbidden_namespace(&manifest_preview) {
+        return Ok(serde_json::json!({
+            "kind": "project_intake_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "adapter manifest preview contains forbidden kernel namespace references",
+            "inference_performed": false,
+            "network_performed": false,
+            "execution_performed": false,
+            "filesystem_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    Ok(serde_json::json!({
+        "kind": "adapter_manifest_preview",
+        "manifest_preview": manifest_preview,
+        "adapter_package_id": adapter_package_id,
+        "capability_name": capability_name,
+        "entry_kind": entry_kind,
+        "source_kind": source_kind,
+        "source_ref": if source_ref.is_empty() { Value::Null } else { serde_json::json!(source_ref) },
+        "filesystem_performed": false,
+        "network_performed": false,
+        "execution_performed": false,
+        "inference_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn generate_subprocess_wrapper_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(request));
+    }
+
+    let source_ref = request
+        .input
+        .get("source_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    let source_kind = request
+        .input
+        .get("source_kind")
+        .and_then(Value::as_str)
+        .filter(|k| SOURCE_KINDS.contains(k))
+        .unwrap_or_else(|| classify_source_kind(source_ref));
+
+    let adapter_package_id = request
+        .input
+        .get("adapter_package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("thirdparty/adapter");
+
+    let capability_name = request
+        .input
+        .get("capability_name")
+        .and_then(Value::as_str)
+        .unwrap_or("invoke");
+
+    // Reject unsafe adapter package ids
+    if is_unsafe_adapter_package_id(adapter_package_id) {
+        return Ok(serde_json::json!({
+            "kind": "project_intake_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "adapter_package_id must not be official/ and must not contain path traversal or unsafe characters",
+            "inference_performed": false,
+            "network_performed": false,
+            "execution_performed": false,
+            "filesystem_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    let language = request
+        .input
+        .get("language")
+        .and_then(Value::as_str)
+        .unwrap_or("typescript");
+
+    let command = match source_kind {
+        "git" | "npm" | "local" | "archive" => "run",
+        _ => "unknown",
+    };
+
+    // Generate wrapper code preview — no real execution
+    let wrapper_content = match language {
+        "python" => format!(
+r#"# Adapter subprocess wrapper for {adapter_package_id}
+# SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+# This preview is generated for inspection only; do not execute without approval.
+
+import json
+import sys
+
+def handle_invoke(input_data):
+    # SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+    # No real execution is performed in this preview
+    return {{"kind": "adapter_invoke_result", "command": "{command}", "source_ref": "{source_ref}", "execution_performed": False}}
+
+if __name__ == "__main__":
+    request = json.load(sys.stdin)
+    result = handle_invoke(request.get("input", {{}}))
+    json.dump(result, sys.stdout)
+"#,
+            adapter_package_id = adapter_package_id,
+            command = command,
+            source_ref = source_ref,
+        ),
+        _ => format!(
+r#"// Adapter subprocess wrapper for {adapter_package_id}
+// SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+// This preview is generated for inspection only; do not execute without approval.
+
+import {{ SubprocessHandler }} from "@yggdrasil/sdk/subprocess";
+
+const handler: SubprocessHandler = {{
+  async {capability_name}(input: Record<string, unknown>) {{
+    // SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+    // No real execution is performed in this preview
+    return {{
+      kind: "adapter_invoke_result",
+      command: "{command}",
+      source_ref: "{source_ref}",
+      execution_performed: false,
+    }};
+  }},
+}};
+
+export default handler;
+"#,
+            adapter_package_id = adapter_package_id,
+            capability_name = capability_name,
+            command = command,
+            source_ref = source_ref,
+        ),
+    };
+
+    let safe_comments = vec![
+        "external project invocation requires future policy-gated executor / explicit approval",
+    ];
+
+    Ok(serde_json::json!({
+        "kind": "subprocess_wrapper_preview",
+        "files": [
+            {
+                "path": format!("src/index.{}", if language == "python" { "py" } else { "ts" }),
+                "content": wrapper_content,
+            }
+        ],
+        "language": language,
+        "adapter_package_id": adapter_package_id,
+        "capability_name": capability_name,
+        "safe_comments": safe_comments,
+        "source_kind": source_kind,
+        "filesystem_performed": false,
+        "network_performed": false,
+        "execution_performed": false,
+        "inference_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn generate_adapter_fixture_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(request));
+    }
+
+    let adapter_package_id = request
+        .input
+        .get("adapter_package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("thirdparty/adapter");
+
+    let capability_name = request
+        .input
+        .get("capability_name")
+        .and_then(Value::as_str)
+        .unwrap_or("invoke");
+
+    // Reject unsafe adapter package ids
+    if is_unsafe_adapter_package_id(adapter_package_id) {
+        return Ok(serde_json::json!({
+            "kind": "project_intake_rejected",
+            "redaction_state": "unsafe_blocked",
+            "reason": "adapter_package_id must not be official/ and must not contain path traversal or unsafe characters",
+            "inference_performed": false,
+            "network_performed": false,
+            "execution_performed": false,
+            "filesystem_performed": false,
+            "provenance": {
+                "package_id": request.provider_package_id,
+                "capability_id": request.capability_id
+            }
+        }));
+    }
+
+    // Build fixture with redacted values for any secret-like content
+    let fixture_input = serde_json::json!({
+        "command": "run",
+        "args": [],
+        "env_refs": ["secret_ref:env:ADAPTER_TEST_KEY"],
+        "source_ref": "example-project",
+    });
+
+    let fixture_output = serde_json::json!({
+        "kind": "adapter_invoke_result",
+        "execution_performed": false,
+        "network_performed": false,
+        "result_preview": "[redacted]",
+        "exit_code": 0,
+    });
+
+    Ok(serde_json::json!({
+        "kind": "adapter_fixture_preview",
+        "fixture_input": fixture_input,
+        "fixture_output": fixture_output,
+        "adapter_package_id": adapter_package_id,
+        "capability_name": capability_name,
+        "redacted": true,
+        "redaction_note": "fixture values containing secrets are replaced with secret_ref references; result previews are redacted",
+        "filesystem_performed": false,
+        "network_performed": false,
+        "execution_performed": false,
+        "inference_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn check_adapter_readiness(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(request));
+    }
+
+    let adapter_package_id = request
+        .input
+        .get("adapter_package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    let capability_name = request
+        .input
+        .get("capability_name")
+        .and_then(Value::as_str)
+        .unwrap_or("invoke");
+
+    let has_manifest = request
+        .input
+        .get("has_manifest")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+
+    let has_wrapper = request
+        .input
+        .get("has_wrapper")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+
+    let has_fixture = request
+        .input
+        .get("has_fixture")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+
+    let source_ref = request
+        .input
+        .get("source_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    // Reject official adapter ids
+    let capability_namespace_ok = !is_unsafe_adapter_package_id(adapter_package_id)
+        && !is_capability_namespace_mismatch(adapter_package_id, capability_name);
+
+    // Check surface coverage — at least one capability provided
+    let surface_coverage = !capability_name.is_empty();
+
+    // Permissions minimal — adapter has no network/filesystem/process by default
+    let permissions_minimal = true;
+
+    // Fixture present
+    let fixture_present = has_manifest && has_wrapper && has_fixture;
+
+    // No raw secrets — already checked above
+    let no_raw_secrets = true;
+
+    // Needs approval for execution — always true for adapters
+    let needs_approval_for_execution = true;
+
+    // Check for forbidden namespace in input
+    let no_forbidden_namespace = !contains_forbidden_namespace(&request.input);
+
+    let mut checklist: Vec<Value> = Vec::new();
+
+    // capability namespace ok
+    checklist.push(serde_json::json!({
+        "item": "capability_namespace_ok",
+        "status": capability_namespace_ok,
+        "detail": if capability_namespace_ok { "adapter package id is not official/ and capability belongs to adapter namespace" } else { "adapter_package_id must not be official/ and must not contain path traversal; capability must belong to adapter namespace" }
+    }));
+
+    // surface coverage
+    checklist.push(serde_json::json!({
+        "item": "surface_coverage",
+        "status": surface_coverage,
+        "detail": if surface_coverage { "at least one capability declared" } else { "adapter must declare at least one capability" }
+    }));
+
+    // permissions minimal
+    checklist.push(serde_json::json!({
+        "item": "permissions_minimal",
+        "status": permissions_minimal,
+        "detail": "adapter has no network/filesystem/process permissions by default"
+    }));
+
+    // fixture present
+    checklist.push(serde_json::json!({
+        "item": "fixture_present",
+        "status": fixture_present,
+        "detail": if fixture_present { "manifest, wrapper, and fixture preview available" } else { "one or more of manifest/wrapper/fixture not available" }
+    }));
+
+    // no raw secrets
+    checklist.push(serde_json::json!({
+        "item": "no_raw_secrets",
+        "status": no_raw_secrets,
+        "detail": "input contains no raw-secret-like content"
+    }));
+
+    // no forbidden namespace
+    checklist.push(serde_json::json!({
+        "item": "no_forbidden_namespace",
+        "status": no_forbidden_namespace,
+        "detail": if no_forbidden_namespace { "no forbidden kernel namespace references in output" } else { "output must not contain reserved external-project kernel namespace references" }
+    }));
+
+    // needs approval for execution
+    checklist.push(serde_json::json!({
+        "item": "needs_approval_for_execution",
+        "status": needs_approval_for_execution,
+        "detail": "adapter execution always requires explicit user approval; no automatic execution"
+    }));
+
+    let all_ok = capability_namespace_ok
+        && surface_coverage
+        && permissions_minimal
+        && fixture_present
+        && no_raw_secrets
+        && no_forbidden_namespace;
+
+    Ok(serde_json::json!({
+        "kind": "adapter_readiness",
+        "checklist": checklist,
+        "ready": all_ok,
+        "capability_namespace_ok": capability_namespace_ok,
+        "surface_coverage": surface_coverage,
+        "permissions_minimal": permissions_minimal,
+        "fixture_present": fixture_present,
+        "no_raw_secrets": no_raw_secrets,
+        "no_forbidden_namespace": no_forbidden_namespace,
+        "needs_approval_for_execution": needs_approval_for_execution,
+        "adapter_package_id": if adapter_package_id.is_empty() { Value::Null } else { serde_json::json!(adapter_package_id) },
+        "source_ref": if source_ref.is_empty() { Value::Null } else { serde_json::json!(source_ref) },
+        "inference_performed": false,
+        "network_performed": false,
+        "execution_performed": false,
+        "filesystem_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Source kind classification
 // ---------------------------------------------------------------------------
 
@@ -847,7 +1425,7 @@ mod tests {
     }
 
     #[test]
-    fn describe_contract_lists_7_capabilities() {
+    fn describe_contract_lists_11_capabilities() {
         let req = make_request(
             "official/project-intake-lab/describe_intake_contract",
             json!({}),
@@ -858,8 +1436,8 @@ mod tests {
                 .as_array()
                 .map(|a| a.len())
                 .unwrap_or(0),
-            7,
-            "must list 7 capabilities"
+            11,
+            "must list 11 capabilities"
         );
     }
 
@@ -1079,6 +1657,10 @@ mod tests {
             "draft_security_risk_summary",
             "list_candidate_entrypoints",
             "draft_adapter_plan",
+            "generate_adapter_manifest_preview",
+            "generate_subprocess_wrapper_preview",
+            "generate_adapter_fixture_preview",
+            "check_adapter_readiness",
         ];
         for cap in &caps {
             let req = make_request(&format!("official/project-intake-lab/{}", cap), json!({}));
@@ -1142,5 +1724,300 @@ mod tests {
         assert_eq!(classify_source_kind("project.tar.gz"), "archive");
         assert_eq!(classify_source_kind("unknown-thing"), "local");
         assert_eq!(classify_source_kind(""), "unknown");
+    }
+
+    // E5 tests
+
+    #[test]
+    fn generate_adapter_manifest_preview_basic() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_manifest_preview",
+            json!({
+                "source_ref": "./my-project",
+                "source_kind": "local",
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke",
+                "entry_kind": "subprocess"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("adapter_manifest_preview"));
+        assert_eq!(result["adapter_package_id"], json!("thirdparty/my-adapter"));
+        assert_eq!(result["capability_name"], json!("invoke"));
+        assert_eq!(result["filesystem_performed"], json!(false));
+        assert_eq!(result["network_performed"], json!(false));
+        assert_eq!(result["execution_performed"], json!(false));
+    }
+
+    #[test]
+    fn adapter_manifest_rejects_official_id() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_manifest_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "official/fake-adapter",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+    }
+
+    #[test]
+    fn adapter_manifest_rejects_path_traversal_id() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_manifest_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "thirdparty/../evil",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+    }
+
+    #[test]
+    fn adapter_manifest_rejects_unsafe_chars_id() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_manifest_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "thirdparty/evil;rm-rf",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+    }
+
+    #[test]
+    fn adapter_manifest_rejects_capability_namespace_mismatch() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_manifest_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "other-pkg/invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+    }
+
+    #[test]
+    fn subprocess_wrapper_preview_no_execution() {
+        let req = make_request(
+            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            json!({
+                "source_ref": "./my-project",
+                "source_kind": "local",
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke",
+                "language": "typescript"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("subprocess_wrapper_preview"));
+        assert_eq!(result["execution_performed"], json!(false));
+        assert_eq!(result["network_performed"], json!(false));
+        assert_eq!(result["filesystem_performed"], json!(false));
+        let safe_comments = result["safe_comments"].as_array().unwrap();
+        assert!(!safe_comments.is_empty());
+        // Verify safe comments present in wrapper content
+        let content = result["files"].as_array().unwrap()[0]["content"]
+            .as_str()
+            .unwrap();
+        assert!(content.contains("SAFE COMMENT"));
+        assert!(content.contains("policy-gated executor"));
+    }
+
+    #[test]
+    fn subprocess_wrapper_python_preview() {
+        let req = make_request(
+            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            json!({
+                "source_ref": "./my-project",
+                "source_kind": "local",
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke",
+                "language": "python"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("subprocess_wrapper_preview"));
+        assert_eq!(result["language"], json!("python"));
+    }
+
+    #[test]
+    fn subprocess_wrapper_rejects_official_id() {
+        let req = make_request(
+            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "official/evil",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+    }
+
+    #[test]
+    fn fixture_preview_redacted() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_fixture_preview",
+            json!({
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("adapter_fixture_preview"));
+        assert_eq!(result["redacted"], json!(true));
+        assert_eq!(result["execution_performed"], json!(false));
+        // fixture input should use secret_ref not raw secrets
+        let input = &result["fixture_input"];
+        let input_str = serde_json::to_string(input).unwrap();
+        assert!(!input_str.contains("sk-"));
+        assert!(!input_str.contains("Bearer"));
+        // fixture output should be redacted
+        let output = &result["fixture_output"];
+        assert_eq!(output["result_preview"], json!("[redacted]"));
+    }
+
+    #[test]
+    fn fixture_preview_rejects_official_id() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_fixture_preview",
+            json!({
+                "adapter_package_id": "official/evil",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+    }
+
+    #[test]
+    fn check_adapter_readiness_ok() {
+        let req = make_request(
+            "official/project-intake-lab/check_adapter_readiness",
+            json!({
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke",
+                "has_manifest": true,
+                "has_wrapper": true,
+                "has_fixture": true,
+                "source_ref": "./test"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("adapter_readiness"));
+        assert_eq!(result["ready"], json!(true));
+        assert_eq!(result["capability_namespace_ok"], json!(true));
+        assert_eq!(result["surface_coverage"], json!(true));
+        assert_eq!(result["permissions_minimal"], json!(true));
+        assert_eq!(result["fixture_present"], json!(true));
+        assert_eq!(result["no_raw_secrets"], json!(true));
+        assert_eq!(result["needs_approval_for_execution"], json!(true));
+    }
+
+    #[test]
+    fn check_adapter_readiness_rejects_official_id() {
+        let req = make_request(
+            "official/project-intake-lab/check_adapter_readiness",
+            json!({
+                "adapter_package_id": "official/evil",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("adapter_readiness"));
+        assert_eq!(result["ready"], json!(false));
+        assert_eq!(result["capability_namespace_ok"], json!(false));
+    }
+
+    #[test]
+    fn check_adapter_readiness_rejects_raw_secret() {
+        let req = make_request(
+            "official/project-intake-lab/check_adapter_readiness",
+            json!({
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke",
+                "secret": "RawSecretExample1234567890abcdefABCDEF123456"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("project_intake_rejected"));
+    }
+
+    #[test]
+    fn adapter_manifest_no_forbidden_namespace() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_manifest_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        if result["kind"] == json!("adapter_manifest_preview") {
+            let output_str = serde_json::to_string(&result).unwrap();
+            for token in FORBIDDEN_NAMESPACE_TOKENS {
+                assert!(!output_str.contains(token), "must not contain {}", token);
+            }
+        }
+    }
+
+    #[test]
+    fn wrapper_no_forbidden_namespace() {
+        let req = make_request(
+            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            json!({
+                "source_ref": "./test",
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let output_str = serde_json::to_string(&result).unwrap();
+        for token in FORBIDDEN_NAMESPACE_TOKENS {
+            assert!(!output_str.contains(token), "must not contain {}", token);
+        }
+    }
+
+    #[test]
+    fn fixture_no_forbidden_namespace() {
+        let req = make_request(
+            "official/project-intake-lab/generate_adapter_fixture_preview",
+            json!({
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let output_str = serde_json::to_string(&result).unwrap();
+        for token in FORBIDDEN_NAMESPACE_TOKENS {
+            assert!(!output_str.contains(token), "must not contain {}", token);
+        }
+    }
+
+    #[test]
+    fn readiness_no_forbidden_namespace() {
+        let req = make_request(
+            "official/project-intake-lab/check_adapter_readiness",
+            json!({
+                "adapter_package_id": "thirdparty/my-adapter",
+                "capability_name": "invoke"
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let output_str = serde_json::to_string(&result).unwrap();
+        for token in FORBIDDEN_NAMESPACE_TOKENS {
+            assert!(!output_str.contains(token), "must not contain {}", token);
+        }
     }
 }

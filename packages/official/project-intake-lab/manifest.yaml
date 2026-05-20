@@ -51,6 +51,30 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/project-intake-lab/generate_adapter_manifest_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/project-intake-lab/generate_subprocess_wrapper_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/project-intake-lab/generate_adapter_fixture_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/project-intake-lab/check_adapter_readiness
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []

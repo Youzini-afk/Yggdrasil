@@ -37,6 +37,10 @@ export interface ExternalProjectAggregation {
   run_plan?: Record<string, unknown>;
   patch?: Record<string, unknown>;
   adapter_plan?: Record<string, unknown>;
+  adapter_manifest?: Record<string, unknown>;
+  adapter_wrapper?: Record<string, unknown>;
+  adapter_fixture?: Record<string, unknown>;
+  adapter_readiness?: Record<string, unknown>;
   errors: string[];
 }
 
@@ -55,8 +59,15 @@ export async function buildExternalProjectAggregation(
     `${WORKSPACE_LAB}/plan_workspace_run`,
     `${WORKSPACE_LAB}/draft_workspace_patch`,
   ];
+  const e5Required = [
+    `${PROJECT_INTAKE}/generate_adapter_manifest_preview`,
+    `${PROJECT_INTAKE}/generate_subprocess_wrapper_preview`,
+    `${PROJECT_INTAKE}/generate_adapter_fixture_preview`,
+    `${PROJECT_INTAKE}/check_adapter_readiness`,
+  ];
   const capabilitySet = new Set(capabilities.map((capability) => capability.capability_id));
   const missing = required.filter((capabilityId) => !capabilitySet.has(capabilityId));
+  const e5Available = e5Required.every((capabilityId) => capabilitySet.has(capabilityId));
   const model: ExternalProjectAggregation = {
     available: missing.length === 0,
     missing_capabilities: missing,
@@ -90,6 +101,18 @@ export async function buildExternalProjectAggregation(
     capture("run_plan", `${WORKSPACE_LAB}/plan_workspace_run`, { workspace_ref: DEMO_WORKSPACE_REF, stack_hint: "node", scripts: DEMO_METADATA.package_json.scripts }, WORKSPACE_LAB),
     capture("patch", `${WORKSPACE_LAB}/draft_workspace_patch`, { workspace_ref: DEMO_WORKSPACE_REF, target_files: ["src/main.ts"], patch_summary: "Add Ygg adapter seam placeholder" }, WORKSPACE_LAB),
   ]);
+
+  // E5: adapter generation preview (optional, degrades gracefully)
+  if (e5Available) {
+    const adapterPkgId = "thirdparty/example-ygg-unadapted-tool-adapter";
+    await Promise.all([
+      capture("adapter_manifest", `${PROJECT_INTAKE}/generate_adapter_manifest_preview`, { source_ref: DEMO_SOURCE_REF, source_kind: "git", adapter_package_id: adapterPkgId, capability_name: "invoke", entry_kind: "subprocess" }, PROJECT_INTAKE),
+      capture("adapter_wrapper", `${PROJECT_INTAKE}/generate_subprocess_wrapper_preview`, { source_ref: DEMO_SOURCE_REF, source_kind: "git", adapter_package_id: adapterPkgId, capability_name: "invoke", language: "typescript" }, PROJECT_INTAKE),
+      capture("adapter_fixture", `${PROJECT_INTAKE}/generate_adapter_fixture_preview`, { adapter_package_id: adapterPkgId, capability_name: "invoke" }, PROJECT_INTAKE),
+      capture("adapter_readiness", `${PROJECT_INTAKE}/check_adapter_readiness`, { adapter_package_id: adapterPkgId, capability_name: "invoke", has_manifest: true, has_wrapper: true, has_fixture: true, source_ref: DEMO_SOURCE_REF }, PROJECT_INTAKE),
+    ]);
+  }
+
   return model;
 }
 
@@ -147,6 +170,9 @@ export function renderForgeExternalProjectPanel(model?: ExternalProjectAggregati
         ${projectTile("Run plan", model.run_plan, ["executor_invoked", "execution_performed", "requires_approval"])}
         ${projectTile("Patch proposal", model.patch, ["proposal_required", "file_write_performed", "requires_approval"])}
         ${projectTile("Adapter candidate", model.adapter_plan, ["adapter_kind", "plan_only", "execution_performed"])}
+        ${model.adapter_manifest ? projectTile("Adapter manifest", model.adapter_manifest, ["adapter_package_id", "capability_name", "entry_kind", "filesystem_performed"]) : ""}
+        ${model.adapter_wrapper ? projectTile("Adapter wrapper", model.adapter_wrapper, ["language", "adapter_package_id", "execution_performed"]) : ""}
+        ${model.adapter_readiness ? projectTile("Adapter readiness", model.adapter_readiness, ["ready", "capability_namespace_ok", "permissions_minimal", "fixture_present", "needs_approval_for_execution"]) : ""}
       </div>
       <div class="project-cta-row">${badge("inspect first")}${badge("approve before execution")}${badge("adapter/wrapper becomes package")}${badge("public protocol only")}</div>
     </div>
@@ -166,7 +192,7 @@ export function renderAssistantExternalProjectHints(model?: ExternalProjectAggre
       <div class="quick-actions">
         <button type="button" title="No-execution capability path">Inspect project</button>
         <button type="button" title="Proposal-only path">Draft patch</button>
-        <button type="button" title="E5 adapter generation path">Generate adapter plan</button>
+        <button type="button" title="E5 adapter generation path — manifest + wrapper + readiness">Generate adapter preview</button>
       </div>
     </div>
   `;

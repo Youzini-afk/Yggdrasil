@@ -350,6 +350,15 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("project_intake.adapter_plan_no_execution", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_adapter_plan),
         c!("project_intake.no_forbidden_namespace", ["official", "external_project", "project_intake", "no_execution", "protocol"], project_intake_lab::project_intake_no_forbidden_namespace),
         c!("project_intake.no_raw_secrets", ["official", "external_project", "project_intake", "no_execution", "secret"], project_intake_lab::project_intake_no_raw_secrets),
+        // --- project-intake-lab E5 (External Project Operating Plane Alpha E5: Adapter/Wrapper Generation Proof) ---
+        c!("project_intake.adapter_manifest_preview_no_write", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_adapter_manifest_preview_no_write),
+        c!("project_intake.rejects_official_adapter_id", ["official", "external_project", "project_intake", "no_execution", "secret"], project_intake_lab::project_intake_rejects_official_adapter_id),
+        c!("project_intake.rejects_path_traversal_adapter_id", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_rejects_path_traversal_adapter_id),
+        c!("project_intake.capability_namespace_mismatch_rejected", ["official", "external_project", "project_intake", "no_execution", "protocol"], project_intake_lab::project_intake_capability_namespace_mismatch_rejected),
+        c!("project_intake.wrapper_preview_no_execution", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_wrapper_preview_no_execution),
+        c!("project_intake.fixture_preview_redacted", ["official", "external_project", "project_intake", "no_execution", "secret"], project_intake_lab::project_intake_fixture_preview_redacted),
+        c!("project_intake.readiness_checklist_ok", ["official", "external_project", "project_intake", "no_execution"], project_intake_lab::project_intake_readiness_checklist_ok),
+        c!("project_intake.e5_no_forbidden_namespace_no_raw_secret", ["official", "external_project", "project_intake", "no_execution", "secret", "protocol"], project_intake_lab::project_intake_e5_no_forbidden_namespace_no_raw_secret),
         // --- workspace-lab (External Project Operating Plane Alpha E2) ---
         c!("workspace_lab.contract_shape", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_contract),
         c!("workspace_lab.action_taxonomy_deny_default", ["official", "external_project", "workspace_lab", "policy", "no_execution"], workspace_lab::workspace_lab_action_deny_default),

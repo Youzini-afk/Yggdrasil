@@ -7,7 +7,7 @@
 ## 基本用法
 
 ```bash
-# 运行全部 267 个 conformance cases（默认行为不变）
+# 运行全部 275 个 conformance cases（默认行为不变）
 cargo run -p ygg-cli -- conformance
 ```
 
