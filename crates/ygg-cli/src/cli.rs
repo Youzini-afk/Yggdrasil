@@ -20,6 +20,10 @@ pub(crate) enum PackageTemplate {
     /// Agent runtime template: deterministic/no-network subprocess with streaming run,
     /// proposal draft, trace summary, and echo capabilities; assistant_action + forge_panel surfaces.
     AgentRuntime,
+    /// Experience runtime template: deterministic/no-network subprocess with experience
+    /// descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface
+    /// binding capabilities; all four experience surfaces declared.
+    ExperienceRuntime,
 }
 
 #[derive(Debug, Parser)]

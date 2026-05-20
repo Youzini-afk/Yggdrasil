@@ -301,6 +301,7 @@ enum EffectiveTemplate {
     Networked,
     Streaming,
     AgentRuntime,
+    ExperienceRuntime,
 }
 
 impl std::fmt::Debug for EffectiveTemplate {
@@ -317,6 +318,7 @@ impl std::fmt::Debug for EffectiveTemplate {
             EffectiveTemplate::Networked => write!(f, "Networked"),
             EffectiveTemplate::Streaming => write!(f, "Streaming"),
             EffectiveTemplate::AgentRuntime => write!(f, "AgentRuntime"),
+            EffectiveTemplate::ExperienceRuntime => write!(f, "ExperienceRuntime"),
         }
     }
 }
@@ -336,6 +338,7 @@ fn resolve_template(template: &Option<PackageTemplate>, language: &str) -> Effec
         Some(PackageTemplate::Networked) => EffectiveTemplate::Networked,
         Some(PackageTemplate::Streaming) => EffectiveTemplate::Streaming,
         Some(PackageTemplate::AgentRuntime) => EffectiveTemplate::AgentRuntime,
+        Some(PackageTemplate::ExperienceRuntime) => EffectiveTemplate::ExperienceRuntime,
         None => {
             if language.contains("experience") {
                 EffectiveTemplate::LegacyExperience
@@ -497,6 +500,40 @@ fn build_surfaces_yaml(template: &EffectiveTemplate, id: &str) -> String {
       title: Agent Runtime Forge Panel
       description: Agent runtime forge panel for trace and proposal observability.
       capability_id: {id}/explain-run
+"#
+        ),
+        EffectiveTemplate::ExperienceRuntime => format!(
+            r#"  surfaces:
+    - id: {id}/entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Experience Runtime Entry
+      description: Launchable experience entry surface for the experience runtime contract.
+      capability_id: {id}/describe-contract
+      activation:
+        launch_capability_id: {id}/describe-contract
+        session_template:
+          labels: [generated, experience, runtime]
+      approval_policy: user_approval
+    - id: {id}/play
+      version: 0.1.0
+      slot: play_renderer
+      title: Experience Runtime Play Renderer
+      description: Play renderer surface for experience state visualization.
+      capability_id: {id}/describe-contract
+    - id: {id}/forge
+      version: 0.1.0
+      slot: forge_panel
+      title: Experience Runtime Forge Panel
+      description: Forge panel for inspecting and modifying experience state, checkpoints, and recovery plans.
+      capability_id: {id}/describe-contract
+    - id: {id}/assist
+      version: 0.1.0
+      slot: assistant_action
+      title: Experience Runtime Assistant Action
+      description: Assistant action for proposal-gated experience modifications via Agentic Forge.
+      capability_id: {id}/draft-recovery
+      approval_policy: fork_then_approve
 "#
         ),
     }
@@ -685,6 +722,58 @@ sandbox_policy:
   wall_clock_ms: 30000
 "#
         ),
+        "subprocess" if matches!(effective_template, EffectiveTemplate::ExperienceRuntime) => format!(
+            r#"schema_version: 1
+id: {id}
+version: 0.1.0
+entry:
+  kind: subprocess
+  command:
+{subprocess_command}
+  transport: json_rpc_stdio
+provides:
+  - id: {id}/describe-contract
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/create-checkpoint
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/inspect-checkpoint
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/draft-recovery
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/bind-agent-run
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+  - id: {id}/echo
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+{surfaces}permissions: {{}}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000
+"#
+        ),
         "subprocess" => format!(
             r#"schema_version: 1
 id: {id}
@@ -746,6 +835,8 @@ sandbox_policy:
             fs::write(path.join("package.ts"), templates::typescript_streaming_template(&id))?;
         } else if matches!(effective_template, EffectiveTemplate::AgentRuntime) {
             fs::write(path.join("package.ts"), templates::typescript_agent_runtime_template(&id))?;
+        } else if matches!(effective_template, EffectiveTemplate::ExperienceRuntime) {
+            fs::write(path.join("package.ts"), templates::typescript_experience_runtime_template(&id))?;
         } else {
             fs::write(path.join("package.ts"), templates::typescript_subprocess_template(&id))?;
         }

@@ -26,6 +26,7 @@ Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls A
 - Agentic Forge Beta Phase D: complete; extends `official/capability-tool-bridge-lab` with explain_tool_call (scoped grant summary, branch-aware tool call context, no_execution, no_ambient_authority)/record_tool_observation (untrusted=true, large output asset_ref, raw-secret blocking)/summarize_tool_risk (prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output with typed mitigations)/replay_tool_plan (fingerprint match/mismatch)/plan_toolchain (multi-step plan-only, explicit provider required, nested delegation blocked without explicit_delegation, target branch write blocked without promote grant); 5 more conformance cases. Conformance now has 175 named cases.
 - Agentic Forge Beta Phase E: complete; adds six Agentic Forge workspace panels to the Forge surface (Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls). All data sourced from public protocol only. No chat-first UI. `clients/web/src/agent/observability.ts` adds `ForgeAgentWorkspaceModel` and build/render functions. `tsc -p clients/web/tsconfig.json --noEmit` passes.
 - Agentic Forge Beta Phase F: complete; third-party replacement proof (`thirdparty/agentic-forge` manifest + replacement composition, no official priority), hostile conformance (prompt injection + secret exfiltration blocked cross-package, privilege escalation rejected), budget/deadline contract (`run_constraints` in `describe_contract`, cancellation consistent), cross-package replay mismatch flagged; 5 more conformance cases. Durable guide: [`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.en.md). Conformance now has 180 named cases; status converged to ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix.
+- Experience Beta 0 — Thin Experience Runtime Contract: complete; `official/experience-runtime-lab` provides describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run capabilities with 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action); `sdk/typescript/experience-runtime` TS SDK (85 self-test assertions); `--template experience-runtime` generates deterministic/no-network subprocess with contract/checkpoint/recovery capabilities; Forge profile autoloads; 7 conformance cases. Durable guide: [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.en.md). Conformance now has 187 named cases.
 - Experience-Led Platform Beta: current direction; long-term design in [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md). Core judgment: the foundation is now sufficient to stop foundation-first work, and the next stage should let a real playable experience pull the Experience Runtime Contract, State/Asset Pipeline, Memory/Knowledge Packages, Experience Observability, Creator Loop, and Sharing/Distribution layers.
 
 See `docs/ALPHA_STATUS.md` for a detailed snapshot.
@@ -150,18 +151,17 @@ Phases completed:
 
 Non-goals: LangChain clone, chat shell, coding-agent clone, agent marketplace, always-on autonomous background agents, provider zoo, OpenAI-compatible agent endpoint, `kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`.
 
-## Experience Beta 0 — Thin Experience Runtime Contract (next headline)
+## Experience Beta 0 — Thin Experience Runtime Contract (complete)
 
 Goal: define how ordinary package-owned experiences run continuously, pause, recover, checkpoint, fork, and receive Agentic Forge changes.
 
-Deliverables:
-
-- Experience package authoring pattern.
-- Session-state projection convention.
-- Checkpoint asset convention.
-- Failure/recovery event shape.
-- Play surface state subscription pattern.
-- How Forge/Assist connect to an experience session.
+Delivered:
+- `official/experience-runtime-lab` — experience descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface bindings as ordinary capabilities.
+- `sdk/typescript/experience-runtime` — pure TypeScript SDK with 85 self-test assertions. No deps, no private runtime.
+- `--template experience-runtime` — generates deterministic/no-network subprocess with contract/checkpoint/recovery capabilities and 4 experience surfaces.
+- Forge profile autoload for `official/experience-runtime-lab`.
+- 7 conformance cases covering: describe_contract shape, checkpoint/recovery shape, no kernel experience namespace, template generation, and bind_agent_run shape.
+- Durable guide: [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.en.md).
 
 Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`.
 
@@ -226,4 +226,4 @@ These remain non-goals for the kernel. They may exist as future packages.
 
 ## How to read this list
 
-Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, and Agentic Forge Beta are complete. The roadmap now enters Experience-Led Platform Beta. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.
+Phase F, the seed form of Phase G, Creative Capability Kit Alpha, Model Connectivity Kit Alpha, Code Health Split Alpha, Runtime Split Alpha, Authoring & Composition Beta+, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, and Experience Beta 0 are complete. The roadmap now enters Experience Beta 1. Every next phase is graded on charter discipline: no content shapes leaking into the kernel, no official privilege leaking through any path, all package/UI behavior using public protocol boundaries, and every new substrate must serve pressure from a real playable experience.

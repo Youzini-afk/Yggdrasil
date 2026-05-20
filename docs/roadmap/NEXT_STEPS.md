@@ -26,6 +26,7 @@ Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls
 - Agentic Forge Beta Phase D：已完成；扩展 `official/capability-tool-bridge-lab` 增加 explain_tool_call（scoped grant summary，branch-aware tool call context，no_execution，no_ambient_authority）/record_tool_observation（untrusted=true，大输出 asset_ref，raw-secret 阻断）/summarize_tool_risk（prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output 含 typed mitigations）/replay_tool_plan（指纹匹配/不匹配）/plan_toolchain（多步 plan-only，显式 provider 必需，嵌套 delegation 无 explicit_delegation 时阻止，target branch 写入无 promote grant 时阻止）；5 个 conformance 用例。Conformance 包含 175 个具名用例。
 - Agentic Forge Beta Phase E：已完成；Forge 中新增 Agentic Forge 六个 workspace panels（Run timeline / Plan graph / Branch lineage / Candidate compare / Tool & inference trace / Controls），所有数据来自 public protocol，不做 chat-first UI。`clients/web/src/agent/observability.ts` 新增 `ForgeAgentWorkspaceModel` 及 build/render 函数。`tsc -p clients/web/tsconfig.json --noEmit` 通过。
 - Agentic Forge Beta Phase F：已完成；第三方替换证明（`thirdparty/agentic-forge` manifest + 替换 composition，无 official 优先）、hostile conformance（prompt injection + secret exfiltration 跨包阻断，privilege escalation 拒绝）、budget/deadline 契约（describe_contract 中 run_constraints，cancellation 状态一致）、跨包 replay 不匹配标记；5 个 conformance 用例。持久指南：[`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](../guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Conformance 包含 180 个具名用例；状态已收敛到 ALPHA_STATUS/NEXT_STEPS/guide/conformance matrix。
+- Experience Beta 0 — Thin Experience Runtime Contract：已完成；`official/experience-runtime-lab` 提供 describe_contract/create_checkpoint/inspect_checkpoint/draft_recovery/bind_agent_run 能力与 4 个 surface（experience_entry、play_renderer、forge_panel、assistant_action）；`sdk/typescript/experience-runtime` TS SDK（85 项自测断言）；`--template experience-runtime` 生成 deterministic/no-network subprocess；Forge profile 自动加载；7 个 conformance 用例。持久指南：[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.md)。Conformance 包含 187 个具名用例。
 - Experience-Led Platform Beta：当前方向；长期设计见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。核心判断：基础设施已经足以停止 foundation-first，下一阶段应由真实 playable experience 牵引 Experience Runtime Contract、State/Asset Pipeline、Memory/Knowledge Package、Experience Observability、Creator Loop 与 Sharing/Distribution。
 
 详见 `docs/ALPHA_STATUS.md` 获取详细快照。
@@ -150,18 +151,17 @@ Phase J 非目标：
 
 非目标：LangChain clone、chat shell、coding-agent clone、agent marketplace、always-on autonomous background agents、provider zoo、OpenAI-compatible agent endpoint、`kernel.agent.*` / `kernel.model.*` / `kernel.prompt.*` / `kernel.memory.*`。
 
-## Experience Beta 0 — Thin Experience Runtime Contract（下一主线）
+## Experience Beta 0 — Thin Experience Runtime Contract（已完成）
 
 目标：定义普通 package-owned experience 如何连续运行、暂停、恢复、checkpoint、fork，并被 Agentic Forge 修改。
 
-交付方向：
-
-- Experience package authoring pattern。
-- Session-state projection convention。
-- Checkpoint asset convention。
-- Failure/recovery event shape。
-- Play surface state subscription pattern。
-- Forge/Assist 与 experience session 的关联说明。
+已交付：
+- `official/experience-runtime-lab` — experience 描述符、state projection、checkpoint、recovery 与 Play/Forge/Assist surface 绑定，全部作为普通能力。
+- `sdk/typescript/experience-runtime` — 纯 TypeScript SDK，85 项自测断言。无依赖，无私有运行时。
+- `--template experience-runtime` — 生成 deterministic/no-network subprocess，包含 contract/checkpoint/recovery 能力和 4 个 experience surface。
+- Forge profile 自动加载 `official/experience-runtime-lab`。
+- 7 个 conformance 用例，覆盖：describe_contract shape、checkpoint/recovery shape、no kernel experience namespace、template generation、bind_agent_run shape。
+- 持久指南：[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](../guides/EXPERIENCE_RUNTIME_AUTHORING.md)。
 
 非目标：`kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`。
 
@@ -226,4 +226,4 @@ Phase J 非目标：
 
 ## 如何阅读这份列表
 
-Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha 和 Agentic Forge Beta 已完成。后续进入 Experience-Led Platform Beta。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。
+Phase F、Phase G 的 seed 形态、Creative Capability Kit Alpha、Model Connectivity Kit Alpha、Code Health Split Alpha、Runtime Split Alpha、Authoring & Composition Beta+、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta 和 Experience Beta 0 已完成。后续进入 Experience Beta 1。所有后续阶段都以 charter 纪律评分：无内容形态泄漏到内核，无官方特权通过任何路径泄漏，所有 package/UI 行为都使用公开协议边界，并且新增 substrate 必须服务真实 playable experience 的压力。

@@ -1,0 +1,236 @@
+# Experience Runtime 创作指南
+
+> [English](./EXPERIENCE_RUNTIME_AUTHORING.en.md) · 中文
+
+本指南说明如何创建、检查、checkpoint、恢复和替换 Yggdrasil 中的 experience-runtime 包。
+
+## 概述
+
+Experience Beta 0 定义了普通 package-owned experience 如何连续运行、暂停、恢复、checkpoint、fork，并被 Agentic Forge 修改。**所有 experience 语义都在包层，不进入内核。**
+
+关键约束：
+- **不新增** `kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`、`kernel.chat.*` 或 `kernel.memory.*`。
+- Experience 包是普通包，没有内核特权。
+- Experience 描述符、state projection、checkpoint 和 recovery 是包拥有的 artifact，不是内核原语。
+- 所有行为通过公开协议完成。
+
+## 生成 experience-runtime 包
+
+```bash
+ygg init-package ./my-experience \
+  --id example/my-experience \
+  --entry subprocess \
+  --language typescript \
+  --template experience-runtime
+```
+
+生成结果包含：
+- **4 个 surface**：`experience_entry`、`play_renderer`、`forge_panel`、`assistant_action`
+- **6 个 capability**：`describe-contract`、`create-checkpoint`、`inspect-checkpoint`、`draft-recovery`、`bind-agent-run`、`echo`
+- 无网络声明，无 raw secrets，无 forbidden kernel namespace
+
+## Experience 描述符
+
+Experience 描述符（`experience_runtime_descriptor`）是包拥有的 experience 元数据，包含：
+
+```typescript
+const desc = createExperienceDescriptor({
+  package_id: "example/my-experience",
+  surfaces: {
+    experience_entry: "example/my-experience/entry",
+    play_renderer: "example/my-experience/play",
+    forge_panel: "example/my-experience/forge",
+    assistant_action: "example/my-experience/assist",
+  },
+  capabilities: {
+    describe_contract: "example/my-experience/describe-contract",
+    create_checkpoint: "example/my-experience/create-checkpoint",
+    inspect_checkpoint: "example/my-experience/inspect-checkpoint",
+    draft_recovery: "example/my-experience/draft-recovery",
+    bind_agent_run: "example/my-experience/bind-agent-run",
+  },
+});
+```
+
+验证描述符：
+
+```typescript
+const errors = validateExperienceDescriptor(desc);
+if (errors.length > 0) {
+  // 描述符不符合契约
+}
+```
+
+## State Projection
+
+State projection 是体验当前状态的包级别快照：
+
+```typescript
+const projection = createStateProjection({
+  package_id: "example/my-experience",
+  session_id: "session-123",
+  state: { health: 100, step_index: 5, location: "forest" },
+  capability_id: "example/my-experience/describe-contract",
+});
+```
+
+## Checkpoint
+
+Checkpoint 是体验状态的持久化快照，支持三种格式：
+
+| 格式 | 说明 |
+|------|------|
+| `snapshot` | 完整状态快照 |
+| `incremental` | 增量快照（基于前一个 checkpoint） |
+| `delta` | 仅存储差异 |
+
+```typescript
+const checkpoint = createCheckpoint({
+  package_id: "example/my-experience",
+  session_id: "session-123",
+  state_snapshot: { health: 100, step_index: 5, location: "forest" },
+  asset_refs: ["asset:scene:forest", "asset:character:hero"],
+  branch_ref: "branch:target:main",
+  sequence: 3,
+  capability_id: "example/my-experience/create-checkpoint",
+});
+
+// 检查 checkpoint
+const inspection = inspectCheckpoint(checkpoint);
+// inspection.valid === true/false
+```
+
+## Recovery
+
+Recovery 是体验失败后的恢复计划。支持五种策略：
+
+| 策略 | 需要 checkpoint | 需要 approval |
+|------|----------------|---------------|
+| `restore_last_checkpoint` | 是 | 否 |
+| `replay_from_checkpoint` | 是 | 是 |
+| `restart_session` | 否 | 是 |
+| `manual_intervention` | 否 | 是 |
+| `discard_and_reset` | 否 | 是 |
+
+```typescript
+const recoveryPlan = draftRecoveryPlan({
+  package_id: "example/my-experience",
+  session_id: "session-123",
+  failure_kind: "state_corruption",
+  last_checkpoint_ref: "checkpoint:session-123:3",
+  capability_id: "example/my-experience/draft-recovery",
+});
+```
+
+## Play Surface 订阅
+
+Play surface 支持三种订阅类型：
+
+| 类型 | 说明 |
+|------|------|
+| `state_change` | 状态变更通知 |
+| `checkpoint` | Checkpoint 创建通知 |
+| `lifecycle` | 生命周期事件通知 |
+
+```typescript
+const subscription = createPlaySurfaceSubscription({
+  package_id: "example/my-experience",
+  session_id: "session-123",
+  surface_id: "example/my-experience/play",
+  subscription_type: "state_change",
+  capability_id: "example/my-experience/describe-contract",
+});
+```
+
+## Forge/Assist 绑定
+
+### Forge 绑定
+
+Forge panel 绑定将 Forge surface 连接到体验 session，支持检查和 proposal：
+
+```typescript
+const forgeBinding = createForgeBinding({
+  package_id: "example/my-experience",
+  session_id: "session-123",
+  surface_id: "example/my-experience/forge",
+  inspect_capabilities: ["example/my-experience/describe-contract"],
+  proposal_capabilities: ["example/my-experience/draft-recovery"],
+  capability_id: "example/my-experience/bind-agent-run",
+});
+```
+
+### Assist 绑定
+
+Assist 绑定使用 `fork_then_approve` 策略确保所有修改通过 proposal：
+
+```typescript
+const assistBinding = createAssistBinding({
+  package_id: "example/my-experience",
+  session_id: "session-123",
+  surface_id: "example/my-experience/assist",
+  action_capabilities: ["example/my-experience/draft-recovery"],
+  capability_id: "example/my-experience/bind-agent-run",
+});
+```
+
+## Agent Run 绑定
+
+Experience 可以通过 `bind_agent_run` 连接到 Agentic Forge：
+
+- Agent run scoped 到 branch
+- Agent 在 scratch branch 探索
+- Agent 产生 candidate/proposal（不直接修改 target）
+- Experience 通过 Forge/Assist inspect/approve/reject
+
+## 第三方替换
+
+Experience-runtime 包是普通包，可以被任何满足相同 surface 和 capability 契约的第三方包替换。替换规则：
+
+- 同等 surface slot（experience_entry、play_renderer、forge_panel、assistant_action）
+- 同等 capability shape
+- 无 official priority
+- 通过 composition descriptor 声明替换
+
+## 红线
+
+以下行为被严格禁止：
+
+1. **内核体验命名空间**：不得在事件、proposal、checkpoint 或任何输出中包含 `kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`、`kernel.chat.*` 或 `kernel.memory.*`。
+2. **Raw secrets**：所有 secret 必须通过 `secret_ref` 引用，不得在 checkpoint、recovery plan 或 state projection 中包含 raw secret。
+3. **直接修改 target branch**：Agent 对 experience 的修改必须通过 proposal lifecycle，不得直接修改 target branch。
+4. **网络访问**：Experience-runtime 包默认 no-network。如需网络，必须声明 `permissions.network.declarations`。
+5. **内核特权**：Experience 包不享有任何内核特权。
+
+## TypeScript SDK
+
+`sdk/typescript/experience-runtime` 提供纯 TypeScript SDK，无依赖，无私有运行时：
+
+```typescript
+import {
+  createExperienceDescriptor,
+  validateExperienceDescriptor,
+  createStateProjection,
+  createCheckpoint,
+  inspectCheckpoint,
+  draftRecoveryPlan,
+  createPlaySurfaceSubscription,
+  createForgeBinding,
+  createAssistBinding,
+  blockRawSecrets,
+  hasKernelExperienceNamespace,
+} from "../../sdk/typescript/experience-runtime/index.js";
+```
+
+## 参考实现
+
+- `packages/official/experience-runtime-lab/` — 官方 experience-runtime lab 包
+- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — 确定性 inproc handler
+- `sdk/typescript/experience-runtime/` — TypeScript SDK
+- `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — 本文档
+
+## 延伸阅读
+
+- `docs/CHARTER.md` — 不可变根本原则
+- `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` — 体验牵引平台方向
+- `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md` — Agentic Forge 创作指南
+- `docs/roadmap/NEXT_STEPS.md` — 路线图

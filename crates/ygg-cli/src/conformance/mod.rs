@@ -1,5 +1,6 @@
 mod agentic_forge;
 mod core;
+mod experience_runtime;
 mod fixtures;
 mod generated;
 mod hooks;
@@ -198,6 +199,11 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "package.generated_agent_runtime_template",
         generated::generated_agent_runtime_template().await,
+    );
+    record_case(
+        &mut results,
+        "package.generated_experience_runtime_template",
+        generated::generated_experience_runtime_template().await,
     );
     record_case(
         &mut results,
@@ -734,6 +740,37 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         &mut results,
         "agentic_forge.cross_package_replay_mismatch_flagged",
         agentic_forge::agentic_forge_cross_package_replay_consistency().await,
+    );
+    // Experience Beta 0 — Thin Experience Runtime Contract
+    record_case(
+        &mut results,
+        "experience_runtime.describe_contract_shape",
+        experience_runtime::experience_runtime_describe_contract().await,
+    );
+    record_case(
+        &mut results,
+        "experience_runtime.checkpoint_recovery_shape",
+        experience_runtime::experience_runtime_checkpoint_shape().await,
+    );
+    record_case(
+        &mut results,
+        "experience_runtime.recovery_shape",
+        experience_runtime::experience_runtime_recovery_shape().await,
+    );
+    record_case(
+        &mut results,
+        "experience_runtime.no_kernel_experience_namespace",
+        experience_runtime::experience_runtime_no_kernel_namespace().await,
+    );
+    record_case(
+        &mut results,
+        "experience_runtime.template_generation",
+        experience_runtime::experience_runtime_template_generation().await,
+    );
+    record_case(
+        &mut results,
+        "experience_runtime.bind_agent_run_shape",
+        experience_runtime::experience_runtime_bind_agent_run().await,
     );
 
     let mut failed = false;

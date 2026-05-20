@@ -1,0 +1,16 @@
+{
+  "name": "@yggdrasil/experience-runtime",
+  "version": "0.1.0",
+  "description": "Experience Runtime SDK — package-owned experience descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface bindings for Yggdrasil",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node dist/test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

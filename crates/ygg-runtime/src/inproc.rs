@@ -10,6 +10,7 @@ mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
+mod experience_runtime_lab;
 mod inference_local_lab;
 mod inference_playtest_lab;
 mod knowledge_lab;
@@ -136,6 +137,10 @@ impl InprocPackage for OfficialFoundationPackage {
         }
         // inference-playtest-lab handlers: Ygg-native inference proposal vertical slice
         if let Some(result) = inference_playtest_lab::try_handle(&request) {
+            return result;
+        }
+        // experience-runtime-lab handlers: Experience Beta 0 thin runtime contract
+        if let Some(result) = experience_runtime_lab::try_handle(&request) {
             return result;
         }
         // Package-aware generic capability handlers (namespace-scoped matching)

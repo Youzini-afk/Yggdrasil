@@ -356,6 +356,84 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Test that the experience-runtime template generates a 6-capability package
+/// with contract/checkpoint/recovery capabilities and 4 experience surfaces,
+/// and passes check/conformance. Verifies: 4 surfaces (experience_entry,
+/// play_renderer, forge_panel, assistant_action), 6 capabilities, no network
+/// declarations, no kernel.experience/world/turn/chat/memory text.
+pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()> {
+    let path = std::env::temp_dir().join(format!("ygg-generated-experience-runtime-{}", std::process::id()));
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
+    package::init_package(
+        path.clone(),
+        "example/generated-experience-runtime".to_string(),
+        "subprocess".to_string(),
+        "typescript".to_string(),
+        Some(PackageTemplate::ExperienceRuntime),
+    )
+    .await?;
+    package::package_check(path.join("manifest.yaml")).await?;
+    package::package_conformance(path.join("manifest.yaml")).await?;
+    let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
+
+    // 4 surfaces: experience_entry, play_renderer, forge_panel, assistant_action
+    anyhow::ensure!(
+        manifest.contributes.surfaces.len() == 4,
+        "experience-runtime template should have 4 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
+    let slots: Vec<&str> = manifest.contributes.surfaces.iter().map(|s| match s.slot {
+        ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+        ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+        ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+        ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+        ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+        ygg_core::SurfaceSlot::HomeCard => "home_card",
+    }).collect();
+    anyhow::ensure!(slots.contains(&"experience_entry"), "experience-runtime should have experience_entry");
+    anyhow::ensure!(slots.contains(&"play_renderer"), "experience-runtime should have play_renderer");
+    anyhow::ensure!(slots.contains(&"forge_panel"), "experience-runtime should have forge_panel");
+    anyhow::ensure!(slots.contains(&"assistant_action"), "experience-runtime should have assistant_action");
+
+    // 6 capabilities: describe-contract, create-checkpoint, inspect-checkpoint, draft-recovery, bind-agent-run, echo
+    anyhow::ensure!(
+        manifest.provides.len() == 6,
+        "experience-runtime template should have 6 capabilities, got {}",
+        manifest.provides.len()
+    );
+
+    // No network declarations
+    anyhow::ensure!(
+        manifest.permissions.network.declarations.is_empty(),
+        "experience-runtime should have no network declarations"
+    );
+
+    // No kernel experience namespace
+    let manifest_json = serde_json::to_value(&manifest)?;
+    let manifest_str = serde_json::to_string(&manifest_json)?;
+    let forbidden = ["kernel.experience", "kernel.world", "kernel.turn", "kernel.chat", "kernel.memory"];
+    for token in &forbidden {
+        anyhow::ensure!(
+            !manifest_str.contains(token),
+            "experience-runtime manifest must not contain '{}' text",
+            token
+        );
+    }
+    let package_ts = fs::read_to_string(path.join("package.ts"))?;
+    for token in &forbidden {
+        anyhow::ensure!(
+            !package_ts.contains(token),
+            "experience-runtime package.ts must not contain '{}' text",
+            token
+        );
+    }
+
+    fs::remove_dir_all(path)?;
+    Ok(())
+}
+
 /// Test that the faux-model-readiness example package passes check/conformance.
 /// Proves the no-network readiness substrate shape without real model inference.
 pub(crate) async fn faux_model_readiness_package() -> anyhow::Result<()> {

@@ -265,3 +265,141 @@ serveSubprocessPackage({{
 "#
     )
 }
+
+/// TypeScript subprocess template for an experience-runtime package.
+/// Demonstrates: deterministic/no-network experience package with experience
+/// descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist
+/// surface bindings. No real model inference, no real network calls, no raw secrets.
+pub(crate) fn typescript_experience_runtime_template(id: &str) -> String {
+    format!(
+        r#"import {{ serveSubprocessPackage }} from "./package.mjs";
+import {{
+  createExperienceDescriptor,
+  createStateProjection,
+  createCheckpoint,
+  inspectCheckpoint,
+  draftRecoveryPlan,
+  createPlaySurfaceSubscription,
+  createForgeBinding,
+  createAssistBinding,
+  blockRawSecrets,
+}} from "../../sdk/typescript/experience-runtime/index.js";
+
+serveSubprocessPackage({{
+  onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
+  onInvoke: ({{ capability_id, input }}) => {{
+    // Deterministic / no-network: no real model, no real network, no raw secrets.
+    // No forbidden kernel namespaces (experience, world, turn, chat, memory)
+
+    // Raw-secret check
+    const secretCheck = blockRawSecrets(input);
+    if (!secretCheck.clean) {{
+      return {{
+        kind: "experience_runtime_rejected",
+        redaction_state: "unsafe_blocked",
+        reason: secretCheck.reason,
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+
+    if (capability_id === "{id}/describe-contract") {{
+      const desc = createExperienceDescriptor({{
+        package_id: "{id}",
+        surfaces: {{
+          experience_entry: "{id}/entry",
+          play_renderer: "{id}/play",
+          forge_panel: "{id}/forge",
+          assistant_action: "{id}/assist",
+        }},
+        capabilities: {{
+          describe_contract: "{id}/describe-contract",
+          create_checkpoint: "{id}/create-checkpoint",
+          inspect_checkpoint: "{id}/inspect-checkpoint",
+          draft_recovery: "{id}/draft-recovery",
+          bind_agent_run: "{id}/bind-agent-run",
+        }},
+      }});
+      return desc;
+    }}
+    if (capability_id === "{id}/create-checkpoint") {{
+      const cp = createCheckpoint({{
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        state_snapshot: input.state_snapshot ?? {{}},
+        asset_refs: input.asset_refs ?? [],
+        branch_ref: input.branch_ref,
+        sequence: input.sequence,
+        capability_id: "{id}/create-checkpoint",
+      }});
+      return cp;
+    }}
+    if (capability_id === "{id}/inspect-checkpoint") {{
+      const cp = createCheckpoint({{
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        state_snapshot: input.state_snapshot ?? {{}},
+        checkpoint_id: input.checkpoint_id,
+        format: input.format,
+        sequence: input.sequence,
+        capability_id: "{id}/inspect-checkpoint",
+      }});
+      return inspectCheckpoint(cp);
+    }}
+    if (capability_id === "{id}/draft-recovery") {{
+      const plan = draftRecoveryPlan({{
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        failure_kind: input.failure_kind ?? "unknown",
+        last_checkpoint_ref: input.last_checkpoint_ref ?? null,
+        capability_id: "{id}/draft-recovery",
+      }});
+      return plan;
+    }}
+    if (capability_id === "{id}/bind-agent-run") {{
+      const forge = createForgeBinding({{
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        surface_id: "{id}/forge",
+        inspect_capabilities: ["{id}/describe-contract", "{id}/inspect-checkpoint"],
+        proposal_capabilities: ["{id}/draft-recovery"],
+        capability_id: "{id}/bind-agent-run",
+      }});
+      const assist = createAssistBinding({{
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        surface_id: "{id}/assist",
+        action_capabilities: ["{id}/draft-recovery", "{id}/bind-agent-run"],
+        capability_id: "{id}/bind-agent-run",
+      }});
+      const play = createPlaySurfaceSubscription({{
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        surface_id: "{id}/play",
+        subscription_type: "state_change",
+        capability_id: "{id}/bind-agent-run",
+      }});
+      return {{
+        kind: "experience_agent_run_binding",
+        package_id: "{id}",
+        session_id: input.session_id ?? "session_default",
+        agent_package_id: input.agent_package_id ?? "official/agentic-forge-lab",
+        scoped_to_branch: true,
+        target_branch_ref: input.target_branch_ref ?? "branch:target:default",
+        scratch_branch_ref: input.scratch_branch_ref ?? "branch:scratch:default",
+        forge_panel_binding: forge,
+        assist_binding: assist,
+        play_subscription: play,
+        inference_performed: false,
+        network_performed: false,
+      }};
+    }}
+    if (capability_id === "{id}/echo") {{
+      return input ?? null;
+    }}
+    throw new Error(`unsupported capability: ${{capability_id}}`);
+  }},
+}});
+"#
+    )
+}
