@@ -106,22 +106,22 @@ Delivered:
 
 Non-goals: always-on autonomous agents, provider router, cost optimizer, multi-model tournament.
 
-## Phase D — Tool bridge v2: scoped toolchain observation / risk / replay
+## Phase D — Tool bridge v2: scoped toolchain observation / risk / replay (complete)
 
 **Goal:** Let agents use tools without introducing confused deputy behavior or ambient authority.
 
-Planned deliverables:
+Delivered:
 
-- Extend `official/capability-tool-bridge-lab`:
-  - `explain_tool_call`
-  - `record_tool_observation`
-  - `summarize_tool_risk`
-  - `replay_tool_plan`
-  - multi-step toolchain plan (plan-only)
-- Tool call context: requesting_package, run_id, plan_node_id, target_branch_scope, scratch_branch_scope, asset_scope, capability_grant, approval_policy, audit_context.
-- Tool output provenance/untrusted marker to resist prompt-injection escalation.
-- Nested delegation rules: no inherited authority without explicit delegation.
-- Conformance: prompt injection asks for secret, confused deputy, nested escalation, unauthorized outbound, large output asset-ref/truncation.
+- Extended `official/capability-tool-bridge-lab`:
+  - `explain_tool_call`: scoped grant summary with branch-aware tool call context (requesting_package, run_id, plan_node_id, target_branch_scope, scratch_branch_scope, asset_scope, capability_grant, approval_policy, audit_context), no_execution=true, no_ambient_authority=true, requires_approval=true.
+  - `record_tool_observation`: accepts untrusted tool output, marks untrusted=true, returns observation_ref/provenance; large output (>100KB) triggers asset_ref recommendation with truncation; raw-secret-like content blocked with redaction_state=unsafe_blocked.
+  - `summarize_tool_risk`: risk categories (prompt_injection, secret_exfiltration, branch_write, outbound_expansion, nested_delegation, large_output) with typed mitigations; overall_risk level (critical/high/medium/low).
+  - `replay_tool_plan`: deterministic fingerprint replay; match → replay_ok, mismatch → replay_mismatch (flagged, never silently passed).
+  - `plan_toolchain`: multi-step plan-only; each step must have explicit provider_package_id; missing provider → blocked; nested delegation without explicit_delegation=true → blocked; target branch write without promote grant → blocked; provider not in candidates → blocked; valid steps → planned with no_execution=true, no_ambient_authority=true.
+- Confused deputy protection: no provider or provider mismatch fails closed; target branch write without promote grant blocked; outbound host outside grant blocked.
+- TypeScript SDK extended with ToolRiskCategory, ToolCallContext, ToolchainStep, ToolObservation, ToolRiskFinding types and createToolCallContext, computeToolPlanFingerprint, createToolchainStep, hasPromptInjectionPattern helpers.
+- Conformance: 5 cases (explain_tool_call scoped/no ambient authority, record_observation untrusted/large output/redaction, tool_risk injection/exfiltration/outbound, replay_tool_plan mismatch flagged, plan_toolchain requires explicit provider/nested delegation blocked).
+- No `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, `kernel.memory.*`, or `kernel.turn.*` protocol methods added.
 
 Non-goals: all-powerful ToolExecutor, default shell/fs/git tools, automatic permission escalation.
 

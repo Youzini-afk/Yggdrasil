@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 155 implemented rows, backed by 170 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 160 implemented rows, backed by 175 named CLI conformance cases plus crate/service unit tests.
 
 ## Current conformance coverage
 
@@ -374,6 +374,11 @@ agentic_forge.replay_match_mismatch_flagged             PASS
 agentic_forge.inference_output_privilege_escalation_rejected PASS
 agentic_forge.cloud_adapter_needs_host_policy_no_network PASS
 agentic_forge.inference_failure_taxonomy_recovery_hints PASS
+agentic_forge.explain_tool_call_scoped_no_ambient_authority PASS
+agentic_forge.record_observation_untrusted_large_output_redaction PASS
+agentic_forge.tool_risk_injection_exfiltration_outbound    PASS
+agentic_forge.replay_tool_plan_mismatch_flagged             PASS
+agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

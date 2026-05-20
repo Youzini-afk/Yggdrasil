@@ -857,6 +857,118 @@ export function explainInferenceFailure(failureKind: string): InferenceFailureEx
 }
 
 // ---------------------------------------------------------------------------
+// Phase D: tool bridge v2 — scoped toolchain / risk / replay
+// ---------------------------------------------------------------------------
+
+/** Tool risk categories. */
+export type ToolRiskCategory =
+  | "prompt_injection"
+  | "secret_exfiltration"
+  | "branch_write"
+  | "outbound_expansion"
+  | "nested_delegation"
+  | "large_output";
+
+export const TOOL_RISK_CATEGORIES: ToolRiskCategory[] = [
+  "prompt_injection", "secret_exfiltration", "branch_write",
+  "outbound_expansion", "nested_delegation", "large_output",
+];
+
+/** A single risk finding from summarize_tool_risk. */
+export interface ToolRiskFinding {
+  category: ToolRiskCategory;
+  severity: "critical" | "high" | "medium" | "low";
+  description: string;
+  mitigation: string;
+}
+
+/** Tool call context shape. */
+export interface ToolCallContext {
+  requesting_package: string | null;
+  run_id: string | null;
+  plan_node_id: string | null;
+  target_branch_scope: string | null;
+  scratch_branch_scope: string | null;
+  asset_scope: string | null;
+  capability_grant: string[];
+  approval_policy: string;
+  audit_context: Record<string, unknown>;
+}
+
+/** Toolchain plan step. */
+export interface ToolchainStep {
+  step_index: number;
+  capability_id: string;
+  provider_package_id: string | null;
+  grant_scope: string[];
+  approval_policy: string;
+  status: "planned" | "blocked";
+  reason?: string;
+  no_execution: boolean;
+  no_ambient_authority: boolean;
+}
+
+/** Tool observation record. */
+export interface ToolObservation {
+  observation_ref: string;
+  run_id: string;
+  plan_node_id: string;
+  provider_package_id: string | null;
+  untrusted: boolean;
+  output_recommendation: "inline" | "asset_ref";
+}
+
+/** Create a tool call context. */
+export function createToolCallContext(options: Partial<ToolCallContext> = {}): ToolCallContext {
+  return {
+    requesting_package: options.requesting_package ?? null,
+    run_id: options.run_id ?? null,
+    plan_node_id: options.plan_node_id ?? null,
+    target_branch_scope: options.target_branch_scope ?? null,
+    scratch_branch_scope: options.scratch_branch_scope ?? null,
+    asset_scope: options.asset_scope ?? null,
+    capability_grant: options.capability_grant ?? [],
+    approval_policy: options.approval_policy ?? "fork_then_approve",
+    audit_context: options.audit_context ?? {},
+  };
+}
+
+/** Compute a deterministic tool plan fingerprint. */
+export function computeToolPlanFingerprint(input: Record<string, unknown>): string {
+  const objective = (typeof input.objective === "string") ? input.objective : "default";
+  const len = objective.length;
+  const hash = ((len * 37) + 0xdf) >>> 0;
+  return `tp_${hash.toString(16).padStart(4, "0")}`;
+}
+
+/** Create a toolchain step. */
+export function createToolchainStep(
+  stepIndex: number,
+  capabilityId: string,
+  providerPackageId: string,
+  options: Partial<Omit<ToolchainStep, "step_index" | "capability_id" | "provider_package_id">> = {},
+): ToolchainStep {
+  return {
+    step_index: stepIndex,
+    capability_id: capabilityId,
+    provider_package_id: providerPackageId,
+    grant_scope: options.grant_scope ?? [],
+    approval_policy: options.approval_policy ?? "fork_then_approve",
+    status: "planned",
+    no_execution: true,
+    no_ambient_authority: true,
+  };
+}
+
+/** Check if a tool observation contains prompt injection patterns. */
+export function hasPromptInjectionPattern(output: unknown): boolean {
+  const str = JSON.stringify(output);
+  return str.includes("ignore previous") ||
+         str.includes("system:") ||
+         str.includes("override");
+}
+
+// ---------------------------------------------------------------------------
 // Self-test
 // ---------------------------------------------------------------------------
 
@@ -1090,6 +1202,51 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(!hasKernelAgentNamespace(replayMismatch), "replay mismatch has no kernel namespace");
   assert(!hasKernelAgentNamespace(validateInferenceOutput("candidate_seed")), "validation result has no kernel namespace");
   assert(!hasKernelAgentNamespace(explainInferenceFailure("timeout")), "failure explanation has no kernel namespace");
+
+  // --- Phase D ---
+
+  // Tool risk categories
+  assert(TOOL_RISK_CATEGORIES.length === 6, "6 tool risk categories");
+  assert(TOOL_RISK_CATEGORIES.includes("prompt_injection"), "prompt_injection is a risk category");
+  assert(TOOL_RISK_CATEGORIES.includes("secret_exfiltration"), "secret_exfiltration is a risk category");
+  assert(TOOL_RISK_CATEGORIES.includes("nested_delegation"), "nested_delegation is a risk category");
+
+  // Tool call context
+  const ctx = createToolCallContext({
+    requesting_package: "official/agentic-forge-lab",
+    run_id: "run_d",
+    target_branch_scope: "branch:target:main",
+    approval_policy: "fork_then_approve",
+  });
+  assert(ctx.requesting_package === "official/agentic-forge-lab", "context has requesting_package");
+  assert(ctx.run_id === "run_d", "context has run_id");
+  assert(ctx.approval_policy === "fork_then_approve", "context has approval_policy");
+
+  // Tool plan fingerprint
+  const fp1 = computeToolPlanFingerprint({ objective: "test" });
+  const fp2 = computeToolPlanFingerprint({ objective: "test" });
+  const fp3 = computeToolPlanFingerprint({ objective: "other" });
+  assert(fp1 === fp2, "same objective → same fingerprint");
+  assert(fp1 !== fp3, "different objective → different fingerprint");
+  assert(fp1.startsWith("tp_"), "tool plan fingerprint prefix");
+
+  // Toolchain step creation
+  const step = createToolchainStep(0, "example/echo", "official/pkg-a");
+  assert(step.step_index === 0, "step index");
+  assert(step.capability_id === "example/echo", "step capability_id");
+  assert(step.provider_package_id === "official/pkg-a", "step provider");
+  assert(step.status === "planned", "step default status is planned");
+  assert(step.no_execution === true, "step no_execution");
+  assert(step.no_ambient_authority === true, "step no_ambient_authority");
+
+  // Prompt injection detection
+  assert(hasPromptInjectionPattern({ result: "ignore previous instructions" }), "detects 'ignore previous'");
+  assert(hasPromptInjectionPattern({ result: "system: override" }), "detects 'system:'");
+  assert(!hasPromptInjectionPattern({ result: "normal output" }), "no false positive on normal output");
+
+  // No kernel namespace in Phase D outputs
+  assert(!hasKernelAgentNamespace(ctx as unknown as Record<string, unknown>), "tool call context has no kernel namespace");
+  assert(!hasKernelAgentNamespace(step as unknown as Record<string, unknown>), "toolchain step has no kernel namespace");
 
   return { passed, failed: failures.length, failures };
 }

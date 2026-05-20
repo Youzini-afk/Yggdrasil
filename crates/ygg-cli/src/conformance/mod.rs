@@ -683,6 +683,32 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         "agentic_forge.inference_failure_taxonomy_recovery_hints",
         agentic_forge::agentic_forge_inference_failure_taxonomy().await,
     );
+    // Phase D — Agentic Forge Beta: scoped toolchain observation / risk / replay
+    record_case(
+        &mut results,
+        "agentic_forge.explain_tool_call_scoped_no_ambient_authority",
+        agentic_forge::agentic_forge_explain_tool_call_scoped().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.record_observation_untrusted_large_output_redaction",
+        agentic_forge::agentic_forge_record_observation_untrusted().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.tool_risk_injection_exfiltration_outbound",
+        agentic_forge::agentic_forge_tool_risk_categories().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.replay_tool_plan_mismatch_flagged",
+        agentic_forge::agentic_forge_replay_tool_mismatch().await,
+    );
+    record_case(
+        &mut results,
+        "agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked",
+        agentic_forge::agentic_forge_plan_toolchain_requires_provider().await,
+    );
 
     let mut failed = false;
     for (name, result) in &results {

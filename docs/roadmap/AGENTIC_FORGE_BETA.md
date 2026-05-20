@@ -106,22 +106,22 @@ Agentic Forge Beta 的目标不是再证明 Yggdrasil 能托管 agent-like packa
 
 非目标：自动长期 autonomous agent、provider router、cost optimizer、多模型 tournament。
 
-## Phase D — Tool bridge v2: scoped toolchain observation / risk / replay
+## Phase D — Tool bridge v2: scoped toolchain observation / risk / replay（已完成）
 
 **目标：** 让 agent 能使用 tools，但不引入 confused deputy 或 ambient authority。
 
-计划交付：
+已交付：
 
 - 扩展 `official/capability-tool-bridge-lab`：
-  - `explain_tool_call`
-  - `record_tool_observation`
-  - `summarize_tool_risk`
-  - `replay_tool_plan`
-  - multi-step toolchain plan（plan-only）
-- Tool call context：requesting_package、run_id、plan_node_id、target_branch_scope、scratch_branch_scope、asset_scope、capability_grant、approval_policy、audit_context。
-- Tool output provenance/untrusted marker，防 prompt injection 提权。
-- Nested delegation rules：无 explicit delegation 不继承权限。
-- Conformance：prompt injection asks for secret、confused deputy、nested escalation、unauthorized outbound、large output asset-ref/truncation。
+  - `explain_tool_call`：scoped grant summary 含 branch-aware tool call context（requesting_package、run_id、plan_node_id、target_branch_scope、scratch_branch_scope、asset_scope、capability_grant、approval_policy、audit_context），no_execution=true、no_ambient_authority=true、requires_approval=true。
+  - `record_tool_observation`：接受 untrusted tool output，标记 untrusted=true，返回 observation_ref/provenance；大输出（>100KB）触发 asset_ref 推荐含 truncation；raw-secret-like 内容阻断返回 redaction_state=unsafe_blocked。
+  - `summarize_tool_risk`：risk categories（prompt_injection、secret_exfiltration、branch_write、outbound_expansion、nested_delegation、large_output）含 typed mitigations；overall_risk level（critical/high/medium/low）。
+  - `replay_tool_plan`：确定性指纹重放；匹配 → replay_ok，不匹配 → replay_mismatch（标记，绝不静默通过）。
+  - `plan_toolchain`：多步 plan-only；每步必须有 explicit provider_package_id；缺 provider → blocked；nested delegation 无 explicit_delegation=true → blocked；target branch 写入无 promote grant → blocked；provider 不在 candidates 中 → blocked；合法步骤 → planned 含 no_execution=true、no_ambient_authority=true。
+- Confused deputy 保护：无 provider 或 provider 不匹配 fail closed；target branch 写入无 promote grant 阻断；outbound host 不在 grant scope 内阻断。
+- TypeScript SDK 扩展 ToolRiskCategory、ToolCallContext、ToolchainStep、ToolObservation、ToolRiskFinding 类型和 createToolCallContext、computeToolPlanFingerprint、createToolchainStep、hasPromptInjectionPattern helper。
+- Conformance：5 个用例（explain_tool_call scoped/no ambient authority、record_observation untrusted/large output/redaction、tool_risk injection/exfiltration/outbound、replay_tool_plan mismatch flagged、plan_toolchain requires explicit provider/nested delegation blocked）。
+- 未新增 `kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*`、`kernel.memory.*` 或 `kernel.turn.*` 协议方法。
 
 非目标：全能 ToolExecutor、shell/fs/git 默认工具、自动权限提升。
 
