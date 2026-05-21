@@ -27,10 +27,11 @@
 - 任何新增基础设施都要回答「哪个真实的玩家或创作者循环卡住了」；
 - 不再凭计划堆「Alpha + Beta + Phase」。
 
-## 后台不阻塞主线的工作
+## 近期会推进的底座工作
 
-这些是已知 partial 项，可以择机推进，但不需要为它们打断主线：
+下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
+- **从 GitHub 地址安装能力包。** 给 host 加一条受控的 git fetch / clone / checkout / verify 路径，让 `ygg package install <github-url>` 这样的命令可用。需要走 host policy、approval、签名/校验、沙箱安装目录，跟 outbound HTTPS 一样默认关闭、显式 opt-in。这是 YdlTavern 等接入项目分发扩展的关键前提。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
 - 钩子处理器的超时与错误审计。
@@ -41,11 +42,15 @@
 
 这些项目解除某些场景的阻塞，但都不应该成为下一阶段的中心。
 
+## 接入项目（独立仓库）
+
+下面这些是跑在 Yggdrasil 之上、通过公开协议消费平台的独立项目。它们不在本仓库里：
+
+- **YdlTavern** —— SillyTavern 后继。承接 SillyTavern 的角色卡、世界书、预设、聊天历史、扩展 API 与 UI 形态，底层换成 Yggdrasil。仓库：<https://github.com/Youzini-afk/Yggdrasil-Tavern>。Yggdrasil 这边的边界与承接关系见 [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.md)。
+
 ## 内核范围内的无限期延后
 
 下面这些不会进内核，会以普通能力包或后续工作出现：
-
-- SillyTavern 兼容 —— 见 [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.md)。
 - pi 作为产品壳的整包嵌入 —— 见 [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.md)。Agent 基础设施只能以普通能力包 / SDK 形态推进。
 - 外部游戏引擎桥接（UE5 / Godot / Unity / Web 客户端）。
 - 享受特权的内置 Studio、绕过公开协议的 UI、由内核拥有的官方审查器。公开协议的客户端和能力包贡献的 surface 可以继续演化。

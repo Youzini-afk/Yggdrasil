@@ -192,7 +192,7 @@ These will arrive as ordinary packages or future work — not as kernel features
 - Conversation runtime, prompts, models, sampling, message / turn semantics.
 - Memory models, retrieval, summarization, agent loops, directors.
 - World, scene, character, rule, dice, inventory semantics.
-- SillyTavern resource and behavior compatibility (see [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.en.md)).
+- SillyTavern compatibility lives in the YdlTavern integration project on top of Yggdrasil (see [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.en.md)).
 - Production-grade long-running autonomous agents, multi-agent collaboration, production memory systems, fuller live-ops.
 - External game-engine bridges (UE5, Godot, Unity, web clients).
 - Marketplace, package signing, dependency resolution (local sharing proof is done; see [`guides/SHARING_DISTRIBUTION.md`](guides/SHARING_DISTRIBUTION.en.md)).

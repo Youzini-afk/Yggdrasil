@@ -156,7 +156,7 @@ cargo run -p ygg-cli -- play-create-demo
 
 下面这些方向有价值，但不属于内核——它们都将以普通能力包的形态到来：
 
-- SillyTavern 兼容（[`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)）。
+- SillyTavern 后继项目 YdlTavern——以独立仓库形态承接 SillyTavern 用户与社区资源（[`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)）。
 - 生产级长期自治 agent、多 agent 协作、生产级记忆系统、世界模拟、导演。
 - 外部游戏引擎接入（UE5、Godot、Unity、Web 端）。
 - 完整 Studio、ComfyUI 风格节点编辑器、市场。

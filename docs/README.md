@@ -24,7 +24,7 @@
 
 - [`performance/`](performance/README.md) — 性能基线、conformance 反馈环、代码健康
 - [`roadmap/`](roadmap/README.md) — 当前与下一阶段、模型推理前置条件
-- [`tavern/`](tavern/README.md) — SillyTavern 兼容路线（延后）
+- [`tavern/`](tavern/README.md) —— SillyTavern 后继项目 YdlTavern 与 Yggdrasil 的承接关系
 
 ## 最短读路径
 

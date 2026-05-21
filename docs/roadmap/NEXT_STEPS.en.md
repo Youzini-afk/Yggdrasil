@@ -29,8 +29,9 @@ The shape:
 
 ## Background work that doesn't block the main line
 
-These are known partial items. Move them when convenient — they don't deserve to interrupt the main line:
+Not new phases, but known to-dos that will get done:
 
+- **Install capability packages from a GitHub address.** Add a controlled git fetch / clone / checkout / verify path to the host so `ygg package install <github-url>` becomes a real command. Gated by host policy, approval, signing/verification, and a sandboxed install directory — same posture as outbound HTTPS: off by default, explicit opt-in. This is the prerequisite for integration projects like YdlTavern to ship extensions.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.
@@ -41,11 +42,15 @@ These are known partial items. Move them when convenient — they don't deserve 
 
 These unblock specific scenarios, but none should be the center of the next stage.
 
+## Integration projects (separate repos)
+
+These run on top of Yggdrasil and consume the platform through the public protocol. They don't live in this repo.
+
+- **YdlTavern** — the SillyTavern successor. Absorbs character cards, world books, presets, chat history, the extension API, and the UI shape, while replacing the engine underneath with Yggdrasil. Repo: <https://github.com/Youzini-afk/Yggdrasil-Tavern>. For Yggdrasil's boundary, see [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
+
 ## Indefinitely deferred at the kernel level
 
 These don't belong in the kernel. They'll arrive as ordinary capability packages or future work.
-
-- SillyTavern compatibility — see [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
 - pi as a wholesale product shell embedding — see [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.en.md). Agent infrastructure can only move forward as ordinary packages and SDKs.
 - External game-engine bridges (UE5, Godot, Unity, web clients).
 - A privileged built-in Studio, a UI that bypasses the public protocol, or a kernel-owned official inspector. Public-protocol clients and package-contributed surfaces can keep evolving.

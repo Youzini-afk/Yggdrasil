@@ -1,51 +1,43 @@
-# Tavern 兼容性（延后）
+# SillyTavern 后继项目
 
 > [English](./TAVERN_COMPAT.en.md) · [中文](./TAVERN_COMPAT.md)
 
-本文档为未来的能力包家族预留。该家族会导入 SillyTavern 资源，并复现足够的 Tavern 行为，让社区内容能在 Yggdrasil 上运行。它不在近期路径上。
+SillyTavern 的下一代项目叫 **YdlTavern**，作为独立项目存在，不在 Yggdrasil 仓库里。
 
-## 立场
+- 仓库：<https://github.com/Youzini-afk/Yggdrasil-Tavern>
+- 定位：跑在 Yggdrasil 之上的接入项目，对 SillyTavern 用户、扩展、角色卡、世界书、预设、聊天形成承接。
+- 目标：基本 100% 承接 SillyTavern API 与社区资源；前端可以重写，但 UI 结构、样式、操作对 ST 老用户保持熟悉。
 
-Tavern 兼容性不属于内核。内核不理解角色卡、世界书、预设、提示词渲染，也不理解任何其他内容形态。
+YdlTavern 通过公开协议消费 Yggdrasil。它不读 Yggdrasil 内部，不依赖私有 API，跟其他第三方项目没有差别。
 
-当 Tavern 兼容性被构建时，它会以一个或多个能力包交付。它受同一套清单、fabric、权限和沙箱规则约束，与任何第三方包无异。它不会获得内核特权。
+## 为什么不放在 Yggdrasil 仓库
 
-## 可能的形态（仅作草稿）
+Yggdrasil 是平台。把一个产品级的、几百个扩展兼容层、6 年 API 表面要承接的项目塞进 `packages/official/`，会立刻撞到章程：「官方包没有特权」。
 
-未来的 Tavern 包家族可能包含这些独立包：
+YdlTavern 体量很大、产品决策很多、跟 SillyTavern 社区直接对接。这些都是产品话题，不是平台话题。两件事必须分开。
 
-- 一个资源导入器，解析 Character Card V2、PNG 内嵌元数据、世界书、预设和聊天历史。
-- 一个原生 projection 包，将这些转换为包定义的资产和事件。
-- 一个行为层，复现 Tavern 式的提示词渲染和 lorebook 激活，供官方对话 runtime 包或 Tavern 形态的 runtime 包使用。
-- 一个扩展 shim（适用时），将 Tavern 扩展概念映射到 Yggdrasil 能力。
+## Yggdrasil 这边继续提供什么
 
-内核只会看到在自己 namespace 中声明事件类型、能力和资产的包。它们与其他包没有区别。
+下面这些是 Yggdrasil 已经有、YdlTavern 会直接用上的：
 
-## 无损导入原则（承前）
+- 公开协议（HTTP `/rpc` + SSE 事件订阅）。
+- `secret_ref`、网络声明、外发审计、流式与取消生命周期。
+- 模型接入能力包：OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks。
+- 通用创作能力包：persona-lab、knowledge-lab、context-lab、text-transform-lab、memory-lab。
+- 提案与审批生命周期、资产、分支、projection。
+- 后续会做「通过 GitHub 地址安装能力包」的能力——YdlTavern 的扩展生态会受益于此。
 
-当这项工作展开时，导入的资源会保留原始 payload，并附带原生 projection。旧 schema 不应定义平台能表达什么，但也不应在导入时被销毁。
+## 内核绝不会做的事
 
-```text
-original_payload   the original SillyTavern data, untouched
-native_projection  package-defined views derived from it
-```
+无论 YdlTavern 多大、多重要：
 
-这一原则属于导入器包，不属于内核。
+- 内核不会理解角色卡、世界书、预设、提示词渲染。
+- 内核不会硬编码 `{{char}}` / `{{user}}` 替换。
+- 内核不会提供 Tavern 专属的钩子或方法。
+- 内核不会区别对待 Tavern 形态的能力包和其他能力包。
 
-## 内核的非目标
+## TavernHeadless 调研
 
-内核永远不会：
+[`integrations/tavern-headless/`](../../integrations/tavern-headless/) 仍然作为研究记录留在 Yggdrasil 仓库里——它是 Yggdrasil 通用能力包（persona / knowledge / context / model-provider）的灵感来源。这一层是平台话题，跟 YdlTavern 这个接入项目分开。
 
-- 交付一个 SillyTavern 解析器，
-- 建模角色卡或世界书，
-- 硬编码 `{{char}}` / `{{user}}` 替换，
-- 提供 Tavern 专用的 hook 或方法，
-- 区别对待 Tavern 包和其他任何包。
-
-## 状态
-
-Tavern 兼容性延后到 Yggdrasil 上至少存在一个可玩的对话/runtime 能力包之后。届时它才有明确的消费方。
-
-它需要的平台底座已经就位：包、事件、能力、钩子、权限、surface contributions、提案、资产、分支和 projection。因此 Tavern 兼容性在构建时可以完全以包的形式运行，不需要内核变更。
-
-在此之前，本文档只固定立场：Tavern 兼容性是未来的包家族，不是平台层。
+YdlTavern 的具体兼容路线、扩展桥设计、UI 结构选择，都在 YdlTavern 仓库里讨论。

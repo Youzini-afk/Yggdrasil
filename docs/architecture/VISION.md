@@ -60,7 +60,7 @@ Yggdrasil 设计为可以承担以下角色：
 
 下面这些方向有价值，但属于能力包，不是内核关心的事。它们要等内核与能力包层稳定之后才会到来。
 
-- SillyTavern 资源与行为的兼容包家族；
+- SillyTavern 后继项目 YdlTavern——以独立仓库形态承接 SillyTavern 用户与社区资源，跑在 Yggdrasil 之上，见 [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.md)；
 - agent 集成包家族（pi 或其他）；
 - 游戏引擎桥接包家族（UE5、Godot、Unity、Web 客户端）；
 - 官方对话运行时包；

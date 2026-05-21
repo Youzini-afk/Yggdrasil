@@ -60,7 +60,7 @@ All four use the same contract.
 
 These are valuable directions, but they belong in capability packages, not the kernel. They wait until the kernel and package layers are stable.
 
-- A SillyTavern compatibility package family.
+- The SillyTavern successor project YdlTavern — runs on top of Yggdrasil as an integration project, absorbing SillyTavern users and community resources. See [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
 - An agent integration package family (pi or otherwise).
 - A game-engine bridge family (UE5, Godot, Unity, web clients).
 - An official conversation runtime package.
