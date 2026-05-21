@@ -155,6 +155,70 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(
+            manifest::read_manifest(PathBuf::from("packages/official/package-installer-lab/manifest.yaml")).await?,
+        )
+        .await?;
+    let contract = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/package-installer-lab/describe_install_contract".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/package-installer-lab".to_string()),
+            version: None,
+            input: json!({}),
+        })
+        .await?;
+    anyhow::ensure!(
+        contract.output["kind"] == json!("git_package_installer_contract"),
+        "package-installer-lab contract returned wrong kind"
+    );
+    anyhow::ensure!(
+        contract.output.to_string().contains("kernel.outbound.git_fetch"),
+        "contract should point at the public git outbound method"
+    );
+
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/package-installer-lab/plan_install".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/package-installer-lab".to_string()),
+            version: None,
+            input: json!({
+                "remote_url": "https://github.com/example/capability-package",
+                "ref": "main",
+                "preferred_package_id": "thirdparty/capability-package"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        plan.output["kind"] == json!("package_install_proposal_draft"),
+        "plan_install should return a proposal draft"
+    );
+    anyhow::ensure!(
+        plan.output["requires_user_approval"] == json!(true),
+        "install plan must require approval"
+    );
+    anyhow::ensure!(
+        plan.output["pinned"]["commit_sha"].is_null(),
+        "G3 plan must not pretend to pin a commit before git_fetch/apply"
+    );
+
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/package-installer-lab/plan_install".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/package-installer-lab".to_string()),
+            version: None,
+            input: json!({"remote_url": "https://github.com/example/pkg?token=raw-secret-placeholder"}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "plan_install must reject raw query tokens");
+    Ok(())
+}
+
 pub(crate) async fn asset_lab() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;

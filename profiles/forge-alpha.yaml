@@ -15,6 +15,7 @@ autoload:
   - ../packages/official/model-connector-lab/manifest.yaml
   - ../packages/official/model-provider-lab/manifest.yaml
   - ../packages/official/model-routing-lab/manifest.yaml
+  - ../packages/official/package-installer-lab/manifest.yaml
   - ../packages/official/assistant-lab/manifest.yaml
   - ../packages/official/pi-agent-runtime-lab/manifest.yaml
   - ../packages/official/capability-tool-bridge-lab/manifest.yaml

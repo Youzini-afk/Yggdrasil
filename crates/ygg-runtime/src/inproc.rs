@@ -19,6 +19,7 @@ mod memory_lab;
 mod model_connector_lab;
 mod model_provider_lab;
 mod model_routing_lab;
+mod package_installer_lab;
 mod persona_lab;
 mod pi_agent_runtime_lab;
 mod playable_creation_board;
@@ -127,6 +128,7 @@ fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
         "official/model-connector-lab" => model_connector_lab::try_handle(request),
         "official/model-provider-lab" => model_provider_lab::try_handle(request),
         "official/model-routing-lab" => model_routing_lab::try_handle(request),
+        "official/package-installer-lab" => package_installer_lab::try_handle(request),
         "official/pi-agent-runtime-lab" => pi_agent_runtime_lab::try_handle(request),
         "official/agentic-forge-lab" => agentic_forge_lab::try_handle(request),
         // projection-lab /diff must be tried before the generic /diff

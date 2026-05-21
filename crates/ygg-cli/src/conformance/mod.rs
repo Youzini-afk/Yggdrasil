@@ -166,6 +166,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("official.model_provider_lab_invoke_core", ["official", "slow"], official_labs::model_provider_lab_invoke_core),
         c!("official.model_provider_lab_normalize_stream", ["official", "slow"], official_labs::model_provider_lab_normalize_stream),
         c!("official.model_routing_lab", ["official", "slow"], official_labs::model_routing_lab),
+        c!("official.package_installer_lab", ["official", "git"], official_labs::package_installer_lab),
         c!("official.pi_agent_runtime_lab", ["official", "agentic", "slow"], official_labs::pi_agent_runtime_lab),
         c!("official.capability_tool_bridge_lab", ["official", "agentic", "slow"], official_labs::capability_tool_bridge_lab),
         // --- inproc ---
