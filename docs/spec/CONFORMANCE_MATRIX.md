@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：246 个 implemented rows，由 291 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：252 个 implemented rows，由 297 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## Conformance Feedback Loop
 
@@ -244,6 +244,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | export snapshot preview 输出为 redacted（snapshot_exported=false） | implemented |
 | storage lab | raw secret 在所有能力输入中被阻断 | implemented |
 | storage lab | unsafe ID（path traversal / 特殊字符）被阻断 | implemented |
+| storage lab | blob store contract shape 含 content-addressed 类型、backend 候选、red lines，无 kernel database/blob namespace | implemented |
+| storage lab | put blob preview content address deterministic（content_hash 规范化 sha256: 前缀，相同样本相同 hash） | implemented |
+| storage lab | put blob preview 不执行真实存储、不含 blob content（blob_stored=false, event_payload_contains_blob=false） | implemented |
+| storage lab | get blob metadata preview 不返回 blob content（blob_read=false, content_returned=false） | implemented |
+| storage lab | export blob manifest preview 只含 refs、不含 content（content_included=false） | implemented |
+| storage lab | blob raw secret、unsafe ID、过大 inline sample 被阻断 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -525,6 +531,12 @@ storage_lab.delete_tombstone_preview_no_delete PASS
 storage_lab.export_snapshot_preview_redacted PASS
 storage_lab.raw_secret_rejected PASS
 storage_lab.unsafe_id_rejected PASS
+storage_lab.blob_contract_shape PASS
+storage_lab.put_blob_preview_content_address_deterministic PASS
+storage_lab.put_blob_preview_no_storage_no_content_event PASS
+storage_lab.get_blob_metadata_preview_no_content PASS
+storage_lab.export_blob_manifest_refs_only PASS
+storage_lab.blob_raw_secret_and_unsafe_id_rejected PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

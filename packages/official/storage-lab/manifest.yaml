@@ -2,7 +2,7 @@ schema_version: 1
 id: official/storage-lab
 version: 0.1.0
 display_name: Official Storage Lab
-description: Package-scoped storage/data contract preview — storage backend classes, package state store planning, document CRUD preview, and snapshot export. Deterministic, no real DB, no SQL, no filesystem, no network. Ordinary package capability with no privileged platform access.
+description: Package-scoped storage/data contract preview — storage backend classes, package state store planning, document CRUD preview, snapshot export, and blob/asset store contract proof. Deterministic, no real DB, no SQL, no filesystem, no network, no blob content in events. Ordinary package capability with no privileged platform access.
 entry:
   kind: rust_inproc
   crate_ref: official-foundation
@@ -52,6 +52,30 @@ provides:
     streaming: false
     side_effects: []
   - id: official/storage-lab/export_store_snapshot_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/describe_blob_store_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/put_blob_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/get_blob_metadata_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/export_blob_manifest_preview
     version: 0.1.0
     input_schema: {}
     output_schema: {}

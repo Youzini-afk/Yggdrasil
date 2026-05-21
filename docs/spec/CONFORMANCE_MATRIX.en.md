@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 246 implemented rows, backed by 291 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 252 implemented rows, backed by 297 named CLI conformance cases plus crate/service unit tests.
 
 ## Conformance Feedback Loop
 
@@ -244,6 +244,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | export snapshot preview output is redacted (snapshot_exported=false) | implemented |
 | storage lab | raw secret is blocked in all capability inputs | implemented |
 | storage lab | unsafe ID (path traversal / special characters) is blocked | implemented |
+| storage lab | blob store contract shape contains content-addressed type, backend candidates, red lines, no kernel database/blob namespace | implemented |
+| storage lab | put blob preview content address deterministic (content_hash normalized with sha256: prefix, same sample → same hash) | implemented |
+| storage lab | put blob preview does not perform real storage or include blob content (blob_stored=false, event_payload_contains_blob=false) | implemented |
+| storage lab | get blob metadata preview does not return blob content (blob_read=false, content_returned=false) | implemented |
+| storage lab | export blob manifest preview contains refs only, no content (content_included=false) | implemented |
+| storage lab | blob raw secret, unsafe ID, oversized inline sample are blocked | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
 | creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
 | creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
@@ -534,6 +540,12 @@ storage_lab.delete_tombstone_preview_no_delete PASS
 storage_lab.export_snapshot_preview_redacted PASS
 storage_lab.raw_secret_rejected PASS
 storage_lab.unsafe_id_rejected PASS
+storage_lab.blob_contract_shape PASS
+storage_lab.put_blob_preview_content_address_deterministic PASS
+storage_lab.put_blob_preview_no_storage_no_content_event PASS
+storage_lab.get_blob_metadata_preview_no_content PASS
+storage_lab.export_blob_manifest_refs_only PASS
+storage_lab.blob_raw_secret_and_unsafe_id_rejected PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

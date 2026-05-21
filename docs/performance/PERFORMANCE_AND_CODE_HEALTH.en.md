@@ -101,6 +101,13 @@ Storage Backend Neutrality Alpha S2 added:
 - Backend class candidates contain capability flags only, no path/DSN/credentials.
 - Document CRUD preview outputs write/read/query/delete/snapshot_performed=false with redacted content.
 
+Storage Backend Neutrality Alpha S3 added:
+
+- `official/storage-lab` adds 4 blob/asset store contract proof capabilities: describe_blob_store_contract, put_blob_preview, get_blob_metadata_preview, export_blob_manifest_preview. 12 capabilities, 16 `storage_lab` tag conformance cases.
+- Blob contract outputs content-addressed type, backend candidates (local_content_addressed_future / filesystem_backend_future / object_store_future), red lines (no blob content in events / no raw secrets / no filesystem path leak / content address required).
+- put_blob_preview outputs content_address (sha256: normalized if content_hash provided, deterministic hash otherwise), blob_stored=false, filesystem_performed=false, network_performed=false, event_payload_contains_blob=false. Blocks raw secret, unsafe id, oversized inline sample (>4096 chars).
+- No real blob store implementation, no filesystem reads/writes, no network, no blob content in event payloads.
+
 Future event-store optimization priority:
 
 1. Prove a concrete scale bottleneck with baseline data.

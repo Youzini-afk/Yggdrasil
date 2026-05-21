@@ -101,6 +101,13 @@ Storage Backend Neutrality Alpha S2 新增：
 - Backend class 候选只含 capability flags，不含 path/DSN/credentials。
 - Document CRUD preview 输出 write/read/query/delete/snapshot_performed=false，redacted content。
 
+Storage Backend Neutrality Alpha S3 新增：
+
+- `official/storage-lab` 新增 4 项 blob/asset store 契约证明能力：describe_blob_store_contract、put_blob_preview、get_blob_metadata_preview、export_blob_manifest_preview。12 项能力、16 个 `storage_lab` tag conformance 用例。
+- Blob 契约输出 content-addressed 类型、backend 候选（local_content_addressed_future / filesystem_backend_future / object_store_future）、red lines（no blob content in events / no raw secrets / no filesystem path leak / content address required）。
+- put_blob_preview 输出 content_address（content_hash 提供则 sha256: 规范化，否则 deterministic hash），blob_stored=false，filesystem_performed=false，network_performed=false，event_payload_contains_blob=false。阻断 raw secret、unsafe id、过大 inline sample（>4096 chars）。
+- 不实现真实 blob store、不读写文件、不联网、不把 blob content 放入 event payload。
+
 后续 event store 优化优先级：
 
 1. 用 baseline 证明具体规模下的瓶颈。

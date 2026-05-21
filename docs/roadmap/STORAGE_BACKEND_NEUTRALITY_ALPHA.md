@@ -71,15 +71,17 @@ Yggdrasil 当前已经有 SQLite-backed append-only event log、重水化的 ass
 
 验收：package check、storage-lab conformance、无 SQL/kernel database namespace。
 
-## Phase S3 — Blob / Asset Store Contract Proof
+## Phase S3 — Blob / Asset Store Contract Proof ✅
 
 目标：为大对象和 asset content-addressed backend 预留，不把 blob content 塞进 event payload。
 
 交付：
 
-- 扩展 `storage-lab`：`describe_blob_store_contract`、`put_blob_preview`、`get_blob_metadata_preview`、`export_blob_manifest_preview`。
-- 明确 backend candidates：local content-addressed、filesystem、object store future；只输出 hash/size/mime/provenance，不保存真实 blob。
-- raw secret / unsafe path 阻断。
+- ✅ 扩展 `storage-lab`：`describe_blob_store_contract`、`put_blob_preview`、`get_blob_metadata_preview`、`export_blob_manifest_preview`。
+- ✅ 明确 backend candidates：local_content_addressed_future、filesystem_backend_future、object_store_future；只输出 hash/size/mime/provenance，不保存真实 blob。
+- ✅ Red lines：no blob content in events、no raw secrets、no direct filesystem path leak、content address required。
+- ✅ put_blob_preview 阻断 raw secret、unsafe id、过大 inline sample（>4096 chars）。
+- ✅ 6 个 blob conformance 用例。
 
 验收：conformance 覆盖 content-address determinism、no raw secret、no filesystem write。
 

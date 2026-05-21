@@ -1,4 +1,4 @@
-//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2).
+//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2 + S3).
 //!
 //! Covers:
 //! 1. Contract shape — no kernel database terms
@@ -11,6 +11,11 @@
 //! 8. Export snapshot preview — redacted
 //! 9. Raw secret rejected
 //! 10. Unsafe ID rejected
+//! 11. Blob contract shape — content-addressed, red lines, no forbidden namespace
+//! 12. Put blob preview — content address deterministic, no storage/content/event
+//! 13. Get blob metadata preview — no content returned
+//! 14. Export blob manifest preview — refs only, no content
+//! 15. Blob raw secret and unsafe ID rejected
 
 use std::path::PathBuf;
 
@@ -75,14 +80,14 @@ pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<
     anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action");
     anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
-    // 8 capabilities
+    // 12 capabilities
     anyhow::ensure!(
         contract.output["capabilities"]
             .as_array()
             .map(|a| a.len())
             .unwrap_or(0)
-            == 8,
-        "describe_storage_contract must list 8 capabilities"
+            == 12,
+        "describe_storage_contract must list 12 capabilities"
     );
 
     // No kernel database terms
@@ -470,6 +475,332 @@ pub(crate) async fn unsafe_id_rejected() -> anyhow::Result<()> {
     )
     .await?;
     anyhow::ensure!(plan.output["kind"] == json!("storage_lab_rejected"));
+
+    Ok(())
+}
+
+/// Case 11: Blob contract shape — content-addressed, backend candidates, red lines,
+/// no kernel database/vector/blob namespace.
+pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let contract = invoke(&rt, "describe_blob_store_contract", json!({})).await?;
+
+    anyhow::ensure!(
+        contract.output["kind"] == json!("blob_store_contract"),
+        "must return blob_store_contract kind"
+    );
+    anyhow::ensure!(
+        contract.output["contract_type"] == json!("content_addressed_blob_store"),
+        "contract_type must be content_addressed_blob_store"
+    );
+
+    // Backend candidates
+    let candidates = contract.output["backend_candidates"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
+    anyhow::ensure!(candidates.len() >= 3, "must have at least 3 backend candidates");
+
+    // Red lines
+    let red_lines = contract.output["red_lines"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("red_lines must be array"))?;
+    anyhow::ensure!(
+        red_lines.contains(&json!("no_blob_content_in_events")),
+        "must have no_blob_content_in_events red line"
+    );
+    anyhow::ensure!(
+        red_lines.contains(&json!("no_raw_secrets")),
+        "must have no_raw_secrets red line"
+    );
+    anyhow::ensure!(
+        red_lines.contains(&json!("no_direct_filesystem_path_leak")),
+        "must have no_direct_filesystem_path_leak red line"
+    );
+    anyhow::ensure!(
+        red_lines.contains(&json!("content_address_required")),
+        "must have content_address_required red line"
+    );
+
+    // No forbidden namespace tokens
+    let output_str = serde_json::to_string(&contract.output).unwrap();
+    let forbidden = [
+        "kernel.sqlite.",
+        "kernel.postgres.",
+        "kernel.tdb.",
+        "kernel.vector.",
+        "kernel.embedding.",
+        "kernel.collection.",
+        "kernel.sql.",
+        "kernel.database.",
+        "kernel.blob.",
+    ];
+    for token in &forbidden {
+        anyhow::ensure!(
+            !output_str.contains(token),
+            "blob contract must not contain {}",
+            token
+        );
+    }
+
+    // No credentials/paths/bucket names in backend candidates
+    let lower = output_str.to_lowercase();
+    for token in &["dsn", "connection_string", "password", "credential", "bucket", "s3://", "gcs://"] {
+        anyhow::ensure!(
+            !lower.contains(token),
+            "blob contract must not contain {}",
+            token
+        );
+    }
+
+    // No inference / no network
+    anyhow::ensure!(contract.output["inference_performed"] == json!(false));
+    anyhow::ensure!(contract.output["network_performed"] == json!(false));
+
+    Ok(())
+}
+
+/// Case 12: Put blob preview — content address deterministic, no real storage,
+/// no blob content in events.
+pub(crate) async fn put_blob_preview_content_address_deterministic() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    // With content_hash provided → normalized sha256: prefix
+    let result = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "thirdparty/my-app",
+            "blob_id": "asset/avatar",
+            "mime": "image/png",
+            "size_bytes": 2048,
+            "content_hash": "deadbeef1234",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("blob_put_preview"),
+        "must return blob_put_preview kind"
+    );
+    anyhow::ensure!(
+        result.output["content_address"] == json!("sha256:deadbeef1234"),
+        "content_hash must be normalized with sha256: prefix"
+    );
+    anyhow::ensure!(
+        result.output["mime"] == json!("image/png"),
+        "mime must match input"
+    );
+    anyhow::ensure!(
+        result.output["size_bytes"] == json!(2048),
+        "size_bytes must match input"
+    );
+
+    // Deterministic: same input → same content_address
+    let result2 = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "thirdparty/my-app",
+            "blob_id": "asset/avatar",
+            "mime": "image/png",
+            "size_bytes": 2048,
+            "content_hash": "deadbeef1234",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        result.output["content_address"] == result2.output["content_address"],
+        "same input must produce same content_address"
+    );
+
+    Ok(())
+}
+
+/// Case 13: Put blob preview — no real storage, no blob content in event payload.
+pub(crate) async fn put_blob_preview_no_storage_no_content_event() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let result = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "my-pkg",
+            "blob_id": "doc/readme",
+            "content_sample": "Hello world",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("blob_put_preview"),
+        "must return blob_put_preview kind"
+    );
+    anyhow::ensure!(
+        result.output["blob_stored"] == json!(false),
+        "blob_stored must be false"
+    );
+    anyhow::ensure!(
+        result.output["filesystem_performed"] == json!(false),
+        "filesystem_performed must be false"
+    );
+    anyhow::ensure!(
+        result.output["network_performed"] == json!(false),
+        "network_performed must be false"
+    );
+    anyhow::ensure!(
+        result.output["event_payload_contains_blob"] == json!(false),
+        "event_payload_contains_blob must be false"
+    );
+    anyhow::ensure!(
+        result.output["content_address"].is_string(),
+        "must have content_address"
+    );
+
+    Ok(())
+}
+
+/// Case 14: Get blob metadata preview — no blob content returned.
+pub(crate) async fn get_blob_metadata_preview_no_content() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let result = invoke(
+        &rt,
+        "get_blob_metadata_preview",
+        json!({
+            "blob_id": "my-pkg/asset/avatar",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("blob_metadata_preview"),
+        "must return blob_metadata_preview kind"
+    );
+    anyhow::ensure!(
+        result.output["blob_read"] == json!(false),
+        "blob_read must be false"
+    );
+    anyhow::ensure!(
+        result.output["content_returned"] == json!(false),
+        "content_returned must be false"
+    );
+    anyhow::ensure!(
+        result.output["content_address"].is_string(),
+        "must have content_address"
+    );
+
+    Ok(())
+}
+
+/// Case 15: Export blob manifest preview — refs only, no content.
+pub(crate) async fn export_blob_manifest_refs_only() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let result = invoke(
+        &rt,
+        "export_blob_manifest_preview",
+        json!({
+            "package_id": "my-pkg",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("blob_manifest_preview"),
+        "must return blob_manifest_preview kind"
+    );
+    anyhow::ensure!(
+        result.output["content_included"] == json!(false),
+        "content_included must be false"
+    );
+    anyhow::ensure!(
+        result.output["manifest_items"].is_array(),
+        "must have manifest_items array"
+    );
+
+    Ok(())
+}
+
+/// Case 16: Blob raw secret and unsafe ID rejected.
+pub(crate) async fn blob_raw_secret_and_unsafe_id_rejected() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    // Raw secret in put_blob_preview
+    let put = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "my-pkg",
+            "blob_id": "doc/1",
+            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(put.output["kind"] == json!("storage_lab_rejected"));
+    anyhow::ensure!(put.output["redaction_state"] == json!("unsafe_blocked"));
+
+    // Path traversal in blob_id
+    let put2 = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "my-pkg",
+            "blob_id": "../../etc/passwd",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(put2.output["kind"] == json!("storage_lab_rejected"));
+
+    // Path traversal in package_id
+    let put3 = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "../escape",
+            "blob_id": "doc/1",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(put3.output["kind"] == json!("storage_lab_rejected"));
+
+    // Raw secret in get_blob_metadata_preview
+    let get = invoke(
+        &rt,
+        "get_blob_metadata_preview",
+        json!({
+            "blob_id": "doc/1",
+            "secret": "Bearer abc123xyz456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(get.output["kind"] == json!("storage_lab_rejected"));
+
+    // Raw secret in export_blob_manifest_preview
+    let export = invoke(
+        &rt,
+        "export_blob_manifest_preview",
+        json!({
+            "package_id": "my-pkg",
+            "token": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(export.output["kind"] == json!("storage_lab_rejected"));
+
+    // Oversized content_sample rejected
+    let big_sample = "x".repeat(5000);
+    let put4 = invoke(
+        &rt,
+        "put_blob_preview",
+        json!({
+            "package_id": "my-pkg",
+            "blob_id": "doc/big",
+            "content_sample": big_sample,
+        }),
+    )
+    .await?;
+    anyhow::ensure!(put4.output["kind"] == json!("storage_lab_rejected"));
 
     Ok(())
 }

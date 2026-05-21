@@ -71,15 +71,17 @@ Deliverables:
 
 Acceptance: package check, storage-lab conformance, no SQL/kernel database namespace.
 
-## Phase S3 — Blob / Asset Store Contract Proof
+## Phase S3 — Blob / Asset Store Contract Proof ✅
 
 Goal: reserve large-object and asset content-addressed backends without stuffing blob content into event payloads.
 
 Deliverables:
 
-- Extend `storage-lab`: `describe_blob_store_contract`, `put_blob_preview`, `get_blob_metadata_preview`, `export_blob_manifest_preview`.
-- Backend candidates: local content-addressed, filesystem, future object store; output hash/size/mime/provenance only, no real blob storage.
-- Raw-secret and unsafe-path blocking.
+- ✅ Extend `storage-lab`: `describe_blob_store_contract`, `put_blob_preview`, `get_blob_metadata_preview`, `export_blob_manifest_preview`.
+- ✅ Backend candidates: local_content_addressed_future, filesystem_backend_future, object_store_future; output hash/size/mime/provenance only, no real blob storage.
+- ✅ Red lines: no blob content in events, no raw secrets, no direct filesystem path leak, content address required.
+- ✅ put_blob_preview blocks raw secret, unsafe id, oversized inline sample (>4096 chars).
+- ✅ 6 blob conformance cases.
 
 Acceptance: conformance covers content-address determinism, no raw secret, no filesystem write.
 

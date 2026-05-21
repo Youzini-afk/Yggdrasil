@@ -406,6 +406,13 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_lab.export_snapshot_preview_redacted", ["storage_lab", "storage"], storage_lab::export_snapshot_preview_redacted),
         c!("storage_lab.raw_secret_rejected", ["storage_lab", "storage", "secret"], storage_lab::raw_secret_rejected),
         c!("storage_lab.unsafe_id_rejected", ["storage_lab", "storage"], storage_lab::unsafe_id_rejected),
+        // --- storage-lab S3 (Blob / Asset Store Contract Proof) ---
+        c!("storage_lab.blob_contract_shape", ["storage_lab", "storage", "blob"], storage_lab::blob_contract_shape),
+        c!("storage_lab.put_blob_preview_content_address_deterministic", ["storage_lab", "storage", "blob"], storage_lab::put_blob_preview_content_address_deterministic),
+        c!("storage_lab.put_blob_preview_no_storage_no_content_event", ["storage_lab", "storage", "blob"], storage_lab::put_blob_preview_no_storage_no_content_event),
+        c!("storage_lab.get_blob_metadata_preview_no_content", ["storage_lab", "storage", "blob"], storage_lab::get_blob_metadata_preview_no_content),
+        c!("storage_lab.export_blob_manifest_refs_only", ["storage_lab", "storage", "blob"], storage_lab::export_blob_manifest_refs_only),
+        c!("storage_lab.blob_raw_secret_and_unsafe_id_rejected", ["storage_lab", "storage", "blob", "secret"], storage_lab::blob_raw_secret_and_unsafe_id_rejected),
     ]
 }
 
