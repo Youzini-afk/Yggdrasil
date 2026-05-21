@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（已完成）。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（已完成）+ Storage Backend Neutrality Alpha（执行中）。
 - **Conformance：** 275 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch（按领域委托的 helper）、runtime official in-process handlers（provider-package indexed dispatch、共享 safety 模块）、event store（P3 原子 append + 查询 pushdown + 并发 correctness）已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** External Project Operating Plane Alpha 已完成。Yggdrasil 现在可以围绕未适配 git/npm/local/archive 项目做静态 intake、stack/risk analysis、workspace action policy、deterministic fixture managed workspace、Web project aggregation，以及 adapter/wrapper generation preview；实现落在普通包 `official/project-intake-lab` 与 `official/workspace-lab`，并通过 `clients/web/src/projects/external-projects.ts` 进入 Home/Forge/Assistant。持久指南见 `docs/guides/EXTERNAL_PROJECT_OPERATING_PLANE.md`；外部调研证据位于 `/tmp/opencode/ygg-external-project-plane-20260520/`。红线：external project 不是 package，managed workspace 不是 kernel object，adapter/wrapper 才是普通 package；危险动作必须 policy/proposal/audit gated。
+- **当前主线：** Storage Backend Neutrality Alpha 执行中。目标是把当前 SQLite-backed event log 明确降格为 early/default local backend，同时为 PostgreSQL、未来 TDB 多模态向量数据库和其他 retrieval/index providers 预留 backend/provider 层，不把 SQL、向量、embedding、collection、DSN 或数据库产品语义塞进 kernel。临时计划见 `docs/roadmap/STORAGE_BACKEND_NEUTRALITY_ALPHA.md`。
 
 ## 已实现
 
