@@ -2,58 +2,111 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-Yggdrasil 是一个面向 AI 原生世界、游戏、故事和游玩的扩展驱动创作平台。
+**面向 AI 原生世界、游戏、故事和游玩的扩展驱动创作平台。**
 
-它是一个内核 + 一份契约 —— 中心小、稳定、不带主观意图 —— 在它之上是一个由能力包（capability package）组成的开放生态，平台中的每一个有意义的概念都来自能力包。
+一个内核 + 一份契约：中心小、稳定、不带主观意图。在它之上，由能力包（capability package）组成的开放生态提供平台中每一个有意义的概念——角色、提示词、模型、agent、世界、规则、记忆，皆由包提供。
 
-## 我们为什么做这个
+```text
+┌──────────────────────────────────────────────┐
+│  Web shell · CLI · 第三方客户端                  │   走公开协议
+├──────────────────────────────────────────────┤
+│  Public protocol  ·  /rpc + SSE              │
+├──────────────────────────────────────────────┤
+│  Capability packages（官方包 = 第三方包）         │   manifest 驱动
+├──────────────────────────────────────────────┤
+│  内核：sessions · events · permissions · ...   │   内容无关
+└──────────────────────────────────────────────┘
+```
 
-今天大多数 AI 原生创作工具，都把使用者切成两半：消费成品体验的玩家，和构建体验的开发者。Yggdrasil 拒绝这种切分。玩家可以审视当前 session、让 assistant 修改它、fork 它、替换其中某个能力包、再把改动反馈出去。创作者面对的是同一份公开协议、同样的能力包、同样的产品 surface。底层底座在两个方向上是完全相同的。
+## 为什么做这个
 
-这一立场是内核、公开协议、官方包、Web shell 共同服务的目标。完整的产品立场见 [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md)。
+今天大多数 AI 原生创作工具，把使用者切成两半：消费成品体验的玩家，和构建体验的开发者。**Yggdrasil 拒绝这种切分。**
+
+玩家可以审视当前 session、让 assistant 修改、fork 它、替换其中某个能力包，再把改动反馈出去。创作者面对同一份公开协议、同样的能力包、同样的 surface。底层底座在两个方向上完全相同。
+
+完整的产品立场见 [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md)。
 
 ## 重心所在
 
 - 内核只承担承载能力包的职责，仅此而已。
-- 所有有意义的概念（角色、提示词、模型、agent、世界、规则、记忆等等）都由能力包提供。
+- 所有有意义的概念都由能力包提供。
 - 官方包没有任何特权。同一份 manifest、同一套能力网络、同一道权限闸门。
 - 创作者可以自由组合、替换或自己写新的能力包。
 
-平台的职责是让激进的 AI 原生创作成为可能，而不是去给某条「官方路径」开特权。
+平台的职责是让激进的 AI 原生创作成为可能，而不是给某条「官方路径」开特权。
 
 ## 当前状态
 
-**Platform Foundation Alpha + Play/Forge Surface Contract Beta + Playable Experience Alpha seed + Creative Capability Kit Alpha + Model Connectivity Kit Alpha + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience-Led Platform Beta（Beta 0–6 已完成）+ Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（已完成）+ Storage Backend Neutrality Alpha（已完成）+ PostgreSQL + TDB Integration Alpha（已完成）+ Real TDB Rust Adapter Alpha（已完成）。**
+平台基础已就位，正进入由真实 AI 原生 playable experience 牵引的 Experience-Led Platform Beta 阶段。
 
-当前底座包含：内容无关的内核、基于 manifest 的能力包系统、真正的 `rust_inproc` 与 subprocess 执行、hook fabric、SQLite 事件日志、principal 与作用域权限、surface contributions、通用 proposal/approval 生命周期、asset/branch/projection 底层、安全执行原语（`secret_ref`、EnvSecretResolver allowlist、network declarations、outbound audit/redaction、public `kernel.outbound.execute`、LiveHttpOutboundExecutor、stream/cancel lifecycle）、官方平台包（`composition-lab`、`asset-lab`、`projection-lab`）、Creative Capability Kit 包（`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`）、Cloud Model Provider Adapter 包（`model-connector-lab`、`model-provider-lab`、`model-routing-lab`；覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 的 adapter-local normalization、fake/local invoke、stream normalization、live loopback shapes 和 provider quirks）、transport-neutral inference SDK（`sdk/typescript/inference-capability`）、非 HTTP fake local inference proof（`official/inference-local-lab`）、Ygg-native inference proposal vertical slice（`official/inference-playtest-lab`：inference → proposal → inspect → approve/reject → apply → branch/fork）、作为能力包存在的 assistant、`official/playable-seed`、参考代理运行时包 `official/pi-agent-runtime-lab`、capability tool bridge 包 `official/capability-tool-bridge-lab`、Agentic Forge Beta（`official/agentic-forge-lab` 含 run lifecycle / plan graph / scratch branch candidates / promote proposals / inference fallback / tool bridge scoped grants；`official/capability-tool-bridge-lab` Phase D tool bridge v2；第三方替换证明 `thirdparty/agentic-forge`；持久指南 `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING`）、Experience-Led Platform Beta（experience runtime contract、playable creation board、experience observability、memory/knowledge lab、creator loop templates + diagnostics、sharing/distribution lab — `official/sharing-lab` 含 export/import composition bundles、branch/session bundle manifests、package-set lockfiles、compatibility reports、AI disclosure metadata、read-only shared sessions、async fork sharing plans——全部 no marketplace、no billing、no signing network）、第三方 agent runtime 替换证明（`thirdparty/agent-runtime`）、空白游创循环、一个完全走公开协议的 Home/Play + Forge + Assist Web shell、可选前端文本引擎底座（fallback engine、可选 Pretext engine、Forge text preview、`sdk/typescript/text-surface`），以及 agent runtime 包模板（`--template agent-runtime`）。245 个具名 conformance 用例 + crate / service 单元测试覆盖整个边界。
+- **320 个具名 conformance 用例** + crate / service 单元测试，全部通过。
+- 已完成阶段：Platform Foundation Alpha、Play/Forge Surface Contract Beta、Secure Execution Substrate Alpha、Optional Text Engine Alpha、Agent Infrastructure Alpha、Model Provider Integration Alpha、Live Model Calls Alpha、Creative Inference Capability Alpha、Agentic Forge Beta、Experience-Led Platform Beta（Beta 0–6）、Performance & Code Health Beta、External Project Operating Plane Alpha、Storage Backend Neutrality Alpha、PostgreSQL + TDB Integration Alpha、Real TDB Rust Adapter Alpha。
 
-可执行快照见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。
-Agentic Forge Beta 之后的长期方向见 [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](docs/product/EXPERIENCE_LED_PLATFORM_BETA.md)：Yggdrasil 的 foundation-first 阶段应收敛，下一阶段转向由真实 AI-native playable experience 牵引的 Experience-Led Platform Beta。
-性能与代码健康指南见 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](docs/performance/PERFORMANCE_AND_CODE_HEALTH.md)；外部项目操作平面指南见 [`docs/guides/EXTERNAL_PROJECT_OPERATING_PLANE.md`](docs/guides/EXTERNAL_PROJECT_OPERATING_PLANE.md)；storage backend neutrality 指南见 [`docs/guides/STORAGE_BACKEND_NEUTRALITY.md`](docs/guides/STORAGE_BACKEND_NEUTRALITY.md)；PostgreSQL + TDB 接入指南见 [`docs/guides/POSTGRES_TDB_INTEGRATION.md`](docs/guides/POSTGRES_TDB_INTEGRATION.md)；后续阶段见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
+可执行快照见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)；下一阶段见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
-## 仓库结构
+## 仓库一览
 
 ```text
-crates/
-  ygg-core/      内核类型与契约，内容无关。
-  ygg-runtime/   运行时主机：events、packages、capabilities、hooks、surfaces、
-                 proposals、assets、branches、projections、sandbox、transports。
-  ygg-service/   公开协议层（HTTP /rpc，事件 SSE 订阅）。
-  ygg-cli/       host 模式、manifest 工具、能力包脚手架、conformance。
-clients/
-  web/           走公开协议的 Home / Play、Forge、Assist Web shell。
-packages/
-  official/      作为普通 manifest 加载的官方基础能力包。
-sdk/
-  typescript/    subprocess 能力包脚手架与模板运行时。
-profiles/        host profile，用来批量自动加载能力包。
-examples/        示例 manifest 与 fixture 包。
-docs/            架构、协议、规范、路线图、产品、Tavern 相关文档。
+crates/      Rust 内核与运行时
+  ygg-core/      内核类型与契约（内容无关）
+  ygg-runtime/   运行时主机：events / packages / capabilities / hooks /
+                 surfaces / proposals / assets / branches / projections
+  ygg-service/   公开协议层（HTTP /rpc，事件 SSE 订阅）
+  ygg-cli/       host 模式、manifest 工具、能力包脚手架、conformance
+
+clients/web/   走公开协议的 Home / Play、Forge、Assist Web shell
+
+packages/official/   作为普通 manifest 加载的官方基础能力包
+profiles/            host profile，批量自动加载能力包
+examples/            示例 manifest 与 fixture 包
+
+sdk/typescript/      subprocess 包脚手架与领域 SDK
+docs/                架构、协议、规范、路线图、产品文档
+integrations/        上游项目调研 ledger（pi、TavernHeadless、pretext、TDB...）
 ```
+
+## 配套能力
+
+**内核与执行**
+
+- 内容无关 session、不透明事件、SQLite 持久日志、可重新水化底座
+- 真正的 `rust_inproc` 与 subprocess 执行，hook fabric，能力 fabric
+- Principal 与作用域权限，proposal/approval 生命周期
+
+**安全执行**
+
+- `secret_ref` 引用、`EnvSecretResolver` allowlist、host-owned 解析
+- 网络权限声明，outbound audit/redaction，公开 `kernel.outbound.execute`
+- `LiveHttpOutboundExecutor`（HTTPS-only、默认关闭、redirect fail-closed）
+- 通用 streaming/cancel/timeout 生命周期
+
+**官方能力包**（全部走普通 manifest，无内核特权）
+
+- 平台基础：`composition-lab`、`asset-lab`、`projection-lab`
+- 创作工具：`persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`
+- 模型接入：`model-connector-lab`、`model-provider-lab`、`model-routing-lab`（OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks）
+- Agent 基础设施：`pi-agent-runtime-lab`、`capability-tool-bridge-lab`、`agentic-forge-lab`
+- 体验：`playable-creation-board`、`experience-runtime-lab`、`experience-observability-lab`、`memory-lab`、`sharing-lab`、`playable-seed`
+- 推理：`inference-local-lab`、`inference-playtest-lab`
+- 存储/外部项目：`storage-lab`、`tdb-retrieval-lab`、`project-intake-lab`、`workspace-lab`
+- 基础实验：`package-lab`、`schema-tools`、`event-tools`、`assistant-lab`、`blank-experience`
+
+**SDK（TypeScript）**
+
+- `subprocess` 子进程包脚手架
+- `secure-execution`、`agentic-forge`、`ygg-agent-adapter`
+- `inference-capability`、`model-provider-adapter`、`experience-runtime`
+- `text-surface`（前端文字界面 helper）
+
+**Web shell**
+
+- Home / Play、Forge、Assist 三个深表面，全部走公开协议
+- 可选前端文字引擎（fallback + 可选 Pretext，动态导入）
+- Forge 文字预览、agent / 体验 / 存储 / proposal 观测面板
 
 ## 快速上手
 
-用 Forge profile 启动 host，再针对它打开 Web shell：
+启动 host：
 
 ```bash
 cargo run -p ygg-cli -- host serve \
@@ -61,7 +114,7 @@ cargo run -p ygg-cli -- host serve \
   --profile profiles/forge-alpha.yaml
 ```
 
-另一个终端里类型检查 Web shell：
+类型检查 Web shell：
 
 ```bash
 tsc -p clients/web/tsconfig.json --noEmit
@@ -74,86 +127,41 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-只用普通公开协议调用，跑通空白游创循环：
+只用公开协议跑通空白游创循环：
 
 ```bash
 cargo run -p ygg-cli -- play-create-demo
 ```
 
-## 常用命令
+更多命令（manifest、package、composition、host 模式、第三方创作循环、模板）见 [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md)。
 
-```bash
-# manifest 与能力包
-cargo run -p ygg-cli -- manifest validate examples/packages/echo-rust-inproc/manifest.yaml
-cargo run -p ygg-cli -- package load    examples/packages/echo-rust-inproc/manifest.yaml
-cargo run -p ygg-cli -- package check   examples/packages/echo-subprocess-python/manifest.yaml
-cargo run -p ygg-cli -- package conformance examples/packages/echo-subprocess-python/manifest.yaml
-cargo run -p ygg-cli -- capability invoke examples/packages/echo-rust-inproc/manifest.yaml \
-  example/echo-rust-inproc/echo --input '{"hello":"world"}'
+## 文档导航
 
-# 能力包脚手架
-cargo run -p ygg-cli -- init-package /tmp/ygg-package        --id example/new-package        --entry subprocess --language python
-cargo run -p ygg-cli -- init-package /tmp/ygg-ts-package     --id example/new-ts-package     --entry subprocess --language typescript
-cargo run -p ygg-cli -- init-package /tmp/ygg-experience-pkg --id example/new-experience     --entry subprocess --language typescript-experience
-cargo run -p ygg-cli -- init-composition /tmp/ygg-composition --id example/new-experience
-cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
+每篇开发文档都同时提供英文与简体中文版本，文件顶部的双语导航 blockquote 可在两种语言间切换。
 
-# host 模式
-cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
-cargo run -p ygg-cli -- host-stdio
+[`docs/`](docs/README.md) 索引按主题分组：架构、协议、规范、产品、能力包创作、性能、路线图。
 
-# 验证与 demo
-cargo test --workspace
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli -- play-create-demo
-cargo run -p ygg-cli -- demo
-cargo run -p ygg-cli -- sqlite-demo /tmp/ygg.db
-tsc -p clients/web/tsconfig.json --noEmit
+按受众的最短读路径：
 
-# third-party authoring loop
-cargo run -p ygg-cli -- init-package /tmp/ygg-package --id example/package --entry subprocess --language typescript --template full-surface
-cargo run -p ygg-cli -- package check /tmp/ygg-package/manifest.yaml
-cargo run -p ygg-cli -- package run-fixture /tmp/ygg-package/manifest.yaml
-cargo run -p ygg-cli -- package reload /tmp/ygg-package/manifest.yaml
-cargo run -p ygg-cli -- init-composition /tmp/ygg-composition --id example/package
-cargo run -p ygg-cli -- composition check /tmp/ygg-composition/composition.yaml
-```
-
-## 推荐先读
-
-每篇开发文档都同时提供英文与简体中文版本，文件顶部的双语导航 blockquote 可在两种语言间切换。下面这份阅读路径覆盖了内核、能力包契约、协议、状态与路线图：
-
-- [`docs/CHARTER.md`](docs/CHARTER.md) —— 不变的根本原则。
-- [`docs/architecture/VISION.md`](docs/architecture/VISION.md) —— 平台为何而存在。
-- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) —— kernel + packages 两层架构。
-- [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) —— 内核做什么、不做什么。
-- [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) —— 能力包契约。
-- [`docs/architecture/EXTENSION_POINTS.md`](docs/architecture/EXTENSION_POINTS.md) —— 扩展点 / hook 契约。
-- [`docs/architecture/EVENT_MODEL.md`](docs/architecture/EVENT_MODEL.md) —— 不透明事件日志模型。
-- [`docs/architecture/RUNTIME_LIFECYCLE.md`](docs/architecture/RUNTIME_LIFECYCLE.md) —— 内核侧生命周期。
-- [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) —— 公开协议。
-- [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.md) —— 可执行的 alpha 契约矩阵。
-- [`docs/spec/CONFORMANCE_MATRIX.md`](docs/spec/CONFORMANCE_MATRIX.md) —— hostile conformance 路线图。
-- [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) —— 游创一体的产品立场。
-- [`docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`](docs/product/EXPERIENCE_LED_PLATFORM_BETA.md) —— Agentic Forge 之后的体验牵引平台路线。
-- [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) —— 第三方能力包创作 walkthrough。
-- [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md) —— agent-like 能力包创作指南。
-- [`docs/guides/CREATIVE_CAPABILITY_KIT.md`](docs/guides/CREATIVE_CAPABILITY_KIT.md) —— Yggdrasil-native creative capability package kit。
-- [`docs/guides/MODEL_CONNECTIVITY_KIT.md`](docs/guides/MODEL_CONNECTIVITY_KIT.md) —— no-network model provider profile 与 route planning kit。
-- [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md) —— 多 provider 模型接入指南。
-- [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) —— 已完成 / 部分完成 / 延后内容的实时快照。
-- [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) —— 当前与下一阶段。
-- [`sdk/typescript/model-provider-adapter/README.md`](sdk/typescript/model-provider-adapter/README.md) —— Model Provider Adapter SDK（M1）。
+| 你想 | 先读 |
+|---|---|
+| 理解平台立场 | [`docs/CHARTER.md`](docs/CHARTER.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.md) → [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) |
+| 理解架构 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) |
+| 接入公开协议 | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) → [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.md) |
+| 写第一个能力包 | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
+| 写 agent / 模型 / 体验包 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
+| 看当前状态 | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) |
+| 看下一步 | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) |
 
 ## 延后事项
 
-下面这些方向有价值，但不属于内核。它们都将以普通能力包的形态到来。
+下面这些方向有价值，但不属于内核——它们都将以普通能力包的形态到来：
 
-- SillyTavern 兼容 —— 见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
-- pi / agent 包基础设施 —— 见 [`docs/architecture/PI_INTEGRATION.md`](docs/architecture/PI_INTEGRATION.md)、[`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md) 与 [`docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`](docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md)。Agentic Forge Beta 已完成；生产级长期自治、多 agent 协作和记忆系统仍应以未来普通能力包推进。Model provider 接入底座见 [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)。
-- 外部游戏引擎（UE5、Godot、Unity、Web 端）—— 后续以包或 remote 入口形式接入。
-- 对话运行时、生产级 provider package 产品化、生产级记忆系统、长期自治 agent、多 agent 协作、世界模拟、director。
-- 最终视觉设计、完整 Studio、ComfyUI 风格节点编辑器、市场。
+- SillyTavern 兼容（[`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)）
+- 生产级长期自治 agent、多 agent 协作、生产记忆系统、世界模拟、director
+- 外部游戏引擎接入（UE5、Godot、Unity、Web 端）
+- 完整 Studio、ComfyUI 风格节点编辑器、市场
+- 最终视觉设计
 
 ## 协议
 

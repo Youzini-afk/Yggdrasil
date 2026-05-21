@@ -1,0 +1,30 @@
+# 创作指南
+
+> [English](./README.en.md) · [中文](./README.md)
+
+按域分组的能力包创作指南。每篇都对应一类能力包或一段创作循环——全部在公开协议、manifest 与 surface 契约之上。
+
+## 起步
+
+- [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.md) — 第三方能力包创作 walkthrough（init-package、check、run-fixture、reload、composition）
+
+## 创作能力族
+
+- [`CREATIVE_CAPABILITY_KIT.md`](CREATIVE_CAPABILITY_KIT.md) — Yggdrasil-native 通用创作能力包（persona / knowledge / context / text-transform）
+- [`MODEL_CONNECTIVITY_KIT.md`](MODEL_CONNECTIVITY_KIT.md) — 无网络的 model provider profile 与 route planning kit
+- [`MODEL_PROVIDER_INTEGRATION.md`](MODEL_PROVIDER_INTEGRATION.md) — 多 provider 模型接入（OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks）
+- [`INFERENCE_CAPABILITY_AUTHORING.md`](INFERENCE_CAPABILITY_AUTHORING.md) — Transport-neutral 推理能力包创作
+
+## Agent 与体验
+
+- [`AGENT_PACKAGE_AUTHORING.md`](AGENT_PACKAGE_AUTHORING.md) — agent-like 能力包创作
+- [`AGENTIC_FORGE_PACKAGE_AUTHORING.md`](AGENTIC_FORGE_PACKAGE_AUTHORING.md) — Agentic Forge runtime 能力包（plan graph、scratch branch、tool bridge v2）
+- [`EXPERIENCE_RUNTIME_AUTHORING.md`](EXPERIENCE_RUNTIME_AUTHORING.md) — 体验运行时能力包（checkpoint、recovery、agent run binding）
+- [`MEMORY_PACKAGE_AUTHORING.md`](MEMORY_PACKAGE_AUTHORING.md) — 记忆 / 知识能力包
+
+## 平台扩展
+
+- [`SHARING_DISTRIBUTION.md`](SHARING_DISTRIBUTION.md) — 分享与分发：composition bundle、package-set lockfile、AI disclosure
+- [`STORAGE_BACKEND_NEUTRALITY.md`](STORAGE_BACKEND_NEUTRALITY.md) — backend-neutral 存储契约与官方实验室
+- [`POSTGRES_TDB_INTEGRATION.md`](POSTGRES_TDB_INTEGRATION.md) — PostgreSQL（事件后端）+ TDB（检索 provider）接入
+- [`EXTERNAL_PROJECT_OPERATING_PLANE.md`](EXTERNAL_PROJECT_OPERATING_PLANE.md) — 外部项目操作平面（intake / workspace / adapter）
