@@ -23,6 +23,7 @@ mod protocol;
 mod replacement;
 mod secret_conformance;
 mod sharing_lab;
+mod storage_backend;
 mod workspace_lab;
 mod streaming;
 mod subprocess;
@@ -386,6 +387,13 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("sharing_lab.read_only_share_manifest", ["sharing"], sharing_lab::sharing_read_only_manifest),
         c!("sharing_lab.async_fork_share_plan", ["sharing"], sharing_lab::sharing_async_fork_plan),
         c!("sharing_lab.no_marketplace_no_raw_secrets", ["sharing", "secret"], sharing_lab::sharing_no_marketplace_no_raw_secrets),
+        // --- storage backend neutrality S1 ---
+        c!("storage_backend.in_memory_event_store_contract_append_range", ["storage", "substrate"], storage_backend::in_memory_event_store_contract_append_range),
+        c!("storage_backend.sqlite_event_store_contract_append_range", ["storage", "substrate"], storage_backend::sqlite_event_store_contract_append_range),
+        c!("storage_backend.backend_parity_kind_prefix", ["storage", "substrate"], storage_backend::backend_parity_kind_prefix),
+        c!("storage_backend.backend_parity_concurrent_append", ["storage", "substrate"], storage_backend::backend_parity_concurrent_append),
+        c!("storage_backend.backend_parity_subscription", ["storage", "substrate"], storage_backend::backend_parity_subscription),
+        c!("storage_backend.rehydrate_parity", ["storage", "substrate"], storage_backend::storage_backend_rehydrate_parity),
     ]
 }
 

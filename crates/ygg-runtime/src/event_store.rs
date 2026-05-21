@@ -8,29 +8,107 @@ use tokio::sync::Mutex;
 use tokio::sync::{broadcast, RwLock};
 use ygg_core::{EventEnvelope, EventKind, EventSequence, PackageId, SessionId};
 
+/// Backend-neutral event spine contract.
+///
+/// `EventStore` is the kernel's append-only event log abstraction. It is
+/// **not** a database abstraction: no SQL, table, vector, DSN, connection,
+/// transaction-isolation, or vendor-specific concept belongs here. Every
+/// backend implementation (in-memory, SQLite, future PostgreSQL, etc.)
+/// must produce the same observable behaviour for the same sequence of
+/// calls.
+///
+/// # Ordering semantics
+///
+/// Events within a single session are ordered by the composite key
+/// `(session_id, sequence)`. Each `(session_id, sequence)` pair is unique
+/// within a store instance. Cross-session ordering is best-effort
+/// (timestamp-based); the contract does not guarantee global total order.
+///
+/// # Append paths
+///
+/// - **`append_with_sequence`** — the runtime-recommended append path.
+///   It atomically allocates the next sequence number and appends the
+///   event under the same lock/transaction, guaranteeing no duplicate or
+///   gap under concurrent access to the same session.
+///
+/// - **`append` + `next_sequence`** — low-level / test / admin path.
+///   The caller must coordinate sequence assignment. Under concurrent
+///   access, separate `next_sequence` + `append` calls can produce
+///   duplicates or gaps. Prefer `append_with_sequence` unless you
+///   explicitly need manual control.
+///
+/// # Kind-prefix queries
+///
+/// `list_kind_prefix` and `list_session_kind_prefix` are event-semantic
+/// queries: "find events whose kind starts with this prefix." They are
+/// **not** SQL `LIKE`, not index product API, and not vector search.
+/// Backend implementations may use pushdown (SQLite `LIKE` / range scan)
+/// or in-memory filtering; the observable result must be identical.
+///
+/// # No database concepts
+///
+/// This trait must never expose SQL, table, DSN, connection string,
+/// credentials, file path, WAL mode, isolation level, vector dimension,
+/// ANN index, embedding model, or any other concept specific to a
+/// particular storage product. Such details belong to backend
+/// constructors (`SqliteEventStore::open`, future
+/// `PostgresEventStore::connect`, etc.), not to the event spine contract.
 #[async_trait]
 pub trait EventStore: Send + Sync + 'static {
+    /// Low-level append: store a pre-constructed event envelope.
+    /// Prefer `append_with_sequence` for runtime use; this method
+    /// exists for replay, admin tooling, and test fixtures.
     async fn append(&self, event: EventEnvelope) -> anyhow::Result<()>;
+
+    /// List all events across all sessions, ordered by
+    /// `(timestamp, session_id, sequence)`.
     async fn list_all(&self) -> anyhow::Result<Vec<EventEnvelope>>;
+
+    /// List all events within a session, ordered by sequence.
     async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>>;
+
+    /// List events within a session after a given sequence, with
+    /// optional limit. This is the range-replay primitive.
     async fn list_session_range(
         &self,
         session_id: &SessionId,
         after_sequence: Option<EventSequence>,
         limit: Option<usize>,
     ) -> anyhow::Result<Vec<EventEnvelope>>;
+
+    /// Return the next sequence number for a session.
+    /// Low-level: prefer `append_with_sequence` for concurrent safety.
     async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence>;
+
+    /// Subscribe to a broadcast channel of newly appended events.
+    /// Backend-neutral: works identically for in-memory and durable stores.
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope>;
 
-    /// Atomically append an event, assigning the next sequence number
-    /// within the same lock/transaction. This guarantees that concurrent
-    /// appends to the same session receive contiguous, non-repeating
-    /// sequence numbers without requiring the caller to call
-    /// `next_sequence` separately.
+    /// **Runtime-recommended append path.** Atomically append an event,
+    /// assigning the next sequence number within the same lock/transaction.
+    /// This guarantees that concurrent appends to the same session receive
+    /// contiguous, non-repeating sequence numbers without requiring the
+    /// caller to call `next_sequence` separately.
+    ///
+    /// # Ordering guarantee
+    ///
+    /// Per-session `(session_id, sequence)` uniqueness is guaranteed.
+    /// No two events in the same session will share a sequence number,
+    /// and sequences are contiguous from 0.
+    ///
+    /// # When to use vs `append` + `next_sequence`
+    ///
+    /// - Use `append_with_sequence` in all runtime paths where
+    ///   concurrent access is possible.
+    /// - Use `append` + `next_sequence` only for single-writer
+    ///   replay, admin tooling, or test fixtures where you control
+    ///   all writers.
     ///
     /// The default implementation falls back to `next_sequence` + `append`,
     /// which is correct for single-writer or low-contention use but does
-    /// not guarantee atomicity under concurrent access.
+    /// not guarantee atomicity under concurrent access. Backend
+    /// implementations that support atomic operations (e.g. SQLite with
+    /// its connection mutex) override this with a truly atomic path.
     async fn append_with_sequence(
         &self,
         session_id: SessionId,
@@ -56,8 +134,16 @@ pub trait EventStore: Send + Sync + 'static {
         Ok(event)
     }
 
-    /// List events whose `kind` starts with `prefix`, across all sessions.
-    /// Results are ordered by (timestamp, session_id, sequence).
+    /// **Event-semantic kind-prefix query.** List events whose `kind`
+    /// starts with `prefix`, across all sessions. Results are ordered
+    /// by `(timestamp, session_id, sequence)`.
+    ///
+    /// This is an event-level query: "find all events matching this
+    /// kind prefix." It is **not** a SQL `LIKE` query, not an index
+    /// product API, and not a vector/embedding search. Backend
+    /// implementations may use pushdown (range scan, index, etc.)
+    /// for performance, but the observable result set must match
+    /// the in-memory baseline exactly.
     async fn list_kind_prefix(&self, prefix: &str) -> anyhow::Result<Vec<EventEnvelope>> {
         let all = self.list_all().await?;
         Ok(all
@@ -66,8 +152,13 @@ pub trait EventStore: Send + Sync + 'static {
             .collect())
     }
 
-    /// List events within a session whose `kind` starts with `prefix`.
-    /// Results are ordered by sequence.
+    /// **Event-semantic kind-prefix query within a session.** List events
+    /// within a session whose `kind` starts with `prefix`. Results are
+    /// ordered by sequence.
+    ///
+    /// Same contract as `list_kind_prefix` but scoped to a single session.
+    /// Backend implementations may use session-scoped pushdown; the
+    /// observable result set must match the in-memory baseline.
     async fn list_session_kind_prefix(
         &self,
         session_id: &SessionId,

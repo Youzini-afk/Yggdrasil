@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：230 个 implemented rows，由 275 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：236 个 implemented rows，由 281 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## Conformance Feedback Loop
 
@@ -228,6 +228,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | sharing-lab read_only_share_manifest 只读共享 session manifest，local_file proof，no remote service | implemented |
 | official packages | sharing-lab async_fork_share_plan 异步 fork 分享计划，draft/plan-only/requires_user_approval | implemented |
 | official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 kernel.sharing/marketplace/billing namespace | implemented |
+| storage backend | in-memory EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
+| storage backend | SQLite EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
+| storage backend | in-memory 与 SQLite kind-prefix 查询结果语义一致 | implemented |
+| storage backend | in-memory 与 SQLite 并发 append 无重复序号 | implemented |
+| storage backend | in-memory 与 SQLite append 后订阅广播行为一致 | implemented |
+| storage backend | in-memory 与 SQLite rehydrate 事件重放语义一致 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -493,6 +499,12 @@ sharing_lab.ai_disclosure_bundle PASS
 sharing_lab.read_only_share_manifest PASS
 sharing_lab.async_fork_share_plan PASS
 sharing_lab.no_marketplace_no_raw_secrets PASS
+storage_backend.in_memory_event_store_contract_append_range PASS
+storage_backend.sqlite_event_store_contract_append_range PASS
+storage_backend.backend_parity_kind_prefix PASS
+storage_backend.backend_parity_concurrent_append PASS
+storage_backend.backend_parity_subscription PASS
+storage_backend.rehydrate_parity PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

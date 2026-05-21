@@ -89,6 +89,11 @@ Performance & Code Health Beta completed:
 - SQLite `kind` and `session+kind+sequence` indexes.
 - Permission/outbound audit paths no longer routinely use `list_all()` plus full filtering.
 
+Storage Backend Neutrality Alpha S1 added:
+
+- `EventStore` trait documentation clarifies backend-neutral event spine contract positioning: `append_with_sequence` is the runtime-recommended append path; `append` + `next_sequence` is the low-level/test/admin path; ordering semantics are per-session `(session_id, sequence)`; kind-prefix queries are event-semantic queries, not SQL/index product APIs; no SQL/table/vector/DSN concepts in the contract.
+- In-memory and SQLite conformance parity: 6 `storage_backend` tag conformance cases covering basic contract, kind-prefix equivalence, concurrent append no duplicates, subscription broadcast, and rehydrate event replay semantic identity.
+
 Future event-store optimization priority:
 
 1. Prove a concrete scale bottleneck with baseline data.

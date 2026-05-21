@@ -45,15 +45,15 @@ Deliverables:
 
 Acceptance: doc links, diff check, commit/push.
 
-## Phase S1 — EventStore Backend-Neutral Contract Hardening
+## Phase S1 — EventStore Backend-Neutral Contract Hardening ✅
 
 Goal: make explicit that `EventStore` is the event-spine contract, not a database abstraction.
 
 Deliverables:
 
-- Update/extend runtime storage contract docs and code comments for backend-neutral semantics of `append_with_sequence`, range replay, kind prefix query, subscription, and rehydrate.
-- Add backend-neutral event-store conformance helpers covering in-memory and SQLite: append/list/range, concurrent append no duplicate, kind prefix equivalence, subscription, and rehydrate parity.
-- Avoid new SQLite-specific runtime dependencies.
+- ✅ Update/extend runtime storage contract docs and code comments for backend-neutral semantics of `append_with_sequence`, range replay, kind prefix query, subscription, and rehydrate.
+- ✅ Add backend-neutral event-store conformance helpers covering in-memory and SQLite: append/list/range, concurrent append no duplicate, kind prefix equivalence, subscription, and rehydrate parity.
+- ✅ Avoid new SQLite-specific runtime dependencies.
 
 Acceptance: workspace tests, storage-tag conformance, baseline event-store scenarios.
 

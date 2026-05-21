@@ -45,15 +45,15 @@ Yggdrasil 当前已经有 SQLite-backed append-only event log、重水化的 ass
 
 验收：doc links、diff check、commit/push。
 
-## Phase S1 — EventStore Backend-Neutral Contract Hardening
+## Phase S1 — EventStore Backend-Neutral Contract Hardening ✅
 
 目标：明确 `EventStore` 是 event spine contract，不是 database abstraction。
 
 交付：
 
-- 更新/扩展 runtime storage contract 文档与代码注释，明确 `append_with_sequence`、range replay、kind prefix query、subscription、rehydrate 的 backend-neutral semantics。
-- 增加 backend-neutral event-store conformance helper，同一组行为覆盖 in-memory 与 SQLite：append/list/range、concurrent append no duplicate、kind prefix equivalence、subscription、rehydrate parity。
-- 避免 runtime 新增 SQLite-specific 依赖。
+- ✅ 更新/扩展 runtime storage contract 文档与代码注释，明确 `append_with_sequence`、range replay、kind prefix query、subscription、rehydrate 的 backend-neutral semantics。
+- ✅ 增加 backend-neutral event-store conformance helper，同一组行为覆盖 in-memory 与 SQLite：append/list/range、concurrent append no duplicate、kind prefix equivalence、subscription、rehydrate parity。
+- ✅ 避免 runtime 新增 SQLite-specific 依赖。
 
 验收：workspace tests、storage tag conformance、baseline event-store scenarios。
 

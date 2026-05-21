@@ -89,6 +89,11 @@ Performance & Code Health Beta 已完成：
 - SQLite `kind` 与 `session+kind+sequence` 索引。
 - permission/outbound audit 避免常规 `list_all()` 全量过滤。
 
+Storage Backend Neutrality Alpha S1 新增：
+
+- `EventStore` trait 文档明确 backend-neutral event spine contract 定位：`append_with_sequence` 是 runtime 推荐 append path；`append` + `next_sequence` 是 low-level/test/admin path；ordering semantics 是 per-session `(session_id, sequence)`；kind-prefix query 是 event semantic query 不是 SQL/index product；no SQL/table/vector/DSN concepts。
+- In-memory 与 SQLite conformance parity：6 个 `storage_backend` tag conformance 用例覆盖基础契约、kind-prefix 等价性、并发 append 无重复、subscription 广播、rehydrate 事件重放语义一致。
+
 后续 event store 优化优先级：
 
 1. 用 baseline 证明具体规模下的瓶颈。

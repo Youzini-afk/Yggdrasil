@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 230 implemented rows, backed by 275 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 236 implemented rows, backed by 281 named CLI conformance cases plus crate/service unit tests.
 
 ## Conformance Feedback Loop
 
@@ -228,6 +228,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | sharing-lab read_only_share_manifest read-only shared session manifest, local_file proof, no remote service | implemented |
 | official packages | sharing-lab async_fork_share_plan async fork sharing plan, draft/plan-only/requires_user_approval | implemented |
 | official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no kernel.sharing/marketplace/billing namespace | implemented |
+| storage backend | in-memory EventStore satisfies append/list/range/next_sequence basic contract | implemented |
+| storage backend | SQLite EventStore satisfies append/list/range/next_sequence basic contract | implemented |
+| storage backend | in-memory and SQLite kind-prefix query results are semantically identical | implemented |
+| storage backend | in-memory and SQLite concurrent append produces no duplicate sequences | implemented |
+| storage backend | in-memory and SQLite subscription broadcast behavior matches after append | implemented |
+| storage backend | in-memory and SQLite rehydrate event replay semantics are identical | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
 | creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
 | creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
@@ -502,6 +508,12 @@ sharing_lab.ai_disclosure_bundle PASS
 sharing_lab.read_only_share_manifest PASS
 sharing_lab.async_fork_share_plan PASS
 sharing_lab.no_marketplace_no_raw_secrets PASS
+storage_backend.in_memory_event_store_contract_append_range PASS
+storage_backend.sqlite_event_store_contract_append_range PASS
+storage_backend.backend_parity_kind_prefix PASS
+storage_backend.backend_parity_concurrent_append PASS
+storage_backend.backend_parity_subscription PASS
+storage_backend.rehydrate_parity PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
