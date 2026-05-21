@@ -1,20 +1,20 @@
-# SillyTavern 后继项目
+# SillyTavern 兼容接入项目
 
 > [English](./TAVERN_COMPAT.en.md) · [中文](./TAVERN_COMPAT.md)
 
-SillyTavern 的下一代项目叫 **YdlTavern**，作为独立项目存在，不在 Yggdrasil 仓库里。
+跑在 Yggdrasil 之上、兼容 SillyTavern 资源与扩展的独立项目叫 **YdlTavern**。它在自己的仓库里，不在 Yggdrasil 仓库内。
 
 - 仓库：<https://github.com/Youzini-afk/Yggdrasil-Tavern>
-- 定位：跑在 Yggdrasil 之上的接入项目，对 SillyTavern 用户、扩展、角色卡、世界书、预设、聊天形成承接。
-- 目标：基本 100% 承接 SillyTavern API 与社区资源；前端可以重写，但 UI 结构、样式、操作对 ST 老用户保持熟悉。
+- 定位：跑在 Yggdrasil 之上的接入项目，兼容 SillyTavern 的角色卡、世界书、预设、聊天历史和扩展 API。
+- 形态：UI 结构和操作流对 SillyTavern 老用户保持友好，前端全新写一遍；引擎层走 Yggdrasil。
 
-YdlTavern 通过公开协议消费 Yggdrasil。它不读 Yggdrasil 内部，不依赖私有 API，跟其他第三方项目没有差别。
+YdlTavern 通过公开协议消费 Yggdrasil。它不读 Yggdrasil 内部，也不依赖私有 API，跟其他第三方项目没有差别。
 
 ## 为什么不放在 Yggdrasil 仓库
 
-Yggdrasil 是平台。把一个产品级的、几百个扩展兼容层、6 年 API 表面要承接的项目塞进 `packages/official/`，会立刻撞到章程：「官方包没有特权」。
+Yggdrasil 是平台。把一个产品级、跟特定社区直接对接、UI 与扩展兼容范围大的项目塞进 `packages/official/`，会立刻撞到章程：「官方包没有特权」。
 
-YdlTavern 体量很大、产品决策很多、跟 SillyTavern 社区直接对接。这些都是产品话题，不是平台话题。两件事必须分开。
+YdlTavern 体量很大、产品决策很多。它需要自己的仓库节奏、自己的 issue 频道、自己的 release 周期。这些都是产品话题，不是平台话题。两件事分开。
 
 ## Yggdrasil 这边继续提供什么
 

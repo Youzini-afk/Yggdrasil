@@ -46,7 +46,7 @@ These unblock specific scenarios, but none should be the center of the next stag
 
 These run on top of Yggdrasil and consume the platform through the public protocol. They don't live in this repo.
 
-- **YdlTavern** — the SillyTavern successor. Absorbs character cards, world books, presets, chat history, the extension API, and the UI shape, while replacing the engine underneath with Yggdrasil. Repo: <https://github.com/Youzini-afk/Yggdrasil-Tavern>. For Yggdrasil's boundary, see [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
+- **YdlTavern** — an independent integration project on Yggdrasil, compatible with SillyTavern's character cards, world books, presets, chat history, and extension API, with the engine layer running on Yggdrasil. Repo: <https://github.com/Youzini-afk/Yggdrasil-Tavern>. For Yggdrasil's side of the boundary, see [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
 
 ## Indefinitely deferred at the kernel level
 

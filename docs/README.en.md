@@ -24,7 +24,7 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 
 - [`performance/`](performance/README.en.md) — performance baseline, conformance feedback loop, code health
 - [`roadmap/`](roadmap/README.en.md) — current and upcoming phases, model inference prerequisites
-- [`tavern/`](tavern/README.en.md) — how Yggdrasil relates to the SillyTavern successor project YdlTavern
+- [`tavern/`](tavern/README.en.md) — how Yggdrasil relates to YdlTavern, the SillyTavern-compatible integration project
 
 ## Shortest path by intent
 

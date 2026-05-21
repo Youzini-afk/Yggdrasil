@@ -156,7 +156,7 @@ Shortest path by intent:
 
 These are valuable directions, but they don't belong in the kernel — they will arrive as ordinary capability packages:
 
-- The SillyTavern successor project YdlTavern — a separate integration repo that absorbs SillyTavern users and community resources ([`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md)).
+- YdlTavern — a separate integration project compatible with SillyTavern's resources and extensions, running on Yggdrasil ([`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md)).
 - Production-grade long-running autonomous agents, multi-agent collaboration, production memory systems, world simulation, directors.
 - External game-engine integrations (UE5, Godot, Unity, web clients).
 - A full Studio, ComfyUI-style node editors, a marketplace.

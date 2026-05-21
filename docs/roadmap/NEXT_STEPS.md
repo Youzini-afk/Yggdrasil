@@ -46,7 +46,7 @@
 
 下面这些是跑在 Yggdrasil 之上、通过公开协议消费平台的独立项目。它们不在本仓库里：
 
-- **YdlTavern** —— SillyTavern 后继。承接 SillyTavern 的角色卡、世界书、预设、聊天历史、扩展 API 与 UI 形态，底层换成 Yggdrasil。仓库：<https://github.com/Youzini-afk/Yggdrasil-Tavern>。Yggdrasil 这边的边界与承接关系见 [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.md)。
+- **YdlTavern** —— 一个跑在 Yggdrasil 之上、兼容 SillyTavern 资源与扩展的独立接入项目：支持 SillyTavern 的角色卡、世界书、预设、聊天历史和扩展 API，底层走 Yggdrasil。仓库：<https://github.com/Youzini-afk/Yggdrasil-Tavern>。Yggdrasil 这边的边界见 [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.md)。
 
 ## 内核范围内的无限期延后
 

@@ -1,20 +1,20 @@
-# SillyTavern successor project
+# SillyTavern-compatible integration project
 
 > [English](./TAVERN_COMPAT.en.md) · [中文](./TAVERN_COMPAT.md)
 
-The SillyTavern successor is called **YdlTavern**. It lives in its own repository, not inside Yggdrasil.
+The independent project that's compatible with SillyTavern's resources and extensions and runs on Yggdrasil is called **YdlTavern**. It lives in its own repository, not inside Yggdrasil.
 
 - Repo: <https://github.com/Youzini-afk/Yggdrasil-Tavern>
-- Position: an integration project that runs on top of Yggdrasil and absorbs SillyTavern users, extensions, character cards, world books, presets, and chat history.
-- Goal: near-complete coverage of the SillyTavern API and community resources. The frontend can be rewritten, but the UI structure, styling, and operations should stay familiar to ST users.
+- Position: an integration project on top of Yggdrasil, compatible with SillyTavern's character cards, world books, presets, chat history, and extension API.
+- Shape: the UI structure and interaction flow stay familiar to longtime SillyTavern users; the frontend is freshly written; the engine layer runs on Yggdrasil.
 
 YdlTavern consumes Yggdrasil through the public protocol. It doesn't read Yggdrasil internals or rely on private APIs — same standing as any other third-party project.
 
 ## Why it doesn't live in this repo
 
-Yggdrasil is the platform. Putting a product-grade project — with hundreds of extension shims and six years of API surface to absorb — into `packages/official/` would immediately violate the charter: "official packages have no privileges."
+Yggdrasil is the platform. Putting a product-grade project — one that talks directly to a specific community and covers a wide compatibility surface — into `packages/official/` would immediately violate the charter: "official packages have no privileges."
 
-YdlTavern is large, full of product decisions, and tied directly to the SillyTavern community. Those are product concerns, not platform concerns. The two have to stay separate.
+YdlTavern is large, full of product decisions, and needs its own repo cadence, issue channels, and release cycle. Those are product concerns, not platform concerns. The two stay separate.
 
 ## What Yggdrasil keeps providing
 
