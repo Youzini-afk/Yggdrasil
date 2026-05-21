@@ -448,12 +448,12 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("tdb_retrieval_lab.backend_fit_boundary", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::backend_fit_boundary),
         c!("tdb_retrieval_lab.invalid_input_rejected", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::invalid_input_rejected),
         c!("tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected", ["tdb", "retrieval", "storage", "secret"], tdb_retrieval_lab::raw_secret_and_unsafe_id_rejected),
-        c!("tdb_retrieval_lab.real_tdb_opt_in_seam_not_linked_by_default", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::real_tdb_opt_in_seam_not_linked_by_default),
+        c!("tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::real_tdb_opt_in_seam_crate_adapter_available),
 
         // --- real TDB Rust adapter subprocess proof ---
         c!("tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke", ["tdb", "retrieval", "subprocess", "slow"], tdb_rust_adapter::subprocess_adapter_shell_invokes_disabled_smoke),
         c!("tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path", ["tdb", "retrieval", "subprocess", "secret", "slow"], tdb_rust_adapter::subprocess_adapter_rejects_secret_and_raw_path),
-        c!("tdb_rust_adapter.real_local_smoke_opt_in", ["tdb", "tdb_real", "retrieval", "slow"], tdb_rust_adapter::real_local_smoke_opt_in),
+        c!("tdb_rust_adapter.real_crate_smoke_opt_in", ["tdb", "tdb_real", "retrieval", "slow"], tdb_rust_adapter::real_crate_smoke_opt_in),
     ]
 }
 

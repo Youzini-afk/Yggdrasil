@@ -106,7 +106,7 @@ This package remains the deterministic / no-execution / plan/contract layer:
 - no filesystem access
 - no raw backend secret saved or returned
 
-Real TDB wiring is handled by `official/tdb-rust-adapter` and `integrations/tdb/rust-adapter-real-local`; `tdb-retrieval-lab` stays as the default-safe contract/plan layer.
+Real TDB wiring is handled by `official/tdb-rust-adapter` and `integrations/tdb/rust-adapter-real-crate`; `tdb-retrieval-lab` stays as the default-safe contract/plan layer.
 
 ## `official/tdb-rust-adapter`
 
@@ -120,7 +120,7 @@ Adapter source:
 
 ```text
 integrations/tdb/rust-adapter
-integrations/tdb/rust-adapter-real-local
+integrations/tdb/rust-adapter-real-crate
 ```
 
 Default adapter:
@@ -131,13 +131,13 @@ Default adapter:
 - opens no backend;
 - makes `run_real_tdb_smoke` return `real_tdb_available=false` and `smoke_executed=false`.
 
-Real local proof:
+Real published-crate proof:
 
 ```bash
-cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb
+cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb
 ```
 
-That proof uses the local `/workspace/Yggdrasil/TriviumDB` path dependency and actually calls:
+That proof uses the published `triviumdb = "0.7.0"` crate and actually calls:
 
 ```text
 Database::<f32>::open_with_config
@@ -147,7 +147,7 @@ search
 search_hybrid
 ```
 
-It uses a temporary redacted store, exposes no raw path, performs no network, and does not enter the default workspace build. The real crate is not linked by default not because the work is skipped, but because ordinary clones/CI must not be bound to a local sibling checkout.
+It uses a temporary redacted store, exposes no raw path, performs no network, and does not enter the default workspace build. Default profiles do not open a real backend in order to preserve host policy / approval / resource-limit boundaries; the real Rust proof uses the published `triviumdb = "0.7.0"` crate, not a local absolute path or developer-machine path override.
 
 Recommended real-mode order:
 
@@ -177,7 +177,7 @@ It displays:
 - retrieval provider slot
 - TDB adapter contract
 - real TDB opt-in seam readiness
-- real TDB Rust adapter shell / real-local proof status
+- real TDB Rust adapter shell / real-crate proof status
 
 The Web shell does not read SQLite/PostgreSQL/TDB, local filesystems, or runtime internals.
 
@@ -207,6 +207,6 @@ At Alpha completion:
 - `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` passes
 - `cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml` passes
 - `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.toml` passes
-- `cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb` passes
+- `cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb` passes
 - `cargo check -p ygg-cli --features postgres` passes
 - Web TypeScript passes

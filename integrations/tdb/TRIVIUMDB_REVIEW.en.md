@@ -2,7 +2,7 @@
 
 > [English](./TRIVIUMDB_REVIEW.en.md) · [中文](./TRIVIUMDB_REVIEW.md)
 
-This ledger records what the current `/workspace/Yggdrasil/TriviumDB` source means for Yggdrasil integration, and corrects the previous overly conservative judgment: the TriviumDB README explicitly recommends Rust-side `cargo add triviumdb`, so Yggdrasil should provide a real Rust API adapter proof, not just a plan-only entry.
+This ledger records what the TriviumDB source review means for Yggdrasil integration, and corrects the previous overly conservative judgment: the TriviumDB README explicitly recommends Rust-side `cargo add triviumdb`, so Yggdrasil should provide a real Rust API adapter proof, not just a plan-only entry.
 
 ## Source observations
 
@@ -32,7 +32,7 @@ This line adds a real Rust integration proof:
 
 ```text
 integrations/tdb/rust-adapter
-integrations/tdb/rust-adapter-real-local
+integrations/tdb/rust-adapter-real-crate
 examples/packages/tdb-rust-adapter/manifest.yaml
 ```
 
@@ -43,13 +43,13 @@ Default adapter:
 - can be loaded and invoked by the Ygg runtime;
 - makes `run_real_tdb_smoke` report `real_tdb_available=false` instead of pretending success.
 
-Real local proof:
+Real published-crate proof:
 
 ```bash
-cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb
+cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb
 ```
 
-That proof explicitly uses the sibling checkout `/workspace/Yggdrasil/TriviumDB` and actually calls:
+That proof explicitly uses the published `triviumdb = "0.7.0"` crate and actually calls:
 
 ```rust
 Database::<f32>::open_with_config(...)
@@ -61,16 +61,16 @@ search_hybrid(...)
 
 The real proof uses a temporary redacted store, does not expose raw paths, performs no network, and does not enter the default main workspace build.
 
-## Why the real crate is not linked by default
+## Why default profiles do not open a real backend
 
-This is not “not doing it because TDB is outside the repo”; the real Rust adapter proof is done. The default linkage remains disabled only because ordinary clones / CI must not be bound to a local sibling checkout.
+This is not “not doing it because TDB is outside the repo”; the real Rust adapter proof is done, and committed configuration uses the published `triviumdb = "0.7.0"` crate instead of a local absolute path or developer-machine path override. Default profiles do not open a real backend in order to preserve host policy, user approval, resource limits, redaction, and lifecycle ownership boundaries.
 
 Therefore the route is dual-track:
 
-1. default adapter shell: compiles, loads, and passes conformance in an ordinary Yggdrasil checkout;
-2. real-local adapter: explicit opt-in real Rust API proof in development environments that have the TriviumDB checkout.
+1. default adapter shell: compiles, loads, and passes conformance in an ordinary Yggdrasil checkout; it opens no backend;
+2. real-crate adapter: explicit opt-in real Rust API proof through the published crate; unpublished source tests should use a developer-owned uncommitted Cargo patch.
 
-If TDB later becomes stably resolvable through crates.io, pinned git rev, submodule, or vendor, the real adapter can move from local proof into a more formal feature-gated package build.
+If TDB later becomes stably resolvable through crates.io, pinned git rev, submodule, or vendor, the real adapter can move from published-crate proof into a more formal feature-gated package build.
 
 ## Recommended real-mode order
 

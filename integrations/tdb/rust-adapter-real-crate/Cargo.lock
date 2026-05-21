@@ -416,7 +416,9 @@ dependencies = [
 
 [[package]]
 name = "triviumdb"
-version = "0.7.1"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8dbe99e63e072170d60dc0d78ce58c6f10781f4a4578e7d54d5c378110d31e2"
 dependencies = [
  "aho-corasick",
  "bincode",
@@ -485,7 +487,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ygg-tdb-rust-adapter-real-local"
+name = "ygg-tdb-rust-adapter-real-crate"
 version = "0.1.0"
 dependencies = [
  "serde",

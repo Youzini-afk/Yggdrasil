@@ -1,5 +1,5 @@
 [package]
-name = "ygg-tdb-rust-adapter-real-local"
+name = "ygg-tdb-rust-adapter-real-crate"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0-only"
@@ -14,7 +14,7 @@ real-tdb = ["dep:triviumdb"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-triviumdb = { path = "../../../../TriviumDB", optional = true, default-features = false }
+triviumdb = { version = "0.7.0", optional = true, default-features = false }
 
 [[bin]]
 name = "ygg-tdb-rust-adapter"

@@ -106,7 +106,7 @@ describe_real_tdb_opt_in_seam
 - 不读写文件
 - 不保存或输出 raw backend secret
 
-真实 TDB 接线由 `official/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-local` 承担；`tdb-retrieval-lab` 保持为默认安全 contract/plan 层。
+真实 TDB 接线由 `official/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-crate` 承担；`tdb-retrieval-lab` 保持为默认安全 contract/plan 层。
 
 ## `official/tdb-rust-adapter`
 
@@ -120,7 +120,7 @@ adapter 源码：
 
 ```text
 integrations/tdb/rust-adapter
-integrations/tdb/rust-adapter-real-local
+integrations/tdb/rust-adapter-real-crate
 ```
 
 默认 adapter：
@@ -131,13 +131,13 @@ integrations/tdb/rust-adapter-real-local
 - 不打开 backend；
 - `run_real_tdb_smoke` 返回 `real_tdb_available=false` 与 `smoke_executed=false`。
 
-真实本地 proof：
+真实 published-crate proof：
 
 ```bash
-cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb
+cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb
 ```
 
-该 proof 使用本地 `/workspace/Yggdrasil/TriviumDB` path dependency，并真实调用：
+该 proof 使用已发布 `triviumdb = "0.7.0"` crate，并真实调用：
 
 ```text
 Database::<f32>::open_with_config
@@ -147,7 +147,7 @@ search
 search_hybrid
 ```
 
-它使用临时 redacted store，不输出 raw path，不联网，不进入默认 workspace build。默认不链接真实 crate 的原因不是“不做”，而是普通 clone/CI 不应被本地 sibling checkout 绑死。
+它使用临时 redacted store，不输出 raw path，不联网，不进入默认 workspace build。默认 profile 不打开真实 backend 是为了保留 host policy / approval / resource limit 边界；真实 Rust proof 走已发布 `triviumdb = "0.7.0"` crate，而不是本地绝对路径或开发机路径覆盖。
 
 推荐真实模式顺序：
 
@@ -177,7 +177,7 @@ official/tdb-rust-adapter（仅显式加载时）
 - retrieval provider slot
 - TDB adapter contract
 - real TDB opt-in seam readiness
-- real TDB Rust adapter shell / real-local proof status
+- real TDB Rust adapter shell / real-crate proof status
 
 Web shell 不读 SQLite/PostgreSQL/TDB、本地文件系统或 runtime internals。
 
@@ -207,6 +207,6 @@ Alpha 完成时：
 - `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` 通过
 - `cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml` 通过
 - `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.toml` 通过
-- `cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb` 通过
+- `cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb` 通过
 - `cargo check -p ygg-cli --features postgres` 通过
 - Web TypeScript 通过

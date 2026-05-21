@@ -141,13 +141,14 @@ pub(crate) async fn raw_secret_and_unsafe_id_rejected() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn real_tdb_opt_in_seam_not_linked_by_default() -> anyhow::Result<()> {
+pub(crate) async fn real_tdb_opt_in_seam_crate_adapter_available() -> anyhow::Result<()> {
     let rt = load_tdb_retrieval_lab().await?;
     let out = invoke(&rt, "describe_real_tdb_opt_in_seam", json!({})).await?.output;
     anyhow::ensure!(out["kind"] == json!("tdb_real_opt_in_seam"));
-    anyhow::ensure!(out["status"] == json!("planned_not_linked_by_default"));
+    anyhow::ensure!(out["status"] == json!("real_crate_adapter_available_opt_in"));
     anyhow::ensure!(out["current_alpha"]["path_dependency_committed"] == json!(false));
-    anyhow::ensure!(out["current_alpha"]["tdb_crate_linked"] == json!(false));
+    anyhow::ensure!(out["current_alpha"]["tdb_crate_linked_by_default"] == json!(false));
+    anyhow::ensure!(out["current_alpha"]["published_crate_adapter_manifest"] == json!("integrations/tdb/rust-adapter-real-crate/Cargo.toml"));
     anyhow::ensure!(out["current_alpha"]["backend_opened"] == json!(false));
     anyhow::ensure!(out["host_policy_requirements"]["store_path"] == json!("host_ref_only"));
     let modes = out["recommended_ygg_modes"].as_array().cloned().unwrap_or_default();

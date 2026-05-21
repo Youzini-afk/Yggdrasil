@@ -205,15 +205,16 @@ fn inspect_adapter_surface() -> Value {
 fn describe_real_tdb_opt_in_seam() -> Value {
     json!({
         "kind": "tdb_real_opt_in_seam",
-        "status": "planned_not_linked_by_default",
+        "status": "real_crate_adapter_available_opt_in",
         "reason_default_is_fake": [
-            "the TriviumDB source currently lives as a sibling checkout outside this repository",
-            "a hard path dependency would break ordinary Yggdrasil clones and CI",
+            "default Forge profiles should not open local retrieval backends without host policy",
+            "the real Rust proof is available through the published triviumdb crate in the explicit adapter manifest",
             "real backend access needs host policy, resource limits, redaction, and lifecycle ownership"
         ],
         "reviewed_triviumdb_api": {
             "crate": "triviumdb",
-            "version_observed": "0.7.1",
+            "version_observed_in_source": "0.7.1",
+            "published_adapter_version": "0.7.0",
             "crate_types": ["rlib", "cdylib"],
             "default_features": [],
             "optional_bindings": ["python", "nodejs", "cli"],
@@ -263,7 +264,8 @@ fn describe_real_tdb_opt_in_seam() -> Value {
         },
         "current_alpha": {
             "path_dependency_committed": false,
-            "tdb_crate_linked": false,
+            "tdb_crate_linked_by_default": false,
+            "published_crate_adapter_manifest": "integrations/tdb/rust-adapter-real-crate/Cargo.toml",
             "backend_opened": false,
             "filesystem_performed": false,
             "network_performed": false,

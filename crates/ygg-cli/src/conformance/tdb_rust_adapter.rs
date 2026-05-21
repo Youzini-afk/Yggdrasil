@@ -9,7 +9,7 @@ use crate::commands::manifest;
 
 const MANIFEST: &str = "examples/packages/tdb-rust-adapter/manifest.yaml";
 const ADAPTER_MANIFEST: &str = "integrations/tdb/rust-adapter/Cargo.toml";
-const REAL_ADAPTER_MANIFEST: &str = "integrations/tdb/rust-adapter-real-local/Cargo.toml";
+const REAL_ADAPTER_MANIFEST: &str = "integrations/tdb/rust-adapter-real-crate/Cargo.toml";
 
 pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow::Result<()> {
     build_default_adapter()?;
@@ -63,14 +63,14 @@ pub(crate) async fn subprocess_adapter_rejects_secret_and_raw_path() -> anyhow::
     Ok(())
 }
 
-pub(crate) async fn real_local_smoke_opt_in() -> anyhow::Result<()> {
+pub(crate) async fn real_crate_smoke_opt_in() -> anyhow::Result<()> {
     if std::env::var("YGG_TDB_REAL_TESTS").ok().as_deref() != Some("1") {
         return Ok(());
     }
     let status = Command::new("cargo")
         .args(["test", "--manifest-path", REAL_ADAPTER_MANIFEST, "--features", "real-tdb"])
         .status()?;
-    anyhow::ensure!(status.success(), "real local TDB smoke test failed");
+    anyhow::ensure!(status.success(), "real crate TDB smoke test failed");
     Ok(())
 }
 

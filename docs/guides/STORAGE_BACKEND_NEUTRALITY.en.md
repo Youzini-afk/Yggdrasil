@@ -64,7 +64,7 @@ The Assistant drawer also has a lightweight storage lane. It displays contract/r
 At the end of Storage Backend Neutrality Alpha:
 
 - `cargo test --workspace` passes
-- `cargo run -p ygg-cli -- conformance` passes with 317 named cases
+- `cargo run -p ygg-cli -- conformance` passes with 320 named cases
 - `cargo run -p ygg-cli -- conformance --tag storage` passes
 - `cargo run -p ygg-cli -- package check packages/official/storage-lab/manifest.yaml` passes
 - Web TypeScript checking passes

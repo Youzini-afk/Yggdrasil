@@ -569,10 +569,10 @@ tdb_retrieval_lab.query_plan_no_execution PASS
 tdb_retrieval_lab.backend_fit_boundary PASS
 tdb_retrieval_lab.invalid_input_rejected PASS
 tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected PASS
-tdb_retrieval_lab.real_tdb_opt_in_seam_not_linked_by_default PASS
+tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
-tdb_rust_adapter.real_local_smoke_opt_in PASS
+tdb_rust_adapter.real_crate_smoke_opt_in PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。
