@@ -205,7 +205,76 @@ pub(crate) struct HostProfile {
     #[serde(default)]
     pub(crate) event_store: HostEventStoreProfile,
     #[serde(default)]
+    pub(crate) outbound: HostOutboundProfile,
+    #[serde(default)]
     pub(crate) autoload: Vec<PathBuf>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub(crate) struct HostOutboundProfile {
+    #[serde(default)]
+    pub(crate) git: HostGitOutboundProfile,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct HostGitOutboundProfile {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) executor: HostGitOutboundExecutorKind,
+    #[serde(default)]
+    pub(crate) allowed_hosts: Vec<String>,
+    #[serde(default = "default_true")]
+    pub(crate) https_only: bool,
+    #[serde(default = "default_git_max_clone_size_mb")]
+    pub(crate) max_clone_size_mb: u64,
+    #[serde(default = "default_git_timeout_ms")]
+    pub(crate) timeout_ms: u64,
+    #[serde(default)]
+    pub(crate) install_root: Option<PathBuf>,
+    #[serde(default)]
+    pub(crate) allow_redirects: bool,
+}
+
+impl Default for HostGitOutboundProfile {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            executor: HostGitOutboundExecutorKind::DenyAll,
+            allowed_hosts: Vec::new(),
+            https_only: true,
+            max_clone_size_mb: default_git_max_clone_size_mb(),
+            timeout_ms: default_git_timeout_ms(),
+            install_root: None,
+            allow_redirects: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HostGitOutboundExecutorKind {
+    DenyAll,
+    Fake,
+    Real,
+}
+
+impl Default for HostGitOutboundExecutorKind {
+    fn default() -> Self {
+        Self::DenyAll
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_git_max_clone_size_mb() -> u64 {
+    64
+}
+
+fn default_git_timeout_ms() -> u64 {
+    30_000
 }
 
 #[derive(Debug, Clone, Deserialize)]

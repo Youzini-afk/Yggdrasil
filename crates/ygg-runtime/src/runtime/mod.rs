@@ -3,36 +3,43 @@ use std::sync::Arc;
 
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
-use ygg_core::{AssetRecord, EventEnvelope, KernelSession, SessionId, EVENT_ASSET_PUT, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED, EVENT_SESSION_FORKED};
+use ygg_core::{
+    AssetRecord, EventEnvelope, KernelSession, SessionId, EVENT_ASSET_PUT,
+    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED,
+    EVENT_SESSION_FORKED,
+};
 
 use crate::{EventStore, HostPolicy, InprocPackageCatalog, SecretResolverConfig};
 
-mod session;
-mod events;
-mod packages;
-mod capabilities;
-mod hooks;
-mod permissions;
 mod assets;
 mod branches;
+mod capabilities;
+mod events;
+mod hooks;
+mod network;
+mod outbound;
+mod packages;
+mod permissions;
 mod projections;
 mod proposals;
 mod protocol_dispatch;
-mod network;
+mod session;
 mod streaming;
-mod outbound;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
-pub use self::assets::{AssetGetResponse, AssetPutRequest, content_address, standard_asset_metadata};
+pub use self::assets::{
+    content_address, standard_asset_metadata, AssetGetResponse, AssetPutRequest,
+};
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
-pub use self::network::{NetworkPolicyDecision, OutboundRequest, check_network_policy};
+pub use self::network::{check_network_policy, NetworkPolicyDecision, OutboundRequest};
 pub use self::outbound::{
-    DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, LiveHttpOutboundExecutor,
+    is_secret_header_name, is_static_header_allowed, DenyAllGitOutboundExecutor,
+    DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, GitFetchKind, GitOutboundExecutor,
+    GitOutboundExecutorConfig, GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundExecutorResponse,
-    SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
-    StaticHeader, is_static_header_allowed, is_secret_header_name, STATIC_HEADER_ALLOWLIST,
+    OutboundExecutorRequest, OutboundExecutorResponse, RedactedHeaderValue, ResolvedSecretHeader,
+    SecretHeaderSpec, StaticHeader, STATIC_HEADER_ALLOWLIST,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
@@ -52,6 +59,8 @@ pub struct RuntimeConfig {
     pub secret_resolver: SecretResolverConfig,
     /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub outbound_executor: OutboundExecutorConfig,
+    /// Git outbound executor configuration. Defaults to `DenyAll` (fail-closed).
+    pub git_outbound_executor: GitOutboundExecutorConfig,
 }
 
 impl Default for RuntimeConfig {
@@ -62,6 +71,7 @@ impl Default for RuntimeConfig {
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
             outbound_executor: OutboundExecutorConfig::default(),
+            git_outbound_executor: GitOutboundExecutorConfig::default(),
         }
     }
 }
@@ -161,7 +171,12 @@ where
             match event.kind.as_str() {
                 EVENT_ASSET_PUT => {
                     let record: AssetRecord = serde_json::from_value(event.payload.clone())?;
-                    let content = event.metadata.get("content").and_then(Value::as_str).unwrap_or_default().to_string();
+                    let content = event
+                        .metadata
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
                     assets.insert(record.id.clone(), StoredAsset { record, content });
                 }
                 EVENT_SESSION_FORKED => {
@@ -169,15 +184,18 @@ where
                     branches.insert(branch.id.clone(), branch);
                 }
                 EVENT_PROJECTION_UPDATED => {
-                    let projection: ProjectionDefinition = serde_json::from_value(event.payload.clone())?;
+                    let projection: ProjectionDefinition =
+                        serde_json::from_value(event.payload.clone())?;
                     projections.insert(projection.id.clone(), projection);
                 }
                 EVENT_PERMISSION_GRANTED => {
-                    let record: PermissionGrantRecord = serde_json::from_value(event.payload.clone())?;
+                    let record: PermissionGrantRecord =
+                        serde_json::from_value(event.payload.clone())?;
                     grants.insert(record.id.clone(), record);
                 }
                 EVENT_PERMISSION_REVOKED => {
-                    let record: PermissionGrantRecord = serde_json::from_value(event.payload.clone())?;
+                    let record: PermissionGrantRecord =
+                        serde_json::from_value(event.payload.clone())?;
                     // Overwrite with revoked version (revoked_at is set)
                     grants.insert(record.id.clone(), record);
                 }
@@ -198,7 +216,8 @@ where
         kind: &'static str,
         payload: Value,
     ) -> anyhow::Result<EventEnvelope> {
-        self.append_kernel_event_with_metadata(session_id, kind, payload, json!({})).await
+        self.append_kernel_event_with_metadata(session_id, kind, payload, json!({}))
+            .await
     }
 
     pub(crate) async fn append_kernel_event_with_metadata(

@@ -5,33 +5,48 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use ygg_runtime::{EventStore, InMemoryEventStore, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore};
+use ygg_runtime::{
+    EventStore, InMemoryEventStore, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore,
+};
 
 use super::manifest::read_manifest;
-use crate::cli::{HostEventStoreProfile, HostProfile};
+use crate::cli::{
+    HostEventStoreProfile, HostGitOutboundExecutorKind, HostGitOutboundProfile, HostProfile,
+};
 
 pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Result<()> {
     if let Some(profile_path) = profile {
         let raw = fs::read_to_string(&profile_path)?;
         let profile: HostProfile = serde_yaml::from_str(&raw)?;
+        let runtime_config = runtime_config_from_profile(&profile)?;
         match &profile.event_store {
             HostEventStoreProfile::Memory => {
-                let runtime = Arc::new(Runtime::new(Arc::new(InMemoryEventStore::default()), RuntimeConfig::default()));
+                let runtime = Arc::new(Runtime::new(
+                    Arc::new(InMemoryEventStore::default()),
+                    runtime_config,
+                ));
                 load_profile_packages(runtime.clone(), profile, profile_path).await?;
                 serve_runtime(http, runtime, "memory").await
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
-                let runtime = Arc::new(Runtime::new(Arc::new(SqliteEventStore::open(resolved)?), RuntimeConfig::default()));
+                let runtime = Arc::new(Runtime::new(
+                    Arc::new(SqliteEventStore::open(resolved)?),
+                    runtime_config,
+                ));
                 load_profile_packages(runtime.clone(), profile, profile_path).await?;
                 serve_runtime(http, runtime, "sqlite").await
             }
             HostEventStoreProfile::Postgres { env } => {
                 #[cfg(feature = "postgres")]
                 {
-                    let url = std::env::var(env).map_err(|_| anyhow::anyhow!("postgres event store env ref unavailable (details redacted)"))?;
+                    let url = std::env::var(env).map_err(|_| {
+                        anyhow::anyhow!(
+                            "postgres event store env ref unavailable (details redacted)"
+                        )
+                    })?;
                     let store = ygg_runtime::PostgresEventStore::connect(&url).await?;
-                    let runtime = Arc::new(Runtime::new(Arc::new(store), RuntimeConfig::default()));
+                    let runtime = Arc::new(Runtime::new(Arc::new(store), runtime_config));
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
                     serve_runtime(http, runtime, "postgres").await
                 }
@@ -43,12 +58,62 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
             }
         }
     } else {
-        let runtime = Arc::new(Runtime::new(Arc::new(InMemoryEventStore::default()), RuntimeConfig::default()));
+        let runtime = Arc::new(Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        ));
         serve_runtime(http, runtime, "memory").await
     }
 }
 
-async fn serve_runtime<S>(http: SocketAddr, runtime: Arc<Runtime<S>>, backend_kind: &'static str) -> Result<()>
+fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
+    validate_git_outbound_profile(&profile.outbound.git)?;
+    Ok(RuntimeConfig::default())
+}
+
+fn validate_git_outbound_profile(git: &HostGitOutboundProfile) -> Result<()> {
+    if !git.https_only {
+        anyhow::bail!("outbound.git.https_only=false is not supported; git install is HTTPS-only")
+    }
+    if git.allow_redirects {
+        anyhow::bail!("outbound.git.allow_redirects=true is not supported; redirects fail closed")
+    }
+    if git.max_clone_size_mb == 0 {
+        anyhow::bail!("outbound.git.max_clone_size_mb must be greater than zero")
+    }
+    if git.timeout_ms == 0 {
+        anyhow::bail!("outbound.git.timeout_ms must be greater than zero")
+    }
+    if let Some(install_root) = &git.install_root {
+        if install_root.as_os_str().is_empty() {
+            anyhow::bail!("outbound.git.install_root must not be empty")
+        }
+    }
+    if !git.enabled {
+        return Ok(());
+    }
+    if git.allowed_hosts.is_empty() {
+        anyhow::bail!("outbound.git.allowed_hosts is required when git outbound is enabled")
+    }
+    if git
+        .allowed_hosts
+        .iter()
+        .any(|host| host.trim().is_empty() || host == "*")
+    {
+        anyhow::bail!("outbound.git.allowed_hosts must not contain empty hosts or wildcard hosts")
+    }
+    if let HostGitOutboundExecutorKind::DenyAll = git.executor {
+        Ok(())
+    } else {
+        anyhow::bail!("outbound.git executor {:?} is reserved for later implementation; G1 only supports deny_all", git.executor)
+    }
+}
+
+async fn serve_runtime<S>(
+    http: SocketAddr,
+    runtime: Arc<Runtime<S>>,
+    backend_kind: &'static str,
+) -> Result<()>
 where
     S: EventStore,
 {
@@ -66,11 +131,18 @@ fn resolve_profile_path(profile_path: &std::path::Path, path: PathBuf) -> PathBu
     if path.is_absolute() {
         path
     } else {
-        profile_path.parent().map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join(path)
+        profile_path
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(path)
     }
 }
 
-pub(crate) async fn load_host_profile<S>(runtime: Arc<Runtime<S>>, profile_path: PathBuf) -> Result<()>
+pub(crate) async fn load_host_profile<S>(
+    runtime: Arc<Runtime<S>>,
+    profile_path: PathBuf,
+) -> Result<()>
 where
     S: EventStore,
 {
@@ -79,19 +151,33 @@ where
     load_profile_packages(runtime, profile, profile_path).await
 }
 
-async fn load_profile_packages<S>(runtime: Arc<Runtime<S>>, profile: HostProfile, profile_path: PathBuf) -> Result<()>
+async fn load_profile_packages<S>(
+    runtime: Arc<Runtime<S>>,
+    profile: HostProfile,
+    profile_path: PathBuf,
+) -> Result<()>
 where
     S: EventStore,
 {
     if let Some(title) = &profile.title {
         println!("loading host profile: {title}");
     }
-    let base = profile_path.parent().map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+    let base = profile_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
     for manifest_path in profile.autoload {
-        let resolved = if manifest_path.is_absolute() { manifest_path } else { base.join(manifest_path) };
+        let resolved = if manifest_path.is_absolute() {
+            manifest_path
+        } else {
+            base.join(manifest_path)
+        };
         let manifest = read_manifest(resolved).await?;
         let record = runtime.load_package(manifest).await?;
-        println!("autoloaded package: {}@{} ({:?})", record.id, record.version, record.state);
+        println!(
+            "autoloaded package: {}@{} ({:?})",
+            record.id, record.version, record.state
+        );
     }
     Ok(())
 }
@@ -108,17 +194,32 @@ pub(crate) async fn host_stdio() -> Result<()> {
             continue;
         }
         let response = match serde_json::from_str::<ygg_runtime::ProtocolRequest>(&line) {
-            Ok(request) => match runtime.call_protocol(&context, &request.method, request.params).await {
-                Ok(result) => ygg_runtime::ProtocolResponse { id: request.id, result: Some(result), error: None },
-                Err(error) => ygg_runtime::ProtocolResponse { id: request.id, result: None, error: Some(error) },
+            Ok(request) => match runtime
+                .call_protocol(&context, &request.method, request.params)
+                .await
+            {
+                Ok(result) => ygg_runtime::ProtocolResponse {
+                    id: request.id,
+                    result: Some(result),
+                    error: None,
+                },
+                Err(error) => ygg_runtime::ProtocolResponse {
+                    id: request.id,
+                    result: None,
+                    error: Some(error),
+                },
             },
             Err(error) => ygg_runtime::ProtocolResponse {
                 id: "invalid".to_string(),
                 result: None,
-                error: Some(ygg_runtime::ProtocolError::invalid_request(error.to_string())),
+                error: Some(ygg_runtime::ProtocolError::invalid_request(
+                    error.to_string(),
+                )),
             },
         };
-        stdout.write_all(serde_json::to_string(&response)?.as_bytes()).await?;
+        stdout
+            .write_all(serde_json::to_string(&response)?.as_bytes())
+            .await?;
         stdout.write_all(b"\n").await?;
         stdout.flush().await?;
     }

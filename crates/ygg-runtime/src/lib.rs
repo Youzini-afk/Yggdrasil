@@ -13,32 +13,40 @@ pub mod subprocess;
 pub mod tavern;
 
 pub use capability::{
-    CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult, ExtensionDispatchResult,
-    ExtensionRegistry, RegisteredCapability, RegisteredHook,
+    CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult,
+    ExtensionDispatchResult, ExtensionRegistry, RegisteredCapability, RegisteredHook,
 };
-pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 #[cfg(feature = "postgres")]
 pub use event_store::PostgresEventStore;
+pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog};
-pub use package::{entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel};
+pub use package::{
+    entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel,
+};
 pub use pi::PI_INTEGRATION_DEFERRED;
 pub use protocol::{
     host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolContext, ProtocolError,
     ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS,
     KERNEL_PROTOCOL_VERSION,
 };
-pub use redaction::{redact_secrets_in_value, scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult};
+pub use redaction::{
+    redact_secrets_in_value, scan_value_for_raw_secrets, SecretDetection, SecretFinding,
+    SecretScanResult,
+};
 pub use runtime::{
-    AppendEventRequest, DenyAllOutboundExecutor, EventListRequest, ExecutorKind,
-    FakeOutboundExecutor, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
-    NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest, Runtime, RuntimeConfig,
-    StreamRegistry, SecretHeaderSpec, ResolvedSecretHeader, RedactedHeaderValue,
-    StaticHeader, is_static_header_allowed, is_secret_header_name, STATIC_HEADER_ALLOWLIST,
-    check_network_policy,
-    content_address, standard_asset_metadata,
+    check_network_policy, content_address, is_secret_header_name, is_static_header_allowed,
+    standard_asset_metadata, AppendEventRequest, DenyAllGitOutboundExecutor,
+    DenyAllOutboundExecutor, EventListRequest, ExecutorKind, FakeOutboundExecutor, GitFetchKind,
+    GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundRequest, GitOutboundResponse,
+    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, NetworkPolicyDecision,
+    OpenSessionRequest, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
+    OutboundExecutorResponse, OutboundRequest, RedactedHeaderValue, ResolvedSecretHeader, Runtime,
+    RuntimeConfig, SecretHeaderSpec, StaticHeader, StreamRegistry, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;
-pub use secret::{DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver, SecretResolverConfig, extract_env_name};
+pub use secret::{
+    extract_env_name, DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver,
+    SecretResolverConfig,
+};
 pub use subprocess::{SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;

@@ -31,8 +31,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ygg_core::RedactionState;
 
-use crate::EventStore;
 use super::Runtime;
+use crate::EventStore;
 
 // ---------------------------------------------------------------------------
 // L4: Secret header injection types
@@ -205,7 +205,9 @@ pub const STATIC_HEADER_ALLOWLIST: &[&str] = &[
 /// explicitly allowed for static injection.
 pub fn is_static_header_allowed(name: &str) -> bool {
     let name_lower = name.to_lowercase();
-    STATIC_HEADER_ALLOWLIST.iter().any(|&allowed| allowed == name_lower)
+    STATIC_HEADER_ALLOWLIST
+        .iter()
+        .any(|&allowed| allowed == name_lower)
 }
 
 /// Check whether a header name is explicitly blocked from static_headers
@@ -219,16 +221,16 @@ pub fn is_secret_header_name(name: &str) -> bool {
     matches!(
         name_lower.as_str(),
         "authorization"
-        | "x-api-key"
-        | "x-goog-api-key"
-        | "cookie"
-        | "set-cookie"
-        | "proxy-authorization"
-        | "x-auth-token"
-        | "x-access-token"
-        | "x-secret"
-        | "www-authenticate"
-        | "proxy-authenticate"
+            | "x-api-key"
+            | "x-goog-api-key"
+            | "cookie"
+            | "set-cookie"
+            | "proxy-authorization"
+            | "x-auth-token"
+            | "x-access-token"
+            | "x-secret"
+            | "www-authenticate"
+            | "proxy-authenticate"
     )
 }
 
@@ -283,6 +285,85 @@ pub struct OutboundExecutorResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Git outbound request / response types (G1)
+// ---------------------------------------------------------------------------
+
+/// The kind of git fetch a caller is asking the host to perform.
+///
+/// This is deliberately small and transport-neutral. The kernel does not expose
+/// git library concepts such as refspecs, packfiles, trees, or indexes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GitFetchKind {
+    /// Fetch just enough metadata to resolve a ref / inspect a manifest.
+    RefsOnly,
+    /// Fetch a single tree snapshot without history where the executor can.
+    TreeOnly,
+    /// Shallow clone / checkout bounded by host policy.
+    ShallowClone,
+}
+
+/// Request sent to a git outbound executor.
+///
+/// The request carries refs and policy shape only. Authentication is expressed
+/// as secret refs; raw tokens must never appear here.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitOutboundRequest {
+    /// Package that initiated the git fetch request.
+    pub package_id: String,
+    /// Capability through which the request was made.
+    pub capability_id: String,
+    /// Public HTTPS git URL. Non-HTTPS transports are rejected by policy.
+    pub remote_url: String,
+    /// Branch, tag, or commit SHA requested by the caller.
+    pub reference: String,
+    /// Fetch shape requested by the caller.
+    pub fetch_kind: GitFetchKind,
+    /// Optional host-internal destination hint. The executor may ignore it.
+    #[serde(default)]
+    pub destination_hint: Option<String>,
+    /// Secret references only. Private repos are not enabled in G1, but the
+    /// field is part of the public shape so raw tokens never become accepted.
+    #[serde(default)]
+    pub secret_refs: Vec<String>,
+    /// Redaction state carried forward from policy/audit.
+    #[serde(default)]
+    pub redaction_state: Option<RedactionState>,
+    /// Optional timeout in milliseconds.
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+    /// Opaque package-owned metadata. Must not contain raw secrets.
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+/// Response returned by a git outbound executor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitOutboundResponse {
+    /// High-level status: "ok", "denied", "error", "timeout".
+    pub status: String,
+    /// Resolved commit SHA, when known. Empty for deny-all/default responses.
+    #[serde(default)]
+    pub resolved_commit_sha: Option<String>,
+    /// Full-tree content hash, when known. Empty for deny-all/default responses.
+    #[serde(default)]
+    pub resolved_content_hash: Option<String>,
+    /// Host-selected install root subdir / opaque ref. Must not expose raw secrets.
+    #[serde(default)]
+    pub resolved_path: Option<String>,
+    /// Redaction state applied to the response.
+    #[serde(default)]
+    pub redaction_state: RedactionState,
+    /// Whether real network I/O was performed.
+    pub network_performed: bool,
+    /// What kind of executor produced this response.
+    pub executor_kind: ExecutorKind,
+    /// Opaque executor metadata, shape only.
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+// ---------------------------------------------------------------------------
 // OutboundExecutor trait
 // ---------------------------------------------------------------------------
 
@@ -298,7 +379,22 @@ pub trait OutboundExecutor: Send + Sync + 'static {
     /// Called only after `check_and_audit_outbound` has approved the
     /// request. Implementations must not persist raw body/header/
     /// secret content — only shapes, refs, and metadata.
-    async fn execute(&self, request: OutboundExecutorRequest) -> anyhow::Result<OutboundExecutorResponse>;
+    async fn execute(
+        &self,
+        request: OutboundExecutorRequest,
+    ) -> anyhow::Result<OutboundExecutorResponse>;
+}
+
+/// Trait for host-controlled git fetch execution.
+///
+/// This is intentionally parallel to `OutboundExecutor` instead of being an
+/// HTTP request variant. A git fetch is a repo/ref operation, not a single HTTP
+/// request, and must remain under its own fail-closed policy.
+#[async_trait]
+pub trait GitOutboundExecutor: Send + Sync + 'static {
+    /// Execute a git fetch request. Implementations must not persist raw tokens,
+    /// raw query strings, or verbose git protocol output.
+    async fn fetch(&self, request: GitOutboundRequest) -> anyhow::Result<GitOutboundResponse>;
 }
 
 // ---------------------------------------------------------------------------
@@ -315,7 +411,10 @@ pub struct DenyAllOutboundExecutor;
 
 #[async_trait]
 impl OutboundExecutor for DenyAllOutboundExecutor {
-    async fn execute(&self, _request: OutboundExecutorRequest) -> anyhow::Result<OutboundExecutorResponse> {
+    async fn execute(
+        &self,
+        _request: OutboundExecutorRequest,
+    ) -> anyhow::Result<OutboundExecutorResponse> {
         Ok(OutboundExecutorResponse {
             status: "denied".to_string(),
             status_code: None,
@@ -327,6 +426,27 @@ impl OutboundExecutor for DenyAllOutboundExecutor {
             redaction_state: RedactionState::NotCaptured,
             network_performed: false,
             executor_kind: ExecutorKind::DenyAll,
+        })
+    }
+}
+
+/// A git outbound executor that denies all requests without network.
+///
+/// This is the default executor for `RuntimeConfig` and profile parsing.
+pub struct DenyAllGitOutboundExecutor;
+
+#[async_trait]
+impl GitOutboundExecutor for DenyAllGitOutboundExecutor {
+    async fn fetch(&self, _request: GitOutboundRequest) -> anyhow::Result<GitOutboundResponse> {
+        Ok(GitOutboundResponse {
+            status: "denied".to_string(),
+            resolved_commit_sha: None,
+            resolved_content_hash: None,
+            resolved_path: None,
+            redaction_state: RedactionState::NotCaptured,
+            network_performed: false,
+            executor_kind: ExecutorKind::DenyAll,
+            metadata: Value::Null,
         })
     }
 }
@@ -365,7 +485,11 @@ impl FakeOutboundExecutor {
         response: OutboundExecutorResponse,
     ) {
         self.fixtures.insert(
-            (host.to_string(), method.to_string(), path.map(|s| s.to_string())),
+            (
+                host.to_string(),
+                method.to_string(),
+                path.map(|s| s.to_string()),
+            ),
             response,
         );
     }
@@ -384,8 +508,12 @@ impl Default for FakeOutboundExecutor {
 
 #[async_trait]
 impl OutboundExecutor for FakeOutboundExecutor {
-    async fn execute(&self, request: OutboundExecutorRequest) -> anyhow::Result<OutboundExecutorResponse> {
-        self.call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    async fn execute(
+        &self,
+        request: OutboundExecutorRequest,
+    ) -> anyhow::Result<OutboundExecutorResponse> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         let key = (
             request.destination_host.clone(),
@@ -575,7 +703,8 @@ impl LiveHttpOutboundExecutor {
 
         // Enforce HTTPS (with loopback exception for tests)
         if url.scheme() != "https" {
-            let is_loopback = actual_host == "127.0.0.1" || actual_host == "localhost" || actual_host == "[::1]";
+            let is_loopback =
+                actual_host == "127.0.0.1" || actual_host == "localhost" || actual_host == "[::1]";
             if !self.config.allow_insecure_loopback_for_tests || !is_loopback {
                 anyhow::bail!(
                     "live outbound executor rejects non-HTTPS URL: {} (host={})",
@@ -602,7 +731,10 @@ impl LiveHttpOutboundExecutor {
     /// These are non-secret headers validated against the allowlist
     /// (e.g. `anthropic-version: 2023-06-01`). Secret-bearing header
     /// names are rejected at parse time and never reach this method.
-    fn build_headers(&self, request: &OutboundExecutorRequest) -> anyhow::Result<reqwest::header::HeaderMap> {
+    fn build_headers(
+        &self,
+        request: &OutboundExecutorRequest,
+    ) -> anyhow::Result<reqwest::header::HeaderMap> {
         let mut headers = reqwest::header::HeaderMap::new();
 
         // Content-Type: application/json if there's a body
@@ -622,16 +754,21 @@ impl LiveHttpOutboundExecutor {
         // L5: Inject safe static headers (non-secret, allowlisted)
         for static_hdr in &request.static_headers {
             let header_name = reqwest::header::HeaderName::from_bytes(static_hdr.name.as_bytes())
-                .map_err(|_| anyhow::anyhow!("static header name '{}' is invalid", static_hdr.name))?;
-            let header_value = reqwest::header::HeaderValue::from_str(&static_hdr.value)
-                .map_err(|_| anyhow::anyhow!("static header value for '{}' is invalid", static_hdr.name))?;
+                .map_err(|_| {
+                anyhow::anyhow!("static header name '{}' is invalid", static_hdr.name)
+            })?;
+            let header_value =
+                reqwest::header::HeaderValue::from_str(&static_hdr.value).map_err(|_| {
+                    anyhow::anyhow!("static header value for '{}' is invalid", static_hdr.name)
+                })?;
             headers.insert(header_name, header_value);
         }
 
         // L4: Inject resolved secret headers (e.g. Authorization)
         for resolved in &request.resolved_secret_headers {
-            let header_name = reqwest::header::HeaderName::from_bytes(resolved.header_name.as_bytes())
-                .map_err(|_| anyhow::anyhow!("resolved secret header name is invalid"))?;
+            let header_name =
+                reqwest::header::HeaderName::from_bytes(resolved.header_name.as_bytes())
+                    .map_err(|_| anyhow::anyhow!("resolved secret header name is invalid"))?;
             let value = reqwest::header::HeaderValue::from_str(&resolved.value.0)
                 .map_err(|_| anyhow::anyhow!("resolved secret header value is invalid"))?;
             headers.insert(header_name, value);
@@ -663,7 +800,10 @@ impl LiveHttpOutboundExecutor {
                 }
             } else {
                 // All other headers: record name only, value redacted
-                map.insert(name.as_str().to_string(), Value::String("[redacted]".to_string()));
+                map.insert(
+                    name.as_str().to_string(),
+                    Value::String("[redacted]".to_string()),
+                );
             }
         }
         Value::Object(map)
@@ -738,10 +878,7 @@ impl LiveHttpOutboundExecutor {
 fn is_safe_response_header(name_lower: &str) -> bool {
     matches!(
         name_lower,
-        "content-type"
-            | "request-id"
-            | "x-request-id"
-            | "x-trace-id"
+        "content-type" | "request-id" | "x-request-id" | "x-trace-id"
     )
 }
 
@@ -770,7 +907,10 @@ fn redact_json_value(value: &Value) -> Value {
 
 #[async_trait]
 impl OutboundExecutor for LiveHttpOutboundExecutor {
-    async fn execute(&self, request: OutboundExecutorRequest) -> anyhow::Result<OutboundExecutorResponse> {
+    async fn execute(
+        &self,
+        request: OutboundExecutorRequest,
+    ) -> anyhow::Result<OutboundExecutorResponse> {
         // Build URL (enforces HTTPS)
         let url = self.build_url(&request)?;
 
@@ -807,11 +947,7 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
             Ok(r) => r,
             Err(e) => {
                 // Normalize errors: timeout vs other
-                let status = if e.is_timeout() {
-                    "timeout"
-                } else {
-                    "error"
-                };
+                let status = if e.is_timeout() { "timeout" } else { "error" };
                 // Never include raw error details that might leak secrets
                 return Ok(OutboundExecutorResponse {
                     status: status.to_string(),
@@ -886,6 +1022,24 @@ pub enum OutboundExecutorConfig {
     LiveHttp(LiveHttpOutboundExecutorConfig),
 }
 
+/// Runtime configuration for git outbound execution.
+///
+/// Defaults to deny-all. G1 only wires the fail-closed shape; fake/real
+/// executors are added in later steps.
+#[derive(Clone)]
+pub enum GitOutboundExecutorConfig {
+    /// Deny all git fetches (default, fail-closed).
+    DenyAll,
+    /// Use a custom git executor (future fake/real executor tests).
+    Custom(Arc<dyn GitOutboundExecutor>),
+}
+
+impl Default for GitOutboundExecutorConfig {
+    fn default() -> Self {
+        Self::DenyAll
+    }
+}
+
 impl Default for OutboundExecutorConfig {
     fn default() -> Self {
         Self::DenyAll
@@ -945,6 +1099,14 @@ where
             }
         }
     }
+
+    /// Get a reference to the configured git outbound executor.
+    pub fn git_outbound_executor(&self) -> Arc<dyn GitOutboundExecutor> {
+        match &self.config.git_outbound_executor {
+            GitOutboundExecutorConfig::DenyAll => Arc::new(DenyAllGitOutboundExecutor),
+            GitOutboundExecutorConfig::Custom(executor) => executor.clone(),
+        }
+    }
 }
 
 fn validate_policy_executor_consistency(
@@ -957,10 +1119,16 @@ fn validate_policy_executor_consistency(
     if policy_request.capability_id != executor_request.capability_id {
         anyhow::bail!("outbound capability_id mismatch between policy and executor request");
     }
-    if !policy_request.destination_host.eq_ignore_ascii_case(&executor_request.destination_host) {
+    if !policy_request
+        .destination_host
+        .eq_ignore_ascii_case(&executor_request.destination_host)
+    {
         anyhow::bail!("outbound destination_host mismatch between policy and executor request");
     }
-    if !policy_request.method.eq_ignore_ascii_case(&executor_request.method) {
+    if !policy_request
+        .method
+        .eq_ignore_ascii_case(&executor_request.method)
+    {
         anyhow::bail!("outbound method mismatch between policy and executor request");
     }
     if policy_request.secret_refs_used != executor_request.secret_refs {
@@ -1009,13 +1177,52 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "denied");
         assert!(!response.network_performed);
         assert_eq!(response.executor_kind, ExecutorKind::DenyAll);
+    }
+
+    #[tokio::test]
+    async fn deny_all_git_executor_returns_denied() {
+        let executor = DenyAllGitOutboundExecutor;
+        let request = GitOutboundRequest {
+            package_id: "test/pkg".to_string(),
+            capability_id: "test/pkg/install".to_string(),
+            remote_url: "https://github.com/example/pkg".to_string(),
+            reference: "main".to_string(),
+            fetch_kind: GitFetchKind::RefsOnly,
+            destination_hint: None,
+            secret_refs: vec![],
+            redaction_state: None,
+            timeout_ms: None,
+            metadata: Value::Null,
+        };
+        let response = executor.fetch(request).await.unwrap();
+        assert_eq!(response.status, "denied");
+        assert!(!response.network_performed);
+        assert_eq!(response.executor_kind, ExecutorKind::DenyAll);
+        assert!(response.resolved_commit_sha.is_none());
+        assert!(response.resolved_content_hash.is_none());
+    }
+
+    #[test]
+    fn git_fetch_kind_serialization() {
+        assert_eq!(
+            serde_json::to_string(&GitFetchKind::RefsOnly).unwrap(),
+            "\"refs_only\""
+        );
+        assert_eq!(
+            serde_json::to_string(&GitFetchKind::TreeOnly).unwrap(),
+            "\"tree_only\""
+        );
+        assert_eq!(
+            serde_json::to_string(&GitFetchKind::ShallowClone).unwrap(),
+            "\"shallow_clone\""
+        );
     }
 
     #[tokio::test]
@@ -1034,8 +1241,8 @@ mod tests {
             metadata: serde_json::json!({"provider": "openai"}),
             body_shape: Some(serde_json::json!({"model": "gpt-4o", "messages": []})),
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "ok");
@@ -1083,8 +1290,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
         let response = executor.execute(request).await.unwrap();
         assert_eq!(response.status, "ok");
@@ -1112,8 +1319,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         let _ = executor.execute(request.clone()).await.unwrap();
@@ -1132,7 +1339,9 @@ mod tests {
     #[test]
     fn consistency_rejects_host_mismatch() {
         let policy = super::super::OutboundRequest {
-            principal: crate::ProtocolPrincipal::Package { package_id: "test/pkg".to_string() },
+            principal: crate::ProtocolPrincipal::Package {
+                package_id: "test/pkg".to_string(),
+            },
             package_id: "test/pkg".to_string(),
             capability_id: "test/pkg/fetch".to_string(),
             destination_host: "api.allowed.example".to_string(),
@@ -1153,8 +1362,8 @@ mod tests {
             metadata: Value::Null,
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
         assert!(validate_policy_executor_consistency(&policy, &executor).is_err());
     }
@@ -1189,7 +1398,10 @@ mod tests {
             ..Default::default()
         };
         let result = LiveHttpOutboundExecutor::new(config);
-        assert!(result.is_err(), "redirects must fail closed until redirect target policy re-check exists");
+        assert!(
+            result.is_err(),
+            "redirects must fail closed until redirect target policy re-check exists"
+        );
     }
 
     #[tokio::test]
@@ -1213,8 +1425,8 @@ mod tests {
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1242,8 +1454,8 @@ mod tests {
             metadata: serde_json::json!({"base_url": "http://api.example.com"}),
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
@@ -1252,7 +1464,8 @@ mod tests {
 
     #[tokio::test]
     async fn live_http_rejects_base_url_host_mismatch() {
-        let executor = LiveHttpOutboundExecutor::new(LiveHttpOutboundExecutorConfig::default()).unwrap();
+        let executor =
+            LiveHttpOutboundExecutor::new(LiveHttpOutboundExecutorConfig::default()).unwrap();
 
         let request = OutboundExecutorRequest {
             package_id: "test/pkg".to_string(),
@@ -1267,18 +1480,22 @@ mod tests {
             metadata: serde_json::json!({"base_url": "https://other.example.com"}),
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
         assert!(result.is_err(), "base_url host mismatch must fail closed");
-        assert!(result.unwrap_err().to_string().contains("does not match executor destination_host"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("does not match executor destination_host"));
     }
 
     #[tokio::test]
     async fn live_http_rejects_unsupported_method() {
-        let executor = LiveHttpOutboundExecutor::new(LiveHttpOutboundExecutorConfig::default()).unwrap();
+        let executor =
+            LiveHttpOutboundExecutor::new(LiveHttpOutboundExecutorConfig::default()).unwrap();
 
         let request = OutboundExecutorRequest {
             package_id: "test/pkg".to_string(),
@@ -1293,13 +1510,16 @@ mod tests {
             metadata: serde_json::json!({}),
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
         assert!(result.is_err(), "unsupported method must fail closed");
-        assert!(result.unwrap_err().to_string().contains("unsupported outbound HTTP method"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported outbound HTTP method"));
     }
 
     #[tokio::test]
@@ -1323,8 +1543,8 @@ mod tests {
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         // This will fail to connect (nothing listening on 127.0.0.1),
@@ -1374,8 +1594,8 @@ mod tests {
             metadata: serde_json::json!({"scheme": "http"}),
             body_shape: None,
             secret_headers: Vec::new(),
-                resolved_secret_headers: Vec::new(),
-                static_headers: Vec::new(),
+            resolved_secret_headers: Vec::new(),
+            static_headers: Vec::new(),
         };
 
         let result = executor.execute(request).await;
