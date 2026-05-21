@@ -8,11 +8,11 @@
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（已完成）+ Storage Backend Neutrality Alpha（已完成）+ PostgreSQL + TDB Integration Alpha（已完成）。
+- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（已完成）+ Storage Backend Neutrality Alpha（已完成）+ PostgreSQL + TDB Integration Alpha（已完成）+ Real TDB Rust Adapter Alpha（执行中）。
 - **Conformance：** 317 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch（按领域委托的 helper）、runtime official in-process handlers（provider-package indexed dispatch、共享 safety 模块）、event store（P3 原子 append + 查询 pushdown + 并发 correctness + backend-neutral contract hardening）已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** PostgreSQL + TDB Integration Alpha 已完成。PostgreSQL 是 feature-gated/env opt-in 的 host-owned `EventStore` backend，host profile 可选择 memory/sqlite/postgres；TDB/TriviumDB 被实现为普通 `official/tdb-retrieval-lab` retrieval/multimodal provider adapter proof，并通过 opt-in seam 记录真实接入前置条件。持久指南见 `docs/guides/POSTGRES_TDB_INTEGRATION.md`。
+- **当前主线：** Real TDB Rust Adapter Alpha R0 已规划。上一轮的 plan-only TDB 入口将升级为真实 Rust API adapter proof：`triviumdb` README 明确推荐 `cargo add triviumdb`，本轮会新增独立 opt-in adapter crate，默认不影响主 workspace，但本地 `real-tdb` feature 可真实调用 `Database::open/insert/link/search_hybrid`。临时计划见 `docs/roadmap/REAL_TDB_RUST_ADAPTER_ALPHA.md`。
 
 ## 已实现
 
