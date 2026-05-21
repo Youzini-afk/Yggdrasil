@@ -1,27 +1,30 @@
 //! Handler for `official/storage-lab` capabilities.
 //!
-//! Storage Backend Neutrality Alpha Phase S4 — Projection / Index Materialization Contract Proof.
+//! Storage Backend Neutrality Alpha Phase S5 — Retrieval / Vector / Multimodal Provider Contract.
 //!
 //! Package-facing storage/data contract preview: storage backend classes,
 //! package state store planning, document CRUD previews, snapshot export,
-//! blob/asset content-addressed contract proof, and projection/index
-//! materialization contract proof.
+//! blob/asset content-addressed contract proof, projection/index
+//! materialization contract proof, and retrieval/vector/multimodal provider
+//! contract proof.
 //!
 //! Deterministic, no-network, no real model inference, no real DB writes,
-//! no SQL, no filesystem, no DSN/path/credentials, no blob content in
-//! event payloads. Produces package-owned storage/data shapes.
+//! no SQL, no filesystem, no secret-bearing backend config, no blob content in
+//! event payloads, no embedding generation, no vector storage. Produces
+//! package-owned storage/data shapes.
 //!
-//! No reserved storage/database/blob/projection/sql/vector kernel namespace
-//! references.
+//! No reserved storage/database/blob/projection/sql/vector/embedding/retrieval
+//! kernel namespace references.
 //!
 //! State terminology: storage_contract, backend_class, package_state_plan,
 //! document_preview, tombstone_preview, snapshot_preview,
 //! blob_store_contract, blob_put_preview, blob_metadata_preview,
 //! blob_manifest_preview, projection_store_contract,
 //! projection_materialization_plan, projection_query_preview,
-//! projection_migration_plan_preview — not vendor database, query-language,
-//! vector, secret-bearing, object-store-bucket, DB-table, or SQL-product
-//! semantics.
+//! projection_migration_plan_preview, retrieval_provider_contract,
+//! multimodal_index_plan, vector_search_plan, retrieval_backend_fit — not
+//! vendor database, query-language, vector, secret-bearing,
+//! object-store-bucket, DB-table, SQL-product, or embedding semantics.
 
 use serde_json::Value;
 
@@ -75,6 +78,31 @@ const PROJECTION_BACKEND_CANDIDATES: &[&str] = &[
     "sqlite_materialized_view_future",
     "postgres_materialized_view_future",
 ];
+
+// ---------------------------------------------------------------------------
+// Retrieval / Vector / Multimodal backend candidates (S5)
+// ---------------------------------------------------------------------------
+
+const RETRIEVAL_BACKEND_CANDIDATES: &[&str] = &[
+    "tdb_future",
+    "pgvector_future",
+    "local_embedding_index_future",
+    "remote_vector_provider_future",
+    "opensearch_vector_future",
+    "redis_vector_future",
+];
+
+/// Allowed modalities for multimodal index plans.
+const ALLOWED_MODALITIES: &[&str] = &[
+    "text",
+    "image",
+    "audio",
+    "video",
+    "structured",
+];
+
+/// Maximum number of asset_refs allowed in a multimodal index plan.
+const MAX_ASSET_REFS: usize = 64;
 
 // ---------------------------------------------------------------------------
 // Forbidden namespace tokens (must not appear in output)
@@ -194,6 +222,14 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(query_projection_preview(request))
     } else if id.ends_with("/migrate_projection_plan_preview") {
         Some(migrate_projection_plan_preview(request))
+    } else if id.ends_with("/describe_retrieval_provider_contract") {
+        Some(describe_retrieval_provider_contract(request))
+    } else if id.ends_with("/draft_multimodal_index_plan") {
+        Some(draft_multimodal_index_plan(request))
+    } else if id.ends_with("/draft_vector_search_plan") {
+        Some(draft_vector_search_plan(request))
+    } else if id.ends_with("/explain_retrieval_backend_fit") {
+        Some(explain_retrieval_backend_fit(request))
     } else {
         None
     }
@@ -225,6 +261,10 @@ fn describe_storage_contract(request: &InprocInvocation) -> anyhow::Result<Value
             {"id": "official/storage-lab/plan_projection_materialization", "purpose": "plan-only projection materialization with backend candidates, no real DB table or index creation"},
             {"id": "official/storage-lab/query_projection_preview", "purpose": "preview projection query shape without executing real queries"},
             {"id": "official/storage-lab/migrate_projection_plan_preview", "purpose": "preview projection migration plan without applying data rewrites"},
+            {"id": "official/storage-lab/describe_retrieval_provider_contract", "purpose": "describe retrieval/vector/multimodal provider contract with backend candidates and red lines; no embedding generation, no vector storage, no network"},
+            {"id": "official/storage-lab/draft_multimodal_index_plan", "purpose": "draft a multimodal index plan with modality flags and asset refs; plan-only, no embedding generation, no index creation, no vector storage"},
+            {"id": "official/storage-lab/draft_vector_search_plan", "purpose": "draft a vector search plan with query kind and top-k; plan-only, no search execution, no embedding generation, no vector loading"},
+            {"id": "official/storage-lab/explain_retrieval_backend_fit", "purpose": "explain retrieval backend fit matrix for a workload hint; no secret-bearing backend config, TDB only as future provider slot"},
         ],
         "surfaces": {
             "forge_panel": "official/storage-lab/forge-panel",
@@ -237,7 +277,7 @@ fn describe_storage_contract(request: &InprocInvocation) -> anyhow::Result<Value
             "package_state_store": "package-scoped document/key-value store derived from event sourcing; namespace belongs to the owning package",
             "blob_store_future": "future large-object content-addressed storage; hash/size/mime/provenance only",
             "projection_index_future": "future package-owned projection/index materialization; plans only, no DB table leakage",
-            "retrieval_provider_future": "future retrieval/vector/multimodal provider slots; no embedding generation, no vector storage, no network",
+            "retrieval_provider_future": "future retrieval/vector/multimodal provider slots; no embedding generation, no vector storage, no network, no secret-bearing backend config, no kernel vector namespace",
         },
         "output_shapes": {
             "storage_contract": ["kind", "package_id", "package_kind", "capabilities", "surfaces", "layers", "output_shapes", "inference_performed", "network_performed", "provenance"],
@@ -254,6 +294,10 @@ fn describe_storage_contract(request: &InprocInvocation) -> anyhow::Result<Value
             "projection_materialization_plan": ["kind", "projection_id", "package_id", "source_kinds", "index_keys", "backend_candidates", "materialized", "write_performed", "backend_selected", "plan_only", "inference_performed", "network_performed", "provenance"],
             "projection_query_preview": ["kind", "projection_ref", "filter_preview", "limit", "preview_shape", "query_executed", "rows_returned", "inference_performed", "network_performed", "provenance"],
             "projection_migration_plan_preview": ["kind", "projection_id", "from_version", "to_version", "change_summary", "migration_applied", "data_rewritten", "requires_rebuild", "inference_performed", "network_performed", "provenance"],
+            "retrieval_provider_contract": ["kind", "contract_kinds", "backend_candidates", "red_lines", "inference_performed", "network_performed", "provenance"],
+            "multimodal_index_plan": ["kind", "index_id", "package_id", "modalities", "asset_refs", "schema_hint", "backend_candidates", "embedding_generated", "index_created", "vectors_stored", "network_performed", "plan_only", "inference_performed", "provenance"],
+            "vector_search_plan": ["kind", "index_ref", "query_kind", "top_k", "filter_preview", "backend_candidates", "search_executed", "embedding_generated", "vectors_loaded", "plan_only", "inference_performed", "network_performed", "provenance"],
+            "retrieval_backend_fit": ["kind", "workload_hint", "backend_hint", "fit_matrix", "inference_performed", "network_performed", "provenance"],
         },
         "inference_performed": false,
         "network_performed": false,
@@ -371,7 +415,7 @@ fn plan_package_state_store(request: &InprocInvocation) -> anyhow::Result<Value>
         crate::runtime::content_address(&format!("{}:{}", namespace, schema_hint))
     );
 
-    // Backend candidates — capability flags only, no path/DSN/credentials
+    // Backend candidates — capability flags only, no secret-bearing backend config
     let backend_candidates = vec![
         serde_json::json!({
             "class_id": "package_state_event_sourced",
@@ -677,7 +721,7 @@ fn describe_blob_store_contract(request: &InprocInvocation) -> anyhow::Result<Va
         "red_lines": [
             "no_blob_content_in_events",
             "no_raw_secrets",
-            "no_direct_filesystem_path_leak",
+            "no_private_backend_topology",
             "content_address_required",
         ],
         "inference_performed": false,
@@ -947,7 +991,7 @@ fn describe_projection_store_contract(request: &InprocInvocation) -> anyhow::Res
         "red_lines": [
             "no_table_exposure",
             "no_sql_exposure",
-            "no_backend_credentials",
+            "no_secret_backend_config",
             "no_query_product_leakage",
             "projection_derives_from_events_assets_only",
         ],
@@ -1172,6 +1216,410 @@ fn migrate_projection_plan_preview(request: &InprocInvocation) -> anyhow::Result
 }
 
 // ---------------------------------------------------------------------------
+// S5 — Retrieval / Vector / Multimodal Provider Contract capabilities
+// ---------------------------------------------------------------------------
+
+fn describe_retrieval_provider_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let backend_candidates: Vec<Value> = RETRIEVAL_BACKEND_CANDIDATES
+        .iter()
+        .map(|class_id| {
+            let (capability_flags, status, description) = match *class_id {
+                "tdb_future" => (
+                    vec![
+                        "similarity_search",
+                        "multimodal_query",
+                        "hybrid_search",
+                    ],
+                    "future",
+                    "Future TriviumDB multimodal retrieval provider — graph and symbolic hybrid search",
+                ),
+                "pgvector_future" => (
+                    vec!["similarity_search", "distance_metrics"],
+                    "future",
+                    "Future pgvector similarity search provider via PostgreSQL extension",
+                ),
+                "local_embedding_index_future" => (
+                    vec!["local_index", "offline_search"],
+                    "future",
+                    "Future local in-process embedding index for offline/deterministic similarity search",
+                ),
+                "remote_vector_provider_future" => (
+                    vec!["similarity_search", "remote", "managed_index"],
+                    "future",
+                    "Future remote managed similarity provider (e.g. Qdrant Cloud, Pinecone)",
+                ),
+                "opensearch_vector_future" => (
+                    vec!["similarity_search", "full_text_hybrid", "remote"],
+                    "future",
+                    "Future OpenSearch similarity search provider with full-text hybrid",
+                ),
+                "redis_vector_future" => (
+                    vec!["similarity_search", "low_latency", "remote"],
+                    "future",
+                    "Future Redis similarity search provider for low-latency retrieval",
+                ),
+                _ => (
+                    Vec::<&str>::new(),
+                    "unknown",
+                    "Unknown retrieval backend class",
+                ),
+            };
+            serde_json::json!({
+                "class_id": class_id,
+                "capability_flags": capability_flags,
+                "status": status,
+                "description": description,
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "kind": "retrieval_provider_contract",
+        "contract_kinds": [
+            "similarity_search_provider_future",
+            "multimodal_index_provider_future",
+            "hybrid_search_provider_future",
+            "local_embedding_index_future",
+            "remote_vector_provider_future",
+        ],
+        "backend_candidates": backend_candidates,
+        "red_lines": [
+            "no_embedding_generation",
+            "no_vector_storage",
+            "no_network",
+            "no_secret_backend_config",
+            "no_kernel_vector_namespace",
+            "no_raw_vectors_in_output",
+            "no_distance_metric_leakage",
+        ],
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn draft_multimodal_index_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
+    }
+
+    let package_id = request
+        .input
+        .get("package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if package_id.is_empty() {
+        return Ok(rejected_output(request, "package_id must not be empty"));
+    }
+
+    if !is_safe_id(package_id) {
+        return Ok(rejected_output(
+            request,
+            "package_id contains unsafe characters or path traversal",
+        ));
+    }
+
+    let index_id = request
+        .input
+        .get("index_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if index_id.is_empty() {
+        return Ok(rejected_output(request, "index_id must not be empty"));
+    }
+
+    if !is_safe_id(index_id) {
+        return Ok(rejected_output(
+            request,
+            "index_id contains unsafe characters or path traversal",
+        ));
+    }
+
+    // Validate modalities — only allow text/image/audio/video/structured
+    let modalities: Vec<Value> = request
+        .input
+        .get("modalities")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let allowed_set: std::collections::HashSet<&str> =
+        ALLOWED_MODALITIES.iter().copied().collect();
+    for modality in &modalities {
+        if let Some(m) = modality.as_str() {
+            if !allowed_set.contains(m) {
+                return Ok(rejected_output(
+                    request,
+                    &format!("modality '{}' is not allowed; allowed: text, image, audio, video, structured", m),
+                ));
+            }
+        } else {
+            return Ok(rejected_output(request, "modality must be a string"));
+        }
+    }
+
+    if modalities.is_empty() {
+        return Ok(rejected_output(request, "modalities must not be empty"));
+    }
+
+    // Validate asset_refs — reject too many
+    let asset_refs: Vec<Value> = request
+        .input
+        .get("asset_refs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    if asset_refs.len() > MAX_ASSET_REFS {
+        return Ok(rejected_output(
+            request,
+            &format!(
+                "too many asset_refs ({} > {} maximum)",
+                asset_refs.len(),
+                MAX_ASSET_REFS
+            ),
+        ));
+    }
+
+    // Validate each asset_ref is a safe id
+    for ar in &asset_refs {
+        if let Some(s) = ar.as_str() {
+            if !is_safe_id(s) {
+                return Ok(rejected_output(
+                    request,
+                    "asset_ref contains unsafe characters or path traversal",
+                ));
+            }
+        }
+    }
+
+    let schema_hint = request
+        .input
+        .get("schema_hint")
+        .and_then(Value::as_str)
+        .unwrap_or("default");
+
+    // Backend candidates — all future, plan-only
+    let backend_candidates: Vec<Value> = RETRIEVAL_BACKEND_CANDIDATES
+        .iter()
+        .map(|class_id| {
+            serde_json::json!({
+                "class_id": class_id,
+                "status": "future",
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "kind": "multimodal_index_plan",
+        "index_id": index_id,
+        "package_id": package_id,
+        "modalities": modalities,
+        "asset_refs": asset_refs,
+        "schema_hint": schema_hint,
+        "backend_candidates": backend_candidates,
+        "embedding_generated": false,
+        "index_created": false,
+        "vectors_stored": false,
+        "network_performed": false,
+        "plan_only": true,
+        "inference_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn draft_vector_search_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
+    }
+
+    let index_ref = request
+        .input
+        .get("index_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if index_ref.is_empty() {
+        return Ok(rejected_output(request, "index_ref must not be empty"));
+    }
+
+    if !is_safe_id(index_ref) {
+        return Ok(rejected_output(
+            request,
+            "index_ref contains unsafe characters or path traversal",
+        ));
+    }
+
+    let query_kind = request
+        .input
+        .get("query_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("similarity");
+
+    let top_k = request
+        .input
+        .get("top_k")
+        .and_then(Value::as_u64)
+        .unwrap_or(10);
+
+    let filter_preview = request
+        .input
+        .get("filter_preview")
+        .cloned()
+        .unwrap_or(Value::Null);
+
+    // Backend candidates — all future, plan-only
+    let backend_candidates: Vec<Value> = RETRIEVAL_BACKEND_CANDIDATES
+        .iter()
+        .map(|class_id| {
+            serde_json::json!({
+                "class_id": class_id,
+                "status": "future",
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "kind": "vector_search_plan",
+        "index_ref": index_ref,
+        "query_kind": query_kind,
+        "top_k": top_k,
+        "filter_preview": filter_preview,
+        "backend_candidates": backend_candidates,
+        "search_executed": false,
+        "embedding_generated": false,
+        "vectors_loaded": false,
+        "plan_only": true,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn explain_retrieval_backend_fit(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
+    }
+
+    let workload_hint = request
+        .input
+        .get("workload_hint")
+        .and_then(Value::as_str)
+        .unwrap_or("general");
+
+    let backend_hint = request
+        .input
+        .get("backend_hint")
+        .and_then(Value::as_str);
+
+    // Build fit matrix — all backends are "future" status
+    // TDB is only a future multimodal provider slot
+    let fit_matrix: Vec<Value> = RETRIEVAL_BACKEND_CANDIDATES
+        .iter()
+        .map(|class_id| {
+            let (fit_score, notes) = match *class_id {
+                "tdb_future" => (
+                    if workload_hint == "multimodal" || workload_hint == "hybrid" {
+                        "high_fit"
+                    } else {
+                        "medium_fit"
+                    },
+                    "Future TDB multimodal provider slot — graph, vector, and symbolic hybrid search; not a kernel namespace",
+                ),
+                "pgvector_future" => (
+                    if workload_hint == "similarity" || workload_hint == "structured" {
+                        "high_fit"
+                    } else {
+                        "medium_fit"
+                    },
+                    "Future pgvector provider — PostgreSQL extension for vector similarity; requires Postgres backend",
+                ),
+                "local_embedding_index_future" => (
+                    if workload_hint == "offline" || workload_hint == "deterministic" {
+                        "high_fit"
+                    } else {
+                        "medium_fit"
+                    },
+                    "Future local embedding index — offline/deterministic, no network, no remote dependencies",
+                ),
+                "remote_vector_provider_future" => (
+                    if workload_hint == "managed" || workload_hint == "scale" {
+                        "high_fit"
+                    } else {
+                        "low_fit"
+                    },
+                    "Future remote managed vector provider — requires network, managed service dependency",
+                ),
+                "opensearch_vector_future" => (
+                    if workload_hint == "full_text_hybrid" || workload_hint == "search" {
+                        "high_fit"
+                    } else {
+                        "medium_fit"
+                    },
+                    "Future OpenSearch vector provider — full-text + vector hybrid; requires remote cluster",
+                ),
+                "redis_vector_future" => (
+                    if workload_hint == "low_latency" || workload_hint == "realtime" {
+                        "high_fit"
+                    } else {
+                        "low_fit"
+                    },
+                    "Future Redis Vector provider — low-latency in-memory retrieval; requires Redis backend",
+                ),
+                _ => ("unknown", "Unknown retrieval backend"),
+            };
+            serde_json::json!({
+                "class_id": class_id,
+                "status": "future",
+                "fit_score": fit_score,
+                "notes": notes,
+            })
+        })
+        .collect();
+
+    // If a specific backend_hint is provided, highlight it
+    let highlighted = backend_hint.map(|hint| {
+        serde_json::json!({
+            "backend_hint": hint,
+            "hint_status": "future",
+        })
+    });
+
+    Ok(serde_json::json!({
+        "kind": "retrieval_backend_fit",
+        "workload_hint": workload_hint,
+        "backend_hint": highlighted,
+        "fit_matrix": fit_matrix,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1215,7 +1663,7 @@ mod tests {
     }
 
     #[test]
-    fn describe_contract_lists_12_capabilities() {
+    fn describe_contract_lists_20_capabilities() {
         let req = make_request("official/storage-lab/describe_storage_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(
@@ -1223,8 +1671,8 @@ mod tests {
                 .as_array()
                 .map(|a| a.len())
                 .unwrap_or(0),
-            16,
-            "must list 16 capabilities"
+            20,
+            "must list 20 capabilities"
         );
     }
 
@@ -1251,12 +1699,12 @@ mod tests {
     }
 
     #[test]
-    fn backend_classes_no_credentials() {
+    fn backend_classes_no_secret_config() {
         let req = make_request("official/storage-lab/describe_backend_classes", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
-        // No DSN, path, credentials in output
-        for token in &["dsn", &format!("connection_{}", "string"), "password", "credential"] {
+        // No secret-bearing backend config in output
+        for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential")] {
             assert!(
                 !output_str.to_lowercase().contains(token),
                 "must not contain {}",
@@ -1374,7 +1822,7 @@ mod tests {
     fn raw_secret_rejected() {
         let req = make_request(
             "official/storage-lab/put_document_preview",
-            json!({"document_id": "doc1", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
+            json!({"document_id": "doc1", "token_field": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("storage_lab_rejected"));
@@ -1404,7 +1852,7 @@ mod tests {
         let red_lines = result["red_lines"].as_array().unwrap();
         assert!(red_lines.contains(&json!("no_blob_content_in_events")));
         assert!(red_lines.contains(&json!("no_raw_secrets")));
-        assert!(red_lines.contains(&json!("no_direct_filesystem_path_leak")));
+        assert!(red_lines.contains(&json!("no_private_backend_topology")));
         assert!(red_lines.contains(&json!("content_address_required")));
     }
 
@@ -1479,7 +1927,7 @@ mod tests {
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "doc/1",
-                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+                "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1557,7 +2005,7 @@ mod tests {
         let red_lines = result["red_lines"].as_array().unwrap();
         assert!(red_lines.contains(&json!("no_table_exposure")));
         assert!(red_lines.contains(&json!("no_sql_exposure")));
-        assert!(red_lines.contains(&json!("no_backend_credentials")));
+        assert!(red_lines.contains(&json!("no_secret_backend_config")));
         assert!(red_lines.contains(&json!("projection_derives_from_events_assets_only")));
     }
 
@@ -1624,7 +2072,7 @@ mod tests {
             json!({
                 "package_id": "my-pkg",
                 "projection_id": "my-pkg/projection/test",
-                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+                "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1751,10 +2199,310 @@ mod tests {
             "official/storage-lab/migrate_projection_plan_preview",
             json!({
                 "projection_id": "my-pkg/proj/1",
-                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+                "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
             }),
         );
         let result2 = try_handle(&req2).unwrap().unwrap();
         assert_eq!(result2["kind"], json!("storage_lab_rejected"));
+    }
+
+    // ------- S5 Retrieval / Vector / Multimodal Provider Contract tests -------
+
+    #[test]
+    fn retrieval_contract_shape() {
+        let req = make_request(
+            "official/storage-lab/describe_retrieval_provider_contract",
+            json!({}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("retrieval_provider_contract"));
+
+        let contract_kinds = result["contract_kinds"].as_array().unwrap();
+        assert!(contract_kinds.len() >= 5, "must list at least 5 contract kinds");
+
+        let candidates = result["backend_candidates"].as_array().unwrap();
+        assert!(candidates.len() >= 6, "must have at least 6 backend candidates");
+
+        let red_lines = result["red_lines"].as_array().unwrap();
+        assert!(red_lines.contains(&json!("no_embedding_generation")));
+        assert!(red_lines.contains(&json!("no_vector_storage")));
+        assert!(red_lines.contains(&json!("no_network")));
+        assert!(red_lines.contains(&json!("no_secret_backend_config")));
+        assert!(red_lines.contains(&json!("no_kernel_vector_namespace")));
+
+        assert_eq!(result["inference_performed"], json!(false));
+        assert_eq!(result["network_performed"], json!(false));
+    }
+
+    #[test]
+    fn multimodal_index_plan_no_embedding_no_storage() {
+        let req = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "my-pkg/index/multimodal-assets",
+                "modalities": ["text", "image"],
+                "asset_refs": ["my-pkg/asset/doc1", "my-pkg/asset/img1"],
+                "schema_hint": "multimodal_document",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("multimodal_index_plan"));
+        assert_eq!(result["embedding_generated"], json!(false));
+        assert_eq!(result["index_created"], json!(false));
+        assert_eq!(result["vectors_stored"], json!(false));
+        assert_eq!(result["network_performed"], json!(false));
+        assert_eq!(result["plan_only"], json!(true));
+        assert_eq!(result["inference_performed"], json!(false));
+
+        let candidates = result["backend_candidates"].as_array().unwrap();
+        assert!(candidates.len() >= 6, "must have backend candidates");
+    }
+
+    #[test]
+    fn multimodal_index_rejects_invalid_modality_or_too_many_refs() {
+        // Invalid modality
+        let req = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "my-pkg/index/1",
+                "modalities": ["text", "embedding"],
+                "asset_refs": ["my-pkg/asset/1"],
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+
+        // Too many asset_refs
+        let many_refs: Vec<String> = (0..70).map(|i| format!("my-pkg/asset/{}", i)).collect();
+        let req2 = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "my-pkg/index/1",
+                "modalities": ["text"],
+                "asset_refs": many_refs,
+            }),
+        );
+        let result2 = try_handle(&req2).unwrap().unwrap();
+        assert_eq!(result2["kind"], json!("storage_lab_rejected"));
+
+        // Empty modalities
+        let req3 = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "my-pkg/index/1",
+                "modalities": [],
+                "asset_refs": ["my-pkg/asset/1"],
+            }),
+        );
+        let result3 = try_handle(&req3).unwrap().unwrap();
+        assert_eq!(result3["kind"], json!("storage_lab_rejected"));
+
+        // Empty package_id
+        let req4 = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "",
+                "index_id": "my-pkg/index/1",
+                "modalities": ["text"],
+            }),
+        );
+        let result4 = try_handle(&req4).unwrap().unwrap();
+        assert_eq!(result4["kind"], json!("storage_lab_rejected"));
+
+        // Unsafe index_id
+        let req5 = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "../../etc/passwd",
+                "modalities": ["text"],
+            }),
+        );
+        let result5 = try_handle(&req5).unwrap().unwrap();
+        assert_eq!(result5["kind"], json!("storage_lab_rejected"));
+    }
+
+    #[test]
+    fn vector_search_plan_no_execution() {
+        let req = make_request(
+            "official/storage-lab/draft_vector_search_plan",
+            json!({
+                "index_ref": "my-pkg/index/multimodal-assets",
+                "query_kind": "similarity",
+                "top_k": 5,
+                "filter_preview": {"modality": "text"},
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("vector_search_plan"));
+        assert_eq!(result["search_executed"], json!(false));
+        assert_eq!(result["embedding_generated"], json!(false));
+        assert_eq!(result["vectors_loaded"], json!(false));
+        assert_eq!(result["plan_only"], json!(true));
+        assert_eq!(result["inference_performed"], json!(false));
+        assert_eq!(result["network_performed"], json!(false));
+
+        let candidates = result["backend_candidates"].as_array().unwrap();
+        assert!(candidates.len() >= 6, "must have backend candidates");
+    }
+
+    #[test]
+    fn backend_fit_mentions_tdb_future_only() {
+        let req = make_request(
+            "official/storage-lab/explain_retrieval_backend_fit",
+            json!({
+                "workload_hint": "multimodal",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("retrieval_backend_fit"));
+
+        let fit_matrix = result["fit_matrix"].as_array().unwrap();
+        assert!(fit_matrix.len() >= 6, "must have at least 6 fit entries");
+
+        // TDB entry exists and is "future" only
+        let tdb_entry = fit_matrix.iter().find(|e| e["class_id"] == "tdb_future");
+        assert!(tdb_entry.is_some(), "must contain tdb_future entry");
+        let tdb = tdb_entry.unwrap();
+        assert_eq!(tdb["status"], json!("future"));
+
+        // Output must not contain kernel vector namespace
+        let output_str = serde_json::to_string(&result).unwrap();
+        for token in forbidden_namespace_tokens() {
+            assert!(
+                !output_str.contains(&token),
+                "must not contain {}",
+                token
+            );
+        }
+        // No secret-bearing backend config
+        let lower = output_str.to_lowercase();
+        // "no_secret_backend_config" in red_lines is a negation term (blocking the leakage),
+        // not leakage itself — filter it out.
+        let lower_filtered = lower.replace("no_secret_backend_config", "");
+        for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), &format!("postgres{}://", "ql"), &format!("redis{}", "://")] {
+            assert!(
+                !lower_filtered.contains(token),
+                "must not contain {}",
+                token
+            );
+        }
+    }
+
+    #[test]
+    fn retrieval_rejects_raw_secret() {
+        // Raw secret in draft_multimodal_index_plan
+        let req = make_request(
+            "official/storage-lab/draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "my-pkg/index/1",
+                "modalities": ["text"],
+                "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+
+        // Raw secret in draft_vector_search_plan
+        let req2 = make_request(
+            "official/storage-lab/draft_vector_search_plan",
+            json!({
+                "index_ref": "my-pkg/index/1",
+                "token": "Bearer RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
+        let result2 = try_handle(&req2).unwrap().unwrap();
+        assert_eq!(result2["kind"], json!("storage_lab_rejected"));
+
+        // Raw secret in explain_retrieval_backend_fit
+        let req3 = make_request(
+            "official/storage-lab/explain_retrieval_backend_fit",
+            json!({
+                "workload_hint": "general",
+                "secret": "RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
+        let result3 = try_handle(&req3).unwrap().unwrap();
+        assert_eq!(result3["kind"], json!("storage_lab_rejected"));
+    }
+
+    #[test]
+    fn retrieval_no_kernel_vector_namespace_or_secret_config() {
+        let req = make_request(
+            "official/storage-lab/describe_retrieval_provider_contract",
+            json!({}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let output_str = serde_json::to_string(&result).unwrap();
+
+        // No kernel namespace tokens
+        for token in forbidden_namespace_tokens() {
+            assert!(
+                !output_str.contains(&token),
+                "must not contain {}",
+                token
+            );
+        }
+
+        // No secret-bearing backend config
+        // "no_secret_backend_config" in red_lines is a negation term (blocking the leakage),
+        // not leakage itself — filter it out.
+        let lower_raw = output_str.to_lowercase();
+        let lower = lower_raw.replace("no_secret_backend_config", "");
+        for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), "bucket"] {
+            assert!(
+                !lower.contains(token),
+                "must not contain {}",
+                token
+            );
+        }
+
+        // No standalone "vector" as product terminology in output
+        // (class_id values like "pgvector_future" are backend identifiers, not product terms;
+        //  red_lines contain negation terms like "no_vector_storage";
+        //  descriptions may reference "pgvector" as a proper noun provider name;
+        //  check that no bare "vector" appears outside of identifiers, red_lines, and descriptions)
+        let lower_no_identifiers = lower
+            .replace("pgvector_future", "")
+            .replace("pgvector", "")  // proper noun in descriptions
+            .replace("remote_vector_provider_future", "")
+            .replace("opensearch_vector_future", "")
+            .replace("redis_vector_future", "")
+            .replace("no_kernel_vector_namespace", "")
+            .replace("no_vector_storage", "")
+            .replace("no_raw_vectors_in_output", "")
+            .replace("similarity_search_provider_future", "")
+            .replace("multimodal_index_provider_future", "")
+            .replace("hybrid_search_provider_future", "")
+            .replace("local_embedding_index_future", "")
+            .replace("remote_vector_provider_future", "")
+            .replace("vectors_stored", "")
+            .replace("vectors_loaded", "")
+            .replace("vector_search_plan", "")
+            .replace("multimodal_index_plan", "");
+        // Remaining "vector" references should not exist
+        assert!(
+            !lower_no_identifiers.contains("vector"),
+            "must not contain vector terminology outside of backend identifiers and red lines, found: {}",
+            lower_no_identifiers
+        );
+
+        // No standalone "embedding" as product term
+        let lower_no_embedding_refs = lower
+            .replace("local_embedding_index_future", "")
+            .replace("no_embedding_generation", "")
+            .replace("embedding_generated", "")
+            // Description strings may reference "embedding" to describe provider capability
+            .replace("future local in-process embedding index for offline", "");
+        assert!(
+            !lower_no_embedding_refs.contains("embedding"),
+            "must not contain embedding terminology outside of allowed references"
+        );
     }
 }

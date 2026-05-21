@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 258 implemented rows, backed by 303 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 264 implemented rows, backed by 310 named CLI conformance cases plus crate/service unit tests.
 
 ## Conformance Feedback Loop
 
@@ -256,6 +256,13 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | projection migration plan no rewrite (migration_applied=false, data_rewritten=false, requires_rebuild=true) | implemented |
 | storage lab | projection rejects raw secret in all projection capability inputs | implemented |
 | storage lab | projection no DB table leakage — no SQL/table/collection/vector/database terms across all projection capabilities | implemented |
+| storage lab | retrieval provider contract shape — backend candidates, red lines, no kernel vector/embedding namespace | implemented |
+| storage lab | multimodal index plan — no embedding generation, no index creation, no vector storage | implemented |
+| storage lab | multimodal index rejects invalid modality or too many asset_refs | implemented |
+| storage lab | vector search plan — no search execution, no embedding, no vector loading | implemented |
+| storage lab | backend fit TDB is future provider slot only — no kernel vector namespace, no credentials | implemented |
+| storage lab | retrieval rejects raw secret in all retrieval capability inputs | implemented |
+| storage lab | retrieval no kernel vector/embedding namespace or credentials across all retrieval capabilities | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
 | creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
 | creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
@@ -558,6 +565,13 @@ storage_lab.projection_query_preview_no_execution PASS
 storage_lab.projection_migration_plan_no_rewrite PASS
 storage_lab.projection_rejects_raw_secret PASS
 storage_lab.projection_no_db_table_leakage PASS
+storage_lab.retrieval_contract_shape PASS
+storage_lab.multimodal_index_plan_no_embedding_no_storage PASS
+storage_lab.multimodal_index_rejects_invalid_modality_or_too_many_refs PASS
+storage_lab.vector_search_plan_no_execution PASS
+storage_lab.backend_fit_mentions_tdb_future_only PASS
+storage_lab.retrieval_rejects_raw_secret PASS
+storage_lab.retrieval_no_kernel_vector_namespace_or_credentials PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

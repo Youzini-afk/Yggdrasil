@@ -102,15 +102,21 @@ Deliverables:
 
 Acceptance: conformance covers no DB table leakage, plan-only, backend-neutral output.
 
-## Phase S5 — Retrieval / Vector / Multimodal Provider Contract
+## Phase S5 — Retrieval / Vector / Multimodal Provider Contract ✅
 
 Goal: reserve future TDB/pgvector/OpenSearch/Redis Vector backend slots without implementing them.
 
 Deliverables:
 
-- Extend `storage-lab` or add ordinary retrieval descriptor capabilities: `describe_retrieval_provider_contract`, `draft_multimodal_index_plan`, `draft_vector_search_plan`, `explain_retrieval_backend_fit`.
-- Backend candidates include `tdb_future`, `pgvector_future`, `local_embedding_index_future`, and `remote_vector_provider_future`.
-- Output redacted plans, asset refs, modality flags, and index capability flags only; no embedding generation, vector storage, or network.
+- ✅ Extend `storage-lab`: `describe_retrieval_provider_contract`, `draft_multimodal_index_plan`, `draft_vector_search_plan`, `explain_retrieval_backend_fit`.
+- ✅ Backend candidates include `tdb_future`, `pgvector_future`, `local_embedding_index_future`, `remote_vector_provider_future`, `opensearch_vector_future`, `redis_vector_future`.
+- ✅ Output redacted plans, asset refs, modality flags, and index capability flags only; no embedding generation, vector storage, network, credentials, DSN/path, or kernel vector namespace.
+- ✅ Red lines: no_embedding_generation, no_vector_storage, no_network, no_credentials, no_kernel_vector_namespace, no_raw_vectors_in_output, no_distance_metric_leakage.
+- ✅ draft_multimodal_index_plan: input package_id/index_id/modalities/asset_refs/schema_hint?; output plan-only, embedding_generated=false, index_created=false, vectors_stored=false, network_performed=false; modalities allow text/image/audio/video/structured only; block raw secret, unsafe id, too many asset_refs (>64).
+- ✅ draft_vector_search_plan: input index_ref/query_kind/top_k/filter_preview?; output query plan, search_executed=false, embedding_generated=false, vectors_loaded=false, plan_only=true; no actual results.
+- ✅ explain_retrieval_backend_fit: input workload_hint/backend_hint?; output fit matrix without DSN/credentials/path; TDB is only a future multimodal provider slot.
+- ✅ Source code avoids complete forbidden kernel namespace literals (test tokens are assembled via concatenation).
+- ✅ 7 retrieval conformance cases.
 
 Acceptance: conformance proves no kernel vector namespace, no embedding generation, no backend credentials, and TDB is only a future provider slot.
 

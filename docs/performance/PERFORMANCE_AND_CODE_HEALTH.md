@@ -117,6 +117,15 @@ Storage Backend Neutrality Alpha S4 新增：
 - migrate_projection_plan_preview 输出 migration_applied=false、data_rewritten=false、requires_rebuild=true。
 - 不实现真实 projection storage，不建 DB table/index，不执行 SQL/query，不重写数据。
 
+Storage Backend Neutrality Alpha S5 新增：
+
+- `official/storage-lab` 新增 4 项 retrieval/vector/multimodal provider 契约证明能力：describe_retrieval_provider_contract、draft_multimodal_index_plan、draft_vector_search_plan、explain_retrieval_backend_fit。20 项能力、29 个 `storage_lab` tag conformance 用例。
+- Retrieval 契约输出 backend candidates（tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future），red lines（no_embedding_generation / no_vector_storage / no_network / no_credentials / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）。
+- draft_multimodal_index_plan 输出 embedding_generated=false、index_created=false、vectors_stored=false、network_performed=false、plan_only=true。阻断 raw secret，校验 package_id/index_id safe-id，modalities 只允许 text/image/audio/video/structured，asset_refs 上限 64。
+- draft_vector_search_plan 输出 search_executed=false、embedding_generated=false、vectors_loaded=false、plan_only=true。无实际搜索结果。
+- explain_retrieval_backend_fit 输出 fit matrix，不含 DSN/credentials/path。TDB 只作为 future multimodal provider slot。
+- 不实现真实 vector DB/TDB/embedding，不输出 raw vector/embedding/credentials/DSN，不新增 kernel vector/database/sql namespace。
+
 后续 event store 优化优先级：
 
 1. 用 baseline 证明具体规模下的瓶颈。

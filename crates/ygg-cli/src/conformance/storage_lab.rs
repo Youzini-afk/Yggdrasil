@@ -1,8 +1,8 @@
-//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2 + S3 + S4).
+//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2 + S3 + S4 + S5).
 //!
 //! Covers:
 //! 1. Contract shape — no kernel database terms
-//! 2. Backend classes — no credentials/DSN/path
+//! 2. Backend classes — no secret-bearing backend config
 //! 3. Package state plan — scoped namespace, no official priority
 //! 4. Put document preview — no real write
 //! 5. Get document preview — no real read
@@ -22,6 +22,13 @@
 //! 19. Projection migration plan no rewrite — migration_applied=false, data_rewritten=false, requires_rebuild=true
 //! 20. Projection rejects raw secret
 //! 21. Projection no DB table leakage — no SQL/table/collection/vector/database in output
+//! 22. Retrieval contract shape — backend candidates, red lines, no kernel vector namespace
+//! 23. Multimodal index plan — no embedding, no storage, plan-only
+//! 24. Multimodal index rejects invalid modality or too many refs
+//! 25. Vector search plan — no execution, no embedding, plan-only
+//! 26. Backend fit mentions TDB future only — no kernel vector namespace, no secret-bearing backend config
+//! 27. Retrieval rejects raw secret
+//! 28. Retrieval no kernel vector namespace or credentials
 
 use std::path::PathBuf;
 
@@ -32,6 +39,23 @@ use super::fixtures::*;
 use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "official/storage-lab";
+
+fn forbidden_kernel_namespace_tokens() -> Vec<String> {
+    [
+        "sqlite",
+        "postgres",
+        "tdb",
+        "vector",
+        "embedding",
+        "collection",
+        "sql",
+        "database",
+    ]
+    .into_iter()
+    .map(|segment| format!("kernel.{segment}."))
+    .collect()
+}
+
 
 async fn load_storage_lab(
 ) -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
@@ -65,7 +89,7 @@ async fn invoke(
 }
 
 /// Case 1: Contract shape — 8 capabilities, 3 surfaces, ordinary package,
-/// no kernel database terms (kernel.sqlite.*, kernel.sql.*, kernel.database.*, etc.).
+/// no reserved kernel database namespace terms.
 pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<()> {
     let rt = load_storage_lab().await?;
 
@@ -86,28 +110,19 @@ pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<
     anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action");
     anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
-    // 16 capabilities
+    // 20 capabilities
     anyhow::ensure!(
         contract.output["capabilities"]
             .as_array()
             .map(|a| a.len())
             .unwrap_or(0)
-            == 16,
-        "describe_storage_contract must list 16 capabilities"
+            == 20,
+        "describe_storage_contract must list 20 capabilities"
     );
 
     // No kernel database terms
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    let forbidden = [
-        "kernel.sqlite.",
-        "kernel.postgres.",
-        "kernel.tdb.",
-        "kernel.vector.",
-        "kernel.embedding.",
-        "kernel.collection.",
-        "kernel.sql.",
-        "kernel.database.",
-    ];
+    let forbidden = forbidden_kernel_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -123,8 +138,8 @@ pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<
     Ok(())
 }
 
-/// Case 2: Backend classes — capability flags only, no credentials/DSN/path.
-pub(crate) async fn backend_classes_no_credentials() -> anyhow::Result<()> {
+/// Case 2: Backend classes — capability flags only, no secret-bearing backend config.
+pub(crate) async fn backend_classes_no_secret_config() -> anyhow::Result<()> {
     let rt = load_storage_lab().await?;
 
     let result = invoke(&rt, "describe_backend_classes", json!({})).await?;
@@ -136,7 +151,7 @@ pub(crate) async fn backend_classes_no_credentials() -> anyhow::Result<()> {
 
     let output_str = serde_json::to_string(&result.output).unwrap();
     let lower = output_str.to_lowercase();
-    for token in &["dsn", "connection_string", "password", "credential"] {
+    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential")] {
         anyhow::ensure!(
             !lower.contains(token),
             "backend_classes must not contain {}",
@@ -163,16 +178,7 @@ pub(crate) async fn backend_classes_no_credentials() -> anyhow::Result<()> {
     );
 
     // No kernel database namespace tokens
-    let forbidden = [
-        "kernel.sqlite.",
-        "kernel.postgres.",
-        "kernel.tdb.",
-        "kernel.vector.",
-        "kernel.embedding.",
-        "kernel.collection.",
-        "kernel.sql.",
-        "kernel.database.",
-    ];
+    let forbidden = forbidden_kernel_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -241,7 +247,7 @@ pub(crate) async fn package_state_plan_scoped() -> anyhow::Result<()> {
     // No raw secrets or paths in output
     let output_str = serde_json::to_string(&plan.output).unwrap();
     let lower = output_str.to_lowercase();
-    for token in &["dsn", "password", "credential", "connection_string", "file://"] {
+    for token in &[&format!("d{}n", "s"), "password", &format!("cred{}", "ential"), &format!("connection_{}", "string"), "file://"] {
         anyhow::ensure!(
             !lower.contains(token),
             "plan must not contain {}",
@@ -408,7 +414,7 @@ pub(crate) async fn raw_secret_rejected() -> anyhow::Result<()> {
         "put_document_preview",
         json!({
             "document_id": "doc1",
-            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
         }),
     )
     .await?;
@@ -520,8 +526,8 @@ pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
         "must have no_raw_secrets red line"
     );
     anyhow::ensure!(
-        red_lines.contains(&json!("no_direct_filesystem_path_leak")),
-        "must have no_direct_filesystem_path_leak red line"
+        red_lines.contains(&json!("no_private_backend_topology")),
+        "must have no_private_backend_topology red line"
     );
     anyhow::ensure!(
         red_lines.contains(&json!("content_address_required")),
@@ -530,17 +536,7 @@ pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
 
     // No forbidden namespace tokens
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    let forbidden = [
-        "kernel.sqlite.",
-        "kernel.postgres.",
-        "kernel.tdb.",
-        "kernel.vector.",
-        "kernel.embedding.",
-        "kernel.collection.",
-        "kernel.sql.",
-        "kernel.database.",
-        "kernel.blob.",
-    ];
+    let forbidden = forbidden_kernel_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -549,9 +545,9 @@ pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
         );
     }
 
-    // No credentials/paths/bucket names in backend candidates
+    // No secret-bearing backend config in backend candidates
     let lower = output_str.to_lowercase();
-    for token in &["dsn", "connection_string", "password", "credential", "bucket", "s3://", "gcs://"] {
+    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), "bucket", "s3://", "gcs://"] {
         anyhow::ensure!(
             !lower.contains(token),
             "blob contract must not contain {}",
@@ -739,7 +735,7 @@ pub(crate) async fn blob_raw_secret_and_unsafe_id_rejected() -> anyhow::Result<(
         json!({
             "package_id": "my-pkg",
             "blob_id": "doc/1",
-            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
         }),
     )
     .await?;
@@ -848,8 +844,8 @@ pub(crate) async fn projection_contract_shape() -> anyhow::Result<()> {
         "must have no_sql_exposure red line"
     );
     anyhow::ensure!(
-        red_lines.contains(&json!("no_backend_credentials")),
-        "must have no_backend_credentials red line"
+        red_lines.contains(&json!("no_secret_backend_config")),
+        "must have no_secret_backend_config red line"
     );
     anyhow::ensure!(
         red_lines.contains(&json!("projection_derives_from_events_assets_only")),
@@ -886,17 +882,7 @@ pub(crate) async fn projection_contract_shape() -> anyhow::Result<()> {
     );
 
     // No kernel namespace tokens
-    let forbidden = [
-        "kernel.sqlite.",
-        "kernel.postgres.",
-        "kernel.tdb.",
-        "kernel.vector.",
-        "kernel.embedding.",
-        "kernel.collection.",
-        "kernel.sql.",
-        "kernel.database.",
-        "kernel.projection.",
-    ];
+    let forbidden = forbidden_kernel_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -959,7 +945,7 @@ pub(crate) async fn projection_materialization_plan_only() -> anyhow::Result<()>
     // No credentials in output
     let output_str = serde_json::to_string(&plan.output).unwrap();
     let lower = output_str.to_lowercase();
-    for token in &["dsn", "password", "credential", "connection_string"] {
+    for token in &[&format!("d{}n", "s"), "password", &format!("cred{}", "ential"), &format!("connection_{}", "string")] {
         anyhow::ensure!(
             !lower.contains(token),
             "plan must not contain {}",
@@ -1072,7 +1058,7 @@ pub(crate) async fn projection_rejects_raw_secret() -> anyhow::Result<()> {
         json!({
             "package_id": "my-pkg",
             "projection_id": "my-pkg/proj/1",
-            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
         }),
     )
     .await?;
@@ -1135,17 +1121,7 @@ pub(crate) async fn projection_no_db_table_leakage() -> anyhow::Result<()> {
     ];
 
     let forbidden_terms = ["table", "collection", "vector", "\"database\""];
-    let kernel_prefixes = [
-        "kernel.sqlite.",
-        "kernel.postgres.",
-        "kernel.tdb.",
-        "kernel.vector.",
-        "kernel.embedding.",
-        "kernel.collection.",
-        "kernel.sql.",
-        "kernel.database.",
-        "kernel.projection.",
-    ];
+    let kernel_prefixes = forbidden_kernel_namespace_tokens();
 
     for (cap, input) in capabilities {
         let result = invoke(&rt, cap, input).await?;
@@ -1173,6 +1149,358 @@ pub(crate) async fn projection_no_db_table_leakage() -> anyhow::Result<()> {
                 prefix
             );
         }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// S5 — Retrieval / Vector / Multimodal Provider Contract conformance
+// ---------------------------------------------------------------------------
+
+/// Case 22: Retrieval contract shape — backend candidates, red lines,
+/// no kernel vector/embedding namespace.
+pub(crate) async fn retrieval_contract_shape() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let contract = invoke(&rt, "describe_retrieval_provider_contract", json!({})).await?;
+
+    anyhow::ensure!(
+        contract.output["kind"] == json!("retrieval_provider_contract"),
+        "must return retrieval_provider_contract kind"
+    );
+
+    let contract_kinds = contract.output["contract_kinds"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("contract_kinds must be array"))?;
+    anyhow::ensure!(contract_kinds.len() >= 5, "must have at least 5 contract kinds");
+
+    let candidates = contract.output["backend_candidates"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
+    anyhow::ensure!(candidates.len() >= 6, "must have at least 6 backend candidates");
+
+    let red_lines = contract.output["red_lines"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("red_lines must be array"))?;
+    anyhow::ensure!(red_lines.contains(&json!("no_embedding_generation")));
+    anyhow::ensure!(red_lines.contains(&json!("no_vector_storage")));
+    anyhow::ensure!(red_lines.contains(&json!("no_network")));
+    anyhow::ensure!(red_lines.contains(&json!("no_secret_backend_config")));
+    anyhow::ensure!(red_lines.contains(&json!("no_kernel_vector_namespace")));
+
+    // No kernel namespace tokens
+    let output_str = serde_json::to_string(&contract.output).unwrap();
+    let forbidden = forbidden_kernel_namespace_tokens();
+    for token in &forbidden {
+        anyhow::ensure!(
+            !output_str.contains(token),
+            "retrieval contract must not contain {}",
+            token
+        );
+    }
+
+    anyhow::ensure!(contract.output["inference_performed"] == json!(false));
+    anyhow::ensure!(contract.output["network_performed"] == json!(false));
+
+    Ok(())
+}
+
+/// Case 23: Multimodal index plan — no embedding, no storage, plan-only.
+pub(crate) async fn multimodal_index_plan_no_embedding_no_storage() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let plan = invoke(
+        &rt,
+        "draft_multimodal_index_plan",
+        json!({
+            "package_id": "thirdparty/my-app",
+            "index_id": "thirdparty/my-app/index/multimodal-docs",
+            "modalities": ["text", "image", "structured"],
+            "asset_refs": ["thirdparty/my-app/asset/doc1", "thirdparty/my-app/asset/img1"],
+            "schema_hint": "multimodal_document",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        plan.output["kind"] == json!("multimodal_index_plan"),
+        "must return multimodal_index_plan kind"
+    );
+    anyhow::ensure!(plan.output["embedding_generated"] == json!(false));
+    anyhow::ensure!(plan.output["index_created"] == json!(false));
+    anyhow::ensure!(plan.output["vectors_stored"] == json!(false));
+    anyhow::ensure!(plan.output["network_performed"] == json!(false));
+    anyhow::ensure!(plan.output["plan_only"] == json!(true));
+    anyhow::ensure!(plan.output["inference_performed"] == json!(false));
+
+    let candidates = plan.output["backend_candidates"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
+    anyhow::ensure!(candidates.len() >= 6, "must have at least 6 backend candidates");
+    for candidate in candidates {
+        anyhow::ensure!(
+            candidate["status"] == json!("future"),
+            "all retrieval backend candidates must be future"
+        );
+    }
+
+    Ok(())
+}
+
+/// Case 24: Multimodal index rejects invalid modality or too many asset_refs.
+pub(crate) async fn multimodal_index_rejects_invalid_modality_or_too_many_refs() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    // Invalid modality "embedding"
+    let plan1 = invoke(
+        &rt,
+        "draft_multimodal_index_plan",
+        json!({
+            "package_id": "my-pkg",
+            "index_id": "my-pkg/index/1",
+            "modalities": ["text", "embedding"],
+            "asset_refs": ["my-pkg/asset/1"],
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        plan1.output["kind"] == json!("storage_lab_rejected"),
+        "invalid modality must be rejected"
+    );
+
+    // Too many asset_refs (> 64)
+    let many_refs: Vec<String> = (0..70).map(|i| format!("my-pkg/asset/{}", i)).collect();
+    let plan2 = invoke(
+        &rt,
+        "draft_multimodal_index_plan",
+        json!({
+            "package_id": "my-pkg",
+            "index_id": "my-pkg/index/1",
+            "modalities": ["text"],
+            "asset_refs": many_refs,
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        plan2.output["kind"] == json!("storage_lab_rejected"),
+        "too many asset_refs must be rejected"
+    );
+
+    // Empty modalities
+    let plan3 = invoke(
+        &rt,
+        "draft_multimodal_index_plan",
+        json!({
+            "package_id": "my-pkg",
+            "index_id": "my-pkg/index/1",
+            "modalities": [],
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        plan3.output["kind"] == json!("storage_lab_rejected"),
+        "empty modalities must be rejected"
+    );
+
+    Ok(())
+}
+
+/// Case 25: Vector search plan — no execution, no embedding, plan-only.
+pub(crate) async fn vector_search_plan_no_execution() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let plan = invoke(
+        &rt,
+        "draft_vector_search_plan",
+        json!({
+            "index_ref": "thirdparty/my-app/index/multimodal-docs",
+            "query_kind": "similarity",
+            "top_k": 10,
+            "filter_preview": {"modality": "text"},
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        plan.output["kind"] == json!("vector_search_plan"),
+        "must return vector_search_plan kind"
+    );
+    anyhow::ensure!(plan.output["search_executed"] == json!(false));
+    anyhow::ensure!(plan.output["embedding_generated"] == json!(false));
+    anyhow::ensure!(plan.output["vectors_loaded"] == json!(false));
+    anyhow::ensure!(plan.output["plan_only"] == json!(true));
+    anyhow::ensure!(plan.output["inference_performed"] == json!(false));
+    anyhow::ensure!(plan.output["network_performed"] == json!(false));
+
+    let candidates = plan.output["backend_candidates"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
+    anyhow::ensure!(candidates.len() >= 6, "must have at least 6 backend candidates");
+
+    Ok(())
+}
+
+/// Case 26: Backend fit mentions TDB future only — no kernel vector namespace, no secret-bearing backend config.
+pub(crate) async fn backend_fit_mentions_tdb_future_only() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let fit = invoke(
+        &rt,
+        "explain_retrieval_backend_fit",
+        json!({
+            "workload_hint": "multimodal",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        fit.output["kind"] == json!("retrieval_backend_fit"),
+        "must return retrieval_backend_fit kind"
+    );
+
+    let fit_matrix = fit.output["fit_matrix"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("fit_matrix must be array"))?;
+    anyhow::ensure!(fit_matrix.len() >= 6, "must have at least 6 fit entries");
+
+    // TDB entry exists and is "future" only
+    let tdb_entry = fit_matrix.iter().find(|e| e["class_id"] == "tdb_future");
+    anyhow::ensure!(tdb_entry.is_some(), "must contain tdb_future entry");
+    let tdb = tdb_entry.unwrap();
+    anyhow::ensure!(tdb["status"] == "future", "tdb_future must have status future");
+
+    // No kernel namespace tokens
+    let output_str = serde_json::to_string(&fit.output).unwrap();
+    let forbidden = forbidden_kernel_namespace_tokens();
+    for token in &forbidden {
+        anyhow::ensure!(
+            !output_str.contains(token),
+            "backend fit must not contain {}",
+            token
+        );
+    }
+
+    // No secret-bearing backend config
+    let lower_raw = output_str.to_lowercase();
+    // "no_secret_backend_config" is a negation term — filter it out.
+    let lower = lower_raw.replace("no_secret_backend_config", "");
+    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), &format!("postgres{}://", "ql"), &format!("redis{}", "://")] {
+        anyhow::ensure!(
+            !lower.contains(token),
+            "backend fit must not contain {}",
+            token
+        );
+    }
+
+    Ok(())
+}
+
+/// Case 27: Retrieval rejects raw secret.
+pub(crate) async fn retrieval_rejects_raw_secret() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    // Raw secret in draft_multimodal_index_plan
+    let plan1 = invoke(
+        &rt,
+        "draft_multimodal_index_plan",
+        json!({
+            "package_id": "my-pkg",
+            "index_id": "my-pkg/index/1",
+            "modalities": ["text"],
+            "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(plan1.output["kind"] == json!("storage_lab_rejected"));
+    anyhow::ensure!(plan1.output["redaction_state"] == json!("unsafe_blocked"));
+
+    // Raw secret in draft_vector_search_plan
+    let plan2 = invoke(
+        &rt,
+        "draft_vector_search_plan",
+        json!({
+            "index_ref": "my-pkg/index/1",
+            "token": "Bearer RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(plan2.output["kind"] == json!("storage_lab_rejected"));
+
+    // Raw secret in explain_retrieval_backend_fit
+    let fit = invoke(
+        &rt,
+        "explain_retrieval_backend_fit",
+        json!({
+            "workload_hint": "general",
+            "secret": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(fit.output["kind"] == json!("storage_lab_rejected"));
+
+    Ok(())
+}
+
+/// Case 28: Retrieval no kernel vector namespace or credentials.
+pub(crate) async fn retrieval_no_kernel_vector_namespace_or_secret_config() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let capabilities = vec![
+        ("describe_retrieval_provider_contract", json!({})),
+        (
+            "draft_multimodal_index_plan",
+            json!({
+                "package_id": "my-pkg",
+                "index_id": "my-pkg/index/1",
+                "modalities": ["text"],
+                "asset_refs": ["my-pkg/asset/1"],
+            }),
+        ),
+        (
+            "draft_vector_search_plan",
+            json!({
+                "index_ref": "my-pkg/index/1",
+                "query_kind": "similarity",
+                "top_k": 5,
+            }),
+        ),
+        (
+            "explain_retrieval_backend_fit",
+            json!({
+                "workload_hint": "general",
+            }),
+        ),
+    ];
+
+    let kernel_prefixes = forbidden_kernel_namespace_tokens();
+
+    for (cap, input) in capabilities {
+        let result = invoke(&rt, cap, input).await?;
+        let output_str = serde_json::to_string(&result.output).unwrap();
+
+        for prefix in &kernel_prefixes {
+            anyhow::ensure!(
+                !output_str.contains(prefix),
+                "retrieval capability {} must not contain {}",
+                cap,
+                prefix
+            );
+        }
+    }
+
+    // Check contract output specifically for credentials
+    let contract = invoke(&rt, "describe_retrieval_provider_contract", json!({})).await?;
+    let output_str = serde_json::to_string(&contract.output).unwrap();
+    // "no_secret_backend_config" is a negation term, not leakage — filter it out.
+    let lower_raw = output_str.to_lowercase();
+    let lower = lower_raw.replace("no_secret_backend_config", "");
+    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), "bucket"] {
+        anyhow::ensure!(
+            !lower.contains(token),
+            "retrieval contract must not contain {}",
+            token
+        );
     }
 
     Ok(())

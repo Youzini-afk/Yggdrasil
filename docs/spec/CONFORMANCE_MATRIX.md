@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：258 个 implemented rows，由 303 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：264 个 implemented rows，由 310 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## Conformance Feedback Loop
 
@@ -256,6 +256,13 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | projection migration plan no rewrite（migration_applied=false、data_rewritten=false、requires_rebuild=true） | implemented |
 | storage lab | projection 所有能力输入阻断 raw secret | implemented |
 | storage lab | projection 所有能力输出无 DB table leakage — 无 SQL/table/collection/vector/database 术语 | implemented |
+| storage lab | retrieval provider contract shape — backend 候选、red lines、无 kernel vector/embedding namespace | implemented |
+| storage lab | multimodal index plan — 无 embedding 生成、无 index 创建、无 vector 存储 | implemented |
+| storage lab | multimodal index 拒绝无效 modality 或过多 asset_refs | implemented |
+| storage lab | vector search plan — 无搜索执行、无 embedding、无 vector 加载 | implemented |
+| storage lab | backend fit TDB 只是 future provider slot — 无 kernel vector namespace、无 credentials | implemented |
+| storage lab | retrieval 所有能力输入阻断 raw secret | implemented |
+| storage lab | retrieval 所有能力输出无 kernel vector/embedding namespace 或 credentials | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -549,6 +556,13 @@ storage_lab.projection_query_preview_no_execution PASS
 storage_lab.projection_migration_plan_no_rewrite PASS
 storage_lab.projection_rejects_raw_secret PASS
 storage_lab.projection_no_db_table_leakage PASS
+storage_lab.retrieval_contract_shape PASS
+storage_lab.multimodal_index_plan_no_embedding_no_storage PASS
+storage_lab.multimodal_index_rejects_invalid_modality_or_too_many_refs PASS
+storage_lab.vector_search_plan_no_execution PASS
+storage_lab.backend_fit_mentions_tdb_future_only PASS
+storage_lab.retrieval_rejects_raw_secret PASS
+storage_lab.retrieval_no_kernel_vector_namespace_or_credentials PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

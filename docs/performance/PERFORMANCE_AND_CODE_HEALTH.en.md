@@ -117,6 +117,15 @@ Storage Backend Neutrality Alpha S4 added:
 - migrate_projection_plan_preview outputs migration_applied=false, data_rewritten=false, requires_rebuild=true.
 - No real projection storage, no DB table/index creation, no SQL/query execution, no data rewrite.
 
+Storage Backend Neutrality Alpha S5 added:
+
+- `official/storage-lab` adds 4 retrieval/vector/multimodal provider contract proof capabilities: describe_retrieval_provider_contract, draft_multimodal_index_plan, draft_vector_search_plan, explain_retrieval_backend_fit. 20 capabilities, 29 `storage_lab` tag conformance cases.
+- Retrieval contract outputs backend candidates (tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future), red lines (no_embedding_generation / no_vector_storage / no_network / no_credentials / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage).
+- draft_multimodal_index_plan outputs embedding_generated=false, index_created=false, vectors_stored=false, network_performed=false, plan_only=true. Blocks raw secret, validates package_id/index_id safe-id, modalities allow text/image/audio/video/structured only, asset_refs capped at 64.
+- draft_vector_search_plan outputs search_executed=false, embedding_generated=false, vectors_loaded=false, plan_only=true. No actual search results.
+- explain_retrieval_backend_fit outputs fit matrix without DSN/credentials/path. TDB is only a future multimodal provider slot.
+- No real vector DB/TDB/embedding implementation, no raw vector/embedding/credentials/DSN output, no new kernel vector/database/sql namespace.
+
 Future event-store optimization priority:
 
 1. Prove a concrete scale bottleneck with baseline data.

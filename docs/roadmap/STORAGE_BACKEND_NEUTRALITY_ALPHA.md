@@ -102,15 +102,21 @@ Yggdrasil 当前已经有 SQLite-backed append-only event log、重水化的 ass
 
 验收：conformance 覆盖 no DB table leakage、plan-only、backend-neutral output。
 
-## Phase S5 — Retrieval / Vector / Multimodal Provider Contract
+## Phase S5 — Retrieval / Vector / Multimodal Provider Contract ✅
 
 目标：给 TDB/pgvector/OpenSearch/Redis Vector 等未来检索后端留槽，但不实现。
 
 交付：
 
-- 扩展 `storage-lab` 或新增 ordinary retrieval descriptor 能力：`describe_retrieval_provider_contract`、`draft_multimodal_index_plan`、`draft_vector_search_plan`、`explain_retrieval_backend_fit`。
-- 后端候选包含 `tdb_future`、`pgvector_future`、`local_embedding_index_future`、`remote_vector_provider_future`。
-- 输出只含 redacted plan、asset refs、modality flags、index capability flags；不生成 embedding、不存 vector、不联网。
+- ✅ 扩展 `storage-lab`：`describe_retrieval_provider_contract`、`draft_multimodal_index_plan`、`draft_vector_search_plan`、`explain_retrieval_backend_fit`。
+- ✅ 后端候选包含 `tdb_future`、`pgvector_future`、`local_embedding_index_future`、`remote_vector_provider_future`、`opensearch_vector_future`、`redis_vector_future`。
+- ✅ 输出只含 redacted plan、asset refs、modality flags、index capability flags；不生成 embedding、不存 vector、不联网、无 credentials、无 DSN/path、无 kernel vector namespace。
+- ✅ Red lines：no_embedding_generation、no_vector_storage、no_network、no_credentials、no_kernel_vector_namespace、no_raw_vectors_in_output、no_distance_metric_leakage。
+- ✅ draft_multimodal_index_plan：输入 package_id/index_id/modalities/asset_refs/schema_hint?；输出 plan-only，embedding_generated=false, index_created=false, vectors_stored=false, network_performed=false；modalities 只允许 text/image/audio/video/structured；阻断 raw secret、unsafe id、过多 asset_refs（>64）。
+- ✅ draft_vector_search_plan：输入 index_ref/query_kind/top_k/filter_preview?；输出 query plan，search_executed=false, embedding_generated=false, vectors_loaded=false, plan_only=true；无实际结果。
+- ✅ explain_retrieval_backend_fit：输入 workload_hint/backend_hint?；输出 fit matrix，不含 DSN/credentials/path；TDB 只作为 future multimodal provider slot。
+- ✅ 源码中不出现完整 forbidden kernel namespace literal（可拼接生成测试 tokens）。
+- ✅ 7 个 retrieval conformance 用例。
 
 验收：conformance 证明 no kernel vector namespace、no embedding generation、no backend credentials、TDB 只是 future provider slot。
 

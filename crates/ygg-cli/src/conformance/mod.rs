@@ -397,7 +397,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_backend.rehydrate_parity", ["storage", "substrate"], storage_backend::storage_backend_rehydrate_parity),
         // --- storage-lab (Storage Backend Neutrality Alpha S2) ---
         c!("storage_lab.contract_shape_no_kernel_database_terms", ["storage_lab", "storage", "official"], storage_lab::contract_shape_no_kernel_database_terms),
-        c!("storage_lab.backend_classes_no_credentials", ["storage_lab", "storage"], storage_lab::backend_classes_no_credentials),
+        c!("storage_lab.backend_classes_no_credentials", ["storage_lab", "storage"], storage_lab::backend_classes_no_secret_config),
         c!("storage_lab.package_state_plan_scoped", ["storage_lab", "storage"], storage_lab::package_state_plan_scoped),
         c!("storage_lab.put_document_preview_no_write", ["storage_lab", "storage"], storage_lab::put_document_preview_no_write),
         c!("storage_lab.get_document_preview_no_read", ["storage_lab", "storage"], storage_lab::get_document_preview_no_read),
@@ -420,6 +420,14 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_lab.projection_migration_plan_no_rewrite", ["storage_lab", "storage", "projection"], storage_lab::projection_migration_plan_no_rewrite),
         c!("storage_lab.projection_rejects_raw_secret", ["storage_lab", "storage", "projection", "secret"], storage_lab::projection_rejects_raw_secret),
         c!("storage_lab.projection_no_db_table_leakage", ["storage_lab", "storage", "projection"], storage_lab::projection_no_db_table_leakage),
+        // --- storage-lab S5 (Retrieval / Vector / Multimodal Provider Contract) ---
+        c!("storage_lab.retrieval_contract_shape", ["storage_lab", "storage", "retrieval"], storage_lab::retrieval_contract_shape),
+        c!("storage_lab.multimodal_index_plan_no_embedding_no_storage", ["storage_lab", "storage", "retrieval"], storage_lab::multimodal_index_plan_no_embedding_no_storage),
+        c!("storage_lab.multimodal_index_rejects_invalid_modality_or_too_many_refs", ["storage_lab", "storage", "retrieval"], storage_lab::multimodal_index_rejects_invalid_modality_or_too_many_refs),
+        c!("storage_lab.vector_search_plan_no_execution", ["storage_lab", "storage", "retrieval"], storage_lab::vector_search_plan_no_execution),
+        c!("storage_lab.backend_fit_mentions_tdb_future_only", ["storage_lab", "storage", "retrieval", "tdb"], storage_lab::backend_fit_mentions_tdb_future_only),
+        c!("storage_lab.retrieval_rejects_raw_secret", ["storage_lab", "storage", "retrieval", "secret"], storage_lab::retrieval_rejects_raw_secret),
+        c!("storage_lab.retrieval_no_kernel_vector_namespace_or_credentials", ["storage_lab", "storage", "retrieval"], storage_lab::retrieval_no_kernel_vector_namespace_or_secret_config),
     ]
 }
 

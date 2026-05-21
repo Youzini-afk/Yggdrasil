@@ -105,6 +105,30 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/storage-lab/describe_retrieval_provider_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/draft_multimodal_index_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/draft_vector_search_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: official/storage-lab/explain_retrieval_backend_fit
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
 consumes: []
 contributes:
   schemas: []
