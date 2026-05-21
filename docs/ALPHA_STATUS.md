@@ -12,7 +12,7 @@
 - **Conformance：** 317 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch（按领域委托的 helper）、runtime official in-process handlers（provider-package indexed dispatch、共享 safety 模块）、event store（P3 原子 append + 查询 pushdown + 并发 correctness + backend-neutral contract hardening）已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Real TDB Rust Adapter Alpha R0 已规划。上一轮的 plan-only TDB 入口将升级为真实 Rust API adapter proof：`triviumdb` README 明确推荐 `cargo add triviumdb`，本轮会新增独立 opt-in adapter crate，默认不影响主 workspace，但本地 `real-tdb` feature 可真实调用 `Database::open/insert/link/search_hybrid`。临时计划见 `docs/roadmap/REAL_TDB_RUST_ADAPTER_ALPHA.md`。
+- **当前主线：** Real TDB Rust Adapter Alpha R3 已完成。新增独立 `integrations/tdb/rust-adapter` subprocess adapter shell 与 `integrations/tdb/rust-adapter-real-local` 本地真实 TDB proof；默认 package capability 可由 Ygg runtime 调用并明确 `real_tdb_available=false`，`YGG_TDB_REAL_TESTS=1` opt-in conformance 会真实调用 TriviumDB `Database::open/insert/link/search/search_hybrid`。下一步是 R4 UI/docs cleanup。临时计划见 `docs/roadmap/REAL_TDB_RUST_ADAPTER_ALPHA.md`。
 
 ## 已实现
 

@@ -39,12 +39,12 @@
 - ✅ 真实 proof 限定在 adapter crate 的 opt-in test / smoke 命令，不进入默认主 workspace。
 - ✅ 验证命令：`cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb`。
 
-## Phase R3 — Package capability + conformance boundary
+## Phase R3 — Package capability + conformance boundary ✅
 
-- Adapter stdio 新增能力：`describe_real_tdb_adapter`、`run_real_tdb_smoke`。
-- 默认未启用 real feature 时返回 `real_tdb_available=false`，不是伪装成功。
-- 本地 real feature 时返回真实 open/insert/link/search 结果 summary，仍不输出 raw path。
-- 新增 CLI conformance：默认 safe shell、package check、disabled real proof；真实 opt-in conformance 仅在环境允许时运行。
+- ✅ Adapter stdio 提供能力：`describe_real_tdb_adapter`、`run_real_tdb_smoke`。
+- ✅ 默认未启用 real feature 时返回 `real_tdb_available=false`，不是伪装成功。
+- ✅ 本地 real feature 时返回真实 open/insert/link/search 结果 summary，仍不输出 raw path。
+- ✅ 新增 CLI conformance：默认 safe shell、unsafe input rejection、disabled real proof；真实 opt-in conformance 仅在 `YGG_TDB_REAL_TESTS=1` 时运行。
 
 ## Phase R4 — Docs / UI / cleanup
 

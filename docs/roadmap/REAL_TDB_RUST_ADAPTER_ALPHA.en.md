@@ -39,12 +39,12 @@ This plan corrects the previous overly conservative TDB integration. The Trivium
 - ✅ Kept the real proof in adapter-crate opt-in tests / smoke command, outside the default main workspace.
 - ✅ Validation command: `cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb`.
 
-## Phase R3 — Package capability + conformance boundary
+## Phase R3 — Package capability + conformance boundary ✅
 
-- Add adapter stdio capabilities: `describe_real_tdb_adapter`, `run_real_tdb_smoke`.
-- When real feature is disabled, return `real_tdb_available=false` instead of pretending success.
-- When real feature is enabled locally, return a real open/insert/link/search summary without raw paths.
-- Add CLI conformance for default safe shell, package check, disabled real proof; real opt-in conformance only runs when the environment allows it.
+- ✅ Adapter stdio provides capabilities: `describe_real_tdb_adapter`, `run_real_tdb_smoke`.
+- ✅ When real feature is disabled, returns `real_tdb_available=false` instead of pretending success.
+- ✅ When real feature is enabled locally, returns a real open/insert/link/search summary without raw paths.
+- ✅ Added CLI conformance for default safe shell, unsafe input rejection, disabled real proof; real opt-in conformance only runs when `YGG_TDB_REAL_TESTS=1`.
 
 ## Phase R4 — Docs / UI / cleanup
 

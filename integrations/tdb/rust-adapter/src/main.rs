@@ -87,6 +87,12 @@ fn describe_adapter() -> Value {
 }
 
 fn run_real_tdb_smoke(_input: Value) -> Result<Value, String> {
+    if contains_raw_secret(&_input) {
+        return Err("raw secret-like input rejected before TDB access".to_string());
+    }
+    if contains_forbidden_backend_path(&_input) {
+        return Err("raw backend path input rejected; use host-ref based configuration".to_string());
+    }
     #[cfg(feature = "real-tdb")]
     {
         return real_tdb::run_smoke();
@@ -114,10 +120,35 @@ fn jsonrpc_error(id: Value, code: &str, message: &str) -> Value {
 
 fn sanitize(message: &str) -> String {
     let mut redacted = message.replace('\n', " ").replace('\r', " ");
-    for marker in ["postgres://", "postgresql://", "sk-", "api_key", "password", "secret"] {
+    for marker in ["sk-", "api_key", "password", "secret"] {
         redacted = redacted.replace(marker, "[redacted]");
     }
     redacted.chars().take(240).collect()
+}
+
+fn contains_raw_secret(value: &Value) -> bool {
+    match value {
+        Value::String(text) => {
+            let lower = text.to_ascii_lowercase();
+            lower.contains("sk-") || lower.contains("api_key") || lower.contains("password") || lower.contains("secret")
+        }
+        Value::Array(values) => values.iter().any(contains_raw_secret),
+        Value::Object(map) => map.iter().any(|(key, value)| {
+            let lower = key.to_ascii_lowercase();
+            lower.contains("api_key") || lower.contains("password") || lower.contains("secret") || contains_raw_secret(value)
+        }),
+        _ => false,
+    }
+}
+
+fn contains_forbidden_backend_path(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, value)| {
+            matches!(key.as_str(), "path" | "store_path" | "backend_path" | "tdb_path") || contains_forbidden_backend_path(value)
+        }),
+        Value::Array(values) => values.iter().any(contains_forbidden_backend_path),
+        _ => false,
+    }
 }
 
 #[cfg(feature = "real-tdb")]
@@ -232,5 +263,11 @@ mod tests {
             assert!(out["hybrid_hit_count"].as_u64().unwrap_or(0) >= 1);
             assert_eq!(out["raw_path_exposed"], json!(false));
         }
+    }
+
+    #[test]
+    fn rejects_secret_and_raw_path_inputs() {
+        assert!(run_real_tdb_smoke(json!({"payload":"sk-test"})).is_err());
+        assert!(run_real_tdb_smoke(json!({"store_path":"/tmp/private.tdb"})).is_err());
     }
 }

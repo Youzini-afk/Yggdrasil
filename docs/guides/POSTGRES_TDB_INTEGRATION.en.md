@@ -158,7 +158,7 @@ Packages must not receive raw PostgreSQL pools, SQL, DSNs, TDB paths, backend to
 At Alpha completion:
 
 - `cargo test --workspace` passes
-- `cargo run -p ygg-cli -- conformance` passes with 317 named CLI cases
+- `cargo run -p ygg-cli -- conformance` passes with 320 named CLI cases
 - `cargo run -p ygg-cli -- conformance --tag storage` passes
 - `cargo run -p ygg-cli -- conformance --tag tdb` passes
 - `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` passes

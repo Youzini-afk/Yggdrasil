@@ -158,7 +158,7 @@ kernel.embedding.*
 Alpha 完成时：
 
 - `cargo test --workspace` 通过
-- `cargo run -p ygg-cli -- conformance` 通过，317 个具名 CLI cases
+- `cargo run -p ygg-cli -- conformance` 通过，320 个具名 CLI cases
 - `cargo run -p ygg-cli -- conformance --tag storage` 通过
 - `cargo run -p ygg-cli -- conformance --tag tdb` 通过
 - `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` 通过

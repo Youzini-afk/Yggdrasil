@@ -26,6 +26,7 @@ mod sharing_lab;
 mod storage_backend;
 mod storage_lab;
 mod tdb_retrieval_lab;
+mod tdb_rust_adapter;
 mod workspace_lab;
 mod streaming;
 mod subprocess;
@@ -448,6 +449,11 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("tdb_retrieval_lab.invalid_input_rejected", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::invalid_input_rejected),
         c!("tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected", ["tdb", "retrieval", "storage", "secret"], tdb_retrieval_lab::raw_secret_and_unsafe_id_rejected),
         c!("tdb_retrieval_lab.real_tdb_opt_in_seam_not_linked_by_default", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::real_tdb_opt_in_seam_not_linked_by_default),
+
+        // --- real TDB Rust adapter subprocess proof ---
+        c!("tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke", ["tdb", "retrieval", "subprocess", "slow"], tdb_rust_adapter::subprocess_adapter_shell_invokes_disabled_smoke),
+        c!("tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path", ["tdb", "retrieval", "subprocess", "secret", "slow"], tdb_rust_adapter::subprocess_adapter_rejects_secret_and_raw_path),
+        c!("tdb_rust_adapter.real_local_smoke_opt_in", ["tdb", "tdb_real", "retrieval", "slow"], tdb_rust_adapter::real_local_smoke_opt_in),
     ]
 }
 
