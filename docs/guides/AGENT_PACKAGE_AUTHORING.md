@@ -2,32 +2,32 @@
 
 > [English](./AGENT_PACKAGE_AUTHORING.en.md) · [中文](./AGENT_PACKAGE_AUTHORING.md)
 
-本文说明如何在 Yggdrasil 中编写 agent-like 能力包。核心原则是：**agent 是能力包语义，不是 kernel 语义**。
+本文说明如何在 Yggdrasil 中编写类 agent 能力包。核心原则是：agent 属于能力包语义，不属于内核语义。
 
 ## 你应该使用什么
 
-- 用普通 manifest 声明 agent-like capabilities。
+- 用普通清单声明类 agent 能力。
 - 用 `kernel.capability.invoke` 或 `kernel.capability.stream` 启动运行。
-- 用 `kernel.capability.cancel` 取消 streaming invocation。
+- 用 `kernel.capability.cancel` 取消流式调用。
 - 用 `kernel.proposal.*` 产出、审批和应用变更。
-- 用 package-owned events 或 stream frames 记录 trace。
-- 用 surface contributions 暴露 `assistant_action`、`forge_panel` 或 `home_card`。
+- 用包拥有的事件或流式帧记录追踪。
+- 用 surface contribution 暴露 `assistant_action`、`forge_panel` 或 `home_card`。
 - 用 `secret_ref` 而不是 raw secrets。
 - 用显式 `provider_package_id` 处理 provider 冲突。
 
 ## 你不应该使用什么
 
 - 不新增或依赖 `kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*`、`kernel.memory.*`、`kernel.turn.*`。
-- 不把 agent 直接写入 kernel state。
-- 不让 agent 直接修改可信 asset/projection/session 状态；先生成 proposal。
-- 不通过 tool bridge 借用其他包的权限。
+- 不把 agent 直接写入内核状态。
+- 不让 agent 直接修改可信资产、projection 或会话状态；先生成提案。
+- 不通过工具桥借用其他包的权限。
 - 不自动选择 official provider。
-- 不在 trace、proposal、event、audit 或 error 中保存 raw secrets。
+- 不在追踪、提案、事件、审计或错误中保存 raw secrets。
 - 不默认提供 bash/read/write/edit 这类 coding-agent 工具。
 
 ## 从模板开始
 
-生成 deterministic/no-network agent runtime 包：
+生成本地可重放的 agent runtime 包：
 
 ```bash
 cargo run -p ygg-cli -- init-package /tmp/ygg-agent \
@@ -39,12 +39,12 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-agent \
 
 模板会生成：
 
-- `example/agent-runtime/run`：streaming run capability。
-- `example/agent-runtime/explain-run`：解释运行 trace。
-- `example/agent-runtime/draft-proposal`：生成 approval-gated proposal draft。
-- `example/agent-runtime/echo`：本地 conformance 兼容能力。
+- `example/agent-runtime/run`：流式运行能力。
+- `example/agent-runtime/explain-run`：解释运行追踪。
+- `example/agent-runtime/draft-proposal`：生成需审批的提案草案。
+- `example/agent-runtime/echo`：本地检查兼容能力。
 - `assistant_action` 和 `forge_panel` surfaces。
-- no-network、no-real-model、no raw secret 的默认实现。
+- 默认不出网、不调用真实模型，也不接收 raw secret。
 
 验证生成包：
 
@@ -55,13 +55,13 @@ cargo run -p ygg-cli -- package conformance /tmp/ygg-agent/manifest.yaml
 
 ## 使用 `ygg-agent-adapter` SDK
 
-`sdk/typescript/ygg-agent-adapter` 是薄 adapter，不是完整 agent framework。它用于：
+`sdk/typescript/ygg-agent-adapter` 是一层薄适配器，不是完整 agent 框架。它用于：
 
-- 把 Ygg capability descriptor 映射为 pi-style tool descriptor。
-- 构造 `kernel.capability.invoke` / `kernel.capability.stream` request payload。
-- 生成 package-owned trace event payload。
-- 生成 approval-gated proposal draft payload。
-- 做 provider ambiguity、permission preview 和 raw-secret blocking 诊断。
+- 把 Ygg 能力描述符映射为 pi 风格工具描述符。
+- 构造 `kernel.capability.invoke` / `kernel.capability.stream` 请求载荷。
+- 生成包拥有的追踪事件载荷。
+- 生成需审批的提案草案载荷。
+- 诊断 provider 歧义、权限预览和 raw secret 阻断。
 
 示意：
 
@@ -89,16 +89,16 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 
 ## 官方参考包
 
-`official/pi-agent-runtime-lab` 是普通参考包。它提供 deterministic/no-network：
+`official/pi-agent-runtime-lab` 是普通参考包。它提供本地可重放能力：
 
 - run plan
 - trace summary
 - proposal draft
 - echo
 
-它没有官方特权，不是真实 agent runtime，不做 model inference。
+它没有官方特权。它不是真实 agent runtime，也不做模型推理。
 
-`official/capability-tool-bridge-lab` 也是普通包。它只生成 tool discovery、permission preview 和 invocation/streaming plans；它**不实际代替 agent 调用目标 capability**，避免 confused deputy。
+`official/capability-tool-bridge-lab` 也是普通包。它只生成工具发现、权限预览和调用计划。它不会代替 agent 调用目标能力，以避免 confused deputy。
 
 ## 第三方替换证明
 
@@ -107,7 +107,7 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 - `examples/packages/thirdparty-agent-runtime/manifest.yaml`
 - `examples/compositions/agent-runtime-replacement/composition.yaml`
 
-这个例子证明第三方 agent runtime 可以提供同等 surface/capability/proposal/trace 形状，而 official 包只是 `replacement_candidate`，没有优先级。
+这个例子证明第三方 agent runtime 可以提供同等 surface、能力、提案和追踪形状。official 包只是 `replacement_candidate`，没有优先级。
 
 验证：
 
@@ -118,14 +118,14 @@ cargo run -p ygg-cli -- composition check examples/compositions/agent-runtime-re
 
 ## UI 观察
 
-Forge 的 Agent Observability section 和 Assist Drawer 的 Agent Readiness panel 只从 public protocol、surface contributions、capabilities、events 和 proposals 中提取信息。它们不 hardcode official 包，也不启动真实 agent/model。
+Forge 的 Agent Observability 区块和 Assist Drawer 的 Agent Readiness 面板只读取公开协议数据：surface contribution、能力、事件和提案。它们不硬编码 official 包，也不启动真实 agent 或模型。
 
 ## 与 pi 的关系
 
 [pi](https://github.com/earendil-works/pi) 是参考来源：
 
-- `pi-agent-core` 的 event/tool/gate/queue 思路可被普通包内部吸收。
-- `pi-ai` 的 faux provider / stream shape 可作为未来 model package 参考。
+- `pi-agent-core` 的事件、工具、gate 和队列思路可被普通包内部吸收。
+- `pi-ai` 的 faux provider / stream shape 可作为未来模型包参考。
 - `pi-coding-agent` 只作为产品和观测经验参考，不嵌入 Yggdrasil。
 
 更多边界见 [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.md) 和 [`../../integrations/pi/README.md`](../../integrations/pi/README.md)。

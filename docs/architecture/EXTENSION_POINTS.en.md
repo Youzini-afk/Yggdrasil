@@ -2,9 +2,9 @@
 
 > [English](./EXTENSION_POINTS.en.md) · [中文](./EXTENSION_POINTS.md)
 
-An extension point is a named hook the kernel or a package emits during operation. Other packages may subscribe to it. The kernel routes the call; it does not assign meaning.
+An extension point is a named hook emitted by the kernel or a package during operation. Other packages may subscribe to it. The kernel routes the call; it does not assign meaning.
 
-This document covers the small set of kernel-emitted points and the rules every extension point follows.
+This document covers the small set of kernel-emitted points and the shared rules for all extension points.
 
 ## Hook contract
 
@@ -12,10 +12,10 @@ Every extension point has:
 
 - `id`: namespaced, immutable.
 - `payload_schema`: the JSON shape of the call.
-- `timing`: `sync` or `async`. Sync handlers block the operation. Async handlers do not.
-- `modifiable`: whether subscribers may return a mutated payload that the next subscriber sees.
+- `timing`: `sync` or `async`. Synchronous handlers block the operation. Asynchronous handlers do not.
+- `modifiable`: whether subscribers may return a changed payload that the next subscriber sees.
 - `short_circuit`: whether a subscriber may veto the operation.
-- `ordering`: how the dispatcher orders subscribers (declared precedence with stable tie-breaking).
+- `ordering`: how the dispatcher orders subscribers. Declared precedence is used first; ties use a stable order.
 
 The kernel publishes a schema for each kernel-emitted point. Packages publish schemas for the points they declare.
 
@@ -32,21 +32,21 @@ contributes:
       precedence: 100
 ```
 
-The kernel verifies that the subscriber's manifest declares the permissions implied by the hook (for example, `event.before_append` requires event read; modifying the payload requires event append).
+The kernel verifies that the subscriber's manifest declares the permissions implied by the hook. For example, `event.before_append` requires event read; modifying the payload requires event append.
 
-A subscriber that returns an error short-circuits the operation if and only if `short_circuit: true`. Otherwise the error is logged and dispatch continues.
+A subscriber that returns an error stops the operation only when `short_circuit: true`. Otherwise the error is logged and dispatch continues.
 
 ## Cancellation and timeout
 
-Sync handlers run within the operation's deadline. Async handlers receive a deadline derived from the package sandbox policy. Exceeding the deadline cancels the handler and is treated as a failed handler call.
+Synchronous handlers run within the operation's deadline. Asynchronous handlers receive a deadline derived from the package sandbox policy. Exceeding the deadline cancels the handler and counts as a failed call.
 
 ## Implementation status
 
-The kernel-emitted point set is fixed by design. The Foundation Alpha implements the executable slice for event append and capability invoke (deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup). Session and package lifecycle hooks are reserved in the contract; their dispatch is delivered through `kernel/session.*` and `kernel/package.*` events today and will gain the full sync/async hook treatment as the kernel grows. New points are added by package contributions, not by growing the kernel.
+The kernel-emitted point set is fixed by design. The current implementation covers the core paths for event append and capability invoke: stable ordering, package-owned handlers, payload metadata mutation, veto, and unload cleanup. Session and package lifecycle hooks are reserved in the contract. Today they are delivered through `kernel/session.*` and `kernel/package.*` events; later they will gain synchronous and asynchronous hook handling. New points should come from package contributions, not from growing the kernel.
 
 ## Kernel-emitted points
 
-The kernel emits a small fixed set of points. New points are added by package contributions, not by growing the kernel.
+The kernel emits a small fixed set of points. New points come from package contributions.
 
 ### Session lifecycle
 
@@ -65,7 +65,7 @@ Payload: session id, requested labels, package set, requesting principal.
 - `kernel/event.after_append` — async.
   Subscribers receive the persisted envelope.
 
-Payload: event envelope. The kernel does not interpret the payload field; it only checks declared schemas if the writer's manifest references a payload schema for that event kind.
+Payload: event envelope. The kernel does not interpret the payload field. It only checks declared schemas when the writer's manifest references a payload schema for that event kind.
 
 ### Capability invocation
 
@@ -123,14 +123,14 @@ The kernel does not know what `conversation/before_step` means. The owning packa
 
 ## Discovery
 
-A client may query the kernel for live extension points and their subscribers. Schemas are exposed. This is how creator tools, observability dashboards, and other packages explore what is currently extensible in a running host.
+A client may query the kernel for live extension points and their subscribers. Schemas are exposed. Creator tools, observability dashboards, and other packages use this to see what is currently extensible in a running host.
 
 ## Versioning
 
-Each extension point has a `version`. Subscribers declare the version they target. The kernel refuses to dispatch to subscribers whose declared version is incompatible with the live point.
+Each extension point has a `version`. Subscribers declare the version they target. The kernel refuses to dispatch to a subscriber whose declared version is incompatible with the live point.
 
 Breaking changes to a point require a new id. The owning package may emit both versions during transition.
 
 ## Stability
 
-The kernel-emitted point set is small by design. Adding a kernel point requires the same justification as adding a kernel responsibility: it cannot reasonably live in a package.
+The kernel-emitted point set is small by design. Adding a kernel point needs the same justification as adding a kernel responsibility: it truly cannot live in a package.

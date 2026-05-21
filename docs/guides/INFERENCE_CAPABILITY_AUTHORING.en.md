@@ -2,26 +2,26 @@
 
 > [English](./INFERENCE_CAPABILITY_AUTHORING.en.md) · [中文](./INFERENCE_CAPABILITY_AUTHORING.md)
 
-This guide documents how to author inference capability packages for Yggdrasil. It is the concrete implementation of **API-first but not API-shaped**: cloud API adapters are one kind of provider, and local processes, in-memory compute, IPC pipes, and WebSocket channels are equally legitimate inference transports.
+This guide documents how to author inference capability packages for Yggdrasil. Yggdrasil can be API-first without making the platform protocol look like one vendor API. Cloud API adapters are one kind of provider. Local processes, in-memory compute, IPC pipes, and WebSocket channels can carry inference too.
 
 ## Core position
 
-1. **Inference is an ordinary capability, not a kernel primitive.** There are no `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, or `kernel.embedding.*`.
-2. **Transport-neutral envelope.** The request envelope does not contain URL, HTTP header, status code, or OpenAI messages fields.
-3. **Cloud adapters are one class of provider, not the platform model abstraction.** `official/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Ygg's model worldview.
-4. **Local/self-hosted/non-HTTP are first-class.** `local_process`, `in_memory`, `ipc`, `websocket`, and `http` have equal standing.
-5. **Secrets use `secret_ref`.** Raw secrets are rejected in every field.
+1. Inference is an ordinary capability, not a kernel primitive. There are no `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, or `kernel.embedding.*`.
+2. The request envelope is transport-neutral. It does not contain URL, HTTP header, status code, or OpenAI messages fields.
+3. Cloud adapters are one class of provider, not the platform model abstraction. `official/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Ygg's model worldview.
+4. `local_process`, `in_memory`, `ipc`, `websocket`, and `http` have equal standing.
+5. Secrets use `secret_ref`. Raw secrets are rejected in every field.
 
 ## SDK location
 
 `sdk/typescript/inference-capability/` provides:
 
-- **`InferenceRequest`** — transport-neutral inference request envelope
-- **`InferenceResponse`** — transport-neutral inference response envelope
-- **`InferenceStreamFrame`** — canonical stream frame
-- **`InferenceError`** — transport-neutral error classification
-- **`ProviderCapabilityManifest`** — provider capability declaration
-- **Helper functions** — `createInferenceRequest`, `classifyInferenceError`, `InferenceStreamLifecycle`, `createProviderCapabilityManifest`, etc.
+- `InferenceRequest` — transport-neutral inference request envelope
+- `InferenceResponse` — transport-neutral inference response envelope
+- `InferenceStreamFrame` — canonical stream frame
+- `InferenceError` — transport-neutral error classification
+- `ProviderCapabilityManifest` — provider capability declaration
+- Helper functions — `createInferenceRequest`, `classifyInferenceError`, `InferenceStreamLifecycle`, `createProviderCapabilityManifest`, etc.
 
 ## Request envelope
 
@@ -52,11 +52,11 @@ Key constraints:
 
 The transport-neutral error taxonomy covers:
 
-- **Cloud errors**: `authentication`, `permission`, `billing`, `rate_limit`, `provider_overloaded`, `provider_unavailable`, `bad_request`, `not_found`
-- **Local/resource errors**: `local_process_failed`, `local_process_timeout`, `local_resource_exhausted`, `local_model_not_loaded`, `local_inference_error`
-- **Cross-cutting errors**: `timeout`, `cancelled`, `secret_unavailable`, `network_denied`, `input_invalid`, `transport_error`, `stream_error`
+- Cloud errors: `authentication`, `permission`, `billing`, `rate_limit`, `provider_overloaded`, `provider_unavailable`, `bad_request`, `not_found`
+- Local/resource errors: `local_process_failed`, `local_process_timeout`, `local_resource_exhausted`, `local_model_not_loaded`, `local_inference_error`
+- Cross-cutting errors: `timeout`, `cancelled`, `secret_unavailable`, `network_denied`, `input_invalid`, `transport_error`, `stream_error`
 
-The taxonomy does not depend on HTTP status codes — `classifyInferenceError` accepts an optional `http_status_hint` but never requires it.
+The taxonomy does not depend on HTTP status codes. `classifyInferenceError` accepts an optional `http_status_hint` but never requires it.
 
 ## Stream frame lifecycle
 
@@ -110,9 +110,9 @@ Manifest validation checks:
 
 ## Relationship to existing SDKs
 
-- **`sdk/typescript/model-provider-adapter`**: Cloud API adapter SDK handling provider-specific request normalization and stream parsing. It uses URL/header/HTTP internally, but those are adapter-package-internal details.
-- **`sdk/typescript/secure-execution`**: Secret ref, network declaration, outbound audit, and generic stream frame helpers.
-- **`sdk/typescript/inference-capability`** (this SDK): Transport-neutral inference contract that does not depend on the HTTP/cloud-specific fields of the above SDKs.
+- `sdk/typescript/model-provider-adapter`: Cloud API adapter SDK handling provider-specific request normalization and stream parsing. It uses URL/header/HTTP internally, but those are adapter-package-internal details.
+- `sdk/typescript/secure-execution`: Secret ref, network declaration, outbound audit, and generic stream frame helpers.
+- `sdk/typescript/inference-capability` (this SDK): Transport-neutral inference contract that does not depend on the HTTP/cloud-specific fields of the above SDKs.
 
 ## What this does not do
 

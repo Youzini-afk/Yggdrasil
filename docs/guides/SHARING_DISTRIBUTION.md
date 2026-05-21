@@ -2,15 +2,15 @@
 
 > [English](./SHARING_DISTRIBUTION.en.md) · [中文](./SHARING_DISTRIBUTION.md)
 
-本文档说明 Yggdrasil 中可分享、可复现、可导入的 composition 和 session 分发机制。这是 Experience Beta 6 的交付成果，由 `official/sharing-lab` 普通能力包提供。
+本文档说明 Yggdrasil 中可分享、可复现、可导入的 composition 和会话分发机制。它由 `official/sharing-lab` 普通能力包提供。
 
 ## 核心原则
 
-- **先分享，后市场**：当前只做本地/文件级的分享 proof——export/import composition bundle、branch/session bundle manifest、package-set lockfile、compatibility/migration report、AI disclosure metadata bundle、read-only shared session manifest 和 async fork sharing plan。
-- **不做 marketplace**：不引入包签名网络、依赖解析器经济、托管计费。分发是本地文件交换，不是商业市场。
-- **不做 `kernel.sharing.*`**：分享是 package-owned 行为，不是内核能力。
-- **不做 raw secrets**：所有 bundle 中只允许 `secret_ref` 引用，不存储原始密钥。
-- **不要求公网**：所有分享 proof 是本地文件，不依赖远端服务或公网访问。
+- 先分享，后市场：当前只做本地文件级分享 proof，包括 composition bundle、branch/session bundle manifest、package-set lockfile、兼容性/迁移报告、AI 披露元数据、只读共享 session manifest 和 async fork sharing plan。
+- 不做 marketplace：不引入包签名网络、依赖解析器经济或托管计费。分发是本地文件交换，不是商业市场。
+- 不做 `kernel.sharing.*`：分享是包拥有的行为，不是内核能力。
+- 不做 raw secrets：所有 bundle 中只允许 `secret_ref` 引用，不存储原始密钥。
+- 不要求公网：所有分享 proof 是本地文件，不依赖远端服务或公网访问。
 
 ## 分享契约
 
@@ -103,7 +103,7 @@
 
 ## AI 披露
 
-每个 bundle 都可以附带 AI disclosure metadata，标记内容来源：
+每个 bundle 都可以附带 AI disclosure metadata，用来标记内容来源：
 
 | `disclosure_kind` | 含义 |
 |---|---|
@@ -116,20 +116,20 @@
 
 ## 只读共享与异步 Fork
 
-**只读共享**（`read_only_share_manifest`）：创建一个 session 的只读快照证明，可以被他人查看但不能修改。`share_scope: local_file`，`no_remote_service: true`。
+只读共享（`read_only_share_manifest`）：创建一个会话的只读快照证明，可以被他人查看但不能修改。`share_scope: local_file`，`no_remote_service: true`。
 
-**异步 Fork 分享**（`async_fork_share_plan`）：创建一个异步 fork 计划，允许接收者后续 fork 出自己的 session。状态为 `draft`，`plan_only: true`，需要用户审批。
+异步 Fork 分享（`async_fork_share_plan`）：创建一个异步 fork 计划，允许接收者后续 fork 出自己的会话。状态为 `draft`，`plan_only: true`，需要用户审批。
 
 ## 红线
 
 以下行为在分享契约中明确禁止：
 
-- ❌ Marketplace 字段（`marketplace_id`、`marketplace_category`）
-- ❌ 计费字段（`billing_token`、`payment_method`、`subscription`）
-- ❌ 签名网络字段（`signing_network`、`license_key`）
-- ❌ Raw secrets（`api_key`、`token`、`password` 原文值；只允许 `secret_ref` 引用）
-- ❌ 内核分享命名空间（`kernel.sharing.*`、`kernel.marketplace.*`、`kernel.billing.*`）
-- ❌ 公网或远端服务依赖
+- Marketplace 字段（`marketplace_id`、`marketplace_category`）
+- 计费字段（`billing_token`、`payment_method`、`subscription`）
+- 签名网络字段（`signing_network`、`license_key`）
+- Raw secrets（`api_key`、`token`、`password` 原文值；只允许 `secret_ref` 引用）
+- 内核分享命名空间（`kernel.sharing.*`、`kernel.marketplace.*`、`kernel.billing.*`）
+- 公网或远端服务依赖
 
 ## 示例
 
@@ -146,4 +146,4 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Conformance 包含 10 个 sharing-lab 用例（275 总计），覆盖契约形状、export/import、lockfile、compatibility report、AI disclosure、只读共享、异步 fork、红线约束。
+验证覆盖契约形状、export/import、lockfile、compatibility report、AI disclosure、只读共享、异步 fork 和红线约束。

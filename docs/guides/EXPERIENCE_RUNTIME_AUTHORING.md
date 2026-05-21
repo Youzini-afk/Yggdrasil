@@ -6,12 +6,12 @@
 
 ## 概述
 
-Experience Beta 0 定义了普通 package-owned experience 如何连续运行、暂停、恢复、checkpoint、fork，并被 Agentic Forge 修改。**所有 experience 语义都在包层，不进入内核。**
+Experience runtime 定义普通包拥有的体验如何连续运行、暂停、恢复、checkpoint 和 fork。Agentic Forge 可以通过提案修改它们。所有体验语义都在包层，不进入内核。
 
 关键约束：
-- **不新增** `kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`、`kernel.chat.*` 或 `kernel.memory.*`。
+- 不新增 `kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`、`kernel.chat.*` 或 `kernel.memory.*`。
 - Experience 包是普通包，没有内核特权。
-- Experience 描述符、state projection、checkpoint 和 recovery 是包拥有的 artifact，不是内核原语。
+- Experience 描述符、状态 projection、checkpoint 和恢复计划是包拥有的资产，不是内核原语。
 - 所有行为通过公开协议完成。
 
 ## 生成 experience-runtime 包
@@ -25,13 +25,13 @@ ygg init-package ./my-experience \
 ```
 
 生成结果包含：
-- **4 个 surface**：`experience_entry`、`play_renderer`、`forge_panel`、`assistant_action`
-- **6 个 capability**：`describe-contract`、`create-checkpoint`、`inspect-checkpoint`、`draft-recovery`、`bind-agent-run`、`echo`
-- 无网络声明，无 raw secrets，无 forbidden kernel namespace
+- 4 个 surface：`experience_entry`、`play_renderer`、`forge_panel`、`assistant_action`
+- 6 个能力：`describe-contract`、`create-checkpoint`、`inspect-checkpoint`、`draft-recovery`、`bind-agent-run`、`echo`
+- 无网络声明，无 raw secret，无被禁止的内核命名空间
 
 ## Experience 描述符
 
-Experience 描述符（`experience_runtime_descriptor`）是包拥有的 experience 元数据，包含：
+Experience 描述符（`experience_runtime_descriptor`）是包拥有的体验元数据，包含：
 
 ```typescript
 const desc = createExperienceDescriptor({
@@ -63,7 +63,7 @@ if (errors.length > 0) {
 
 ## State Projection
 
-State projection 是体验当前状态的包级别快照：
+状态 projection 是体验当前状态的包级别快照：
 
 ```typescript
 const projection = createStateProjection({
@@ -76,7 +76,7 @@ const projection = createStateProjection({
 
 ## Checkpoint
 
-Checkpoint 是体验状态的持久化快照，支持三种格式：
+Checkpoint 是体验状态的持久化快照。它支持三种格式：
 
 | 格式 | 说明 |
 |------|------|
@@ -102,7 +102,7 @@ const inspection = inspectCheckpoint(checkpoint);
 
 ## Recovery
 
-Recovery 是体验失败后的恢复计划。支持五种策略：
+Recovery 是体验失败后的恢复计划。它支持五种策略：
 
 | 策略 | 需要 checkpoint | 需要 approval |
 |------|----------------|---------------|
@@ -146,7 +146,7 @@ const subscription = createPlaySurfaceSubscription({
 
 ### Forge 绑定
 
-Forge panel 绑定将 Forge surface 连接到体验 session，支持检查和 proposal：
+Forge panel 绑定将 Forge surface 连接到体验会话，支持检查和提案：
 
 ```typescript
 const forgeBinding = createForgeBinding({
@@ -161,7 +161,7 @@ const forgeBinding = createForgeBinding({
 
 ### Assist 绑定
 
-Assist 绑定使用 `fork_then_approve` 策略确保所有修改通过 proposal：
+Assist 绑定使用 `fork_then_approve` 策略，确保所有修改都通过提案：
 
 ```typescript
 const assistBinding = createAssistBinding({
@@ -177,17 +177,17 @@ const assistBinding = createAssistBinding({
 
 Experience 可以通过 `bind_agent_run` 连接到 Agentic Forge：
 
-- Agent run scoped 到 branch
-- Agent 在 scratch branch 探索
-- Agent 产生 candidate/proposal（不直接修改 target）
-- Experience 通过 Forge/Assist inspect/approve/reject
+- Agent run scoped 到分支
+- Agent 在 scratch 分支探索
+- Agent 产生候选结果和提案，不直接修改目标
+- Experience 通过 Forge/Assist 检查、批准或拒绝
 
 ## 第三方替换
 
-Experience-runtime 包是普通包，可以被任何满足相同 surface 和 capability 契约的第三方包替换。替换规则：
+Experience-runtime 包是普通包。任何满足相同 surface 和能力契约的第三方包都可以替换它。替换规则：
 
 - 同等 surface slot（experience_entry、play_renderer、forge_panel、assistant_action）
-- 同等 capability shape
+- 同等能力形状
 - 无 official priority
 - 通过 composition descriptor 声明替换
 
@@ -195,15 +195,15 @@ Experience-runtime 包是普通包，可以被任何满足相同 surface 和 cap
 
 以下行为被严格禁止：
 
-1. **内核体验命名空间**：不得在事件、proposal、checkpoint 或任何输出中包含 `kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`、`kernel.chat.*` 或 `kernel.memory.*`。
-2. **Raw secrets**：所有 secret 必须通过 `secret_ref` 引用，不得在 checkpoint、recovery plan 或 state projection 中包含 raw secret。
-3. **直接修改 target branch**：Agent 对 experience 的修改必须通过 proposal lifecycle，不得直接修改 target branch。
-4. **网络访问**：Experience-runtime 包默认 no-network。如需网络，必须声明 `permissions.network.declarations`。
-5. **内核特权**：Experience 包不享有任何内核特权。
+1. 内核体验命名空间：不得在事件、提案、checkpoint 或任何输出中包含 `kernel.experience.*`、`kernel.world.*`、`kernel.turn.*`、`kernel.chat.*` 或 `kernel.memory.*`。
+2. Raw secrets：所有 secret 必须通过 `secret_ref` 引用。不得在 checkpoint、恢复计划或状态 projection 中包含 raw secret。
+3. 直接修改目标分支：Agent 对 experience 的修改必须通过提案生命周期，不得直接修改目标分支。
+4. 网络访问：Experience-runtime 包默认不出网。如需网络，必须声明 `permissions.network.declarations`。
+5. 内核特权：Experience 包不享有任何内核特权。
 
 ## TypeScript SDK
 
-`sdk/typescript/experience-runtime` 提供纯 TypeScript SDK，无依赖，无私有运行时：
+`sdk/typescript/experience-runtime` 提供纯 TypeScript SDK。它无依赖，也不暴露私有运行时。
 
 ```typescript
 import {
@@ -224,7 +224,7 @@ import {
 ## 参考实现
 
 - `packages/official/experience-runtime-lab/` — 官方 experience-runtime lab 包
-- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — 确定性 inproc handler
+- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — 可重放的 in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — 本文档
 

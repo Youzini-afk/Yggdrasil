@@ -6,13 +6,13 @@ This guide explains how to author, replace, and consume package-owned long-term 
 
 ## Core Principles
 
-1. **Package-owned memory.** Memory records, retrieval, updates, corrections, and redaction plans are owned by ordinary capability packages — not by `kernel.memory.*`.
-2. **No official priority.** `official/memory-lab` is one implementation. Third-party packages like `thirdparty/memory-lab` are fully interchangeable.
-3. **Proposal-gated mutations.** Memory updates, corrections, and forget/redaction produce proposal drafts or plans. They never directly mutate trusted state or delete records. Consumers must approve before application.
-4. **Deterministic, no-network, no inference.** The reference memory-lab implementation is fully deterministic. It does not require network, embedding APIs, or model inference. Third-party packages may add such capabilities through their own outbound/network permissions.
-5. **Branch-aware.** Memory records are scoped to branches. Retrieval and views can filter by branch reference.
-6. **Raw-secret blocking.** All capability inputs are scanned for raw secrets. Raw API keys, tokens, and passwords are rejected with `redaction_state: unsafe_blocked`. Use `secret_ref` references instead.
-7. **No forbidden namespaces.** Memory packages must not reference `kernel.memory.*`, `kernel.experience.*`, `kernel.world.*`, `kernel.scene.*`, `kernel.turn.*`, `kernel.chat.*`, `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, or `kernel.director.*`.
+1. Package-owned memory. Memory records, retrieval, updates, corrections, and redaction plans are owned by ordinary capability packages, not by `kernel.memory.*`.
+2. No official priority. `official/memory-lab` is one implementation. Third-party packages like `thirdparty/memory-lab` are fully interchangeable.
+3. Mutations go through proposals. Memory updates, corrections, and forget/redaction produce proposal drafts or plans. They never directly mutate trusted state or delete records. Consumers must approve before application.
+4. The reference implementation is locally replayable. It does not require network, embedding APIs, or model inference. Third-party packages may add such capabilities through their own outbound/network permissions.
+5. Branch-aware. Memory records are scoped to branches. Retrieval and views can filter by branch reference.
+6. Raw-secret blocking. All capability inputs are scanned for raw secrets. Raw API keys, tokens, and passwords are rejected with `redaction_state: unsafe_blocked`. Use `secret_ref` references instead.
+7. No forbidden namespaces. Memory packages must not reference `kernel.memory.*`, `kernel.experience.*`, `kernel.world.*`, `kernel.scene.*`, `kernel.turn.*`, `kernel.chat.*`, `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`, or `kernel.director.*`.
 
 ## Memory Lab Capability Contract
 
@@ -32,9 +32,9 @@ This guide explains how to author, replace, and consume package-owned long-term 
 
 ### Surfaces
 
-- **forge_panel**: Inspect memory records, traces, drafts, corrections, redaction plans, and provenance.
-- **assistant_action**: Draft approval-gated updates, corrections, or redaction plans.
-- **home_card**: Record and retrieve memories.
+- `forge_panel`: Inspect memory records, traces, drafts, corrections, redaction plans, and provenance.
+- `assistant_action`: Draft approval-gated updates, corrections, or redaction plans.
+- `home_card`: Record and retrieve memories.
 
 ## Memory Record
 
@@ -62,7 +62,7 @@ A `memory_record` has:
 
 - `update_kind`: `add_record`, `modify_record`, `correct_record`, `forget_record`, `merge_records`.
 - `requires_user_approval`: always `true`.
-- `plan_only`: always `true` — no direct state mutation.
+- `plan_only`: always `true`; no direct state mutation.
 - `content_address`: Stable hash of the draft.
 
 Consumers must approve and apply the draft through the proposal lifecycle.
@@ -83,7 +83,7 @@ Consumers must approve and apply the draft through the proposal lifecycle.
 - `target_record_refs`: Records targeted for redaction.
 - `redaction_scope`: `record_only` or broader.
 - `status`: `draft` (requires approval before becoming `applied`).
-- `plan_only`: always `true` — no direct deletion.
+- `plan_only`: always `true`; no direct deletion.
 - `requires_user_approval`: always `true`.
 
 The redaction plan is a proposal. The actual deletion/redaction happens only after explicit user approval.
@@ -127,7 +127,7 @@ This is an optional cross-reference. The board does not depend on memory-lab to 
 
 ## What This Is Not
 
-- **Not a RAG product.** The reference implementation uses deterministic keyword matching, not vector search or embedding APIs.
-- **Not a chat memory system.** There are no conversation turns, messages, or prompt semantics.
-- **Not kernel memory.** No `kernel.memory.*` methods or namespaces exist.
-- **Not the only way.** Third-party packages can provide different retrieval algorithms, storage backends, or embedding-based matching through ordinary package capabilities.
+- Not a RAG product. The reference implementation uses replayable keyword matching, not vector search or embedding APIs.
+- Not a chat memory system. There are no conversation turns, messages, or prompt semantics.
+- Not kernel memory. No `kernel.memory.*` methods or namespaces exist.
+- Not the only way. Third-party packages can provide different retrieval algorithms, storage backends, or embedding-based matching through ordinary package capabilities.

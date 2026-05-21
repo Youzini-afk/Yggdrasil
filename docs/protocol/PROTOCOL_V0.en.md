@@ -8,19 +8,19 @@ There is no private bypass. Official clients use this protocol; third parties us
 
 ## Transports
 
-All transports eventually surface the same protocol. Platform Host Alpha implements a minimal public subset first and marks the rest deferred until conformance covers them.
+All transports eventually surface the same protocol. The current host implements a minimal public subset first. The rest stay marked as deferred until conformance covers them.
 
 - In-process: a Rust API that mirrors the wire shape one-to-one.
-- Subprocess: JSON-RPC over stdio. Required for Platform Host Alpha.
-- HTTP: request/response for non-streaming methods. Required for Platform Host Alpha.
+- Subprocess: JSON-RPC over stdio. Required for the current host.
+- HTTP: request/response for non-streaming methods. Required for the current host.
 - Profile-backed HTTP host: `ygg host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` starts `/rpc` plus ad hoc SSE routes after autoloading profile packages.
-- Host stdio: JSON-RPC for automation and conformance. Required for Platform Host Alpha.
+- Host stdio: JSON-RPC for automation and conformance. Required for the current host.
 - WebSocket: subscriptions and streaming methods. Planned after sequence-range replay.
 - TCP: JSON-RPC over a local socket. Deferred.
 - Remote endpoint: HTTP and WebSocket against a declared URL. Deferred.
 - WASM host: marshalled calls into the kernel-provided ABI. Deferred.
 
-Transport selection is a host concern. A method is not considered implemented for public callers until at least one public transport path and conformance case exercise it without bypassing runtime permission checks.
+Transport selection is a host concern. A method is considered implemented only when a public transport path and a conformance case both exercise it without bypassing runtime permission checks.
 
 ## Protocol envelope
 
@@ -34,7 +34,7 @@ Canonical request/response transports use this shape:
 }
 ```
 
-The host attaches principal and transport context. Callers do not self-assert package/admin identity through request JSON.
+The host attaches principal and transport context. Callers cannot self-assert package/admin identity through request JSON.
 
 Success:
 
@@ -92,7 +92,7 @@ kernel.event.list        list events for a session by sequence range
 kernel.event.subscribe   stream events as they are appended (resumable)
 ```
 
-`event.append` requires `events.append` in the caller's manifest. `event.list` and `event.subscribe` require `events.read` for package principals. The current Host Alpha slice exposes HTTP SSE as a host-dev stream:
+`event.append` requires `events.append` in the caller's manifest. `event.list` and `event.subscribe` require `events.read` for package principals. The current host exposes HTTP SSE as a host-dev stream:
 
 ```text
 GET /kernel/event.subscribe/:session_id?after_sequence=42&kind_prefix=kernel/&writer_package_id=kernel
@@ -124,7 +124,7 @@ kernel.capability.stream      invoke a capability that streams
 kernel.capability.cancel      cancel an in-flight invocation
 ```
 
-`invoke` resolves to a provider by id, optional `provider_package_id`, optional version constraint, and eventually session package set. If multiple providers match and the caller did not specify `provider_package_id`, the kernel returns an ambiguous-route error. Host Alpha currently supports exact version or same-major `^x.y` constraints.
+`invoke` resolves to a provider by id, optional `provider_package_id`, optional version constraint, and eventually session package set. If multiple providers match and the caller did not specify `provider_package_id`, the kernel returns an ambiguous-route error. The current host supports exact version or same-major `^x.y` constraints.
 
 ### Extension points and hooks
 
@@ -134,7 +134,7 @@ kernel.extension_point.describe    fetch payload schema and timing
 kernel.hook.list                   list subscribers to a point
 ```
 
-The kernel does not expose a method to inject hooks at runtime; subscriptions are declared in manifests. Live registration is allowed only through package lifecycle.
+The kernel does not expose a method to inject hooks at runtime. Subscriptions are declared in manifests. Live registration is allowed only through package lifecycle.
 
 ### Assets
 
@@ -155,7 +155,7 @@ kernel.projection.get       fetch projection state
 kernel.projection.list      list projection records
 ```
 
-The kernel manages projection records and rebuild lifecycle, but does not interpret content-specific state semantics. Package-owned projection execution belongs to packages.
+The kernel manages projection records and rebuild lifecycle. It does not interpret content-specific state semantics. Package-owned projection execution belongs to packages.
 
 ### Health and identity
 
@@ -191,7 +191,7 @@ Package errors travel inside `capability.invoke` responses as `package_error` wi
 
 ## Streaming
 
-Streaming flows over WebSocket or transport-equivalent. Streams carry typed frames whose schema is published with the method.
+Streaming flows over WebSocket or an equivalent transport. Streams carry typed frames whose schema is published with the method.
 
 For `event.subscribe`, frames are event envelopes plus a `cursor` for resume.
 
@@ -234,11 +234,11 @@ kernel.surface.contribution.describe
 
 Initial slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
 
-Surface descriptors may include a version, launch capability, session template, input schema, permission UX metadata, and an approval policy. These remain descriptors; the kernel does not turn them into built-in experience/game semantics.
+Surface descriptors may include a version, launch capability, session template, input schema, permission UX metadata, and an approval policy. They remain descriptors; the kernel does not turn them into built-in experience/game semantics.
 
 ## Proposal lifecycle
 
-Assistant and package-driven changes use generic proposal envelopes rather than privileged mutation paths:
+Assistant and package-driven changes use generic proposal envelopes instead of privileged mutation paths:
 
 ```text
 kernel.proposal.create
@@ -249,7 +249,7 @@ kernel.proposal.reject
 kernel.proposal.apply
 ```
 
-Proposal statuses are `created`, `approved`, `rejected`, `applied`, and `failed`. Initial operation support is intentionally generic (`asset.put`, `projection.rebuild`) and must produce kernel audit/proposal events.
+Proposal statuses are `created`, `approved`, `rejected`, `applied`, and `failed`. Initial operation support is intentionally generic, such as `asset.put` and `projection.rebuild`. These operations must produce kernel audit/proposal events.
 
 ## Versioning
 

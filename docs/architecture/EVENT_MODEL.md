@@ -2,13 +2,13 @@
 
 > [English](./EVENT_MODEL.en.md) · [中文](./EVENT_MODEL.md)
 
-事件日志是内核的真相来源。它按 session 组织、只追加、持久化且有序。
+事件日志是内核的真相来源。它按会话组织，只追加、持久化，并保持顺序。
 
-内核不解释事件 payload。意义属于能力包。
+内核不解释事件 payload。意义由能力包拥有。
 
 ## 信封
 
-每个持久化的事件使用相同的信封：
+每个持久化事件都使用同一种信封：
 
 ```text
 EventEnvelope
@@ -27,16 +27,16 @@ EventEnvelope
 
 - 分配 `id`、`sequence`、`timestamp` 和 `writer_package_id`，
 - 要求 `kind` 命名空间在写入方的 id 之下（内核事件使用 `kernel/...`），
-- 在写入方声明了 schema 时，依据其声明的 schema 验证 `payload`，
+- 如果写入方声明了 schema，就用该 schema 验证 `payload`，
 - 将 `metadata` 视为不透明。
 
 ## 种类
 
-事件 kind 有两种类型。
+事件 kind 分为两类。
 
 ### 内核发出的 kind
 
-内核自身产生的一小部分固定集合。它们描述内核操作，而非内容。
+内核自身只产生一小组固定 kind。它们描述内核操作，不描述内容。
 
 Session：
 
@@ -46,7 +46,7 @@ kernel/session.closed
 kernel/session.forked
 ```
 
-能力包 lifecycle：
+能力包生命周期：
 
 ```text
 kernel/package.loading
@@ -60,7 +60,7 @@ kernel/package.degraded
 kernel/package.log
 ```
 
-Capability 调用（计划的审计形式）：
+能力调用（计划中的审计形式）：
 
 ```text
 kernel/capability.invoked
@@ -83,7 +83,7 @@ kernel/asset.put
 kernel/projection.updated
 ```
 
-Proposal 生命周期：
+提案生命周期：
 
 ```text
 kernel/proposal.created
@@ -93,17 +93,17 @@ kernel/proposal.applied
 kernel/proposal.failed
 ```
 
-Transport / runtime 错误（计划中）：
+传输层 / runtime 错误（计划中）：
 
 ```text
 kernel/error
 ```
 
-这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，永远不是内容。
+这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，不描述内容。
 
 ### 能力包发出的 kind
 
-其余一切。每个能力包在自己的 manifest 中定义自己的事件 kind，命名空间在其 package id 之下。示例（仅为说明；不属于内核）：
+其余都属于能力包。每个能力包在自己的清单中定义事件 kind，命名空间位于 package id 之下。示例仅用于说明，不属于内核：
 
 ```text
 someorg/conversation/turn.started
@@ -117,14 +117,14 @@ someorg/memory-pack/proposal.created
 
 ## 权限
 
-追加事件要求写入方 manifest 中有 `events.append`。读取事件流要求 `events.read`（且可限定于特定 session）。
+追加事件要求写入方清单中有 `events.append`。读取事件流要求 `events.read`，并且可以限定到特定会话。
 
-能力包不能在另一个能力包的 namespace 下追加事件。跨能力包的事件协调通过 capability 调用或扩展点进行，而非在日志中冒充对方。
+能力包不能在另一个能力包的命名空间下追加事件。跨能力包协调应通过能力调用或扩展点完成，不能在日志中冒充对方。
 
 ## 持久化规则
 
 - 只追加。日志从不被编辑。
-- 按 session 排序是单调的。内核不做跨 session 排序承诺。
+- 会话内排序是单调的。内核不承诺跨会话排序。
 - 持久化。`kernel/event.after_append` 触发后，事件即已提交。
 - 可 replay。内核可以从 `sequence` 0 开始向前流式输出事件。
 
@@ -136,28 +136,28 @@ someorg/memory-pack/proposal.created
 - 请求追赶的新加载能力包，
 - 快照工具。
 
-内核原封不动地 replay 信封。意义、projection 和状态重建是能力包的事。
+内核原样 replay 信封。意义、projection 和状态重建由能力包负责。
 
 ## 版本管理
 
-每个事件 kind 携带 `schema_version`。所属写入方负责迁移。内核不迁移 payload；它持久化写入时的内容。
+每个事件 kind 携带 `schema_version`。所属写入方负责迁移。内核不迁移 payload；它只持久化写入时的内容。
 
 能力包可以在不改动内核的情况下为自己的 kind 发布新的 `schema_version`。
 
 ## 因果与关联
 
-信封的 `metadata` 可以携带 `causation_id`（导致此事件的那条事件）和 `correlation_id`（一个逻辑追踪），但内核将它们视为不透明。能力包决定它们的含义。
+信封的 `metadata` 可以携带 `causation_id`（导致此事件的那条事件）和 `correlation_id`（一个逻辑追踪）。内核将它们视为不透明字段。能力包决定它们的含义。
 
 ## 本模型刻意省略的东西
 
 - 没有聊天历史概念。
 - 没有轮次或消息概念。
-- 没有 prompt frame、context plan 或 model call 概念。
+- 没有 prompt frame、上下文计划或 model call 概念。
 - 没有记忆或世界状态概念。
-- 没有 agent 任务或 proposal 概念。
+- 没有 agent 任务或提案概念。
 
-以上所有对需要它们的能力包来说都是合法的事件 kind。它们都不是内核事件。
+需要这些概念的能力包，可以把它们定义成自己的事件 kind。它们都不是内核事件。
 
 ## 稳定性
 
-内核发出的 kind 集合刻意保持很小。新增内核 kind 需要与新增内核职责相同的论证：它无法合理地生活在能力包里。
+内核发出的 kind 集合刻意保持很小。新增内核 kind 需要和新增内核职责一样被论证：它确实无法合理地放进能力包。

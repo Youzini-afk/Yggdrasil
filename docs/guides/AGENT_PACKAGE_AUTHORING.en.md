@@ -2,7 +2,7 @@
 
 > [English](./AGENT_PACKAGE_AUTHORING.en.md) · [中文](./AGENT_PACKAGE_AUTHORING.md)
 
-This guide explains how to write agent-like capability packages for Yggdrasil. The core rule is: **agents are package semantics, not kernel semantics**.
+This guide explains how to write agent-like capability packages for Yggdrasil. The core rule is simple: agents live in packages, not in the kernel.
 
 ## What to use
 
@@ -27,7 +27,7 @@ This guide explains how to write agent-like capability packages for Yggdrasil. T
 
 ## Start from the template
 
-Generate a deterministic/no-network agent runtime package:
+Generate a local, replayable agent runtime package:
 
 ```bash
 cargo run -p ygg-cli -- init-package /tmp/ygg-agent \
@@ -44,7 +44,7 @@ The template generates:
 - `example/agent-runtime/draft-proposal`: approval-gated proposal draft.
 - `example/agent-runtime/echo`: local conformance compatibility capability.
 - `assistant_action` and `forge_panel` surfaces.
-- no-network, no-real-model, no-raw-secret defaults.
+- defaults that avoid network calls, real model calls, and raw secrets.
 
 Validate the generated package:
 
@@ -89,16 +89,16 @@ If multiple providers expose the same capability, explicitly choose `provider_pa
 
 ## Official reference packages
 
-`official/pi-agent-runtime-lab` is an ordinary reference package. It provides deterministic/no-network:
+`official/pi-agent-runtime-lab` is an ordinary reference package. It provides local, replayable capabilities:
 
 - run plans;
 - trace summaries;
 - proposal drafts;
 - echo.
 
-It has no official privilege, is not a real agent runtime, and performs no model inference.
+It has no official privilege. It is not a real agent runtime and performs no model inference.
 
-`official/capability-tool-bridge-lab` is also an ordinary package. It only produces tool discovery, permission preview, and invocation/streaming plans. It **does not execute target capabilities on behalf of agents**, avoiding confused deputy behavior.
+`official/capability-tool-bridge-lab` is also an ordinary package. It only produces tool discovery, permission previews, and invocation plans. It does not execute target capabilities on behalf of agents, which avoids confused-deputy behavior.
 
 ## Third-party replacement proof
 
@@ -107,7 +107,7 @@ See:
 - `examples/packages/thirdparty-agent-runtime/manifest.yaml`
 - `examples/compositions/agent-runtime-replacement/composition.yaml`
 
-This example proves a third-party agent runtime can expose equivalent surface/capability/proposal/trace shapes while the official package is only a `replacement_candidate`, not a priority path.
+This example shows that a third-party agent runtime can expose equivalent surface, capability, proposal, and trace shapes. The official package is only a `replacement_candidate`, not a priority path.
 
 Validate it:
 

@@ -6,12 +6,12 @@ This guide explains how to create, inspect, checkpoint, recover, and replace exp
 
 ## Overview
 
-Experience Beta 0 defines how ordinary package-owned experiences run continuously, pause, recover, checkpoint, fork, and receive Agentic Forge changes. **All experience semantics live at the package layer; nothing enters the kernel.**
+Experience runtime defines how ordinary package-owned experiences run continuously, pause, recover, checkpoint, and fork. Agentic Forge can change them through proposals. All experience semantics live at the package layer; nothing enters the kernel.
 
 Key constraints:
-- **No** `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`, `kernel.chat.*`, or `kernel.memory.*`.
+- No `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`, `kernel.chat.*`, or `kernel.memory.*`.
 - Experience packages are ordinary packages with no kernel privilege.
-- Experience descriptors, state projections, checkpoints, and recoveries are package-owned artifacts, not kernel primitives.
+- Experience descriptors, state projections, checkpoints, and recovery plans are package-owned artifacts, not kernel primitives.
 - All behavior goes through the public protocol.
 
 ## Generating an experience-runtime package
@@ -25,8 +25,8 @@ ygg init-package ./my-experience \
 ```
 
 The generated package includes:
-- **4 surfaces**: `experience_entry`, `play_renderer`, `forge_panel`, `assistant_action`
-- **6 capabilities**: `describe-contract`, `create-checkpoint`, `inspect-checkpoint`, `draft-recovery`, `bind-agent-run`, `echo`
+- 4 surfaces: `experience_entry`, `play_renderer`, `forge_panel`, `assistant_action`
+- 6 capabilities: `describe-contract`, `create-checkpoint`, `inspect-checkpoint`, `draft-recovery`, `bind-agent-run`, `echo`
 - No network declarations, no raw secrets, no forbidden kernel namespaces
 
 ## Experience Descriptor
@@ -76,7 +76,7 @@ const projection = createStateProjection({
 
 ## Checkpoint
 
-Checkpoints are persistent snapshots of experience state, supporting three formats:
+Checkpoints are persistent snapshots of experience state. They support three formats:
 
 | Format | Description |
 |--------|-------------|
@@ -102,7 +102,7 @@ const inspection = inspectCheckpoint(checkpoint);
 
 ## Recovery
 
-Recovery is a plan for restoring an experience after failure. Five strategies are supported:
+Recovery is a plan for restoring an experience after failure. It supports five strategies:
 
 | Strategy | Needs checkpoint | Needs approval |
 |----------|-----------------|---------------|
@@ -184,7 +184,7 @@ Experiences can connect to Agentic Forge via `bind_agent_run`:
 
 ## Third-Party Replacement
 
-Experience-runtime packages are ordinary packages and can be replaced by any third-party package that satisfies the same surface and capability contract. Replacement rules:
+Experience-runtime packages are ordinary packages. Any third-party package that satisfies the same surface and capability contract can replace them. Replacement rules:
 
 - Same surface slots (experience_entry, play_renderer, forge_panel, assistant_action)
 - Same capability shape
@@ -195,15 +195,15 @@ Experience-runtime packages are ordinary packages and can be replaced by any thi
 
 The following are strictly prohibited:
 
-1. **Kernel experience namespace**: Events, proposals, checkpoints, or any output must never contain `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`, `kernel.chat.*`, or `kernel.memory.*`.
-2. **Raw secrets**: All secrets must use `secret_ref` references. No raw secrets in checkpoints, recovery plans, or state projections.
-3. **Direct target branch mutation**: Agent modifications to experiences must go through the proposal lifecycle; never directly modify the target branch.
-4. **Network access**: Experience-runtime packages are no-network by default. If network is needed, `permissions.network.declarations` must be declared.
-5. **Kernel privilege**: Experience packages have no kernel privilege.
+1. Kernel experience namespace: events, proposals, checkpoints, or any output must never contain `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`, `kernel.chat.*`, or `kernel.memory.*`.
+2. Raw secrets: all secrets must use `secret_ref` references. Checkpoints, recovery plans, and state projections must not contain raw secrets.
+3. Direct target branch mutation: agent changes to experiences must go through the proposal lifecycle. They must not directly modify the target branch.
+4. Network access: experience-runtime packages do not use the network by default. If network is needed, `permissions.network.declarations` must be declared.
+5. Kernel privilege: experience packages have no kernel privilege.
 
 ## TypeScript SDK
 
-`sdk/typescript/experience-runtime` provides a pure TypeScript SDK with no dependencies and no private runtime:
+`sdk/typescript/experience-runtime` provides a pure TypeScript SDK. It has no dependencies and exposes no private runtime.
 
 ```typescript
 import {
@@ -224,7 +224,7 @@ import {
 ## Reference Implementation
 
 - `packages/official/experience-runtime-lab/` — Official experience-runtime lab package
-- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — Deterministic inproc handler
+- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — Replayable in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — This document
 

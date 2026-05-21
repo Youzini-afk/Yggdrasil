@@ -2,14 +2,14 @@
 
 > [English](./CREATIVE_CAPABILITY_KIT.en.md) · [中文](./CREATIVE_CAPABILITY_KIT.md)
 
-Creative Capability Kit is the first Yggdrasil-native extraction of mature headless creative/RP workflows into general official capability packages.
+Creative Capability Kit turns mature headless creative and RP workflows into general capability packages. These packages follow Yggdrasil's public protocol and manifest rules.
 
-TavernHeadless informed the edge cases, but the official packages are not `tavern-*` wrappers:
+TavernHeadless informs the edge cases. The official packages are not `tavern-*` wrappers:
 
 - `official/persona-lab` handles persona-like structured profiles.
 - `official/knowledge-lab` handles structured knowledge collections and match traces.
 - `official/context-lab` handles bounded context block assembly and budget diagnostics.
-- `official/text-transform-lab` handles deterministic text transform previews and pipeline explanations.
+- `official/text-transform-lab` handles replayable text transform previews and pipeline explanations.
 
 ## Rules
 

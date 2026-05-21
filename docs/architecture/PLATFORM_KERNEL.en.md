@@ -1,160 +1,160 @@
-# Platform Kernel
+# Platform kernel
 
 > [English](./PLATFORM_KERNEL.en.md) · [中文](./PLATFORM_KERNEL.md)
 
-The kernel is the minimum infrastructure that lets capability packages coexist on Yggdrasil. It is small, content-free, and stable.
+The kernel is the smallest infrastructure layer that lets capability packages coexist on Yggdrasil. It's small, opinion-free about content, and stable.
 
-This document fixes what the kernel does and does not do. Anything not listed as a kernel responsibility must live in a capability package.
+This document defines what the kernel does and what it doesn't. Anything not listed as a kernel responsibility has to live in a package.
 
 ## What the kernel does
 
-### 1. Identity and schemas
+### 1. Identity and schema
 
-- Generate IDs for sessions, events, packages, capability invocations, asset records.
-- Maintain `schema_version` on every persisted contract object.
-- Validate manifests, hook subscriptions, and capability registrations against published schemas.
+- Generates ids for sessions, events, packages, capability invocations, and asset records.
+- Maintains `schema_version` on every persisted contract object.
+- Validates manifests, hook subscriptions, and capability registrations against published schemas.
 
 ### 2. Session shell
 
-- Allocate and address sessions.
-- Hold per-session metadata (id, created_at, label, status).
-- Carry an event stream and a permission scope.
-- The kernel does not interpret what a session is for. A session is a labeled event stream with an attached package set.
+- Allocates and addresses sessions.
+- Holds per-session metadata (id, created_at, label, status).
+- Carries the event stream and the permission scope.
+- The kernel doesn't interpret what a session is for. A session is just a labeled event stream with a set of attached packages.
 
 ### 3. Append-only event log
 
-- Accept events from authorized writers.
-- Order them per session.
-- Persist them durably.
-- Replay them on demand.
-- The kernel treats event payloads as opaque JSON. Meaning is owned by packages.
+- Accepts events from authorized writers.
+- Orders them per session.
+- Persists them.
+- Replays them on demand.
+- The kernel treats event payloads as opaque JSON. Meaning belongs to packages.
 
 ### 4. Package registry
 
-- Load, validate, and start packages from manifest.
-- Track package state (registered, loading, ready, degraded, stopped).
-- Unload cleanly.
-- Mediate lifetime: a session declares which packages are active in its scope.
+- Loads, validates, and starts packages from manifests.
+- Tracks state (registered, loading, ready, degraded, stopped).
+- Unloads cleanly.
+- Schedules lifecycle: a session declares which packages are active in its scope.
 
-### 5. Capability fabric
+### 5. Capability routing
 
-- Index capabilities by id and version.
-- Route invocation calls and streams to providers.
-- Record invocations in the event log when configured.
-- Negotiate version constraints between consumer and provider.
+- Indexes capabilities by id and version.
+- Routes calls and streams to providers.
+- Records calls to the event log when configured to.
+- Negotiates version constraints between consumers and providers.
 
-### 6. Extension-point dispatch
+### 6. Extension dispatch
 
-- Maintain the registry of extension points.
-- Hold subscriber lists.
-- Dispatch hook calls in declared order with declared timing.
-- Enforce timeout and cancellation.
+- Maintains the extension-point registry.
+- Holds subscriber lists.
+- Dispatches hook calls in the declared order and timing.
+- Enforces timeouts and cancellation.
 
 ### 7. Permission gate
 
-- Identify principals (host_admin, host_dev, package, human, assistant, anonymous).
-- Read manifest-declared permissions for each package.
-- Track scoped grants for human and assistant principals (`events.read`, `capabilities.invoke`, etc.).
-- Enforce all of the above on event writes, capability invocations, cross-package calls, network/filesystem access.
-- Refuse undeclared side effects and write `kernel/permission.denied` audit events.
+- Identifies principals (`host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`).
+- Reads each package's manifest-declared permissions.
+- Tracks scoped grants for human and assistant principals (`events.read`, `capabilities.invoke`, etc.).
+- Enforces all of the above on event writes, capability invocations, cross-package calls, and network / filesystem access.
+- Rejects undeclared side effects and writes a `kernel/permission.denied` audit event.
 
 ### 8. Surface contributions
 
-- Accept package-declared UI surface descriptors in manifests (slots like `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`).
-- Expose them through the public protocol so any client can discover what is launchable, inspectable, and assistant-actionable.
-- Store descriptors only. Rendering and content semantics belong to packages and clients.
+- Accepts UI surface descriptors that packages declare in their manifests (slots: `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`).
+- Exposes them through the public protocol so any client can discover what's launchable, viewable, or actionable.
+- Stores descriptors only. Rendering and content semantics belong to packages and clients.
 
 ### 9. Proposal lifecycle
 
-- Mediate generic, approval-gated change proposals (`create`, `get`, `list`, `approve`, `reject`, `apply`).
-- Apply only generic operations the kernel already understands (`asset.put`, `projection.rebuild`).
-- Emit `kernel/proposal.*` audit events for every transition.
-- Refuse application of proposals that are not approved, or whose declared operations are unsupported. The kernel never invents domain-specific proposal semantics.
+- Schedules generic, approval-gated change proposals (`create`, `get`, `list`, `approve`, `reject`, `apply`).
+- Only applies operations the kernel itself understands (`asset.put`, `projection.rebuild`).
+- Emits `kernel/proposal.*` audit events on every state transition.
+- Rejects applying unapproved proposals or proposals whose operations the kernel doesn't recognize. The kernel never invents domain-specific proposal semantics.
 
-### 10. Assets, branches, and projections
+### 10. Assets, branches, projections
 
-- Maintain an opaque asset registry (`id`, `mime`, `hash`, `size`, `origin_package`, `metadata`, content blob).
-- Track session fork/branch lineage as kernel records.
-- Maintain generic projection records, rebuilt by filtering the event log; the kernel never interprets projection state.
-- All three are rehydratable from the durable event log.
+- Maintains an opaque asset registry (`id`, `mime`, `hash`, `size`, `origin_package`, `metadata`, content blob).
+- Tracks session fork / branch lineage as kernel records.
+- Maintains generic projection records, rebuilt by filtering the event log; the kernel doesn't interpret projection state.
+- All three can be recovered from the persistent event log.
 
 ### 11. Transport layer
 
-- Speak the canonical protocol envelope over: in-process Rust API, HTTP `/rpc`, host JSON-RPC stdio (`ygg host-stdio`), and SSE event subscribe.
-- Profile-backed `ygg host serve` autoloads packages and exposes the same dispatcher.
-- WebSocket and TCP transports are reserved for future work.
-- All transports surface a single conceptual protocol; official packages and clients use the same protocol as third parties.
+- Carries the canonical protocol envelope over: in-process Rust API, HTTP `/rpc`, host JSON-RPC stdio (`ygg host-stdio`), and SSE event subscription.
+- Profile-driven `ygg host serve` autoloads packages and exposes the same dispatcher.
+- WebSocket and TCP transports are reserved for later.
+- All transports present the same conceptual protocol; official packages and clients use it just like third parties.
 
-### 12. Sandbox boundaries
+### 12. Sandbox boundary
 
-- Run in-process Rust packages within the kernel binary (trust level `trusted_inproc`).
-- Spawn and supervise subprocess packages via JSON-RPC over stdio with handshake, invoke timeout, kill-on-unload, restart, and stderr capture (trust level `process_isolated`).
+- In-process Rust packages run inside the kernel binary (trust level `trusted_inproc`).
+- Subprocess packages are launched and supervised over JSON-RPC stdio with handshake, invocation timeout, kill-on-unload, restart, and stderr capture (trust level `process_isolated`).
 - WASM (`wasm_sandbox`) and remote (`remote_boundary`) entries are reserved as first-class manifest forms; execution is deferred.
 
 ### 13. Public protocol
 
-- The wire-level contract for the above. The kernel uses no private bypass; official packages and clients use the same protocol as third parties.
+- The wire-level contract for everything above. The kernel doesn't use a private side door; official packages and clients use the same protocol as third parties.
 
-## What the kernel does not do
+## What the kernel doesn't do
 
-The kernel ships zero opinion on these. They are reserved for capability packages, including official ones.
+The kernel takes no opinion on the following. They belong to packages, including official ones.
 
-### Conversation, prompts, and models
+### Conversation, prompts, models
 
-- No notion of turn, message, prompt frame, context plan, model call, sampling, or token usage.
-- No prompt rendering, no template language, no system/user/assistant roles.
-- No model provider abstraction, no streaming chunk format, no chat history.
+- No turns, messages, prompt frames, context plans, model calls, sampling, or token usage.
+- No prompt rendering, template language, or system / user / assistant roles.
+- No model-provider abstraction, streaming chunk format, or chat history.
 
 ### Worlds, characters, scenes, rules
 
 - No world model, scene graph, or actor type.
-- No character schema, no relationship state, no inventory, no clock.
-- No rule engine, no condition/effect, no dice, no combat resolution.
+- No character schema, relationship state, inventory, or clock.
+- No rule engine, conditions / effects, dice, or combat resolution.
 
 ### Memory
 
-- No memory taxonomy, no embedding, no retrieval policy.
-- No summary, no pin, no consolidation strategy.
+- No memory taxonomy, embeddings, or retrieval strategy.
+- No summarization, pinning, or merge policy.
 
 ### Agents and directors
 
-- No agent loop, no planner, no director.
-- No proposal-and-commit pattern other than what packages choose to define.
+- No agent loop, planner, or director.
+- No propose-and-commit pattern — unless a package chooses to define one.
 
 ### Content sources
 
-- No SillyTavern parser, no PNG metadata reader, no character card schema.
-- No game engine bridge, no UE5/Godot/Unity glue.
+- No SillyTavern parser, PNG metadata reader, or character-card schema.
+- No game-engine bridge, no UE5 / Godot / Unity glue.
 
 ### Presentation
 
 - No UI, no chat panel, no inspector, no editor.
-- No theme, no layout, no asset rendering.
+- No theme, layout, or asset rendering.
 
 ### Storage opinion
 
-- No business tables. The kernel needs storage for events, manifests, and asset records. It does not provide ORM, query builders, or data models for content.
+- No business tables. The kernel needs to store events, manifests, and asset records, but it doesn't ship an ORM, a query builder, or a content-shaped data model.
 
-## Gray zones
+## Gray areas
 
-These need explicit positions to avoid drift.
+These need an explicit stance to prevent drift.
 
 ### Assets
 
-The kernel maintains an asset registry. It records `id`, `mime`, `hash`, `size`, `origin_package`, and a content blob. It does not parse, render, or interpret asset content. Packages own their formats.
+The kernel maintains an asset registry. It records `id`, `mime`, `hash`, `size`, `origin_package`, and the content blob. It doesn't parse, render, or interpret asset contents. Packages own their formats.
 
 ### Event ordering
 
-The kernel guarantees per-session monotonic ordering and durable persistence. It does not guarantee any cross-session ordering, causation graph, or correlation semantics. Causation/correlation fields are opaque metadata supplied by writers.
+The kernel guarantees monotonic ordering and persistence within a session. It guarantees nothing across sessions, no causal graph, no correlation semantics. Causal / correlation fields are opaque metadata supplied by writers.
 
 ### Errors
 
-Kernel errors cover: transport, permission, schema validation, manifest, capacity, package lifecycle. Package errors flow through capability invocations as opaque structured failures; the kernel does not classify them.
+Kernel errors cover transport, permissions, schema validation, manifests, capacity, and package lifecycle. Package errors flow through capability calls as opaque structured failures; the kernel doesn't classify them.
 
 ### Defaults
 
-The kernel ships no default packages. A distribution may bundle official packages, but the kernel binary itself, when started with no manifests, runs an empty platform: it accepts sessions, accepts events, but no capability is registered and no semantics exist.
+The kernel ships no default packages. A distribution can bundle official packages, but the kernel binary itself, started without any manifests, runs an empty platform: it accepts sessions, accepts events, but has no capabilities registered and no semantics.
 
-## Stability commitment
+## Stability promise
 
-This document changes by explicit revision. New responsibilities require justification that they cannot live in a package. The default answer is "package, not kernel."
+This document changes by explicit revision. New responsibilities have to argue why they can't live in a package. The default answer is "package, not kernel."

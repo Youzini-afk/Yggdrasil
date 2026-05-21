@@ -2,7 +2,7 @@
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-This document fixes how Yggdrasil absorbs agent-framework capabilities from [pi](https://github.com/earendil-works/pi). The conclusion is: pi is an important reference source and an optional package-internal implementation source for agent package infrastructure, but it is not the Yggdrasil kernel, protocol, or product shell.
+This document fixes how Yggdrasil absorbs agent-framework capabilities from [pi](https://github.com/earendil-works/pi). pi is an important reference for agent package infrastructure, and it may be used inside packages. It is not the Yggdrasil kernel, protocol, or product shell.
 
 ## Current position
 
@@ -22,9 +22,9 @@ Agent infrastructure must sit on existing public primitives:
 
 | pi layer | Yggdrasil handling | Reason |
 |---|---|---|
-| `pi-ai` | Reference + future ordinary model/inference package internal option | Provider registry, stream/tool-call shape, and faux provider are valuable, but real model calls still require mature host policy, secret, network, audit, usage, and redaction contracts. |
-| `pi-agent-core` | adapter-now + package-internal optional | `AgentEvent`, `AgentTool`, before/after tool-call hooks, parallel/sequential execution, and steer/followUp queues are worth absorbing; model/message/systemPrompt/thinkingLevel must not enter the kernel. |
-| `pi-coding-agent` | reference only | It is a complete coding-agent product with TUI, bash/read/write/edit tools, session JSONL, model resolver, skills/extensions, and coding workflow. It is not suitable as a Ygg platform dependency or product shell. |
+| `pi-ai` | Reference + future ordinary model/inference package internal option | Provider registry, stream/tool-call shape, and faux provider are valuable. Real model calls still require mature host policy, secret, network, audit, usage, and redaction contracts. |
+| `pi-agent-core` | Adapter now + package-internal optional | `AgentEvent`, `AgentTool`, before/after tool-call hooks, parallel/sequential execution, and steer/followUp queues are worth absorbing. model/message/systemPrompt/thinkingLevel must not enter the kernel. |
+| `pi-coding-agent` | Reference only | It is a complete coding-agent product with TUI, bash/read/write/edit tools, session JSONL, model resolver, skills/extensions, and coding workflow. It is not suitable as a Ygg platform dependency or product shell. |
 
 For the finer ledger, see [`../../integrations/pi/README.md`](../../integrations/pi/README.md).
 
@@ -45,10 +45,10 @@ For the finer ledger, see [`../../integrations/pi/README.md`](../../integrations
 
 ## SDK and package boundaries
 
-Agent Infrastructure Alpha may add:
+Future agent infrastructure may add:
 
-- `sdk/typescript/ygg-agent-adapter`: maps Ygg capabilities to pi-style tools and provides proposal, trace, stream/cancel, permission/provider diagnostics helpers.
-- `ygg init-package --template agent-runtime`: generates a deterministic/no-network subprocess agent package.
+- `sdk/typescript/ygg-agent-adapter`: maps Ygg capabilities to pi-style tools and provides proposal, trace, stream/cancel, and permission/provider diagnostics helpers.
+- `ygg init-package --template agent-runtime`: generates a subprocess agent package template with no network by default.
 - `official/pi-agent-runtime-lab`: ordinary reference package, no-network/faux by default, no real model calls.
 - `official/capability-tool-bridge-lab`: ordinary tool bridge package for discovery, permission preview, explicit provider selection, and public-protocol calls.
 - Forge/Assist observability for agent traces, tools, and proposals.
@@ -61,7 +61,7 @@ These components must not:
 - hardcode official package IDs in UI;
 - expose raw secrets in events/proposals/audit;
 - provide default bash/edit/write tools;
-- make real model calls in Alpha.
+- make real model calls at this stage.
 
 ## Kernel non-goals
 
@@ -86,4 +86,4 @@ The kernel will not add or standardize:
 
 ## Current status
 
-Agent Infrastructure Alpha has entered execution. J0 fixes the boundary and ledger; later phases will add the adapter SDK, deterministic/no-network template, ordinary official reference package, tool bridge, Forge/Assist observability, and third-party replacement proof. Real model inference remains deferred until a dedicated package and host policy are ready.
+Agent infrastructure has entered execution. This document fixes the boundary and ledger. Next work adds the adapter SDK, a no-network-by-default template, an ordinary official reference package, the tool bridge, Forge/Assist observability, and third-party replacement proof. Real model inference remains deferred until a dedicated package and host policy are ready.

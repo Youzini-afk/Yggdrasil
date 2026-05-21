@@ -2,9 +2,9 @@
 
 > [English](./EXTERNAL_PROJECT_OPERATING_PLANE.en.md) · [中文](./EXTERNAL_PROJECT_OPERATING_PLANE.md)
 
-External Project Operating Plane Alpha proves that Yggdrasil does not have to accept only projects that already implement the manifest/capability contract. Unadapted git/npm/local/archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters/wrappers enter the ordinary Ygg package/capability world.
+External Project Operating Plane shows that Yggdrasil does not have to accept only projects that already implement the manifest and capability contract. Unadapted git, npm, local, or archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters or wrappers enter the ordinary Ygg package and capability world.
 
-External evidence is saved under `/tmp/opencode/ygg-external-project-plane-20260520/`. This phase used GitHub supply-chain security material, npm lifecycle script documentation, and agent/RCE sandbox references. The core conclusion: install/run is untrusted code execution; workflow/secret exfiltration is a real risk; unadapted projects must be handled through plan-first, default-deny, policy/proposal/audit-gated flows.
+External evidence is saved under `/tmp/opencode/ygg-external-project-plane-20260520/`. This work used GitHub supply-chain security material, npm lifecycle script documentation, and agent/RCE sandbox references. The core conclusion is that install/run means executing untrusted code. Workflow and secret exfiltration are real risks. Unadapted projects must go through planning, policy, proposal, and audit boundaries first.
 
 ## Four object classes
 
@@ -21,7 +21,7 @@ This avoids the old plugin-host trap. An external project can remain unchanged w
 
 ### `official/project-intake-lab`
 
-Ordinary official package, no kernel privilege. It exposes 11 capabilities:
+Ordinary official package, no kernel privilege. It exposes these capabilities:
 
 - `describe_intake_contract`
 - `inspect_external_project_ref`
@@ -66,7 +66,7 @@ Capability boundaries:
 
 - Action taxonomy covers `clone_project`, `read_metadata`, `install_dependencies`, `run_command`, `run_tests`, `stop_process`, `read_logs`, `discover_entrypoints`, `write_patch`, and `deploy_plan`.
 - Each action carries `risk_level`, `requires_approval`, `executes_code`, `network_required`, and `filesystem_write_required`.
-- `request_workspace_action` is deny-by-default. Alpha does not honor approval tokens. Policy/action mismatches fail closed.
+- `request_workspace_action` denies by default. Policy/action mismatches fail closed.
 - Deterministic fixture workspace capabilities prove workspace descriptors, entrypoints, run plans, fixture results, and patch proposal shapes without creating directories, spawning processes, or reading files.
 - Patch output is proposal-only with `file_write_performed=false`.
 
@@ -104,19 +104,9 @@ cargo run -p ygg-cli -- conformance --tag project_intake
 cargo run -p ygg-cli -- conformance --tag workspace_lab
 ```
 
-## Conformance
-
-At the end of External Project Operating Plane Alpha:
-
-- Full `cargo run -p ygg-cli -- conformance`: 275 named cases.
-- `project_intake`: 16 cases.
-- `workspace_lab`: 14 cases.
-
-Coverage includes contract shape, source classification, stack detection, npm lifecycle risk, workspace plan no-execution, local path rejection, adapter plan no-execution, adapter manifest preview no-write, official/path traversal/capability namespace rejection, wrapper preview no-execution, fixture redaction, readiness checklist, workspace action deny-default, policy mismatch fail-closed, audit redaction, fixture workspace, entrypoint discovery, patch proposal, raw-secret blocking, and forbidden namespace blocking.
-
 ## Next directions
 
-This phase deliberately stops at no-execution / no-network / deterministic preview. Real deployment and maintenance needs a separate future phase:
+The current capabilities deliberately stop at plans and previews. Real deployment and maintenance need more boundaries:
 
 - Host-controlled sandbox/workspace executor.
 - Real clone/install/run/test/stop/log execution boundaries.
@@ -124,4 +114,4 @@ This phase deliberately stops at no-execution / no-network / deterministic previ
 - Patch apply / test rerun / deployment preview through branch/proposal flows.
 - Deeper project graph and dependency risk analysis.
 
-These should still proceed as ordinary package / host executor substrate, not as kernel product ontology.
+These should still proceed as ordinary package and host-executor substrate, not as kernel product ontology.

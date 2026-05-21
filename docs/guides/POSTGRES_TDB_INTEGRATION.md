@@ -2,7 +2,7 @@
 
 > [English](./POSTGRES_TDB_INTEGRATION.en.md) · [中文](./POSTGRES_TDB_INTEGRATION.md)
 
-本指南记录 PostgreSQL + TDB Integration Alpha 与 Real TDB Rust Adapter Alpha 的最终状态：PostgreSQL 是可选 host-owned `EventStore` backend；TDB/TriviumDB 是普通 retrieval/multimodal provider adapter 路线，并已有真实 Rust API adapter proof，但不是内核数据库。
+本指南记录 PostgreSQL 与 TDB 的接入边界。PostgreSQL 是可选的 host-owned `EventStore` backend。TDB/TriviumDB 是普通检索和多模态 provider adapter 路线，已有 Rust API adapter proof，但不是内核数据库。
 
 ## PostgreSQL event store
 
@@ -11,7 +11,7 @@
 - feature：`postgres`
 - driver：`tokio-postgres` + `deadpool-postgres`
 - schema：`events` table、`unique(session_id, sequence)`、session/range/kind/session+kind indexes，payload/metadata 使用 JSONB
-- per-session sequence：在 transaction 内使用 session-scoped advisory lock + `max(sequence)+1` + unique constraint
+- per-session sequence：在 transaction 内使用 session-scoped advisory lock、`max(sequence)+1` 和 unique constraint
 - subscribe：当前为 host-local broadcast，不依赖 PostgreSQL LISTEN/NOTIFY
 - 默认：不启用，不影响普通 build / CI / conformance
 
@@ -56,7 +56,7 @@ event_store:
 profiles/forge-postgres.example.yaml
 ```
 
-注意：profile 只引用 env var 名称；真实连接信息只属于 host runtime。Host stdout diagnostics 只显示 backend kind 与 redacted 状态。
+注意：profile 只引用 env var 名称。真实连接信息只属于 host runtime。Host stdout diagnostics 只显示 backend kind 与脱敏状态。
 
 ## TDB / TriviumDB route
 
@@ -66,7 +66,7 @@ TDB 源码 review 位于：
 integrations/tdb/TRIVIUMDB_REVIEW.md
 ```
 
-结论：TriviumDB/TDB 适合成为 retrieval / multimodal provider adapter，不适合成为：
+结论：TriviumDB/TDB 适合成为检索和多模态 provider adapter，不适合成为：
 
 - kernel event store；
 - canonical asset store；
@@ -74,7 +74,7 @@ integrations/tdb/TRIVIUMDB_REVIEW.md
 - package raw database；
 - global memory/chat/agent/world store。
 
-原因是 TDB 的强项是本地嵌入式向量/图/文档/多模态混合检索；Yggdrasil 的事件、权限、proposal、branch lineage、audit 仍应由 event spine 作为 authoritative substrate。
+原因是 TDB 的强项是本地嵌入式向量、图、文档和多模态混合检索。Yggdrasil 的事件、权限、提案、分支 lineage 和审计仍应由 event spine 承担。
 
 ## `official/tdb-retrieval-lab`
 
@@ -95,7 +95,7 @@ inspect_tdb_adapter_surface
 describe_real_tdb_opt_in_seam
 ```
 
-该包仍是 deterministic / no-execution / plan/contract 层：
+该包仍是可重放的 contract/plan 层：
 
 - 不链接真实 TDB crate（真实调用由 `tdb-rust-adapter` opt-in proof 负责）
 - 不打开 backend
@@ -106,7 +106,7 @@ describe_real_tdb_opt_in_seam
 - 不读写文件
 - 不保存或输出 raw backend secret
 
-真实 TDB 接线由 `official/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-crate` 承担；`tdb-retrieval-lab` 保持为默认安全 contract/plan 层。
+真实 TDB 接线由 `official/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-crate` 承担。`tdb-retrieval-lab` 保持为默认安全的 contract/plan 层。
 
 ## `official/tdb-rust-adapter`
 
@@ -147,12 +147,12 @@ search
 search_hybrid
 ```
 
-它使用临时 redacted store，不输出 raw path，不联网，不进入默认 workspace build。默认 profile 不打开真实 backend 是为了保留 host policy / approval / resource limit 边界；真实 Rust proof 走已发布 `triviumdb = "0.7.0"` crate，而不是本地绝对路径或开发机路径覆盖。
+它使用临时脱敏 store，不输出 raw path，不联网，不进入默认 workspace build。默认 profile 不打开真实 backend，是为了保留 host policy、approval 和 resource limit 边界。真实 Rust proof 走已发布 `triviumdb = "0.7.0"` crate，而不是本地绝对路径或开发机路径覆盖。
 
 推荐真实模式顺序：
 
-1. **subprocess adapter package**：优先。隔离 native dependency、file lock、panic、repair/compaction 生命周期。
-2. **feature-gated in-process adapter**：仅在 TDB 可稳定解析（发布、vendored、submodule 或固定 git rev）且 host 显式接受 native in-process 风险时启用。
+1. 子进程 adapter package：优先。隔离 native dependency、file lock、panic、repair/compaction 生命周期。
+2. feature-gated in-process adapter：仅在 TDB 可稳定解析（发布、vendored、submodule 或固定 git rev）且 host 显式接受 native in-process 风险时启用。
 
 示例 profile shape：
 
@@ -194,19 +194,17 @@ kernel.vector.*
 kernel.embedding.*
 ```
 
-不得让 package 获得 raw PostgreSQL pool、SQL、DSN、TDB path、backend topology 或 raw backend error。
+不得让包获得 raw PostgreSQL pool、SQL、DSN、TDB path、backend topology 或 raw backend error。
 
 ## 验证
 
-Alpha 完成时：
+常用验证命令：
 
-- `cargo test --workspace` 通过
-- `cargo run -p ygg-cli -- conformance` 通过，320 个具名 CLI cases
-- `cargo run -p ygg-cli -- conformance --tag storage` 通过
-- `cargo run -p ygg-cli -- conformance --tag tdb` 通过
-- `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` 通过
-- `cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml` 通过
-- `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.toml` 通过
-- `cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb` 通过
-- `cargo check -p ygg-cli --features postgres` 通过
-- Web TypeScript 通过
+```bash
+cargo test --workspace
+cargo run -p ygg-cli -- conformance --tag storage
+cargo run -p ygg-cli -- conformance --tag tdb
+cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
+cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
+cargo check -p ygg-cli --features postgres
+```

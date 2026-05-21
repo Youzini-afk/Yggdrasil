@@ -2,7 +2,7 @@
 
 > [English](./POSTGRES_TDB_INTEGRATION.en.md) · [中文](./POSTGRES_TDB_INTEGRATION.md)
 
-This guide records the final state of PostgreSQL + TDB Integration Alpha and Real TDB Rust Adapter Alpha: PostgreSQL is an optional host-owned `EventStore` backend; TDB/TriviumDB is an ordinary retrieval/multimodal provider adapter path with a real Rust API adapter proof, not a kernel database.
+This guide records the PostgreSQL and TDB integration boundary. PostgreSQL is an optional host-owned `EventStore` backend. TDB/TriviumDB is an ordinary retrieval and multimodal provider adapter path with a Rust API adapter proof, not a kernel database.
 
 ## PostgreSQL event store
 
@@ -56,7 +56,7 @@ Example:
 profiles/forge-postgres.example.yaml
 ```
 
-The profile references only an env var name; the real connection details belong only to the host runtime. Host stdout diagnostics show backend kind plus redacted status only.
+The profile references only an env var name. The real connection details belong only to the host runtime. Host stdout diagnostics show backend kind plus redacted status only.
 
 ## TDB / TriviumDB route
 
@@ -66,7 +66,7 @@ The TDB source review lives at:
 integrations/tdb/TRIVIUMDB_REVIEW.en.md
 ```
 
-Conclusion: TriviumDB/TDB fits as a retrieval / multimodal provider adapter, not as:
+Conclusion: TriviumDB/TDB fits as a retrieval and multimodal provider adapter, not as:
 
 - kernel event store;
 - canonical asset store;
@@ -74,7 +74,7 @@ Conclusion: TriviumDB/TDB fits as a retrieval / multimodal provider adapter, not
 - raw package database;
 - global memory/chat/agent/world store.
 
-TDB is valuable as a local embedded vector/graph/document/multimodal hybrid retrieval engine; Yggdrasil events, permissions, proposals, branch lineage, and audit still need the event spine as the authoritative substrate.
+TDB is valuable as a local embedded vector, graph, document, and multimodal hybrid retrieval engine. Yggdrasil events, permissions, proposals, branch lineage, and audit still need the event spine as their substrate.
 
 ## `official/tdb-retrieval-lab`
 
@@ -95,7 +95,7 @@ inspect_tdb_adapter_surface
 describe_real_tdb_opt_in_seam
 ```
 
-This package remains the deterministic / no-execution / plan/contract layer:
+This package remains a replayable contract/plan layer:
 
 - no real TDB crate linkage (real calls are handled by the `tdb-rust-adapter` opt-in proof)
 - no backend open
@@ -147,12 +147,12 @@ search
 search_hybrid
 ```
 
-It uses a temporary redacted store, exposes no raw path, performs no network, and does not enter the default workspace build. Default profiles do not open a real backend in order to preserve host policy / approval / resource-limit boundaries; the real Rust proof uses the published `triviumdb = "0.7.0"` crate, not a local absolute path or developer-machine path override.
+It uses a temporary redacted store, exposes no raw path, performs no network, and does not enter the default workspace build. Default profiles do not open a real backend in order to preserve host policy, approval, and resource-limit boundaries. The real Rust proof uses the published `triviumdb = "0.7.0"` crate, not a local absolute path or developer-machine path override.
 
 Recommended real-mode order:
 
-1. **subprocess adapter package**: preferred. It isolates native dependency, file lock, panic, repair, and compaction lifecycles.
-2. **feature-gated in-process adapter**: only when TDB is resolvable in a stable way (published, vendored, submodule, or pinned git rev) and the host explicitly accepts native in-process risk.
+1. Subprocess adapter package: preferred. It isolates native dependency, file lock, panic, repair, and compaction lifecycles.
+2. Feature-gated in-process adapter: only when TDB is resolvable in a stable way (published, vendored, submodule, or pinned git rev) and the host explicitly accepts native in-process risk.
 
 Example profile shape:
 
@@ -198,15 +198,13 @@ Packages must not receive raw PostgreSQL pools, SQL, DSNs, TDB paths, backend to
 
 ## Validation
 
-At Alpha completion:
+Common validation commands:
 
-- `cargo test --workspace` passes
-- `cargo run -p ygg-cli -- conformance` passes with 320 named CLI cases
-- `cargo run -p ygg-cli -- conformance --tag storage` passes
-- `cargo run -p ygg-cli -- conformance --tag tdb` passes
-- `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` passes
-- `cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml` passes
-- `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.toml` passes
-- `cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb` passes
-- `cargo check -p ygg-cli --features postgres` passes
-- Web TypeScript passes
+```bash
+cargo test --workspace
+cargo run -p ygg-cli -- conformance --tag storage
+cargo run -p ygg-cli -- conformance --tag tdb
+cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
+cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
+cargo check -p ygg-cli --features postgres
+```

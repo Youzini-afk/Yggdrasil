@@ -2,123 +2,121 @@
 
 > [English](./PLAY_CREATION_MODEL.en.md) · [中文](./PLAY_CREATION_MODEL.md)
 
-本文档固定 Yggdrasil 的产品立场。平台不是聊天工具，不是游戏引擎，不是 Tavern 兼容层，也不是开发者工作台。它是一个游创（play-creation）平台，目的是让此前不存在的 AI 原生体验成为可能，并让游玩这些体验的人可以审视、修改和 fork 它们。
+这份文档固定 Yggdrasil 的产品立场。Yggdrasil 不是聊天工具，不是游戏引擎，不是 Tavern 兼容层，也不是开发者工作台。它是一个游创（play-creation）平台，目标是让此前不存在的 AI 原生体验成为可能，并让游玩这些体验的人可以审视、修改、fork 它们。
 
-这里固定的立场是内核、公开协议、官方包、Web shell 和 SDK 共同服务的目标。当某个未来功能看起来与这一立场冲突时，立场优先。
+这一立场是内核、公开协议、官方包、Web shell 和 SDK 共同服务的目标。当某个未来功能看起来与立场冲突时，立场优先。
 
 ## 游创前提
 
-今天大多数 AI 原生创作工具都把用户切成两个角色：消费成品体验的玩家，和构建体验的开发者。Yggdrasil 拒绝这种切分。
+今天大多数 AI 原生创作工具把人切成两半：消费成品体验的玩家，和构建体验的开发者。Yggdrasil 拒绝这种切分。
 
 Yggdrasil 上的玩家可以：
 
-- 启动一个 session，
-- 审视正在发生什么，
-- 让 assistant 修改某处，
-- fork 这个 session 尝试另一种走向，
-- 用一个包替换另一个包，
+- 启动一个会话；
+- 审视正在发生什么；
+- 让 assistant 修改某处；
+- fork 这个会话试另一种走向；
+- 用一个能力包替换另一个；
 - 保存自己的创作并分享。
 
 Yggdrasil 上的创作者可以：
 
-- 写一个可以在任意 host 上加载的包，
-- 声明 entry point、能力、hook 和 surface，
-- 用和玩家同一套协议在线调试，
-- 在自己的包上看着游创循环发生，不需要单独的「开发者模式」。
+- 写一个能在任意 host 上加载的能力包；
+- 声明入口、能力、钩子和 surface；
+- 用和玩家同一份协议在线调试；
+- 在自己的能力包上看着游创循环跑起来，不需要单独的「开发者模式」。
 
-底层底座在两个方向上完全相同。不存在 Yggdrasil 的「开发者版本」和「玩家版本」。只有一个跑着公开协议的 host，其余都是包的选择。
+底座在两个方向上完全相同。不存在「玩家版」和「开发者版」的 Yggdrasil。只有一个跑着公开协议的 host，剩下的都是能力包的选择。
 
-## 三个第一等 surface
+## 三个一等 surface
 
-平台围绕三个 surface 组织自身。内核知道它们的 slot 名；内核不知道它们的含义。
+平台围绕三个 surface 组织自己。内核知道它们的 slot 名，但不知道它们的含义。
 
 ### Home / Play
 
-类主机的启动器与游玩 surface。它从包声明的 `experience_entry` surface 发现可游玩内容，在 session 中渲染包声明的 `play_renderer` surface。Home/Play 是大多数用户度过大部分时间的地方。
+类主机的启动器和游玩 surface。它从能力包声明的 `experience_entry` 描述符里发现可玩内容，在会话中渲染包声明的 `play_renderer`。Home / Play 是大多数人花最多时间的地方。
 
-Home 不是应用商店，也不是路由器。它是一个向公开协议询问「现在这里有什么可启动的？」然后信任包来回答的 surface。
+Home 不是应用商店，也不是路由器。它是一个朝公开协议问「现在这里有什么可启动的」、然后信任能力包来回答的 surface。
 
 ### Forge
 
-Agentic 创作工作区。它诚实地暴露底座：事件、能力、asset、projection、branch、proposal、surface、包、hook、权限。它承载包声明的 `forge_panel` surface，让包能在通用检查器旁边提供自己的创作/检查面板。
+agentic 创作工作区。它诚实地暴露底座：事件、能力、资产、projection、分支、提案、surface、能力包、钩子、权限。它承载能力包声明的 `forge_panel`，让能力包能在通用审查器旁边贴出自己的创作或检查面板。
 
-Forge 是游创创作者变成创作者-创作者而不用离开平台的地方。视觉编辑器、节点编辑器、提示词编辑器、lorebook、世界地图及类似工具属于 Forge，以包贡献的 Forge 编辑器模式存在，而不是内核功能。
+Forge 是游创创作者变成「创作-中-的-创作者」的地方，不必离开平台。视觉编辑器、节点编辑器、提示词编辑器、世界书、世界地图——这些工具都属于 Forge，以能力包贡献的 Forge 编辑器形态存在，不是内核功能。
 
 ### Assist
 
-跨模式 assistant 抽屉。在 Play 中，它提供小的实时修改和 proposal。在 Forge 中，它做更深的工作 —— 提议操作、起草包、叙述 diff、建议变更。在两种模式下，每一次修改都经过 `kernel.proposal.*` 并在落定前获得 approval。
+跨模式的 assistant 抽屉。在 Play 里，它给出小幅实时修改和提案。在 Forge 里，它做更深的活——动议操作、起草能力包、解释 diff、建议变更。两边都一样：每一次修改都走 `kernel.proposal.*`，落定前要被批准。
 
-Assist 是 proposal lifecycle 的薄客户端。它不是特权修改路径。一个第三方 assistant 包可以替换 `official/assistant-lab` 并以相同方式运作。
+Assist 是提案生命周期的薄客户端，不是特权修改路径。一个第三方 assistant 包可以替换 `official/assistant-lab`，运作方式完全相同。
 
-## 游创创作者流程
+## 创作者流程
 
-游创循环跑在已有底座上。端到端流程如下：
+游创循环跑在已有底座上。端到端流程是这样：
 
-```text
-Home discovers experience_entry surfaces over the public protocol.
-Player launches an experience.
-Kernel opens a session bound to the package set the experience needs.
-Package writes its own events, drives its own play_renderer surface.
-Player asks Assist to change something.
-Assist (a package) calls kernel.proposal.create with generic operations.
-Player reviews the proposal and approves it.
-Kernel applies approved operations and writes kernel/proposal.applied.
-Player optionally forks the session at a sequence to try another path.
-Player optionally opens Forge to inspect events, assets, projections, branches.
-Player optionally edits a package or composition through Forge editor modes.
-Cycle continues.
-```
+1. Home 通过公开协议发现 `experience_entry` surface。
+2. 玩家启动一个体验。
+3. 内核打开一个会话，绑定该体验需要的能力包集合。
+4. 能力包写自己的事件，驱动自己的 `play_renderer`。
+5. 玩家请 Assist 改点东西。
+6. Assist（也是一个能力包）调用 `kernel.proposal.create`，提交通用操作。
+7. 玩家审视提案，批准它。
+8. 内核应用已批准的操作，写入 `kernel/proposal.applied`。
+9. 玩家可以在某个序列号处 fork 会话，试另一条路。
+10. 玩家可以打开 Forge 检查事件、资产、projection、分支。
+11. 玩家可以通过 Forge 编辑器修改某个能力包或 composition。
+12. 循环继续。
 
-内核从不为这些步骤中的任何一个发明领域语义。语义属于包。这个循环之所以成立，是因为包可以声明自己贡献的 surface、自己提议的操作、自己拥有的事件 —— 并且内核以通用方式居中调停。
+内核在以上任何一步都不发明领域语义。语义归能力包。这个循环之所以成立，是因为能力包可以声明自己的 surface、自己提议的操作、自己拥有的事件——而内核以通用方式居中调停。
 
 ## 平台提供与不提供
 
 平台提供：
 
-- 一个内容无关的内核，
-- 一个包的 manifest 模型，
-- 一个面向人类、assistant、包和 host 的权限与 principal 模型，
-- 一份所有人使用的公开协议，
-- 供 Home/Play、Forge、asset 编辑器和 assistant action 使用的通用 surface contributions，
-- 任何变更的通用 proposal/approval lifecycle，
-- 通用的 asset、branch 和 projection 底座，
-- 展示而非特权的官方基础包。
+- 一个对内容无意见的内核；
+- 一份能力包的清单模型；
+- 一份给人、assistant、能力包和 host 用的权限和身份模型；
+- 一份所有人共享的公开协议；
+- 给 Home / Play、Forge、资产编辑器、assistant 操作用的通用 surface 贡献机制；
+- 任意变更的通用提案 / 审批生命周期；
+- 通用的资产、分支、projection 底座；
+- 一些做演示用而非享受特权的官方基础包。
 
 平台不提供：
 
-- 一个聊天体验或任何其他题材，
-- 一个模型 provider 抽象，
-- 一个记忆模型、检索策略或 director，
-- 一个 SillyTavern 兼容层，
-- 一个外部游戏引擎桥接，
-- 一个受眷顾的视觉编辑器或 asset 编辑器，
+- 一个聊天体验或任何其他题材；
+- 一个模型 provider 抽象；
+- 一个记忆模型、检索策略或导演；
+- 一个 SillyTavern 兼容层；
+- 一个外部游戏引擎桥接；
+- 一个被偏爱的视觉编辑器或资产编辑器；
 - 一个市场。
 
-以上每一项都欢迎以包的形式到来。没有任何一项欢迎作为内核。
+以上每一项都欢迎以能力包的形态到来。没有一项欢迎作为内核。
 
-## 对 Tavern、agent、引擎的立场
+## 对 Tavern、agent 和外部引擎的态度
 
-SillyTavern 资源、agent 循环和外部引擎桥接是有价值的，但它们是包家族，不是平台家族。
+SillyTavern 资源、agent 循环和外部引擎桥接都有价值，但它们属于能力包家族，不是平台家族。
 
-当它们到来时，将是普通能力包，受同一套 manifest、fabric、权限和 sandbox 规则约束，与任何第三方包无异。它们不会获得内核特权。游创循环在它们上面运行的方式和在小型 fixture 体验上完全一样：发现、启动、提议、审批、应用、fork。
+它们到来时，将是普通能力包，受同一份清单、同一套机制、同一组权限和沙箱规则约束，与任何第三方包无异。它们不会获得内核特权。游创循环在它们身上的运作方式，和在小型 fixture 体验上完全一样：发现、启动、提议、审批、应用、fork。
 
-如果某天一个 Tavern 形态的 runtime 以官方包形式交付，一个第三方世界模拟包必须能在同一 session 中与它共存。如果不能，出错的不是第三方包，而是内核。
+如果某天一个 Tavern 形态的运行时以官方包形式交付，一个第三方世界模拟包必须能在同一个会话里和它共存。如果不能，错的不是第三方包，错的是内核。
 
-## 对激进创作的立场
+## 对激进创作的态度
 
-Yggdrasil 的目标不是交付一个更好的 Tavern。目标是让平台作者未预见到的体验成为可能，并让尝试这些体验的玩家可以 fork、审视、修改和分享他们的发现。
+Yggdrasil 的目标不是交付一个更好的 Tavern。目标是让平台作者从未预见的体验成为可能，并让尝试这些体验的玩家能 fork、审视、修改、分享他们的发现。
 
-底座天然偏向这个方向。事件是只追加的、内核拥有排序。Branch 是第一等公民。Proposal 可审计。Surface 是描述符，不是硬编码 UI。包不论来源或入口形式一律平等。
+底座天然偏向这个方向。事件只追加、内核拥有排序。分支是一等公民。提案可审计。Surface 是描述符，不是硬编码 UI。能力包不论来源、不论入口形式，地位平等。
 
-当一个功能决策让激进创作变得更难 —— 通过给官方路径特权、通过隐藏状态不让审视、通过强迫单一形态 —— 那就是 charter 退化，功能让步。
+当一个功能决策让激进创作变得更难——通过给官方路径开特权、通过把状态藏起来不让审视、通过强迫单一形态——那是章程退让，应该让步的是功能。
 
-## 对「发布」的立场
+## 对「发布」的态度
 
-不存在「1.0 聊天体验」目标。平台的发布形态是：
+不存在「1.0 聊天体验」这种目标。平台的发布形态是这样的：
 
-- Foundation Alpha —— 底座内容无关且可信（当前）。
-- Playable Experience Alpha —— 至少一个体验端到端跑在底座上，可替换、可 fork、可被 assistant 辅助。
-- Authoring Beta —— 第三方可以以和官方包同等地位交付包。
-- Substrate v1 —— 底座停止快速变动，承诺公开协议稳定性。
+- **Foundation Alpha** —— 底座对内容无意见、可信赖（已达到）。
+- **Playable Experience Alpha** —— 至少有一个体验在底座上端到端跑起来，可替换、可 fork、可让 assistant 辅助。
+- **Authoring Beta** —— 第三方可以以与官方包同等的地位交付能力包。
+- **Substrate v1** —— 底座停止快速变动，承诺公开协议稳定性。
 
-Substrate v1 之后的都是产品范围。平台从不拥有它。
+Substrate v1 之后的事属于产品范畴。平台从不拥有它。

@@ -2,7 +2,7 @@
 
 > [English](./BASELINE.en.md) · [中文](./BASELINE.md)
 
-This document records the usage, measurement scenarios, sample limitations, and metric definitions for `ygg perf baseline`. The current baseline is a **developer-machine reference**, not a CI budget.
+This document records usage, measurement scenarios, sample limits, and metric definitions for `ygg perf baseline`. The current baseline is only a developer-machine reference, not a CI budget.
 
 Performance/code-health guide: [`PERFORMANCE_AND_CODE_HEALTH.en.md`](./PERFORMANCE_AND_CODE_HEALTH.en.md).
 
@@ -21,7 +21,7 @@ cargo run -p ygg-cli -- perf baseline --format json
 
 ## Measurement scenarios
 
-All scenarios are **no-network / deterministic** — no real network or provider dependency.
+All scenarios avoid real network or provider dependencies. Inputs are fixed so developer machines can compare trends.
 
 | scenario_id | Description |
 |---|---|
@@ -53,33 +53,33 @@ All scenarios are **no-network / deterministic** — no real network or provider
 
 - Default 10 iterations. Adjustable via `--iterations`.
 - `--iterations 0` is rejected; every scenario must run at least once.
-- Each iteration is independently timed; no cross-iteration warm-up or cool-down.
+- Each iteration is independently timed; there is no cross-iteration warm-up or cool-down.
 - Measurement uses `std::time::Instant`; precision depends on OS (typically 1 µs or better).
-- Event store scenario appends 100 events per iteration; P3 extends to 1k/10k/100k atomic append scenarios. Scale scenarios use an independent store/session per iteration so fixed-size metrics are not distorted by accumulated events.
+- The in-memory event-store scenario appends 100 events per iteration. Scale scenarios cover 1k/10k/100k atomic append. Each iteration uses an independent store and session so accumulated events do not distort fixed-size metrics.
 - `event_store_append_list_range_100k` auto-caps to 1 iteration when `--iterations > 1` to avoid excessive runtime.
-- P3 adds `EventStore::append_with_sequence` atomic append API, guaranteeing no duplicate sequences under concurrent same-session access.
-- P3 adds `EventStore::list_kind_prefix` and `list_session_kind_prefix` query pushdown APIs; audit/range queries no longer routinely call `list_all()` + full filter.
-- P4 adds `clients/web/src/performance/render-diagnostics.ts` for front-end 50/500 event Forge render diagnostics. The helper is pure TypeScript: no host connection, no SQLite/runtime internals.
-- No criterion or statistical framework; the goal is a developer-machine reference, not CI compliance budgets.
+- `EventStore::append_with_sequence` provides atomic append and prevents duplicate sequences under concurrent same-session access.
+- `EventStore::list_kind_prefix` and `list_session_kind_prefix` provide query pushdown. Audit and range queries no longer routinely call `list_all()` and then filter the full result.
+- `clients/web/src/performance/render-diagnostics.ts` provides frontend Forge render diagnostics for 50/500 events. The helper is pure TypeScript: no host connection and no SQLite or runtime internals.
+- No criterion or statistical framework is used. The goal is a developer-machine reference, not a CI compliance budget.
 
 ## Red lines
 
-- **No official-package fast path.** Official and third-party packages share equal routing and permission boundaries.
-- **No bypass of permission / hook / schema / redaction / audit.**
-- **No real network or provider required.**
-- **No runtime boundary or public protocol changes.**
+- No official-package fast path. Official and third-party packages share the same routing and permission boundaries.
+- No bypass of permissions, hooks, schema validation, redaction, or audit.
+- No real network or provider required.
+- No runtime boundary or public protocol changes.
 
 ## Metrics for future optimization tracking
 
-These metrics serve as comparison baselines for later optimization phases:
+Use these metrics for before/after comparisons during later optimization:
 
-1. **inproc invoke latency** — Should be watched if resolve cache or handler table is introduced in P2/P5.
-2. **event store batch throughput** — After P3 atomic append + query pushdown, 100-event / 1k / 10k / 100k append+list+range+kind-prefix latencies are quantifiable.
-3. **event store scale metrics** — P3 adds 1k/10k/100k event scale scenarios for cross-version trend comparison.
-4. **composition check latency** — Should improve after P2 replaces O(n²) diagnostics with sets/indexes.
-5. **profile load latency** — Serves as YAML parsing baseline; re-measure if profiles grow.
-6. **subprocess invoke latency** — Will be re-measured in P1/P3 with a stable subprocess environment.
-7. **Forge render diagnostics** — P4 adds a front-end render helper for 50/500 mock events; future UI optimization should compare HTML bytes and elapsed_ms.
+1. In-process invoke latency — Watch this if a resolve cache or handler table is introduced.
+2. Event-store batch throughput — Compare append/list/range/kind-prefix latency for 100 events, 1k, 10k, and 100k.
+3. Event-store scale trend — Use the 1k/10k/100k scenarios to compare growth across versions.
+4. Composition check latency — Set/index-based diagnostics should improve this.
+5. Profile load latency — Use it as the YAML parsing baseline; re-measure when profiles grow.
+6. Subprocess invoke latency — Re-measure with a stable subprocess environment.
+7. Forge render diagnostics — Future UI optimization should compare HTML bytes and elapsed_ms.
 
 ## Sample reference output
 
@@ -96,4 +96,4 @@ subprocess_echo_invoke                 10       0.73      0.073      0.054    0.
 baseline: 6 ok, 0 skipped, 0 error (6 scenarios)
 ```
 
-Values above are from a specific developer machine and serve only as a reference, not as CI compliance budgets.
+Values above are from a specific developer machine. They are a reference, not a CI compliance budget.

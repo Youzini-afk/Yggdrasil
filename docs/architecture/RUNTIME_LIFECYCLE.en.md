@@ -2,7 +2,7 @@
 
 > [English](./RUNTIME_LIFECYCLE.en.md) · [中文](./RUNTIME_LIFECYCLE.md)
 
-The kernel runs three lifecycles: package, session, and capability invocation. None of them describes a turn, a chat, a prompt, or any other content-shaped operation. Those belong to packages.
+The kernel runs three lifecycles: package, session, and capability invocation. They do not describe turns, chats, prompts, or other content-shaped operations. Those belong to packages.
 
 ## Package lifecycle
 
@@ -17,7 +17,7 @@ stopped     resources released
 unloaded    no longer active in the host
 ```
 
-Each transition emits a `kernel/package.*` event. Subscribers (observability tools, other packages) react via the public protocol; the kernel exposes no private hook for package state.
+Each transition emits a `kernel/package.*` event. Subscribers react through the public protocol, including observability tools and other packages. The kernel exposes no private hook for package state.
 
 ## Session lifecycle
 
@@ -35,11 +35,11 @@ closing     kernel/session.before_close dispatched (sync, vetoable)
 closed      kernel/session.closed emitted; log frozen for further appends
 ```
 
-The kernel does not own a "current turn," "active actor," or any content-level state of the session. If a package wants such a notion, it derives it from events.
+The kernel does not own a "current turn," "active actor," or any content-level state of the session. If a package needs such a concept, it derives it from events.
 
 ## Proposal lifecycle
 
-The kernel mediates generic approval-gated change proposals. The lifecycle is content-free: it only knows the operations it can apply (`asset.put`, `projection.rebuild`).
+The kernel mediates generic approval-gated change proposals. The lifecycle is content-free. It only knows the operations it can apply, such as `asset.put` and `projection.rebuild`.
 
 ```text
 created     proposal recorded under requesting principal; kernel/proposal.created emitted
@@ -49,7 +49,7 @@ applied     approved proposal executed against the kernel; kernel/proposal.appli
 failed     application or validation failed; kernel/proposal.failed emitted
 ```
 
-A package or assistant principal cannot apply a proposal directly: it must reach `approved` first. The kernel never invents domain-specific proposal semantics; richer operations (multi-step transactions, package-side compensations) belong to packages built on top.
+A package or assistant principal cannot apply a proposal directly. It must reach `approved` first. The kernel does not invent domain-specific proposal semantics; richer operations such as multi-step transactions and package-side compensation belong to packages built on top.
 
 ## Capability invocation lifecycle
 
@@ -63,13 +63,13 @@ failed           kernel/capability.failed emitted with structured error
 cancelled        cancellation acknowledged by provider; failed/completed event records the outcome
 ```
 
-The kernel records invocations as kernel events. The contents of `input` and `output` are opaque to the kernel and validated only against the provider's declared schemas.
+The kernel records invocations as kernel events. The contents of `input` and `output` are opaque to the kernel. They are validated only against the provider's declared schemas.
 
 ## Cancellation and timeouts
 
-Every long-running operation (capability invocation, hook dispatch, package start) has a deadline derived from manifest sandbox policy plus host policy. Exceeding the deadline triggers cancellation. The kernel records the outcome.
+Every long-running operation has a deadline, including capability invocation, hook dispatch, and package start. The deadline is derived from manifest sandbox policy plus host policy. Exceeding it triggers cancellation, and the kernel records the outcome.
 
-The kernel does not invent its own cancellation semantics for content (no "regenerate," no "stop generating"). Such operations are package capabilities.
+The kernel does not invent its own cancellation semantics for content. There is no "regenerate" or "stop generating" in the kernel. Such operations are package capabilities.
 
 ## Replay and bootstrap
 
@@ -94,4 +94,4 @@ The kernel classifies errors only at its own boundary: transport, manifest, sche
 - No agent task.
 - No world tick.
 
-All of the above are appropriate inside packages. None of them are kernel lifecycles.
+All of the above belong inside packages. None of them are kernel lifecycles.

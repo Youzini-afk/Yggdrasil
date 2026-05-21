@@ -2,7 +2,7 @@
 
 > [English](./CONFORMANCE_MATRIX.en.md) · [中文](./CONFORMANCE_MATRIX.md)
 
-The conformance suite is the executable guardian of the charter. It proves both positive behavior and hostile rejection behavior. The current foundation is Platform Foundation Alpha + Play/Forge Surface Contract Beta. New cases land here as they are added; cases marked partial or future remain on the radar for Foundation Alpha Consolidation and Substrate hardening (see `docs/roadmap/NEXT_STEPS.md`).
+The conformance suite is the executable guardian of the charter. It proves both positive behavior and rejection behavior. New cases land here as they are added. Cases marked partial or future remain in scope for later hardening; see `docs/roadmap/NEXT_STEPS.md`.
 
 ## Current release-gate command
 
@@ -11,11 +11,11 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 274 implemented rows, backed by 320 named CLI conformance cases plus crate/service unit tests.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results.
 
 ## Conformance Feedback Loop
 
-The conformance command supports filtering, timing, and diagnostics (Performance & Code Health Beta). See [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md) and [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.en.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.en.md).
+The conformance command supports filtering, timing, and diagnostics. See [`docs/performance/CONFORMANCE_FEEDBACK.en.md`](../performance/CONFORMANCE_FEEDBACK.en.md) and [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.en.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.en.md).
 
 ```bash
 # List all case ids and tags
@@ -273,7 +273,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | creator loop | playable-creation-board package check output is verifiable with expected diagnostic fields | implemented |
 | creator loop | third-party playable-seed replaces official playable-seed without privilege | implemented |
 
-## Required hostile conformance for Platform Host Alpha
+## Required rejection conformance for the host
 
 | Area | Required case | Target phase |
 |---|---|---|
@@ -584,4 +584,4 @@ tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS
 ```
 
-The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.
+The suite should fail closed: any case listed as required for the host must pass before the corresponding milestone is declared complete.

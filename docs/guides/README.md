@@ -2,7 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-按域分组的能力包创作指南。每篇都对应一类能力包或一段创作循环——全部在公开协议、manifest 与 surface 契约之上。
+按领域分组的能力包创作指南。每篇都对应一类能力包或一段创作循环，全部建立在公开协议、清单与 surface 契约之上。
 
 ## 起步
 
@@ -10,15 +10,15 @@
 
 ## 创作能力族
 
-- [`CREATIVE_CAPABILITY_KIT.md`](CREATIVE_CAPABILITY_KIT.md) — Yggdrasil-native 通用创作能力包（persona / knowledge / context / text-transform）
-- [`MODEL_CONNECTIVITY_KIT.md`](MODEL_CONNECTIVITY_KIT.md) — 无网络的 model provider profile 与 route planning kit
+- [`CREATIVE_CAPABILITY_KIT.md`](CREATIVE_CAPABILITY_KIT.md) — Yggdrasil 通用创作能力包（persona / knowledge / context / text-transform）
+- [`MODEL_CONNECTIVITY_KIT.md`](MODEL_CONNECTIVITY_KIT.md) — model provider profile 与 route planning kit
 - [`MODEL_PROVIDER_INTEGRATION.md`](MODEL_PROVIDER_INTEGRATION.md) — 多 provider 模型接入（OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks）
-- [`INFERENCE_CAPABILITY_AUTHORING.md`](INFERENCE_CAPABILITY_AUTHORING.md) — Transport-neutral 推理能力包创作
+- [`INFERENCE_CAPABILITY_AUTHORING.md`](INFERENCE_CAPABILITY_AUTHORING.md) — 与传输无关的推理能力包创作
 
 ## Agent 与体验
 
-- [`AGENT_PACKAGE_AUTHORING.md`](AGENT_PACKAGE_AUTHORING.md) — agent-like 能力包创作
-- [`AGENTIC_FORGE_PACKAGE_AUTHORING.md`](AGENTIC_FORGE_PACKAGE_AUTHORING.md) — Agentic Forge runtime 能力包（plan graph、scratch branch、tool bridge v2）
+- [`AGENT_PACKAGE_AUTHORING.md`](AGENT_PACKAGE_AUTHORING.md) — 类 agent 能力包创作
+- [`AGENTIC_FORGE_PACKAGE_AUTHORING.md`](AGENTIC_FORGE_PACKAGE_AUTHORING.md) — Agentic Forge runtime 能力包（计划图、scratch 分支、工具桥）
 - [`EXPERIENCE_RUNTIME_AUTHORING.md`](EXPERIENCE_RUNTIME_AUTHORING.md) — 体验运行时能力包（checkpoint、recovery、agent run binding）
 - [`MEMORY_PACKAGE_AUTHORING.md`](MEMORY_PACKAGE_AUTHORING.md) — 记忆 / 知识能力包
 

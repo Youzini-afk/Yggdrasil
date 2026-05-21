@@ -2,9 +2,9 @@
 
 > [English](./EXPERIENCE_LED_PLATFORM_BETA.en.md) · [中文](./EXPERIENCE_LED_PLATFORM_BETA.md)
 
-This document sets the long-term direction after Agentic Forge Beta: Yggdrasil should converge the foundation-first phase and let real AI-native playable experiences drive the remaining substrate work.
+This document sets the long-term direction after Agentic Forge: Yggdrasil should wind down foundation-first work. Real AI-native playable experiences should drive the remaining substrate work.
 
-It is not a temporary phase plan and not the design of a single official experience. It is a product-infrastructure strategy: why the current substrate is sufficient to start experience-led work, which infrastructure gaps should be pulled by real experience pressure, what should stay deferred, and how Yggdrasil avoids becoming a chat shell, API gateway, traditional plugin host, or generic agent framework.
+It is not a temporary plan and not the design of a single official experience. It is a product-infrastructure strategy. It explains why the current substrate is sufficient to start experience-led work, which gaps should be pulled by real experience pressure, what should stay deferred, and how Yggdrasil avoids becoming a chat shell, API gateway, traditional plugin host, or generic agent framework.
 
 ## Conclusion
 
@@ -19,8 +19,8 @@ The stable base now includes:
 - Opaque events, SQLite rehydration, assets, branches, projections, and proposals.
 - Principals, permission grants, `secret_ref`, outbound executor, redacted audit, and stream/cancel lifecycle.
 - Cloud API adapter packages, live model calls, and a transport-neutral inference seam.
-- Agentic Forge Beta: package-owned run lifecycle, plan graph, scratch candidates, inference nodes, tool bridge v2, Forge control-room shell, and third-party replacement proof.
-- Authoring/composition tooling and hostile conformance.
+- Agentic Forge: package-owned run lifecycle, plan graph, scratch candidates, inference nodes, tool bridge v2, Forge control-room shell, and third-party replacement proof.
+- Authoring/composition tooling and conformance.
 
 The next question is no longer:
 
@@ -42,7 +42,7 @@ This section summarizes recent external references and the lessons they imply fo
 
 ### Roblox Cube / 4D generation: generated objects must enter runtime
 
-Roblox's 2026 Cube / 4D generation direction is a useful signal that generation is moving from static assets toward functional runtime objects: schemas split objects into required parts, geometry is generated, and behavior scripts are retargeted so the generated object can be used by players. References: Roblox, [Accelerating Creation, Powered by Roblox’s Cube Foundation Model](https://about.roblox.com/newsroom/2026/02/accelerating-creation-powered-roblox-cube-foundation-model); Roblox, [Accelerating AI Inference for 3D Creation on Roblox](https://about.roblox.com/newsroom/2025/06/accelerating-ai-inference-roblox-3d-creation).
+Roblox's 2026 Cube / 4D generation direction is a useful signal that generation is moving from static assets toward functional runtime objects. Schemas split objects into required parts, geometry is generated, and behavior scripts are retargeted so the generated object can be used by players. References: Roblox, [Accelerating Creation, Powered by Roblox’s Cube Foundation Model](https://about.roblox.com/newsroom/2026/02/accelerating-creation-powered-roblox-cube-foundation-model); Roblox, [Accelerating AI Inference for 3D Creation on Roblox](https://about.roblox.com/newsroom/2025/06/accelerating-ai-inference-roblox-3d-creation).
 
 Implications for Yggdrasil:
 
@@ -50,15 +50,15 @@ Implications for Yggdrasil:
 - Generated objects need provenance, derived asset relationships, behavior binding, preview, diff, and runtime attachment metadata.
 - In-experience player creation can itself become gameplay, not merely a creator tool.
 
-Yggdrasil should not embed cars, doors, characters, or scenes into the kernel. It should provide strong enough asset/state/proposal/branch substrate for ordinary packages to generate and inspect objects that can enter runtime.
+Yggdrasil should not embed cars, doors, characters, or scenes into the kernel. It should provide strong enough asset, state, proposal, and branch substrate for ordinary packages to generate and inspect objects that can enter runtime.
 
 ### Roblox Studio agentic: the loop is plan / build / test
 
-Roblox Studio's 2026 agentic direction is a useful signal that mature game-creation agents should focus on planning/building/testing rather than chat: Planning Mode, reviewable/editable action plans, structured task manifests, parallel agents, playtesting agents, log and data-model analysis, self-correcting loops, and third-party tools through unprivileged APIs / MCP. Reference: Roblox, [Roblox Studio is Going Agentic](https://about.roblox.com/newsroom/2026/04/roblox-studio-going-agentic).
+Roblox Studio's 2026 agentic direction is a useful signal that mature game-creation agents should focus on planning/building/testing rather than chat. The loop includes Planning Mode, reviewable/editable action plans, structured task manifests, parallel agents, playtesting agents, log and data-model analysis, self-correcting loops, and third-party tools through unprivileged APIs / MCP. Reference: Roblox, [Roblox Studio is Going Agentic](https://about.roblox.com/newsroom/2026/04/roblox-studio-going-agentic).
 
 Implications for Yggdrasil:
 
-- Agentic Forge Beta is on the right path: an agent should not be a chat box, but a planning, candidate, tool, testing, inspection, and proposal system around creation tasks.
+- Agentic Forge is on the right path: an agent should not be a chat box, but a planning, candidate, tool, testing, inspection, and proposal system around creation tasks.
 - The next step cannot stop at showing a plan graph. Agents must plan/build/test against a real experience.
 - A playtesting agent is valuable because it reads state, logs, events, projections, and user goals, then produces inspectable fixes rather than privileged mutation.
 
@@ -66,7 +66,7 @@ Yggdrasil agents must remain ordinary package-owned creative processes, not `ker
 
 ### Roblox Hybrid Architecture: do not treat neural world models as game engines
 
-Roblox's 2026 hybrid architecture offers a useful judgment: Video World Models can produce vivid visual dreams, but they lack persistent state, consistent logic, long-term memory, user input control, and true multiplayer simulation. Roblox keeps shared consistent state, symbolic logic, and repeatable simulation in the game engine, while the video model handles stochastic visuals. Reference: Roblox, [Introducing the Roblox Hybrid Architecture](https://about.roblox.com/newsroom/2026/04/roblox-reality-hybrid-architecture-democratizing-photorealistic-multiplayer-gaming).
+Roblox's 2026 hybrid architecture offers a useful judgment: Video World Models can produce vivid visual dreams, but they lack persistent state, consistent logic, long-term memory, user input control, and true multiplayer simulation. Roblox keeps shared consistent state, symbolic logic, and repeatable simulation in the game engine. The video model handles stochastic visuals. Reference: Roblox, [Introducing the Roblox Hybrid Architecture](https://about.roblox.com/newsroom/2026/04/roblox-reality-hybrid-architecture-democratizing-photorealistic-multiplayer-gaming).
 
 Yggdrasil principle:
 
@@ -80,15 +80,15 @@ Yggdrasil should not chase a pure neural game world. It needs:
 - Event-sourced state mutation.
 - Snapshot/checkpoint assets.
 - Projection-backed inspection.
-- Deterministic replay where possible.
-- Non-deterministic inference provenance.
+- Replay where possible.
+- Inference provenance.
 - Branch-aware state diff.
 
 These are state substrate, not world ontology. They must not introduce world, scene, character, or turn semantics into the kernel.
 
 ### Unity AI: AI must be embedded in creation context and provide data controls
 
-Unity AI's guiding principles are a useful signal that AI tooling must be embedded in creation context while still offering data controls, usage visibility, provider labels, and generated asset metadata. Unity integrates AI into the Editor context, with awareness of project structure, GameObjects, prefabs, render pipeline, console errors, generated asset metadata, usage reporting, provider labels, data ownership, default-off training opt-in, and local Sentis inference. References: Unity, [Unity AI Guiding Principles](https://unity.com/legal/unityai-guiding-principles); Unity, [2026 Unity Game Development Report](https://unity.com/blog/2026-unity-game-development-report-trends).
+Unity AI's guiding principles are a useful signal that AI tooling must be embedded in creation context while still offering data controls, usage visibility, provider labels, and generated asset metadata. Unity integrates AI into the Editor context. It tracks project structure, GameObjects, prefabs, render pipeline, console errors, generated asset metadata, usage reporting, provider labels, data ownership, default-off training opt-in, and local Sentis inference. References: Unity, [Unity AI Guiding Principles](https://unity.com/legal/unityai-guiding-principles); Unity, [2026 Unity Game Development Report](https://unity.com/blog/2026-unity-game-development-report-trends).
 
 Implications for Yggdrasil:
 
@@ -99,7 +99,7 @@ Implications for Yggdrasil:
 
 ### Inworld Agent Runtime: graph, stream, memory, knowledge, safety, and telemetry are common AI runtime parts
 
-Inworld Runtime is a useful signal that mature AI runtimes often organize around graph / nodes / edges / execution stream, with memory update/retrieve, knowledge, safety, intent, goal advancement, STT/TTS, telemetry, and MCP tool nodes. References: Inworld, [Graphs](https://docs.inworld.ai/node/core-concepts/graphs); Inworld, [Unity Runtime Reference Overview](https://docs.inworld.ai/Unity/runtime/runtime-reference/overview).
+Inworld Runtime is a useful signal that mature AI runtimes often organize around graph, nodes, edges, and execution stream. They commonly include memory update/retrieve, knowledge, safety, intent, goal advancement, STT/TTS, telemetry, and MCP tool nodes. References: Inworld, [Graphs](https://docs.inworld.ai/node/core-concepts/graphs); Inworld, [Unity Runtime Reference Overview](https://docs.inworld.ai/Unity/runtime/runtime-reference/overview).
 
 Implications for Yggdrasil:
 
@@ -109,7 +109,7 @@ Implications for Yggdrasil:
 
 ### Steamworks / GDC: AI games need disclosure, guardrails, cost, and trust strategy
 
-Steamworks separates Pre-Generated AI and Live-Generated AI. Live-Generated AI requires guardrails against illegal content, and ongoing live AI service costs must be managed by the developer. Public GDC 2026 State of the Game Industry summaries show substantial GenAI usage alongside strong negative sentiment in the industry. References: Steamworks, [Content Survey](https://partner.steamgames.com/doc/gettingstarted/contentsurvey); Business Wire / GDC, [2026 State of the Game Industry Report announcement](https://www.businesswire.com/news/home/20260129438528/en/2026-State-of-the-Game-Industry-Report-Reveals-Widening-Effect-of-Layoffs-Broader-Perspectives-on-Generative-AI-Unionization-Tariffs-and-More).
+Steamworks separates Pre-Generated AI and Live-Generated AI. Live-Generated AI requires guardrails against illegal content. Ongoing live AI service costs must be managed by the developer. Public GDC 2026 State of the Game Industry summaries show substantial GenAI usage alongside strong negative sentiment in the industry. References: Steamworks, [Content Survey](https://partner.steamgames.com/doc/gettingstarted/contentsurvey); Business Wire / GDC, [2026 State of the Game Industry Report announcement](https://www.businesswire.com/news/home/20260129438528/en/2026-State-of-the-Game-Industry-Report-Reveals-Widening-Effect-of-Layoffs-Broader-Perspectives-on-Generative-AI-Unionization-Tariffs-and-More).
 
 Implications for Yggdrasil:
 
@@ -159,7 +159,7 @@ Future work should not lead with “complete every substrate first.”
 
 ### 1. New substrate must be pulled by a real experience
 
-Every new substrate should answer a real experience pressure:
+Every new substrate should answer pressure from a real experience:
 
 - How does state survive a 20–30 minute session?
 - How does the system recover from model failure?
@@ -236,13 +236,13 @@ Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`.
 
 ### Experience Beta 1 — First Real Playable Vertical Slice (complete)
 
-Build an AI-native experience that can be played for 20–30 minutes without waiting for State/Asset/Memory to be complete. It must not be a chat shell, Tavern clone, or prompt/response demo.
+Build an AI-native experience that can be played for 20–30 minutes without waiting for State/Asset/Memory to be complete. It cannot be a chat shell, Tavern clone, or prompt/response demo.
 
 Delivered:
 
 - `official/playable-creation-board` — package-owned playable creation board with board/module/constraint/marker state.
-- 11 capabilities: describe_contract / launch / project_state / render_payload / record_player_action / request_change / create_checkpoint / inspect_checkpoint / draft_recovery / bind_agent_run / explain_provenance.
-- 4 surfaces: experience_entry / play_renderer / forge_panel / assistant_action.
+- Capabilities: describe_contract / launch / project_state / render_payload / record_player_action / request_change / create_checkpoint / inspect_checkpoint / draft_recovery / bind_agent_run / explain_provenance.
+- Surfaces: experience_entry / play_renderer / forge_panel / assistant_action.
 - record_player_action produces state_delta_asset_ref / projection_ref / sequence / provenance.
 - request_change produces structured agent objective / allowed_change_kinds / risk / budget / bindable refs (not chat messages).
 - bind_agent_run produces scoped agentic-forge binding.
@@ -252,7 +252,7 @@ Delivered:
 - Third-party agentic-forge replacement composition proves no official priority.
 - CLI demo `ygg playable-board-demo`.
 - Forge profile autoloads.
-- 10 conformance cases.
+- Conformance cases.
 
 Non-goals: `kernel.experience.*`, `kernel.world.*`, chat shell, assistant messages/conversation/prompt transcript.
 
@@ -302,10 +302,10 @@ Provide long-term memory and knowledge as ordinary packages, not kernel ontology
 
 Delivered:
 
-- `official/memory-lab`: 9 capabilities (describe_memory_contract / record_memory / retrieve_memory / trace_retrieval / draft_memory_update / apply_memory_correction / draft_forget_redaction / branch_memory_view / explain_memory_provenance) + 3 surfaces (forge_panel / assistant_action / home_card).
+- `official/memory-lab`: capabilities include describe_memory_contract / record_memory / retrieve_memory / trace_retrieval / draft_memory_update / apply_memory_correction / draft_forget_redaction / branch_memory_view / explain_memory_provenance; surfaces include forge_panel / assistant_action / home_card.
 - Memory record with content_address / branch_ref / disclosure / knowledge_refs / source_refs.
 - Branch-aware memory view (current_branch / all_branches / specified_branch / branch_diff).
-- Retrieval trace (deterministic keyword match, no embedding/network).
+- Retrieval trace (keyword match, no embedding/network).
 - Proposal-gated memory update (draft_memory_update produces proposal draft only, no direct state mutation).
 - User correction (apply_memory_correction produces correction shape, proposal-gated).
 - Forgetting / redaction workflow (draft_forget_redaction produces redaction plan, not deletion).
@@ -313,7 +313,7 @@ Delivered:
 - Knowledge source refs (record_memory and request_change support knowledge_refs).
 - `official/playable-creation-board` adds `memory_refs` / `knowledge_refs` / `retrieve_context_plan` optional cross-references (board does not depend on memory-lab to operate).
 - Third-party replacement proof: `thirdparty/memory-lab` + `examples/compositions/memory-lab-replacement/` composition.
-- 10 conformance cases.
+- Conformance cases.
 - Guide: `docs/guides/MEMORY_PACKAGE_AUTHORING.md`.
 
 Non-goals: `kernel.memory.*`, one official RAG, chat memory system.

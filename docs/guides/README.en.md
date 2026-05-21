@@ -2,7 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-Capability-package authoring guides grouped by domain. Each one targets a class of packages or a slice of the creation loop — all on top of the public protocol, manifests, and surface contract.
+Capability-package authoring guides grouped by domain. Each one targets a class of packages or a slice of the creation loop. All of them build on the public protocol, manifests, and surface contract.
 
 ## Getting started
 
@@ -11,14 +11,14 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 ## Creative capability families
 
 - [`CREATIVE_CAPABILITY_KIT.md`](CREATIVE_CAPABILITY_KIT.en.md) — Yggdrasil-native generic creative capability packages (persona / knowledge / context / text-transform)
-- [`MODEL_CONNECTIVITY_KIT.md`](MODEL_CONNECTIVITY_KIT.en.md) — no-network model provider profile and route planning kit
+- [`MODEL_CONNECTIVITY_KIT.md`](MODEL_CONNECTIVITY_KIT.en.md) — model provider profile and route planning kit
 - [`MODEL_PROVIDER_INTEGRATION.md`](MODEL_PROVIDER_INTEGRATION.en.md) — multi-provider model integration (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks)
 - [`INFERENCE_CAPABILITY_AUTHORING.md`](INFERENCE_CAPABILITY_AUTHORING.en.md) — transport-neutral inference capability authoring
 
 ## Agents and experiences
 
 - [`AGENT_PACKAGE_AUTHORING.md`](AGENT_PACKAGE_AUTHORING.en.md) — agent-like capability package authoring
-- [`AGENTIC_FORGE_PACKAGE_AUTHORING.md`](AGENTIC_FORGE_PACKAGE_AUTHORING.en.md) — Agentic Forge runtime packages (plan graph, scratch branch, tool bridge v2)
+- [`AGENTIC_FORGE_PACKAGE_AUTHORING.md`](AGENTIC_FORGE_PACKAGE_AUTHORING.en.md) — Agentic Forge runtime packages (plan graph, scratch branch, tool bridge)
 - [`EXPERIENCE_RUNTIME_AUTHORING.md`](EXPERIENCE_RUNTIME_AUTHORING.en.md) — experience runtime packages (checkpoint, recovery, agent run binding)
 - [`MEMORY_PACKAGE_AUTHORING.md`](MEMORY_PACKAGE_AUTHORING.en.md) — memory / knowledge packages
 

@@ -6,13 +6,13 @@
 
 ## 核心原则
 
-1. **包拥有记忆。** 记忆记录、检索、更新、纠正和遗忘/删改计划由普通能力包拥有——不是 `kernel.memory.*`。
-2. **无官方优先级。** `official/memory-lab` 是一种实现。第三方包如 `thirdparty/memory-lab` 完全可互换。
-3. **提案门控变更。** 记忆更新、纠正和遗忘/删改只产出提案草案或计划。它们永不直接修改可信状态或删除记录。消费者必须审批后才能应用。
-4. **确定性、无网络、无推理。** 参考记忆实验室实现完全确定性。不要求网络、嵌入 API 或模型推理。第三方包可通过自身出站/网络权限添加此类能力。
-5. **分支感知。** 记忆记录按分支作用域。检索和视图可按分支引用过滤。
-6. **原始秘密阻断。** 所有能力输入扫描原始秘密。原始 API key、token 和 password 被拒绝并返回 `redaction_state: unsafe_blocked`。请使用 `secret_ref` 引用。
-7. **无禁止命名空间。** 记忆包不得引用 `kernel.memory.*`、`kernel.experience.*`、`kernel.world.*`、`kernel.scene.*`、`kernel.turn.*`、`kernel.chat.*`、`kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*` 或 `kernel.director.*`。
+1. 包拥有记忆。记忆记录、检索、更新、纠正和删改计划由普通能力包拥有，不属于 `kernel.memory.*`。
+2. 无官方优先级。`official/memory-lab` 是一种实现。第三方包如 `thirdparty/memory-lab` 完全可互换。
+3. 变更要走提案。记忆更新、纠正和遗忘/删改只产出提案草案或计划。它们永不直接修改可信状态或删除记录。消费者必须审批后才能应用。
+4. 参考实现本地可重放。它不要求网络、嵌入 API 或模型推理。第三方包可通过自身出站和网络权限添加此类能力。
+5. 分支感知。记忆记录按分支作用域。检索和视图可按分支引用过滤。
+6. 阻断 raw secret。所有能力输入都会扫描原始秘密。原始 API key、token 和 password 被拒绝并返回 `redaction_state: unsafe_blocked`。请使用 `secret_ref` 引用。
+7. 无禁止命名空间。记忆包不得引用 `kernel.memory.*`、`kernel.experience.*`、`kernel.world.*`、`kernel.scene.*`、`kernel.turn.*`、`kernel.chat.*`、`kernel.agent.*`、`kernel.model.*`、`kernel.prompt.*` 或 `kernel.director.*`。
 
 ## 记忆实验室能力契约
 
@@ -32,9 +32,9 @@
 
 ### Surface
 
-- **forge_panel**：检查记忆记录、追踪、草案、纠正、删改计划和来源。
-- **assistant_action**：草拟需审批的更新、纠正或删改计划。
-- **home_card**：记录和检索记忆。
+- `forge_panel`：检查记忆记录、追踪、草案、纠正、删改计划和来源。
+- `assistant_action`：草拟需审批的更新、纠正或删改计划。
+- `home_card`：记录和检索记忆。
 
 ## 记忆记录
 
@@ -62,7 +62,7 @@
 
 - `update_kind`：`add_record`、`modify_record`、`correct_record`、`forget_record`、`merge_records`。
 - `requires_user_approval`：始终为 `true`。
-- `plan_only`：始终为 `true`——无直接状态变更。
+- `plan_only`：始终为 `true`，无直接状态变更。
 - `content_address`：草案的稳定哈希。
 
 消费者必须通过提案生命周期审批并应用草案。
@@ -83,7 +83,7 @@
 - `target_record_refs`：删改目标记录。
 - `redaction_scope`：`record_only` 或更广。
 - `status`：`draft`（需要审批后才变为 `applied`）。
-- `plan_only`：始终为 `true`——无直接删除。
+- `plan_only`：始终为 `true`，无直接删除。
 - `requires_user_approval`：始终为 `true`。
 
 删改计划是一份提案。实际删除/删改仅在明确用户审批后发生。
@@ -127,7 +127,7 @@
 
 ## 这不是什么
 
-- **不是 RAG 产品。** 参考实现使用确定性关键词匹配，不是向量搜索或嵌入 API。
-- **不是聊天记忆系统。** 没有对话回合、消息或提示词语义。
-- **不是内核记忆。** 不存在 `kernel.memory.*` 方法或命名空间。
-- **不是唯一方式。** 第三方包可通过普通包能力提供不同的检索算法、存储后端或嵌入匹配。
+- 不是 RAG 产品。参考实现使用可重放的关键词匹配，不是向量搜索或嵌入 API。
+- 不是聊天记忆系统。没有对话回合、消息或提示词语义。
+- 不是内核记忆。不存在 `kernel.memory.*` 方法或命名空间。
+- 不是唯一方式。第三方包可通过普通包能力提供不同的检索算法、存储后端或嵌入匹配。

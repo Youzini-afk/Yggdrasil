@@ -2,7 +2,7 @@
 
 > [English](./EVENT_MODEL.en.md) · [中文](./EVENT_MODEL.md)
 
-The event log is the kernel's source of truth. It is per-session, append-only, durable, and ordered.
+The event log is the kernel's source of truth. It is organized by session, append-only, durable, and ordered.
 
 The kernel does not interpret event payloads. Meaning is owned by capability packages.
 
@@ -27,16 +27,16 @@ The kernel:
 
 - assigns `id`, `sequence`, `timestamp`, and `writer_package_id`,
 - enforces that `kind` is namespaced under the writer's id (or `kernel/...` for kernel events),
-- validates `payload` against the writer's declared schema if one is declared,
+- validates `payload` against the writer's declared schema when one is declared,
 - treats `metadata` as opaque.
 
 ## Kinds
 
-There are two flavors of event kinds.
+Event kinds fall into two groups.
 
 ### Kernel-emitted kinds
 
-A small fixed set the kernel itself produces. They describe kernel operations, not content.
+The kernel itself produces a small fixed set. These kinds describe kernel operations, not content.
 
 Session:
 
@@ -99,11 +99,11 @@ Transport / runtime errors (planned):
 kernel/error
 ```
 
-These are the only event kinds the kernel knows about by name. Their payloads describe kernel operations and never content.
+These are the only event kinds the kernel knows about by name. Their payloads describe kernel operations, not content.
 
 ### Package-emitted kinds
 
-Everything else. Each package defines its own event kinds in its manifest, namespaced under its package id. Examples (illustrative; not part of the kernel):
+Everything else belongs to packages. Each package defines its own event kinds in its manifest, namespaced under its package id. These examples are illustrative and not part of the kernel:
 
 ```text
 someorg/conversation/turn.started
@@ -117,9 +117,9 @@ The kernel persists these and orders them. It does not understand them.
 
 ## Permissions
 
-Appending an event requires `events.append` in the writer's manifest. Reading an event stream requires `events.read` (and may be scoped to specific sessions).
+Appending an event requires `events.append` in the writer's manifest. Reading an event stream requires `events.read`, and may be scoped to specific sessions.
 
-A package cannot append events under another package's namespace. Cross-package event coordination flows through capability invocations or extension points, not by impersonating each other in the log.
+A package cannot append events under another package's namespace. Cross-package coordination should use capability invocations or extension points, not impersonation in the log.
 
 ## Persistence rules
 
@@ -136,17 +136,17 @@ The kernel can replay events to:
 - a newly loaded package that requested catch-up,
 - a snapshot tool.
 
-The kernel replays envelopes verbatim. Meaning, projection, and state reconstruction are package concerns.
+The kernel replays envelopes verbatim. Meaning, projection, and state reconstruction belong to packages.
 
 ## Versioning
 
-Each event kind carries a `schema_version`. The owning writer is responsible for migrations. The kernel does not migrate payloads; it persists what was written.
+Each event kind carries a `schema_version`. The owning writer is responsible for migrations. The kernel does not migrate payloads; it persists what was written at the time.
 
 A package can publish a new `schema_version` for its kind without changing the kernel.
 
 ## Causation and correlation
 
-The envelope's `metadata` may carry `causation_id` (the event that caused this one) and `correlation_id` (a logical trace), but the kernel treats them as opaque. Packages decide what they mean.
+The envelope's `metadata` may carry `causation_id` (the event that caused this one) and `correlation_id` (a logical trace). The kernel treats them as opaque. Packages decide what they mean.
 
 ## What this model deliberately omits
 
@@ -156,8 +156,8 @@ The envelope's `metadata` may carry `causation_id` (the event that caused this o
 - No memory or world-state concept.
 - No agent task or proposal concept.
 
-All of those are valid event kinds for the packages that need them. None of them are kernel events.
+Packages that need these concepts may define them as their own event kinds. None of them are kernel events.
 
 ## Stability
 
-The kernel-emitted kind set is small by design. Adding a new kernel kind requires the same justification as adding a new kernel responsibility: it cannot reasonably live in a package.
+The kernel-emitted kind set is small by design. Adding a new kernel kind needs the same justification as adding a new kernel responsibility: it truly cannot live in a package.

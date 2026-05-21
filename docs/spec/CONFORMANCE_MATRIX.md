@@ -2,7 +2,7 @@
 
 > [English](./CONFORMANCE_MATRIX.en.md) · [中文](./CONFORMANCE_MATRIX.md)
 
-Conformance 套件是 charter 的可执行守卫。它同时证明正向行为和 hostile 拒绝行为。当前基础是 Platform Foundation Alpha + Play/Forge Surface Contract Beta。新用例在添加时收入此处；标记为 partial 或 future 的用例仍在 Foundation Alpha Consolidation 和底座 hardening 的雷达上（见 `docs/roadmap/NEXT_STEPS.md`）。
+Conformance 套件是 charter 的可执行守卫。它同时证明正向行为和拒绝行为。新用例会在添加时收入此处。标记为 partial 或 future 的用例仍在后续加固范围内，见 `docs/roadmap/NEXT_STEPS.md`。
 
 ## 当前发布门槛命令
 
@@ -11,11 +11,11 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：274 个 implemented rows，由 320 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。
 
 ## Conformance Feedback Loop
 
-Conformance 命令支持过滤、计时和诊断（Performance & Code Health Beta）。详见 [`docs/performance/CONFORMANCE_FEEDBACK.md`](../performance/CONFORMANCE_FEEDBACK.md) 与 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.md)。
+Conformance 命令支持过滤、计时和诊断。详见 [`docs/performance/CONFORMANCE_FEEDBACK.md`](../performance/CONFORMANCE_FEEDBACK.md) 与 [`docs/performance/PERFORMANCE_AND_CODE_HEALTH.md`](../performance/PERFORMANCE_AND_CODE_HEALTH.md)。
 
 ```bash
 # 列出所有 case id 和 tags
@@ -264,7 +264,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | retrieval 所有能力输入阻断 raw secret | implemented |
 | storage lab | retrieval 所有能力输出无 kernel vector/embedding namespace 或 credentials | implemented |
 
-## Platform Host Alpha 必需的 hostile conformance
+## Host 必需的拒绝类 conformance
 
 | 领域 | 必需用例 | 目标阶段 |
 |---|---|---|
@@ -295,7 +295,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 
 ## CLI 目标输出
 
-`cargo run -p ygg-cli -- conformance` 应从一个冒烟测试演进为具名用例运行器：
+`cargo run -p ygg-cli -- conformance` 应从冒烟测试演进为具名用例运行器：
 
 ```text
 session.open_empty                         PASS
@@ -575,4 +575,4 @@ tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS
 ```
 
-该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。
+该套件应该以封闭失败为原则：任何列为 host 必需的用例都必须通过，对应里程碑才能宣布完成。

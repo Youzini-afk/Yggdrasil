@@ -2,16 +2,16 @@
 
 > [English](./STORAGE_BACKEND_NEUTRALITY.en.md) · [中文](./STORAGE_BACKEND_NEUTRALITY.md)
 
-Yggdrasil currently has a SQLite-backed append-only event log, but the platform contract must not become SQLite-only. Storage Backend Neutrality Alpha establishes that SQLite, PostgreSQL, TDB, object stores, and vector/multimodal retrieval systems belong behind backend/provider seams, not in kernel ontology or public protocol database products.
+Yggdrasil currently has a SQLite-backed append-only event log, but the platform contract must not be tied to SQLite. SQLite, PostgreSQL, TDB, object stores, and vector/multimodal retrieval systems belong behind backend/provider seams, not in kernel ontology or public protocol database products.
 
 ## Layered model
 
-1. **Kernel event spine**: content-free append, replay, range, kind-prefix, subscription, and rehydrate semantics. In-memory and SQLite backends exist today; PostgreSQL can become a future host/runtime backend without changing protocol.
-2. **Package-scoped state store**: ordinary capability packages may preview package-owned document/KV state contracts, but they do not receive raw DB access, SQL, or backend credentials.
-3. **Blob / asset store**: large objects should enter the platform through content address, hash, size, mime, and provenance. Blob content should not be embedded into event payloads.
-4. **Projection / index materialization**: projections/indexes are package-owned views derived from events/assets. They can plan materialization, query preview, and migration plans without exposing tables, SQL, or query-product semantics.
-5. **Retrieval / vector / multimodal providers**: TDB, pgvector, OpenSearch, Redis Vector, local embedding indexes, and remote retrieval services are provider slots. TDB now has an opt-in Rust adapter proof, but retrieval remains a package/provider-layer ability; it does not replace the event log, audit, proposal lifecycle, or branch lineage.
-6. **Forge observability**: the web shell uses public protocol calls to `official/storage-lab` to display contract summaries. It does not read SQLite, PostgreSQL, TDB, filesystem state, or runtime internals.
+1. Kernel event spine: content-free append, replay, range, kind-prefix, subscription, and rehydrate semantics. In-memory and SQLite backends exist today; PostgreSQL can become a future host/runtime backend without changing protocol.
+2. Package-scoped state store: ordinary capability packages may preview package-owned document/KV state contracts, but they do not receive raw DB access, SQL, or backend credentials.
+3. Blob / asset store: large objects should enter the platform through content address, hash, size, mime, and provenance. Blob content should not be embedded into event payloads.
+4. Projection / index materialization: projections/indexes are package-owned views derived from events/assets. They can plan materialization, query preview, and migration plans without exposing tables, SQL, or query-product semantics.
+5. Retrieval / vector / multimodal providers: TDB, pgvector, OpenSearch, Redis Vector, local embedding indexes, and remote retrieval services are provider slots. TDB now has an opt-in Rust adapter proof, but retrieval remains a package/provider-layer ability. It does not replace the event log, audit, proposal lifecycle, or branch lineage.
+6. Forge observability: the web shell uses public protocol calls to `official/storage-lab` to display contract summaries. It does not read SQLite, PostgreSQL, TDB, filesystem state, or runtime internals.
 
 ## Red lines
 
@@ -35,7 +35,7 @@ Capability groups:
 - projection / index: `describe_projection_store_contract`, `plan_projection_materialization`, `query_projection_preview`, `migrate_projection_plan_preview`
 - retrieval / multimodal: `describe_retrieval_provider_contract`, `draft_multimodal_index_plan`, `draft_vector_search_plan`, `explain_retrieval_backend_fit`
 
-All of these capabilities are deterministic preview / plan-only:
+All of these capabilities are replayable previews or plans:
 
 - no real DB writes
 - no filesystem reads/writes
@@ -61,17 +61,17 @@ The Assistant drawer also has a lightweight storage lane. It displays contract/r
 
 ## Current validation
 
-At the end of Storage Backend Neutrality Alpha:
+Common validation commands:
 
-- `cargo test --workspace` passes
-- `cargo run -p ygg-cli -- conformance` passes with 320 named cases
-- `cargo run -p ygg-cli -- conformance --tag storage` passes
-- `cargo run -p ygg-cli -- package check packages/official/storage-lab/manifest.yaml` passes
-- Web TypeScript checking passes
+```bash
+cargo test --workspace
+cargo run -p ygg-cli -- conformance --tag storage
+cargo run -p ygg-cli -- package check packages/official/storage-lab/manifest.yaml
+```
 
 ## Next steps
 
-Before adding real PostgreSQL, TDB, or retrieval/vector backends, Yggdrasil should add:
+PostgreSQL + TDB integration has completed the first opt-in backend/provider proof. Before adding more retrieval/vector backends, Yggdrasil should add:
 
 - backend selection / host policy
 - migration/export/import contracts

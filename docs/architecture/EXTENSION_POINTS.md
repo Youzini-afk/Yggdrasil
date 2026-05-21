@@ -1,27 +1,27 @@
-# Extension Points
+# 扩展点
 
 > [English](./EXTENSION_POINTS.en.md) · [中文](./EXTENSION_POINTS.md)
 
-Extension point 是内核或能力包在运行时发出的具名 hook。其他能力包可以 subscribe 它。内核负责路由调用，不负责赋予含义。
+扩展点是内核或能力包在运行时发出的具名钩子。其他能力包可以订阅。内核负责路由调用，不负责解释含义。
 
-本文档涵盖少量由内核发出的 extension point，以及所有 extension point 遵循的规则。
+本文档涵盖少量由内核发出的扩展点，以及所有扩展点共同遵守的规则。
 
-## Hook 契约
+## 钩子契约
 
-每个 extension point 包含：
+每个扩展点包含：
 
-- `id`：带 namespace 的、不可变的标识。
+- `id`：带命名空间、不可变的标识。
 - `payload_schema`：调用的 JSON 结构。
-- `timing`：`sync` 或 `async`。Sync handler 会阻塞操作；async handler 不会。
-- `modifiable`：subscriber 是否可以返回变异后的 payload，供下一个 subscriber 看到该变异。
-- `short_circuit`：subscriber 是否可以 veto 该操作。
-- `ordering`：dispatcher 如何排列 subscriber 的顺序（声明的 precedence，相同 precedence 时按稳定顺序打破平局）。
+- `timing`：`sync` 或 `async`。同步处理器会阻塞操作；异步处理器不会。
+- `modifiable`：订阅方是否可以返回修改后的 payload，并让下一个订阅方看到修改。
+- `short_circuit`：订阅方是否可以否决该操作。
+- `ordering`：分发器如何排列订阅方。先按声明的 precedence 排序；相同时使用稳定顺序。
 
-内核为每个内核发出的 extension point 发布 schema。能力包为自己声明的 extension point 发布 schema。
+内核为自己发出的每个扩展点发布 schema。能力包为自己声明的扩展点发布 schema。
 
-## Subscription
+## 订阅
 
-subscriber 在 manifest 中声明：
+订阅方在清单中声明：
 
 ```yaml
 contributes:
@@ -32,71 +32,71 @@ contributes:
       precedence: 100
 ```
 
-内核验证 subscriber 的 manifest 是否声明了 hook 所隐含的权限（例如，`event.before_append` 要求 event 读取权限；修改 payload 需要 event append 权限）。
+内核验证订阅方的清单是否声明了钩子隐含的权限。例如，`event.before_append` 要求事件读取权限；修改 payload 需要事件追加权限。
 
-当且仅当 `short_circuit: true` 时，返回错误的 subscriber 会 short-circuit 该操作。否则错误被记录，dispatch 继续。
+只有在 `short_circuit: true` 时，返回错误的订阅方才会中止该操作。否则错误会被记录，分发继续。
 
 ## 取消与超时
 
-Sync handler 在操作的 deadline 内运行。Async handler 收到的 deadline 由能力包 sandbox 策略推导而来。超过 deadline 的 handler 会被取消，并被视为一次失败的 handler 调用。
+同步处理器在操作的 deadline 内运行。异步处理器收到的 deadline 由能力包沙箱策略推导而来。超过 deadline 的处理器会被取消，并被视为一次失败调用。
 
 ## 实现状态
 
-内核发出的 extension point 集合在设计上是固定的。Foundation Alpha 实现了 event append 和 capability invoke 的可执行切片（确定性排序、包级 handler 能力、payload 元数据修改、veto、unload 清理）。Session 和 package 生命周期 hook 在契约中已预留；它们的 dispatch 目前通过 `kernel/session.*` 和 `kernel/package.*` 事件传递，随着内核演进将获得完整的 sync/async hook 处理。新的 extension point 由能力包贡献添加，而不是通过扩展内核。
+内核发出的扩展点集合在设计上是固定的。当前实现已覆盖事件追加和能力调用的核心路径：稳定排序、包内处理器、payload 元数据修改、否决和卸载清理。会话和包生命周期钩子已在契约中预留。今天它们通过 `kernel/session.*` 和 `kernel/package.*` 事件传递，后续会补齐同步/异步钩子处理。新的扩展点应由能力包贡献，而不是扩展内核。
 
-## 内核发出的 extension point
+## 内核发出的扩展点
 
-内核发出少量固定的 extension point。新的 extension point 由能力包贡献添加，而不是通过扩展内核。
+内核只发出少量固定扩展点。新的扩展点由能力包贡献。
 
-### Session 生命周期
+### 会话生命周期
 
 - `kernel/session.before_open` — sync，modifiable false，short_circuit true。
-  打开权限在此执行。subscriber 可以 veto。
+  打开权限在此执行。订阅方可以否决。
 - `kernel/session.after_open` — async。
 - `kernel/session.before_close` — sync，modifiable false，short_circuit true。
 - `kernel/session.after_close` — async。
 
-Payload：session id、请求的 labels、package set、发起请求的 principal。
+Payload：会话 id、请求的 labels、包集、发起请求的身份。
 
-### Event 日志
+### 事件日志
 
 - `kernel/event.before_append` — sync，modifiable true，short_circuit true。
-  权限和 schema 校验在此执行。subscriber 可以修改 metadata 或 veto。
+  权限和 schema 校验在此执行。订阅方可以修改 metadata 或否决。
 - `kernel/event.after_append` — async。
-  subscriber 收到已持久化的 envelope。
+  订阅方收到已持久化的信封。
 
-Payload：event envelope。内核不解释 payload 字段；它只在写入者的 manifest 引用了该 event kind 的 payload schema 时检查声明的 schema。
+Payload：事件信封。内核不解释 payload 字段。只有写入者清单为该事件 kind 引用了 payload schema 时，内核才检查声明的 schema。
 
-### Capability 调用
+### 能力调用
 
 - `kernel/capability.before_invoke` — sync，modifiable true，short_circuit true。
   权限、路由解析和配额执行在此发生。
 - `kernel/capability.after_invoke` — async。
-  subscriber 收到 input、output（或 error）、延迟和 provider id。
+  订阅方收到 input、output（或 error）、延迟和 provider id。
 - `kernel/capability.error` — async。
-  subscriber 收到结构化失败信息。
+  订阅方收到结构化失败信息。
 
 Payload：invocation envelope。
 
-### Package 生命周期
+### 包生命周期
 
 - `kernel/package.loaded` — async。
 - `kernel/package.unloaded` — async。
 - `kernel/package.degraded` — async。
 - `kernel/package.heartbeat_lost` — async。
 
-### Hook 注册表
+### 钩子注册表
 
 - `kernel/hook.registered` — async。
 - `kernel/hook.unregistered` — async。
 
-这些让可观测性能力包发现当前活跃的 extension 拓扑。
+这些事件让可观测性能力包发现当前活跃的扩展拓扑。
 
-## 能力包发出的 extension point
+## 能力包发出的扩展点
 
-能力包可以通过在 `contributes.extension_points` 下列出自有的 extension point 来发布它们。该能力包即成为 schema 的拥有者。
+能力包可以在 `contributes.extension_points` 下列出自己的扩展点。该能力包就是 schema 的拥有者。
 
-内核路由调用但不验证语义。如果拥有者能力包被 unload，内核拒绝 dispatch 该 extension point，并为所有孤立的 subscriber 发出 `kernel/hook.unregistered`。
+内核路由调用，但不验证语义。如果拥有者能力包被卸载，内核拒绝分发该扩展点，并为所有孤立订阅方发出 `kernel/hook.unregistered`。
 
 示例（仅作示意；不属于内核）：
 
@@ -110,7 +110,7 @@ contributes:
       short_circuit: true
 ```
 
-其他能力包可以 subscribe：
+其他能力包可以订阅：
 
 ```yaml
 contributes:
@@ -123,14 +123,14 @@ contributes:
 
 ## 发现
 
-客户端可以向内核查询当前活跃的 extension point 及其 subscriber。Schema 会被暴露。创作者工具、可观测性 dashboard 和其他能力包就是通过这种方式探索当前运行中的 host 里有哪些可扩展之处的。
+客户端可以向内核查询当前活跃的扩展点及其订阅方。Schema 会被暴露。创作者工具、可观测性 dashboard 和其他能力包用这种方式了解当前 host 中有哪些可扩展位置。
 
 ## 版本管理
 
-每个 extension point 都有一个 `version`。subscriber 声明自己目标的 version。内核拒绝向声明的 version 与当前活跃 extension point 不兼容的 subscriber 进行 dispatch。
+每个扩展点都有一个 `version`。订阅方声明目标版本。若订阅方声明的版本与当前活跃扩展点不兼容，内核拒绝分发。
 
-对 extension point 的破坏性变更需要新的 id。拥有者能力包可以在过渡期间同时发出两个版本。
+扩展点的破坏性变更需要新的 id。拥有者能力包可以在过渡期间同时发出两个版本。
 
 ## 稳定性
 
-内核发出的 extension point 集合在设计上是小的。新增内核 extension point 需要与新增内核职责相同的理由：它无法合理地存在于能力包中。
+内核发出的扩展点集合在设计上很小。新增内核扩展点需要和新增内核职责一样被论证：它确实无法合理地放进能力包。

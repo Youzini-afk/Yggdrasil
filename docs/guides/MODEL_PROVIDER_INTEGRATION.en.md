@@ -2,11 +2,11 @@
 
 > [English](./MODEL_PROVIDER_INTEGRATION.en.md) · [中文](./MODEL_PROVIDER_INTEGRATION.md)
 
-This guide documents Yggdrasil's **cloud model provider adapter** integration path. It is not a relay gateway, billing system, provider admin backend, or kernel model abstraction. Cloud model integration must be delivered as ordinary capability packages using the same manifest, permission, `secret_ref`, outbound audit, stream/cancel, and conformance boundaries as every other package.
+This guide documents Yggdrasil's cloud model provider adapter integration path. It is not a relay gateway, billing system, provider admin backend, or kernel model abstraction. Cloud model integration must be delivered as ordinary capability packages using the same manifest, permission, `secret_ref`, outbound audit, stream/cancel, and validation boundaries as every other package.
 
 ## Scope: cloud adapter, not platform abstraction
 
-`official/model-provider-lab` has been explicitly downgraded to a **cloud API adapter lab**:
+`official/model-provider-lab` is a cloud API adapter lab:
 
 - It is not the Yggdrasil model abstraction.
 - It is not a LiteLLM / OneAPI compatible gateway.
@@ -19,20 +19,20 @@ For transport-neutral inference packages, read [`INFERENCE_CAPABILITY_AUTHORING.
 
 ## Current delivery
 
-Model Provider Integration Alpha and Live Model Calls Alpha are complete:
+The current delivery includes:
 
 - `integrations/model-providers/` stores the provider research ledger, provider matrix, stream compatibility notes, and error taxonomy.
-- `sdk/typescript/model-provider-adapter` provides a pure TypeScript **cloud adapter** for provider profiles, adapter-local request builders, error classification, and stream event parsing. It does not go online, do billing, or access private runtime APIs.
-- `official/model-provider-lab` is an ordinary official **cloud adapter** capability package covering eight cloud provider families: OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, and Fireworks.
+- `sdk/typescript/model-provider-adapter` provides a pure TypeScript cloud adapter for provider profiles, adapter-local request builders, error classification, and stream event parsing. It does not go online, do billing, or access private runtime APIs.
+- `official/model-provider-lab` is an ordinary official cloud adapter capability package covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks, and related cloud provider families.
 - `official/model-provider-lab` exposes `list_supported_families`, `validate_profile`, `normalize_request`, `invoke`, `normalize_stream`, `explain_error`, and `echo`.
-- `invoke` remains a fake/local provider adapter path for deterministic default conformance and adapter-shape validation: it returns provider-shaped responses and auditable `outbound_request_shape`, while keeping `network_performed=false`, `inference_performed=false`, and `executor_kind=fake_local`.
-- The host has a content-free `OutboundExecutor` boundary. It defaults to deny-all and has fake executor, loopback live HTTP executor, and hostile conformance coverage. This proves request shapes can flow through host policy/audit boundaries, but it does not claim OS-level interception of arbitrary subprocess networking.
+- `invoke` remains a fake/local provider adapter path for default validation and adapter-shape checks. It returns provider-shaped responses and auditable `outbound_request_shape`.
+- The host has a content-free `OutboundExecutor` boundary. It defaults to deny-all and has fake executor, loopback live HTTP executor, and hostile validation coverage. This proves request shapes can flow through host policy/audit boundaries, but it does not claim OS-level interception of arbitrary subprocess networking.
 - `kernel.outbound.execute` is the public outbound protocol. Ordinary and official packages must use the same path; the package principal comes from protocol context and cannot spoof another package.
 - `EnvSecretResolver` supports host-owned `secret_ref:env:NAME` allowlists. Raw secrets only exist briefly inside the host and never enter events, logs, audits, or responses.
 - `LiveHttpOutboundExecutor` uses `reqwest + rustls`, is disabled by default, enforces HTTPS-only, fails closed on redirects, requires timeouts, and records only redacted response/audit shapes. Loopback conformance uses `allow_insecure_loopback_for_tests=true` and does not depend on public internet.
 - `secret_headers` provides host-side header injection (for example Authorization bearer, x-api-key, and x-goog-api-key). Missing/invalid secrets fail closed. `static_headers` accepts only a tiny set of non-secret provider/version/format headers (anthropic-version, content-type, accept, http-referer, x-title) and blocks Authorization/x-api-key/Cookie and host-owned headers.
 - Live-call conformance covers the DeepSeek canary, OpenAI Chat/Responses, Anthropic Messages, Gemini generateContent, OpenRouter, xAI, and Fireworks loopback shapes, missing-secret fail-closed behavior, and no raw-secret leakage.
-- `normalize_stream` maps delta SSE, semantic SSE, and typed chunk streams into `StreamFrameEnvelope`-style frames: `start`, `chunk`, `progress`, `end`, `error`, `cancelled`, and `timeout`; it also covers DeepSeek reasoning/cache usage, OpenRouter mid-stream errors, xAI reasoning usage, Fireworks perf usage, and related provider quirks.
+- `normalize_stream` maps delta SSE, semantic SSE, and typed chunk streams into `StreamFrameEnvelope`-style frames: `start`, `chunk`, `progress`, `end`, `error`, `cancelled`, and `timeout`. It also covers common provider quirks.
 
 ## Provider families
 
@@ -76,7 +76,7 @@ Rules:
 
 ### `list_supported_families`
 
-Returns the eight families with default base URL, request dialect, stream family, credential header, and notes. It does not go online.
+Returns provider families with default base URL, request dialect, stream family, credential header, and notes. It does not go online.
 
 ### `validate_profile`
 
@@ -119,7 +119,7 @@ Outputs must keep:
 }
 ```
 
-This preserves deterministic adapter testing and default conformance while preventing the official provider package from gaining private outbound privileges unavailable to third parties.
+This preserves replayable adapter testing and default validation. It also prevents the official provider package from gaining private outbound privileges unavailable to third parties.
 
 ### `kernel.outbound.execute`
 
@@ -177,7 +177,7 @@ This is package-level normalization, not `kernel.model.error`.
 
 ## Manual live call boundary
 
-Default Alpha conformance does not require public internet access. Manual/live provider requests must satisfy:
+Default validation does not require public internet access. Manual/live provider requests must satisfy:
 
 1. the provider package declares minimal network permissions;
 2. caller or host policy explicitly allows them;
@@ -222,4 +222,4 @@ cargo run -p ygg-cli -- package check packages/official/model-provider-lab/manif
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-Current conformance includes `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, `official.inference_local_lab_*`, public `kernel.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound hostile cases: 150 named CLI cases total.
+Current validation can cover `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, `official.inference_local_lab_*`, public `kernel.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound policy checks.

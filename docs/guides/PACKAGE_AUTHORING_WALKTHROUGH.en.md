@@ -2,7 +2,7 @@
 
 > [English](./PACKAGE_AUTHORING_WALKTHROUGH.en.md) · [中文](./PACKAGE_AUTHORING_WALKTHROUGH.md)
 
-This walkthrough creates a third-party package that appears in Home, contributes Forge and assistant surfaces, passes local conformance, and can be composed with other packages. It deliberately uses the same public manifest/capability/surface path as official packages.
+This walkthrough creates a third-party package. It appears in Home, contributes Forge and assistant surfaces, passes local checks, and can be composed with other packages. It deliberately uses the same public manifest, capability, and surface path as official packages.
 
 ## 1. Generate a package
 
@@ -48,12 +48,12 @@ Available templates are:
 - `assistant-action` — assistant action surface with approval policy metadata.
 - `asset-editor` — asset editor surface.
 - `full-surface` — all authoring/play surface slots.
-- `networked` — networked capability with declared network permissions (`host`, `methods`, `purpose`), `secret_ref` usage, and outbound audit helper. No raw secrets, no implicit network access. Demonstrates `NetworkDeclaration` and `OutboundAuditHelper` from `sdk/typescript/secure-execution`.
+- `networked` — networked capability with declared network permissions (`host`, `methods`, `purpose`), `secret_ref` usage, and outbound audit helper. It embeds no raw secrets and has no implicit network access. Demonstrates `NetworkDeclaration` and `OutboundAuditHelper` from `sdk/typescript/secure-execution`.
 - `streaming` — streaming capability with faux frame lifecycle (`StreamFrameClient`). Demonstrates `start`/`chunk`/`end` frames and `redaction_state`. No real model inference. Uses `sdk/typescript/secure-execution`.
-- `agent-runtime` — deterministic/no-network agent-like subprocess package. Includes streaming `run` capability, `explain-run` trace summary, `draft-proposal` approval-gated proposal, `echo` capability, and `assistant_action` + `forge_panel` surfaces. Uses `StreamFrameClient` (`sdk/typescript/secure-execution`) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (`sdk/typescript/ygg-agent-adapter`). No real model inference, no network calls, no raw secrets.
-- `experience-runtime` — deterministic/no-network experience-runtime subprocess package. Includes `describe-contract`, `create-checkpoint`, `inspect-checkpoint`, `draft-recovery`, `bind-agent-run`, and `echo` capabilities, plus all four experience surfaces. Uses the `sdk/typescript/experience-runtime` SDK. No real model inference, no network calls, no raw secrets.
-- `playable-board` — deterministic/no-network playable board subprocess package. Includes `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, and `echo` capabilities, plus all four experience surfaces. Closest to the `official/playable-creation-board` shape for third-party creators. No real model inference, no network calls, no raw secrets.
-- `playable-experience` — deterministic/no-network playable experience subprocess package. Includes all `playable-board` capabilities plus `inspect_checkpoint` and `draft_recovery` for full checkpoint/recovery lifecycle. All four experience surfaces. No real model inference, no network calls, no raw secrets.
+- `agent-runtime` — locally replayable agent-like subprocess package. Includes streaming `run` capability, `explain-run` trace summary, `draft-proposal` approval-gated proposal, `echo` capability, and `assistant_action` + `forge_panel` surfaces. Uses `StreamFrameClient` (`sdk/typescript/secure-execution`) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (`sdk/typescript/ygg-agent-adapter`). No real model inference, no network calls, no raw secrets.
+- `experience-runtime` — locally replayable experience-runtime subprocess package. Includes `describe-contract`, `create-checkpoint`, `inspect-checkpoint`, `draft-recovery`, `bind-agent-run`, and `echo` capabilities, plus all four experience surfaces. Uses the `sdk/typescript/experience-runtime` SDK. No real model inference, no network calls, no raw secrets.
+- `playable-board` — locally replayable playable board subprocess package. Includes `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, and `echo` capabilities, plus all four experience surfaces. Closest to the `official/playable-creation-board` shape for third-party creators. No real model inference, no network calls, no raw secrets.
+- `playable-experience` — locally replayable playable experience subprocess package. Includes all `playable-board` capabilities plus `inspect_checkpoint` and `draft_recovery` for full checkpoint/recovery lifecycle. All four experience surfaces. No real model inference, no network calls, no raw secrets.
 
 `--language typescript-experience` remains supported as a legacy shortcut for a full experience-shaped package.
 
@@ -125,7 +125,7 @@ Official packages under `packages/official/` are reference implementations, not 
 
 A third-party package should be able to replace any of these when it exposes compatible surfaces and capabilities.
 
-The `examples/packages/thirdparty-playable-seed` package is the current proof. Conformance verifies that its surfaces are discoverable, capabilities invoke through normal routing, composition checks pass, and shared capability ids are rejected as ambiguous unless an explicit provider is selected. There is no implicit official priority.
+The `examples/packages/thirdparty-playable-seed` package is the current proof. Checks verify that its surfaces are discoverable, capabilities invoke through normal routing, and composition checks pass. Shared capability ids are rejected as ambiguous unless an explicit provider is selected. There is no implicit official priority.
 
 ## Invariants
 
@@ -228,8 +228,8 @@ This generates a package skeleton that mirrors the `official/playable-creation-b
 
 - 4 experience surfaces: `experience_entry`, `play_renderer`, `forge_panel`, `assistant_action`
 - 7 capabilities: `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, `echo`
-- No network declarations — deterministic by default
-- A `package.ts` with deterministic/no-network stubs for each capability
+- No network declarations; locally replayable by default
+- A `package.ts` with local stubs for each capability
 
 ### 8.2 Validate locally
 
@@ -242,10 +242,10 @@ cargo run -p ygg-cli -- package reload /tmp/my-playable-board/manifest.yaml
 
 `package check` now prints creator-facing diagnostics:
 
-- **Experience surface coverage**: warns if `experience_entry` is present but `play_renderer`, `forge_panel`, or `assistant_action` is missing
-- **Checkpoint/recovery capability coverage**: warns if `create_checkpoint` or `draft_recovery` capability is missing for experience packages
-- **Dangerous permissions**: warns about wildcard `capabilities.invoke: ["*"]` or network declarations with empty method lists
-- **Non-deterministic hint**: warns if network access is requested (package is not deterministic by default)
+- Experience surface coverage: warns if `experience_entry` is present but `play_renderer`, `forge_panel`, or `assistant_action` is missing
+- Checkpoint/recovery capability coverage: warns if `create_checkpoint` or `draft_recovery` capability is missing for experience packages
+- Dangerous permissions: warns about wildcard `capabilities.invoke: ["*"]` or network declarations with empty method lists
+- Non-deterministic hint: warns if network access is requested
 
 `package run-fixture` now provides error-specific fix hints when capabilities fail (e.g., "check that the capability id in the surface's capability_id field matches a provided capability").
 
@@ -260,15 +260,15 @@ cargo run -p ygg-cli -- composition check /tmp/my-board-composition/composition.
 
 `composition check` now prints experience-specific diagnostics:
 
-- **Experience surface coverage**: shows which surface slots are covered or missing
-- **Replacement candidates**: shows declared candidates and whether they are loaded
-- **Replacement hint**: if multiple packages provide the same slot, suggests declaring `replacement_candidates`
-- **State capability coverage**: shows `create_checkpoint` and `draft_recovery` provider counts
-- **Optional package coverage**: hints about `memory-lab` and `experience-observability-lab` for richer experiences
+- Experience surface coverage: shows which surface slots are covered or missing
+- Replacement candidates: shows declared candidates and whether they are loaded
+- Replacement hint: if multiple packages provide the same slot, suggests declaring `replacement_candidates`
+- State capability coverage: shows `create_checkpoint` and `draft_recovery` provider counts
+- Optional package coverage: hints about `memory-lab` and `experience-observability-lab` for richer experiences
 
 ### 8.4 Compare with the official reference
 
-The official `official/playable-creation-board` package has the same 4 surfaces and 14 capabilities. Your third-party package uses the same public manifest/capability/surface path — no privilege, no special routing. When both are loaded, the kernel does not prefer the official package. If you want to replace it in a composition, declare your package as the primary provider and the official package as a `replacement_candidate`.
+The official `official/playable-creation-board` package has the same surfaces and capabilities. Your third-party package uses the same public manifest, capability, and surface path. It has no privilege and no special routing. When both are loaded, the kernel does not prefer the official package. If you want to replace it in a composition, declare your package as the primary provider and the official package as a `replacement_candidate`.
 
 ### 8.5 For a richer lifecycle: playable-experience template
 

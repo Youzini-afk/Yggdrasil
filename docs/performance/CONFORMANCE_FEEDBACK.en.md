@@ -2,12 +2,12 @@
 
 > [English](./CONFORMANCE_FEEDBACK.en.md) · [中文](./CONFORMANCE_FEEDBACK.md)
 
-The `ygg conformance` command supports filtering, timing, and diagnostics to help quickly locate failures and slow cases.
+`ygg conformance` supports filtering, timing, and diagnostics. Use it to find failures and slow cases quickly.
 
 ## Basic usage
 
 ```bash
-# Run all 275 conformance cases (default behavior unchanged)
+# Run all conformance cases (default behavior unchanged)
 cargo run -p ygg-cli -- conformance
 ```
 

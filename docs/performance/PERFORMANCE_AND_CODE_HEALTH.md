@@ -2,15 +2,15 @@
 
 > [English](./PERFORMANCE_AND_CODE_HEALTH.en.md) · [中文](./PERFORMANCE_AND_CODE_HEALTH.md)
 
-本文档是 Performance & Code Health Beta 完成后的持久指南。它取代临时阶段计划，记录 Yggdrasil 后续优化应遵守的测量、反馈环、结构、事件存储与 Web 渲染纪律。
+本文档是性能与代码健康的长期指南。它取代临时计划，记录 Yggdrasil 后续优化应遵守的测量、反馈环、结构、事件存储与 Web 渲染纪律。
 
 ## 原则
 
-1. **先测量，再优化。** 使用 `ygg perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试证明热点；不要凭感觉替换架构。
-2. **优化不得改变平台契约。** 官方包与第三方包必须继续走同一 manifest、capability、permission、hook、schema、redaction、audit 路径。
-3. **UI 仍走公开协议。** Web shell 不得读取 SQLite、runtime internals 或 special-case official packages。
-4. **不要用性能名义引入内容本体。** 不新增 `kernel.agent.*`、`kernel.model.*`、`kernel.memory.*`、`kernel.experience.*`、`kernel.sharing.*` 等内容/产品命名空间。
-5. **高级优化必须有证据。** capability/surface cache、RawValue、registry helper/codegen、per-domain crates 等都必须由 baseline 或 profiling 证明必要。
+1. 先测量，再优化。使用 `ygg perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试证明热点。不要凭感觉替换架构。
+2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
+3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case official packages。
+4. 不要用性能名义引入内容本体。不要新增 `kernel.agent.*`、`kernel.model.*`、`kernel.memory.*`、`kernel.experience.*`、`kernel.sharing.*` 等内容或产品命名空间。
+5. 高级优化必须有证据。能力或 surface cache、RawValue、registry helper/codegen、per-domain crates 等，都必须由基线或 profiling 证明必要。
 
 ## 常用命令
 
@@ -27,7 +27,7 @@ cargo run -p ygg-cli -- conformance --case sharing_lab
 cargo run -p ygg-cli -- conformance --tag experience
 cargo run -p ygg-cli -- conformance --fail-fast --slowest 5
 
-# no-network deterministic performance baseline
+# performance baseline without real network
 cargo run -p ygg-cli -- perf baseline
 cargo run -p ygg-cli -- perf baseline --format json
 
@@ -47,117 +47,117 @@ tsc -p clients/web/tsconfig.json --noEmit
 - composition check。
 - profile YAML load。
 
-前端侧由 `clients/web/src/performance/render-diagnostics.ts` 提供 pure TypeScript Forge render diagnostics helper，使用 mock public-protocol events 记录 50/500 events 的 HTML bytes 与 elapsed_ms。它不连接 host、不读取 SQLite/runtime internals。
+前端侧由 `clients/web/src/performance/render-diagnostics.ts` 提供纯 TypeScript Forge 渲染诊断 helper。它使用 mock public-protocol events 记录 50/500 个事件的 HTML bytes 与 elapsed_ms。它不连接 host，也不读取 SQLite 或 runtime internals。
 
 详细字段见 [`BASELINE.md`](./BASELINE.md)。
 
 ## Conformance 反馈环
 
-Conformance 现在支持：
+Conformance 支持：
 
-- `--list`：列出 case id、tags、description。
-- `--case <pattern>`：按 substring 运行部分 cases。
-- `--tag <tag>`：按 tag 运行部分 cases。
+- `--list`：列出 case id、tag 和说明。
+- `--case <pattern>`：按子串运行部分 case。
+- `--tag <tag>`：按 tag 运行部分 case。
 - `--fail-fast`：首个失败后停止。
-- `--slowest <N>`：输出最慢 cases。
+- `--slowest <N>`：输出最慢 case。
 - per-case duration：每个 case 都打印耗时。
 
-新增 conformance case 时必须带 tags，避免反馈环重新变成不可筛选的巨型串行脚本。详见 [`CONFORMANCE_FEEDBACK.md`](./CONFORMANCE_FEEDBACK.md)。
+新增 conformance case 时必须带 tag，避免反馈环重新变成不可筛选的巨型串行脚本。详见 [`CONFORMANCE_FEEDBACK.md`](./CONFORMANCE_FEEDBACK.md)。
 
 ## 结构优化纪律
 
-Performance & Code Health Beta 已完成的低风险结构优化包括：
+已完成的低风险结构优化包括：
 
-- protocol dispatch 按 domain helper 拆分，同时保持 `KernelMethod` 单一事实源。
-- official in-process dispatch 从线性链改为 provider-indexed table，仍使用 package-aware routing，不给 official fast path。
-- shared inproc safety helper 收敛 raw-secret / rejection 逻辑。
-- composition/package diagnostics 使用 set/index 避免明显 O(n²) 扫描。
+- protocol dispatch 按 domain helper 拆分，同时保持 `KernelMethod` 为单一事实源。
+- official in-process dispatch 从线性链改为 provider-indexed table。它仍使用 package-aware routing，不给 official fast path。
+- shared inproc safety helper 收敛 raw-secret 和拒绝逻辑。
+- composition/package diagnostics 使用 set/index，避免明显的 O(n²) 扫描。
 
 后续结构拆分应继续遵守：
 
 - 公共协议 shape 不变。
 - replacement/no-official-priority conformance 必须通过。
-- 不为了少写 match 而引入难审计的宏或生成物作为唯一 truth。
+- 不为了少写 match 而把难审计的宏或生成物作为唯一 truth。
 
 ## Event store / replay 纪律
 
-Performance & Code Health Beta 已完成：
+已完成：
 
 - `EventStore::append_with_sequence` 原子追加 API。
-- SQLite / in-memory 同 session 并发 append sequence 不重复。
+- SQLite 与 in-memory store 在同一会话并发 append 时 sequence 不重复。
 - `list_kind_prefix` / `list_session_kind_prefix` 查询下推。
 - SQLite `kind` 与 `session+kind+sequence` 索引。
-- permission/outbound audit 避免常规 `list_all()` 全量过滤。
+- 权限与出站审计避免常规 `list_all()` 全量过滤。
 
-Storage Backend Neutrality Alpha S1 新增：
+Storage backend 中立工作新增：
 
-- `EventStore` trait 文档明确 backend-neutral event spine contract 定位：`append_with_sequence` 是 runtime 推荐 append path；`append` + `next_sequence` 是 low-level/test/admin path；ordering semantics 是 per-session `(session_id, sequence)`；kind-prefix query 是 event semantic query 不是 SQL/index product；no SQL/table/vector/DSN concepts。
-- In-memory 与 SQLite conformance parity：6 个 `storage_backend` tag conformance 用例覆盖基础契约、kind-prefix 等价性、并发 append 无重复、subscription 广播、rehydrate 事件重放语义一致。
+- `EventStore` trait 文档明确 backend-neutral event spine contract 定位。`append_with_sequence` 是 runtime 推荐 append path；`append` + `next_sequence` 是 low-level/test/admin path；排序语义按会话内 `(session_id, sequence)` 定义。kind-prefix query 是事件语义查询，不是 SQL/index product。契约不引入 SQL、table、vector 或 DSN 概念。
+- In-memory 与 SQLite conformance parity：`storage_backend` tag conformance 用例覆盖基础契约、kind-prefix 等价性、并发 append 无重复、subscription 广播、rehydrate 事件重放语义一致。
 
-Storage Backend Neutrality Alpha S2 新增：
+`official/storage-lab` 提供 package-scoped storage/data 契约预览：
 
-- `official/storage-lab` 普通包提供 package-scoped storage/data 契约预览：8 项能力、3 个 surface、10 个 `storage_lab` tag conformance 用例。证明 storage 是普通 package 层能力，而非 kernel database/sql/vector API。
+- `official/storage-lab` 作为普通包提供 package-scoped storage/data 契约预览。它证明 storage 是普通 package 层能力，而非 kernel database/sql/vector API。
 - 合约分层模型：event spine backend / package state store / blob store future / projection index future / retrieval provider future。
 - Backend class 候选只含 capability flags，不含 secret-bearing backend config。
-- Document CRUD preview 输出 write/read/query/delete/snapshot_performed=false，redacted content。
+- Document CRUD preview 输出 write/read/query/delete/snapshot_performed=false，并返回脱敏内容。
 
-Storage Backend Neutrality Alpha S3 新增：
+Blob/asset store 契约证明新增：
 
-- `official/storage-lab` 新增 4 项 blob/asset store 契约证明能力：describe_blob_store_contract、put_blob_preview、get_blob_metadata_preview、export_blob_manifest_preview。12 项能力、16 个 `storage_lab` tag conformance 用例。
-- Blob 契约输出 content-addressed 类型、backend 候选（local_content_addressed_future / filesystem_backend_future / object_store_future）、red lines（no blob content in events / no raw secrets / no filesystem path leak / content address required）。
-- put_blob_preview 输出 content_address（content_hash 提供则 sha256: 规范化，否则 deterministic hash），blob_stored=false，filesystem_performed=false，network_performed=false，event_payload_contains_blob=false。阻断 raw secret、unsafe id、过大 inline sample（>4096 chars）。
-- 不实现真实 blob store、不读写文件、不联网、不把 blob content 放入 event payload。
+- `official/storage-lab` 新增 blob/asset store 契约证明能力：describe_blob_store_contract、put_blob_preview、get_blob_metadata_preview、export_blob_manifest_preview。
+- Blob 契约输出 content-addressed 类型、backend 候选（local_content_addressed_future / filesystem_backend_future / object_store_future）和红线（no blob content in events / no raw secrets / no filesystem path leak / content address required）。
+- put_blob_preview 输出 content_address。提供 content_hash 时返回规范化 `sha256:`；否则返回确定性 hash。输出还包括 blob_stored=false、filesystem_performed=false、network_performed=false、event_payload_contains_blob=false。它阻断 raw secret、unsafe id 和过大的 inline sample（>4096 chars）。
+- 不实现真实 blob store，不读写文件，不联网，也不把 blob content 放入 event payload。
 
-Storage Backend Neutrality Alpha S4 新增：
+Projection/index 物化契约证明新增：
 
-- `official/storage-lab` 新增 4 项 projection/index 物化契约证明能力：describe_projection_store_contract、plan_projection_materialization、query_projection_preview、migrate_projection_plan_preview。16 项能力、22 个 `storage_lab` tag conformance 用例。
-- Projection 契约输出 backend candidates（event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future），red lines（no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only）。
+- `official/storage-lab` 新增 projection/index 物化契约证明能力：describe_projection_store_contract、plan_projection_materialization、query_projection_preview、migrate_projection_plan_preview。
+- Projection 契约输出 backend candidates（event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future）和红线（no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only）。
 - plan_projection_materialization 输出 materialized=false、write_performed=false、backend_selected=false、plan_only=true。阻断 raw secret，校验 projection_id/package_id safe-id。
-- query_projection_preview 输出 query_executed=false、rows_returned=false、preview_shape。不含 SQL/table/collection/vector 术语。
+- query_projection_preview 输出 query_executed=false、rows_returned=false、preview_shape。不含 SQL、table、collection 或 vector 术语。
 - migrate_projection_plan_preview 输出 migration_applied=false、data_rewritten=false、requires_rebuild=true。
-- 不实现真实 projection storage，不建 DB table/index，不执行 SQL/query，不重写数据。
+- 不实现真实 projection storage，不建 DB table/index，不执行 SQL/query，也不重写数据。
 
-Storage Backend Neutrality Alpha S5 新增：
+Retrieval/vector/multimodal provider 契约证明新增：
 
-- `official/storage-lab` 新增 4 项 retrieval/vector/multimodal provider 契约证明能力：describe_retrieval_provider_contract、draft_multimodal_index_plan、draft_vector_search_plan、explain_retrieval_backend_fit。20 项能力、29 个 `storage_lab` tag conformance 用例。
-- Retrieval 契约输出 backend candidates（tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future），red lines（no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）。
+- `official/storage-lab` 新增 retrieval/vector/multimodal provider 契约证明能力：describe_retrieval_provider_contract、draft_multimodal_index_plan、draft_vector_search_plan、explain_retrieval_backend_fit。
+- Retrieval 契约输出 backend candidates（tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future）和红线（no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）。
 - draft_multimodal_index_plan 输出 embedding_generated=false、index_created=false、vectors_stored=false、network_performed=false、plan_only=true。阻断 raw secret，校验 package_id/index_id safe-id，modalities 只允许 text/image/audio/video/structured，asset_refs 上限 64。
 - draft_vector_search_plan 输出 search_executed=false、embedding_generated=false、vectors_loaded=false、plan_only=true。无实际搜索结果。
 - explain_retrieval_backend_fit 输出 fit matrix，不含 secret-bearing backend config。TDB 只作为 future multimodal provider slot。
-- 不实现真实 vector DB/TDB/embedding，不输出 raw vector/embedding/secret-bearing backend config，不新增 kernel vector/database/sql namespace。
+- 不实现真实 vector DB、TDB 或 embedding。不输出 raw vector、embedding 或 secret-bearing backend config。不新增 kernel vector/database/sql namespace。
 
 后续 event store 优化优先级：
 
 1. 用 baseline 证明具体规模下的瓶颈。
-2. 优先 query/index/transaction 改善，而不是改变 event payload contract。
-3. 保持 event payload opaque；不要把内容语义塞进 kernel 查询层。
-4. 不绕过 redaction、schema、hook、audit。
+2. 优先改善 query、index 和 transaction，而不是改变 event payload contract。
+3. 保持 event payload opaque；不要把内容语义塞进内核查询层。
+4. 不绕过脱敏、schema、钩子或审计。
 
 ## Web render 纪律
 
-Performance & Code Health Beta 已完成：
+已完成：
 
-- 16ms render scheduler，避免 SSE/action burst 连续触发整页 render。
-- bounded JSON preview，限制 depth、array items、object keys、string length。
+- 16ms 渲染调度器，避免 SSE/action burst 连续触发整页 render。
+- 有界 JSON preview，限制 depth、array items、object keys 和 string length。
 - Forge events/proposals/assets/projections/surfaces 显示 cap。
-- event/proposal/surface/projection payload 默认 preview details。
-- pure TS Forge render diagnostics helper。
+- event/proposal/surface/projection payload 默认显示 preview details。
+- 纯 TypeScript Forge 渲染诊断 helper。
 
 后续 Web 优化优先级：
 
 1. 先用 render diagnostics 或浏览器 profiler 证明慢点。
-2. 优先分区 view-model / renderer / detector，而不是替换 UI 框架。
+2. 优先拆分 view-model、renderer 和 detector，而不是替换 UI 框架。
 3. 大 payload 默认折叠；需要时再展开。
 4. SSE burst 必须 batching/debounce。
 5. 禁止 Web 读取 runtime internals 或 SQLite。
 
 ## 何时考虑高级优化
 
-只有满足以下条件时才考虑 cache/codegen/RawValue 等高级优化：
+只有满足以下条件时才考虑 cache、codegen、RawValue 等高级优化：
 
-- 有 baseline 或 profiler 数据证明某路径是瓶颈。
+- 有基线或 profiler 数据证明某路径是瓶颈。
 - 优化不会改变 public protocol 或 package equality。
-- redaction/schema/hook/audit 仍显式可审计。
-- 有 conformance 或 unit test 覆盖 invalidation / mismatch / hostile path。
+- 脱敏、schema、钩子和审计仍显式可审计。
+- 有 conformance 或 unit test 覆盖 invalidation、mismatch 和 hostile path。
 
 当前没有证据要求引入 heavy codegen、RawValue rewrite、arena 或官方包 fast path；这些保持延后。

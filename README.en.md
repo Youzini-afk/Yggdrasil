@@ -2,9 +2,9 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-**An extension-driven creation platform for AI-native worlds, games, stories, and play.**
+**An extensible creation platform for AI-native worlds, games, stories, and play.**
 
-A kernel and a contract — small, stable, opinion-free at the center. Above it, an open ecosystem of capability packages provides every meaningful concept on the platform: characters, prompts, models, agents, worlds, rules, memory — all in packages.
+It has two parts: a small, restrained, opinion-free kernel, and an open ecosystem of capability packages. Every meaningful concept on the platform — characters, prompts, models, agents, worlds, rules, memory — comes from a package, not the kernel.
 
 ```text
 ┌──────────────────────────────────────────────┐
@@ -20,89 +20,90 @@ A kernel and a contract — small, stable, opinion-free at the center. Above it,
 
 ## Why this exists
 
-Most AI-native creative tools today divide their users into two: players who consume a finished experience, and developers who build it. **Yggdrasil refuses that split.**
+Most AI-native creative tools today split their users in two: players who consume a finished experience, and developers who build it. **Yggdrasil refuses that split.**
 
-A player can inspect the session, ask an assistant to change it, fork it, replace a package, and ship the result back. A creator works against the same public protocol, with the same packages, in the same surfaces. The substrate is the same in both directions.
+A player can inspect the session, ask an assistant to change something, fork it, swap one capability package for another, and ship the result back. A creator works against the same public protocol, with the same packages, in the same surfaces. The substrate is the same in both directions.
 
 For the full product stance, see [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md).
 
 ## Center of gravity
 
 - The kernel hosts capability packages and nothing else.
-- Capability packages provide every meaningful concept.
-- Official packages have no privileges. Same manifest, same fabric, same permission gate.
+- Every meaningful concept comes from a capability package.
+- Official packages have no privileges — same manifest, same fabric, same permission gate.
 - Creators are free to compose, replace, or write their own packages.
 
-The platform's job is to make radical AI-native creation possible without privileging an "official path."
+The platform's job is to make radical AI-native creation possible — not to give any "official path" a head start.
 
 ## Status
 
-The platform foundation is in place. Yggdrasil is now entering Experience-Led Platform Beta, where real AI-native playable experiences pull the remaining substrate work.
+The platform substrate is in place. The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- **320 named conformance cases** + crate / service unit tests, all passing.
-- Completed: Platform Foundation Alpha, Play/Forge Surface Contract Beta, Secure Execution Substrate Alpha, Optional Text Engine Alpha, Agent Infrastructure Alpha, Model Provider Integration Alpha, Live Model Calls Alpha, Creative Inference Capability Alpha, Agentic Forge Beta, Experience-Led Platform Beta (Beta 0–6), Performance & Code Health Beta, External Project Operating Plane Alpha, Storage Backend Neutrality Alpha, PostgreSQL + TDB Integration Alpha, Real TDB Rust Adapter Alpha.
+- 320 named conformance cases pass, plus crate / service unit tests.
+- The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
+- Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
 
-For the executable snapshot, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
+For details, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 
 ## Repository layout
 
 ```text
-crates/      Rust kernel and runtime
-  ygg-core/      Kernel-only contracts and content-free types
-  ygg-runtime/   Runtime host: events / packages / capabilities / hooks /
-                 surfaces / proposals / assets / branches / projections
-  ygg-service/   Public protocol surface (HTTP /rpc, SSE event subscribe)
-  ygg-cli/       Host modes, manifest tools, package authoring, conformance
+crates/                Rust kernel and runtime
+  ygg-core/              Kernel-only contracts and content-free types
+  ygg-runtime/           Runtime host: sessions, events, packages, capabilities,
+                         hooks, surfaces, proposals, assets, branches, projections
+  ygg-service/           Public protocol surface (HTTP /rpc, SSE event subscribe)
+  ygg-cli/               Host modes, manifest tools, package authoring, conformance
 
-clients/web/   Public-protocol Home / Play, Forge, and Assist shell
+clients/web/           Public-protocol Home / Play, Forge, and Assist shell
 
-packages/official/   Foundation capability packages loaded through ordinary manifests
-profiles/            Host profiles for autoloading sets of packages
-examples/            Example package manifests and fixtures
+packages/official/     Foundation capability packages loaded through ordinary manifests
+profiles/              Host profiles for autoloading sets of packages
+examples/              Example package manifests and fixtures
 
-sdk/typescript/      Subprocess-package authoring helpers and domain SDKs
-docs/                Architecture, protocol, spec, roadmap, product docs
-integrations/        Upstream research ledgers (pi, TavernHeadless, pretext, TDB...)
+sdk/typescript/        Subprocess-package authoring helpers and domain SDKs
+docs/                  Architecture, protocol, spec, roadmap, product docs
+integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB...)
 ```
 
 ## What's in the box
 
 **Kernel and execution**
 
-- Content-free sessions, opaque events, durable SQLite event log, rehydratable substrate
-- Real `rust_inproc` and subprocess execution, hook fabric, capability fabric
-- Principals with scoped permissions, proposal/approval lifecycle
+- Content-free sessions, opaque events, a durable SQLite event log, a rehydratable substrate.
+- Real in-process and subprocess package execution, the hook fabric, the capability fabric.
+- A principal model with scoped permissions, plus the proposal / approval lifecycle.
 
 **Secure execution**
 
-- `secret_ref` references, `EnvSecretResolver` allowlists, host-owned resolution
-- Network permission declarations, outbound audit/redaction, public `kernel.outbound.execute`
-- `LiveHttpOutboundExecutor` (HTTPS-only, off by default, redirect fail-closed)
-- Generic streaming/cancel/timeout lifecycle
+- `secret_ref` references, a host-owned environment-variable resolver with an allowlist.
+- Network permission declarations, audit and redaction for outbound requests, public `kernel.outbound.execute`.
+- A real HTTPS outbound executor (off by default, HTTPS only, redirect fail-closed).
+- A generic streaming and cancel lifecycle.
 
-**Official capability packages** (all loaded through ordinary manifests, no kernel privilege)
+**Official capability packages** (all ordinary packages, no kernel privilege)
 
-- Platform foundation: `composition-lab`, `asset-lab`, `projection-lab`
-- Creative tooling: `persona-lab`, `knowledge-lab`, `context-lab`, `text-transform-lab`
-- Model integration: `model-connector-lab`, `model-provider-lab`, `model-routing-lab` (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks)
-- Agent infrastructure: `pi-agent-runtime-lab`, `capability-tool-bridge-lab`, `agentic-forge-lab`
-- Experience: `playable-creation-board`, `experience-runtime-lab`, `experience-observability-lab`, `memory-lab`, `sharing-lab`, `playable-seed`
-- Inference: `inference-local-lab`, `inference-playtest-lab`
-- Storage / external projects: `storage-lab`, `tdb-retrieval-lab`, `project-intake-lab`, `workspace-lab`
-- Foundation labs: `package-lab`, `schema-tools`, `event-tools`, `assistant-lab`, `blank-experience`
+- Platform foundation: composition / asset / projection.
+- Creative tooling: persona / knowledge / context / text-transform.
+- Model integration: model-connector / model-provider / model-routing (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks).
+- Agent: pi-agent-runtime / capability-tool-bridge / agentic-forge.
+- Experience: playable-creation-board, experience-runtime, experience-observability, memory, sharing, playable-seed.
+- Inference: inference-local, inference-playtest.
+- Storage and external projects: storage, tdb-retrieval, project-intake, workspace.
+- Foundation labs: package, schema-tools, event-tools, assistant, blank-experience.
 
-**SDKs (TypeScript)**
+**TypeScript SDKs**
 
-- `subprocess` subprocess-package scaffolding
-- `secure-execution`, `agentic-forge`, `ygg-agent-adapter`
-- `inference-capability`, `model-provider-adapter`, `experience-runtime`
-- `text-surface` (frontend text-surface helpers)
+- `subprocess` — subprocess-package scaffolding.
+- `secure-execution`, `agentic-forge`, `ygg-agent-adapter`.
+- `inference-capability`, `model-provider-adapter`, `experience-runtime`.
+- `text-surface` — frontend text-surface helpers.
 
 **Web shell**
 
-- Home / Play, Forge, Assist — three deep surfaces, all over public protocol
-- Optional frontend text engine (fallback + optional Pretext via dynamic import)
-- Forge text preview, agent / experience / storage / proposal observability panels
+- Home / Play, Forge, and Assist — three first-class surfaces, all over the public protocol.
+- An optional frontend text engine (a fallback engine plus an optional Pretext loader).
+- Forge text preview, plus agent / experience / storage / proposal observability panels.
 
 ## Quick start
 
@@ -127,7 +128,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Demo the blank play-creation loop end-to-end via public protocol calls:
+Run the blank play-creation loop end to end via the public protocol:
 
 ```bash
 cargo run -p ygg-cli -- play-create-demo
@@ -137,9 +138,7 @@ For more commands (manifest, package, composition, host modes, third-party autho
 
 ## Documentation
 
-Every developer doc has both English and Simplified Chinese versions. The bilingual blockquote at the top of each file switches between them.
-
-[`docs/`](docs/README.en.md) is grouped by topic: architecture, protocol, spec, product, package authoring, performance, roadmap.
+Every developer doc has both English and Simplified Chinese versions; the bilingual blockquote at the top of each file switches between them. [`docs/`](docs/README.en.md) is grouped by topic: architecture, protocol, spec, product, package authoring, performance, roadmap.
 
 Shortest path by intent:
 
@@ -155,13 +154,13 @@ Shortest path by intent:
 
 ## Deferred
 
-These are valuable directions but not part of the kernel — they will arrive as ordinary capability packages:
+These are valuable directions, but they don't belong in the kernel — they will arrive as ordinary capability packages:
 
-- SillyTavern compatibility ([`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md))
-- Production-grade long-running autonomous agents, multi-agent collaboration, production memory systems, world simulation, director
-- External game-engine integrations (UE5, Godot, Unity, web clients)
-- Full Studio, ComfyUI-like node editors, marketplace
-- Final UI visual design
+- SillyTavern compatibility ([`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md)).
+- Production-grade long-running autonomous agents, multi-agent collaboration, production memory systems, world simulation, directors.
+- External game-engine integrations (UE5, Godot, Unity, web clients).
+- A full Studio, ComfyUI-style node editors, a marketplace.
+- Final UI visual design.
 
 ## License
 

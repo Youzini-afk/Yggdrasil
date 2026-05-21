@@ -1,83 +1,83 @@
-# Yggdrasil Vision
+# Vision
 
 > [English](./VISION.en.md) · [中文](./VISION.md)
 
-Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
+Yggdrasil is an extensible creation platform for AI-native worlds, games, stories, and play.
 
-The center of the platform is small and content-free. Everything meaningful lives in capability packages that the kernel hosts as equals.
+The center is stable, restrained, and has no opinion about content. Every meaningful concept lives in capability packages, and the kernel hosts them all on equal terms.
 
 ## What Yggdrasil is
 
 A kernel that hosts capability packages.
 
-A public protocol that lets clients, packages, and external systems participate as equals.
+A public protocol that lets clients, packages, and outside systems join on equal footing.
 
-An event-sourced foundation that preserves what happened.
+An event log that preserves what happened.
 
-A creation surface for radical AI-native experiences that the platform itself does not predefine.
+A creation substrate for radical AI-native experiences — without prescribing what those experiences look like or who builds them.
 
-## What Yggdrasil is not
+## What Yggdrasil isn't
 
-Not an application. Not a chat tool. Not a SillyTavern replacement. Not a framework with built-in genres. Not a plugin host whose center is filled with privileged official content.
+Not an application, not a chat tool, not a SillyTavern replacement, not a framework with built-in genres. The kernel doesn't carry privileged official content.
 
-There is no canonical experience the platform ships. The kernel has no opinion about characters, worlds, prompts, models, agents, or memory. Those are package concerns.
+The platform won't ship a flagship experience. The kernel takes no stance on characters, worlds, prompts, models, agents, or memory. Those are package concerns.
 
-## What "radical creative freedom" means here
+## What "radical creation freedom" means here
 
-Creators are not limited to the shapes Yggdrasil imagined.
+Creators aren't confined to shapes the platform imagined.
 
 A creator can:
 
-- define their own genres, loops, rules, and presentation,
-- compose AI behaviors as building blocks,
-- inspect, branch, rewrite, and recombine any experience,
-- replace or override any official package with their own,
-- distribute new capabilities, new event kinds, new extension points,
-- mix multiple packages in one session without one being privileged.
+- define their own genres, loops, rules, and presentation;
+- compose AI behavior like building blocks;
+- inspect, fork, rewrite, and recombine any experience;
+- replace or override any official package with one of their own;
+- ship new capabilities, new event kinds, new extension points;
+- mix multiple packages in one session, with no privileged participant.
 
-The platform's job is to make this possible. The platform's job is not to provide the experience.
+The platform's job is to make that possible — not to ship the experience itself.
 
-## Why kernel-and-packages
+## Why kernel + capability packages
 
-A walled framework decides what the medium is. Yggdrasil refuses to.
+Closed frameworks decide what the medium is. Yggdrasil refuses to do that.
 
-Putting all meaning in packages — including the official ones — keeps the medium open. It keeps the platform honest: if an official "conversational runtime" can be replaced or coexist with a third-party "world simulator," then the kernel is not secretly the boss.
+Putting all meaning in packages — including official ones — keeps the medium open. It also keeps the platform honest: if an official "conversation runtime" can be replaced, or can coexist with a third-party "world simulator," then the kernel isn't quietly in charge.
 
-This is what protects creative freedom over time.
+That's how creation freedom is protected over time.
 
-## Reach
+## Where Yggdrasil fits
 
-Yggdrasil is designed to be useful as:
+Yggdrasil is designed to serve as:
 
-- a local platform host,
-- a headless service speaking the public protocol,
-- an embedded library inside larger products,
-- an open protocol for external systems acting as packages or clients.
+- a local platform host;
+- a headless service that speaks the public protocol;
+- a library embedded in a larger product;
+- an open protocol endpoint that outside systems join as packages or clients.
 
 All four use the same contract.
 
-## Future capability families (deferred)
+## Deferred capability families
 
-These are valuable directions, but they are packages, not kernel concerns. They wait until the kernel/package layer is stable.
+These are valuable directions, but they belong in capability packages, not the kernel. They wait until the kernel and package layers are stable.
 
-- A SillyTavern resource and behavior compatibility package family.
+- A SillyTavern compatibility package family.
 - An agent integration package family (pi or otherwise).
-- A game engine bridge package family (UE5, Godot, Unity, web clients).
-- An official conversational runtime package.
+- A game-engine bridge family (UE5, Godot, Unity, web clients).
+- An official conversation runtime package.
 - An official inspector and creator UI.
 
-Each of these will be built and judged as a normal capability package. None will receive kernel privileges.
+Each will be built and judged as an ordinary capability package. None will get kernel privilege.
 
 ## Non-goals
 
-The kernel will not ship a chat experience, a world simulator, a director, a memory model, a SillyTavern compatibility layer, an external engine bridge, or a blessed UI.
+The kernel will not ship a chat experience, a world simulator, a director, a memory model, a SillyTavern compatibility layer, an external engine bridge, or an official UI.
 
-Each of these is appropriate as a capability package. None is appropriate as kernel.
+Each of those is fine as a capability package; none of them belong in the kernel.
 
-## Stance toward today's code
+## Stance on the current code
 
-The Rust workspace is now Platform Foundation Alpha: kernel-only events/sessions, manifest-driven packages, real `rust_inproc` and subprocess execution, hook fabric, SQLite event log, permissioned principals, surface contributions, proposal/approval lifecycle, asset/branch/projection substrate, and a public-protocol web shell. The active discipline is preventing contract drift — surfaces, proposals, branches, assets, and projections must keep their generic shape, content-shaped semantics must not leak into the kernel, and official packages must keep using only what any third-party package can use.
+The Rust workspace today is at Platform Foundation Alpha: kernel-only events/sessions, manifest-driven packages, real `rust_inproc` and subprocess execution, the hook fabric, the SQLite event log, principals with permissions, surface contributions, the proposal/approval lifecycle, the asset/branch/projection substrate, and a web shell that speaks the public protocol. The current discipline is preventing contract drift — surfaces, proposals, branches, assets, and projections must stay generic, content shapes don't leak into the kernel, and official packages only use what any third-party package can use.
 
 ## What success looks like
 
-Yggdrasil succeeds when a creator can build something the platform's authors did not foresee, ship it as a package, and have it run alongside the official packages with no second-class treatment.
+Yggdrasil succeeds when a creator builds something the platform's authors never anticipated, ships it as a capability package, and runs it next to official packages without being treated as a second-class citizen.

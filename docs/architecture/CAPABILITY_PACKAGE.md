@@ -2,19 +2,19 @@
 
 > [English](./CAPABILITY_PACKAGE.en.md) · [中文](./CAPABILITY_PACKAGE.md)
 
-能力包是 Yggdrasil 上的分发和执行单元。平台上每一个不属于内核的概念都以能力包的形式发布。
+能力包是 Yggdrasil 的分发和执行单元。只要不属于内核，就以能力包发布。
 
-本文档规定能力包如何描述自身、如何加载、如何与内核及其他能力包交互，以及每份能力包——无论来源——必须遵守的规则。
+本文档说明能力包如何描述自身、如何加载，以及如何与内核和其他能力包交互。无论来源如何，每个能力包都遵守同一套规则。
 
 ## 平等规则
 
-官方包、第三方包、in-process 包、subprocess 包、WASM 包和 remote 包共享同一个 manifest、同一个 lifecycle、同一套 capability fabric 和同一个权限系统。
+官方包、第三方包、in-process 包、子进程包、WASM 包和远端包共享同一份清单格式、同一个生命周期、同一套能力织物和同一个权限系统。
 
 没有私有 API。官方包能做的，任何能力包都能做。
 
-## Manifest
+## 清单
 
-能力包由 manifest 描述。这是一份符合已发布 schema 的可序列化文档。
+能力包由清单描述。清单是一份可序列化文档，必须符合已发布的 schema。
 
 ```yaml
 schema_version: 1
@@ -118,31 +118,31 @@ sandbox_policy:
   wall_clock_ms: 30000
 ```
 
-内核拒绝未通过 schema 验证的 manifest，并拒绝加载请求超出 host 策略权限的能力包。
+内核拒绝未通过 schema 验证的清单。若能力包请求的权限超出 host 策略，内核也会拒绝加载。
 
 ## Entry 形式
 
-四种都是一等的。选择是实现细节。
+四种入口形式都是一等的。选择哪一种，是实现细节。
 
 ### rust_inproc
 
-以编译至内核能力包 ABI 的 Rust crate 或共享库加载。快速、无 IPC、满性能。Trust level：最高。崩溃可能影响 host；沙箱即 host 本身。
+以 Rust crate 或共享库加载，并编译到内核能力包 ABI。它速度快，没有 IPC 成本，性能最好。信任级别最高。崩溃可能影响 host；沙箱就是 host 本身。
 
 ### subprocess
 
-内核启动子进程，通过 stdio 或本地 socket 上的 JSON-RPC 通信。语言无关。崩溃被隔离。性能受 IPC 限制。
+内核启动子进程，通过 stdio 或本地 socket 上的 JSON-RPC 通信。它与语言无关，崩溃会被隔离。性能受 IPC 限制。
 
 ### wasm
 
-内核在 WASM host 内运行能力包，带有声明的内存和 CPU 上限。强隔离。语言灵活性受限于可编译为 WASM 的语言。性能受 WASM 和 ABI 编组限制。
+内核在 WASM host 内运行能力包，并使用声明的内存和 CPU 上限。隔离性强。可用语言受限于能否编译到 WASM，性能受 WASM 和 ABI 编组影响。
 
 ### remote
 
-能力包运行在任何可通过 HTTP 或 WebSocket 访问的地方。经过认证。适用于托管服务和作为能力包参与的外部系统。
+能力包可以运行在任何能通过 HTTP 或 WebSocket 访问的位置。连接需要认证。这适合托管服务，也适合以能力包身份接入的外部系统。
 
-能力包可以声明替代 entry（例如 `rust_inproc` 加 `subprocess` 备选），让 host 按策略选择。
+能力包可以声明备用入口。例如同时提供 `rust_inproc` 和 `subprocess`，由 host 按策略选择。
 
-## Lifecycle
+## 生命周期
 
 ```text
 discovered  -> kernel sees the manifest
@@ -155,60 +155,60 @@ stopped     -> resources released
 unloaded    -> manifest no longer active in the host
 ```
 
-状态转换发出内核事件。
+每次状态转换都会发出内核事件。
 
-## Capability 契约
+## 能力契约
 
-一个 capability 由 `id` 和 `version` 标识。调用由 `input_schema` 和 `output_schema` 约束类型。它们可以 streaming。
+一个能力由 `id` 和 `version` 标识。调用由 `input_schema` 和 `output_schema` 约束类型。能力可以支持流式输出。
 
-消费方通过 id 加版本约束请求 capability。内核基于以下条件选择 provider：
+消费方用 id 和版本约束请求能力。内核根据以下条件选择 provider：
 
-1. session 作用域内的活跃能力包集合。
-2. session/profile 中声明的优先级规则（而非内核默认值；优先级策略本身由 host 或路由能力包配置）。
+1. 会话作用域内的活跃能力包集合。
+2. 会话/profile 中声明的优先级规则。内核没有默认优先级；策略由 host 或路由能力包配置。
 3. 版本兼容性。
 
 不存在隐式的「官方包优先」规则。
 
-如果两个能力包提供同一个 capability id，而 host 未配置优先级，内核报告 ambiguous-route 错误并拒绝调用。
+如果两个能力包提供同一个能力 id，而 host 未配置优先级，内核会报告 ambiguous-route 错误并拒绝调用。
 
-## Hook 契约
+## 钩子契约
 
-能力包可以订阅扩展点（内核定义或能力包定义）。订阅声明时机以及 handler 是否可以修改或 veto。
+能力包可以订阅扩展点。扩展点可以由内核定义，也可以由能力包定义。订阅会声明时机，以及处理器能否修改或否决。
 
-内核按声明的语义分发 hook。订阅方按声明顺序运行；平局由 host 配置的订阅方优先级打破。
+内核按声明的语义分发钩子。订阅方按声明顺序运行；若顺序相同，则使用 host 配置的订阅方优先级。
 
 详见 `EXTENSION_POINTS.md` 了解内核发出的扩展点集合及契约。
 
 ## 权限与沙箱
 
-manifest 是与 host 的契约。内核在每次操作上强制执行：
+清单是能力包与 host 的契约。内核会在每次操作上强制执行：
 
 - 未声明的事件追加被拒绝。
 - 未声明的网络调用被拒绝。
 - 未声明的跨能力包调用被拒绝。
-- 超出其声明 `side_effects` 的 capability 被拒绝。
+- 超出其声明 `side_effects` 的能力被拒绝。
 
-host 可以在上层叠加额外策略（deny-list、配额、审计）。能力包无法绕过。
+host 可以继续叠加额外策略，例如 deny-list、配额和审计。能力包无法绕过。
 
 ## 分发
 
-能力包分发包含 manifest 和 entry 产物：
+能力包分发包含清单和入口产物：
 
 - `rust_inproc`：源 crate 或与 host ABI 版本匹配的预编译 `cdylib`。
-- `subprocess`：目标平台的可执行文件加 manifest。
-- `wasm`：`.wasm` 模块加 manifest。
-- `remote`：仅有带 endpoint 的 manifest。
+- `subprocess`：目标平台的可执行文件加清单。
+- `wasm`：`.wasm` 模块加清单。
+- `remote`：仅有带 endpoint 的清单。
 
 能力包注册表不在内核范围内。Host 和工具可以在此之上构建注册表。
 
 ## 版本管理
 
-`version` 遵循 semver。manifest 格式的 `schema_version` 与能力包版本无关。
+`version` 遵循 semver。清单格式的 `schema_version` 与能力包版本无关。
 
-`rust_inproc` 中的破坏性 ABI 变更通过 entry 中的新 `abi_version` 标识。Host 拒绝加载 ABI 版本不匹配的能力包。
+`rust_inproc` 的破坏性 ABI 变更通过入口中的新 `abi_version` 标识。Host 拒绝加载 ABI 版本不匹配的能力包。
 
 ## 身份
 
-能力包 id 是带命名空间的。内核不拥有 namespace；约定和注册表拥有。
+能力包 id 带命名空间。内核不拥有命名空间；约定和注册表拥有。
 
-内核仅在一个 host 实例内强制唯一性。
+内核只在单个 host 实例内强制唯一性。

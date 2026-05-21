@@ -2,15 +2,15 @@
 
 > [English](./SHARING_DISTRIBUTION.en.md) · [中文](./SHARING_DISTRIBUTION.md)
 
-This document describes the shareable, reproducible, importable composition and session distribution mechanism in Yggdrasil. This is the Experience Beta 6 deliverable, provided by the `official/sharing-lab` ordinary capability package.
+This document describes the shareable, reproducible, importable composition and session distribution mechanism in Yggdrasil. It is provided by the `official/sharing-lab` ordinary capability package.
 
 ## Core Principles
 
-- **Share first, marketplace later**: The current scope is local/file-level sharing proof only — export/import composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata bundles, read-only shared session manifests, and async fork sharing plans.
-- **No marketplace**: No package signing network, dependency resolver economy, or hosted billing. Distribution is local file exchange, not a commercial marketplace.
-- **No `kernel.sharing.*`**: Sharing is package-owned behavior, not a kernel capability.
-- **No raw secrets**: Only `secret_ref` references are allowed in bundles; raw secrets are never stored.
-- **No public network required**: All sharing proofs are local files; no remote service or public network access is needed.
+- Share first, marketplace later: the current scope is local/file-level sharing proof. It covers composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans.
+- No marketplace: no package signing network, dependency resolver economy, or hosted billing. Distribution is local file exchange, not a commercial marketplace.
+- No `kernel.sharing.*`: sharing is package-owned behavior, not a kernel capability.
+- No raw secrets: only `secret_ref` references are allowed in bundles; raw secrets are never stored.
+- No public network required: all sharing proofs are local files. No remote service or public network access is needed.
 
 ## Sharing Contract
 
@@ -116,20 +116,20 @@ Every bundle can carry AI disclosure metadata marking content provenance:
 
 ## Read-Only Sharing & Async Fork
 
-**Read-only sharing** (`read_only_share_manifest`): Creates a read-only snapshot proof of a session that can be viewed but not modified by recipients. `share_scope: local_file`, `no_remote_service: true`.
+Read-only sharing (`read_only_share_manifest`): Creates a read-only snapshot proof of a session that can be viewed but not modified by recipients. `share_scope: local_file`, `no_remote_service: true`.
 
-**Async fork sharing** (`async_fork_share_plan`): Creates an async fork plan allowing recipients to later fork their own session. Status is `draft`, `plan_only: true`, requires user approval.
+Async fork sharing (`async_fork_share_plan`): Creates an async fork plan allowing recipients to later fork their own session. Status is `draft`, `plan_only: true`, requires user approval.
 
 ## Red Lines
 
 The following are explicitly forbidden in the sharing contract:
 
-- ❌ Marketplace fields (`marketplace_id`, `marketplace_category`)
-- ❌ Billing fields (`billing_token`, `payment_method`, `subscription`)
-- ❌ Signing network fields (`signing_network`, `license_key`)
-- ❌ Raw secrets (`api_key`, `token`, `password` raw values; only `secret_ref` references allowed)
-- ❌ Kernel sharing namespaces (`kernel.sharing.*`, `kernel.marketplace.*`, `kernel.billing.*`)
-- ❌ Public network or remote service dependency
+- Marketplace fields (`marketplace_id`, `marketplace_category`)
+- Billing fields (`billing_token`, `payment_method`, `subscription`)
+- Signing network fields (`signing_network`, `license_key`)
+- Raw secrets (`api_key`, `token`, `password` raw values; only `secret_ref` references allowed)
+- Kernel sharing namespaces (`kernel.sharing.*`, `kernel.marketplace.*`, `kernel.billing.*`)
+- Public network or remote service dependency
 
 ## Examples
 
@@ -146,4 +146,4 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Conformance includes 10 sharing-lab cases (275 total), covering contract shape, export/import, lockfile, compatibility report, AI disclosure, read-only sharing, async fork, and red-line constraints.
+Validation covers contract shape, export/import, lockfile, compatibility report, AI disclosure, read-only sharing, async fork, and red-line constraints.

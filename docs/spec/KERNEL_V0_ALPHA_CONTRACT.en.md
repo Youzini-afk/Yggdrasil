@@ -2,17 +2,17 @@
 
 > [English](./KERNEL_V0_ALPHA_CONTRACT.en.md) · [中文](./KERNEL_V0_ALPHA_CONTRACT.md)
 
-This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents: if this matrix says a behavior is `implemented`, code and conformance must prove it; if it says `partial`, the type or API exists but behavior is incomplete; if it says `planned` or `deferred`, no caller may depend on it yet.
+This document is the implementation contract for the current Yggdrasil kernel alpha. It is intentionally narrower than the long-term architecture documents. If this document says a behavior is `implemented`, code and conformance must prove it. If the status is `partial`, the type or API exists but behavior is incomplete. If the status is `planned` or `deferred`, callers must not depend on it yet.
 
-For the executable snapshot of what runs today, see `docs/ALPHA_STATUS.md`. For the upcoming phases, see `docs/roadmap/NEXT_STEPS.md`.
+For the executable snapshot of what runs today, see `docs/ALPHA_STATUS.md`. For upcoming work, see `docs/roadmap/NEXT_STEPS.md`.
 
-The alpha goal is not a playable experience. The goal is a falsifiable, content-free kernel where packages, capabilities, events, permissions, and protocols can be tested without privileged official paths. The Play/Forge Surface Contract Beta builds on this contract; it does not loosen it.
+The alpha goal is not a playable experience. The goal is a falsifiable, content-free kernel. Packages, capabilities, events, permissions, and protocols must be testable without privileged official paths. The Play/Forge surface contract builds on this contract and does not loosen it.
 
 ## Contract status language
 
 - `implemented`: present in code and covered by tests or CLI conformance.
-- `partial`: type or API exists, but behavior is incomplete or conformance is thin.
-- `planned`: reserved in the contract, not yet implemented.
+- `partial`: type or API exists, but behavior is incomplete or conformance is still thin.
+- `planned`: reserved in the contract but not yet implemented.
 - `deferred`: documented target outside the current milestone.
 
 ## Kernel object contract
@@ -113,7 +113,7 @@ Non-kernel event kinds must start with the writer package id followed by `/`. Th
 | `wasm` | implemented | deferred | `wasm_sandbox` |
 | `remote` | implemented | deferred | `remote_boundary` |
 
-Manifest support means the schema can describe the entry and host policy can accept/reject it. Execution support means the kernel actually calls across that boundary. `rust_inproc` now executes through a host-provided package trait and catalog. Subprocess JSON-RPC stdio execution now supports handshake/invoke/timeout/unload kill; fuller lifecycle event sequencing is still Platform Host Alpha work. WASM and remote execution remain deferred.
+Manifest support means the schema can describe the entry and host policy can accept or reject it. Execution support means the kernel actually calls across that boundary. `rust_inproc` now executes through a host-provided package trait and catalog. Subprocess JSON-RPC stdio execution supports handshake, invoke, timeout, and unload kill. Fuller lifecycle event sequencing remains next. WASM and remote execution remain deferred.
 
 ## Permission matrix
 
@@ -128,7 +128,7 @@ Manifest support means the schema can describe the entry and host policy can acc
 | `network.hosts` | partial | Packages declare allowed outbound hosts in manifest; runtime `check_network_policy` and `check_and_audit_outbound` enforce allowlists for Ygg-provided network helpers. Flat `hosts` list and structured `declarations` (host, methods, purpose) are supported. Official packages have no bypass. Denied requests write `kernel/outbound.denied`; allowed requests write `kernel/outbound.request` with redacted audit. |
 | `filesystem.read/write` | planned | Applies when subprocess/WASM execution exists. |
 
-## Secret reference contract (Phase S1)
+## Secret reference contract
 
 | Contract element | Status | Notes |
 |---|---|---:|
@@ -152,11 +152,11 @@ Implemented:
 5. Permission denials write `kernel/permission.denied` audit events.
 6. Closed sessions reject non-kernel appends.
 7. Capability input/output and package-declared event payload schemas are validated against the current JSON Schema subset.
-8. Protocol contexts distinguish host/dev calls from package-principal calls, and package-principal operations ignore caller-supplied package identity fields.
-9. Canonical protocol envelopes can be dispatched in-process and through HTTP `/rpc`; `ygg host-stdio` exposes the same envelope over stdin/stdout for automation.
+8. Protocol contexts distinguish host/dev calls from package-principal calls. Package-principal operations ignore caller-supplied package identity fields.
+9. Canonical protocol envelopes can be dispatched in-process and through HTTP `/rpc`. `ygg host-stdio` exposes the same envelope over stdin/stdout for automation.
 10. Subprocess JSON-RPC stdio packages can handshake, invoke capabilities, time out, degrade, restart, capture stderr logs, and unload with process kill.
-11. The first hook fabric slice dispatches event/capability before/after points with stable ordering, legacy veto fixtures, package-owned handler capabilities, metadata mutation, and unload cleanup.
-12. Event range replay is implemented for in-process protocol and HTTP ad hoc list; HTTP SSE can replay from `after_sequence` and tail new events.
+11. The first hook fabric slice dispatches event/capability before/after points. It supports stable ordering, legacy veto fixtures, package-owned handler capabilities, metadata mutation, and unload cleanup.
+12. Event range replay is implemented for in-process protocol and HTTP ad hoc list. HTTP SSE can replay from `after_sequence` and tail new events.
 13. Capability routing supports explicit provider selection and a simple exact/major version constraint.
 14. Asset, branch, and generic projection substrate exists for host-dev protocol callers and can rehydrate from the durable event log.
 15. Human and assistant principals can receive scoped grants for event reads and capability invocation, with grant/revoke audit events.
@@ -167,22 +167,22 @@ Implemented:
 20. Permission grants are persisted through `kernel/permission.granted` and `kernel/permission.revoked` events and rehydrated during `hydrate_substrate_from_events`.
 21. Secret references follow the `secret_ref:<vault>:<key>` contract. Raw secrets in proposal payloads and asset metadata are rejected by the kernel. Content/description/title/reason fields are excluded from value-pattern scanning to avoid false positives on ordinary text.
 22. The `HostSecretResolver` trait provides runtime-only secret resolution. Resolved raw secrets must never be written back to events, proposals, logs, or audit records. Official packages have no bypass.
-23. Network permission declarations: packages declare allowed outbound destinations in `permissions.network` (structured `declarations` with host, methods, purpose; or flat `hosts` for backward compat). The runtime policy checker enforces allowlists for Ygg-provided network helpers. Official packages have no bypass.
+23. Network permission declarations: packages declare allowed outbound destinations in `permissions.network`. Structured `declarations` include host, methods, and purpose; flat `hosts` remains for backward compatibility. The runtime policy checker enforces allowlists for Ygg-provided network helpers. Official packages have no bypass.
 24. Outbound audit records: `OutboundAuditRecord` captures principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, and status/error. Raw body/header/prompt/response is never saved. `redaction_state` defaults to `redacted`.
 25. Denied outbound requests write `kernel/outbound.denied` events; allowed requests write `kernel/outbound.request` events. Both are inspectable via `kernel.outbound.audit`.
-26. Streaming invocation registry: `StreamRegistry` tracks in-flight streaming capability invocations with start/append/end/cancel/timeout lifecycle. `StreamFrameEnvelope` defines generic content-free frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. No model/prompt/agent semantics.
-27. `kernel.capability.stream` validates `streaming=true` in the capability descriptor before starting a streaming invocation; non-streaming capabilities (descriptor `streaming=false`) are rejected.
+26. Streaming invocation registry: `StreamRegistry` tracks in-flight streaming capability invocations with start/append/end/cancel/timeout lifecycle. `StreamFrameEnvelope` defines generic content-free frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata. It carries no model/prompt/agent semantics.
+27. `kernel.capability.stream` validates `streaming=true` in the capability descriptor before starting a streaming invocation. Non-streaming capabilities (descriptor `streaming=false`) are rejected.
 28. Cancel marks an active streaming invocation `Cancelled` and blocks further chunk/progress frames. Timeout marks an invocation `Timeout` and blocks further frames. Error terminal frame sets state to `Error` and blocks further frames. Normal end sets state to `Ended`.
 29. Streaming lifecycle emits ordered kernel events: `kernel/stream.started` on start, `kernel/stream.chunk` on chunk, `kernel/stream.progress` on progress, `kernel/stream.ended` on normal end, `kernel/stream.error` on error, `kernel/stream.cancelled` on cancel, `kernel/stream.timeout` on timeout.
 30. `StreamInvocationRecord` tracks invocation_id, stream_id, capability_id, provider_package_id, session_id, state, frame_count, timestamps, and metadata. Terminal states block further frame appends.
 
-Still partial for Platform Host Alpha:
+Still partial:
 
 1. Event subscribe lacks protocol-dispatch streaming and package-principal subscribe permissions.
 2. Hook handler timeout/error audit is thin.
 3. Package lifecycle emits transitions for implemented entry forms; lifecycle health checks and richer crash monitoring remain partial.
 4. Capability routing has simple explicit provider/version constraints but no persisted provider selection policy.
-5. Transport conformance covers core `/rpc` and host stdio behavior but not a full method parity matrix.
+5. Transport conformance covers core `/rpc` and host stdio behavior, but not a full method parity matrix.
 6. Asset/projection/branch substrate persists through the event log, but does not yet enforce package-principal permissions or use dedicated blob storage.
 7. Production secret vault integration is deferred to host-level packages; `DenyAllSecretResolver` is the default.
 8. Network permission enforcement covers Ygg-provided network/request helpers; arbitrary subprocess OS-level outbound interception is not claimed.
@@ -192,7 +192,7 @@ Next:
 1. Package lifecycle must run actual entry handshake/register/start/stop.
 2. Package load should expose explicit discovered/loading/starting/ready transitions rather than a direct ready record.
 3. Capability lifecycle must write invoked/completed/failed events.
-4. Kernel operations must dispatch before/after hooks according to the extension-point contract; event append and capability invoke have the first executable slice.
+4. Kernel operations must dispatch before/after hooks according to the extension-point contract. Event append and capability invoke already have the first executable slice.
 5. Session package sets must constrain routing.
 6. Schema validation must grow from the current practical subset into a published full schema dialect.
 

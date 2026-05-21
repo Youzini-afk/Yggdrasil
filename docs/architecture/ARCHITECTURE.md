@@ -2,121 +2,121 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Yggdrasil 有两个架构层：一个承载能力包的内核，以及能力包本身。内核很小，内容无关。一切有意义的东西都生活在能力包里。
+Yggdrasil 分两层：一个承载能力包的内核，以及能力包本身。内核小、对内容一无所知；一切有意义的东西都生活在能力包里。
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│ Capability Packages (every meaningful concept lives here)        │
+│ 能力包（所有有意义的概念都长在这里）                                │
 │                                                                  │
-│   official packages          third-party packages                │
+│   官方包                  第三方包                                 │
 │   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐ │
-│   │ conversation │ │ tavern compat│ │ world sim    │ │  ...   │ │
-│   │ runtime      │ │ (future)     │ │ (community)  │ │        │ │
+│   │ 对话运行时    │ │ Tavern 兼容  │ │ 世界模拟      │ │  ...   │ │
+│   │              │ │ （未来）      │ │ （社区）      │ │        │ │
 │   └──────────────┘ └──────────────┘ └──────────────┘ └────────┘ │
 │   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐ │
-│   │ memory pack  │ │ agent pack   │ │ inspector ui │ │  ...   │ │
+│   │ 记忆包       │ │ agent 包     │ │ 审查 UI       │ │  ...   │ │
 │   └──────────────┘ └──────────────┘ └──────────────┘ └────────┘ │
 │                                                                  │
-│   no privilege difference between official and third-party       │
+│   官方包与第三方包之间没有特权差异                                  │
 └─────────────────────────────────────────────────────────────────┘
-                          ▲    same contract    ▲
-                          │                     │
+                          ▲     同一份契约     ▲
+                          │                    │
 ┌─────────────────────────────────────────────────────────────────┐
-│ Yggdrasil Kernel (content-free)                                  │
+│ Yggdrasil 内核（对内容一无所知）                                   │
 │                                                                  │
-│   sessions      events       packages       capabilities         │
-│   permissions   sandbox      hooks          assets               │
+│   会话         事件         能力包        能力                     │
+│   权限         沙箱         钩子          资产                     │
 │                                                                  │
-│   schemas, IDs, ordering, replay, transports                     │
+│   schema、id、排序、回放、传输                                     │
 └─────────────────────────────────────────────────────────────────┘
-                          ▲    public protocol    ▲
-                          │                       │
+                          ▲    公开协议     ▲
+                          │                  │
 ┌─────────────────────────────────────────────────────────────────┐
-│ Transports                                                       │
+│ 传输层                                                            │
 │   in-process • stdio JSON-RPC • TCP JSON-RPC • HTTP • WebSocket  │
-│   (WASM host • remote endpoint)                                  │
+│   （WASM 宿主 • 远程端点）                                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 两个层
+## 两层
 
 ### 内核
 
-内核只承载能力包，不干别的。完整职责清单见 `PLATFORM_KERNEL.md`。简言之：身份、session、不透明事件日志、能力包注册、capability fabric、扩展点分发、权限、transport。
+内核只承载能力包，不干别的。完整职责见 [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.md)。简言之：身份、会话、不透明事件日志、能力包注册、能力路由、扩展点分发、权限、传输。
 
 ### 能力包
 
-能力包提供平台上每一个有意义的概念：角色、提示词、模型、agent、世界、规则、记忆、呈现，一切。详见 `CAPABILITY_PACKAGE.md`。
+能力包提供平台上每一个有意义的概念：角色、提示词、模型、agent、世界、规则、记忆、呈现，凡此种种。详见 [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.md)。
 
-能力包可以是 Rust in-process、subprocess、WASM 或 remote。内核对四种一视同仁。
+能力包可以是 Rust in-process、子进程、WASM 或远程服务。这四种入口在内核眼里没有差别。
 
 ## 边界规则
 
-这些不是偏好。这些是不变量。
+下面这些不是偏好，是不变量。
 
 ### 1. 内核对内容一无所知
 
-角色、场景、世界、提示词、模型、轮次、聊天、agent、记忆、游戏、规则、骰子、物品栏、类型——内核里没有这些。如果一个概念对创作者或玩家有意义，它就活在能力包里。
+角色、场景、世界、提示词、模型、回合、聊天、agent、记忆、游戏、规则、骰子、背包、题材——内核里没有这些。一个概念只要对玩家或创作者有意义，就属于能力包。
 
 ### 2. 官方包没有特权
 
-官方包能做的，第三方包都能做。同一个 manifest、同一套 fabric、同一个 hook、同一道权限闸门。不存在基于 package id 的内核捷径。
+官方包能做的，第三方包都能做。同一份清单、同一套机制、同一组钩子、同一道权限闸门。没有按包名走的内核捷径。
 
 ### 3. 协议优先
 
-内核暴露一份公开契约。Studio、CLI、in-process 能力包、subprocess 能力包、WASM 能力包和 remote 服务使用同一份契约。没有私有旁路。
+内核暴露一份公开契约。Studio、CLI、in-process 包、子进程包、WASM 包、远程服务，全都用这一份契约。没有私有旁路。
 
-### 4. 多种 entry 形式，地位平等
+### 4. 入口形式平等
 
-能力包可以是 `rust_inproc`、`subprocess`、`wasm` 或 `remote`。打包形式是实现细节。fabric 对它们一视同仁。
+能力包可以是 `rust_inproc`、`subprocess`、`wasm` 或 `remote`。打包形式只是实现细节，内核对四种一视同仁。
 
 ### 5. 事件是真相，但对内核不透明
 
-内核为事件排序并持久化。它不解释 payload。意义属于能力包。
+内核负责给事件排序并持久化。它不解读 payload，意义由能力包给出。
 
-### 6. 声明式沙箱
+### 6. 沙箱靠声明
 
-副作用、网络可达性、文件系统可达性、跨能力包调用——全在 manifest 中声明。内核负责执行。未声明的效果即为违规。
+副作用、网络可达性、文件系统可达性、跨包调用——都要写进清单。内核负责执行。未声明的副作用就是违规。
 
 ### 7. 组合优于容纳
 
-多个能力包可以共存于一个 session。不存在规范的「主体验」。冲突由 host 配置的优先级解决，而非内核默认值。
+多个能力包可以共存于同一个会话。不存在唯一的「主体验」。冲突由 host 配置的优先级解决，不靠内核默认。
 
 ## 这张图里没有的东西
 
-Tavern 不是内核层。它将是未来的能力包家族。
+Tavern 不是内核层。它将作为未来的能力包家族出现。
 
-pi 不是内核层。它将以能力包的形式发布。
+pi 不是内核层。它会以能力包形态发布。
 
-Studio 不是内核层。它是公开协议的客户端，和其他客户端一样。它可能以官方包加 UI shell 的形式发布。
+Studio 不是内核层。它是公开协议的一个客户端，和别的客户端一样；未来可能以官方包加 UI shell 的形式发布。
 
-外部游戏引擎不是内核层。它们以 remote-entry 能力包或协议客户端的身份参与。
+外部游戏引擎不是内核层。它们以远程能力包或协议客户端的身份参与。
 
 ## 仓库地图
 
 Yggdrasil Foundation Alpha 工作区：
 
 ```text
-crates/ygg-core      kernel types: ids, schemas, manifests, principals, opaque events
-crates/ygg-runtime   kernel scheduler: sessions, packages, capabilities, hooks, surfaces,
-                     proposals, assets, branches, projections, sandbox, transports
-crates/ygg-service   public protocol surface (HTTP /rpc, SSE event subscribe)
-crates/ygg-cli       host modes, manifest tools, package authoring, conformance
-clients/web          public-protocol Home/Play, Forge, and Assist shell
-packages/official    foundation capability packages loaded through ordinary manifests
-sdk/typescript       subprocess-package authoring helpers and template runtime
-profiles/            host profiles for autoloading sets of packages
-examples/            example package manifests and fixtures
+crates/ygg-core      内核类型：id、schema、清单、身份、不透明事件
+crates/ygg-runtime   内核调度：会话、能力包、能力、钩子、surface、
+                     提案、资产、分支、projection、沙箱、传输
+crates/ygg-service   公开协议层（HTTP /rpc、SSE 事件订阅）
+crates/ygg-cli       host 模式、清单工具、能力包脚手架、conformance
+clients/web          走公开协议的 Home/Play、Forge、Assist shell
+packages/official    通过普通清单加载的官方基础能力包
+sdk/typescript       子进程能力包脚手架与模板运行时
+profiles/            host profile，批量自动加载能力包
+examples/            示例清单与 fixture 包
 ```
 
-内核 crate 是内容无关的。对话、世界、agent、记忆和模型行为——在加入时——以普通能力包的形式到来，不享受内核特权。
+内核 crate 对内容一无所知。对话、世界、agent、记忆、模型——一旦加入——都以普通能力包的形式到来，不享受内核特权。
 
-## 如何阅读其余文档
+## 接下来读什么
 
-- `CHARTER.md` 讲原则。
-- `PLATFORM_KERNEL.md` 讲内核做什么、不做什么。
-- `CAPABILITY_PACKAGE.md` 讲能力包契约。
-- `EXTENSION_POINTS.md` 讲 hook 契约。
-- `EVENT_MODEL.md` 讲不透明事件日志。
-- `RUNTIME_LIFECYCLE.md` 讲内核侧生命周期。
-- `protocol/PROTOCOL_V0.md` 讲公开协议。
+- [`CHARTER.md`](../CHARTER.md) 讲原则。
+- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.md) 讲内核做什么、不做什么。
+- [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.md) 讲能力包契约。
+- [`EXTENSION_POINTS.md`](EXTENSION_POINTS.md) 讲钩子契约。
+- [`EVENT_MODEL.md`](EVENT_MODEL.md) 讲不透明事件日志。
+- [`RUNTIME_LIFECYCLE.md`](RUNTIME_LIFECYCLE.md) 讲内核侧生命周期。
+- [`../protocol/PROTOCOL_V0.md`](../protocol/PROTOCOL_V0.md) 讲公开协议。

@@ -2,95 +2,95 @@
 
 > [English](./CHARTER.en.md) · [中文](./CHARTER.md)
 
-Yggdrasil is an extension-driven creation platform for AI-native worlds, games, stories, and play.
+Yggdrasil is an extensible creation platform for AI-native worlds, games, stories, and play.
 
-It is a kernel and a contract — small, stable, opinion-free at the center — over which an open ecosystem of capability packages provides every meaningful concept.
+It has two parts: a small, restrained, opinion-free kernel, and an open ecosystem of capability packages. Every meaningful concept on the platform comes from a package.
 
-This charter pins down what Yggdrasil is, what it is not, and the principles that do not change.
+This charter defines what Yggdrasil is, what it isn't, and the principles that don't change.
 
 ## Identity
 
 Yggdrasil is:
 
-- a kernel for hosting capability packages,
-- a public protocol for clients, packages, and external systems to participate as equals,
-- an event-sourced foundation that preserves what happened,
-- a creation surface for radically open AI-native experiences.
+- a kernel that hosts capability packages;
+- a public protocol that lets clients, packages, and outside systems join on equal footing;
+- an event log that preserves what happened;
+- a creation substrate for radical, open AI-native experiences.
 
 Yggdrasil is not:
 
-- an application,
-- a chat tool,
-- a SillyTavern replacement,
-- a framework with built-in genres, loops, or content models,
-- a plugin host whose center is filled with privileged official content.
+- an application;
+- a chat tool;
+- a SillyTavern replacement;
+- a framework with built-in genres, loops, or content models;
+- a plugin host whose kernel is full of privileged official content.
 
-## Permanent principles
+## Principles that don't change
 
 ### 1. The kernel knows nothing about content
 
-No characters, scenes, worlds, prompts, models, turns, chats, agents, memories, games, rules, dice, inventories, or genres are part of the kernel. All such concepts live in capability packages. If a concept is meaningful to a creator or a player, it does not belong in the kernel.
+Characters, scenes, worlds, prompts, models, turns, chats, agents, memory, games, rules, dice, inventories, genres — none of these live in the kernel. They are package concerns. If a concept means something to a player or a creator, it doesn't belong in the kernel.
 
 ### 2. Official packages have no privileges
 
-Anything an official package can do, a third-party package can do. There are no private APIs, no special hooks, no hidden lifecycle, no kernel shortcuts based on package id or origin.
+Anything an official package can do, a third-party package can do too. No private APIs, no special hooks, no hidden lifecycles, no kernel shortcuts based on package id.
 
-### 3. Protocol-first
+### 3. Protocol first
 
-The kernel exposes one set of contracts. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services all speak the same protocol. Internal callers do not bypass it.
+The kernel exposes one contract. Studio, the CLI, in-process packages, subprocess packages, WASM packages, and remote services all use it. Internal callers don't get to bypass it either.
 
-### 4. Many entry forms, equal status
+### 4. Entry forms are equal
 
-A capability package may be:
+A capability package can be:
 
 - a Rust crate (in-process),
 - a local subprocess speaking JSON-RPC,
 - a WASM module,
 - a remote HTTP/WebSocket service.
 
-Same manifest, same fabric, same contract. Packaging form is implementation detail.
+All four share the same manifest format, the same fabric, the same contract. Packaging form is an implementation detail.
 
-### 5. Events are the truth
+### 5. Events are truth
 
-The kernel maintains an append-only event log per session as the system's source of truth. Anything stateful is derived. The kernel does not interpret event payloads; packages do.
+Each session has an append-only event log as the source of truth. Anything stateful is derived from events. The kernel doesn't interpret event payloads — packages do.
 
-### 6. Sandbox by declaration
+### 6. Sandboxing is declarative
 
-Side effects, network access, persistence reach, and cross-package calls are declared in manifest. The kernel enforces those declarations. Undeclared side effects are violations.
+Side effects, network access, persistence scope, cross-package calls — all declared in the manifest. The kernel enforces what was declared. An undeclared side effect is a violation.
 
 ### 7. Composition over containment
 
-The platform never owns a "main experience." Multiple packages can coexist in a session, layering capabilities, hooks, and presentations. There is no canonical mode.
+The platform never owns a "main experience." Multiple packages can coexist in one session, layering capabilities, hooks, and presentation. There is no canonical shape.
 
-## Stance toward radical creation
+## Stance on radical creation
 
 Creators should be able to:
 
-- define their own genres, loops, and rules,
-- compose AI behaviors as building blocks,
-- inspect, branch, rewrite, and recombine any experience,
-- be limited only by what they can express, not by what the platform expected.
+- define their own genres, loops, and rules;
+- compose AI behavior like building blocks;
+- inspect, fork, rewrite, and recombine any experience;
+- be limited by what they can express, not by what the platform expected.
 
-The platform's job is to make this possible, not to provide the experience.
+The platform's job is to make that possible — not to ship the experience itself.
 
 ## Non-goals
 
 The kernel will not ship:
 
-- a chat experience,
-- a world simulator,
-- a director or narrator,
-- a memory model or retrieval strategy,
-- a SillyTavern compatibility layer,
-- an external game engine bridge,
-- a blessed UI.
+- a chat experience;
+- a world simulator;
+- a director or narrator;
+- a memory model or retrieval strategy;
+- a SillyTavern compatibility layer;
+- a bridge to an external game engine;
+- a privileged UI.
 
-Each of these is appropriate as a capability package. None is appropriate as kernel.
+Each of these is welcome as a capability package. None of them belong in the kernel.
 
-## Stance toward today's code
+## Stance on existing code
 
-The Rust workspace has already removed the initial conversational spike from the kernel crates. From here on, any reintroduction of content-shaped concepts into kernel crates is a charter regression. Conversational, model, memory, agent, world, Tavern, and Studio behavior must arrive as packages.
+The Rust workspace has already removed its early conversation prototype. From here on, putting any content-shaped concept back into the kernel crate counts as a regression against this charter. Conversation, models, memory, agents, worlds, Tavern, Studio — all must arrive as packages.
 
-## Stability commitment
+## Stability promise
 
-This charter changes only by explicit revision. The kernel may evolve; the principles do not. When a future feature appears to require violating a principle, the answer is to redesign the feature, not the principle.
+This charter changes only by explicit revision. The kernel can evolve; the principles don't. When a future feature seems to require breaking a principle, we redesign the feature, not the principle.

@@ -2,177 +2,204 @@
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-这是 Yggdrasil 当前状态的实时快照。每当一个里程碑关闭时更新。它不是愿景：下面每一行都有代码和 conformance 支撑（或被明确标注为 partial/deferred）。
+这是 Yggdrasil 当前状态的快照。每完成一个里程碑就更新一次。下面每条都有代码和 conformance 用例支撑，明确标注 partial 或 deferred 的除外。
 
-长期架构和产品立场见 `docs/CHARTER.md`、`docs/architecture/VISION.md`、`docs/product/PLAY_CREATION_MODEL.md` 和 `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md`。后续方向见 `docs/roadmap/NEXT_STEPS.md`。
+愿景与原则见 [`CHARTER.md`](CHARTER.md)、[`architecture/VISION.md`](architecture/VISION.md)、[`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.md)。下一步见 [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md)。
 
 ## 概要
 
-- **阶段：** Platform Foundation Alpha + Play/Forge Surface Contract Beta + Secure Execution Substrate Alpha + Optional Text Engine Alpha + Agent Infrastructure Alpha + Model Provider Integration Alpha + Live Model Calls Alpha + Creative Inference Capability Alpha + Agentic Forge Beta + Experience Beta 0 + Experience Beta 1 + Experience Beta 2 + Experience Beta 3 + Experience Beta 4 + Experience Beta 5 + Experience Beta 6 + Performance & Code Health Beta（已完成）+ External Project Operating Plane Alpha（已完成）+ Storage Backend Neutrality Alpha（已完成）+ PostgreSQL + TDB Integration Alpha（已完成）+ Real TDB Rust Adapter Alpha（已完成）。
-- **Conformance：** 320 个具名 CLI 用例，加上 crate 和 service 单元测试。
-- **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
-- **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch（按领域委托的 helper）、runtime official in-process handlers（provider-package indexed dispatch、共享 safety 模块）、event store（P3 原子 append + 查询 pushdown + 并发 correctness + backend-neutral contract hardening）已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** Real TDB Rust Adapter Alpha 已完成。TDB 不再只是 plan-only 入口：新增独立 `integrations/tdb/rust-adapter` subprocess adapter shell 与 `integrations/tdb/rust-adapter-real-crate` 已发布 crate 真实 TDB proof；默认 package capability 可由 Ygg runtime 调用并明确 `real_tdb_available=false`，`YGG_TDB_REAL_TESTS=1` opt-in conformance 会真实调用 TriviumDB `Database::open/insert/link/search/search_hybrid`。持久指南见 `docs/guides/POSTGRES_TDB_INTEGRATION.md` 与 `integrations/tdb/TRIVIUMDB_REVIEW.md`。
+- **conformance：** 320 个具名 CLI 用例通过，外加 crate 与 service 单元测试。
+- **章程纪律：** 内核对内容无意见；官方包无特权；只走公开协议；入口形式平等；可信路径阻断 raw secret，全部走 `secret_ref`；权限授权可重新水化；网络权限带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒。
+- **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
 
-## 已实现
+平台基础已就位，下一阶段由真实 AI 原生可玩体验来牵引剩下的工作。
 
-### 内核
+## 内核
 
-- 内容无关的 session、只追加不透明事件、manifest 驱动的包、能力 fabric、hook fabric 切片、surface contributions、proposal lifecycle、asset/branch/projection 底座。
-- SQLite 支撑的持久事件日志，每 session 单调递增序号，可重新水化的底座。
-- JSON Schema 子集用于能力输入/输出和包声明的 event payload。
-- Principal：`host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。human 和 assistant principal 的作用域授权。
-- 权限审计事件：`kernel/permission.granted`、`kernel/permission.revoked`、`kernel/permission.denied`。
-- 包 lifecycle 事件：`kernel/package.loading|starting|ready|stopping|stopped|loaded|unloaded|degraded|log`。
-- Proposal lifecycle 事件：`kernel/proposal.created|approved|rejected|applied|failed`。
-- 持久权限授权：`kernel/permission.granted|revoked` 事件可在 SQLite-backed runtime 中重新水化，重启后授权仍可用于 human/assistant principal 的作用域检查。
-- **Secret reference contract**：`SecretRef` 类型支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:` 和 `host:` reference patterns。包通过 `secret_ref` identifier 引用 secret；raw secrets 不得出现在 events、proposals、logs 或 audit records 中。
-- **Host secret resolver**：`HostSecretResolver` trait 和 deny-all resolver 已存在，用于未来 host-level secret store。**`EnvSecretResolver`（Phase L1）**：host-owned 环境变量解析器，带显式 allowlist。支持 `secret_ref:env:NAME`、`secretRef:env:NAME`、`secret-ref:env:NAME`、`host:env:NAME`。默认 deny-all；env name 必须显式 allow。缺失/拒绝/格式错误返回 typed error，仅含 env name 不含 raw value。`Runtime::resolve_secret_ref` host 内部方法。Raw value 只短暂存在于 host 内部；`Debug`/`Serialize`/audit 不包含。`host:<key>`（不含 `env:` 前缀）不被视为 env 引用。
-- **Raw-secret blocking**：Proposal operations/expected effects 与 asset metadata 会被保守扫描；明显 raw API keys、token/password fields 会被拒绝。Asset content 和普通 prose 字段不扫描，以避免误伤用户内容。
-- **网络权限声明**：Manifest `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（含 `host`、`methods`、`purpose`）。Runtime 策略检查器根据声明的条目匹配出站请求。无网络声明的包被拒绝出站访问。官方包无绕过。
-- **Outbound audit/redaction records**：`OutboundAuditRecord` 记录 principal、package_id、capability_id、destination_host、method、purpose、redaction_state、secret_refs_used、usage/cost 占位符、status/error。Raw body/header/prompt/response 不会被保存——仅记录 `secret_ref` 标识符和 `redaction_state` 枚举（`not_captured`、`redacted`、`policy_ref`、`unsafe_blocked`、`explicitly_approved`）。默认为 `redacted`。
-- **网络策略检查器**：`check_network_policy` 纯函数和 `check_and_audit_outbound` runtime 方法。支持精确 host 匹配、通配符前缀（`*.example.com`）、method 白名单（空 = 任意）和扁平 `hosts` 向后兼容。被拒绝的请求产生 `kernel/outbound.denied` 审计事件；被允许的请求产生 `kernel/outbound.request` 事件。
-  - **Outbound executor boundary（M3 + L2 + L3 + L4 + L5）**：内容无关的 `OutboundExecutor` trait，含 `OutboundExecutorRequest`（package_id、capability_id、destination_host、method、path、purpose、secret_refs、redaction_state、timeout_ms、metadata、body_shape、**secret_headers**、**resolved_secret_headers**、**static_headers**）和 `OutboundExecutorResponse`（status、status_code、headers_shape、body_shape、provider_request_id、usage、cost、redaction_state、network_performed、executor_kind）。`DenyAllOutboundExecutor` 无网络返回拒绝（默认，fail-closed）。`FakeOutboundExecutor` 按 host/method/path 提供确定性 fixture，带调用计数用于 conformance，无真实网络。**`LiveHttpOutboundExecutor`（L2）**：使用 reqwest + rustls 执行真实 HTTPS 请求。默认关闭（`RuntimeConfig::default()` 仍为 `DenyAll`，需显式 `OutboundExecutorConfig::LiveHttp`）。HTTPS-only（拒绝 http:// URL），redirect policy none（L2 不实现 redirect following），timeout/connect_timeout 可配置，只发送 content-type: application/json 和 x-ygg-outbound placeholder headers（不注入 secret）。**L4：`build_headers` 从 `resolved_secret_headers` 注入 Authorization 等 secret headers，raw value 只存在于 HTTP 请求中，不存入 audit/response/Debug**。响应只记录 redacted headers_shape（auth/cookie 等值为 `[redacted]`）、redacted body_shape（JSON 内 secret 字段替换为 `[redacted]`，非 JSON 只记录 kind/bytes_captured）、provider_request_id（仅 request-id 安全 headers）、redaction_state redacted、network_performed true、executor_kind Real。错误归一为 status="error"或"timeout"，不包含 raw body/secret。`allow_insecure_loopback_for_tests` 标志默认 false，仅允许 127.0.0.1/localhost 的 http:// URL，用于 conformance 测试。`LiveHttpOutboundExecutorConfig` 提供 timeout_ms、connect_timeout_ms、allow_redirects、max_response_preview_bytes、allow_insecure_loopback_for_tests 配置。`execute_outbound_with_policy` runtime 方法：先校验 policy/audit request 与 executor request 的 package/capability/host/method/secret_refs 一致，再检查策略；拒绝或不一致时不调用 executor，允许时调用 executor，raw body 不进审计，secret_refs 仅存引用。`RuntimeConfig` 上的 `OutboundExecutorConfig` 新增 `LiveHttp(LiveHttpOutboundExecutorConfig)` 变体，默认仍为 `DenyAll`。核心无 provider-specific 字段；用不透明 `metadata` 承载 executor 特定数据。它只保护 Ygg-provided outbound path，不声称 OS 级拦截任意 subprocess 网络调用。Redirect-target following 延后至 L4。**`kernel.outbound.execute`（L3 + L4）**：公开协议方法，允许 ordinary package 通过 host outbound executor 发起出站请求。Params 接受 capability_id、destination_host、method、path、secret_refs、metadata、body_shape。package_id 从 ProtocolContext principal 强制确定，调用者不能在 params 中 spoof 不同的 package_id（host_dev/host_admin principal 可在 params 中指定用于测试）。dispatch 调用 `execute_outbound_with_policy`，response 经过额外 raw-secret 防护 sweep（已知 secret 字段名值替换为 `[redacted]`）。不新增 `kernel.secret.resolve`（raw secret 不返回给包）。L3 不注入 secret headers（真实注入延后至 L4/L5）。
-- **协议方法**：`kernel.outbound.audit` 列出给定包的出站审计事件。`kernel.outbound.execute` 允许 ordinary package 通过 host outbound executor 发起出站请求（L3）。
-- **Streaming invocation registry**：内存中的 `StreamRegistry` 追踪进行中的 streaming capability 调用，支持 start/append/end/cancel/timeout 生命周期。`StreamFrameEnvelope` 定义通用内容无关的 stream frame 类型（start/chunk/progress/end/error/cancelled/timeout），包含 invocation_id、stream_id、sequence、redaction_state 和 timestamp/metadata。不包含 model/prompt/agent 语义。
-- **Streaming capability 生命周期**：`kernel.capability.stream` 启动 streaming invocation（验证 descriptor 中 `streaming=true`），`kernel.capability.cancel` 取消进行中的 invocation。Runtime 方法按序发出 kernel 事件：`kernel/stream.started`、`kernel/stream.chunk`、`kernel/stream.progress`、`kernel/stream.ended`、`kernel/stream.error`、`kernel/stream.cancelled`、`kernel/stream.timeout`。Cancel 和 timeout 阻断后续 chunk。非 streaming 能力（descriptor `streaming=false`）被拒绝。
-- **Streaming invocation 记录**：`StreamInvocationRecord` 追踪 invocation_id、stream_id、capability_id、provider_package_id、session_id、状态（active/ended/error/cancelled/timeout）、frame_count、时间戳和 metadata。终态阻断后续 frame 追加。
-- **Secure-execution TypeScript helpers**（`sdk/typescript/secure-execution/index.ts`）：`secretRef()`/`isValidSecretRef()`/`looksLikeRawSecret()`/`isSecretFieldName()` 用于 secret reference 构造和验证。`NetworkDeclaration` 类用于构建 manifest 兼容的网络权限条目，支持 host/method 匹配。`OutboundAuditHelper` 类用于构建审计安全的出站请求 payload，拒绝 raw secrets，仅包含 `secret_ref` 标识符。`StreamFrameClient` 类用于构建 faux stream frame envelope，支持完整生命周期（start/chunk/progress/end/error/cancel/timeout）。所有 helper 只包装公开协议和类型——无私有内部、无协议绕过。
-- **Inference capability TypeScript SDK**（`sdk/typescript/inference-capability/index.ts`）：Transport-neutral 推理能力契约 SDK。`InferenceRequest`/`InferenceResponse`/`InferenceStreamFrame`/`InferenceError` 类型，`InferenceOperationKind`/`TransportKind`/`ModalityKind`/`RuntimeKind` 枚举，`ProviderCapabilityManifest` provider 声明。`createInferenceRequest` 构造请求并拒绝 raw secrets。`classifyInferenceError` 映射 cloud 和 local/resource 错误。`InferenceStreamLifecycle` 管理 start→chunk→end/error/cancel/timeout 生命周期。`createProviderCapabilityManifest`/`validateProviderCapabilityManifest` 构建和验证 provider manifest。69 项纯 TS 自测通过。不包含 URL/header/status code/OpenAI messages 字段；cloud adapter 只是 `transport_kind="http"` 的一类 provider。
-- **Agentic Forge TypeScript SDK**（`sdk/typescript/agentic-forge/index.ts`）：Package-owned agent run lifecycle、plan graph、working state、candidate、compare、promote、archive、inference node/replay/validation/failure 及 tool bridge v2 shape helper。`AgentRunLifecycleState` 枚举（9 个状态）。`CandidateState` 枚举（8 个状态）。`ProviderKind`/`AllowedInferenceAction`/`ForbiddenInferenceAction`/`InferenceFailureKind`/`ToolRiskCategory` 枚举。`PlanNode`/`PlanEdge`/`PlanGraph`/`WorkingState`/`RunEvent`/`CandidateShell`/`Candidate`/`CandidateComparison`/`PromoteProposalDraft`/`ObservabilitySummary`/`BranchPolicy`/`InferenceNodeResult`/`InferenceTrace`/`RunInferenceNodeResponse`/`ReplayInferenceNodeResponse`/`InferenceOutputValidation`/`InferenceFailureExplanation`/`ToolCallContext`/`ToolchainStep`/`ToolObservation`/`ToolRiskFinding` 类型。`createRunEvent`/`validatePlanGraph`/`createPlanGraph`/`createWorkingState`/`createCandidateShell`/`createCandidate`/`compareCandidate`/`createPromoteProposalDraft`/`archiveCandidate`/`validateCandidate` 构造器和验证器。`runInferenceNode`/`replayInferenceNode`/`validateInferenceOutput`/`explainInferenceFailure`/`computeDeterministicFingerprint` inference helper。`createToolCallContext`/`computeToolPlanFingerprint`/`createToolchainStep`/`hasPromptInjectionPattern` tool bridge v2 helper。`blockRawSecrets`/`looksLikeRawSecret`/`isSecretFieldName`/`hasKernelAgentNamespace` secret 安全与命名空间安全 helper。纯 TS 自测（154 项断言）。输出不含 `kernel.agent.*`/`kernel.model.*`/`kernel.prompt.*`/`kernel.memory.*`/`kernel.turn.*`。
-- **包模板**：`--template networked` 生成带网络权限声明的 subprocess package（`host`、`methods`、`purpose`），包含带 `network` side effect 的 `fetch` capability 和 `echo` capability。演示 `secretRef`、`NetworkDeclaration` 和 `OutboundAuditHelper` 用法。`--template streaming` 生成带 streaming capability（`streaming: true`）的 subprocess package，演示 `StreamFrameClient` faux frame 生命周期。`--template agent-runtime` 生成 deterministic/no-network agent-like subprocess package，包含 streaming run、trace summary、proposal draft 与 echo capabilities，以及 assistant_action + forge_panel surfaces。使用 `StreamFrameClient`（secure-execution）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（ygg-agent-adapter）。三个模板默认安全：无 raw secrets、无隐式 network 访问。
-- **No-network readiness proof 示例**：`examples/packages/faux-model-readiness/` 证明 model-like 包的 substrate shape（网络声明、secret_ref 用法、discovery plans、faux streaming frames——不做真实 inference）。`examples/packages/faux-agent-readiness/` 证明 agent-like 包的 substrate shape（proposal/trace 模式、无网络权限、faux streaming trace——不做真实 agent loop 或 pi runtime coupling）。
+- 不带内容的会话、只追加的不透明事件、清单驱动的能力包、能力机制、钩子机制、surface 贡献、提案生命周期、资产/分支/projection 底座。
+- SQLite 事件日志，每会话单调递增的序号，可重新水化的底座。
+- 用 JSON Schema 子集校验能力 I/O 和能力包声明的事件 payload。
+- 身份：`host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。human 与 assistant 身份支持作用域授权。
+- 审计事件：`kernel/permission.granted|revoked|denied`、`kernel/package.*`（生命周期）、`kernel/proposal.*`（生命周期）。
+- 持久授权：grant/revoke 事件可在 SQLite-backed runtime 中重新水化。
 
-### 公开协议与传输
+## 安全执行
 
-- 规范的请求/响应信封，附带 host 绑定的 principal 上下文。调用者不能自行断言 package 或 admin 身份。
-- HTTP `POST /rpc` 和 host JSON-RPC stdio（`ygg host-stdio`）调用同一套 dispatcher。
-- HTTP SSE 事件订阅，支持 `after_sequence` replay 和对 host-dev 调用者的实时追尾。
-- Profile 驱动的 `ygg host serve` 自动加载包并暴露 `/rpc` 与 SSE。
-- WebSocket 和 TCP 传输保留为未来工作；remote 和 WASM 入口保留为第一等 manifest 形式，执行延后。
+- **`secret_ref` 引用：** 支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:`、`host:` 各种前缀。能力包通过引用提及 secret，原始值不出现在事件、提案、日志、审计里。
+- **环境变量解析器：** host 拥有的解析器，带显式 allowlist。默认全拒；env 名要先放行才能解析。错误只带 env 名，绝不带原始值。
+- **Raw secret 阻断：** 提案的 operations / expected effects 与资产 metadata 会被保守扫描，明显的 API key、token、password 字段被拒绝。资产内容和普通文本不扫描，避免误伤用户内容。
+- **网络权限声明：** 清单中的 `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（带 `host`/`methods`/`purpose`）。无声明的能力包不能出网。官方包没有绕过。
+- **外发审计与脱敏：** 每条出站请求都生成审计记录，只含身份、能力包 id、目标主机、方法、用途、脱敏状态、用到的 `secret_ref`，不含原始 body / header / 提示词 / 响应。
+- **外发执行边界：** 内容无关的 `OutboundExecutor` trait。默认 deny-all（fail-closed），可切换为 fake executor（带 fixture，用于 conformance）或 `LiveHttpOutboundExecutor`（reqwest + rustls，HTTPS-only，默认关闭，重定向 fail-closed，secret header 仅注入到 HTTP 请求中、不进审计）。
+- **协议方法：** `kernel.outbound.audit` 列出某个能力包的出站审计事件；`kernel.outbound.execute` 让普通能力包通过 host executor 发起出站请求。
+- **流式生命周期：** 流注册表跟踪进行中的流式调用，按序发出 `kernel/stream.started|chunk|progress|ended|error|cancelled|timeout`。取消和超时阻断后续 chunk。非流式能力被拒绝。
 
-### 包执行
+## 公开协议与传输
 
-- `rust_inproc` 包通过 host 提供的 package trait 和 catalog 执行。声明了 in-process provider 但 catalog 中缺失的 manifest 会被拒绝。
-- `subprocess` 包通过 JSON-RPC over stdio 执行，支持 handshake、invoke、invoke 超时、degraded 状态、restart、kill-on-unload 和 stderr 日志捕获。
-- `wasm` 和 `remote` 入口：manifest 支持已就绪，执行延后。
-- 能力路由支持显式 provider 选择和简单精确匹配 / `^x.y` 版本约束。路由歧义时拒绝，除非调用者指定 `provider_package_id`。
-- Hook fabric 切片：确定性排序、包拥有的 handler 能力、payload 元数据修改、veto、unload 清理，覆盖 `kernel/event.before_append|after_append` 和 `kernel/capability.before_invoke|after_invoke`。
+- 规范的请求/响应信封，自带 host 绑定的身份上下文。调用方不能自己声称是某个能力包或 admin。
+- 同一份 dispatcher 同时承载 HTTP `POST /rpc` 和 host JSON-RPC stdio（`ygg host-stdio`）。
+- 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
+- 基于 profile 的 `ygg host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
+- WebSocket 与 TCP 传输留作后续工作；WASM 与远程入口在清单中已是一等形式，执行延后。
 
-### 底座
+## 包执行
 
-- Asset 注册表：不透明的 `id`/`mime`/`hash`/`size`/`origin_package_id`/`metadata`，可从 SQLite 重新水化。权限强制和内容寻址 blob 存储为下一步。
-- Session fork/branch 血缘记录，可从事件日志重新水化。
-- 通用 projection 注册表。Rebuild 以 `kind_prefix` 和 `writer_package_id` 过滤事件并写入 `kernel/projection.updated`。包拥有的 projection 执行为下一步。
-- Surface contributions：带版本、slot、activation、所需权限、approval 策略、metadata 的类型化描述符。Slot：`experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。可通过 `kernel.surface.contribution.list` 和 `.describe` 发现。
-- Proposal lifecycle：`kernel.proposal.create|get|list|approve|reject|apply`。Apply 当前执行通用 `asset.put` 和 `projection.rebuild` 操作。更广泛的事务和 revert/compensation 为下一步。
+- `rust_inproc` 包通过 host 提供的 trait 和 catalog 执行。声明了 in-process provider 但 catalog 里找不到的清单会被拒绝。
+- `subprocess` 包通过 stdio 上的 JSON-RPC 执行，支持握手、调用、超时、degraded 状态、重启、卸载即杀、stderr 日志捕获。
+- `wasm` 与 `remote` 入口：清单已支持，执行延后。
+- 能力路由支持显式 provider 选择，以及精确匹配和 `^x.y` 简单版本约束。歧义时拒绝，除非调用方指定 `provider_package_id`。
+- 钩子机制：确定性排序、能力包持有的处理器、payload 元数据修改、否决、卸载清理；覆盖 `kernel/event.before_append|after_append` 与 `kernel/capability.before_invoke|after_invoke`。
 
-### 官方包
+## 底座
 
-全部为普通包。无内核特权。位于 `packages/official/`，通过普通 manifest 加载：
+- 资产注册表：不透明的 `id`/`mime`/`hash`/`size`/`origin_package_id`/`metadata`，可从 SQLite 重新水化。权限执行与内容寻址 blob 存储留待后续。
+- 会话 fork / 分支沿革，可从事件日志重新水化。
+- 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `kernel/projection.updated`。包持有的 projection 执行留待后续。
+- Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。通过 `kernel.surface.contribution.list` 与 `.describe` 发现。
+- 提案生命周期：`kernel.proposal.create|get|list|approve|reject|apply`。当前只 apply 通用操作 `asset.put` 和 `projection.rebuild`。更广泛的事务和回滚留待后续。
 
-- `official/package-lab` —— 包创作辅助，以普通能力和 surface 暴露。
-- `official/schema-tools` —— schema 验证辅助。
-- `official/event-tools` —— 事件过滤与检查辅助。
-- `official/composition-lab` —— composition 验证、launch-plan、permission-preview、surface-graph 与 compat-report 辅助，支持 v2 descriptor 诊断（capabilities、permissions、replacements、compatibility notes）。
-- `official/asset-lab` —— 通用 asset preview、diff、export、import-plan、content-address 与 provenance-graph 辅助。
-- `official/projection-lab` —— projection describe、diff、rebuild-plan、source-event 与 state-snapshot 辅助。
-- `official/persona-lab` —— persona profile import、normalization、rendering 与 compatibility diagnostics。
-- `official/knowledge-lab` —— structured knowledge collection normalization、matching、injection planning 与 diagnostics。
-- `official/context-lab` —— bounded context block assembly、layer inspection、budget planning 与 template rendering。
-- `official/text-transform-lab` —— deterministic text transform import、validation、preview、pipeline explanation 与 diagnostics。
-- `official/model-connector-lab` —— no-network provider family metadata、profile validation、secret masking、discovery plans 与 compatibility reports。
-- `official/model-provider-lab` —— cloud API adapter lab，不是 Yggdrasil 模型抽象、不是 API gateway、无 kernel privilege。提供 no-network 八家 cloud provider 的 adapter-local request builders/profile validation（拒绝 raw secret）、fake/local invoke（覆盖全部八家：OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；outbound_request_shape 可审计）、stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；覆盖全部八家；terminal_frame_consistent 校验；provider event 输入归一化）、error explanation、echo。`normalize_request` 是 package-local helper，不是平台 canonical inference request。
-- `official/model-routing-lab` —— no-inference consumer-slot binding、route planning、fallback planning 与 params normalization。
-- `official/assistant-lab` —— assistant-action 能力，返回需要审批的 proposal。
-- `official/pi-agent-runtime-lab` —— 参考代理运行时包，deterministic no-network run plan、trace summary、proposal draft 与 echo。
-- `official/capability-tool-bridge-lab` —— 发现 capabilities、预览权限、显式 provider 选择、通过 kernel.capability.invoke/stream 的 invocation/streaming plan，不偏袒 official provider。Phase D（Agentic Forge Beta）新增：explain_tool_call（scoped grant summary 含 branch-aware tool call context，no_execution，no_ambient_authority）、record_tool_observation（untrusted=true，大输出 asset_ref 推荐，raw-secret 阻断）、summarize_tool_risk（prompt_injection/secret_exfiltration/branch_write/outbound_expansion/nested_delegation/large_output 含 typed mitigations）、replay_tool_plan（确定性指纹匹配/不匹配，绝不静默通过）、plan_toolchain（多步 plan-only，显式 provider 必需，嵌套 delegation 无 explicit_delegation 时阻止，target branch 写入无 promote grant 时阻止，provider 不匹配 fail closed）。
-- `thirdparty/agentic-forge` —— 第三方 agentic forge 替换证明。证明 official/agentic-forge-lab 可被替换：package-owned run lifecycle、plan graph、scratch branch candidates、promote proposals、inference fallback 和 tool bridge scoped grants——全部确定性，无网络，无 kernel 特权。参见 `examples/compositions/agentic-forge-replacement/`。
-- `official/inference-local-lab` —— deterministic non-HTTP fake local inference provider proof。证明 inference capability seam 不依赖 cloud API、HTTP、Bearer token、JSON provider schema。提供 describe_capabilities（transport_kinds in_memory/local_process、network_required=false、secrets_required=false）、invoke（拒绝 http transport、HTTP-shaped/messages-shaped 字段、raw secret；返回 deterministic output、network_performed=false、transport_performed=in_memory_fake）、stream（deterministic start/chunk/progress/end frames、无 URL/header/status/provider_schema）、explain_error（覆盖 local/resource 错误类）。5 个 conformance 用例。
-- `official/inference-playtest-lab` —— Ygg-native inference proposal vertical slice。证明推理不是"prompt -> text response"，而是参与 Yggdrasil session/branch/proposal/inspection/fork 创作运行时。提供 draft_proposal（产 proposal_draft，含 requires_user_approval=true、asset.put、source_inference provenance、拒绝 raw secret）、inspect_proposal（返回 risk/operations/permissions/provenance）、branch_plan（返回建议 fork metadata，不直接 fork）、explain_flow（返回 session→inference→proposal→inspect→approve/reject→apply→fork 说明）。5 个 conformance 用例。
-- `official/agentic-forge-lab` —— Agentic Forge Beta Phase A+B+C：package-owned agent run lifecycle、working state、plan graph 契约，branch-aware scratch branch / candidate / compare / promote 证明，以及 inference-backed agent run with deterministic fallback。Phase A 提供 describe_contract（列出所有能力、lifecycle 状态、plan graph 字段、working state 字段）、start_run（产生含 plan graph 和 working state 的确定性 run，阻断 raw-secret-like 输入并返回 redaction_state=unsafe_blocked）、inspect_run（返回 run 检查结果，含 working state 和 lifecycle）、cancel_run（将 run 转换为 cancelled 状态并生成 trace event）、summarize_run（返回含 event/node/candidate 计数的 observability summary）、export_plan_graph（返回含 nodes/edges/status/revision/approval_policy/retry_policy/deterministic_mode 的 plan graph artifact）。Phase B 新增 create_candidate（确定性生成 candidate，不写 target）、compare_candidate（scratch vs target diff summary 含 stale 检测）、draft_promote_proposal（仅生成 proposal draft，不直接修改 target；stale target revision 不匹配时阻止 promote）、archive_candidate（设置 archived，target 不变）、explain_branch_policy（说明 scratch/target/promote 约束）。Phase C 新增 run_inference_node（deterministic/recorded/cloud_adapter_plan/local_fake provider；仅产生 candidate_seed/proposal_seed；cloud_adapter_plan 返回 needs_host_policy 且不执行网络）、replay_inference_node（指纹匹配 ok / 不匹配标记，绝不静默通过）、validate_inference_output（allowlist: candidate_seed/proposal_seed/observation/needs_repair；拒绝 privilege_escalation/auto_promote/secret_request/target_branch_write/unknown_action）、explain_inference_failure（9 项 taxonomy 含 typed recovery hint）。无 inference、无 network、无 kernel.agent/model/prompt/memory/turn 命名空间。15 个 conformance 用例。
-- `official/experience-runtime-lab` —— Experience Beta 0：package-owned experience runtime contract，包含 experience 描述符、state projection、checkpoint、recovery 与 Play/Forge/Assist surface 绑定。提供 describe_contract（列出所有能力、lifecycle 状态、checkpoint 格式、recovery 策略与 surface/capability shape）、create_checkpoint（产生含 state_snapshot/asset_refs/branch_ref/sequence 的确定性 checkpoint）、inspect_checkpoint（验证 checkpoint shape 并报告错误）、draft_recovery（产生含推荐策略、步骤与审批要求的 recovery plan）、bind_agent_run（产生将 experience session 链接到 agentic-forge 的 agent-run binding，含 scoped branch、forge binding、assist binding 与 play subscription）。4 个 surface：experience_entry、play_renderer、forge_panel、assistant_action。无 inference、无 network、无 kernel.experience/world/turn/chat/memory 命名空间。6 个 conformance 用例。
-- `official/blank-experience` —— 最小体验，被 `ygg play-create-demo` 用来跑通游创循环。
-- `official/playable-seed` —— 带有 entry/play/Forge/assistant surfaces 的 reference playable package。
-- `official/playable-creation-board` —— Experience Beta 1 + Beta 2 + Beta 3 + Beta 4：首个真实 playable vertical slice + state/asset pipeline + 可观测性关联 + 记忆交叉引用。Package-owned playable creation board，包含 board/module/constraint/marker state。提供 describe_contract（列出所有 14 项能力）、launch、project_state、render_payload、record_player_action（产出 content_address/state_snapshot_asset_ref/state_delta_asset_ref/projection_ref/sequence/provenance/disclosure）、request_change（产出 structured agent objective / allowed_change_kinds / risk/budget/binding_refs / memory_refs / knowledge_refs / retrieve_context_plan / content_address / disclosure，不是聊天消息；memory_refs 为可选交叉引用，board 不依赖 memory-lab 才能运行）、create_checkpoint（产出含 content_address 和 state_snapshot_asset_ref 的确定性 board checkpoint）、inspect_checkpoint、draft_recovery、bind_agent_run、explain_provenance（产出因果链，每步含 content_address 和 provenance_graph）、preview_state_diff（产出 branch-aware state diff preview，含 before/after content addresses）、describe_asset_provenance（产出 asset provenance graph，含 source/derived/disclosure 元数据）、summarize_experience_health（产出 board 体验健康摘要，含可观测性交叉引用）。4 个 surface：experience_entry、play_renderer、forge_panel、assistant_action。Raw-secret blocking。无 inference、无 network、无 kernel.experience/world/scene/character/turn/chat/memory/agent/model/prompt/director/state 命名空间。16 个 conformance 用例。第三方 agentic-forge 替换 composition 证明无 official priority。
-- `official/experience-observability-lab` —— Experience Beta 3：包拥有的体验可观测性——session health、package health、agent run health、proposal causal chain、failure breadcrumbs、cost/latency summary 和 guardrail/audit summary。提供 describe_observability（列出所有 8 项能力、output shapes、health statuses、guardrail kinds、causal step kinds）、summarize_session_health（从协议可见引用汇总 session health；状态从 event/failure 计数派生，不读 SQLite）、summarize_package_health（从协议可见引用汇总 package health）、summarize_agent_run_health（从协议可见引用汇总 agent run health）、trace_proposal_causality（追踪 proposal 到贡献事件的因果链，每步含 content_address）、summarize_cost_latency（从 outbound audit 引用汇总 cost/latency；无 raw secret，仅引用）、list_failure_breadcrumbs（从协议可见 event 引用列出 failure breadcrumbs）、summarize_guardrails（从协议可见 audit 引用汇总 guardrail/audit findings）。3 个 surface：forge_panel、assistant_action、home_card。Raw-secret blocking。无 inference、无 network、无 kernel.observability/experience/world/scene/character/turn/chat/memory/agent/model/prompt/director 命名空间。10 个 conformance 用例。
-- `official/memory-lab` —— Experience Beta 4：包拥有的长期记忆与知识——memory record、retrieval trace、proposal-gated update、correction、forget/redaction、branch-aware view、provenance。提供 describe_memory_contract（列出所有 9 项能力、output shapes、memory record kinds、retrieval algorithms、update draft kinds、redaction plan statuses、branch view scopes、provenance step kinds）、record_memory（产出 memory_record，含 content_address/branch_ref/disclosure/knowledge_refs/source_refs）、retrieve_memory（确定性关键词匹配，branch-aware 过滤，无 embedding/network）、trace_retrieval（产出 retrieval trace，含算法和步骤详情）、draft_memory_update（仅产出 proposal/update draft，不直接修改持久状态，requires_user_approval=true，plan_only=true）、apply_memory_correction（产出 correction shape，proposal-gated，requires_user_approval=true）、draft_forget_redaction（产出 redaction plan，不直接删除，status=draft，plan_only=true）、branch_memory_view（产出 branch-aware view，按 branch 过滤记录）、explain_memory_provenance（产出 provenance chain，每步含 content_address）。3 个 surface：forge_panel、assistant_action、home_card。Raw-secret blocking。无 inference、无 network、无 kernel.memory/experience/world/scene/turn/chat/agent/model/prompt/director 命名空间。10 个 conformance 用例。第三方 `thirdparty/memory-lab` 替换 composition 证明无 official priority。`official/playable-creation-board` 新增 `memory_refs` / `knowledge_refs` / `retrieve_context_plan` 可选交叉引用，board 不依赖 memory-lab 才能运行。
-- `official/sharing-lab` —— Experience Beta 6：包拥有的分享与分发——export/import composition bundle、branch/session bundle manifest、package-set lockfile、compatibility/migration report、AI disclosure metadata bundle、read-only shared session manifest、async fork sharing plan。提供 describe_sharing_contract（列出所有 9 项能力、output shapes、sharing contract kinds、compat status kinds、AI disclosure kinds、async fork statuses、red lines）、export_composition_bundle（导出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing/signing fields）、import_composition_bundle（验证 bundle 形状/兼容性/no raw secrets，plan-only）、create_branch_session_bundle（创建 branch/session bundle manifest 含 content_address 和 AI disclosure）、create_package_set_lockfile（锁定包版本和 content_address）、compatibility_report（对比两个 bundle 版本的兼容性/迁移报告，deterministic 比较）、ai_disclosure_bundle（产出 AI disclosure metadata，标记内容来源）、read_only_share_manifest（只读共享 session manifest，local_file proof，no remote service）、async_fork_share_plan（异步 fork 分享计划，draft/plan-only/requires_user_approval）。3 个 surface：forge_panel、assistant_action、home_card。Raw-secret blocking + marketplace/billing/signing field blocking。无 inference、无 network、无 kernel.sharing/marketplace/billing/distribution 命名空间。10 个 conformance 用例。示例 artifacts 见 `examples/bundles/playable-creation-board-composition-bundle/`。
-- `official/storage-lab` —— Storage Backend Neutrality Alpha：包拥有的 storage/data 契约预览——storage 合约分层、backend class 候选、package state store 规划、document CRUD 预览、snapshot 导出预览、blob/asset content-addressed 契约证明、projection/index 物化契约证明、retrieval/vector/multimodal provider 契约证明。提供 describe_storage_contract（列出所有 20 项能力、3 个 surface、分层模型：event spine / package state store / blob store future / projection index future / retrieval provider future；output shapes）、describe_backend_classes（输出 backend 候选：memory_event_store / sqlite_event_store / postgres_event_store_future / package_state_event_sourced / blob_content_addressed_future / tdb_retrieval_provider_future，只含 capability flags，不含 secret-bearing backend config）、plan_package_state_store（输入 package_id/store_id/schema_hint，输出 package-scoped plan，namespace 属于 package，quota hints，backend candidates，plan_only=true，requires_user_approval=true；package_id 为空则 reject；raw secret / unsafe ID 阻断）、put_document_preview（write_performed=false，content_address，redacted_content）、get_document_preview（read_performed=false，redacted_content）、query_document_prefix_preview（query_performed=false，redacted_matches）、delete_document_tombstone_preview（delete_performed=false，tombstone_status=preview_only）、export_store_snapshot_preview（snapshot_exported=false，redacted_entries）、describe_blob_store_contract（contract_type=content_addressed_blob_store，backend 候选：local_content_addressed_future / filesystem_backend_future / object_store_future，red lines：no_blob_content_in_events / no_raw_secrets / no_private_backend_topology / content_address_required）、put_blob_preview（输入 package_id/blob_id/mime/size_bytes/content_hash?/content_sample?；输出 content_address（content_hash 提供则 sha256: 规范化，否则 deterministic hash），metadata_shape，blob_stored=false，filesystem_performed=false，network_performed=false，event_payload_contains_blob=false；阻断 raw secret、unsafe id、过大 inline sample >4096 chars）、get_blob_metadata_preview（blob_read=false，content_returned=false）、export_blob_manifest_preview（manifest items refs only，content_included=false）、describe_projection_store_contract（contract kinds：event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future；backend candidates 含 capability flags；red lines：no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only）、plan_projection_materialization（输入 package_id/projection_id/source_kinds?/index_keys?；输出 materialized=false，write_performed=false，backend_selected=false，plan_only=true；projection_id/package_id safe-id 校验；raw-secret 阻断）、query_projection_preview（输入 projection_ref/filter_preview?/limit?；输出 query_executed=false，rows_returned=false，preview_shape；不含 SQL/table/collection/vector 术语）、migrate_projection_plan_preview（输入 projection_id/from_version/to_version/change_summary；输出 migration_applied=false，data_rewritten=false，requires_rebuild=true）。3 个 surface：forge_panel、assistant_action、home_card。Raw-secret 阻断。无 inference、无 network、无 kernel database/sql/vector/projection namespace。22 conformance 用例。S5 新增：describe_retrieval_provider_contract（retrieval provider 契约，backend 候选：tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future，red lines：no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）、draft_multimodal_index_plan（输入 package_id/index_id/modalities/asset_refs/schema_hint?；输出 plan-only，embedding_generated=false、index_created=false、vectors_stored=false、network_performed=false；modalities 只允许 text/image/audio/video/structured；阻断 raw secret、unsafe id、过多 asset_refs >64）、draft_vector_search_plan（输入 index_ref/query_kind/top_k/filter_preview?；输出 query plan，search_executed=false、embedding_generated=false、vectors_loaded=false、plan_only=true）、explain_retrieval_backend_fit（输入 workload_hint/backend_hint?；输出 fit matrix，不含 secret-bearing backend config；TDB 只作为 future multimodal provider slot）。7 个 retrieval conformance 用例。不实现真实 vector DB/TDB/embedding，不输出 raw vector/embedding/secret-bearing backend config，不新增 kernel vector/database/sql namespace。el、assistant_action、home_card。Raw-secret blocking + unsafe ID blocking。无 inference、无 network、无 kernel.sqlite/postgres/tdb/vector/embedding/collection/sql/database/blob 命名空间。16 个 conformance 用例。
+## 官方能力包
 
-Forge profile（`profiles/forge-alpha.yaml`）自动加载这些包以及示例 fixture 包。
+全部是普通能力包，没有内核特权。位于 `packages/official/`，通过普通清单加载：
 
-### Web shell（`clients/web`）
+**平台基础**
 
-- 骨架化的 Home/Play、Forge 和 Assist surface，走公开协议。
-- Home 发现 `experience_entry` surface，通过包声明的 launch 能力启动 session，支持 session fork。
-- Forge 检查事件、能力、asset、projection、proposal 和 Forge-panel surface contributions，提供 proposal 的 approve/apply 控制。
-- 没有官方包硬编码。Shell 和其他客户端一样是公开协议客户端。
-- **Text Surface Proof（Phase T1）**：Assistant Drawer 中加入受限 mock streaming text proof，使用 `clients/web/src/text-layout/`。它展示渐进 mock chunks、行数/高度估算、stream 生命周期徽章和 reset/replay 控件。不调用真实 agent/model，不出网，不改变 kernel/package/protocol surface。
-- **Optional Text Engine（Phase T2）**：`TextEngine` 接口、engine registry、带限宽缓存（4096 条）的 fallback engine、通用 stream-frame-to-buffer adapter。未修改 kernel/protocol。
-- **Optional Pretext Engine（Phase T3）**：`PretextTextEngine` 通过 dynamic import 加载，运行时 feature flags（`auto`/`fallback`/`pretext`），优雅降级。仓库无需安装 `@chenglou/pretext` 即可 build。Assistant Drawer 显示引擎偏好、Pretext 可用性和 fallback 原因。
-- **Forge Text Preview（Phase T4）**：文本预览 helper，从 event payload、stream frame 和 proposal 对象中提取安全纯文本。Forge Events 和 Proposals 中新增可选 `<details>`，含预览文本、行数/高度估算和引擎徽章。不替换 JSON inspector。
-- **SDK 抽取与硬化（Phase T5）**：`sdk/typescript/text-surface` — 纯 TypeScript 前端 SDK，提供 `createTextSurfaceBuffer`、`applyStreamFrame`、`extractTextChunk`、`createScrollAnchor`（不依赖 `clients/web`）。字体加载 helper（`ensureTextSurfaceFontLoaded`、`describeFontLoadState`）。缓存诊断（`getCacheDiagnostics` 含 `totalEntries`/`fontCount`/`maxEntries`/`estimatedBytes`）。自测模块（`runTextLayoutSelfTest`），用纯 TS 断言覆盖 fallback engine、registry、stream adapter 和 text preview。
-- **Agent Observability（Phase J5）**：`clients/web/src/agent/observability.ts` — 纯 UI helper，用通用字符串启发式从 events、proposals、surfaces、capabilities 中提取 agent-like 观测数据（不 hardcode official 包，不做真实 model/network 调用）。Forge surface 新增 "Agent Observability" section：cards/summary、trace timeline、tool bridge diagnostics badges、proposal explanation（复用 T4 text preview）。Assistant Drawer 新增轻量 "Agent Readiness" panel：显示当前发现的 agent-like surfaces/capabilities count，强调 no real model / no network / proposal-gated / plan-only；按钮 disabled，不真正启动 agent。
-- **Forge Agent Workspace / Observability UI Shell（Phase E）**：`clients/web/src/agent/observability.ts` 扩展 `ForgeAgentWorkspaceModel`、`buildForgeAgentWorkspace`、`renderForgeAgentWorkspaceSections`。Forge surface 中新增六个 Agentic Forge workspace panels：Run timeline（run lifecycle events）、Plan graph read-only（plan node events）、Branch diff & lineage（scratch/target branch events）、Candidate compare & promote（candidate-like proposals）、Tool & inference trace（tool bridge & inference events）、Controls（approval/reject/cancel/promote/fork/archive affordances 含 public protocol payload previews）。所有数据仅来自 public protocol events、proposals、surfaces、capabilities、packages、assets、projections，无 runtime internals、无 chat-first UI。所有 panels 包含 protocol shape docs 和第三方可替换文案。`tsc -p clients/web/tsconfig.json --noEmit` 通过。
+- `package-lab`、`schema-tools`、`event-tools`、`composition-lab`、`asset-lab`、`projection-lab`、`assistant-lab`。
 
-### 创作
+**创作能力族**
 
-- `ygg init-package` 生成 Python 或 TypeScript subprocess 包骨架。TypeScript 变体使用 `sdk/typescript/subprocess` 下的 SDK runtime。
-- `--template basic|experience|play-renderer|forge-panel|assistant-action|asset-editor|full-surface|networked|streaming|agent-runtime|experience-runtime` 控制生成的 surface 描述符。未指定 `--template` 时，`--language *-experience` 自动检测为 legacy 4-surface 体验模式以兼容旧行为；否则默认 basic。`networked` 模板增加网络权限声明，演示 `secretRef`/`NetworkDeclaration`/`OutboundAuditHelper` 用法。`streaming` 模板增加 streaming capability，演示 `StreamFrameClient` faux frame 生命周期。`agent-runtime` 模板生成 agent-like 包，包含 streaming run/trace/proposal/echo capabilities 与 assistant_action/forge_panel surfaces，使用 `ygg-agent-adapter` SDK。`experience-runtime` 模板生成 experience-runtime 包，包含 describe-contract/create-checkpoint/inspect-checkpoint/draft-recovery/bind-agent-run/echo capabilities 与 experience_entry/play_renderer/forge_panel/assistant_action surfaces，使用 `experience-runtime` SDK。
-- `--language typescript-experience`（未指定 `--template`）仍生成原始 4-surface 体验描述符以兼容旧行为。
-- `ygg init-composition` 和 `ygg composition check` 提供本地 composition descriptor 流程，支持 v2 字段（title、description、optional packages、required capabilities、default activation、permission expectations、replacement candidates、compatibility notes）。`composition check` 输出结构化诊断：已加载的 required/optional 包、surfaces 按 slot 归类、capabilities、entry activation、缺失的 required surfaces/capabilities（失败）、以及 optional 包缺失警告。
-- `ygg package check` 和 `ygg package conformance` 在本地验证生成的包。`ygg package check` 输出结构化诊断信息：entry kind、trust level、capability 数量、surfaces 按 slot 归类、permissions 摘要、sandbox policy 摘要，以及对无 capability 或无 surface 的包发出警告。
-- `ygg package reload <manifest>` 将包加载到内存 runtime，重启（仅 subprocess），输出重启前后状态和日志数量，然后卸载。使用现有 Runtime::restart_package 路径；不新增协议方法。
-- `ygg package run-fixture` 使用确定性 canned 输入调用所有声明的非 streaming 能力，并输出结构化 JSON 摘要。
-- `ygg play-create-demo` 通过普通公开协议调用端到端地编排空白游创循环。
-- `ygg perf baseline` 运行 deterministic performance baseline 测量（P0），覆盖 inproc invoke、official capability invoke、event store append/list/range、composition check、profile load、subprocess echo（可 skipped）。输出 text 或 JSON 格式。详见 `docs/performance/BASELINE.md`。
+- `persona-lab`、`knowledge-lab`、`context-lab`、`text-transform-lab`。
 
-### 代码组织
+**模型接入**
 
-- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型位于 `cli.rs`；commands 位于 `commands/`；包生成模板位于 `templates/`；conformance 用例按领域位于 `conformance/` 模块，采用结构化 `ConformanceCase { id, tags, run }` registry，支持 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`、per-case duration 和 slowest-N 报告。
-- `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 和 protocol dispatch 模块承载 runtime domain behavior；`runtime/mod.rs` 保持公开 `Runtime<S>` API，并 re-export 移动后的公开 request/record types。
-- Protocol method metadata 与 dispatch 共享 `KernelMethod` 单一事实源，并有 registry/dispatch 一致性单元覆盖。
-- `crates/ygg-runtime/src/inproc.rs` 保留 in-process package API，并把 official lab 行为委托给 `crates/ygg-runtime/src/inproc/` 下的聚焦模块。
-- `crates/ygg-runtime/src/inproc/common.rs` 按 provider package 和 local capability name 路由共享 official in-process handlers，而不是 suffix-only fallback。
-- 这次拆分不改变行为，目的是让后续 package、conformance 和 handler 增长保持可审查。
+- `model-connector-lab` —— 不出网的 provider 元数据、profile 校验、secret 脱敏、发现计划、兼容性报告。
+- `model-provider-lab` —— 云 API adapter 实验室。覆盖 OpenAI / Anthropic / Gemini / OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks，提供请求构造、伪造调用、流式归一、live loopback 形状与各家 quirk。它不是平台模型抽象，也不是 API 网关。
+- `model-routing-lab` —— 不做推理的 consumer-slot 绑定、路由计划、回退计划、参数归一。
 
-### Conformance
+**Agent 与推理**
 
-- `cargo run -p ygg-cli -- conformance` 运行 320 个具名 CLI 用例，支持 `--list`（列出 id 和 tags）、`--case <pattern>`（substring 过滤）、`--tag <tag>`（tag 过滤）、`--fail-fast`（首失败后停止）、`--slowest <N>`（显示最慢 N）。每个 case 带有 tags（runtime/event/capability/package/subprocess/official/generated/network/outbound/stream/agentic/experience/memory/sharing/secret/composition/replacement/surface/protocol/permission/hook/host/asset/projection/substrate/storage/live/slow/external_project/project_intake/workspace_lab/policy/no_execution/retrieval 等）。Per-case duration 和 slowest-N 报告帮助定位慢 case。默认无参数仍跑全部 cases。详见 `docs/performance/CONFORMANCE_FEEDBACK.md`。覆盖：session、事件、包、能力、hook、schema、principal、权限、subprocess 执行、host 传输、surface、proposal、官方包、composition-lab、asset-lab、projection-lab、persona-lab、knowledge-lab、context-lab、text-transform-lab、model-connector-lab、model-provider-lab、model-routing-lab、pi-agent-runtime-lab、capability-tool-bridge-lab、inference-local-lab、inference-playtest-lab、agentic-forge-lab、in-process fallback hardening、playable-seed、游创循环、生成包创作、composition descriptor、package check、reload 冒烟测试、第三方替换证明、permission grant rehydrate、secret_ref validation、raw-secret blocking、official no-secret-bypass、env secret resolver、网络权限审计、策略纯函数测试、outbound executor boundary、streaming lifecycle、live model calls、provider adapters、experience-runtime-lab、playable-creation-board、experience-observability-lab、memory-lab、creator-loop、**sharing-lab（contract shape/export_composition_bundle/import_composition_bundle/branch_session_bundle/package_set_lockfile/compatibility_report/ai_disclosure_bundle/read_only_share_manifest/async_fork_share_plan/no_marketplace_no_raw_secrets）**、**project-intake-lab（contract/source classification/stack detection/npm lifecycle risk/workspace plan/local path rejection/adapter plan/adapter manifest preview no write/rejects official adapter id/rejects path traversal adapter id/capability namespace mismatch rejected/wrapper preview no execution/fixture preview redacted/readiness checklist ok/e5 no forbidden namespace no raw secret）**、**workspace-lab（contract shape/action taxonomy deny-default/policy mismatch fail-closed/raw secret blocked/audit redacted/no forbidden namespace/no execution/fixture workspace creation no execution/inspect read no filesystem/run plan requires approval/fixture process result redacted/entrypoint discovery deterministic/patch draft proposal only/e3 raw secret no forbidden namespace）**。ed）**、**model provider invoke adapters（OpenAI chat/responses、Anthropic messages、Gemini generateContent fake/local invoke、raw credential rejected、unsupported family diagnostic、outbound_request_shape 可审计）**、**model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake）**、**model provider stream normalization（八家 delta SSE/semantic SSE/typed chunk stream 归一为 start/chunk/progress/end frames、terminal_frame_consistent、provider event 输入归一化、raw secret 不 echo）**、streaming/cancellation 生命周期、模板 conformance、no-network readiness proof、**inference-local-lab（non-HTTP describe/invoke/reject/stream/error proof）**、**live HTTP outbound executor（默认 DenyAll 仍生效、非 HTTPS URL fail-closed 无网络、response shape 不含 raw body/header/secret）**、**kernel.outbound.execute public protocol（package principal 通过 context 确定 package_id 不能 spoof、FakeOutboundExecutor + allowed network declaration 成功且 audit 产生、spoofed package_id 被拒绝、无 network permission denied 且 executor 不调用、secret_refs 仅引用 no raw secret in response）**、**L4：outbound secret_headers 解析验证（secret_headers params 格式正确解析、raw secret 不出现在 response）、local loopback HTTP server secret injection conformance（Authorization header 真实到达 server、raw secret 不出现在 protocol response/audit/log）、DeepSeek SSE stream normalize canary（delta_sse start→chunk→end lifecycle、terminal_frame_consistent、no raw secrets）、opt-in live DeepSeek conformance（默认跳过、YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY 时才尝试真实调用）、canary DeepSeek profile shape（endpoint/dialect/stream_family 正确、secret_ref placeholder 不含 raw key）**、**L5：OpenAI/Anthropic/Gemini live adapter conformance（OpenAI chat loopback 验证 Authorization bearer、OpenAI responses loopback、Anthropic messages loopback 验证 x-api-key secret + anthropic-version static header、Gemini generateContent loopback 验证 x-goog-api-key、missing secret fails closed、provider normalize_request alignment、no raw secret leak across all providers、static_headers safe allowlist、static_headers 阻止 secret-bearing 名）**、**playable-creation-board（Experience Beta 1: describe_contract/launch+player_actions/checkpoint+recovery/request_change_no_chat/bind_agent_run_scoped/candidate_proposal_no_target_mutation/reject_approve_fork_proof/thirdparty_no_official_priority/no_forbidden_namespace/no_raw_secrets）**、**experience-observability-lab（contract/session_health/package_health/agent_run_health/proposal_causality/cost_latency/failure_breadcrumbs/guardrail_audit/no_forbidden_namespace/no_raw_secrets）**。
-- 加上 `cargo test --workspace` 下的 crate 和 service 单元测试。
-- `tsc -p clients/web/tsconfig.json --noEmit` 检查 web shell。
+- `pi-agent-runtime-lab` —— 参考 agent 包，no-network 的运行计划、trace 摘要、提案草稿、echo。
+- `capability-tool-bridge-lab` —— 发现能力、预览权限、显式 provider 选择、调用/流式计划。Phase D 加入 `explain_tool_call`、`record_tool_observation`、`summarize_tool_risk`、`replay_tool_plan`、`plan_toolchain`，覆盖嵌套委派、target branch 写入、提示词注入、secret 外泄、出站扩张、大输出 redaction 等风险。
+- `agentic-forge-lab` —— Agentic Forge Beta 的核心包：能力包持有的运行生命周期、工作状态、计划图、scratch branch / candidate / compare / promote、推理节点（确定性 / 录制 / 云适配计划 / 本地 fake）、replay、输出校验、9 类失败 taxonomy。
+- `inference-local-lab` —— 不依赖云 API、HTTP、bearer token 的本地 fake 推理 provider，证明推理接缝可以脱离这些。
+- `inference-playtest-lab` —— Ygg-native 的「推理 → 提案 → 审视 → 批/拒 → 应用 → fork」纵切片。
 
-## 部分实现
+**体验**
 
-- 能力调用 lifecycle 事件（`kernel/capability.invoked|completed|failed`）已在契约中预留；尚未发出。
-- Streaming 协议分发自 partial（stream start/cancel 生命周期可用；真实网络 streaming 延后）。
-- Package-principal 的 `event.subscribe` 权限。
-- Hook handler 超时/错误审计，面向包拥有的 handler。
-- 持久化的能力 provider 选择策略（超越单次调用显式选择）。
-- 更丰富的资源策略覆盖（filesystem 强制矩阵）—— Secure Execution 后续 hardening 目标。
-- 内容寻址的 asset blob 存储和 package-principal asset 权限检查。**稳定 content-address helper 和元数据约定（Beta 2）已完成；完整 blob 存储和 runtime 权限执行尚待完成。**
-- 包拥有的 projection 执行。
-- 更丰富的崩溃监控和健康检查（超出当前 lifecycle 事件）。
-- 更广泛的传输一致性覆盖（超出当前核心协议 dispatcher 和 service 测试）。
-- 更丰富的 TypeScript SDK 打包（超出当前薄 subprocess 辅助层和 secure-execution helpers）。
-- 完整的 `kernel.session.get|list`、`kernel.package.describe`、`kernel.capability.describe`、`kernel.extension_point.describe`、`kernel.host.principal`、`kernel.host.ping` 路由暴露。
+- `experience-runtime-lab` —— 体验运行时契约：体验描述符、状态投影、checkpoint、recovery、Play/Forge/Assist surface 绑定。
+- `playable-creation-board` —— 第一个真实可玩的纵切片。包持有 board / module / constraint / marker 状态，14 个能力，4 个 surface。
+- `experience-observability-lab` —— 包持有的可观测性：会话健康、能力包健康、agent 运行健康、提案因果链、cost/latency 摘要、失败面包屑、guardrail 摘要。
+- `memory-lab` —— 长期记忆与知识：记录、检索、检索追踪、提案审批门控的更新、修正、forget/redaction、按分支视图、provenance。
+- `sharing-lab` —— 分享与分发：composition bundle 导入导出、分支/会话 bundle 清单、包集 lockfile、兼容性报告、AI 披露元数据、只读分享清单、异步 fork 计划。不带市场、计费、签名网络。
+- `playable-seed`、`blank-experience` —— 参考与最小体验。
 
-## 延后事项
+**存储与外部项目**
 
-这些是内核的非目标，预期以普通包或未来工作的形式交付：
+- `storage-lab` —— 存储/数据契约预览：分层模型、backend class 候选、包级状态库、文档 CRUD 预览、blob 内容寻址契约证明、projection 物化、检索 / 向量 / 多模态 provider 契约。
+- `tdb-retrieval-lab` —— TDB 作为检索 / 多模态 provider 的契约；不是事件日志权威。
+- `project-intake-lab` —— 外部项目分类、栈检测、npm 生命周期风险、工作区计划、adapter 计划、wrapper / fixture / readiness 预览。不出网、不动文件系统。
+- `workspace-lab` —— 工作区行动策略边界，10 项行动 taxonomy，deny-by-default 假执行器，确定性 fixture 工作区。
 
-- 对话 runtime、提示词、模型、采样、消息/回合语义。
-- 记忆模型、检索、摘要、agent loop、director。
+**第三方替换证明**
+
+- `thirdparty/playable-seed`、`thirdparty/agent-runtime`、`thirdparty/agentic-forge`、`thirdparty/memory-lab` —— 证明对应官方包都可被第三方替换，没有官方优先级。
+
+Forge profile（`profiles/forge-alpha.yaml`）会自动加载这些包以及示例 fixture 包。
+
+## TypeScript SDK
+
+`sdk/typescript/` 下：
+
+- `subprocess` —— 子进程能力包脚手架与模板运行时。
+- `secure-execution` —— `secret_ref` 构造与校验、网络声明、出站审计、伪造流帧客户端。
+- `inference-capability` —— transport-neutral 推理契约。
+- `model-provider-adapter` —— 云 provider adapter helper。
+- `ygg-agent-adapter` —— 把 Ygg 能力映射为 pi 风格 tool。
+- `agentic-forge` —— 运行生命周期、计划图、工作状态、candidate / compare / promote、推理节点、tool bridge v2 helper。
+- `experience-runtime` —— 体验运行时类型与构造器。
+- `text-surface` —— 前端文字 surface helper（流式 buffer、frame 适配、滚动锚、字体加载）。
+
+`text-surface`、`agentic-forge`、`inference-capability` 等都自带纯 TS 自测。
+
+## 包模板
+
+`ygg init-package --template <name>`：`basic`、`experience`、`play-renderer`、`forge-panel`、`assistant-action`、`asset-editor`、`full-surface`、`networked`、`streaming`、`agent-runtime`、`experience-runtime`、`playable-board`、`playable-experience`。生成的包默认安全：no raw secret、不隐式联网。
+
+## Web shell（`clients/web`）
+
+走公开协议的 Home/Play、Forge、Assist。
+
+- **Home / Play：** 通过 `experience_entry` surface 发现可玩内容，通过包声明的 launch 能力启动会话，支持 fork。
+- **Forge：** 检查事件、能力、资产、projection、提案、Forge 面板贡献，提供提案的 approve/apply 控件。新增 Agentic Forge 工作区面板（运行时间线、计划图、分支沿革、candidate compare、tool/inference trace、控件），数据全部来自公开协议。
+- **Assist：** 轻量的实时编辑与提案抽屉。
+- 没有官方包硬编码——shell 和别的客户端一样是公开协议的客户端。
+- **可选文字引擎：** 通用 `TextEngine` 接口加可缓存的 fallback engine；可选 `PretextTextEngine` 通过动态导入加载，仓库无需安装 `@chenglou/pretext` 即可构建；Assistant Drawer 显示引擎偏好、可用性、回退原因。
+- **Forge 文字预览：** 从事件 payload、流帧、提案对象里提取安全的纯文本预览，跟现有 JSON 审查器并存。
+
+## 创作流程
+
+- `ygg init-package` 生成 Python 或 TypeScript 子进程包脚手架。`--template` 控制 surface 描述符；`--language *-experience` 在不指定模板时仍生成旧版 4-surface 体验，兼容旧行为。
+- `ygg init-composition` + `ygg composition check` 提供本地 composition 流程，支持 v2 字段（标题、描述、可选包、所需能力、默认激活、权限期望、替换候选、兼容性说明）。
+- `ygg package check` 输出结构化诊断：入口类型、信任级别、能力数、按 slot 分组的 surface、权限摘要、沙箱策略；对无能力或无 surface 的包给出警告。
+- `ygg package conformance` 在本地验证生成的包。
+- `ygg package reload <manifest>` 把包加载进内存运行时、重启（仅子进程）、输出前后状态和日志数、再卸载。
+- `ygg package run-fixture` 用确定性 fixture 输入调用所有非流式能力，输出 JSON 摘要。
+- `ygg play-create-demo` 端到端跑通空白游创循环。
+- `ygg perf baseline` 跑确定性性能基线（in-process 调用、官方能力调用、事件存储 append/list/range、composition check、profile 加载、子进程 echo），输出文本或 JSON。详见 [`performance/BASELINE.md`](performance/BASELINE.md)。
+
+## 代码组织
+
+- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`，conformance 用例按域分模块在 `conformance/`，使用结构化的 `ConformanceCase { id, tags, run }` 注册表，支持 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，附带 per-case 用时和最慢 N 报告。
+- `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals、protocol dispatch 分模块；`runtime/mod.rs` 保持公开 `Runtime<S>` API。
+- 协议方法的元数据与分发共享 `KernelMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
+- `crates/ygg-runtime/src/inproc/` 把官方包行为按域拆开，公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+
+这次拆分不改变行为，只是让后续新增能力包、conformance、handler 时仍然可审查。
+
+## Conformance
+
+`cargo run -p ygg-cli -- conformance` 跑 320 个具名 CLI 用例。支持：
+
+- `--list` 列出 id 与 tag；
+- `--case <pattern>` 子串过滤；
+- `--tag <tag>` 按 tag 过滤；
+- `--fail-fast` 首个失败即停；
+- `--slowest <N>` 显示最慢 N 个。
+
+每个用例有 tag（runtime / event / capability / package / subprocess / official / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval 等）。详见 [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.md)。
+
+外加 `cargo test --workspace` 下的 crate 与 service 单测，以及 `tsc -p clients/web/tsconfig.json --noEmit` 检查 Web shell。
+
+## Partial（已开始但未做完）
+
+- 能力调用生命周期事件（`kernel/capability.invoked|completed|failed`）：契约预留，尚未发出。
+- 流式协议分发：流的 start/cancel 生命周期可用，真实网络流式延后。
+- 能力包身份的 `event.subscribe` 权限。
+- 能力包持有的钩子处理器的超时 / 错误审计。
+- 能力 provider 的持久选择策略（超出单次调用显式选择）。
+- 更丰富的资源策略（filesystem 强制矩阵）。
+- 内容寻址的资产 blob 存储与能力包身份的资产权限：稳定的 content-address helper 与元数据约定已完成；完整 blob 存储与运行时权限执行未完成。
+- 包持有的 projection 执行。
+- 更丰富的崩溃监控与健康检查。
+- 更广的传输一致性覆盖。
+- 更厚的 TypeScript SDK 打包。
+- `kernel.session.get|list`、`kernel.package.describe`、`kernel.capability.describe`、`kernel.extension_point.describe`、`kernel.host.principal`、`kernel.host.ping` 完整暴露。
+
+## Deferred（明确不在内核范围）
+
+这些都将以普通能力包或后续工作出现，不属于内核：
+
+- 对话运行时、提示词、模型、采样、消息 / 回合语义。
+- 记忆模型、检索、摘要、agent 循环、导演。
 - 世界、场景、角色、规则、骰子、背包语义。
-- SillyTavern 资源和行为兼容（见 `docs/tavern/TAVERN_COMPAT.md`）。
-- 生产级长期自治 agent、多 agent 协作、生产级记忆系统与更完整 live-ops（Agentic Forge、provider adapter、live calls 与 inference capability 底座已完成；见 `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md`、`docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` 与 `docs/guides/MODEL_PROVIDER_INTEGRATION.md`）。
-- 外部游戏引擎桥接（UE5、Godot、Unity、web 客户端）。
-- 市场、包签名、依赖解析器（本地分享 proof 已完成；见 `docs/guides/SHARING_DISTRIBUTION.md`）。
+- SillyTavern 资源与行为兼容（见 [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.md)）。
+- 生产级长期自治 agent、多 agent 协作、生产级记忆系统、更完整的 live-ops。
+- 外部游戏引擎桥接（UE5、Godot、Unity、Web 客户端）。
+- 市场、包签名、依赖解析（本地分享 proof 已完成，见 [`guides/SHARING_DISTRIBUTION.md`](guides/SHARING_DISTRIBUTION.md)）。
 - 最终 UI 视觉设计、完整 Studio、ComfyUI 风格节点编辑器。
-- WASM 和 remote 包执行。
+- WASM 与远程包执行。
 
-## 如何验证此快照
+## 如何核对这份快照
 
 ```bash
 cargo test --workspace
@@ -183,24 +210,14 @@ cargo run -p ygg-cli -- play-create-demo
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-如果以上任何一步失败，以这份文档为准的是代码；请更新此文档。
+任何一步失败时，以代码为准，更新这份文档。
 
 ## 延伸阅读
 
-- `docs/CHARTER.md` —— 不变的根本原则。
-- `docs/architecture/VISION.md` —— 平台为何而存在。
-- `docs/architecture/ARCHITECTURE.md` —— kernel + packages 两层架构。
-- `docs/architecture/PLATFORM_KERNEL.md` —— 内核做什么、不做什么。
-- `docs/architecture/CAPABILITY_PACKAGE.md` —— 能力包契约。
-- `docs/architecture/EVENT_MODEL.md` —— 不透明事件日志。
-- `docs/architecture/EXTENSION_POINTS.md` —— hook 契约。
-- `docs/architecture/RUNTIME_LIFECYCLE.md` —— 内核侧生命周期。
-- `docs/protocol/PROTOCOL_V0.md` —— 公开协议。
-- `docs/spec/KERNEL_V0_ALPHA_CONTRACT.md` —— 可执行的 alpha 契约矩阵。
-- `docs/spec/CONFORMANCE_MATRIX.md` —— hostile conformance 路线图。
-- `docs/product/PLAY_CREATION_MODEL.md` —— 游创一体的产品立场。
-- `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` —— Agentic Forge 之后的体验牵引平台路线。
-- `docs/guides/AGENT_PACKAGE_AUTHORING.md` —— agent-like 能力包创作指南。
-- `docs/guides/MODEL_PROVIDER_INTEGRATION.md` —— 多 provider cloud API 接入指南。
-- `docs/guides/INFERENCE_CAPABILITY_AUTHORING.md` —— transport-neutral 推理能力包创作指南。
-- `docs/roadmap/NEXT_STEPS.md` —— 当前与下一阶段。
+- [`CHARTER.md`](CHARTER.md) —— 不变的根本原则。
+- [`architecture/`](architecture/README.md) —— 架构、内核、能力包契约、扩展点、事件、生命周期。
+- [`product/`](product/README.md) —— 游创立场与体验牵引平台路线。
+- [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.md) —— 公开协议。
+- [`spec/`](spec/README.md) —— 可执行契约矩阵与 conformance 路线图。
+- [`guides/`](guides/README.md) —— 能力包创作指南。
+- [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md) —— 当前与下一阶段。
