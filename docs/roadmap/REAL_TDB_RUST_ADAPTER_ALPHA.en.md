@@ -25,12 +25,12 @@ This plan corrects the previous overly conservative TDB integration. The Trivium
 - Add this plan and switch status entry points.
 - Keep the previous `official/tdb-retrieval-lab` plan/contract capabilities, but reposition them as prerequisites for a real adapter route.
 
-## Phase R1 — Independent adapter crate shell
+## Phase R1 — Independent adapter crate shell ✅
 
-- Add `integrations/tdb/rust-adapter/` outside the main workspace members.
-- Default build provides a safe stub / JSON-RPC stdio package handler with no TriviumDB dependency.
-- Add an explicit subprocess package manifest (not autoloaded), proving an ordinary package can load the adapter shell.
-- Validate that default builds/conformance do not need TDB.
+- ✅ Added `integrations/tdb/rust-adapter/` outside the main workspace members.
+- ✅ Default build provides a safe stub / JSON-RPC stdio package handler with no TriviumDB dependency.
+- ✅ Added explicit subprocess package manifest `examples/packages/tdb-rust-adapter/manifest.yaml` (not autoloaded).
+- ✅ Default adapter shell can `cargo check` / `cargo test` and is represented as an ordinary subprocess package.
 
 ## Phase R2 — Real TriviumDB API proof
 

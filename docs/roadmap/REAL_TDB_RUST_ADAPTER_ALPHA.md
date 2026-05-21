@@ -25,12 +25,12 @@
 - 写入本计划并切换状态入口。
 - 继续保留上轮 `official/tdb-retrieval-lab` plan/contract 能力，但把它升级为真实 adapter 路线的前置 contract。
 
-## Phase R1 — Independent adapter crate shell
+## Phase R1 — Independent adapter crate shell ✅
 
-- 新增 `integrations/tdb/rust-adapter/`，不加入主 workspace members。
-- 默认构建提供 safe stub / JSON-RPC stdio package handler，不依赖 TriviumDB。
-- 新增显式 subprocess package manifest（不 autoload），证明普通 package 可以加载 adapter shell。
-- 验证默认 build/conformance 不需要 TDB。
+- ✅ 新增 `integrations/tdb/rust-adapter/`，不加入主 workspace members。
+- ✅ 默认构建提供 safe stub / JSON-RPC stdio package handler，不依赖 TriviumDB。
+- ✅ 新增显式 subprocess package manifest `examples/packages/tdb-rust-adapter/manifest.yaml`（不 autoload）。
+- ✅ 默认 adapter shell 能 `cargo check` / `cargo test`，并可由 package manifest 描述为 ordinary subprocess package。
 
 ## Phase R2 — Real TriviumDB API proof
 
