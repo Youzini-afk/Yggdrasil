@@ -1,22 +1,27 @@
 //! Handler for `official/storage-lab` capabilities.
 //!
-//! Storage Backend Neutrality Alpha Phase S3 — Blob / Asset Store Contract Proof.
+//! Storage Backend Neutrality Alpha Phase S4 — Projection / Index Materialization Contract Proof.
 //!
 //! Package-facing storage/data contract preview: storage backend classes,
 //! package state store planning, document CRUD previews, snapshot export,
-//! and blob/asset content-addressed contract proof.
+//! blob/asset content-addressed contract proof, and projection/index
+//! materialization contract proof.
 //!
 //! Deterministic, no-network, no real model inference, no real DB writes,
 //! no SQL, no filesystem, no DSN/path/credentials, no blob content in
 //! event payloads. Produces package-owned storage/data shapes.
 //!
-//! No reserved storage/database/blob kernel namespace references.
+//! No reserved storage/database/blob/projection/sql/vector kernel namespace
+//! references.
 //!
 //! State terminology: storage_contract, backend_class, package_state_plan,
 //! document_preview, tombstone_preview, snapshot_preview,
 //! blob_store_contract, blob_put_preview, blob_metadata_preview,
-//! blob_manifest_preview — not vendor database, query-language, vector,
-//! secret-bearing, or object-store-bucket semantics.
+//! blob_manifest_preview, projection_store_contract,
+//! projection_materialization_plan, projection_query_preview,
+//! projection_migration_plan_preview — not vendor database, query-language,
+//! vector, secret-bearing, object-store-bucket, DB-table, or SQL-product
+//! semantics.
 
 use serde_json::Value;
 
@@ -58,6 +63,17 @@ const BLOB_BACKEND_CANDIDATES: &[&str] = &[
     "local_content_addressed_future",
     "filesystem_backend_future",
     "object_store_future",
+];
+
+// ---------------------------------------------------------------------------
+// Projection / Index backend candidates (S4)
+// ---------------------------------------------------------------------------
+
+const PROJECTION_BACKEND_CANDIDATES: &[&str] = &[
+    "event_derived_projection",
+    "package_owned_index",
+    "sqlite_materialized_view_future",
+    "postgres_materialized_view_future",
 ];
 
 // ---------------------------------------------------------------------------
@@ -170,6 +186,14 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(get_blob_metadata_preview(request))
     } else if id.ends_with("/export_blob_manifest_preview") {
         Some(export_blob_manifest_preview(request))
+    } else if id.ends_with("/describe_projection_store_contract") {
+        Some(describe_projection_store_contract(request))
+    } else if id.ends_with("/plan_projection_materialization") {
+        Some(plan_projection_materialization(request))
+    } else if id.ends_with("/query_projection_preview") {
+        Some(query_projection_preview(request))
+    } else if id.ends_with("/migrate_projection_plan_preview") {
+        Some(migrate_projection_plan_preview(request))
     } else {
         None
     }
@@ -197,6 +221,10 @@ fn describe_storage_contract(request: &InprocInvocation) -> anyhow::Result<Value
             {"id": "official/storage-lab/put_blob_preview", "purpose": "preview a blob put with content-addressed hash, no real blob storage"},
             {"id": "official/storage-lab/get_blob_metadata_preview", "purpose": "preview blob metadata retrieval without returning blob content"},
             {"id": "official/storage-lab/export_blob_manifest_preview", "purpose": "preview a blob manifest export with refs only, no content"},
+            {"id": "official/storage-lab/describe_projection_store_contract", "purpose": "describe projection/index store contract with backend candidates and red lines"},
+            {"id": "official/storage-lab/plan_projection_materialization", "purpose": "plan-only projection materialization with backend candidates, no real DB table or index creation"},
+            {"id": "official/storage-lab/query_projection_preview", "purpose": "preview projection query shape without executing real queries"},
+            {"id": "official/storage-lab/migrate_projection_plan_preview", "purpose": "preview projection migration plan without applying data rewrites"},
         ],
         "surfaces": {
             "forge_panel": "official/storage-lab/forge-panel",
@@ -222,6 +250,10 @@ fn describe_storage_contract(request: &InprocInvocation) -> anyhow::Result<Value
             "blob_put_preview": ["kind", "package_id", "blob_id", "content_address", "mime", "size_bytes", "metadata_shape", "blob_stored", "filesystem_performed", "network_performed", "event_payload_contains_blob", "provenance"],
             "blob_metadata_preview": ["kind", "blob_id", "content_address", "mime", "size_bytes", "metadata_shape", "blob_read", "content_returned", "provenance"],
             "blob_manifest_preview": ["kind", "manifest_items", "item_count", "content_included", "provenance"],
+            "projection_store_contract": ["kind", "contract_kinds", "backend_candidates", "red_lines", "inference_performed", "network_performed", "provenance"],
+            "projection_materialization_plan": ["kind", "projection_id", "package_id", "source_kinds", "index_keys", "backend_candidates", "materialized", "write_performed", "backend_selected", "plan_only", "inference_performed", "network_performed", "provenance"],
+            "projection_query_preview": ["kind", "projection_ref", "filter_preview", "limit", "preview_shape", "query_executed", "rows_returned", "inference_performed", "network_performed", "provenance"],
+            "projection_migration_plan_preview": ["kind", "projection_id", "from_version", "to_version", "change_summary", "migration_applied", "data_rewritten", "requires_rebuild", "inference_performed", "network_performed", "provenance"],
         },
         "inference_performed": false,
         "network_performed": false,
@@ -860,6 +892,286 @@ fn export_blob_manifest_preview(request: &InprocInvocation) -> anyhow::Result<Va
 }
 
 // ---------------------------------------------------------------------------
+// S4 — Projection / Index Materialization Contract Proof capabilities
+// ---------------------------------------------------------------------------
+
+fn describe_projection_store_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let backend_candidates: Vec<Value> = PROJECTION_BACKEND_CANDIDATES
+        .iter()
+        .map(|class_id| {
+            let (capability_flags, status, description) = match *class_id {
+                "event_derived_projection" => (
+                    vec!["replay", "rebuild", "kind_prefix_filter", "event_sourced"],
+                    "available",
+                    "Event-derived projection rebuilt from event log replay",
+                ),
+                "package_owned_index" => (
+                    vec!["plan_materialization", "query_preview", "migration_preview"],
+                    "available",
+                    "Package-owned index/projection plan and preview without real DB persistence",
+                ),
+                "sqlite_materialized_view_future" => (
+                    vec!["materialized_view", "durable", "plan_only"],
+                    "future",
+                    "Future SQLite materialized view for single-host durable projections",
+                ),
+                "postgres_materialized_view_future" => (
+                    vec!["materialized_view", "durable", "remote", "plan_only"],
+                    "future",
+                    "Future PostgreSQL materialized view for server/team durable projections",
+                ),
+                _ => (
+                    Vec::<&str>::new(),
+                    "unknown",
+                    "Unknown projection backend class",
+                ),
+            };
+            serde_json::json!({
+                "class_id": class_id,
+                "capability_flags": capability_flags,
+                "status": status,
+                "description": description,
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "kind": "projection_store_contract",
+        "contract_kinds": [
+            "event_derived_projection",
+            "package_owned_index",
+            "sqlite_materialized_view_future",
+            "postgres_materialized_view_future",
+        ],
+        "backend_candidates": backend_candidates,
+        "red_lines": [
+            "no_table_exposure",
+            "no_sql_exposure",
+            "no_backend_credentials",
+            "no_query_product_leakage",
+            "projection_derives_from_events_assets_only",
+        ],
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn plan_projection_materialization(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
+    }
+
+    let package_id = request
+        .input
+        .get("package_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if package_id.is_empty() {
+        return Ok(rejected_output(request, "package_id must not be empty"));
+    }
+
+    if !is_safe_id(package_id) {
+        return Ok(rejected_output(
+            request,
+            "package_id contains unsafe characters or path traversal",
+        ));
+    }
+
+    let projection_id = request
+        .input
+        .get("projection_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if projection_id.is_empty() {
+        return Ok(rejected_output(request, "projection_id must not be empty"));
+    }
+
+    if !is_safe_id(projection_id) {
+        return Ok(rejected_output(
+            request,
+            "projection_id contains unsafe characters or path traversal",
+        ));
+    }
+
+    let source_kinds: Vec<Value> = request
+        .input
+        .get("source_kinds")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let index_keys: Vec<Value> = request
+        .input
+        .get("index_keys")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    // Backend candidates — plan only, no actual backend selection
+    let backend_candidates: Vec<Value> = PROJECTION_BACKEND_CANDIDATES
+        .iter()
+        .map(|class_id| {
+            let status = match *class_id {
+                "event_derived_projection" => "available",
+                "package_owned_index" => "available",
+                _ => "future",
+            };
+            serde_json::json!({
+                "class_id": class_id,
+                "status": status,
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "kind": "projection_materialization_plan",
+        "projection_id": projection_id,
+        "package_id": package_id,
+        "source_kinds": source_kinds,
+        "index_keys": index_keys,
+        "backend_candidates": backend_candidates,
+        "materialized": false,
+        "write_performed": false,
+        "backend_selected": false,
+        "plan_only": true,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn query_projection_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
+    }
+
+    let projection_ref = request
+        .input
+        .get("projection_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if !projection_ref.is_empty() && !is_safe_id(projection_ref) {
+        return Ok(rejected_output(
+            request,
+            "projection_ref contains unsafe characters or path traversal",
+        ));
+    }
+
+    let filter_preview = request
+        .input
+        .get("filter_preview")
+        .cloned()
+        .unwrap_or(Value::Null);
+
+    let limit = request
+        .input
+        .get("limit")
+        .and_then(Value::as_u64)
+        .unwrap_or(10);
+
+    // Preview shape only — no actual query execution
+    let preview_shape = serde_json::json!({
+        "projection_ref": if projection_ref.is_empty() { Value::Null } else { serde_json::json!(projection_ref) },
+        "filter_preview": filter_preview,
+        "limit": limit,
+        "result_hint": "preview_only",
+    });
+
+    Ok(serde_json::json!({
+        "kind": "projection_query_preview",
+        "projection_ref": if projection_ref.is_empty() { Value::Null } else { serde_json::json!(projection_ref) },
+        "filter_preview": filter_preview,
+        "limit": limit,
+        "preview_shape": preview_shape,
+        "query_executed": false,
+        "rows_returned": false,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+fn migrate_projection_plan_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
+    }
+
+    let projection_id = request
+        .input
+        .get("projection_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if projection_id.is_empty() {
+        return Ok(rejected_output(request, "projection_id must not be empty"));
+    }
+
+    if !is_safe_id(projection_id) {
+        return Ok(rejected_output(
+            request,
+            "projection_id contains unsafe characters or path traversal",
+        ));
+    }
+
+    let from_version = request
+        .input
+        .get("from_version")
+        .and_then(Value::as_str)
+        .unwrap_or("0");
+
+    let to_version = request
+        .input
+        .get("to_version")
+        .and_then(Value::as_str)
+        .unwrap_or("1");
+
+    let change_summary = request
+        .input
+        .get("change_summary")
+        .and_then(Value::as_str)
+        .unwrap_or("schema evolution preview");
+
+    Ok(serde_json::json!({
+        "kind": "projection_migration_plan_preview",
+        "projection_id": projection_id,
+        "from_version": from_version,
+        "to_version": to_version,
+        "change_summary": change_summary,
+        "migration_applied": false,
+        "data_rewritten": false,
+        "requires_rebuild": true,
+        "inference_performed": false,
+        "network_performed": false,
+        "provenance": {
+            "package_id": request.provider_package_id,
+            "capability_id": request.capability_id
+        }
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -911,8 +1223,8 @@ mod tests {
                 .as_array()
                 .map(|a| a.len())
                 .unwrap_or(0),
-            12,
-            "must list 12 capabilities"
+            16,
+            "must list 16 capabilities"
         );
     }
 
@@ -1226,5 +1538,223 @@ mod tests {
                 token
             );
         }
+    }
+
+    // ------- S4 Projection / Index Materialization Contract Proof tests -------
+
+    #[test]
+    fn describe_projection_store_contract_shape() {
+        let req = make_request(
+            "official/storage-lab/describe_projection_store_contract",
+            json!({}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("projection_store_contract"));
+        let contract_kinds = result["contract_kinds"].as_array().unwrap();
+        assert!(contract_kinds.len() >= 4, "must list at least 4 contract kinds");
+        let candidates = result["backend_candidates"].as_array().unwrap();
+        assert!(candidates.len() >= 4, "must have at least 4 backend candidates");
+        let red_lines = result["red_lines"].as_array().unwrap();
+        assert!(red_lines.contains(&json!("no_table_exposure")));
+        assert!(red_lines.contains(&json!("no_sql_exposure")));
+        assert!(red_lines.contains(&json!("no_backend_credentials")));
+        assert!(red_lines.contains(&json!("projection_derives_from_events_assets_only")));
+    }
+
+    #[test]
+    fn plan_projection_materialization_plan_only() {
+        let req = make_request(
+            "official/storage-lab/plan_projection_materialization",
+            json!({
+                "package_id": "my-pkg",
+                "projection_id": "my-pkg/projection/board-state",
+                "source_kinds": ["my-pkg/event/action"],
+                "index_keys": ["board_id", "sequence"],
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("projection_materialization_plan"));
+        assert_eq!(result["materialized"], json!(false));
+        assert_eq!(result["write_performed"], json!(false));
+        assert_eq!(result["backend_selected"], json!(false));
+        assert_eq!(result["plan_only"], json!(true));
+        let candidates = result["backend_candidates"].as_array().unwrap();
+        assert!(candidates.len() >= 4, "must have backend candidates");
+    }
+
+    #[test]
+    fn query_projection_preview_no_execution() {
+        let req = make_request(
+            "official/storage-lab/query_projection_preview",
+            json!({
+                "projection_ref": "my-pkg/projection/board-state",
+                "filter_preview": {"board_id": "abc"},
+                "limit": 5,
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("projection_query_preview"));
+        assert_eq!(result["query_executed"], json!(false));
+        assert_eq!(result["rows_returned"], json!(false));
+        assert!(result["preview_shape"].is_object());
+    }
+
+    #[test]
+    fn migrate_projection_plan_no_rewrite() {
+        let req = make_request(
+            "official/storage-lab/migrate_projection_plan_preview",
+            json!({
+                "projection_id": "my-pkg/projection/board-state",
+                "from_version": "1",
+                "to_version": "2",
+                "change_summary": "added sequence index",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("projection_migration_plan_preview"));
+        assert_eq!(result["migration_applied"], json!(false));
+        assert_eq!(result["data_rewritten"], json!(false));
+        assert_eq!(result["requires_rebuild"], json!(true));
+    }
+
+    #[test]
+    fn projection_rejects_raw_secret() {
+        let req = make_request(
+            "official/storage-lab/plan_projection_materialization",
+            json!({
+                "package_id": "my-pkg",
+                "projection_id": "my-pkg/projection/test",
+                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+        assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
+    }
+
+    #[test]
+    fn projection_no_db_table_leakage() {
+        let req = make_request(
+            "official/storage-lab/describe_projection_store_contract",
+            json!({}),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        let output_str = serde_json::to_string(&result).unwrap();
+        let lower = output_str.to_lowercase();
+        // No SQL/table/collection/vector/database namespace terms as product terms.
+        // "no_table_exposure" / "no_sql_exposure" in red_lines are negation terms (blocking
+        // the leakage), not leakage themselves — filter them out before checking.
+        let lower_no_negation = lower
+            .replace("no_table_exposure", "")
+            .replace("no_sql_exposure", "");
+        assert!(!lower_no_negation.contains("\"sql\""), "must not contain standalone sql term");
+        assert!(!lower_no_negation.contains("table"), "must not contain table terminology");
+        assert!(!lower_no_negation.contains("collection"), "must not contain collection terminology");
+        assert!(!lower_no_negation.contains("vector"), "must not contain vector terminology");
+        assert!(!lower_no_negation.contains("\"database\""), "must not contain database terminology");
+        // No kernel namespace tokens
+        for token in forbidden_namespace_tokens() {
+            assert!(
+                !output_str.contains(&token),
+                "must not contain forbidden namespace {}",
+                token
+            );
+        }
+    }
+
+    #[test]
+    fn projection_plan_rejects_empty_and_unsafe_ids() {
+        // Empty projection_id
+        let req = make_request(
+            "official/storage-lab/plan_projection_materialization",
+            json!({
+                "package_id": "my-pkg",
+                "projection_id": "",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+
+        // Unsafe projection_id (path traversal)
+        let req2 = make_request(
+            "official/storage-lab/plan_projection_materialization",
+            json!({
+                "package_id": "my-pkg",
+                "projection_id": "../../etc/passwd",
+            }),
+        );
+        let result2 = try_handle(&req2).unwrap().unwrap();
+        assert_eq!(result2["kind"], json!("storage_lab_rejected"));
+
+        // Empty package_id
+        let req3 = make_request(
+            "official/storage-lab/plan_projection_materialization",
+            json!({
+                "package_id": "",
+                "projection_id": "my-pkg/proj/1",
+            }),
+        );
+        let result3 = try_handle(&req3).unwrap().unwrap();
+        assert_eq!(result3["kind"], json!("storage_lab_rejected"));
+    }
+
+    #[test]
+    fn projection_migration_rejects_empty_and_unsafe_projection_id() {
+        // Empty projection_id
+        let req = make_request(
+            "official/storage-lab/migrate_projection_plan_preview",
+            json!({
+                "projection_id": "",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+
+        // Unsafe projection_id
+        let req2 = make_request(
+            "official/storage-lab/migrate_projection_plan_preview",
+            json!({
+                "projection_id": "../../../etc/passwd",
+            }),
+        );
+        let result2 = try_handle(&req2).unwrap().unwrap();
+        assert_eq!(result2["kind"], json!("storage_lab_rejected"));
+    }
+
+    #[test]
+    fn projection_query_rejects_unsafe_ref() {
+        let req = make_request(
+            "official/storage-lab/query_projection_preview",
+            json!({
+                "projection_ref": "../../etc/passwd",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+    }
+
+    #[test]
+    fn projection_query_and_migration_reject_raw_secret() {
+        // Raw secret in query_projection_preview
+        let req = make_request(
+            "official/storage-lab/query_projection_preview",
+            json!({
+                "projection_ref": "my-pkg/proj/1",
+                "token": "Bearer RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
+        let result = try_handle(&req).unwrap().unwrap();
+        assert_eq!(result["kind"], json!("storage_lab_rejected"));
+
+        // Raw secret in migrate_projection_plan_preview
+        let req2 = make_request(
+            "official/storage-lab/migrate_projection_plan_preview",
+            json!({
+                "projection_id": "my-pkg/proj/1",
+                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
+        let result2 = try_handle(&req2).unwrap().unwrap();
+        assert_eq!(result2["kind"], json!("storage_lab_rejected"));
     }
 }

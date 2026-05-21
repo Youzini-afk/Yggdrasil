@@ -413,6 +413,13 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_lab.get_blob_metadata_preview_no_content", ["storage_lab", "storage", "blob"], storage_lab::get_blob_metadata_preview_no_content),
         c!("storage_lab.export_blob_manifest_refs_only", ["storage_lab", "storage", "blob"], storage_lab::export_blob_manifest_refs_only),
         c!("storage_lab.blob_raw_secret_and_unsafe_id_rejected", ["storage_lab", "storage", "blob", "secret"], storage_lab::blob_raw_secret_and_unsafe_id_rejected),
+        // --- storage-lab S4 (Projection / Index Materialization Contract Proof) ---
+        c!("storage_lab.projection_contract_shape", ["storage_lab", "storage", "projection"], storage_lab::projection_contract_shape),
+        c!("storage_lab.projection_materialization_plan_only", ["storage_lab", "storage", "projection"], storage_lab::projection_materialization_plan_only),
+        c!("storage_lab.projection_query_preview_no_execution", ["storage_lab", "storage", "projection"], storage_lab::projection_query_preview_no_execution),
+        c!("storage_lab.projection_migration_plan_no_rewrite", ["storage_lab", "storage", "projection"], storage_lab::projection_migration_plan_no_rewrite),
+        c!("storage_lab.projection_rejects_raw_secret", ["storage_lab", "storage", "projection", "secret"], storage_lab::projection_rejects_raw_secret),
+        c!("storage_lab.projection_no_db_table_leakage", ["storage_lab", "storage", "projection"], storage_lab::projection_no_db_table_leakage),
     ]
 }
 

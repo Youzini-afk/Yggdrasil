@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵覆盖：252 个 implemented rows，由 297 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
+当前矩阵覆盖：258 个 implemented rows，由 303 个具名 CLI conformance 用例 + crate/service 单元测试支撑。
 
 ## Conformance Feedback Loop
 
@@ -250,6 +250,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | get blob metadata preview 不返回 blob content（blob_read=false, content_returned=false） | implemented |
 | storage lab | export blob manifest preview 只含 refs、不含 content（content_included=false） | implemented |
 | storage lab | blob raw secret、unsafe ID、过大 inline sample 被阻断 | implemented |
+| storage lab | projection contract shape — backend candidates、red lines、无 DB table/collection/vector/database namespace | implemented |
+| storage lab | projection materialization plan only（materialized=false、write_performed=false、backend_selected=false） | implemented |
+| storage lab | projection query preview no execution（query_executed=false、rows_returned=false） | implemented |
+| storage lab | projection migration plan no rewrite（migration_applied=false、data_rewritten=false、requires_rebuild=true） | implemented |
+| storage lab | projection 所有能力输入阻断 raw secret | implemented |
+| storage lab | projection 所有能力输出无 DB table leakage — 无 SQL/table/collection/vector/database 术语 | implemented |
 
 ## Platform Host Alpha 必需的 hostile conformance
 
@@ -537,6 +543,12 @@ storage_lab.put_blob_preview_no_storage_no_content_event PASS
 storage_lab.get_blob_metadata_preview_no_content PASS
 storage_lab.export_blob_manifest_refs_only PASS
 storage_lab.blob_raw_secret_and_unsafe_id_rejected PASS
+storage_lab.projection_contract_shape PASS
+storage_lab.projection_materialization_plan_only PASS
+storage_lab.projection_query_preview_no_execution PASS
+storage_lab.projection_migration_plan_no_rewrite PASS
+storage_lab.projection_rejects_raw_secret PASS
+storage_lab.projection_no_db_table_leakage PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

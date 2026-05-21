@@ -85,15 +85,20 @@ Deliverables:
 
 Acceptance: conformance covers content-address determinism, no raw secret, no filesystem write.
 
-## Phase S4 — Projection / Index Materialization Contract Proof
+## Phase S4 — Projection / Index Materialization Contract Proof ✅
 
 Goal: define minimal package-owned projection/index store contracts without turning projections into DB tables.
 
 Deliverables:
 
-- Extend `storage-lab`: `describe_projection_store_contract`, `plan_projection_materialization`, `query_projection_preview`, `migrate_projection_plan_preview`.
-- SQLite/Postgres future materialization are backend candidates only; output plans only.
-- Align with existing `projection-lab` docs/Forge inspector.
+- ✅ Extend `storage-lab`: `describe_projection_store_contract`, `plan_projection_materialization`, `query_projection_preview`, `migrate_projection_plan_preview`.
+- ✅ Backend candidates: event_derived_projection, package_owned_index, sqlite_materialized_view_future, postgres_materialized_view_future; output plans only.
+- ✅ Red lines: no_table_exposure, no_sql_exposure, no_backend_credentials, no_query_product_leakage, projection_derives_from_events_assets_only.
+- ✅ plan_projection_materialization: materialized=false, write_performed=false, backend_selected=false, plan_only=true; projection_id/package_id safe-id validation; raw-secret blocking.
+- ✅ query_projection_preview: query_executed=false, rows_returned=false; no SQL/table/collection/vector terms.
+- ✅ migrate_projection_plan_preview: migration_applied=false, data_rewritten=false, requires_rebuild=true.
+- ✅ 6 projection conformance cases.
+- ✅ Align with existing `projection-lab` docs/Forge inspector.
 
 Acceptance: conformance covers no DB table leakage, plan-only, backend-neutral output.
 

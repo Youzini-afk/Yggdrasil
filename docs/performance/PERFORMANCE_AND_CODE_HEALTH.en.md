@@ -108,6 +108,15 @@ Storage Backend Neutrality Alpha S3 added:
 - put_blob_preview outputs content_address (sha256: normalized if content_hash provided, deterministic hash otherwise), blob_stored=false, filesystem_performed=false, network_performed=false, event_payload_contains_blob=false. Blocks raw secret, unsafe id, oversized inline sample (>4096 chars).
 - No real blob store implementation, no filesystem reads/writes, no network, no blob content in event payloads.
 
+Storage Backend Neutrality Alpha S4 added:
+
+- `official/storage-lab` adds 4 projection/index materialization contract proof capabilities: describe_projection_store_contract, plan_projection_materialization, query_projection_preview, migrate_projection_plan_preview. 16 capabilities, 22 `storage_lab` tag conformance cases.
+- Projection contract outputs backend candidates (event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future), red lines (no_table_exposure / no_sql_exposure / no_backend_credentials / no_query_product_leakage / projection_derives_from_events_assets_only).
+- plan_projection_materialization outputs materialized=false, write_performed=false, backend_selected=false, plan_only=true. Blocks raw secret, validates projection_id/package_id safe-id.
+- query_projection_preview outputs query_executed=false, rows_returned=false, preview_shape. No SQL/table/collection/vector terms.
+- migrate_projection_plan_preview outputs migration_applied=false, data_rewritten=false, requires_rebuild=true.
+- No real projection storage, no DB table/index creation, no SQL/query execution, no data rewrite.
+
 Future event-store optimization priority:
 
 1. Prove a concrete scale bottleneck with baseline data.

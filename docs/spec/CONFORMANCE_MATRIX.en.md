@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 252 implemented rows, backed by 297 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 258 implemented rows, backed by 303 named CLI conformance cases plus crate/service unit tests.
 
 ## Conformance Feedback Loop
 
@@ -250,6 +250,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | get blob metadata preview does not return blob content (blob_read=false, content_returned=false) | implemented |
 | storage lab | export blob manifest preview contains refs only, no content (content_included=false) | implemented |
 | storage lab | blob raw secret, unsafe ID, oversized inline sample are blocked | implemented |
+| storage lab | projection contract shape — backend candidates, red lines, no DB table/collection/vector/database namespace | implemented |
+| storage lab | projection materialization plan only (materialized=false, write_performed=false, backend_selected=false) | implemented |
+| storage lab | projection query preview no execution (query_executed=false, rows_returned=false) | implemented |
+| storage lab | projection migration plan no rewrite (migration_applied=false, data_rewritten=false, requires_rebuild=true) | implemented |
+| storage lab | projection rejects raw secret in all projection capability inputs | implemented |
+| storage lab | projection no DB table leakage — no SQL/table/collection/vector/database terms across all projection capabilities | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
 | creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
 | creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
@@ -546,6 +552,12 @@ storage_lab.put_blob_preview_no_storage_no_content_event PASS
 storage_lab.get_blob_metadata_preview_no_content PASS
 storage_lab.export_blob_manifest_refs_only PASS
 storage_lab.blob_raw_secret_and_unsafe_id_rejected PASS
+storage_lab.projection_contract_shape PASS
+storage_lab.projection_materialization_plan_only PASS
+storage_lab.projection_query_preview_no_execution PASS
+storage_lab.projection_migration_plan_no_rewrite PASS
+storage_lab.projection_rejects_raw_secret PASS
+storage_lab.projection_no_db_table_leakage PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

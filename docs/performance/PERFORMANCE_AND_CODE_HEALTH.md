@@ -108,6 +108,15 @@ Storage Backend Neutrality Alpha S3 新增：
 - put_blob_preview 输出 content_address（content_hash 提供则 sha256: 规范化，否则 deterministic hash），blob_stored=false，filesystem_performed=false，network_performed=false，event_payload_contains_blob=false。阻断 raw secret、unsafe id、过大 inline sample（>4096 chars）。
 - 不实现真实 blob store、不读写文件、不联网、不把 blob content 放入 event payload。
 
+Storage Backend Neutrality Alpha S4 新增：
+
+- `official/storage-lab` 新增 4 项 projection/index 物化契约证明能力：describe_projection_store_contract、plan_projection_materialization、query_projection_preview、migrate_projection_plan_preview。16 项能力、22 个 `storage_lab` tag conformance 用例。
+- Projection 契约输出 backend candidates（event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future），red lines（no_table_exposure / no_sql_exposure / no_backend_credentials / no_query_product_leakage / projection_derives_from_events_assets_only）。
+- plan_projection_materialization 输出 materialized=false、write_performed=false、backend_selected=false、plan_only=true。阻断 raw secret，校验 projection_id/package_id safe-id。
+- query_projection_preview 输出 query_executed=false、rows_returned=false、preview_shape。不含 SQL/table/collection/vector 术语。
+- migrate_projection_plan_preview 输出 migration_applied=false、data_rewritten=false、requires_rebuild=true。
+- 不实现真实 projection storage，不建 DB table/index，不执行 SQL/query，不重写数据。
+
 后续 event store 优化优先级：
 
 1. 用 baseline 证明具体规模下的瓶颈。

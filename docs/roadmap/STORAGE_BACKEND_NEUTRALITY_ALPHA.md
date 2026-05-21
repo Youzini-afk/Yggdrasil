@@ -85,15 +85,20 @@ Yggdrasil 当前已经有 SQLite-backed append-only event log、重水化的 ass
 
 验收：conformance 覆盖 content-address determinism、no raw secret、no filesystem write。
 
-## Phase S4 — Projection / Index Materialization Contract Proof
+## Phase S4 — Projection / Index Materialization Contract Proof ✅
 
 目标：定义 package-owned projection/index store 的最小 contract，避免直接把 projection 变成 DB table。
 
 交付：
 
-- 扩展 `storage-lab`：`describe_projection_store_contract`、`plan_projection_materialization`、`query_projection_preview`、`migrate_projection_plan_preview`。
-- 支持 SQLite/Postgres future materialization 作为 backend candidates，但只输出 plan。
-- 与现有 `projection-lab` 文档/Forge inspector 对齐。
+- ✅ 扩展 `storage-lab`：`describe_projection_store_contract`、`plan_projection_materialization`、`query_projection_preview`、`migrate_projection_plan_preview`。
+- ✅ Backend candidates：event_derived_projection、package_owned_index、sqlite_materialized_view_future、postgres_materialized_view_future；只输出 plan。
+- ✅ Red lines：no_table_exposure、no_sql_exposure、no_backend_credentials、no_query_product_leakage、projection_derives_from_events_assets_only。
+- ✅ plan_projection_materialization：materialized=false、write_performed=false、backend_selected=false、plan_only=true；projection_id/package_id safe-id 校验；raw-secret 阻断。
+- ✅ query_projection_preview：query_executed=false、rows_returned=false；无 SQL/table/collection/vector 术语。
+- ✅ migrate_projection_plan_preview：migration_applied=false、data_rewritten=false、requires_rebuild=true。
+- ✅ 6 个 projection conformance 用例。
+- ✅ 与现有 `projection-lab` 文档/Forge inspector 对齐。
 
 验收：conformance 覆盖 no DB table leakage、plan-only、backend-neutral output。
 

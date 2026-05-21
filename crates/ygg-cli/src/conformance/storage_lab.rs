@@ -1,4 +1,4 @@
-//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2 + S3).
+//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2 + S3 + S4).
 //!
 //! Covers:
 //! 1. Contract shape — no kernel database terms
@@ -16,6 +16,12 @@
 //! 13. Get blob metadata preview — no content returned
 //! 14. Export blob manifest preview — refs only, no content
 //! 15. Blob raw secret and unsafe ID rejected
+//! 16. Projection contract shape — backend candidates, red lines, no DB table leakage
+//! 17. Projection materialization plan only — materialized=false, write_performed=false, backend_selected=false
+//! 18. Projection query preview no execution — query_executed=false, rows_returned=false, no SQL/table/collection/vector terms
+//! 19. Projection migration plan no rewrite — migration_applied=false, data_rewritten=false, requires_rebuild=true
+//! 20. Projection rejects raw secret
+//! 21. Projection no DB table leakage — no SQL/table/collection/vector/database in output
 
 use std::path::PathBuf;
 
@@ -80,14 +86,14 @@ pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<
     anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action");
     anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
-    // 12 capabilities
+    // 16 capabilities
     anyhow::ensure!(
         contract.output["capabilities"]
             .as_array()
             .map(|a| a.len())
             .unwrap_or(0)
-            == 12,
-        "describe_storage_contract must list 12 capabilities"
+            == 16,
+        "describe_storage_contract must list 16 capabilities"
     );
 
     // No kernel database terms
@@ -801,6 +807,373 @@ pub(crate) async fn blob_raw_secret_and_unsafe_id_rejected() -> anyhow::Result<(
     )
     .await?;
     anyhow::ensure!(put4.output["kind"] == json!("storage_lab_rejected"));
+
+    Ok(())
+}
+
+/// Case 16: Projection contract shape — backend candidates, red lines,
+/// no DB table/collection/vector/database namespace leakage.
+pub(crate) async fn projection_contract_shape() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let contract = invoke(&rt, "describe_projection_store_contract", json!({})).await?;
+
+    anyhow::ensure!(
+        contract.output["kind"] == json!("projection_store_contract"),
+        "must return projection_store_contract kind"
+    );
+
+    // Contract kinds
+    let contract_kinds = contract.output["contract_kinds"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("contract_kinds must be array"))?;
+    anyhow::ensure!(contract_kinds.len() >= 4, "must have at least 4 contract kinds");
+
+    // Backend candidates
+    let candidates = contract.output["backend_candidates"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
+    anyhow::ensure!(candidates.len() >= 4, "must have at least 4 backend candidates");
+
+    // Red lines
+    let red_lines = contract.output["red_lines"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("red_lines must be array"))?;
+    anyhow::ensure!(
+        red_lines.contains(&json!("no_table_exposure")),
+        "must have no_table_exposure red line"
+    );
+    anyhow::ensure!(
+        red_lines.contains(&json!("no_sql_exposure")),
+        "must have no_sql_exposure red line"
+    );
+    anyhow::ensure!(
+        red_lines.contains(&json!("no_backend_credentials")),
+        "must have no_backend_credentials red line"
+    );
+    anyhow::ensure!(
+        red_lines.contains(&json!("projection_derives_from_events_assets_only")),
+        "must have projection_derives_from_events_assets_only red line"
+    );
+
+    // No DB table/collection/vector/database namespace leakage
+    // "no_table_exposure" / "no_sql_exposure" in red_lines are negation terms
+    // (blocking the leakage), not leakage themselves — filter them out.
+    let output_str = serde_json::to_string(&contract.output).unwrap();
+    let lower_raw = output_str.to_lowercase();
+    let lower = lower_raw
+        .replace("no_table_exposure", "")
+        .replace("no_sql_exposure", "");
+    anyhow::ensure!(
+        !lower.contains("\"sql\""),
+        "must not contain standalone sql term"
+    );
+    anyhow::ensure!(
+        !lower.contains("table"),
+        "must not contain table terminology"
+    );
+    anyhow::ensure!(
+        !lower.contains("collection"),
+        "must not contain collection terminology"
+    );
+    anyhow::ensure!(
+        !lower.contains("vector"),
+        "must not contain vector terminology"
+    );
+    anyhow::ensure!(
+        !lower.contains("\"database\""),
+        "must not contain database terminology"
+    );
+
+    // No kernel namespace tokens
+    let forbidden = [
+        "kernel.sqlite.",
+        "kernel.postgres.",
+        "kernel.tdb.",
+        "kernel.vector.",
+        "kernel.embedding.",
+        "kernel.collection.",
+        "kernel.sql.",
+        "kernel.database.",
+        "kernel.projection.",
+    ];
+    for token in &forbidden {
+        anyhow::ensure!(
+            !output_str.contains(token),
+            "projection contract must not contain {}",
+            token
+        );
+    }
+
+    // No inference / no network
+    anyhow::ensure!(contract.output["inference_performed"] == json!(false));
+    anyhow::ensure!(contract.output["network_performed"] == json!(false));
+
+    Ok(())
+}
+
+/// Case 17: Projection materialization plan only — materialized=false,
+/// write_performed=false, backend_selected=false.
+pub(crate) async fn projection_materialization_plan_only() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let plan = invoke(
+        &rt,
+        "plan_projection_materialization",
+        json!({
+            "package_id": "thirdparty/my-app",
+            "projection_id": "thirdparty/my-app/projection/scores",
+            "source_kinds": ["thirdparty/my-app/event/score_update"],
+            "index_keys": ["player_id", "score"],
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        plan.output["kind"] == json!("projection_materialization_plan"),
+        "must return projection_materialization_plan kind"
+    );
+    anyhow::ensure!(
+        plan.output["materialized"] == json!(false),
+        "materialized must be false"
+    );
+    anyhow::ensure!(
+        plan.output["write_performed"] == json!(false),
+        "write_performed must be false"
+    );
+    anyhow::ensure!(
+        plan.output["backend_selected"] == json!(false),
+        "backend_selected must be false"
+    );
+    anyhow::ensure!(
+        plan.output["plan_only"] == json!(true),
+        "plan_only must be true"
+    );
+
+    // Backend candidates present
+    let candidates = plan.output["backend_candidates"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
+    anyhow::ensure!(candidates.len() >= 4, "must have at least 4 backend candidates");
+
+    // No credentials in output
+    let output_str = serde_json::to_string(&plan.output).unwrap();
+    let lower = output_str.to_lowercase();
+    for token in &["dsn", "password", "credential", "connection_string"] {
+        anyhow::ensure!(
+            !lower.contains(token),
+            "plan must not contain {}",
+            token
+        );
+    }
+
+    Ok(())
+}
+
+/// Case 18: Projection query preview — no execution, no SQL/table/collection/vector terms.
+pub(crate) async fn projection_query_preview_no_execution() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let result = invoke(
+        &rt,
+        "query_projection_preview",
+        json!({
+            "projection_ref": "thirdparty/my-app/projection/scores",
+            "filter_preview": {"player_id": "abc"},
+            "limit": 5,
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("projection_query_preview"),
+        "must return projection_query_preview kind"
+    );
+    anyhow::ensure!(
+        result.output["query_executed"] == json!(false),
+        "query_executed must be false"
+    );
+    anyhow::ensure!(
+        result.output["rows_returned"] == json!(false),
+        "rows_returned must be false"
+    );
+    anyhow::ensure!(
+        result.output["preview_shape"].is_object(),
+        "must have preview_shape"
+    );
+
+    // No SQL/table/collection/vector terms in output
+    let output_str = serde_json::to_string(&result.output).unwrap();
+    let lower = output_str.to_lowercase();
+    anyhow::ensure!(
+        !lower.contains("\"sql\""),
+        "must not contain standalone sql term"
+    );
+    anyhow::ensure!(
+        !lower.contains("table"),
+        "must not contain table terminology"
+    );
+    anyhow::ensure!(
+        !lower.contains("collection"),
+        "must not contain collection terminology"
+    );
+    anyhow::ensure!(
+        !lower.contains("vector"),
+        "must not contain vector terminology"
+    );
+
+    Ok(())
+}
+
+/// Case 19: Projection migration plan — no rewrite, requires_rebuild=true.
+pub(crate) async fn projection_migration_plan_no_rewrite() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let result = invoke(
+        &rt,
+        "migrate_projection_plan_preview",
+        json!({
+            "projection_id": "thirdparty/my-app/projection/scores",
+            "from_version": "1",
+            "to_version": "2",
+            "change_summary": "added player_id index",
+        }),
+    )
+    .await?;
+
+    anyhow::ensure!(
+        result.output["kind"] == json!("projection_migration_plan_preview"),
+        "must return projection_migration_plan_preview kind"
+    );
+    anyhow::ensure!(
+        result.output["migration_applied"] == json!(false),
+        "migration_applied must be false"
+    );
+    anyhow::ensure!(
+        result.output["data_rewritten"] == json!(false),
+        "data_rewritten must be false"
+    );
+    anyhow::ensure!(
+        result.output["requires_rebuild"] == json!(true),
+        "requires_rebuild must be true"
+    );
+
+    Ok(())
+}
+
+/// Case 20: Projection rejects raw secret.
+pub(crate) async fn projection_rejects_raw_secret() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    // Raw secret in plan_projection_materialization
+    let plan = invoke(
+        &rt,
+        "plan_projection_materialization",
+        json!({
+            "package_id": "my-pkg",
+            "projection_id": "my-pkg/proj/1",
+            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(plan.output["kind"] == json!("storage_lab_rejected"));
+    anyhow::ensure!(plan.output["redaction_state"] == json!("unsafe_blocked"));
+
+    // Raw secret in query_projection_preview
+    let query = invoke(
+        &rt,
+        "query_projection_preview",
+        json!({
+            "projection_ref": "my-pkg/proj/1",
+            "secret": "Bearer RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(query.output["kind"] == json!("storage_lab_rejected"));
+
+    // Raw secret in migrate_projection_plan_preview
+    let migrate = invoke(
+        &rt,
+        "migrate_projection_plan_preview",
+        json!({
+            "projection_id": "my-pkg/proj/1",
+            "token": "RawSecretExample1234567890abcdefABCDEF123456",
+        }),
+    )
+    .await?;
+    anyhow::ensure!(migrate.output["kind"] == json!("storage_lab_rejected"));
+
+    Ok(())
+}
+
+/// Case 21: Projection no DB table leakage — no SQL/table/collection/vector/database
+/// in projection-related outputs across all 4 capabilities.
+pub(crate) async fn projection_no_db_table_leakage() -> anyhow::Result<()> {
+    let rt = load_storage_lab().await?;
+
+    let capabilities = vec![
+        ("describe_projection_store_contract", json!({})),
+        (
+            "plan_projection_materialization",
+            json!({
+                "package_id": "my-pkg",
+                "projection_id": "my-pkg/proj/1",
+            }),
+        ),
+        (
+            "query_projection_preview",
+            json!({
+                "projection_ref": "my-pkg/proj/1",
+            }),
+        ),
+        (
+            "migrate_projection_plan_preview",
+            json!({
+                "projection_id": "my-pkg/proj/1",
+            }),
+        ),
+    ];
+
+    let forbidden_terms = ["table", "collection", "vector", "\"database\""];
+    let kernel_prefixes = [
+        "kernel.sqlite.",
+        "kernel.postgres.",
+        "kernel.tdb.",
+        "kernel.vector.",
+        "kernel.embedding.",
+        "kernel.collection.",
+        "kernel.sql.",
+        "kernel.database.",
+        "kernel.projection.",
+    ];
+
+    for (cap, input) in capabilities {
+        let result = invoke(&rt, cap, input).await?;
+        let output_str = serde_json::to_string(&result.output).unwrap();
+        // "no_table_exposure" / "no_sql_exposure" in red_lines are negation terms
+        // (blocking the leakage), not leakage themselves — filter them out.
+        let lower_raw = output_str.to_lowercase();
+        let lower = lower_raw
+            .replace("no_table_exposure", "")
+            .replace("no_sql_exposure", "");
+
+        for term in &forbidden_terms {
+            anyhow::ensure!(
+                !lower.contains(term),
+                "projection capability {} must not contain {}",
+                cap,
+                term
+            );
+        }
+        for prefix in &kernel_prefixes {
+            anyhow::ensure!(
+                !output_str.contains(prefix),
+                "projection capability {} must not contain {}",
+                cap,
+                prefix
+            );
+        }
+    }
 
     Ok(())
 }
