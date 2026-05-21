@@ -71,7 +71,7 @@ Storage Backend Neutrality Alpha 结束时：
 
 ## 下一步
 
-未来真正接入 PostgreSQL、TDB 或其他 retrieval/vector 后端前，应先补：
+PostgreSQL + TDB Integration Alpha 已完成首个 opt-in backend/provider 证明；后续接入其他 retrieval/vector 后端前仍应补：
 
 - backend selection / host policy
 - migration/export/import contract
