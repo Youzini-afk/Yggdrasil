@@ -10,7 +10,7 @@ Yggdrasil currently has a SQLite-backed append-only event log, but the platform 
 2. **Package-scoped state store**: ordinary capability packages may preview package-owned document/KV state contracts, but they do not receive raw DB access, SQL, or backend credentials.
 3. **Blob / asset store**: large objects should enter the platform through content address, hash, size, mime, and provenance. Blob content should not be embedded into event payloads.
 4. **Projection / index materialization**: projections/indexes are package-owned views derived from events/assets. They can plan materialization, query preview, and migration plans without exposing tables, SQL, or query-product semantics.
-5. **Retrieval / vector / multimodal providers**: TDB, pgvector, OpenSearch, Redis Vector, local embedding indexes, and remote retrieval services are future provider slots. Retrieval is a package/provider-layer ability; it does not replace the event log, audit, proposal lifecycle, or branch lineage.
+5. **Retrieval / vector / multimodal providers**: TDB, pgvector, OpenSearch, Redis Vector, local embedding indexes, and remote retrieval services are provider slots. TDB now has an opt-in Rust adapter proof, but retrieval remains a package/provider-layer ability; it does not replace the event log, audit, proposal lifecycle, or branch lineage.
 6. **Forge observability**: the web shell uses public protocol calls to `official/storage-lab` to display contract summaries. It does not read SQLite, PostgreSQL, TDB, filesystem state, or runtime internals.
 
 ## Red lines
@@ -54,7 +54,7 @@ All of these capabilities are deterministic preview / plan-only:
 - package-scoped state plan
 - blob/asset content-addressed contract
 - projection/index materialization contract
-- retrieval/TDB future provider slot
+- retrieval/TDB provider slot with opt-in Rust adapter proof
 - multimodal index plan preview
 
 The Assistant drawer also has a lightweight storage lane. It displays contract/readiness only and does not execute database operations.

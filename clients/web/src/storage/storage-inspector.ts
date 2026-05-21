@@ -4,6 +4,7 @@ import { escapeHtml, formatJsonPreview } from "../utils/html";
 
 const STORAGE_LAB = "official/storage-lab";
 const TDB_RETRIEVAL_LAB = "official/tdb-retrieval-lab";
+const TDB_RUST_ADAPTER = "official/tdb-rust-adapter";
 
 export interface StorageInspectorModel {
   available: boolean;
@@ -17,6 +18,7 @@ export interface StorageInspectorModel {
   multimodal_plan?: Record<string, unknown>;
   tdb_contract?: Record<string, unknown>;
   tdb_real_seam?: Record<string, unknown>;
+  tdb_rust_adapter?: Record<string, unknown>;
   errors: string[];
 }
 
@@ -79,6 +81,17 @@ export async function buildStorageInspectorModel(
     capture("tdb_contract", `${TDB_RETRIEVAL_LAB}/describe_tdb_retrieval_contract`, {}, TDB_RETRIEVAL_LAB),
     capture("tdb_real_seam", `${TDB_RETRIEVAL_LAB}/describe_real_tdb_opt_in_seam`, {}, TDB_RETRIEVAL_LAB),
   ]);
+  if (availableIds.has(`${TDB_RUST_ADAPTER}/describe_real_tdb_adapter`)) {
+    await capture("tdb_rust_adapter", `${TDB_RUST_ADAPTER}/describe_real_tdb_adapter`, {}, TDB_RUST_ADAPTER);
+  } else {
+    model.tdb_rust_adapter = {
+      kind: "real_tdb_rust_adapter_optional",
+      status: "not_loaded",
+      package_id: TDB_RUST_ADAPTER,
+      real_tdb_available: false,
+      note: "Load the explicit subprocess adapter package to inspect the real Rust adapter shell; default Forge profile does not autoload it.",
+    };
+  }
 
   return model;
 }
@@ -103,9 +116,10 @@ export function renderForgeStoragePanel(model?: StorageInspectorModel): string {
         ${storageTile("Multimodal index plan", model.multimodal_plan, ["plan_only", "embedding_generated", "vectors_stored"])}
         ${storageTile("TDB adapter", model.tdb_contract, ["kind", "package_kind", "backend_role"])}
         ${storageTile("Real TDB opt-in seam", model.tdb_real_seam, ["kind", "status"])}
+        ${storageTile("Real TDB Rust adapter", model.tdb_rust_adapter, ["kind", "status", "real_tdb_available"])}
       </div>
       <div class="project-cta-row">
-        ${chip("backend-neutral contract")}${chip("no SQL/DSN in protocol")}${chip("TDB as future provider slot")}${chip("public protocol only")}
+        ${chip("backend-neutral contract")}${chip("no SQL/DSN in protocol")}${chip("TDB Rust adapter opt-in")}${chip("public protocol only")}
       </div>
     </div>
   `;
@@ -115,7 +129,7 @@ export function renderAssistantStorageHints(model?: StorageInspectorModel): stri
   if (!model) return "";
   const state = model.available ? "ready" : "empty";
   const note = model.available
-    ? "Storage-lab and TDB retrieval-lab can explain event spine, package state, blob, projection, retrieval, and real TDB opt-in seams without touching real DB backends."
+    ? "Storage-lab and TDB retrieval-lab can explain event spine, package state, blob, projection, retrieval, and TDB seams; the real TDB Rust adapter is explicit opt-in."
     : `Missing ${model.missing_capabilities.length} storage capability/capabilities.`;
   return `
     <div class="agent-readiness-panel storage-assist-panel">
@@ -127,7 +141,7 @@ export function renderAssistantStorageHints(model?: StorageInspectorModel): stri
       <div class="quick-actions">
         <button type="button" title="Contract preview only">Inspect storage contract</button>
         <button type="button" title="Plan-only path">Plan package store</button>
-        <button type="button" title="Future provider slot">Review TDB slot</button>
+        <button type="button" title="Explicit opt-in adapter">Review TDB adapter</button>
       </div>
     </div>
   `;

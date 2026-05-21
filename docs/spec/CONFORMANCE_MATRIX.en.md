@@ -260,7 +260,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | multimodal index plan — no embedding generation, no index creation, no vector storage | implemented |
 | storage lab | multimodal index rejects invalid modality or too many asset_refs | implemented |
 | storage lab | vector search plan — no search execution, no embedding, no vector loading | implemented |
-| storage lab | backend fit TDB is future provider slot only — no kernel vector namespace, no credentials | implemented |
+| storage lab | backend fit TDB is a provider slot, with real Rust adapter as opt-in proof — no kernel vector namespace, no credentials | implemented |
 | storage lab | retrieval rejects raw secret in all retrieval capability inputs | implemented |
 | storage lab | retrieval no kernel vector/embedding namespace or credentials across all retrieval capabilities | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
@@ -572,6 +572,16 @@ storage_lab.vector_search_plan_no_execution PASS
 storage_lab.backend_fit_mentions_tdb_future_only PASS
 storage_lab.retrieval_rejects_raw_secret PASS
 storage_lab.retrieval_no_kernel_vector_namespace_or_credentials PASS
+tdb_retrieval_lab.contract_shape PASS
+tdb_retrieval_lab.index_plan_no_execution PASS
+tdb_retrieval_lab.query_plan_no_execution PASS
+tdb_retrieval_lab.backend_fit_boundary PASS
+tdb_retrieval_lab.invalid_input_rejected PASS
+tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected PASS
+tdb_retrieval_lab.real_tdb_opt_in_seam_not_linked_by_default PASS
+tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
+tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
+tdb_rust_adapter.real_local_smoke_opt_in PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

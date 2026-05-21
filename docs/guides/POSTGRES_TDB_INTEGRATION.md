@@ -2,7 +2,7 @@
 
 > [English](./POSTGRES_TDB_INTEGRATION.en.md) · [中文](./POSTGRES_TDB_INTEGRATION.md)
 
-本指南记录 PostgreSQL + TDB Integration Alpha 的最终状态：PostgreSQL 是可选 host-owned `EventStore` backend；TDB/TriviumDB 是普通 retrieval/multimodal provider adapter 路线，不是内核数据库。
+本指南记录 PostgreSQL + TDB Integration Alpha 与 Real TDB Rust Adapter Alpha 的最终状态：PostgreSQL 是可选 host-owned `EventStore` backend；TDB/TriviumDB 是普通 retrieval/multimodal provider adapter 路线，并已有真实 Rust API adapter proof，但不是内核数据库。
 
 ## PostgreSQL event store
 
@@ -95,9 +95,9 @@ inspect_tdb_adapter_surface
 describe_real_tdb_opt_in_seam
 ```
 
-当前全部是 deterministic / no-execution / plan-only：
+该包仍是 deterministic / no-execution / plan/contract 层：
 
-- 不链接真实 TDB crate
+- 不链接真实 TDB crate（真实调用由 `tdb-rust-adapter` opt-in proof 负责）
 - 不打开 backend
 - 不创建 index
 - 不生成 embedding
@@ -106,7 +106,48 @@ describe_real_tdb_opt_in_seam
 - 不读写文件
 - 不保存或输出 raw backend secret
 
-真实 TDB 接线被记录为 opt-in seam。默认不提交 sibling path dependency，因为 `/workspace/Yggdrasil/TriviumDB` 是本地 sibling checkout，普通 clone/CI 不一定存在。
+真实 TDB 接线由 `official/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-local` 承担；`tdb-retrieval-lab` 保持为默认安全 contract/plan 层。
+
+## `official/tdb-rust-adapter`
+
+新增显式加载的普通 subprocess package：
+
+```text
+examples/packages/tdb-rust-adapter/manifest.yaml
+```
+
+adapter 源码：
+
+```text
+integrations/tdb/rust-adapter
+integrations/tdb/rust-adapter-real-local
+```
+
+默认 adapter：
+
+- 可由 Ygg runtime 作为 ordinary subprocess package 加载；
+- 提供 `describe_real_tdb_adapter` 与 `run_real_tdb_smoke`；
+- 不依赖 `triviumdb`；
+- 不打开 backend；
+- `run_real_tdb_smoke` 返回 `real_tdb_available=false` 与 `smoke_executed=false`。
+
+真实本地 proof：
+
+```bash
+cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb
+```
+
+该 proof 使用本地 `/workspace/Yggdrasil/TriviumDB` path dependency，并真实调用：
+
+```text
+Database::<f32>::open_with_config
+insert
+link
+search
+search_hybrid
+```
+
+它使用临时 redacted store，不输出 raw path，不联网，不进入默认 workspace build。默认不链接真实 crate 的原因不是“不做”，而是普通 clone/CI 不应被本地 sibling checkout 绑死。
 
 推荐真实模式顺序：
 
@@ -126,6 +167,7 @@ Forge Storage Inspector 通过 public protocol 调用：
 ```text
 official/storage-lab
 official/tdb-retrieval-lab
+official/tdb-rust-adapter（仅显式加载时）
 ```
 
 展示：
@@ -135,6 +177,7 @@ official/tdb-retrieval-lab
 - retrieval provider slot
 - TDB adapter contract
 - real TDB opt-in seam readiness
+- real TDB Rust adapter shell / real-local proof status
 
 Web shell 不读 SQLite/PostgreSQL/TDB、本地文件系统或 runtime internals。
 
@@ -162,5 +205,8 @@ Alpha 完成时：
 - `cargo run -p ygg-cli -- conformance --tag storage` 通过
 - `cargo run -p ygg-cli -- conformance --tag tdb` 通过
 - `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` 通过
+- `cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml` 通过
+- `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.toml` 通过
+- `cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb` 通过
 - `cargo check -p ygg-cli --features postgres` 通过
 - Web TypeScript 通过

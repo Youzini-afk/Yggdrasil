@@ -2,12 +2,13 @@
 
 > [English](./TRIVIUMDB_REVIEW.en.md) · [中文](./TRIVIUMDB_REVIEW.md)
 
-This ledger records what the current `/workspace/Yggdrasil/TriviumDB` source means for Yggdrasil integration.
+This ledger records what the current `/workspace/Yggdrasil/TriviumDB` source means for Yggdrasil integration, and corrects the previous overly conservative judgment: the TriviumDB README explicitly recommends Rust-side `cargo add triviumdb`, so Yggdrasil should provide a real Rust API adapter proof, not just a plan-only entry.
 
 ## Source observations
 
+- `README.md` / `README_EN.md`: installation docs include `cargo add triviumdb`; Rust library integration is the intended route.
 - `Cargo.toml`: crate name `triviumdb`, version `0.7.1`, `crate-type = ["cdylib", "rlib"]`, no default features, optional `python` / `nodejs` / `cli` features.
-- `src/lib.rs`: exposes `Database`, `Config`, `SearchConfig`, `StorageMode`, `VectorType`, `Filter`, `SearchHit`, and related types.
+- `src/lib.rs`: crate root exposes `Database`, `Result`, `TriviumError`, `Filter`, and hook/node/vector related types; `Config`, `SearchConfig`, and `StorageMode` must be imported from `triviumdb::database`.
 - `src/database/config.rs`: `StorageMode::{Mmap, Rom}`, `Config { dim, sync_mode, storage_mode }`, and `SearchConfig` with `top_k`, `expand_depth`, hybrid text, DPP, PPR, payload filters, and more.
 - `src/database/mod.rs`: `Database<T>::open/open_with_config` opens local files, creates directories, lock files, and WAL; supports `insert`, `insert_with_id`, `link`, `begin_tx`, `search`, `search_advanced`, `search_hybrid`, and `search_hybrid_with_context`.
 - `src/database/transaction.rs`: transactions use dry-run + WAL-first commit semantics; WAL replay handles insert/link/delete/update operations.
@@ -25,25 +26,51 @@ TDB fits Yggdrasil as a **retrieval/multimodal provider adapter**, not as:
 
 Reason: TDB is valuable as a local embedded multimodal/vector/graph/document hybrid retrieval engine; Yggdrasil events, proposals, permissions, and branch lineage still need the event spine as authority.
 
+## Current real Rust adapter proof
+
+This line adds a real Rust integration proof:
+
+```text
+integrations/tdb/rust-adapter
+integrations/tdb/rust-adapter-real-local
+examples/packages/tdb-rust-adapter/manifest.yaml
+```
+
+Default adapter:
+
+- is an ordinary JSON-RPC stdio subprocess package;
+- has no `triviumdb` dependency;
+- can be loaded and invoked by the Ygg runtime;
+- makes `run_real_tdb_smoke` report `real_tdb_available=false` instead of pretending success.
+
+Real local proof:
+
+```bash
+cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb
+```
+
+That proof explicitly uses the sibling checkout `/workspace/Yggdrasil/TriviumDB` and actually calls:
+
+```rust
+Database::<f32>::open_with_config(...)
+insert(...)
+link(...)
+search(...)
+search_hybrid(...)
+```
+
+The real proof uses a temporary redacted store, does not expose raw paths, performs no network, and does not enter the default main workspace build.
+
 ## Why the real crate is not linked by default
 
-The current TDB source is a sibling checkout outside the Yggdrasil repository: `/workspace/Yggdrasil/TriviumDB`. If Yggdrasil committed a a sibling path dependency to the local TriviumDB checkout dependency in `Cargo.toml`, ordinary clones and CI would fail when that sibling path is absent.
+This is not “not doing it because TDB is outside the repo”; the real Rust adapter proof is done. The default linkage remains disabled only because ordinary clones / CI must not be bound to a local sibling checkout.
 
-Therefore the current default only implements:
+Therefore the route is dual-track:
 
-- `official/tdb-retrieval-lab` deterministic fake / plan-only adapter;
-- `describe_real_tdb_opt_in_seam` real wiring notes;
-- Forge UI readiness display;
-- conformance proving no default linkage, backend open, index creation, or embedding generation.
+1. default adapter shell: compiles, loads, and passes conformance in an ordinary Yggdrasil checkout;
+2. real-local adapter: explicit opt-in real Rust API proof in development environments that have the TriviumDB checkout.
 
-Real wiring should wait until:
-
-1. TDB is resolvable (crates.io, git rev, submodule/vendor, or independent subprocess adapter);
-2. host policy explicitly enables it;
-3. backend path is a host ref and never enters events/proposals/logs/public diagnostics;
-4. resource limits are declared: dimension, max nodes, payload bytes, query top_k, expand_depth;
-5. indexing/query execution has approval/audit/redaction;
-6. the adapter remains an ordinary package/provider with no official priority.
+If TDB later becomes stably resolvable through crates.io, pinned git rev, submodule, or vendor, the real adapter can move from local proof into a more formal feature-gated package build.
 
 ## Recommended real-mode order
 

@@ -260,7 +260,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | multimodal index plan — 无 embedding 生成、无 index 创建、无 vector 存储 | implemented |
 | storage lab | multimodal index 拒绝无效 modality 或过多 asset_refs | implemented |
 | storage lab | vector search plan — 无搜索执行、无 embedding、无 vector 加载 | implemented |
-| storage lab | backend fit TDB 只是 future provider slot — 无 kernel vector namespace、无 credentials | implemented |
+| storage lab | backend fit TDB 是 provider slot，真实 Rust adapter 为 opt-in proof — 无 kernel vector namespace、无 credentials | implemented |
 | storage lab | retrieval 所有能力输入阻断 raw secret | implemented |
 | storage lab | retrieval 所有能力输出无 kernel vector/embedding namespace 或 credentials | implemented |
 
@@ -563,6 +563,16 @@ storage_lab.vector_search_plan_no_execution PASS
 storage_lab.backend_fit_mentions_tdb_future_only PASS
 storage_lab.retrieval_rejects_raw_secret PASS
 storage_lab.retrieval_no_kernel_vector_namespace_or_credentials PASS
+tdb_retrieval_lab.contract_shape PASS
+tdb_retrieval_lab.index_plan_no_execution PASS
+tdb_retrieval_lab.query_plan_no_execution PASS
+tdb_retrieval_lab.backend_fit_boundary PASS
+tdb_retrieval_lab.invalid_input_rejected PASS
+tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected PASS
+tdb_retrieval_lab.real_tdb_opt_in_seam_not_linked_by_default PASS
+tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
+tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
+tdb_rust_adapter.real_local_smoke_opt_in PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 Platform Host Alpha 必需的用例必须通过，该里程碑才能被宣布完成。

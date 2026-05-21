@@ -2,7 +2,7 @@
 
 > [English](./POSTGRES_TDB_INTEGRATION.en.md) · [中文](./POSTGRES_TDB_INTEGRATION.md)
 
-This guide records the final state of PostgreSQL + TDB Integration Alpha: PostgreSQL is an optional host-owned `EventStore` backend; TDB/TriviumDB is an ordinary retrieval/multimodal provider adapter path, not a kernel database.
+This guide records the final state of PostgreSQL + TDB Integration Alpha and Real TDB Rust Adapter Alpha: PostgreSQL is an optional host-owned `EventStore` backend; TDB/TriviumDB is an ordinary retrieval/multimodal provider adapter path with a real Rust API adapter proof, not a kernel database.
 
 ## PostgreSQL event store
 
@@ -95,9 +95,9 @@ inspect_tdb_adapter_surface
 describe_real_tdb_opt_in_seam
 ```
 
-All capabilities are currently deterministic / no-execution / plan-only:
+This package remains the deterministic / no-execution / plan/contract layer:
 
-- no real TDB crate linkage
+- no real TDB crate linkage (real calls are handled by the `tdb-rust-adapter` opt-in proof)
 - no backend open
 - no index creation
 - no embedding generation
@@ -106,7 +106,48 @@ All capabilities are currently deterministic / no-execution / plan-only:
 - no filesystem access
 - no raw backend secret saved or returned
 
-Real TDB wiring is recorded as an opt-in seam. The default build does not commit a sibling path dependency because `/workspace/Yggdrasil/TriviumDB` is a local sibling checkout and ordinary clones/CI may not have it.
+Real TDB wiring is handled by `official/tdb-rust-adapter` and `integrations/tdb/rust-adapter-real-local`; `tdb-retrieval-lab` stays as the default-safe contract/plan layer.
+
+## `official/tdb-rust-adapter`
+
+Explicitly loaded ordinary subprocess package:
+
+```text
+examples/packages/tdb-rust-adapter/manifest.yaml
+```
+
+Adapter source:
+
+```text
+integrations/tdb/rust-adapter
+integrations/tdb/rust-adapter-real-local
+```
+
+Default adapter:
+
+- can be loaded by the Ygg runtime as an ordinary subprocess package;
+- provides `describe_real_tdb_adapter` and `run_real_tdb_smoke`;
+- has no `triviumdb` dependency;
+- opens no backend;
+- makes `run_real_tdb_smoke` return `real_tdb_available=false` and `smoke_executed=false`.
+
+Real local proof:
+
+```bash
+cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb
+```
+
+That proof uses the local `/workspace/Yggdrasil/TriviumDB` path dependency and actually calls:
+
+```text
+Database::<f32>::open_with_config
+insert
+link
+search
+search_hybrid
+```
+
+It uses a temporary redacted store, exposes no raw path, performs no network, and does not enter the default workspace build. The real crate is not linked by default not because the work is skipped, but because ordinary clones/CI must not be bound to a local sibling checkout.
 
 Recommended real-mode order:
 
@@ -126,6 +167,7 @@ Forge Storage Inspector calls through public protocol:
 ```text
 official/storage-lab
 official/tdb-retrieval-lab
+official/tdb-rust-adapter (only when explicitly loaded)
 ```
 
 It displays:
@@ -135,6 +177,7 @@ It displays:
 - retrieval provider slot
 - TDB adapter contract
 - real TDB opt-in seam readiness
+- real TDB Rust adapter shell / real-local proof status
 
 The Web shell does not read SQLite/PostgreSQL/TDB, local filesystems, or runtime internals.
 
@@ -162,5 +205,8 @@ At Alpha completion:
 - `cargo run -p ygg-cli -- conformance --tag storage` passes
 - `cargo run -p ygg-cli -- conformance --tag tdb` passes
 - `cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml` passes
+- `cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml` passes
+- `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.toml` passes
+- `cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb` passes
 - `cargo check -p ygg-cli --features postgres` passes
 - Web TypeScript passes
