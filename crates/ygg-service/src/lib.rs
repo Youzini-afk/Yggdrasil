@@ -16,13 +16,24 @@ use ygg_runtime::{
     host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest,
     PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResponse, RegisteredCapability,
 };
-use ygg_runtime::{AppendEventRequest, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
+use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
-#[derive(Clone)]
-pub struct AppState {
-    pub runtime: Arc<AppRuntime>,
+pub struct AppState<S = InMemoryEventStore>
+where
+    S: EventStore,
+{
+    pub runtime: Arc<Runtime<S>>,
+}
+
+impl<S> Clone for AppState<S>
+where
+    S: EventStore,
+{
+    fn clone(&self) -> Self {
+        Self { runtime: self.runtime.clone() }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,21 +74,24 @@ pub fn app() -> Router {
     app_with_state(AppState { runtime })
 }
 
-pub fn app_with_state(state: AppState) -> Router {
+pub fn app_with_state<S>(state: AppState<S>) -> Router
+where
+    S: EventStore,
+{
     Router::new()
         .route("/health", get(health))
-        .route("/kernel/session.open", post(open_session))
-        .route("/kernel/event.append/:session_id", post(append_event))
-        .route("/kernel/event.list/:session_id", get(list_events))
-        .route("/kernel/event.subscribe/:session_id", get(subscribe_events))
-        .route("/kernel/package.load", post(load_package))
-        .route("/kernel/package.list", get(list_packages))
-        .route("/kernel/package.status/:namespace/:name", get(package_status))
-        .route("/kernel/package.unload/:namespace/:name", post(unload_package))
-        .route("/kernel/capability.discover", get(discover_capabilities))
-        .route("/kernel/capability.invoke", post(invoke_capability))
+        .route("/kernel/session.open", post(open_session::<S>))
+        .route("/kernel/event.append/:session_id", post(append_event::<S>))
+        .route("/kernel/event.list/:session_id", get(list_events::<S>))
+        .route("/kernel/event.subscribe/:session_id", get(subscribe_events::<S>))
+        .route("/kernel/package.load", post(load_package::<S>))
+        .route("/kernel/package.list", get(list_packages::<S>))
+        .route("/kernel/package.status/:namespace/:name", get(package_status::<S>))
+        .route("/kernel/package.unload/:namespace/:name", post(unload_package::<S>))
+        .route("/kernel/capability.discover", get(discover_capabilities::<S>))
+        .route("/kernel/capability.invoke", post(invoke_capability::<S>))
         .route("/kernel/host.info", get(host_info))
-        .route("/rpc", post(rpc))
+        .route("/rpc", post(rpc::<S>))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -86,10 +100,13 @@ async fn health() -> &'static str {
     "ok"
 }
 
-async fn open_session(
-    State(state): State<AppState>,
+async fn open_session<S>(
+    State(state): State<AppState<S>>,
     Json(request): Json<OpenSessionHttpRequest>,
-) -> anyhow::Result<Json<KernelSession>, ServiceError> {
+) -> anyhow::Result<Json<KernelSession>, ServiceError>
+where
+    S: EventStore,
+{
     Ok(Json(
         state
             .runtime
@@ -102,11 +119,14 @@ async fn open_session(
     ))
 }
 
-async fn append_event(
-    State(state): State<AppState>,
+async fn append_event<S>(
+    State(state): State<AppState<S>>,
     Path(session_id): Path<SessionId>,
     Json(request): Json<AppendEventHttpRequest>,
-) -> anyhow::Result<Json<EventEnvelope>, ServiceError> {
+) -> anyhow::Result<Json<EventEnvelope>, ServiceError>
+where
+    S: EventStore,
+{
     Ok(Json(
         state
             .runtime
@@ -121,11 +141,14 @@ async fn append_event(
     ))
 }
 
-async fn list_events(
-    State(state): State<AppState>,
+async fn list_events<S>(
+    State(state): State<AppState<S>>,
     Path(session_id): Path<SessionId>,
     Query(query): Query<EventListQuery>,
-) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError> {
+) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError>
+where
+    S: EventStore,
+{
     let request = EventListRequest {
         session_id,
         after_sequence: query.after_sequence,
@@ -141,11 +164,14 @@ async fn list_events(
     ))
 }
 
-async fn subscribe_events(
-    State(state): State<AppState>,
+async fn subscribe_events<S>(
+    State(state): State<AppState<S>>,
     Path(session_id): Path<SessionId>,
     Query(query): Query<EventListQuery>,
-) -> anyhow::Result<Sse<impl Stream<Item = Result<SseEvent, Infallible>>>, ServiceError> {
+) -> anyhow::Result<Sse<impl Stream<Item = Result<SseEvent, Infallible>>>, ServiceError>
+where
+    S: EventStore,
+{
     let request = EventListRequest {
         session_id: session_id.clone(),
         after_sequence: query.after_sequence,
@@ -200,21 +226,30 @@ fn event_matches_query(event: &EventEnvelope, session_id: &str, query: &EventLis
     true
 }
 
-async fn load_package(
-    State(state): State<AppState>,
+async fn load_package<S>(
+    State(state): State<AppState<S>>,
     Json(manifest): Json<PackageManifest>,
-) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
+) -> anyhow::Result<Json<PackageRecord>, ServiceError>
+where
+    S: EventStore,
+{
     Ok(Json(state.runtime.load_package(manifest).await?))
 }
 
-async fn list_packages(State(state): State<AppState>) -> Json<Vec<PackageRecord>> {
+async fn list_packages<S>(State(state): State<AppState<S>>) -> Json<Vec<PackageRecord>>
+where
+    S: EventStore,
+{
     Json(state.runtime.list_packages().await)
 }
 
-async fn package_status(
-    State(state): State<AppState>,
+async fn package_status<S>(
+    State(state): State<AppState<S>>,
     Path((namespace, name)): Path<(String, String)>,
-) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
+) -> anyhow::Result<Json<PackageRecord>, ServiceError>
+where
+    S: EventStore,
+{
     let package_id = format!("{namespace}/{name}");
     state
         .runtime
@@ -224,22 +259,31 @@ async fn package_status(
         .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded").into())
 }
 
-async fn unload_package(
-    State(state): State<AppState>,
+async fn unload_package<S>(
+    State(state): State<AppState<S>>,
     Path((namespace, name)): Path<(String, String)>,
-) -> anyhow::Result<Json<PackageRecord>, ServiceError> {
+) -> anyhow::Result<Json<PackageRecord>, ServiceError>
+where
+    S: EventStore,
+{
     let package_id = format!("{namespace}/{name}");
     Ok(Json(state.runtime.unload_package(&package_id).await?))
 }
 
-async fn discover_capabilities(State(state): State<AppState>) -> Json<Vec<RegisteredCapability>> {
+async fn discover_capabilities<S>(State(state): State<AppState<S>>) -> Json<Vec<RegisteredCapability>>
+where
+    S: EventStore,
+{
     Json(state.runtime.discover_capabilities().await)
 }
 
-async fn invoke_capability(
-    State(state): State<AppState>,
+async fn invoke_capability<S>(
+    State(state): State<AppState<S>>,
     Json(request): Json<CapabilityInvocationRequest>,
-) -> anyhow::Result<Json<CapabilityInvocationResult>, ServiceError> {
+) -> anyhow::Result<Json<CapabilityInvocationResult>, ServiceError>
+where
+    S: EventStore,
+{
     Ok(Json(
         state
             .runtime
@@ -252,10 +296,13 @@ async fn host_info() -> Json<serde_json::Value> {
     Json(serde_json::to_value(runtime_host_info()).expect("host info serializes"))
 }
 
-async fn rpc(
-    State(state): State<AppState>,
+async fn rpc<S>(
+    State(state): State<AppState<S>>,
     Json(request): Json<ProtocolRequest>,
-) -> Json<ProtocolResponse> {
+) -> Json<ProtocolResponse>
+where
+    S: EventStore,
+{
     let context = ProtocolContext::host_dev("http_rpc");
     match state.runtime.call_protocol(&context, &request.method, request.params).await {
         Ok(result) => Json(ProtocolResponse { id: request.id, result: Some(result), error: None }),

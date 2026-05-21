@@ -203,7 +203,23 @@ pub(crate) struct HostProfile {
     #[serde(default)]
     pub(crate) title: Option<String>,
     #[serde(default)]
+    pub(crate) event_store: HostEventStoreProfile,
+    #[serde(default)]
     pub(crate) autoload: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum HostEventStoreProfile {
+    Memory,
+    Sqlite { path: PathBuf },
+    Postgres { env: String },
+}
+
+impl Default for HostEventStoreProfile {
+    fn default() -> Self {
+        Self::Memory
+    }
 }
 
 #[derive(Debug, Deserialize)]

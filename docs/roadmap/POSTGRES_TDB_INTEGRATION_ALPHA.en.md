@@ -59,16 +59,17 @@ Deliverables:
 
 Acceptance: workspace tests, default conformance, `cargo check -p ygg-runtime --features postgres`, and opt-in storage conformance when PG is available — all passed.
 
-## Phase P2 — Host/Profile Backend Selection
+## Phase P2 — Host/Profile Backend Selection ✅
 
 Goal: let host choose memory/sqlite/postgres backend while keeping backend configuration host-only.
 
 Deliverables:
 
-- Add redacted event-store backend config shape to host profiles.
-- CLI/host startup supports postgres backend as feature-gated / env-ref opt-in.
-- Diagnostics expose only backend kind/status/redaction, never DSNs or private topology.
-- Default behavior remains unchanged.
+- ✅ Host profiles gain an `event_store` backend config shape: memory/sqlite/postgres.
+- ✅ CLI/host startup supports SQLite paths and PostgreSQL env-ref opt-in; PostgreSQL still requires `--features postgres`.
+- ✅ Host stdout diagnostics expose only backend kind plus `config redacted`, never DSNs or private topology.
+- ✅ Added `profiles/forge-postgres.example.yaml`, referencing only the env var name, not a connection string.
+- ✅ Default behavior remains the memory backend and existing host/profile behavior remains unchanged.
 
 Acceptance: default host path unchanged; postgres feature compiles; public protocol contains no DSN.
 

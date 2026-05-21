@@ -59,16 +59,17 @@ PostgreSQL 替代的是 SQLite durable event log，不给 package 暴露 SQL。T
 
 验收：workspace tests、default conformance、`cargo check -p ygg-runtime --features postgres`，如环境有 PG 则 opt-in storage conformance — 全部通过。
 
-## Phase P2 — Host/Profile Backend Selection
+## Phase P2 — Host/Profile Backend Selection ✅
 
 目标：让 host 可以选择 memory/sqlite/postgres backend，但 backend 配置仍属于 host-only。
 
 交付：
 
-- Host profile 增加 redacted event store backend config shape。
-- CLI/host 启动支持 postgres backend feature-gated / env-ref based opt-in。
-- Diagnostics 只显示 backend kind/status/redaction，不显示 DSN 或 private topology。
-- 默认行为保持现状。
+- ✅ Host profile 增加 `event_store` backend config shape：memory/sqlite/postgres。
+- ✅ CLI/host 启动支持 SQLite path 和 PostgreSQL env-ref opt-in；PostgreSQL 仍需 `--features postgres`。
+- ✅ Host stdout diagnostics 只显示 backend kind 与 `config redacted`，不显示 DSN 或 private topology。
+- ✅ 新增 `profiles/forge-postgres.example.yaml`，只引用 env var 名，不包含连接串。
+- ✅ 默认行为保持 memory backend，不影响现有 host/profile。
 
 验收：host 默认路径不变；postgres feature 编译；public protocol 不含 DSN。
 
