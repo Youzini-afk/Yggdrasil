@@ -24,11 +24,17 @@
 //!   response shapes.
 
 use std::collections::HashMap;
+use std::fs;
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::process::Command;
+use tokio::time::timeout;
 use ygg_core::RedactionState;
 
 use super::Runtime;
@@ -539,6 +545,92 @@ impl GitOutboundExecutor for FakeGitOutboundExecutor {
             network_performed: false,
             executor_kind: ExecutorKind::Fake,
             metadata: serde_json::json!({"error": "missing_fake_git_fixture"}),
+        })
+    }
+}
+
+/// Configuration for the opt-in real git outbound executor.
+#[derive(Debug, Clone)]
+pub struct RealGitOutboundExecutorConfig {
+    pub install_root: PathBuf,
+    pub timeout_ms: u64,
+    pub max_clone_size_mb: u64,
+}
+
+impl Default for RealGitOutboundExecutorConfig {
+    fn default() -> Self {
+        Self {
+            install_root: std::env::temp_dir().join("ygg-installed-packages"),
+            timeout_ms: 30_000,
+            max_clone_size_mb: 64,
+        }
+    }
+}
+
+/// Opt-in real git executor backed by the host `git` binary.
+pub struct RealGitOutboundExecutor {
+    config: RealGitOutboundExecutorConfig,
+}
+
+impl RealGitOutboundExecutor {
+    pub fn new(config: RealGitOutboundExecutorConfig) -> Self {
+        Self { config }
+    }
+}
+
+#[async_trait]
+impl GitOutboundExecutor for RealGitOutboundExecutor {
+    async fn fetch(&self, request: GitOutboundRequest) -> anyhow::Result<GitOutboundResponse> {
+        validate_git_outbound_request_shape(&request)?;
+        if !request.secret_refs.is_empty() {
+            anyhow::bail!("real git outbound does not support private repository auth in this stage")
+        }
+
+        fs::create_dir_all(&self.config.install_root)?;
+        let timeout_duration = Duration::from_millis(request.timeout_ms.unwrap_or(self.config.timeout_ms));
+        let resolved_commit_sha = resolve_git_ref(&request.remote_url, &request.reference, timeout_duration).await?;
+        let mut resolved_path = None;
+        let mut hash_material = format!("{}\n{}\n{}", request.remote_url, request.reference, resolved_commit_sha).into_bytes();
+
+        if matches!(request.fetch_kind, GitFetchKind::TreeOnly | GitFetchKind::ShallowClone) {
+            let subdir = request
+                .destination_hint
+                .clone()
+                .unwrap_or_else(|| git_install_subdir(&request.package_id, &resolved_commit_sha));
+            let destination = self.config.install_root.join(safe_path_segment(&subdir)?);
+            if destination.exists() {
+                fs::remove_dir_all(&destination)?;
+            }
+            clone_git_tree(
+                &request.remote_url,
+                &request.reference,
+                &resolved_commit_sha,
+                &destination,
+                timeout_duration,
+            )
+            .await?;
+            let max = self.config.max_clone_size_mb.saturating_mul(1024 * 1024);
+            if directory_size_bytes(&destination)? > max {
+                let _ = fs::remove_dir_all(&destination);
+                anyhow::bail!("git clone exceeded configured size cap")
+            }
+            hash_material = tree_hash_material(&destination)?;
+            resolved_path = Some(destination.display().to_string());
+        }
+
+        Ok(GitOutboundResponse {
+            status: "ok".to_string(),
+            resolved_commit_sha: Some(resolved_commit_sha),
+            resolved_content_hash: Some(format!("fnv1a64:{:016x}", fnv1a64(&hash_material))),
+            resolved_path,
+            redaction_state: RedactionState::Redacted,
+            network_performed: true,
+            executor_kind: ExecutorKind::Real,
+            metadata: serde_json::json!({
+                "transport": "git_cli_https",
+                "fetch_kind": request.fetch_kind,
+                "private_auth": false,
+            }),
         })
     }
 }
@@ -1415,6 +1507,153 @@ fn git_audit_payload(
         "network_performed": response.map(|r| r.network_performed).unwrap_or(false),
         "executor_kind": response.map(|r| r.executor_kind),
     })
+}
+
+async fn resolve_git_ref(remote_url: &str, reference: &str, timeout_duration: Duration) -> anyhow::Result<String> {
+    let output = timeout(
+        timeout_duration,
+        Command::new("git")
+            .arg("ls-remote")
+            .arg(remote_url)
+            .arg(reference)
+            .output(),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("git ls-remote timed out"))??;
+    if !output.status.success() {
+        anyhow::bail!("git ls-remote failed")
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        if let Some((sha, _name)) = line.split_once(char::is_whitespace) {
+            if is_full_sha(sha) {
+                return Ok(sha.to_string());
+            }
+        }
+    }
+    if is_full_sha(reference) {
+        return Ok(reference.to_string());
+    }
+    anyhow::bail!("git ref did not resolve to a commit sha")
+}
+
+async fn clone_git_tree(
+    remote_url: &str,
+    reference: &str,
+    commit_sha: &str,
+    destination: &Path,
+    timeout_duration: Duration,
+) -> anyhow::Result<()> {
+    let status = timeout(
+        timeout_duration,
+        Command::new("git")
+            .arg("clone")
+            .arg("--depth")
+            .arg("1")
+            .arg("--no-tags")
+            .arg("--branch")
+            .arg(reference)
+            .arg(remote_url)
+            .arg(destination)
+            .status(),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("git clone timed out"))??;
+    if !status.success() {
+        let fallback = timeout(
+            timeout_duration,
+            Command::new("git")
+                .arg("clone")
+                .arg("--depth")
+                .arg("1")
+                .arg("--no-tags")
+                .arg(remote_url)
+                .arg(destination)
+                .status(),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("git clone timed out"))??;
+        if !fallback.success() {
+            anyhow::bail!("git clone failed")
+        }
+    }
+    let checkout = timeout(
+        timeout_duration,
+        Command::new("git")
+            .arg("-C")
+            .arg(destination)
+            .arg("checkout")
+            .arg("--detach")
+            .arg(commit_sha)
+            .status(),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("git checkout timed out"))??;
+    if !checkout.success() {
+        anyhow::bail!("git checkout failed")
+    }
+    Ok(())
+}
+
+fn is_full_sha(value: &str) -> bool {
+    value.len() == 40 && value.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
+fn git_install_subdir(package_id: &str, commit_sha: &str) -> String {
+    format!("{}-{}", package_id.replace('/', "-"), &commit_sha[..12])
+}
+
+fn safe_path_segment(value: &str) -> anyhow::Result<String> {
+    if value.is_empty() || value.contains("..") || value.contains('/') || value.contains('\\') {
+        anyhow::bail!("git destination hint is not a safe path segment")
+    }
+    Ok(value.to_string())
+}
+
+fn directory_size_bytes(path: &Path) -> anyhow::Result<u64> {
+    let mut total = 0u64;
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        let metadata = entry.metadata()?;
+        if metadata.is_dir() {
+            total = total.saturating_add(directory_size_bytes(&path)?);
+        } else {
+            total = total.saturating_add(metadata.len());
+        }
+    }
+    Ok(total)
+}
+
+fn tree_hash_material(path: &Path) -> anyhow::Result<Vec<u8>> {
+    let mut entries = Vec::new();
+    collect_tree_entries(path, path, &mut entries)?;
+    entries.sort();
+    Ok(entries.join("\n").into_bytes())
+}
+
+fn collect_tree_entries(root: &Path, path: &Path, entries: &mut Vec<String>) -> anyhow::Result<()> {
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+        let relative = entry_path.strip_prefix(root)?.display().to_string();
+        if relative.starts_with(".git") || relative.contains("/.git") {
+            continue;
+        }
+        let metadata = entry.metadata()?;
+        if metadata.is_dir() {
+            collect_tree_entries(root, &entry_path, entries)?;
+        } else {
+            entries.push(format!("{}:{}", relative, metadata.len()));
+        }
+    }
+    Ok(())
+}
+
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn validate_policy_executor_consistency(

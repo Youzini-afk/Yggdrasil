@@ -8,7 +8,8 @@ use ygg_core::{
 use ygg_runtime::{
     EventStore, ExecutorKind, FakeGitOutboundExecutor, GitFetchKind, GitOutboundExecutorConfig,
     GitOutboundPolicyConfig, GitOutboundRequest, GitOutboundResponse, InMemoryEventStore,
-    ProtocolContext, ProtocolPrincipal, Runtime, RuntimeConfig,
+    ProtocolContext, ProtocolPrincipal, RealGitOutboundExecutor, RealGitOutboundExecutorConfig,
+    Runtime, RuntimeConfig,
 };
 
 use crate::commands::package;
@@ -313,5 +314,41 @@ pub(crate) async fn installer_lockfile_rejects_unsafe_inputs() -> anyhow::Result
     )
     .await;
     anyhow::ensure!(result.is_err(), "git install lockfile command must reject query tokens");
+    Ok(())
+}
+
+pub(crate) async fn git_fetch_real_opt_in() -> anyhow::Result<()> {
+    if std::env::var("YGG_GIT_INSTALL_REAL_TESTS").ok().as_deref() != Some("1") {
+        println!("skipping real git fetch; set YGG_GIT_INSTALL_REAL_TESTS=1 to enable");
+        return Ok(());
+    }
+    let dir = tempfile::tempdir()?;
+    let executor = RealGitOutboundExecutor::new(RealGitOutboundExecutorConfig {
+        install_root: dir.path().join("installed-packages"),
+        timeout_ms: 30_000,
+        max_clone_size_mb: 64,
+    });
+    let (_store, runtime) = runtime_with_git(
+        true,
+        vec!["github.com".to_string()],
+        GitOutboundExecutorConfig::Custom(Arc::new(executor)),
+    );
+    runtime
+        .load_package(git_package("example/git-real", vec!["github.com".to_string()]))
+        .await?;
+    let response = runtime
+        .execute_git_outbound_with_policy(
+            ProtocolPrincipal::Package {
+                package_id: "example/git-real".to_string(),
+            },
+            request("example/git-real", "https://github.com/Youzini-afk/Yggdrasil.git"),
+        )
+        .await?;
+    anyhow::ensure!(response.status == "ok", "real git fetch should resolve ok");
+    anyhow::ensure!(
+        response.resolved_commit_sha.as_deref().map(|sha| sha.len()) == Some(40),
+        "real git fetch should resolve a commit sha"
+    );
+    anyhow::ensure!(response.network_performed, "real git fetch must mark network_performed");
     Ok(())
 }

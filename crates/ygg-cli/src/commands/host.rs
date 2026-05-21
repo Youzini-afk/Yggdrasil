@@ -7,7 +7,8 @@ use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
     EventStore, FakeGitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
-    InMemoryEventStore, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore,
+    InMemoryEventStore, ProtocolContext, RealGitOutboundExecutor, RealGitOutboundExecutorConfig,
+    Runtime, RuntimeConfig, SqliteEventStore,
 };
 
 use super::manifest::read_manifest;
@@ -89,7 +90,16 @@ fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
             GitOutboundExecutorConfig::Custom(Arc::new(FakeGitOutboundExecutor::new()))
         }
         HostGitOutboundExecutorKind::Real => {
-            anyhow::bail!("outbound.git executor real is reserved for later implementation")
+            let install_root = git.install_root.clone().unwrap_or_else(|| {
+                std::env::temp_dir().join("ygg-installed-packages")
+            });
+            GitOutboundExecutorConfig::Custom(Arc::new(RealGitOutboundExecutor::new(
+                RealGitOutboundExecutorConfig {
+                    install_root,
+                    timeout_ms: git.timeout_ms,
+                    max_clone_size_mb: git.max_clone_size_mb,
+                },
+            )))
         }
     };
     Ok(config)
@@ -126,12 +136,7 @@ fn validate_git_outbound_profile(git: &HostGitOutboundProfile) -> Result<()> {
     {
         anyhow::bail!("outbound.git.allowed_hosts must not contain empty hosts or wildcard hosts")
     }
-    match git.executor {
-        HostGitOutboundExecutorKind::DenyAll | HostGitOutboundExecutorKind::Fake => Ok(()),
-        HostGitOutboundExecutorKind::Real => {
-            anyhow::bail!("outbound.git executor real is reserved for later implementation")
-        }
-    }
+    Ok(())
 }
 
 async fn serve_runtime<S>(

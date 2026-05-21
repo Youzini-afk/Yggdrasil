@@ -41,8 +41,9 @@ pub use runtime::{
     GitOutboundPolicyConfig, GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor,
     OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest,
-    RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
-    StaticHeader, StreamRegistry, STATIC_HEADER_ALLOWLIST,
+    RealGitOutboundExecutor, RealGitOutboundExecutorConfig, RedactedHeaderValue,
+    ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec, StaticHeader, StreamRegistry,
+    STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{

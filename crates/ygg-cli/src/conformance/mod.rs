@@ -221,6 +221,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("git_fetch.audit_no_raw_secrets", ["git", "outbound", "secret"], git_install::git_fetch_audit_no_raw_secrets),
         c!("installer_lab.lockfile_round_trip", ["git", "package"], git_install::installer_lockfile_round_trip),
         c!("installer_lab.lockfile_rejects_unsafe_inputs", ["git", "package", "secret"], git_install::installer_lockfile_rejects_unsafe_inputs),
+        c!("git_fetch.real_opt_in", ["git", "outbound", "live"], git_install::git_fetch_real_opt_in),
         // --- streaming ---
         c!("stream.normal_lifecycle", ["stream"], streaming::stream_normal_lifecycle),
         c!("stream.cancel_blocks_chunks", ["stream"], streaming::stream_cancel_blocks_chunks),

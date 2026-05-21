@@ -39,8 +39,9 @@ pub use self::outbound::{
     GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
     GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundExecutorResponse, RedactedHeaderValue, ResolvedSecretHeader,
-    SecretHeaderSpec, StaticHeader, STATIC_HEADER_ALLOWLIST,
+    OutboundExecutorRequest, OutboundExecutorResponse, RealGitOutboundExecutor,
+    RealGitOutboundExecutorConfig, RedactedHeaderValue, ResolvedSecretHeader, SecretHeaderSpec,
+    StaticHeader, STATIC_HEADER_ALLOWLIST,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
