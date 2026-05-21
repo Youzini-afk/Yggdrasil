@@ -98,7 +98,7 @@ Storage Backend Neutrality Alpha S2 added:
 
 - `official/storage-lab` ordinary package provides package-scoped storage/data contract preview: 8 capabilities, 3 surfaces, 10 `storage_lab` tag conformance cases. Proves storage is an ordinary package-layer capability, not a kernel database/sql/vector API.
 - Layered contract model: event spine backend / package state store / blob store future / projection index future / retrieval provider future.
-- Backend class candidates contain capability flags only, no path/DSN/credentials.
+- Backend class candidates contain capability flags only, no secret-bearing backend config.
 - Document CRUD preview outputs write/read/query/delete/snapshot_performed=false with redacted content.
 
 Storage Backend Neutrality Alpha S3 added:
@@ -111,7 +111,7 @@ Storage Backend Neutrality Alpha S3 added:
 Storage Backend Neutrality Alpha S4 added:
 
 - `official/storage-lab` adds 4 projection/index materialization contract proof capabilities: describe_projection_store_contract, plan_projection_materialization, query_projection_preview, migrate_projection_plan_preview. 16 capabilities, 22 `storage_lab` tag conformance cases.
-- Projection contract outputs backend candidates (event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future), red lines (no_table_exposure / no_sql_exposure / no_backend_credentials / no_query_product_leakage / projection_derives_from_events_assets_only).
+- Projection contract outputs backend candidates (event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future), red lines (no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only).
 - plan_projection_materialization outputs materialized=false, write_performed=false, backend_selected=false, plan_only=true. Blocks raw secret, validates projection_id/package_id safe-id.
 - query_projection_preview outputs query_executed=false, rows_returned=false, preview_shape. No SQL/table/collection/vector terms.
 - migrate_projection_plan_preview outputs migration_applied=false, data_rewritten=false, requires_rebuild=true.
@@ -120,11 +120,11 @@ Storage Backend Neutrality Alpha S4 added:
 Storage Backend Neutrality Alpha S5 added:
 
 - `official/storage-lab` adds 4 retrieval/vector/multimodal provider contract proof capabilities: describe_retrieval_provider_contract, draft_multimodal_index_plan, draft_vector_search_plan, explain_retrieval_backend_fit. 20 capabilities, 29 `storage_lab` tag conformance cases.
-- Retrieval contract outputs backend candidates (tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future), red lines (no_embedding_generation / no_vector_storage / no_network / no_credentials / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage).
+- Retrieval contract outputs backend candidates (tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future), red lines (no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage).
 - draft_multimodal_index_plan outputs embedding_generated=false, index_created=false, vectors_stored=false, network_performed=false, plan_only=true. Blocks raw secret, validates package_id/index_id safe-id, modalities allow text/image/audio/video/structured only, asset_refs capped at 64.
 - draft_vector_search_plan outputs search_executed=false, embedding_generated=false, vectors_loaded=false, plan_only=true. No actual search results.
-- explain_retrieval_backend_fit outputs fit matrix without DSN/credentials/path. TDB is only a future multimodal provider slot.
-- No real vector DB/TDB/embedding implementation, no raw vector/embedding/credentials/DSN output, no new kernel vector/database/sql namespace.
+- explain_retrieval_backend_fit outputs fit matrix without secret-bearing backend config. TDB is only a future multimodal provider slot.
+- No real vector DB/TDB/embedding implementation, no raw vector/embedding/secret-bearing backend config output, no new kernel vector/database/sql namespace.
 
 Future event-store optimization priority:
 

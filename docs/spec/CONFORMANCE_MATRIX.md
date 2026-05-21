@@ -235,7 +235,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage backend | in-memory 与 SQLite append 后订阅广播行为一致 | implemented |
 | storage backend | in-memory 与 SQLite rehydrate 事件重放语义一致 | implemented |
 | storage lab | storage-lab 合约形状不含 kernel database 术语（kernel.sqlite/postgres/tdb/vector/embedding/collection/sql/database） | implemented |
-| storage lab | storage-lab backend class 候选只含 capability flags，不含 path/DSN/credentials | implemented |
+| storage lab | storage-lab backend class 候选只含 capability flags，不含 secret-bearing backend config | implemented |
 | storage lab | package state plan namespace 属于 owning package，无 official 优先级 | implemented |
 | storage lab | put document preview 不执行真实写入（write_performed=false） | implemented |
 | storage lab | get document preview 不执行真实读取（read_performed=false） | implemented |
@@ -535,7 +535,7 @@ storage_backend.backend_parity_concurrent_append PASS
 storage_backend.backend_parity_subscription PASS
 storage_backend.rehydrate_parity PASS
 storage_lab.contract_shape_no_kernel_database_terms PASS
-storage_lab.backend_classes_no_credentials PASS
+storage_lab.backend_classes_no_secret_backend_config PASS
 storage_lab.package_state_plan_scoped PASS
 storage_lab.put_document_preview_no_write PASS
 storage_lab.get_document_preview_no_read PASS

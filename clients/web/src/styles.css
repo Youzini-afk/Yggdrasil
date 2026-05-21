@@ -110,6 +110,14 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .project-cta-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.9rem; }
 .project-assist-panel { border-color: rgba(159,232,255,0.18); }
 
+/* Storage backend neutrality */
+.storage-inspector-panel { border: 1px solid rgba(182,255,193,0.15); border-radius: 1.2rem; padding: 1rem; background: rgba(52,211,153,0.06); }
+.storage-inspector-panel.muted { opacity: 0.72; }
+.storage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.8rem; margin-top: 0.8rem; }
+.storage-tile { padding: 0.85rem; border-radius: 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+.storage-tile h3 { margin: 0 0 0.55rem; font-size: 0.9rem; color: #c8facc; }
+.storage-assist-panel { border-color: rgba(182,255,193,0.2); }
+
 .guidance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
 .guidance-card { padding: 0.9rem; border-radius: 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
 .guidance-card h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: #c9c2e8; }

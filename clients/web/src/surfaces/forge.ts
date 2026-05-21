@@ -6,6 +6,8 @@ import { buildExperienceObservability, renderExperienceObservabilitySection } fr
 import { buildCreatorLoopModel, renderCreatorLoopSection } from "../agent/creator-loop.js";
 import type { ExternalProjectAggregation } from "../projects/external-projects";
 import { renderForgeExternalProjectPanel } from "../projects/external-projects";
+import type { StorageInspectorModel } from "../storage/storage-inspector";
+import { renderForgeStoragePanel } from "../storage/storage-inspector";
 
 export function renderForgeSurface(input: {
   capabilities: RegisteredCapability[];
@@ -18,8 +20,9 @@ export function renderForgeSurface(input: {
   allSurfaces: SurfaceContributionRecord[];
   sessionId?: string;
   externalProjects?: ExternalProjectAggregation;
+  storageInspector?: StorageInspectorModel;
 }) {
-  const { capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId, externalProjects } = input;
+  const { capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId, externalProjects, storageInspector } = input;
   const observability = buildAgentObservability(packages, allSurfaces, events, proposals, capabilities);
   return `
     <section class="surface surface-forge" aria-labelledby="forge-title">
@@ -82,6 +85,8 @@ export function renderForgeSurface(input: {
         ${renderCreatorLoopSection(buildCreatorLoopModel(packages, capabilities, allSurfaces, events, proposals, assets, projections, sessionId))}
 
         ${renderForgeExternalProjectPanel(externalProjects)}
+
+        ${renderForgeStoragePanel(storageInspector)}
 
         <div class="forge-section event-tail-section">
           <h2>Events</h2>

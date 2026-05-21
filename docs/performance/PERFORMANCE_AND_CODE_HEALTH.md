@@ -98,7 +98,7 @@ Storage Backend Neutrality Alpha S2 新增：
 
 - `official/storage-lab` 普通包提供 package-scoped storage/data 契约预览：8 项能力、3 个 surface、10 个 `storage_lab` tag conformance 用例。证明 storage 是普通 package 层能力，而非 kernel database/sql/vector API。
 - 合约分层模型：event spine backend / package state store / blob store future / projection index future / retrieval provider future。
-- Backend class 候选只含 capability flags，不含 path/DSN/credentials。
+- Backend class 候选只含 capability flags，不含 secret-bearing backend config。
 - Document CRUD preview 输出 write/read/query/delete/snapshot_performed=false，redacted content。
 
 Storage Backend Neutrality Alpha S3 新增：
@@ -111,7 +111,7 @@ Storage Backend Neutrality Alpha S3 新增：
 Storage Backend Neutrality Alpha S4 新增：
 
 - `official/storage-lab` 新增 4 项 projection/index 物化契约证明能力：describe_projection_store_contract、plan_projection_materialization、query_projection_preview、migrate_projection_plan_preview。16 项能力、22 个 `storage_lab` tag conformance 用例。
-- Projection 契约输出 backend candidates（event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future），red lines（no_table_exposure / no_sql_exposure / no_backend_credentials / no_query_product_leakage / projection_derives_from_events_assets_only）。
+- Projection 契约输出 backend candidates（event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future），red lines（no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only）。
 - plan_projection_materialization 输出 materialized=false、write_performed=false、backend_selected=false、plan_only=true。阻断 raw secret，校验 projection_id/package_id safe-id。
 - query_projection_preview 输出 query_executed=false、rows_returned=false、preview_shape。不含 SQL/table/collection/vector 术语。
 - migrate_projection_plan_preview 输出 migration_applied=false、data_rewritten=false、requires_rebuild=true。
@@ -120,11 +120,11 @@ Storage Backend Neutrality Alpha S4 新增：
 Storage Backend Neutrality Alpha S5 新增：
 
 - `official/storage-lab` 新增 4 项 retrieval/vector/multimodal provider 契约证明能力：describe_retrieval_provider_contract、draft_multimodal_index_plan、draft_vector_search_plan、explain_retrieval_backend_fit。20 项能力、29 个 `storage_lab` tag conformance 用例。
-- Retrieval 契约输出 backend candidates（tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future），red lines（no_embedding_generation / no_vector_storage / no_network / no_credentials / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）。
+- Retrieval 契约输出 backend candidates（tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future），red lines（no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）。
 - draft_multimodal_index_plan 输出 embedding_generated=false、index_created=false、vectors_stored=false、network_performed=false、plan_only=true。阻断 raw secret，校验 package_id/index_id safe-id，modalities 只允许 text/image/audio/video/structured，asset_refs 上限 64。
 - draft_vector_search_plan 输出 search_executed=false、embedding_generated=false、vectors_loaded=false、plan_only=true。无实际搜索结果。
-- explain_retrieval_backend_fit 输出 fit matrix，不含 DSN/credentials/path。TDB 只作为 future multimodal provider slot。
-- 不实现真实 vector DB/TDB/embedding，不输出 raw vector/embedding/credentials/DSN，不新增 kernel vector/database/sql namespace。
+- explain_retrieval_backend_fit 输出 fit matrix，不含 secret-bearing backend config。TDB 只作为 future multimodal provider slot。
+- 不实现真实 vector DB/TDB/embedding，不输出 raw vector/embedding/secret-bearing backend config，不新增 kernel vector/database/sql namespace。
 
 后续 event store 优化优先级：
 

@@ -235,7 +235,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage backend | in-memory and SQLite subscription broadcast behavior matches after append | implemented |
 | storage backend | in-memory and SQLite rehydrate event replay semantics are identical | implemented |
 | storage lab | storage-lab contract shape contains no kernel database terms (kernel.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
-| storage lab | storage-lab backend class candidates contain capability flags only, no path/DSN/credentials | implemented |
+| storage lab | storage-lab backend class candidates contain capability flags only, no secret-bearing backend config | implemented |
 | storage lab | package state plan namespace belongs to owning package, no official priority | implemented |
 | storage lab | put document preview does not perform real write (write_performed=false) | implemented |
 | storage lab | get document preview does not perform real read (read_performed=false) | implemented |
@@ -544,7 +544,7 @@ storage_backend.backend_parity_concurrent_append PASS
 storage_backend.backend_parity_subscription PASS
 storage_backend.rehydrate_parity PASS
 storage_lab.contract_shape_no_kernel_database_terms PASS
-storage_lab.backend_classes_no_credentials PASS
+storage_lab.backend_classes_no_secret_backend_config PASS
 storage_lab.package_state_plan_scoped PASS
 storage_lab.put_document_preview_no_write PASS
 storage_lab.get_document_preview_no_read PASS
