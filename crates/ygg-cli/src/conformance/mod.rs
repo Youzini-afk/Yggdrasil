@@ -25,6 +25,7 @@ mod secret_conformance;
 mod sharing_lab;
 mod storage_backend;
 mod storage_lab;
+mod tdb_retrieval_lab;
 mod workspace_lab;
 mod streaming;
 mod subprocess;
@@ -439,6 +440,13 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_lab.backend_fit_mentions_tdb_future_only", ["storage_lab", "storage", "retrieval", "tdb"], storage_lab::backend_fit_mentions_tdb_future_only),
         c!("storage_lab.retrieval_rejects_raw_secret", ["storage_lab", "storage", "retrieval", "secret"], storage_lab::retrieval_rejects_raw_secret),
         c!("storage_lab.retrieval_no_kernel_vector_namespace_or_credentials", ["storage_lab", "storage", "retrieval"], storage_lab::retrieval_no_kernel_vector_namespace_or_secret_config),
+
+        c!("tdb_retrieval_lab.contract_shape", ["tdb", "retrieval", "storage", "official"], tdb_retrieval_lab::contract_shape),
+        c!("tdb_retrieval_lab.index_plan_no_execution", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::index_plan_no_execution),
+        c!("tdb_retrieval_lab.query_plan_no_execution", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::query_plan_no_execution),
+        c!("tdb_retrieval_lab.backend_fit_boundary", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::backend_fit_boundary),
+        c!("tdb_retrieval_lab.invalid_input_rejected", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::invalid_input_rejected),
+        c!("tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected", ["tdb", "retrieval", "storage", "secret"], tdb_retrieval_lab::raw_secret_and_unsafe_id_rejected),
     ]
 }
 

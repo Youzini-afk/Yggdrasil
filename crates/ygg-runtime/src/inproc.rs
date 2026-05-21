@@ -28,6 +28,7 @@ mod project_intake_lab;
 pub mod safety;
 mod sharing_lab;
 mod storage_lab;
+mod tdb_retrieval_lab;
 mod text_transform_lab;
 mod thirdparty_agent_runtime;
 mod workspace_lab;
@@ -142,6 +143,7 @@ fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
         "official/experience-observability-lab" => experience_observability_lab::try_handle(request),
         "official/sharing-lab" => sharing_lab::try_handle(request),
         "official/storage-lab" => storage_lab::try_handle(request),
+        "official/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(request),
         "official/project-intake-lab" => project_intake_lab::try_handle(request),
         "official/workspace-lab" => workspace_lab::try_handle(request),
         _ => None,

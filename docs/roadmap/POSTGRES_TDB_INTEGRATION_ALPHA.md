@@ -73,7 +73,7 @@ PostgreSQL 替代的是 SQLite durable event log，不给 package 暴露 SQL。T
 
 验收：host 默认路径不变；postgres feature 编译；public protocol 不含 DSN。
 
-## Phase T1 — TDB Retrieval Adapter Contract/Fake Provider
+## Phase T1 — TDB Retrieval Adapter Contract/Fake Provider ✅
 
 目标：以普通 package/provider 证明 TDB 接入路径，而不是把 TDB 放进 kernel。
 

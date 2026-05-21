@@ -73,7 +73,7 @@ Deliverables:
 
 Acceptance: default host path unchanged; postgres feature compiles; public protocol contains no DSN.
 
-## Phase T1 — TDB Retrieval Adapter Contract/Fake Provider
+## Phase T1 — TDB Retrieval Adapter Contract/Fake Provider ✅
 
 Goal: prove the TDB path as an ordinary package/provider, not a kernel feature.
 

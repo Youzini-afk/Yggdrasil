@@ -38,3 +38,4 @@ autoload:
   - ../packages/official/project-intake-lab/manifest.yaml
   - ../packages/official/workspace-lab/manifest.yaml
   - ../packages/official/storage-lab/manifest.yaml
+  - ../packages/official/tdb-retrieval-lab/manifest.yaml
