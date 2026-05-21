@@ -34,5 +34,6 @@
 | 理解架构 | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md) |
 | 接入公开协议 | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.md) → [`spec/KERNEL_V0_ALPHA_CONTRACT.md`](spec/KERNEL_V0_ALPHA_CONTRACT.md) |
 | 写第一个能力包 | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
+| 从 git 安装能力包 | [`guides/GIT_PACKAGE_INSTALLATION.md`](guides/GIT_PACKAGE_INSTALLATION.md) |
 | 看当前状态 | [`ALPHA_STATUS.md`](ALPHA_STATUS.md) |
 | 看下一步 | [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md) |

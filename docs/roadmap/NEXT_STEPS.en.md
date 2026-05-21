@@ -13,7 +13,7 @@ The platform substrate is in place.
 - Experience runtime, a real playable vertical slice, observability, memory, sharing / distribution — all shipped as ordinary capability packages.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
-- 320 named conformance cases pass, plus crate / service unit tests.
+- 329 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -31,7 +31,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- **Install capability packages from a GitHub address.** Add a controlled git fetch + verify path so `ygg package install <github-url>` becomes a real command. The design splits in two: the kernel provides a `GitOutboundExecutor` under host policy (deny-all by default, HTTPS-only), and the actual install logic lives in an ordinary capability package, `official/package-installer-lab`, gated by the standard proposal flow. Full design in [`GIT_INSTALL_DESIGN.md`](GIT_INSTALL_DESIGN.en.md).
+- **Automatic resolve / pin / apply for git package installation.** Controlled git fetch, `kernel.outbound.git_fetch`, `official/package-installer-lab`, the profile-scoped lockfile, and manual-pin CLI are in place; next is wiring `ygg package install <github-url>` into automatic commit/content-hash resolution, approval, lockfile write, and package load. Current capability: [`../guides/GIT_PACKAGE_INSTALLATION.md`](../guides/GIT_PACKAGE_INSTALLATION.en.md).
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.
@@ -87,3 +87,4 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - Storage Backend Neutrality Alpha
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
+- Git Package Installation Substrate

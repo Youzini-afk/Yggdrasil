@@ -39,7 +39,7 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 The platform substrate is in place. The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 320 named conformance cases pass, plus crate / service unit tests.
+- 329 named conformance cases pass, plus crate / service unit tests.
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
 
@@ -79,6 +79,7 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 - `secret_ref` references, a host-owned environment-variable resolver with an allowlist.
 - Network permission declarations, audit and redaction for outbound requests, public `kernel.outbound.execute`.
 - A real HTTPS outbound executor (off by default, HTTPS only, redirect fail-closed).
+- Public HTTPS git install path: `kernel.outbound.git_fetch`, profile-scoped lockfiles, and `official/package-installer-lab`.
 - A generic streaming and cancel lifecycle.
 
 **Official capability packages** (all ordinary packages, no kernel privilege)
@@ -90,7 +91,7 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 - Experience: playable-creation-board, experience-runtime, experience-observability, memory, sharing, playable-seed.
 - Inference: inference-local, inference-playtest.
 - Storage and external projects: storage, tdb-retrieval, project-intake, workspace.
-- Foundation labs: package, schema-tools, event-tools, assistant, blank-experience.
+- Foundation labs: package, package-installer, schema-tools, event-tools, assistant, blank-experience.
 
 **TypeScript SDKs**
 
@@ -134,7 +135,7 @@ Run the blank play-creation loop end to end via the public protocol:
 cargo run -p ygg-cli -- play-create-demo
 ```
 
-For more commands (manifest, package, composition, host modes, third-party authoring loop, templates), see [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md).
+For more commands (manifest, package, git install, composition, host modes, third-party authoring loop, templates), see [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) and [`docs/guides/GIT_PACKAGE_INSTALLATION.md`](docs/guides/GIT_PACKAGE_INSTALLATION.en.md).
 
 ## Documentation
 

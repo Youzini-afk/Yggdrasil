@@ -116,6 +116,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | model-provider-lab cloud adapter normalize_stream 八家 provider stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；terminal_frame_consistent；provider event 输入归一化；raw secret 不 echo；unsupported family empty frames + terminal_frame_consistent false） | implemented |
 | outbound | model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake） | implemented |
 | official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
+| official packages | package-installer-lab 暴露公开 HTTPS git 安装契约、生成审批型 install proposal、apply lockfile 计划，并拒绝 raw query token | implemented |
 | official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
 | official packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
 | official packages | inference-local-lab describe_capabilities 不需要 network/secret，transports include in_memory/local_process，operation_kinds include generate/classify/transform | implemented |
@@ -178,6 +179,8 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | kernel.outbound.execute 无 network permission denied，executor 不调用 | implemented |
 | outbound | kernel.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
 | outbound | kernel.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
+| git outbound | `kernel.outbound.git_fetch` 默认 deny-all、要求 HTTPS、要求 host allowlist、FakeGitOutboundExecutor fixture 成功、审计不含 raw secret、RealGitOutboundExecutor 真实联网 opt-in | implemented |
+| package install | profile 级 git install lockfile 支持 install/list/update/uninstall/inspect round-trip，并拒绝不安全 URL | implemented |
 | outbound | local loopback HTTP server secret injection：Authorization header 真实到达 server，raw secret 不在 protocol response/audit/log | implemented |
 | outbound | DeepSeek SSE stream normalize canary：delta_sse start→chunk→end lifecycle，terminal_frame_consistent，no raw secrets | implemented |
 | outbound | opt-in live DeepSeek conformance：默认跳过，YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY 时才尝试 | implemented |
@@ -365,6 +368,7 @@ official.model_provider_lab                 PASS
 official.model_provider_lab_invoke_core       PASS
 official.model_provider_lab_normalize_stream  PASS
 official.model_routing_lab                 PASS
+official.package_installer_lab              PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS
 official.inference_local_lab_describe_capabilities PASS
@@ -424,6 +428,14 @@ outbound.execute_package_allowed                 PASS
 outbound.execute_spoofed_package_id_rejected     PASS
 outbound.execute_no_permission_denied             PASS
 outbound.execute_no_raw_secret_in_response        PASS
+git_fetch.deny_all_default                         PASS
+git_fetch.requires_https                           PASS
+git_fetch.requires_host_allowlist                  PASS
+git_fetch.fake_executor_returns_fixture            PASS
+git_fetch.audit_no_raw_secrets                     PASS
+installer_lab.lockfile_round_trip                  PASS
+installer_lab.lockfile_rejects_unsafe_inputs       PASS
+git_fetch.real_opt_in                              PASS
 outbound.secret_headers_parsed                    PASS
 outbound.live_loopback_secret_injection            PASS
 stream.sse_normalize_deepseek_canary              PASS

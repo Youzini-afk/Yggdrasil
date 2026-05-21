@@ -8,8 +8,8 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 320 named CLI cases pass, plus crate and service unit tests.
-- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; trusted paths block raw secrets and use `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default.
+- **Conformance:** 329 named CLI cases pass, plus crate and service unit tests.
+- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; trusted paths block raw secrets and use `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
 The platform foundation is in place. From here, real AI-native playable experiences pull the remaining substrate work.
@@ -31,7 +31,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
 - **Outbound executor boundary:** a content-free `OutboundExecutor` trait. Default is deny-all (fail closed). It can switch to a fake executor (with fixtures, used by conformance) or `LiveHttpOutboundExecutor` (reqwest + rustls, HTTPS only, off by default, redirect fail closed). Secret headers are injected into the HTTP request only — never into audit, response, or `Debug`.
-- **Protocol methods:** `kernel.outbound.audit` lists outbound audit events for a package; `kernel.outbound.execute` lets ordinary packages issue outbound requests through the host executor.
+- **Protocol methods:** `kernel.outbound.audit` lists outbound audit events for a package; `kernel.outbound.execute` lets ordinary packages issue outbound requests through the host executor; `kernel.outbound.git_fetch` lets packages request public HTTPS git fetches under host policy.
 - **Streaming lifecycle:** the stream registry tracks in-flight streaming invocations and emits `kernel/stream.started|chunk|progress|ended|error|cancelled|timeout` in order. Cancel and timeout block further chunks. Non-streaming capabilities are rejected.
 
 ## Public protocol and transport
@@ -64,7 +64,7 @@ All ordinary packages, no kernel privilege. They live in `packages/official/` an
 
 **Platform foundation**
 
-- `package-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
+- `package-lab`, `package-installer-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
 
 **Creative capability families**
 
@@ -144,6 +144,7 @@ Home / Play, Forge, and Assist over the public protocol.
 - `ygg package conformance` validates a generated package locally.
 - `ygg package reload <manifest>` loads the package into an in-memory runtime, restarts (subprocess only), shows before / after status and log counts, and unloads.
 - `ygg package run-fixture` invokes every non-streaming capability with deterministic fixture input and prints a JSON summary.
+- `ygg package install/list-installed/uninstall/update/inspect-lockfile` manages the profile-scoped git install lockfile; real git fetch is explicit opt-in through `GitOutboundExecutor`.
 - `ygg play-create-demo` runs the blank play-creation loop end to end.
 - `ygg perf baseline` runs deterministic baseline measurements (in-process invoke, official capability invoke, event store append / list / range, composition check, profile load, subprocess echo) in text or JSON. See [`performance/BASELINE.md`](performance/BASELINE.en.md).
 
@@ -158,7 +159,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 320 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 329 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

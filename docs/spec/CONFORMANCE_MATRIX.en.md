@@ -116,6 +116,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | model-provider-lab cloud adapter normalize_stream eight families stream normalization (delta SSE, semantic SSE, typed chunk stream → StreamFrameEnvelope frames: start/chunk/progress/end/error/cancelled/timeout; terminal_frame_consistent; provider event input normalization; no raw secret echo; unsupported family empty frames + terminal_frame_consistent false) | implemented |
 | outbound | model provider outbound shape fake executor (three-provider host/method/path/secret_ref shapes pass outbound boundary, call_count=3, executor_kind Fake) | implemented |
 | official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
+| official packages | package-installer-lab exposes the public HTTPS git install contract, drafts approval-gated install proposals, returns apply lockfile plans, and rejects raw query tokens | implemented |
 | official packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
 | official packages | capability-tool-bridge-lab marks ambiguous provider rejected, explicit third-party provider available, official not preferred, missing provider rejected, denied preview reports missing permission, raw secret unsafe_blocked | implemented |
 | official packages | inference-local-lab describe_capabilities: no network/secret required, transports include in_memory/local_process, operation_kinds include generate/classify/transform | implemented |
@@ -178,6 +179,8 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | kernel.outbound.execute no network permission denied, executor not called | implemented |
 | outbound | kernel.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
 | outbound | kernel.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
+| git outbound | `kernel.outbound.git_fetch` denies by default, requires HTTPS, requires host allowlist, succeeds with FakeGitOutboundExecutor fixtures, audits without raw secrets, and supports opt-in RealGitOutboundExecutor coverage | implemented |
+| package install | profile-scoped git install lockfile supports install/list/update/uninstall/inspect round-trip and rejects unsafe URLs | implemented |
 | outbound | local loopback HTTP server secret injection: Authorization header actually arrives at server, raw secret not in protocol response/audit/log | implemented |
 | outbound | DeepSeek SSE stream normalize canary: delta_sse start→chunk→end lifecycle, terminal_frame_consistent, no raw secrets | implemented |
 | outbound | opt-in live DeepSeek conformance: default skip, only when YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY | implemented |
@@ -374,6 +377,7 @@ official.model_provider_lab                 PASS
 official.model_provider_lab_invoke_core       PASS
 official.model_provider_lab_normalize_stream  PASS
 official.model_routing_lab                 PASS
+official.package_installer_lab              PASS
 official.pi_agent_runtime_lab              PASS
 official.capability_tool_bridge_lab         PASS
 official.inference_local_lab_describe_capabilities PASS
@@ -433,6 +437,14 @@ outbound.execute_package_allowed                 PASS
 outbound.execute_spoofed_package_id_rejected     PASS
 outbound.execute_no_permission_denied             PASS
 outbound.execute_no_raw_secret_in_response        PASS
+git_fetch.deny_all_default                         PASS
+git_fetch.requires_https                           PASS
+git_fetch.requires_host_allowlist                  PASS
+git_fetch.fake_executor_returns_fixture            PASS
+git_fetch.audit_no_raw_secrets                     PASS
+installer_lab.lockfile_round_trip                  PASS
+installer_lab.lockfile_rejects_unsafe_inputs       PASS
+git_fetch.real_opt_in                              PASS
 outbound.secret_headers_parsed                    PASS
 outbound.live_loopback_secret_injection            PASS
 stream.sse_normalize_deepseek_canary              PASS
