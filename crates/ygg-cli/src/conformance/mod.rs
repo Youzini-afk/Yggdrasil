@@ -24,6 +24,7 @@ mod replacement;
 mod secret_conformance;
 mod sharing_lab;
 mod storage_backend;
+mod storage_lab;
 mod workspace_lab;
 mod streaming;
 mod subprocess;
@@ -394,6 +395,17 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_backend.backend_parity_concurrent_append", ["storage", "substrate"], storage_backend::backend_parity_concurrent_append),
         c!("storage_backend.backend_parity_subscription", ["storage", "substrate"], storage_backend::backend_parity_subscription),
         c!("storage_backend.rehydrate_parity", ["storage", "substrate"], storage_backend::storage_backend_rehydrate_parity),
+        // --- storage-lab (Storage Backend Neutrality Alpha S2) ---
+        c!("storage_lab.contract_shape_no_kernel_database_terms", ["storage_lab", "storage", "official"], storage_lab::contract_shape_no_kernel_database_terms),
+        c!("storage_lab.backend_classes_no_credentials", ["storage_lab", "storage"], storage_lab::backend_classes_no_credentials),
+        c!("storage_lab.package_state_plan_scoped", ["storage_lab", "storage"], storage_lab::package_state_plan_scoped),
+        c!("storage_lab.put_document_preview_no_write", ["storage_lab", "storage"], storage_lab::put_document_preview_no_write),
+        c!("storage_lab.get_document_preview_no_read", ["storage_lab", "storage"], storage_lab::get_document_preview_no_read),
+        c!("storage_lab.query_prefix_preview_no_query_execution", ["storage_lab", "storage"], storage_lab::query_prefix_preview_no_query_execution),
+        c!("storage_lab.delete_tombstone_preview_no_delete", ["storage_lab", "storage"], storage_lab::delete_tombstone_preview_no_delete),
+        c!("storage_lab.export_snapshot_preview_redacted", ["storage_lab", "storage"], storage_lab::export_snapshot_preview_redacted),
+        c!("storage_lab.raw_secret_rejected", ["storage_lab", "storage", "secret"], storage_lab::raw_secret_rejected),
+        c!("storage_lab.unsafe_id_rejected", ["storage_lab", "storage"], storage_lab::unsafe_id_rejected),
     ]
 }
 

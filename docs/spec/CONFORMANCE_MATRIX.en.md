@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-Current matrix coverage: 236 implemented rows, backed by 281 named CLI conformance cases plus crate/service unit tests.
+Current matrix coverage: 246 implemented rows, backed by 291 named CLI conformance cases plus crate/service unit tests.
 
 ## Conformance Feedback Loop
 
@@ -234,6 +234,16 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage backend | in-memory and SQLite concurrent append produces no duplicate sequences | implemented |
 | storage backend | in-memory and SQLite subscription broadcast behavior matches after append | implemented |
 | storage backend | in-memory and SQLite rehydrate event replay semantics are identical | implemented |
+| storage lab | storage-lab contract shape contains no kernel database terms (kernel.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
+| storage lab | storage-lab backend class candidates contain capability flags only, no path/DSN/credentials | implemented |
+| storage lab | package state plan namespace belongs to owning package, no official priority | implemented |
+| storage lab | put document preview does not perform real write (write_performed=false) | implemented |
+| storage lab | get document preview does not perform real read (read_performed=false) | implemented |
+| storage lab | query prefix preview does not execute real query (query_performed=false) | implemented |
+| storage lab | delete tombstone preview does not perform real deletion (delete_performed=false) | implemented |
+| storage lab | export snapshot preview output is redacted (snapshot_exported=false) | implemented |
+| storage lab | raw secret is blocked in all capability inputs | implemented |
+| storage lab | unsafe ID (path traversal / special characters) is blocked | implemented |
 | creator loop | generated playable-board template passes check/conformance with 4 surfaces, 7 capabilities, no network | implemented |
 | creator loop | generated playable-experience template passes check/conformance with 4 surfaces, 9 capabilities including checkpoint/recovery | implemented |
 | creator loop | experience_entry surface without play_renderer/forge_panel/assistant_action produces creator warnings | implemented |
@@ -514,6 +524,16 @@ storage_backend.backend_parity_kind_prefix PASS
 storage_backend.backend_parity_concurrent_append PASS
 storage_backend.backend_parity_subscription PASS
 storage_backend.rehydrate_parity PASS
+storage_lab.contract_shape_no_kernel_database_terms PASS
+storage_lab.backend_classes_no_credentials PASS
+storage_lab.package_state_plan_scoped PASS
+storage_lab.put_document_preview_no_write PASS
+storage_lab.get_document_preview_no_read PASS
+storage_lab.query_prefix_preview_no_query_execution PASS
+storage_lab.delete_tombstone_preview_no_delete PASS
+storage_lab.export_snapshot_preview_redacted PASS
+storage_lab.raw_secret_rejected PASS
+storage_lab.unsafe_id_rejected PASS
 ```
 
 The suite should fail closed: any case listed as required for Platform Host Alpha must pass before that milestone can be declared complete.

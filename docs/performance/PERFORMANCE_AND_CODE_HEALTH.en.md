@@ -94,6 +94,13 @@ Storage Backend Neutrality Alpha S1 added:
 - `EventStore` trait documentation clarifies backend-neutral event spine contract positioning: `append_with_sequence` is the runtime-recommended append path; `append` + `next_sequence` is the low-level/test/admin path; ordering semantics are per-session `(session_id, sequence)`; kind-prefix queries are event-semantic queries, not SQL/index product APIs; no SQL/table/vector/DSN concepts in the contract.
 - In-memory and SQLite conformance parity: 6 `storage_backend` tag conformance cases covering basic contract, kind-prefix equivalence, concurrent append no duplicates, subscription broadcast, and rehydrate event replay semantic identity.
 
+Storage Backend Neutrality Alpha S2 added:
+
+- `official/storage-lab` ordinary package provides package-scoped storage/data contract preview: 8 capabilities, 3 surfaces, 10 `storage_lab` tag conformance cases. Proves storage is an ordinary package-layer capability, not a kernel database/sql/vector API.
+- Layered contract model: event spine backend / package state store / blob store future / projection index future / retrieval provider future.
+- Backend class candidates contain capability flags only, no path/DSN/credentials.
+- Document CRUD preview outputs write/read/query/delete/snapshot_performed=false with redacted content.
+
 Future event-store optimization priority:
 
 1. Prove a concrete scale bottleneck with baseline data.

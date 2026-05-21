@@ -57,16 +57,17 @@ Yggdrasil 当前已经有 SQLite-backed append-only event log、重水化的 ass
 
 验收：workspace tests、storage tag conformance、baseline event-store scenarios。
 
-## Phase S2 — Package-Scoped Data Contract + `storage-lab`
+## Phase S2 — Package-Scoped Data Contract + `storage-lab` ✅
 
 目标：提供普通 package-facing storage/data contract proof，而不是 kernel database API。
 
 交付：
 
-- 新增普通官方包 `official/storage-lab`（`rust_inproc`）。
-- 能力：`describe_storage_contract`、`describe_backend_classes`、`plan_package_state_store`、`put_document_preview`、`get_document_preview`、`query_document_prefix_preview`、`delete_document_tombstone_preview`、`export_store_snapshot_preview`。
-- 输出是 deterministic preview / package-owned data model；不写真实 DB、不执行 SQL、不读写文件、不联网。
-- Profile autoload、surfaces、conformance。
+- ✅ 新增普通官方包 `official/storage-lab`（`rust_inproc`）。
+- ✅ 能力：`describe_storage_contract`、`describe_backend_classes`、`plan_package_state_store`、`put_document_preview`、`get_document_preview`、`query_document_prefix_preview`、`delete_document_tombstone_preview`、`export_store_snapshot_preview`。
+- ✅ 输出是 deterministic preview / package-owned data model；不写真实 DB、不执行 SQL、不读写文件、不联网。
+- ✅ Profile autoload、surfaces、conformance。
+- ✅ 10 个 storage-lab conformance 用例（contract shape / backend classes / plan scoped / put/get/query/delete/export preview / raw secret / unsafe ID）。
 
 验收：package check、storage-lab conformance、无 SQL/kernel database namespace。
 

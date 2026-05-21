@@ -57,16 +57,17 @@ Deliverables:
 
 Acceptance: workspace tests, storage-tag conformance, baseline event-store scenarios.
 
-## Phase S2 — Package-Scoped Data Contract + `storage-lab`
+## Phase S2 — Package-Scoped Data Contract + `storage-lab` ✅
 
 Goal: provide ordinary package-facing storage/data contract proof, not kernel database APIs.
 
 Deliverables:
 
-- Add ordinary official package `official/storage-lab` (`rust_inproc`).
-- Capabilities: `describe_storage_contract`, `describe_backend_classes`, `plan_package_state_store`, `put_document_preview`, `get_document_preview`, `query_document_prefix_preview`, `delete_document_tombstone_preview`, `export_store_snapshot_preview`.
-- Outputs are deterministic previews / package-owned data models; no real DB writes, no SQL, no filesystem, no network.
-- Profile autoload, surfaces, conformance.
+- ✅ Add ordinary official package `official/storage-lab` (`rust_inproc`).
+- ✅ Capabilities: `describe_storage_contract`, `describe_backend_classes`, `plan_package_state_store`, `put_document_preview`, `get_document_preview`, `query_document_prefix_preview`, `delete_document_tombstone_preview`, `export_store_snapshot_preview`.
+- ✅ Outputs are deterministic previews / package-owned data models; no real DB writes, no SQL, no filesystem, no network.
+- ✅ Profile autoload, surfaces, conformance.
+- ✅ 10 storage-lab conformance cases (contract shape / backend classes / plan scoped / put/get/query/delete/export preview / raw secret / unsafe ID).
 
 Acceptance: package check, storage-lab conformance, no SQL/kernel database namespace.
 

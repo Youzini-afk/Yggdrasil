@@ -30,3 +30,4 @@ autoload:
   - ../packages/official/sharing-lab/manifest.yaml
   - ../packages/official/project-intake-lab/manifest.yaml
   - ../packages/official/workspace-lab/manifest.yaml
+  - ../packages/official/storage-lab/manifest.yaml
