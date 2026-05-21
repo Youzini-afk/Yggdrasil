@@ -32,12 +32,12 @@ This plan corrects the previous overly conservative TDB integration. The Trivium
 - ✅ Added explicit subprocess package manifest `examples/packages/tdb-rust-adapter/manifest.yaml` (not autoloaded).
 - ✅ Default adapter shell can `cargo check` / `cargo test` and is represented as an ordinary subprocess package.
 
-## Phase R2 — Real TriviumDB API proof
+## Phase R2 — Real TriviumDB API proof ✅
 
-- Add a `real-tdb` feature and local path-dependency config to the adapter crate.
-- Use TriviumDB `Database<f32>` for a real proof: open temp `.tdb`, insert two nodes, link them, search, and search_hybrid.
-- Keep the real proof in adapter-crate opt-in tests / smoke command, outside the default main workspace.
-- Validate: `cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.real-tdb.local.toml --features real-tdb`.
+- ✅ Added a `real-tdb` feature and `integrations/tdb/rust-adapter-real-local/Cargo.toml` local path-dependency config to the adapter crate.
+- ✅ Used TriviumDB `Database<f32>` for a real proof: open temp `.tdb`, insert two nodes, link them, search, and search_hybrid.
+- ✅ Kept the real proof in adapter-crate opt-in tests / smoke command, outside the default main workspace.
+- ✅ Validation command: `cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb`.
 
 ## Phase R3 — Package capability + conformance boundary
 

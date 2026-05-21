@@ -32,12 +32,12 @@
 - ✅ 新增显式 subprocess package manifest `examples/packages/tdb-rust-adapter/manifest.yaml`（不 autoload）。
 - ✅ 默认 adapter shell 能 `cargo check` / `cargo test`，并可由 package manifest 描述为 ordinary subprocess package。
 
-## Phase R2 — Real TriviumDB API proof
+## Phase R2 — Real TriviumDB API proof ✅
 
-- 给 adapter crate 增加 `real-tdb` feature 与本地 path dependency 配置。
-- 使用 TriviumDB `Database<f32>` 真实执行：open temp `.tdb`、insert 两个节点、link、search、search_hybrid。
-- 将真实 proof 限定在 adapter crate 的 opt-in test / smoke 命令，不进入默认主 workspace。
-- 验证：`cargo test --manifest-path integrations/tdb/rust-adapter/Cargo.real-tdb.local.toml --features real-tdb`。
+- ✅ 给 adapter crate 增加 `real-tdb` feature 与 `integrations/tdb/rust-adapter-real-local/Cargo.toml` 本地 path dependency 配置。
+- ✅ 使用 TriviumDB `Database<f32>` 真实执行：open temp `.tdb`、insert 两个节点、link、search、search_hybrid。
+- ✅ 真实 proof 限定在 adapter crate 的 opt-in test / smoke 命令，不进入默认主 workspace。
+- ✅ 验证命令：`cargo test --manifest-path integrations/tdb/rust-adapter-real-local/Cargo.toml --features real-tdb`。
 
 ## Phase R3 — Package capability + conformance boundary
 

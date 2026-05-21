@@ -87,6 +87,11 @@ fn describe_adapter() -> Value {
 }
 
 fn run_real_tdb_smoke(_input: Value) -> Result<Value, String> {
+    #[cfg(feature = "real-tdb")]
+    {
+        return real_tdb::run_smoke();
+    }
+    #[cfg(not(feature = "real-tdb"))]
     Ok(json!({
         "kind": "real_tdb_smoke_disabled",
         "real_tdb_available": real_tdb_available(),
@@ -115,6 +120,89 @@ fn sanitize(message: &str) -> String {
     redacted.chars().take(240).collect()
 }
 
+#[cfg(feature = "real-tdb")]
+mod real_tdb {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use triviumdb::database::{Config, SearchConfig, StorageMode};
+    use triviumdb::storage::wal::SyncMode;
+    use triviumdb::Database;
+
+    pub(super) fn run_smoke() -> Result<Value, String> {
+        let dim = 3usize;
+        let mut root = std::env::temp_dir();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| sanitize(&error.to_string()))?
+            .as_nanos();
+        root.push(format!("ygg-tdb-smoke-{nonce}"));
+        std::fs::create_dir_all(&root).map_err(|error| sanitize(&error.to_string()))?;
+        let store_path = root.join("adapter-proof.tdb");
+        let store_path_str = store_path.to_string_lossy().to_string();
+
+        let cfg = Config {
+            dim,
+            sync_mode: SyncMode::Off,
+            storage_mode: StorageMode::Rom,
+        };
+        let mut db: Database<f32> = Database::open_with_config(&store_path_str, cfg).map_err(|error| sanitize(&error.to_string()))?;
+
+        let first = db
+            .insert(&[0.12, -0.45, 0.78], json!({"ref":"asset/redacted-a","text":"Alice likes apples"}))
+            .map_err(|error| sanitize(&error.to_string()))?;
+        let second = db
+            .insert(&[0.08, -0.52, 0.81], json!({"ref":"asset/redacted-b","text":"Bob gave Alice apples"}))
+            .map_err(|error| sanitize(&error.to_string()))?;
+        db.link(first, second, "related_to", 0.95)
+            .map_err(|error| sanitize(&error.to_string()))?;
+
+        let vector_hits = db
+            .search(&[0.10, -0.48, 0.80], 5, 2, 0.1)
+            .map_err(|error| sanitize(&error.to_string()))?;
+        let search_cfg = SearchConfig {
+            top_k: 5,
+            expand_depth: 2,
+            min_score: 0.1,
+            ..Default::default()
+        };
+        let hybrid_hits = db
+            .search_hybrid(Some("Alice apples"), Some(&[0.10, -0.48, 0.80]), &search_cfg)
+            .map_err(|error| sanitize(&error.to_string()))?;
+
+        let first_payload_ref = db
+            .get(first)
+            .and_then(|node| node.payload.get("ref").and_then(|value| value.as_str()).map(str::to_string))
+            .unwrap_or_else(|| "redacted".to_string());
+        drop(db);
+        let _ = std::fs::remove_dir_all(&root);
+
+        Ok(json!({
+            "kind": "real_tdb_smoke_executed",
+            "real_tdb_available": true,
+            "smoke_executed": true,
+            "triviumdb_dependency_linked": true,
+            "backend_opened": true,
+            "filesystem_performed": true,
+            "network_performed": false,
+            "raw_path_exposed": false,
+            "store_ref": "temp:tdb-smoke-redacted",
+            "dim": dim,
+            "inserted_nodes": 2,
+            "linked_edges": 1,
+            "vector_hit_count": vector_hits.len(),
+            "hybrid_hit_count": hybrid_hits.len(),
+            "first_ref": first_payload_ref,
+            "hit_preview": vector_hits.iter().take(3).map(|hit| json!({
+                "id_present": hit.id > 0,
+                "score": hit.score,
+                "payload_redacted": true,
+                "ref": hit.payload.get("ref").cloned().unwrap_or_else(|| json!("redacted"))
+            })).collect::<Vec<_>>()
+        }))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,7 +217,20 @@ mod tests {
     #[test]
     fn default_smoke_does_not_execute() {
         let out = run_real_tdb_smoke(json!({})).unwrap();
-        assert_eq!(out["smoke_executed"], json!(false));
-        assert_eq!(out["backend_opened"], json!(false));
+        #[cfg(not(feature = "real-tdb"))]
+        {
+            assert_eq!(out["smoke_executed"], json!(false));
+            assert_eq!(out["backend_opened"], json!(false));
+        }
+        #[cfg(feature = "real-tdb")]
+        {
+            assert_eq!(out["kind"], json!("real_tdb_smoke_executed"));
+            assert_eq!(out["smoke_executed"], json!(true));
+            assert_eq!(out["backend_opened"], json!(true));
+            assert_eq!(out["inserted_nodes"], json!(2));
+            assert!(out["vector_hit_count"].as_u64().unwrap_or(0) >= 1);
+            assert!(out["hybrid_hit_count"].as_u64().unwrap_or(0) >= 1);
+            assert_eq!(out["raw_path_exposed"], json!(false));
+        }
     }
 }
