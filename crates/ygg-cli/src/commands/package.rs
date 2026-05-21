@@ -2,8 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use ygg_core::PackageEntry;
 use ygg_runtime::{
@@ -66,6 +68,7 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         "assets": {"read": perm.assets.read, "write": perm.assets.write},
         "network_hosts": perm.network.hosts.len(),
         "network_declarations": perm.network.declarations.len(),
+        "git_fetch_hosts": perm.git_fetch.hosts.len(),
         "filesystem_read": perm.filesystem.read.len(),
         "filesystem_write": perm.filesystem.write.len(),
     });
@@ -86,6 +89,9 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     }
     if !perm.network.declarations.is_empty() || !perm.network.hosts.is_empty() {
         warnings.push("package requests network access — ensure allowlist is minimal".to_string());
+    }
+    if !perm.git_fetch.hosts.is_empty() {
+        warnings.push("package requests git fetch access — ensure host allowlist and approval flow are enabled deliberately".to_string());
     }
 
     // --- Creator-facing diagnostics (Beta 5) ---
@@ -181,6 +187,9 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     } else if !perm.network.hosts.is_empty() {
         println!("  network hosts: {}", perm.network.hosts.join(", "));
     }
+    if !perm.git_fetch.hosts.is_empty() {
+        println!("  git fetch hosts: {}", perm.git_fetch.hosts.join(", "));
+    }
     println!("  sandbox:      {}", serde_json::to_string(&sandbox_summary)?);
     if !warnings.is_empty() {
         println!("  warnings:");
@@ -190,6 +199,273 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct PackageInstallLockfile {
+    pub(crate) format_version: u32,
+    pub(crate) profile: String,
+    pub(crate) generated_at: String,
+    #[serde(default)]
+    pub(crate) packages: Vec<PackageInstallLockEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct PackageInstallLockEntry {
+    pub(crate) package_id: String,
+    pub(crate) remote_url: String,
+    #[serde(rename = "ref")]
+    pub(crate) reference: String,
+    pub(crate) commit_sha: String,
+    pub(crate) content_hash: String,
+    pub(crate) manifest_path: String,
+    pub(crate) installed_at: String,
+    pub(crate) install_root_subdir: String,
+}
+
+pub(crate) async fn package_install_git(
+    profile: PathBuf,
+    remote_url: String,
+    package_id: String,
+    reference: String,
+    commit_sha: String,
+    content_hash: String,
+    manifest_path: String,
+) -> Result<()> {
+    validate_git_lock_inputs(&remote_url, &package_id, &reference, &commit_sha, &content_hash, &manifest_path)?;
+    let lock_path = profile_lock_path(&profile)?;
+    let mut lockfile = read_or_new_lockfile(&profile, &lock_path)?;
+    anyhow::ensure!(
+        !lockfile.packages.iter().any(|entry| entry.package_id == package_id),
+        "package '{package_id}' is already installed in this profile lockfile"
+    );
+    let install_root_subdir = install_root_subdir(&package_id, &commit_sha);
+    lockfile.packages.push(PackageInstallLockEntry {
+        package_id: package_id.clone(),
+        remote_url,
+        reference,
+        commit_sha,
+        content_hash,
+        manifest_path,
+        installed_at: timestamp_label(),
+        install_root_subdir,
+    });
+    write_lockfile(&lock_path, &mut lockfile)?;
+    println!("installed package lock entry: {package_id}");
+    println!("  lockfile: {}", lock_path.display());
+    Ok(())
+}
+
+pub(crate) async fn package_list_installed(profile: PathBuf) -> Result<()> {
+    let lock_path = profile_lock_path(&profile)?;
+    let lockfile = read_or_new_lockfile(&profile, &lock_path)?;
+    println!("installed packages for profile '{}':", lockfile.profile);
+    if lockfile.packages.is_empty() {
+        println!("  (none)");
+    }
+    for entry in &lockfile.packages {
+        println!(
+            "  {} {} {} {}",
+            entry.package_id, entry.remote_url, entry.reference, entry.commit_sha
+        );
+    }
+    Ok(())
+}
+
+pub(crate) async fn package_uninstall_git(profile: PathBuf, package_id: String) -> Result<()> {
+    validate_package_id(&package_id)?;
+    let lock_path = profile_lock_path(&profile)?;
+    let mut lockfile = read_or_new_lockfile(&profile, &lock_path)?;
+    let before = lockfile.packages.len();
+    lockfile.packages.retain(|entry| entry.package_id != package_id);
+    anyhow::ensure!(before != lockfile.packages.len(), "package '{package_id}' is not installed");
+    write_lockfile(&lock_path, &mut lockfile)?;
+    println!("uninstalled package lock entry: {package_id}");
+    println!("  lockfile: {}", lock_path.display());
+    Ok(())
+}
+
+pub(crate) async fn package_update_git(
+    profile: PathBuf,
+    package_id: String,
+    remote_url: Option<String>,
+    reference: String,
+    commit_sha: String,
+    content_hash: String,
+    manifest_path: String,
+) -> Result<()> {
+    validate_package_id(&package_id)?;
+    let lock_path = profile_lock_path(&profile)?;
+    let mut lockfile = read_or_new_lockfile(&profile, &lock_path)?;
+    let entry = lockfile
+        .packages
+        .iter_mut()
+        .find(|entry| entry.package_id == package_id)
+        .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not installed"))?;
+    let next_remote_url = remote_url.unwrap_or_else(|| entry.remote_url.clone());
+    validate_git_lock_inputs(
+        &next_remote_url,
+        &package_id,
+        &reference,
+        &commit_sha,
+        &content_hash,
+        &manifest_path,
+    )?;
+    let previous_commit = entry.commit_sha.clone();
+    entry.remote_url = next_remote_url;
+    entry.reference = reference;
+    entry.commit_sha = commit_sha.clone();
+    entry.content_hash = content_hash;
+    entry.manifest_path = manifest_path;
+    entry.installed_at = timestamp_label();
+    entry.install_root_subdir = install_root_subdir(&package_id, &commit_sha);
+    write_lockfile(&lock_path, &mut lockfile)?;
+    println!("updated package lock entry: {package_id}");
+    println!("  previous_commit: {previous_commit}");
+    println!("  next_commit:     {commit_sha}");
+    println!("  lockfile:        {}", lock_path.display());
+    Ok(())
+}
+
+pub(crate) async fn package_inspect_lockfile(profile: PathBuf) -> Result<()> {
+    let lock_path = profile_lock_path(&profile)?;
+    let lockfile = read_or_new_lockfile(&profile, &lock_path)?;
+    let duplicate_count = duplicate_package_count(&lockfile.packages);
+    let summary = json!({
+        "profile": lockfile.profile,
+        "lockfile": lock_path,
+        "format_version": lockfile.format_version,
+        "package_count": lockfile.packages.len(),
+        "duplicate_package_count": duplicate_count,
+        "valid": duplicate_count == 0,
+    });
+    println!("{}", serde_json::to_string_pretty(&summary)?);
+    Ok(())
+}
+
+fn profile_lock_path(profile: &PathBuf) -> Result<PathBuf> {
+    let stem = profile
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| anyhow::anyhow!("profile path must have a UTF-8 file stem"))?;
+    Ok(profile.with_file_name(format!("{stem}.lock.yaml")))
+}
+
+fn read_or_new_lockfile(profile: &PathBuf, lock_path: &PathBuf) -> Result<PackageInstallLockfile> {
+    if lock_path.exists() {
+        let raw = fs::read_to_string(lock_path)?;
+        let mut lockfile: PackageInstallLockfile = serde_yaml::from_str(&raw)?;
+        if lockfile.format_version == 0 {
+            lockfile.format_version = 1;
+        }
+        return Ok(lockfile);
+    }
+    let profile_name = profile
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("profile")
+        .to_string();
+    Ok(PackageInstallLockfile {
+        format_version: 1,
+        profile: profile_name,
+        generated_at: timestamp_label(),
+        packages: Vec::new(),
+    })
+}
+
+fn write_lockfile(lock_path: &PathBuf, lockfile: &mut PackageInstallLockfile) -> Result<()> {
+    lockfile.packages.sort_by(|a, b| a.package_id.cmp(&b.package_id));
+    lockfile.generated_at = timestamp_label();
+    if let Some(parent) = lock_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(lock_path, serde_yaml::to_string(lockfile)?)?;
+    Ok(())
+}
+
+fn validate_git_lock_inputs(
+    remote_url: &str,
+    package_id: &str,
+    reference: &str,
+    commit_sha: &str,
+    content_hash: &str,
+    manifest_path: &str,
+) -> Result<()> {
+    validate_https_git_url(remote_url)?;
+    validate_package_id(package_id)?;
+    validate_safe_ref(reference)?;
+    validate_commit_sha(commit_sha)?;
+    anyhow::ensure!(
+        content_hash.starts_with("sha256:") || content_hash.starts_with("fnv1a64:"),
+        "content_hash must start with sha256: or fnv1a64:"
+    );
+    validate_manifest_path(manifest_path)?;
+    Ok(())
+}
+
+fn validate_https_git_url(remote_url: &str) -> Result<()> {
+    anyhow::ensure!(remote_url.starts_with("https://"), "git_url must use HTTPS");
+    anyhow::ensure!(!remote_url.contains('?'), "git_url must not include query strings");
+    anyhow::ensure!(!remote_url.contains('@'), "git_url must not include credentials");
+    Ok(())
+}
+
+fn validate_package_id(package_id: &str) -> Result<()> {
+    anyhow::ensure!(!package_id.trim().is_empty(), "package_id must not be empty");
+    anyhow::ensure!(!package_id.contains(".."), "package_id must not contain path traversal");
+    anyhow::ensure!(!package_id.starts_with('/'), "package_id must not be absolute");
+    Ok(())
+}
+
+fn validate_safe_ref(reference: &str) -> Result<()> {
+    anyhow::ensure!(!reference.trim().is_empty(), "ref must not be empty");
+    anyhow::ensure!(!reference.contains(".."), "ref must not contain '..'");
+    anyhow::ensure!(!reference.contains(' '), "ref must not contain spaces");
+    anyhow::ensure!(!reference.contains('\\'), "ref must not contain backslashes");
+    Ok(())
+}
+
+fn validate_commit_sha(commit_sha: &str) -> Result<()> {
+    anyhow::ensure!(commit_sha.len() == 40, "commit_sha must be a 40-character SHA-1");
+    anyhow::ensure!(
+        commit_sha.chars().all(|ch| ch.is_ascii_hexdigit()),
+        "commit_sha must be hex"
+    );
+    Ok(())
+}
+
+fn validate_manifest_path(path: &str) -> Result<()> {
+    anyhow::ensure!(!path.trim().is_empty(), "manifest_path must not be empty");
+    anyhow::ensure!(!path.starts_with('/'), "manifest_path must be relative");
+    anyhow::ensure!(!path.contains(".."), "manifest_path must not contain path traversal");
+    anyhow::ensure!(!path.contains('\\'), "manifest_path must not contain backslashes");
+    anyhow::ensure!(
+        path.ends_with(".yaml") || path.ends_with(".yml"),
+        "manifest_path must be yaml"
+    );
+    Ok(())
+}
+
+fn install_root_subdir(package_id: &str, commit_sha: &str) -> String {
+    let safe_id = package_id.replace('/', "-");
+    let short_sha = commit_sha.get(0..12).unwrap_or(commit_sha);
+    format!("{safe_id}-{short_sha}")
+}
+
+fn timestamp_label() -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    format!("unix:{secs}")
+}
+
+fn duplicate_package_count(packages: &[PackageInstallLockEntry]) -> usize {
+    let mut seen = BTreeSet::new();
+    packages
+        .iter()
+        .filter(|entry| !seen.insert(entry.package_id.clone()))
+        .count()
 }
 
 pub(crate) async fn package_run_fixture(path: PathBuf) -> Result<()> {

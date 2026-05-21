@@ -216,6 +216,32 @@ pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
         })
         .await;
     anyhow::ensure!(denied.is_err(), "plan_install must reject raw query tokens");
+
+    let apply = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: "official/package-installer-lab/apply_install".to_string(),
+            caller_package_id: None,
+            provider_package_id: Some("official/package-installer-lab".to_string()),
+            version: None,
+            input: json!({
+                "approved": true,
+                "remote_url": "https://github.com/example/capability-package",
+                "package_id": "thirdparty/capability-package",
+                "ref": "main",
+                "commit_sha": "0123456789abcdef0123456789abcdef01234567",
+                "content_hash": "sha256:fixture-tree",
+                "manifest_path": "manifest.yaml"
+            }),
+        })
+        .await?;
+    anyhow::ensure!(
+        apply.output["kind"] == json!("package_install_apply_plan"),
+        "apply_install should return a host lockfile write plan"
+    );
+    anyhow::ensure!(
+        apply.output["lockfile_entry"]["commit_sha"] == json!("0123456789abcdef0123456789abcdef01234567"),
+        "apply_install should preserve pinned commit"
+    );
     Ok(())
 }
 

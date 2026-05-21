@@ -180,6 +180,49 @@ pub(crate) enum PackageCommand {
     Reload {
         path: PathBuf,
     },
+    Install {
+        git_url: String,
+        #[arg(long)]
+        profile: PathBuf,
+        #[arg(long)]
+        package_id: String,
+        #[arg(long, default_value = "main")]
+        reference: String,
+        #[arg(long)]
+        commit_sha: String,
+        #[arg(long)]
+        content_hash: String,
+        #[arg(long, default_value = "manifest.yaml")]
+        manifest_path: String,
+    },
+    ListInstalled {
+        #[arg(long)]
+        profile: PathBuf,
+    },
+    Uninstall {
+        package_id: String,
+        #[arg(long)]
+        profile: PathBuf,
+    },
+    Update {
+        package_id: String,
+        #[arg(long)]
+        profile: PathBuf,
+        #[arg(long)]
+        git_url: Option<String>,
+        #[arg(long, default_value = "main")]
+        reference: String,
+        #[arg(long)]
+        commit_sha: String,
+        #[arg(long)]
+        content_hash: String,
+        #[arg(long, default_value = "manifest.yaml")]
+        manifest_path: String,
+    },
+    InspectLockfile {
+        #[arg(long)]
+        profile: PathBuf,
+    },
 }
 
 #[derive(Debug, Subcommand)]

@@ -11,6 +11,8 @@ use ygg_runtime::{
     ProtocolContext, ProtocolPrincipal, Runtime, RuntimeConfig,
 };
 
+use crate::commands::package;
+
 fn git_package(id: &str, hosts: Vec<String>) -> PackageManifest {
     PackageManifest {
         schema_version: 1,
@@ -248,5 +250,68 @@ pub(crate) async fn git_fetch_audit_no_raw_secrets() -> anyhow::Result<()> {
         !serialized.contains("raw-secret-placeholder"),
         "git fetch audit must not include raw query token"
     );
+    Ok(())
+}
+
+pub(crate) async fn installer_lockfile_round_trip() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let profile = dir.path().join("fixture-profile.yaml");
+    std::fs::write(&profile, "title: fixture\n")?;
+    let commit_a = "0123456789abcdef0123456789abcdef01234567".to_string();
+    let commit_b = "abcdef0123456789abcdef0123456789abcdef01".to_string();
+
+    package::package_install_git(
+        profile.clone(),
+        "https://github.com/example/pkg".to_string(),
+        "thirdparty/pkg".to_string(),
+        "main".to_string(),
+        commit_a.clone(),
+        "sha256:fixture-a".to_string(),
+        "manifest.yaml".to_string(),
+    )
+    .await?;
+    package::package_list_installed(profile.clone()).await?;
+    package::package_inspect_lockfile(profile.clone()).await?;
+
+    let lock_path = dir.path().join("fixture-profile.lock.yaml");
+    let raw = std::fs::read_to_string(&lock_path)?;
+    anyhow::ensure!(raw.contains("thirdparty/pkg"), "lockfile missing package id");
+    anyhow::ensure!(raw.contains(&commit_a), "lockfile missing pinned commit");
+
+    package::package_update_git(
+        profile.clone(),
+        "thirdparty/pkg".to_string(),
+        None,
+        "main".to_string(),
+        commit_b.clone(),
+        "sha256:fixture-b".to_string(),
+        "manifest.yaml".to_string(),
+    )
+    .await?;
+    let updated = std::fs::read_to_string(&lock_path)?;
+    anyhow::ensure!(updated.contains(&commit_b), "lockfile missing updated commit");
+    anyhow::ensure!(!updated.contains(&commit_a), "lockfile retained old commit after update");
+
+    package::package_uninstall_git(profile.clone(), "thirdparty/pkg".to_string()).await?;
+    let removed = std::fs::read_to_string(&lock_path)?;
+    anyhow::ensure!(!removed.contains("thirdparty/pkg"), "lockfile retained package after uninstall");
+    Ok(())
+}
+
+pub(crate) async fn installer_lockfile_rejects_unsafe_inputs() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let profile = dir.path().join("fixture-profile.yaml");
+    std::fs::write(&profile, "title: fixture\n")?;
+    let result = package::package_install_git(
+        profile,
+        "https://github.com/example/pkg?token=raw-secret-placeholder".to_string(),
+        "thirdparty/pkg".to_string(),
+        "main".to_string(),
+        "0123456789abcdef0123456789abcdef01234567".to_string(),
+        "sha256:fixture".to_string(),
+        "manifest.yaml".to_string(),
+    )
+    .await;
+    anyhow::ensure!(result.is_err(), "git install lockfile command must reject query tokens");
     Ok(())
 }

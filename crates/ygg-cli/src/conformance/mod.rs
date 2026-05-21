@@ -219,6 +219,8 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("git_fetch.requires_host_allowlist", ["git", "outbound"], git_install::git_fetch_requires_host_allowlist),
         c!("git_fetch.fake_executor_returns_fixture", ["git", "outbound"], git_install::git_fetch_fake_executor_returns_fixture),
         c!("git_fetch.audit_no_raw_secrets", ["git", "outbound", "secret"], git_install::git_fetch_audit_no_raw_secrets),
+        c!("installer_lab.lockfile_round_trip", ["git", "package"], git_install::installer_lockfile_round_trip),
+        c!("installer_lab.lockfile_rejects_unsafe_inputs", ["git", "package", "secret"], git_install::installer_lockfile_rejects_unsafe_inputs),
         // --- streaming ---
         c!("stream.normal_lifecycle", ["stream"], streaming::stream_normal_lifecycle),
         c!("stream.cancel_blocks_chunks", ["stream"], streaming::stream_cancel_blocks_chunks),
