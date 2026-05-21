@@ -31,7 +31,7 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- **从 GitHub 地址安装能力包。** 给 host 加一条受控的 git fetch / clone / checkout / verify 路径，让 `ygg package install <github-url>` 这样的命令可用。需要走 host policy、approval、签名/校验、沙箱安装目录，跟 outbound HTTPS 一样默认关闭、显式 opt-in。这是 YdlTavern 等接入项目分发扩展的关键前提。
+- **从 GitHub 地址安装能力包。** 给 host 加一条受控的 git fetch + verify 路径，让 `ygg package install <github-url>` 这样的命令可用。设计采用两层：内核提供受 host policy 管控的 `GitOutboundExecutor`（默认全拒、HTTPS-only），实际安装逻辑由普通能力包 `official/package-installer-lab` 承担，走标准提案审批。详细设计见 [`GIT_INSTALL_DESIGN.md`](GIT_INSTALL_DESIGN.md)。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
 - 钩子处理器的超时与错误审计。

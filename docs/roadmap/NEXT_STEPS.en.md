@@ -31,7 +31,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- **Install capability packages from a GitHub address.** Add a controlled git fetch / clone / checkout / verify path to the host so `ygg package install <github-url>` becomes a real command. Gated by host policy, approval, signing/verification, and a sandboxed install directory — same posture as outbound HTTPS: off by default, explicit opt-in. This is the prerequisite for integration projects like YdlTavern to ship extensions.
+- **Install capability packages from a GitHub address.** Add a controlled git fetch + verify path so `ygg package install <github-url>` becomes a real command. The design splits in two: the kernel provides a `GitOutboundExecutor` under host policy (deny-all by default, HTTPS-only), and the actual install logic lives in an ordinary capability package, `official/package-installer-lab`, gated by the standard proposal flow. Full design in [`GIT_INSTALL_DESIGN.md`](GIT_INSTALL_DESIGN.en.md).
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.
