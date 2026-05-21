@@ -15,6 +15,7 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         "draft_tdb_query_plan" => draft_query_plan(&request.input),
         "explain_tdb_backend_fit" => Ok(explain_backend_fit()),
         "inspect_tdb_adapter_surface" => Ok(inspect_adapter_surface()),
+        "describe_real_tdb_opt_in_seam" => Ok(describe_real_tdb_opt_in_seam()),
         _ => return None,
     })
 }
@@ -50,7 +51,8 @@ fn describe_contract() -> Value {
             "draft_tdb_index_plan",
             "draft_tdb_query_plan",
             "explain_tdb_backend_fit",
-            "inspect_tdb_adapter_surface"
+            "inspect_tdb_adapter_surface",
+            "describe_real_tdb_opt_in_seam"
         ],
         "modality_scope": ["text", "image", "audio", "video", "structured"],
         "red_lines": {
@@ -197,6 +199,77 @@ fn inspect_adapter_surface() -> Value {
         ],
         "requires_user_approval_for_future_execution": true,
         "current_alpha_execution": false
+    })
+}
+
+fn describe_real_tdb_opt_in_seam() -> Value {
+    json!({
+        "kind": "tdb_real_opt_in_seam",
+        "status": "planned_not_linked_by_default",
+        "reason_default_is_fake": [
+            "the TriviumDB source currently lives as a sibling checkout outside this repository",
+            "a hard path dependency would break ordinary Yggdrasil clones and CI",
+            "real backend access needs host policy, resource limits, redaction, and lifecycle ownership"
+        ],
+        "reviewed_triviumdb_api": {
+            "crate": "triviumdb",
+            "version_observed": "0.7.1",
+            "crate_types": ["rlib", "cdylib"],
+            "default_features": [],
+            "optional_bindings": ["python", "nodejs", "cli"],
+            "open_api": [
+                "Database<T>::open(path, dim)",
+                "Database<T>::open_with_config(path, Config)",
+                "Config { dim, sync_mode, storage_mode }",
+                "StorageMode::{Mmap, Rom}"
+            ],
+            "write_api": [
+                "insert(vector, payload)",
+                "insert_with_id(id, vector, payload)",
+                "link(src, dst, label, weight)",
+                "begin_tx() with WAL-first commit"
+            ],
+            "query_api": [
+                "search(query_vector, top_k, expand_depth, min_score)",
+                "search_advanced(query_vector, SearchConfig)",
+                "search_hybrid(query_text, query_vector, SearchConfig)",
+                "search_hybrid_with_context(...)"
+            ],
+            "storage_notes": [
+                "single-process exclusive lock per database file",
+                "WAL recovery and compaction are internal to TriviumDB",
+                "mmap mode may create sidecar vector storage"
+            ]
+        },
+        "recommended_ygg_modes": [
+            {
+                "mode": "subprocess_adapter_package",
+                "default_preference": true,
+                "why": "keeps TDB faults, file locks, and native dependencies outside the host kernel process"
+            },
+            {
+                "mode": "feature_gated_inproc_adapter",
+                "default_preference": false,
+                "why": "only after TriviumDB is vendored or published in a way ordinary clones can resolve"
+            }
+        ],
+        "host_policy_requirements": {
+            "backend_enablement": "explicit_opt_in",
+            "store_path": "host_ref_only",
+            "dimension": "declared_and_bounded",
+            "modality_schema": "package_owned",
+            "resource_limits": ["max_nodes", "max_inline_payload_bytes", "max_query_top_k", "max_expand_depth"],
+            "dangerous_actions_need_approval": ["open_backend", "create_index", "write_nodes", "compact", "repair"]
+        },
+        "current_alpha": {
+            "path_dependency_committed": false,
+            "tdb_crate_linked": false,
+            "backend_opened": false,
+            "filesystem_performed": false,
+            "network_performed": false,
+            "embedding_generated": false,
+            "index_created": false
+        }
     })
 }
 

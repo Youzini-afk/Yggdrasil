@@ -86,7 +86,7 @@ PostgreSQL 替代的是 SQLite durable event log，不给 package 暴露 SQL。T
 
 验收：package check、conformance、Forge Storage Inspector 能显示 TDB provider readiness。
 
-## Phase T2 — TDB Real-Crate Opt-in Seam
+## Phase T2 — TDB Real-Crate Opt-in Seam ✅
 
 目标：预留真实 TDB crate 接入 seam，但不让默认 CI 或 core runtime 依赖它。
 

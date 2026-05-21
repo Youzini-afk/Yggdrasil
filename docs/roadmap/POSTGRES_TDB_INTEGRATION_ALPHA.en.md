@@ -86,7 +86,7 @@ Deliverables:
 
 Acceptance: package check, conformance, Forge Storage Inspector can show TDB provider readiness.
 
-## Phase T2 — TDB Real-Crate Opt-in Seam
+## Phase T2 — TDB Real-Crate Opt-in Seam ✅
 
 Goal: reserve the real TDB crate integration seam without making default CI or core runtime depend on it.
 

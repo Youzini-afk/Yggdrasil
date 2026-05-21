@@ -1,0 +1,26 @@
+{
+  "profile_kind": "tdb_retrieval_provider_opt_in_example",
+  "provider_package_id": "official/tdb-retrieval-lab",
+  "mode": "subprocess_adapter_package_preferred",
+  "backend_ref": "host:path:TDB_RETRIEVAL_STORE",
+  "dimension": 1536,
+  "storage_mode": "mmap",
+  "sync_mode": "normal",
+  "resource_limits": {
+    "max_nodes": 100000,
+    "max_inline_payload_bytes": 8192,
+    "max_query_top_k": 32,
+    "max_expand_depth": 3
+  },
+  "approval_required_for": [
+    "open_backend",
+    "create_index",
+    "write_nodes",
+    "compact",
+    "repair"
+  ],
+  "notes": [
+    "This is an example shape only; current alpha does not open a real TDB backend.",
+    "backend_ref is host-owned and must not be copied into events, proposals, logs, or public diagnostics."
+  ]
+}

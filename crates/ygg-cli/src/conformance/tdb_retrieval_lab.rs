@@ -57,7 +57,7 @@ pub(crate) async fn contract_shape() -> anyhow::Result<()> {
     anyhow::ensure!(out["package_kind"] == json!("ordinary_retrieval_provider_adapter"));
     anyhow::ensure!(out["red_lines"]["not_kernel_database"] == json!(true));
     anyhow::ensure!(out["red_lines"]["no_real_tdb_crate_linkage_in_alpha"] == json!(true));
-    anyhow::ensure!(out["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 5);
+    anyhow::ensure!(out["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 6);
     let serialized = serde_json::to_string(&out)?;
     for token in forbidden_kernel_namespace_tokens() {
         anyhow::ensure!(!serialized.contains(&token), "forbidden namespace token leaked: {token}");
@@ -138,5 +138,20 @@ pub(crate) async fn raw_secret_and_unsafe_id_rejected() -> anyhow::Result<()> {
 
     let err = invoke(&rt, "draft_tdb_query_plan", json!({"index_id": "../private"})).await;
     anyhow::ensure!(err.is_err(), "unsafe id must be rejected");
+    Ok(())
+}
+
+pub(crate) async fn real_tdb_opt_in_seam_not_linked_by_default() -> anyhow::Result<()> {
+    let rt = load_tdb_retrieval_lab().await?;
+    let out = invoke(&rt, "describe_real_tdb_opt_in_seam", json!({})).await?.output;
+    anyhow::ensure!(out["kind"] == json!("tdb_real_opt_in_seam"));
+    anyhow::ensure!(out["status"] == json!("planned_not_linked_by_default"));
+    anyhow::ensure!(out["current_alpha"]["path_dependency_committed"] == json!(false));
+    anyhow::ensure!(out["current_alpha"]["tdb_crate_linked"] == json!(false));
+    anyhow::ensure!(out["current_alpha"]["backend_opened"] == json!(false));
+    anyhow::ensure!(out["host_policy_requirements"]["store_path"] == json!("host_ref_only"));
+    let modes = out["recommended_ygg_modes"].as_array().cloned().unwrap_or_default();
+    anyhow::ensure!(modes.iter().any(|mode| mode["mode"] == json!("subprocess_adapter_package")));
+    anyhow::ensure!(modes.iter().any(|mode| mode["mode"] == json!("feature_gated_inproc_adapter")));
     Ok(())
 }

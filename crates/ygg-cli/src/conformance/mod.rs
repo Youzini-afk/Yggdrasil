@@ -447,6 +447,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("tdb_retrieval_lab.backend_fit_boundary", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::backend_fit_boundary),
         c!("tdb_retrieval_lab.invalid_input_rejected", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::invalid_input_rejected),
         c!("tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected", ["tdb", "retrieval", "storage", "secret"], tdb_retrieval_lab::raw_secret_and_unsafe_id_rejected),
+        c!("tdb_retrieval_lab.real_tdb_opt_in_seam_not_linked_by_default", ["tdb", "retrieval", "storage"], tdb_retrieval_lab::real_tdb_opt_in_seam_not_linked_by_default),
     ]
 }
 

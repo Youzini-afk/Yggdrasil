@@ -3,6 +3,7 @@ import { YggProtocolClient } from "../protocol/client";
 import { escapeHtml, formatJsonPreview } from "../utils/html";
 
 const STORAGE_LAB = "official/storage-lab";
+const TDB_RETRIEVAL_LAB = "official/tdb-retrieval-lab";
 
 export interface StorageInspectorModel {
   available: boolean;
@@ -14,6 +15,8 @@ export interface StorageInspectorModel {
   projection_contract?: Record<string, unknown>;
   retrieval_contract?: Record<string, unknown>;
   multimodal_plan?: Record<string, unknown>;
+  tdb_contract?: Record<string, unknown>;
+  tdb_real_seam?: Record<string, unknown>;
   errors: string[];
 }
 
@@ -25,6 +28,8 @@ const REQUIRED = [
   `${STORAGE_LAB}/describe_projection_store_contract`,
   `${STORAGE_LAB}/describe_retrieval_provider_contract`,
   `${STORAGE_LAB}/draft_multimodal_index_plan`,
+  `${TDB_RETRIEVAL_LAB}/describe_tdb_retrieval_contract`,
+  `${TDB_RETRIEVAL_LAB}/describe_real_tdb_opt_in_seam`,
 ];
 
 export async function buildStorageInspectorModel(
@@ -40,9 +45,9 @@ export async function buildStorageInspectorModel(
   };
   if (!model.available) return model;
 
-  async function capture(key: keyof StorageInspectorModel, capabilityId: string, input: unknown = {}) {
+  async function capture(key: keyof StorageInspectorModel, capabilityId: string, input: unknown = {}, provider = STORAGE_LAB) {
     try {
-      const result = await client.invokeCapability(capabilityId, input, STORAGE_LAB);
+      const result = await client.invokeCapability(capabilityId, input, provider);
       if (typeof result === "object" && result !== null && !Array.isArray(result)) {
         model[key] = result as never;
       } else {
@@ -71,6 +76,8 @@ export async function buildStorageInspectorModel(
       asset_refs: ["asset/example-card", "asset/example-image"],
       schema_hint: "creator_asset_index",
     }),
+    capture("tdb_contract", `${TDB_RETRIEVAL_LAB}/describe_tdb_retrieval_contract`, {}, TDB_RETRIEVAL_LAB),
+    capture("tdb_real_seam", `${TDB_RETRIEVAL_LAB}/describe_real_tdb_opt_in_seam`, {}, TDB_RETRIEVAL_LAB),
   ]);
 
   return model;
@@ -94,6 +101,8 @@ export function renderForgeStoragePanel(model?: StorageInspectorModel): string {
         ${storageTile("Projection / index", model.projection_contract, ["kind", "inference_performed", "network_performed"])}
         ${storageTile("Retrieval / TDB slot", model.retrieval_contract, ["kind", "inference_performed", "network_performed"])}
         ${storageTile("Multimodal index plan", model.multimodal_plan, ["plan_only", "embedding_generated", "vectors_stored"])}
+        ${storageTile("TDB adapter", model.tdb_contract, ["kind", "package_kind", "backend_role"])}
+        ${storageTile("Real TDB opt-in seam", model.tdb_real_seam, ["kind", "status"])}
       </div>
       <div class="project-cta-row">
         ${chip("backend-neutral contract")}${chip("no SQL/DSN in protocol")}${chip("TDB as future provider slot")}${chip("public protocol only")}
@@ -106,7 +115,7 @@ export function renderAssistantStorageHints(model?: StorageInspectorModel): stri
   if (!model) return "";
   const state = model.available ? "ready" : "empty";
   const note = model.available
-    ? "Storage-lab can explain event spine, package state, blob, projection, and retrieval/TDB future contracts without touching real DB backends."
+    ? "Storage-lab and TDB retrieval-lab can explain event spine, package state, blob, projection, retrieval, and real TDB opt-in seams without touching real DB backends."
     : `Missing ${model.missing_capabilities.length} storage capability/capabilities.`;
   return `
     <div class="agent-readiness-panel storage-assist-panel">
@@ -128,7 +137,7 @@ function renderUnavailable(missing: string[]): string {
   return `
     <div class="forge-section storage-inspector-panel muted">
       <div class="section-header"><h2>Storage / Data Backend Neutrality</h2><span class="section-meta">unavailable</span></div>
-      <p class="empty">Load <code>official/storage-lab</code> to inspect backend-neutral storage contracts.</p>
+      <p class="empty">Load <code>official/storage-lab</code> and <code>official/tdb-retrieval-lab</code> to inspect backend-neutral storage and TDB retrieval contracts.</p>
       ${missing.length ? `<details class="surface-metadata"><summary>Missing capabilities</summary><code>${formatJsonPreview(missing)}</code></details>` : ""}
     </div>
   `;
