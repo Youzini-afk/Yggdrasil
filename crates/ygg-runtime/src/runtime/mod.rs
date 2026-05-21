@@ -35,8 +35,9 @@ pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::network::{check_network_policy, NetworkPolicyDecision, OutboundRequest};
 pub use self::outbound::{
     is_secret_header_name, is_static_header_allowed, DenyAllGitOutboundExecutor,
-    DenyAllOutboundExecutor, ExecutorKind, FakeOutboundExecutor, GitFetchKind, GitOutboundExecutor,
-    GitOutboundExecutorConfig, GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
+    DenyAllOutboundExecutor, ExecutorKind, FakeGitOutboundExecutor, FakeOutboundExecutor,
+    GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
+    GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundExecutorResponse, RedactedHeaderValue, ResolvedSecretHeader,
     SecretHeaderSpec, StaticHeader, STATIC_HEADER_ALLOWLIST,
@@ -61,6 +62,8 @@ pub struct RuntimeConfig {
     pub outbound_executor: OutboundExecutorConfig,
     /// Git outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub git_outbound_executor: GitOutboundExecutorConfig,
+    /// Git outbound host policy. Defaults disabled (fail-closed).
+    pub git_outbound_policy: GitOutboundPolicyConfig,
 }
 
 impl Default for RuntimeConfig {
@@ -72,6 +75,7 @@ impl Default for RuntimeConfig {
             secret_resolver: SecretResolverConfig::default(),
             outbound_executor: OutboundExecutorConfig::default(),
             git_outbound_executor: GitOutboundExecutorConfig::default(),
+            git_outbound_policy: GitOutboundPolicyConfig::default(),
         }
     }
 }

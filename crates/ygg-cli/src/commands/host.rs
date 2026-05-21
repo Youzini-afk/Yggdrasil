@@ -6,7 +6,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
-    EventStore, InMemoryEventStore, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore,
+    EventStore, FakeGitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
+    InMemoryEventStore, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore,
 };
 
 use super::manifest::read_manifest;
@@ -68,7 +69,30 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
 
 fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
     validate_git_outbound_profile(&profile.outbound.git)?;
-    Ok(RuntimeConfig::default())
+    let git = &profile.outbound.git;
+    let mut config = RuntimeConfig::default();
+    config.git_outbound_policy = GitOutboundPolicyConfig {
+        enabled: git.enabled,
+        allowed_hosts: git.allowed_hosts.clone(),
+        https_only: git.https_only,
+        max_clone_size_mb: git.max_clone_size_mb,
+        timeout_ms: git.timeout_ms,
+        install_root: git
+            .install_root
+            .as_ref()
+            .map(|path| path.display().to_string()),
+        allow_redirects: git.allow_redirects,
+    };
+    config.git_outbound_executor = match git.executor {
+        HostGitOutboundExecutorKind::DenyAll => GitOutboundExecutorConfig::DenyAll,
+        HostGitOutboundExecutorKind::Fake => {
+            GitOutboundExecutorConfig::Custom(Arc::new(FakeGitOutboundExecutor::new()))
+        }
+        HostGitOutboundExecutorKind::Real => {
+            anyhow::bail!("outbound.git executor real is reserved for later implementation")
+        }
+    };
+    Ok(config)
 }
 
 fn validate_git_outbound_profile(git: &HostGitOutboundProfile) -> Result<()> {
@@ -102,10 +126,11 @@ fn validate_git_outbound_profile(git: &HostGitOutboundProfile) -> Result<()> {
     {
         anyhow::bail!("outbound.git.allowed_hosts must not contain empty hosts or wildcard hosts")
     }
-    if let HostGitOutboundExecutorKind::DenyAll = git.executor {
-        Ok(())
-    } else {
-        anyhow::bail!("outbound.git executor {:?} is reserved for later implementation; G1 only supports deny_all", git.executor)
+    match git.executor {
+        HostGitOutboundExecutorKind::DenyAll | HostGitOutboundExecutorKind::Fake => Ok(()),
+        HostGitOutboundExecutorKind::Real => {
+            anyhow::bail!("outbound.git executor real is reserved for later implementation")
+        }
     }
 }
 

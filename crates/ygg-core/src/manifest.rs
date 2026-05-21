@@ -32,10 +32,24 @@ pub struct PackageManifest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PackageEntry {
-    RustInproc { crate_ref: String, symbol: String, abi_version: u16 },
-    Subprocess { command: Vec<String>, transport: SubprocessTransport },
-    Wasm { module: String, abi_version: u16, memory_limit_mb: u64 },
-    Remote { endpoint: String, auth: RemoteAuth },
+    RustInproc {
+        crate_ref: String,
+        symbol: String,
+        abi_version: u16,
+    },
+    Subprocess {
+        command: Vec<String>,
+        transport: SubprocessTransport,
+    },
+    Wasm {
+        module: String,
+        abi_version: u16,
+        memory_limit_mb: u64,
+    },
+    Remote {
+        endpoint: String,
+        auth: RemoteAuth,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -202,6 +216,8 @@ pub struct PermissionSet {
     #[serde(default)]
     pub network: NetworkPermissions,
     #[serde(default)]
+    pub git_fetch: GitFetchPermissions,
+    #[serde(default)]
     pub filesystem: FilesystemPermissions,
 }
 
@@ -261,6 +277,14 @@ pub struct NetworkPermissions {
     /// Structured network declarations (host, methods, purpose).
     #[serde(default)]
     pub declarations: Vec<NetworkDeclaration>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GitFetchPermissions {
+    /// HTTPS git hosts this package may fetch through `kernel.outbound.git_fetch`.
+    /// Host policy must still independently allow the same destination.
+    #[serde(default)]
+    pub hosts: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

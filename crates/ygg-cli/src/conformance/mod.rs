@@ -5,6 +5,7 @@ mod experience_observability;
 mod experience_runtime;
 mod fixtures;
 mod generated;
+mod git_install;
 mod hooks;
 mod inference_local;
 mod inference_playtest;
@@ -211,6 +212,12 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("outbound.execute_spoofed_package_id_rejected", ["outbound", "network"], network::outbound_execute_spoofed_package_id_rejected),
         c!("outbound.execute_no_permission_denied", ["outbound", "network"], network::outbound_execute_no_permission_denied),
         c!("outbound.execute_no_raw_secret_in_response", ["outbound", "network", "secret"], network::outbound_execute_no_raw_secret_in_response),
+        // --- git outbound ---
+        c!("git_fetch.deny_all_default", ["git", "outbound"], git_install::git_fetch_deny_all_default),
+        c!("git_fetch.requires_https", ["git", "outbound"], git_install::git_fetch_requires_https),
+        c!("git_fetch.requires_host_allowlist", ["git", "outbound"], git_install::git_fetch_requires_host_allowlist),
+        c!("git_fetch.fake_executor_returns_fixture", ["git", "outbound"], git_install::git_fetch_fake_executor_returns_fixture),
+        c!("git_fetch.audit_no_raw_secrets", ["git", "outbound", "secret"], git_install::git_fetch_audit_no_raw_secrets),
         // --- streaming ---
         c!("stream.normal_lifecycle", ["stream"], streaming::stream_normal_lifecycle),
         c!("stream.cancel_blocks_chunks", ["stream"], streaming::stream_cancel_blocks_chunks),

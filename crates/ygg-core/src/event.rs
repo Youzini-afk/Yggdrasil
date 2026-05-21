@@ -37,6 +37,10 @@ pub const EVENT_PERMISSION_REVOKED: &str = "kernel/permission.revoked";
 pub const EVENT_ERROR: &str = "kernel/error";
 pub const EVENT_OUTBOUND_REQUEST: &str = "kernel/outbound.request";
 pub const EVENT_OUTBOUND_DENIED: &str = "kernel/outbound.denied";
+pub const EVENT_GIT_FETCH_REQUESTED: &str = "kernel/git_fetch.requested";
+pub const EVENT_GIT_FETCH_DENIED: &str = "kernel/git_fetch.denied";
+pub const EVENT_GIT_FETCH_COMPLETED: &str = "kernel/git_fetch.completed";
+pub const EVENT_GIT_FETCH_FAILED: &str = "kernel/git_fetch.failed";
 pub const EVENT_STREAM_STARTED: &str = "kernel/stream.started";
 pub const EVENT_STREAM_CHUNK: &str = "kernel/stream.chunk";
 pub const EVENT_STREAM_PROGRESS: &str = "kernel/stream.progress";
@@ -286,6 +290,7 @@ impl EventEnvelope {
         if self.kind.starts_with("kernel/") {
             return self.writer_package_id == KERNEL_PACKAGE_ID;
         }
-        self.kind.starts_with(&format!("{}/", self.writer_package_id))
+        self.kind
+            .starts_with(&format!("{}/", self.writer_package_id))
     }
 }

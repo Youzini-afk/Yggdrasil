@@ -363,6 +363,39 @@ pub struct GitOutboundResponse {
     pub metadata: Value,
 }
 
+/// Host policy for git outbound execution.
+#[derive(Debug, Clone)]
+pub struct GitOutboundPolicyConfig {
+    /// Explicit opt-in. Default is false.
+    pub enabled: bool,
+    /// Allowed HTTPS git hosts. Empty means deny-all.
+    pub allowed_hosts: Vec<String>,
+    /// HTTPS-only guard. Must remain true for real/fake policy parity.
+    pub https_only: bool,
+    /// Maximum clone size, reserved for real executor enforcement.
+    pub max_clone_size_mb: u64,
+    /// Timeout for git operations.
+    pub timeout_ms: u64,
+    /// Host install root, opaque to packages.
+    pub install_root: Option<String>,
+    /// Redirects are fail-closed in the current design.
+    pub allow_redirects: bool,
+}
+
+impl Default for GitOutboundPolicyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            allowed_hosts: Vec::new(),
+            https_only: true,
+            max_clone_size_mb: 64,
+            timeout_ms: 30_000,
+            install_root: None,
+            allow_redirects: false,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // OutboundExecutor trait
 // ---------------------------------------------------------------------------
@@ -447,6 +480,65 @@ impl GitOutboundExecutor for DenyAllGitOutboundExecutor {
             network_performed: false,
             executor_kind: ExecutorKind::DenyAll,
             metadata: Value::Null,
+        })
+    }
+}
+
+/// Deterministic git outbound executor for tests and conformance.
+///
+/// Fixture keys are `(remote_url, reference)`. No real network is performed.
+pub struct FakeGitOutboundExecutor {
+    call_count: std::sync::atomic::AtomicU64,
+    fixtures: HashMap<(String, String), GitOutboundResponse>,
+}
+
+impl FakeGitOutboundExecutor {
+    pub fn new() -> Self {
+        Self {
+            call_count: std::sync::atomic::AtomicU64::new(0),
+            fixtures: HashMap::new(),
+        }
+    }
+
+    pub fn add_fixture(
+        &mut self,
+        remote_url: &str,
+        reference: &str,
+        response: GitOutboundResponse,
+    ) {
+        self.fixtures
+            .insert((remote_url.to_string(), reference.to_string()), response);
+    }
+
+    pub fn call_count(&self) -> u64 {
+        self.call_count.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+impl Default for FakeGitOutboundExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl GitOutboundExecutor for FakeGitOutboundExecutor {
+    async fn fetch(&self, request: GitOutboundRequest) -> anyhow::Result<GitOutboundResponse> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let key = (request.remote_url, request.reference);
+        if let Some(response) = self.fixtures.get(&key) {
+            return Ok(response.clone());
+        }
+        Ok(GitOutboundResponse {
+            status: "error".to_string(),
+            resolved_commit_sha: None,
+            resolved_content_hash: None,
+            resolved_path: None,
+            redaction_state: RedactionState::Redacted,
+            network_performed: false,
+            executor_kind: ExecutorKind::Fake,
+            metadata: serde_json::json!({"error": "missing_fake_git_fixture"}),
         })
     }
 }
@@ -1107,6 +1199,222 @@ where
             GitOutboundExecutorConfig::Custom(executor) => executor.clone(),
         }
     }
+
+    /// Execute a git fetch through host policy, package permissions, audit, and executor.
+    pub async fn execute_git_outbound_with_policy(
+        &self,
+        principal: crate::ProtocolPrincipal,
+        request: GitOutboundRequest,
+    ) -> anyhow::Result<GitOutboundResponse> {
+        let host = validate_git_outbound_request_shape(&request)?;
+        let session_id = format!("kernel_git_fetch_{}", request.package_id.replace('/', "_"));
+
+        let policy = &self.config.git_outbound_policy;
+        if !policy.enabled {
+            return self
+                .deny_git_fetch(
+                    &principal,
+                    &request,
+                    &host,
+                    "host policy has not enabled outbound.git",
+                )
+                .await;
+        }
+        if !policy.https_only {
+            return self
+                .deny_git_fetch(
+                    &principal,
+                    &request,
+                    &host,
+                    "host policy attempted to disable HTTPS-only git fetch",
+                )
+                .await;
+        }
+        if policy.allow_redirects {
+            return self
+                .deny_git_fetch(
+                    &principal,
+                    &request,
+                    &host,
+                    "git fetch redirects are disabled",
+                )
+                .await;
+        }
+        if policy.allowed_hosts.is_empty()
+            || !policy
+                .allowed_hosts
+                .iter()
+                .any(|allowed| git_host_matches(allowed, &host))
+        {
+            return self
+                .deny_git_fetch(
+                    &principal,
+                    &request,
+                    &host,
+                    &format!("host policy does not allow git host '{host}'"),
+                )
+                .await;
+        }
+        if !request.secret_refs.is_empty() {
+            return self
+                .deny_git_fetch(
+                    &principal,
+                    &request,
+                    &host,
+                    "private git auth is not supported in this stage; secret_refs must be empty",
+                )
+                .await;
+        }
+
+        let permissions = self
+            .packages
+            .permissions(&request.package_id)
+            .await
+            .unwrap_or_default();
+        if !permissions
+            .git_fetch
+            .hosts
+            .iter()
+            .any(|allowed| git_host_matches(allowed, &host))
+        {
+            return self
+                .deny_git_fetch(
+                    &principal,
+                    &request,
+                    &host,
+                    &format!(
+                        "package '{}' has no git_fetch permission for host '{host}'",
+                        request.package_id
+                    ),
+                )
+                .await;
+        }
+
+        let requested_payload =
+            git_audit_payload(&principal, &request, &host, "requested", None, None);
+        self.append_kernel_event(
+            &session_id,
+            ygg_core::EVENT_GIT_FETCH_REQUESTED,
+            requested_payload,
+        )
+        .await?;
+
+        let executor = self.git_outbound_executor();
+        let response = executor.fetch(request.clone()).await?;
+        let terminal_kind = match response.status.as_str() {
+            "ok" => ygg_core::EVENT_GIT_FETCH_COMPLETED,
+            "denied" => ygg_core::EVENT_GIT_FETCH_DENIED,
+            _ => ygg_core::EVENT_GIT_FETCH_FAILED,
+        };
+        let terminal_payload = git_audit_payload(
+            &principal,
+            &request,
+            &host,
+            &response.status,
+            None,
+            Some(&response),
+        );
+        self.append_kernel_event(&session_id, terminal_kind, terminal_payload)
+            .await?;
+
+        if response.status == "denied" {
+            anyhow::bail!("git fetch denied by executor")
+        }
+        if response.status == "error" || response.status == "timeout" {
+            anyhow::bail!("git fetch failed with status '{}'", response.status)
+        }
+        Ok(response)
+    }
+
+    async fn deny_git_fetch(
+        &self,
+        principal: &crate::ProtocolPrincipal,
+        request: &GitOutboundRequest,
+        host: &str,
+        reason: &str,
+    ) -> anyhow::Result<GitOutboundResponse> {
+        let session_id = format!("kernel_git_fetch_{}", request.package_id.replace('/', "_"));
+        let payload = git_audit_payload(
+            principal,
+            request,
+            host,
+            "denied",
+            Some(reason.to_string()),
+            None,
+        );
+        self.append_kernel_event(&session_id, ygg_core::EVENT_GIT_FETCH_DENIED, payload)
+            .await?;
+        anyhow::bail!("git fetch denied: {reason}")
+    }
+}
+
+fn validate_git_outbound_request_shape(request: &GitOutboundRequest) -> anyhow::Result<String> {
+    if !request
+        .capability_id
+        .starts_with(&format!("{}/", request.package_id))
+    {
+        anyhow::bail!(
+            "kernel.outbound.git_fetch capability_id must belong to caller package namespace"
+        );
+    }
+    if request.reference.trim().is_empty() {
+        anyhow::bail!("kernel.outbound.git_fetch requires non-empty ref");
+    }
+    let url = reqwest::Url::parse(&request.remote_url)
+        .map_err(|_| anyhow::anyhow!("kernel.outbound.git_fetch remote_url is invalid"))?;
+    if url.scheme() != "https" {
+        anyhow::bail!("kernel.outbound.git_fetch requires an HTTPS git URL");
+    }
+    if !url.username().is_empty() || url.password().is_some() || url.query().is_some() {
+        anyhow::bail!(
+            "kernel.outbound.git_fetch remote_url must not contain credentials or query strings"
+        );
+    }
+    let host = url
+        .host_str()
+        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.git_fetch remote_url requires host"))?;
+    Ok(host.to_string())
+}
+
+fn git_host_matches(pattern: &str, host: &str) -> bool {
+    if pattern == host {
+        return true;
+    }
+    if pattern == "*" || pattern.trim().is_empty() {
+        return false;
+    }
+    if let Some(suffix) = pattern.strip_prefix("*.") {
+        return host == suffix || host.ends_with(&format!(".{suffix}"));
+    }
+    false
+}
+
+fn git_audit_payload(
+    principal: &crate::ProtocolPrincipal,
+    request: &GitOutboundRequest,
+    host: &str,
+    status: &str,
+    error: Option<String>,
+    response: Option<&GitOutboundResponse>,
+) -> Value {
+    serde_json::json!({
+        "principal": principal,
+        "package_id": request.package_id,
+        "capability_id": request.capability_id,
+        "remote_url": request.remote_url,
+        "destination_host": host,
+        "ref": request.reference,
+        "fetch_kind": request.fetch_kind,
+        "status": status,
+        "error": error,
+        "resolved_commit_sha": response.and_then(|r| r.resolved_commit_sha.clone()),
+        "resolved_content_hash": response.and_then(|r| r.resolved_content_hash.clone()),
+        "resolved_path": response.and_then(|r| r.resolved_path.clone()),
+        "redaction_state": response.map(|r| r.redaction_state).unwrap_or(RedactionState::Redacted),
+        "secret_refs_used": request.secret_refs,
+        "network_performed": response.map(|r| r.network_performed).unwrap_or(false),
+        "executor_kind": response.map(|r| r.executor_kind),
+    })
 }
 
 fn validate_policy_executor_consistency(

@@ -36,12 +36,13 @@ pub use redaction::{
 pub use runtime::{
     check_network_policy, content_address, is_secret_header_name, is_static_header_allowed,
     standard_asset_metadata, AppendEventRequest, DenyAllGitOutboundExecutor,
-    DenyAllOutboundExecutor, EventListRequest, ExecutorKind, FakeOutboundExecutor, GitFetchKind,
-    GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundRequest, GitOutboundResponse,
-    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, NetworkPolicyDecision,
-    OpenSessionRequest, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
-    OutboundExecutorResponse, OutboundRequest, RedactedHeaderValue, ResolvedSecretHeader, Runtime,
-    RuntimeConfig, SecretHeaderSpec, StaticHeader, StreamRegistry, STATIC_HEADER_ALLOWLIST,
+    DenyAllOutboundExecutor, EventListRequest, ExecutorKind, FakeGitOutboundExecutor,
+    FakeOutboundExecutor, GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig,
+    GitOutboundPolicyConfig, GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
+    LiveHttpOutboundExecutorConfig, NetworkPolicyDecision, OpenSessionRequest, OutboundExecutor,
+    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundRequest,
+    RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
+    StaticHeader, StreamRegistry, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{

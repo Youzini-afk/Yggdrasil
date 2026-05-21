@@ -63,6 +63,7 @@ pub enum KernelMethod {
     SurfaceContributionDescribe,
     OutboundAudit,
     OutboundExecute,
+    OutboundGitFetch,
 }
 
 impl KernelMethod {
@@ -118,6 +119,7 @@ impl KernelMethod {
             Self::SurfaceContributionDescribe => "kernel.surface.contribution.describe",
             Self::OutboundAudit => "kernel.outbound.audit",
             Self::OutboundExecute => "kernel.outbound.execute",
+            Self::OutboundGitFetch => "kernel.outbound.git_fetch",
         }
     }
 
@@ -173,6 +175,7 @@ impl KernelMethod {
             Self::SurfaceContributionDescribe => MethodStatus::Partial,
             Self::OutboundAudit => MethodStatus::Partial,
             Self::OutboundExecute => MethodStatus::Partial,
+            Self::OutboundGitFetch => MethodStatus::Partial,
         }
     }
 
@@ -236,6 +239,7 @@ impl KernelMethod {
             Self::SurfaceContributionDescribe,
             Self::OutboundAudit,
             Self::OutboundExecute,
+            Self::OutboundGitFetch,
         ]
     }
 
@@ -291,7 +295,8 @@ impl KernelMethod {
             | Self::SurfaceContributionList
             | Self::SurfaceContributionDescribe
             | Self::OutboundAudit
-            | Self::OutboundExecute => true,
+            | Self::OutboundExecute
+            | Self::OutboundGitFetch => true,
             // Planned methods with no dispatch yet
             Self::SessionGet
             | Self::SessionList
@@ -364,6 +369,7 @@ impl FromStr for KernelMethod {
             "kernel.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
             "kernel.outbound.audit" => Ok(Self::OutboundAudit),
             "kernel.outbound.execute" => Ok(Self::OutboundExecute),
+            "kernel.outbound.git_fetch" => Ok(Self::OutboundGitFetch),
             other => Err(format!("unknown kernel method: {other}")),
         }
     }
