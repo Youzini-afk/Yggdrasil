@@ -2,11 +2,11 @@
 
 > 中文默认说明见 [`README.md`](./README.md).
 
-This directory records how Yggdrasil studies and absorbs `/workspace/Yggdrasil/pi` without turning pi into the kernel, protocol, or an official privileged path.
+This directory records how Yggdrasil studies and absorbs [pi](https://github.com/earendil-works/pi) without turning pi into the kernel, protocol, or an official privileged path.
 
 ## Upstream snapshot
 
-- Local reference path: `/workspace/Yggdrasil/pi`
+- Upstream repo: https://github.com/earendil-works/pi
 - Upstream project: `pi` agent harness mono repo
 - License: MIT
 - Key packages:

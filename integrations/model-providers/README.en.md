@@ -14,8 +14,8 @@ This directory records the research boundary for Model Provider Integration Alph
 - DeepSeek
 - xAI
 - Fireworks
-- Local reference: `/workspace/nashiyard/new-api`
-- Local reference: `/workspace/Yggdrasil/TavernHeadless`
+- Reference project: [new-api](https://github.com/Youzini-afk/new-api)
+- Reference project: [TavernHeadless](https://github.com/Youzini-afk/TavernHeadless)
 
 ## Conclusions for Yggdrasil
 

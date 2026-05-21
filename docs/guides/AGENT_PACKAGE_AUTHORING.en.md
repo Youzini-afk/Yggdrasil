@@ -122,7 +122,7 @@ Forge's Agent Observability section and the Assist Drawer Agent Readiness panel 
 
 ## Relationship to pi
 
-`/workspace/Yggdrasil/pi` is a reference source:
+[pi](https://github.com/earendil-works/pi) is a reference source:
 
 - `pi-agent-core` event/tool/gate/queue ideas may be absorbed inside ordinary packages.
 - `pi-ai` faux provider and stream shapes may inform future model packages.

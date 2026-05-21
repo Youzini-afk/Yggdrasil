@@ -1,6 +1,6 @@
 # new-api Ledger
 
-> 中文默认说明。本文件总结 `/workspace/nashiyard/new-api` 对 Yggdrasil 有用和不应吸收的经验。
+> 中文默认说明。本文件总结 [new-api](https://github.com/Youzini-afk/new-api) 对 Yggdrasil 有用和不应吸收的经验。
 
 ## 可吸收经验
 

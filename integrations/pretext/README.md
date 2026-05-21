@@ -7,7 +7,6 @@ This directory records how Yggdrasil studies [Pretext](https://github.com/chengl
 Pretext (`@chenglou/pretext`) is a pure JavaScript/TypeScript library for multiline text measurement and layout. It uses the browser's Canvas 2D text engine as ground truth and `Intl.Segmenter` for Unicode-aware segmentation, avoiding DOM-based measurements that trigger synchronous layout reflow.
 
 - **License:** MIT
-- **Path:** `/workspace/Yggdrasil/pretext` (local reference clone)
 - **Version observed:** `0.0.7`
 - **Repository:** `https://github.com/chenglou/pretext`
 

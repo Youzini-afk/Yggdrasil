@@ -122,7 +122,7 @@ Forge 的 Agent Observability section 和 Assist Drawer 的 Agent Readiness pane
 
 ## 与 pi 的关系
 
-`/workspace/Yggdrasil/pi` 是参考来源：
+[pi](https://github.com/earendil-works/pi) 是参考来源：
 
 - `pi-agent-core` 的 event/tool/gate/queue 思路可被普通包内部吸收。
 - `pi-ai` 的 faux provider / stream shape 可作为未来 model package 参考。

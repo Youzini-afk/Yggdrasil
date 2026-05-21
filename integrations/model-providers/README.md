@@ -14,8 +14,8 @@
 - DeepSeek
 - xAI
 - Fireworks
-- 本地参考：`/workspace/nashiyard/new-api`
-- 本地参考：`/workspace/Yggdrasil/TavernHeadless`
+- 参考项目：[new-api](https://github.com/Youzini-afk/new-api)
+- 参考项目：[TavernHeadless](https://github.com/Youzini-afk/TavernHeadless)
 
 ## 对 Yggdrasil 的结论
 

@@ -1,6 +1,6 @@
 [upstream]
 name = "pi"
-local_path = "/workspace/Yggdrasil/pi"
+upstream_repo = "https://github.com/earendil-works/pi"
 license = "MIT"
 observed_date = "2026-05-17"
 

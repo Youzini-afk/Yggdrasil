@@ -2,7 +2,7 @@
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-This document fixes how Yggdrasil absorbs agent-framework capabilities from `/workspace/Yggdrasil/pi`. The conclusion is: pi is an important reference source and an optional package-internal implementation source for agent package infrastructure, but it is not the Yggdrasil kernel, protocol, or product shell.
+This document fixes how Yggdrasil absorbs agent-framework capabilities from [pi](https://github.com/earendil-works/pi). The conclusion is: pi is an important reference source and an optional package-internal implementation source for agent package infrastructure, but it is not the Yggdrasil kernel, protocol, or product shell.
 
 ## Current position
 

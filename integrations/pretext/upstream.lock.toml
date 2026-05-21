@@ -1,8 +1,7 @@
 [source]
 name = "Pretext"
-path = "../pretext"
 repo = "https://github.com/chenglou/pretext.git"
-commit = "local-reference"
+commit = "18770ada528b8dc5ed6bc7bc406a46bfa9c14971"
 root_version = "0.0.7"
 api_version = "0.0.7"
 

@@ -1,7 +1,6 @@
 [source]
 name = "TavernHeadless"
-path = "../TavernHeadless"
-repo = "local-reference"
+repo = "https://github.com/Youzini-afk/TavernHeadless"
 commit = "691c431f0fda03a4ad5cab2fab0c70961f802ff9"
 root_version = "0.1.0"
 api_version = "0.2.0-beta.3"

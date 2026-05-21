@@ -2,7 +2,7 @@
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-本文档固定 Yggdrasil 如何吸收 `/workspace/Yggdrasil/pi` 的 agent 框架能力。结论是：pi 是 agent package infrastructure 的重要参考来源和可选包内实现来源，但不是 Yggdrasil 内核、协议或产品壳。
+本文档固定 Yggdrasil 如何吸收 [pi](https://github.com/earendil-works/pi) 的 agent 框架能力。结论是：pi 是 agent package infrastructure 的重要参考来源和可选包内实现来源，但不是 Yggdrasil 内核、协议或产品壳。
 
 ## 当前立场
 
