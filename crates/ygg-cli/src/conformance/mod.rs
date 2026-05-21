@@ -395,6 +395,17 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("storage_backend.backend_parity_concurrent_append", ["storage", "substrate"], storage_backend::backend_parity_concurrent_append),
         c!("storage_backend.backend_parity_subscription", ["storage", "substrate"], storage_backend::backend_parity_subscription),
         c!("storage_backend.rehydrate_parity", ["storage", "substrate"], storage_backend::storage_backend_rehydrate_parity),
+        // --- storage backend neutrality S1 — PostgreSQL (opt-in) ---
+        #[cfg(feature = "postgres")]
+        c!("storage_backend.postgres_event_store_contract_append_range", ["storage", "substrate", "postgres"], storage_backend::postgres_event_store_contract_append_range),
+        #[cfg(feature = "postgres")]
+        c!("storage_backend.postgres_backend_parity_kind_prefix", ["storage", "substrate", "postgres"], storage_backend::postgres_backend_parity_kind_prefix),
+        #[cfg(feature = "postgres")]
+        c!("storage_backend.postgres_backend_parity_concurrent_append", ["storage", "substrate", "postgres"], storage_backend::postgres_backend_parity_concurrent_append),
+        #[cfg(feature = "postgres")]
+        c!("storage_backend.postgres_backend_parity_subscription", ["storage", "substrate", "postgres"], storage_backend::postgres_backend_parity_subscription),
+        #[cfg(feature = "postgres")]
+        c!("storage_backend.postgres_rehydrate_parity", ["storage", "substrate", "postgres"], storage_backend::postgres_rehydrate_parity),
         // --- storage-lab (Storage Backend Neutrality Alpha S2) ---
         c!("storage_lab.contract_shape_no_kernel_database_terms", ["storage_lab", "storage", "official"], storage_lab::contract_shape_no_kernel_database_terms),
         c!("storage_lab.backend_classes_no_credentials", ["storage_lab", "storage"], storage_lab::backend_classes_no_secret_config),

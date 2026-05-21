@@ -22,3 +22,7 @@ tracing-subscriber.workspace = true
 ygg-core.workspace = true
 ygg-runtime.workspace = true
 ygg-service.workspace = true
+
+[features]
+default = []
+postgres = ["ygg-runtime/postgres"]

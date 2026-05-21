@@ -690,3 +690,442 @@ impl EventStore for InMemoryEventStore {
         Ok(events)
     }
 }
+
+// ---------------------------------------------------------------------------
+// PostgresEventStore (feature-gated, opt-in)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "postgres")]
+mod postgres_backend {
+    use super::*;
+
+    use deadpool_postgres::Pool;
+    use tokio_postgres::types::ToSql;
+
+    /// PostgreSQL-backed `EventStore` implementation.
+    ///
+    /// This is an **opt-in** backend. It is not compiled unless the
+    /// `postgres` feature is enabled, and it never affects the default
+    /// build. Connection details (DSN, user, password) are accepted by
+    /// the constructor only and are never written to events, proposals,
+    /// logs, or public diagnostics.
+    ///
+    /// # Concurrent sequence guarantee
+    ///
+    /// `append_with_sequence` uses `pg_advisory_xact_lock` on a hash of
+    /// the session_id to serialise per-session appends within a
+    /// transaction, then selects `max(sequence)+1` and inserts —
+    /// guaranteeing contiguous, non-repeating sequence numbers without
+    /// relying on PostgreSQL sequences (which do not guarantee gapless
+    /// numbering).
+    #[derive(Clone)]
+    pub struct PostgresEventStore {
+        pool: Pool,
+        tx: broadcast::Sender<EventEnvelope>,
+    }
+
+    impl PostgresEventStore {
+        /// Connect to a PostgreSQL database and initialise the event
+        /// store schema. `database_url` is consumed here and never
+        /// stored beyond the pool internals; it is never written to
+        /// events, proposals, logs, or public output.
+        pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
+            let pg_config: tokio_postgres::Config = database_url.parse().map_err(|_e| {
+                anyhow::anyhow!("postgres config parse error (details redacted)")
+            })?;
+            let mgr = deadpool_postgres::Manager::new(pg_config, tokio_postgres::NoTls);
+            let pool = Pool::builder(mgr)
+                .max_size(5)
+                .build()
+                .map_err(|_e| {
+                    anyhow::anyhow!("postgres pool create error (details redacted)")
+                })?;
+
+            // Verify connectivity and init schema
+            let conn = pool.get().await.map_err(|_e| {
+                anyhow::anyhow!("postgres connect error (details redacted)")
+            })?;
+            conn.batch_execute(
+                r#"
+                CREATE TABLE IF NOT EXISTS events (
+                  id TEXT PRIMARY KEY,
+                  session_id TEXT NOT NULL,
+                  sequence BIGINT NOT NULL,
+                  timestamp TEXT NOT NULL,
+                  writer_package_id TEXT NOT NULL,
+                  kind TEXT NOT NULL,
+                  schema_version INTEGER NOT NULL,
+                  payload_json JSONB NOT NULL,
+                  metadata_json JSONB NOT NULL,
+                  UNIQUE(session_id, sequence)
+                );
+                CREATE INDEX IF NOT EXISTS idx_events_session_sequence ON events(session_id, sequence);
+                CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
+                CREATE INDEX IF NOT EXISTS idx_events_session_kind_sequence ON events(session_id, kind, sequence);
+                "#,
+            )
+            .await
+            .map_err(|_e| {
+                anyhow::anyhow!("postgres schema init error (details redacted)")
+            })?;
+
+            let (tx, _) = broadcast::channel(256);
+            Ok(Self { pool, tx })
+        }
+    }
+
+    /// Helper to redact all postgres errors.
+    fn redact_pg(_e: impl std::fmt::Debug) -> anyhow::Error {
+        anyhow::anyhow!("postgres error (details redacted)")
+    }
+
+    /// Map a row to EventEnvelope.
+    fn row_to_event(row: &tokio_postgres::Row) -> anyhow::Result<EventEnvelope> {
+        let id: String = row.try_get(0)?;
+        let session_id: String = row.try_get(1)?;
+        let sequence: i64 = row.try_get(2)?;
+        let timestamp_str: String = row.try_get(3)?;
+        let writer_package_id: String = row.try_get(4)?;
+        let kind: String = row.try_get(5)?;
+        let schema_version: i32 = row.try_get(6)?;
+        let payload_json: serde_json::Value = row.try_get(7)?;
+        let metadata_json: serde_json::Value = row.try_get(8)?;
+
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .map_err(|_e| anyhow::anyhow!("timestamp parse error"))?;
+
+        Ok(EventEnvelope {
+            id,
+            session_id,
+            sequence: sequence as EventSequence,
+            timestamp,
+            writer_package_id,
+            kind,
+            schema_version: schema_version as u16,
+            payload: payload_json,
+            metadata: metadata_json,
+        })
+    }
+
+    #[async_trait]
+    impl EventStore for PostgresEventStore {
+        async fn append(&self, event: EventEnvelope) -> anyhow::Result<()> {
+            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let payload = serde_json::to_string(&event.payload)?;
+            let metadata = serde_json::to_string(&event.metadata)?;
+            conn.execute(
+                "INSERT INTO events (id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)",
+                &[
+                    &event.id as &(dyn ToSql + Sync),
+                    &event.session_id,
+                    &(event.sequence as i64),
+                    &event.timestamp.to_rfc3339(),
+                    &event.writer_package_id,
+                    &event.kind,
+                    &(event.schema_version as i32),
+                    &payload,
+                    &metadata,
+                ],
+            )
+            .await
+            .map_err(redact_pg)?;
+            let _ = self.tx.send(event);
+            Ok(())
+        }
+
+        async fn list_session(&self, session_id: &SessionId) -> anyhow::Result<Vec<EventEnvelope>> {
+            self.list_session_range(session_id, None, None).await
+        }
+
+        async fn list_all(&self) -> anyhow::Result<Vec<EventEnvelope>> {
+            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let rows = conn
+                .query(
+                    "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+                     FROM events ORDER BY timestamp ASC, session_id ASC, sequence ASC",
+                    &[],
+                )
+                .await
+                .map_err(redact_pg)?;
+            rows.iter().map(|r| row_to_event(r)).collect()
+        }
+
+        async fn list_session_range(
+            &self,
+            session_id: &SessionId,
+            after_sequence: Option<EventSequence>,
+            limit: Option<usize>,
+        ) -> anyhow::Result<Vec<EventEnvelope>> {
+            let after = after_sequence.map(|s| s as i64).unwrap_or(-1);
+            let lim = limit.unwrap_or(1_000).min(10_000) as i64;
+            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let rows = conn
+                .query(
+                    "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+                     FROM events WHERE session_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT $3",
+                    &[session_id, &after, &lim],
+                )
+                .await
+                .map_err(redact_pg)?;
+            rows.iter().map(|r| row_to_event(r)).collect()
+        }
+
+        async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence> {
+            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let row = conn
+                .query_one(
+                    "SELECT COALESCE(MAX(sequence) + 1, 0) FROM events WHERE session_id = $1",
+                    &[session_id],
+                )
+                .await
+                .map_err(redact_pg)?;
+            let next: i64 = row.try_get(0)?;
+            Ok(next as EventSequence)
+        }
+
+        fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {
+            self.tx.subscribe()
+        }
+
+        /// Atomically append: take a session-scoped advisory transaction
+        /// lock, read `max(sequence)+1`, and insert within the same
+        /// transaction. This guarantees no duplicate or gap in per-session
+        /// sequence numbers under concurrent access.
+        async fn append_with_sequence(
+            &self,
+            session_id: SessionId,
+            writer_package_id: PackageId,
+            kind: EventKind,
+            schema_version: u16,
+            payload_json: serde_json::Value,
+            metadata_json: serde_json::Value,
+        ) -> anyhow::Result<EventEnvelope> {
+            let mut conn = self.pool.get().await.map_err(redact_pg)?;
+            let tx = conn.transaction().await.map_err(redact_pg)?;
+
+            // Acquire session-scoped advisory lock (released on commit/rollback)
+            tx.execute(
+                "SELECT pg_advisory_xact_lock(hashtext($1))",
+                &[&session_id],
+            )
+            .await
+            .map_err(redact_pg)?;
+
+            let row = tx
+                .query_one(
+                    "SELECT COALESCE(MAX(sequence) + 1, 0) FROM events WHERE session_id = $1",
+                    &[&session_id],
+                )
+                .await
+                .map_err(redact_pg)?;
+            let next_seq: i64 = row.try_get(0)?;
+
+            let event = EventEnvelope {
+                id: ygg_core::new_id("evt"),
+                session_id,
+                sequence: next_seq as EventSequence,
+                timestamp: chrono::Utc::now(),
+                writer_package_id,
+                kind,
+                schema_version,
+                payload: payload_json,
+                metadata: metadata_json,
+            };
+
+            let payload = serde_json::to_string(&event.payload)?;
+            let metadata = serde_json::to_string(&event.metadata)?;
+
+            tx.execute(
+                "INSERT INTO events (id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)",
+                &[
+                    &event.id as &(dyn ToSql + Sync),
+                    &event.session_id,
+                    &(event.sequence as i64),
+                    &event.timestamp.to_rfc3339(),
+                    &event.writer_package_id,
+                    &event.kind,
+                    &(event.schema_version as i32),
+                    &payload,
+                    &metadata,
+                ],
+            )
+            .await
+            .map_err(redact_pg)?;
+
+            tx.commit().await.map_err(redact_pg)?;
+
+            let _ = self.tx.send(event.clone());
+            Ok(event)
+        }
+
+        /// PostgreSQL pushdown: range scan on `kind` with optional upper
+        /// bound to avoid full-table scan.
+        async fn list_kind_prefix(&self, prefix: &str) -> anyhow::Result<Vec<EventEnvelope>> {
+            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let prefix_end = kind_prefix_upper_bound(prefix);
+            let rows = if let Some(end) = prefix_end {
+                conn.query(
+                    "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+                     FROM events WHERE kind >= $1 AND kind < $2
+                     ORDER BY timestamp ASC, session_id ASC, sequence ASC",
+                    &[&prefix, &end],
+                )
+                .await
+            } else {
+                conn.query(
+                    "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+                     FROM events WHERE kind LIKE $1
+                     ORDER BY timestamp ASC, session_id ASC, sequence ASC",
+                    &[&format!("{}%", prefix)],
+                )
+                .await
+            }
+            .map_err(redact_pg)?;
+            rows.iter().map(|r| row_to_event(r)).collect()
+        }
+
+        /// PostgreSQL pushdown: session + kind range scan.
+        async fn list_session_kind_prefix(
+            &self,
+            session_id: &SessionId,
+            prefix: &str,
+        ) -> anyhow::Result<Vec<EventEnvelope>> {
+            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let prefix_end = kind_prefix_upper_bound(prefix);
+            let rows = if let Some(end) = prefix_end {
+                conn.query(
+                    "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+                     FROM events WHERE session_id = $1 AND kind >= $2 AND kind < $3
+                     ORDER BY sequence ASC",
+                    &[session_id, &prefix, &end],
+                )
+                .await
+            } else {
+                conn.query(
+                    "SELECT id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json
+                     FROM events WHERE session_id = $1 AND kind LIKE $2
+                     ORDER BY sequence ASC",
+                    &[session_id, &format!("{}%", prefix)],
+                )
+                .await
+            }
+            .map_err(redact_pg)?;
+            rows.iter().map(|r| row_to_event(r)).collect()
+        }
+    }
+
+    #[cfg(test)]
+    mod postgres_tests {
+        use super::*;
+        use serde_json::json;
+        use ygg_core::KERNEL_PACKAGE_ID;
+
+        /// Helper: connect to PG if `YGG_POSTGRES_TEST_DATABASE_URL` is set,
+        /// otherwise skip the test.
+        async fn connect_or_skip() -> Option<PostgresEventStore> {
+            let url = std::env::var("YGG_POSTGRES_TEST_DATABASE_URL").ok()?;
+            match PostgresEventStore::connect(&url).await {
+                Ok(store) => Some(store),
+                Err(e) => {
+                    eprintln!("NOTE: YGG_POSTGRES_TEST_DATABASE_URL set but connection failed (skipping): {e}");
+                    None
+                }
+            }
+        }
+
+        #[tokio::test]
+        async fn postgres_store_basic_contract() -> anyhow::Result<()> {
+            let Some(store) = connect_or_skip().await else {
+                return Ok(());
+            };
+            let session_id = format!("ses_pg_test_{}", ygg_core::new_id("pg"));
+            store
+                .append_with_sequence(
+                    session_id.clone(),
+                    KERNEL_PACKAGE_ID.to_string(),
+                    "kernel/session.opened".to_string(),
+                    1,
+                    json!({}),
+                    json!({}),
+                )
+                .await?;
+
+            let events = store.list_session(&session_id).await?;
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].sequence, 0);
+
+            let next = store.next_sequence(&session_id).await?;
+            assert_eq!(next, 1);
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn postgres_concurrent_append_no_duplicate_sequences() -> anyhow::Result<()> {
+            let Some(store) = connect_or_skip().await else {
+                return Ok(());
+            };
+            let session_id = format!("ses_pg_concurrent_{}", ygg_core::new_id("pg"));
+            let store = Arc::new(store);
+
+            store
+                .append_with_sequence(
+                    session_id.clone(),
+                    KERNEL_PACKAGE_ID.to_string(),
+                    "kernel/session.opened".to_string(),
+                    1,
+                    json!({}),
+                    json!({}),
+                )
+                .await?;
+
+            let n = 20;
+            let mut handles = Vec::new();
+            for i in 0..n {
+                let s = store.clone();
+                let sid = session_id.clone();
+                handles.push(tokio::spawn(async move {
+                    s.append_with_sequence(
+                        sid,
+                        KERNEL_PACKAGE_ID.to_string(),
+                        format!("test/concurrent.{}", i),
+                        1,
+                        json!({"i": i}),
+                        json!({}),
+                    )
+                    .await
+                }));
+            }
+            for h in handles {
+                let _ = h.await.unwrap()?;
+            }
+
+            let events = store.list_session(&session_id).await?;
+            let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
+            sequences.sort();
+            let dedup: std::collections::HashSet<u64> =
+                sequences.iter().copied().collect();
+            assert_eq!(
+                dedup.len(),
+                sequences.len(),
+                "duplicate sequences found: {:?}",
+                sequences
+            );
+            for (i, seq) in sequences.iter().enumerate() {
+                assert_eq!(
+                    *seq,
+                    i as u64,
+                    "non-contiguous at index {}: {}",
+                    i,
+                    seq
+                );
+            }
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "postgres")]
+pub use postgres_backend::PostgresEventStore;

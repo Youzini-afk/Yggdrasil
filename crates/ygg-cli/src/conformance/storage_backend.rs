@@ -469,3 +469,246 @@ pub(crate) async fn storage_backend_rehydrate_parity() -> anyhow::Result<()> {
     let _ = fs::remove_file(path);
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// PostgreSQL opt-in conformance cases
+// ---------------------------------------------------------------------------
+// These cases only run when:
+//   1. `cfg(feature="postgres")` is enabled, AND
+//   2. `YGG_POSTGRES_TEST_DATABASE_URL` is set in the environment.
+// Otherwise they silently skip (return Ok).
+// Default CI/conformance is unaffected.
+
+#[cfg(feature = "postgres")]
+pub(crate) async fn postgres_event_store_contract_append_range() -> anyhow::Result<()> {
+    let database_url = match std::env::var("YGG_POSTGRES_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => return Ok(()),
+    };
+    let store = ygg_runtime::PostgresEventStore::connect(&database_url).await?;
+    let sid: SessionId = format!("ses_pg_contract_{}", ygg_core::new_id("pg"));
+
+    store.append(make_event(&sid, 0, "test/alpha")).await?;
+    store.append(make_event(&sid, 1, "test/beta")).await?;
+    store.append(make_event(&sid, 2, "test/gamma")).await?;
+
+    let session_events = store.list_session(&sid).await?;
+    anyhow::ensure!(session_events.len() == 3, "expected 3 session events, got {}", session_events.len());
+
+    let all_events = store.list_all().await?;
+    anyhow::ensure!(all_events.len() >= 3, "expected at least 3 total events, got {}", all_events.len());
+
+    let range = store.list_session_range(&sid, Some(0), None).await?;
+    anyhow::ensure!(range.len() == 2, "expected 2 events after seq 0, got {}", range.len());
+    anyhow::ensure!(range[0].sequence == 1);
+    anyhow::ensure!(range[1].sequence == 2);
+
+    let range_limited = store.list_session_range(&sid, None, Some(1)).await?;
+    anyhow::ensure!(range_limited.len() == 1, "expected 1 event with limit 1");
+    anyhow::ensure!(range_limited[0].sequence == 0);
+
+    let next = store.next_sequence(&sid).await?;
+    anyhow::ensure!(next == 3, "expected next_sequence=3, got {}", next);
+
+    let unknown_sid: SessionId = format!("ses_pg_unknown_{}", ygg_core::new_id("pg"));
+    let unknown_next = store.next_sequence(&unknown_sid).await?;
+    anyhow::ensure!(unknown_next == 0, "expected next_sequence=0 for unknown session, got {}", unknown_next);
+
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> {
+    let database_url = match std::env::var("YGG_POSTGRES_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => return Ok(()),
+    };
+    let pg = ygg_runtime::PostgresEventStore::connect(&database_url).await?;
+    let mem = InMemoryEventStore::default();
+    let sid: SessionId = format!("ses_pg_prefix_{}", ygg_core::new_id("pg"));
+
+    let kinds = [
+        "kernel/permission.granted",
+        "kernel/permission.denied",
+        "kernel/session.opened",
+        "test/custom.event",
+    ];
+
+    for kind in &kinds {
+        mem.append_with_sequence(
+            sid.clone(),
+            KERNEL_PACKAGE_ID.to_string(),
+            kind.to_string(),
+            1,
+            json!({}),
+            json!({}),
+        )
+        .await?;
+        pg.append_with_sequence(
+            sid.clone(),
+            KERNEL_PACKAGE_ID.to_string(),
+            kind.to_string(),
+            1,
+            json!({}),
+            json!({}),
+        )
+        .await?;
+    }
+
+    let mem_perm = mem.list_kind_prefix("kernel/permission").await?;
+    let pg_perm = pg.list_kind_prefix("kernel/permission").await?;
+    anyhow::ensure!(
+        events_match_by_semantic_key(&mem_perm, &pg_perm),
+        "kind_prefix mismatch: in-memory has {} events, postgres has {}",
+        mem_perm.len(),
+        pg_perm.len()
+    );
+    anyhow::ensure!(pg_perm.len() == 2, "expected 2 permission events, got {}", pg_perm.len());
+
+    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/permission").await?;
+    let pg_session_perm = pg.list_session_kind_prefix(&sid, "kernel/permission").await?;
+    anyhow::ensure!(
+        events_match_by_semantic_key(&mem_session_perm, &pg_session_perm),
+        "session kind_prefix mismatch"
+    );
+
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+pub(crate) async fn postgres_backend_parity_concurrent_append() -> anyhow::Result<()> {
+    let database_url = match std::env::var("YGG_POSTGRES_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => return Ok(()),
+    };
+    let pg = Arc::new(ygg_runtime::PostgresEventStore::connect(&database_url).await?);
+    let sid: SessionId = format!("ses_pg_concurrent_{}", ygg_core::new_id("pg"));
+
+    pg.append_with_sequence(
+        sid.clone(),
+        KERNEL_PACKAGE_ID.to_string(),
+        "kernel/session.opened".to_string(),
+        1,
+        json!({}),
+        json!({}),
+    )
+    .await?;
+
+    let n = 20;
+    let mut handles = Vec::new();
+    for i in 0..n {
+        let s = pg.clone();
+        let session_id = sid.clone();
+        handles.push(tokio::spawn(async move {
+            s.append_with_sequence(
+                session_id,
+                KERNEL_PACKAGE_ID.to_string(),
+                format!("test/concurrent.{}", i),
+                1,
+                json!({"i": i}),
+                json!({}),
+            )
+            .await
+        }));
+    }
+    for h in handles {
+        let _ = h.await.unwrap()?;
+    }
+
+    let events = pg.list_session(&sid).await?;
+    let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
+    sequences.sort();
+    let dedup: HashSet<u64> = sequences.iter().copied().collect();
+    anyhow::ensure!(dedup.len() == sequences.len(), "postgres: duplicate sequences found");
+    for (i, seq) in sequences.iter().enumerate() {
+        anyhow::ensure!(*seq == i as u64, "postgres: non-contiguous at index {}: {}", i, seq);
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+pub(crate) async fn postgres_backend_parity_subscription() -> anyhow::Result<()> {
+    let database_url = match std::env::var("YGG_POSTGRES_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => return Ok(()),
+    };
+    let store = ygg_runtime::PostgresEventStore::connect(&database_url).await?;
+    let mut rx = store.subscribe();
+    let sid: SessionId = format!("ses_pg_sub_{}", ygg_core::new_id("pg"));
+    store
+        .append_with_sequence(
+            sid,
+            KERNEL_PACKAGE_ID.to_string(),
+            "test/sub.pg".to_string(),
+            1,
+            json!({}),
+            json!({}),
+        )
+        .await?;
+
+    let received = rx.try_recv();
+    anyhow::ensure!(received.is_ok(), "postgres: expected broadcast event");
+    let event = received.unwrap();
+    anyhow::ensure!(event.kind == "test/sub.pg", "postgres: kind mismatch");
+
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+pub(crate) async fn postgres_rehydrate_parity() -> anyhow::Result<()> {
+    let database_url = match std::env::var("YGG_POSTGRES_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => return Ok(()),
+    };
+    let pg = ygg_runtime::PostgresEventStore::connect(&database_url).await?;
+    let mem = InMemoryEventStore::default();
+    let sid: SessionId = format!("ses_pg_rehydrate_{}", ygg_core::new_id("pg"));
+
+    for i in 0..5 {
+        mem.append_with_sequence(
+            sid.clone(),
+            KERNEL_PACKAGE_ID.to_string(),
+            format!("test/rehydrate.{}", i),
+            1,
+            json!({"idx": i}),
+            json!({}),
+        )
+        .await?;
+        pg.append_with_sequence(
+            sid.clone(),
+            KERNEL_PACKAGE_ID.to_string(),
+            format!("test/rehydrate.{}", i),
+            1,
+            json!({"idx": i}),
+            json!({}),
+        )
+        .await?;
+    }
+
+    let mem_events = mem.list_session(&sid).await?;
+    let pg_events = pg.list_session(&sid).await?;
+    anyhow::ensure!(
+        events_match_by_semantic_key(&mem_events, &pg_events),
+        "rehydrate parity: event mismatch between in-memory and postgres"
+    );
+
+    let mem_next = mem.next_sequence(&sid).await?;
+    let pg_next = pg.next_sequence(&sid).await?;
+    anyhow::ensure!(
+        mem_next == pg_next,
+        "next_sequence mismatch: mem={}, postgres={}",
+        mem_next,
+        pg_next
+    );
+
+    let mem_prefix = mem.list_kind_prefix("test/rehydrate").await?;
+    let pg_prefix = pg.list_kind_prefix("test/rehydrate").await?;
+    anyhow::ensure!(
+        kind_strings(&mem_prefix) == kind_strings(&pg_prefix),
+        "rehydrate kind_prefix mismatch"
+    );
+    anyhow::ensure!(pg_prefix.len() == 5, "expected 5 rehydrate events");
+
+    Ok(())
+}

@@ -17,6 +17,8 @@ pub use capability::{
     ExtensionRegistry, RegisteredCapability, RegisteredHook,
 };
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
+#[cfg(feature = "postgres")]
+pub use event_store::PostgresEventStore;
 pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog};
 pub use package::{entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel};
 pub use pi::PI_INTEGRATION_DEFERRED;

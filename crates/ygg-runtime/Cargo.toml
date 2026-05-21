@@ -19,3 +19,15 @@ tokio-stream.workspace = true
 uuid.workspace = true
 ygg-core.workspace = true
 reqwest.workspace = true
+
+[features]
+default = []
+postgres = ["tokio-postgres", "deadpool-postgres"]
+
+[dependencies.tokio-postgres]
+workspace = true
+optional = true
+
+[dependencies.deadpool-postgres]
+workspace = true
+optional = true

@@ -43,21 +43,21 @@ Deliverables:
 
 Acceptance: doc links, diff check, commit/push.
 
-## Phase P1 — PostgreSQL EventStore Backend Proof
+## Phase P1 — PostgreSQL EventStore Backend Proof ✅ COMPLETE
 
 Goal: implement opt-in `PostgresEventStore` for the `EventStore` event spine contract only.
 
 Deliverables:
 
-- Add a `postgres` feature and `PostgresEventStore` to `ygg-runtime`.
-- Use `sqlx` + PostgreSQL backend, disabled by default.
-- Schema initialization: events table, unique(session_id, sequence), session/sequence, kind, session+kind indexes.
-- `append_with_sequence` allocates per-session sequence and inserts inside a transaction, preserving concurrent no-duplicate sequence behavior.
-- Implement list_all/list_session/range/kind-prefix/session-kind-prefix/next_sequence/subscribe.
-- Feature-gated / env-gated conformance helper: only run real PG when `YGG_POSTGRES_TEST_DATABASE_URL` is set and the feature is enabled; default CI is unaffected.
-- Redact backend errors and never write DSNs to public output.
+- ✅ Add a `postgres` feature and `PostgresEventStore` to `ygg-runtime`.
+- ✅ Use `tokio-postgres` + `deadpool-postgres` (avoids `sqlx`+`rusqlite` `libsqlite3-sys` links conflict), disabled by default.
+- ✅ Schema initialization: events table, unique(session_id, sequence), session/sequence, kind, session+kind indexes. Payload/metadata as JSONB.
+- ✅ `append_with_sequence` allocates per-session sequence and inserts inside a transaction with `pg_advisory_xact_lock(hashtext(session_id))`, preserving concurrent no-duplicate sequence behavior.
+- ✅ Implement list_all/list_session/range/kind-prefix/session-kind-prefix/next_sequence/subscribe (local broadcast, no LISTEN/NOTIFY yet).
+- ✅ Feature-gated / env-gated conformance helper: only run real PG when `YGG_POSTGRES_TEST_DATABASE_URL` is set and the feature is enabled; default CI is unaffected.
+- ✅ Redact backend errors and never write DSNs to public output.
 
-Acceptance: workspace tests, default conformance, `cargo check -p ygg-runtime --features postgres`, and opt-in storage conformance when PG is available.
+Acceptance: workspace tests, default conformance, `cargo check -p ygg-runtime --features postgres`, and opt-in storage conformance when PG is available — all passed.
 
 ## Phase P2 — Host/Profile Backend Selection
 

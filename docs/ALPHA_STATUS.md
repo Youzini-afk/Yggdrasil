@@ -12,7 +12,7 @@
 - **Conformance：** 310 个具名 CLI 用例，加上 crate 和 service 单元测试。
 - **Charter 纪律：** 内核内容无关，官方包无特权，仅公开协议，包跨入口形式平等，trusted paths 阻止 raw secret，使用 secret_ref 引用，permission grants 可重新水化，网络权限强制执行并带 outbound audit/redaction，通用 streaming 与 cancellation lifecycle，SDK secure-execution helpers，networked/streaming 包模板，no-network readiness proof，**outbound executor boundary（deny-all 默认 + fake executor conformance）**。
 - **代码健康：** CLI commands/templates/conformance、runtime domain behavior、protocol dispatch（按领域委托的 helper）、runtime official in-process handlers（provider-package indexed dispatch、共享 safety 模块）、event store（P3 原子 append + 查询 pushdown + 并发 correctness + backend-neutral contract hardening）已按领域拆分，不再继续堆进巨型单文件。
-- **当前主线：** PostgreSQL + TDB Integration Alpha P0 已规划。PostgreSQL 将作为 host-owned `EventStore` opt-in backend 实现，TDB 将作为普通 retrieval/multimodal provider adapter（默认 deterministic/fake，真实 crate opt-in 后置），两者都不新增 kernel 数据库/vector namespace。临时计划见 `docs/roadmap/POSTGRES_TDB_INTEGRATION_ALPHA.md`。
+- **当前主线：** PostgreSQL + TDB Integration Alpha P1（PostgreSQL EventStore opt-in backend proof）已完成。`PostgresEventStore` 通过 `ygg-runtime` 的 `postgres` feature 门控，使用 `tokio-postgres` + `deadpool-postgres`，通过 `pg_advisory_xact_lock` 保证并发 sequence 安全，实现了完整 `EventStore` trait，5 个 feature-gated conformance 用例仅在设置 `YGG_POSTGRES_TEST_DATABASE_URL` 时运行。默认 build 和 conformance 不受影响。P0 计划见 `docs/roadmap/POSTGRES_TDB_INTEGRATION_ALPHA.md`。
 
 ## 已实现
 

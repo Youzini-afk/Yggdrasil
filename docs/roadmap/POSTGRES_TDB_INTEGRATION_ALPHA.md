@@ -43,21 +43,21 @@ PostgreSQL 替代的是 SQLite durable event log，不给 package 暴露 SQL。T
 
 验收：doc links、diff check、commit/push。
 
-## Phase P1 — PostgreSQL EventStore Backend Proof
+## Phase P1 — PostgreSQL EventStore Backend Proof ✅ 已完成
 
 目标：实现 opt-in `PostgresEventStore`，只实现 `EventStore` event spine contract。
 
 交付：
 
-- `ygg-runtime` 增加 `postgres` feature 与 `PostgresEventStore`。
-- 使用 `sqlx` + PostgreSQL backend，默认 feature 不启用。
-- Schema 初始化：events table、unique(session_id, sequence)、session/sequence、kind、session+kind indexes。
-- `append_with_sequence` 在 transaction 中分配 per-session sequence 并插入，保证并发无重复 sequence。
-- 实现 list_all/list_session/range/kind-prefix/session-kind-prefix/next_sequence/subscribe。
-- 新增 feature-gated / env-gated conformance helper：只有设置 `YGG_POSTGRES_TEST_DATABASE_URL` 且启用 feature 时才跑真实 PG；默认返回 skip/不可用，不影响 CI。
-- Backend errors 对外 redacted，不把 DSN 写入任何 public output。
+- ✅ `ygg-runtime` 增加 `postgres` feature 与 `PostgresEventStore`。
+- ✅ 使用 `tokio-postgres` + `deadpool-postgres`（避免 `sqlx`+`rusqlite` `libsqlite3-sys` links 冲突），默认 feature 不启用。
+- ✅ Schema 初始化：events table、unique(session_id, sequence)、session/sequence、kind、session+kind indexes。Payload/metadata 为 JSONB。
+- ✅ `append_with_sequence` 在 transaction 中使用 `pg_advisory_xact_lock(hashtext(session_id))` + `max(sequence)+1` + insert，保证并发无重复 sequence。
+- ✅ 实现 list_all/list_session/range/kind-prefix/session-kind-prefix/next_sequence/subscribe（本地 broadcast，暂不做 LISTEN/NOTIFY）。
+- ✅ 新增 feature-gated / env-gated conformance helper：只有设置 `YGG_POSTGRES_TEST_DATABASE_URL` 且启用 feature 时才跑真实 PG；默认 CI 不受影响。
+- ✅ Backend errors 对外 redacted，不把 DSN 写入任何 public output。
 
-验收：workspace tests、default conformance、`cargo check -p ygg-runtime --features postgres`，如环境有 PG 则 opt-in storage conformance。
+验收：workspace tests、default conformance、`cargo check -p ygg-runtime --features postgres`，如环境有 PG 则 opt-in storage conformance — 全部通过。
 
 ## Phase P2 — Host/Profile Backend Selection
 
