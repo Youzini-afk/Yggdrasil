@@ -34,6 +34,15 @@ fn network_package(
     declarations: Vec<NetworkDeclaration>,
     hosts: Vec<String>,
 ) -> PackageManifest {
+    network_package_with_secret_refs(id, declarations, hosts, vec![])
+}
+
+fn network_package_with_secret_refs(
+    id: &str,
+    declarations: Vec<NetworkDeclaration>,
+    hosts: Vec<String>,
+    secret_refs: Vec<String>,
+) -> PackageManifest {
     PackageManifest {
         schema_version: 1,
         id: id.to_string(),
@@ -60,6 +69,7 @@ fn network_package(
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             network: NetworkPermissions { declarations, hosts },
+            secret_refs,
             ..PermissionSet::default()
         },
         sandbox_policy: SandboxPolicy::default(),
@@ -1135,7 +1145,7 @@ pub(crate) async fn outbound_live_http_redacted_shape() -> anyhow::Result<()> {
 pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
     let (store, runtime, fake) = runtime_with_fake_executor();
     runtime
-        .load_package(network_package(
+        .load_package(network_package_with_secret_refs(
             "example/l3-allowed",
             vec![NetworkDeclaration {
                 host: "api.openai.com".to_string(),
@@ -1143,6 +1153,7 @@ pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
                 purpose: Some("chat completions".to_string()),
             }],
             vec![],
+            vec!["secret_ref:env:OPENAI_KEY".to_string()],
         ))
         .await?;
 
@@ -1294,7 +1305,7 @@ pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()
 pub(crate) async fn outbound_execute_no_raw_secret_in_response() -> anyhow::Result<()> {
     let (_store, runtime, _fake) = runtime_with_fake_executor();
     runtime
-        .load_package(network_package(
+        .load_package(network_package_with_secret_refs(
             "example/l3-secret-check",
             vec![NetworkDeclaration {
                 host: "api.example.com".to_string(),
@@ -1302,6 +1313,7 @@ pub(crate) async fn outbound_execute_no_raw_secret_in_response() -> anyhow::Resu
                 purpose: None,
             }],
             vec![],
+            vec!["secret_ref:env:MY_API_KEY".to_string()],
         ))
         .await?;
 
@@ -1486,5 +1498,158 @@ pub(crate) async fn outbound_execute_profile_live_disabled_returns_deny() -> any
         matches!(executor_config, OutboundExecutorConfig::DenyAll),
         "enabled=false must yield DenyAll regardless of executor field"
     );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Y2: Manifest permissions.secret_refs conformance cases
+// ---------------------------------------------------------------------------
+
+/// Helper: create a package manifest with network declarations and secret_refs.
+fn package_with_secret_refs(
+    id: &str,
+    secret_refs: Vec<String>,
+) -> PackageManifest {
+    PackageManifest {
+        schema_version: 1,
+        id: id.to_string(),
+        version: "0.1.0".to_string(),
+        display_name: None,
+        description: None,
+        author: None,
+        license: None,
+        entry: PackageEntry::RustInproc {
+            crate_ref: "example-echo-rust-inproc".to_string(),
+            symbol: "register".to_string(),
+            abi_version: 1,
+        },
+        provides: vec![CapabilityDescriptor {
+            id: format!("{id}/fetch"),
+            version: "0.1.0".to_string(),
+            input_schema: serde_json::Value::Null,
+            output_schema: serde_json::Value::Null,
+            streaming: false,
+            side_effects: vec!["network".to_string()],
+            description: None,
+        }],
+        consumes: Vec::new(),
+        contributes: PackageContributions::default(),
+        permissions: PermissionSet {
+            network: NetworkPermissions {
+                declarations: vec![NetworkDeclaration {
+                    host: "api.openai.com".to_string(),
+                    methods: vec!["POST".to_string()],
+                    purpose: Some("test".to_string()),
+                }],
+                hosts: vec![],
+            },
+            secret_refs,
+            ..PermissionSet::default()
+        },
+        sandbox_policy: SandboxPolicy::default(),
+    }
+}
+
+/// Y2: kernel.outbound.execute with an undeclared secret_ref is denied.
+///
+/// A package that does not declare `secret_ref:env:UNDECLARED_KEY` in
+/// its `permissions.secret_refs` must be denied when it tries to use
+/// that secret_ref in `secret_headers` or top-level `secret_refs`.
+/// This is the fail-closed enforcement of the Y2 manifest declaration.
+pub(crate) async fn outbound_execute_secret_ref_undeclared_fails() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    // Package declares one secret_ref, but the request uses a different one
+    runtime
+        .load_package(package_with_secret_refs(
+            "example/y2-conf-undeclared",
+            vec!["secret_ref:env:DECLARED_KEY".to_string()],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y2-conf-undeclared", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            serde_json::json!({
+                "capability_id": "example/y2-conf-undeclared/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "secret_headers": {
+                    "Authorization": {
+                        "secret_ref": "secret_ref:env:UNDECLARED_KEY",
+                        "scheme": "bearer"
+                    }
+                }
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(
+        result.is_err(),
+        "undeclared secret_ref should be denied"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    anyhow::ensure!(
+        err_msg.contains("not declared"),
+        "error should mention 'not declared', got: {err_msg}"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor must not be called when secret_ref is undeclared"
+    );
+    Ok(())
+}
+
+/// Y2: kernel.outbound.execute with a declared secret_ref is allowed
+/// to proceed past the Y2 check.
+///
+/// The package declares `secret_ref:env:MY_API_KEY` in
+/// `permissions.secret_refs`, and the request uses it. The Y2
+/// declaration check passes. (Subsequent resolution may still fail
+/// if the host resolver is not configured, but that's a separate layer.)
+pub(crate) async fn outbound_execute_secret_ref_declared_resolves() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    runtime
+        .load_package(package_with_secret_refs(
+            "example/y2-conf-declared",
+            vec!["secret_ref:env:MY_API_KEY".to_string()],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y2-conf-declared", "in_process");
+
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.execute",
+            serde_json::json!({
+                "capability_id": "example/y2-conf-declared/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "secret_headers": {
+                    "Authorization": {
+                        "secret_ref": "secret_ref:env:MY_API_KEY",
+                        "scheme": "bearer"
+                    }
+                }
+            }),
+        )
+        .await;
+
+    // The Y2 check passes. The call may fail due to the DenyAllSecretResolver
+    // (which is the default), but the error should NOT be "not declared".
+    if let Err(e) = &result {
+        let err_msg = format!("{:?}", e);
+        anyhow::ensure!(
+            !err_msg.contains("not declared"),
+            "declared secret_ref should not produce 'not declared' error, got: {err_msg}"
+        );
+    }
+    // The executor should not be called if resolution fails, but if it
+    // succeeds (e.g. in a future test with a proper resolver), it would
+    // be called. The key invariant: the Y2 check does NOT block.
+    let _ = fake; // avoid unused warning
     Ok(())
 }

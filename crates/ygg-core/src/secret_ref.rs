@@ -84,6 +84,55 @@ impl SecretRef {
     }
 }
 
+/// Check whether a string is a valid **env-backed** secret reference.
+///
+/// This is stricter than [`SecretRef::is_valid_ref`]: it only accepts
+/// references that resolve via environment variables. Currently, only
+/// the `env` vault is supported; other vault types (e.g. `vault:`,
+/// `aws:`) are rejected.
+///
+/// Valid forms:
+/// - `secret_ref:env:NAME` (canonical)
+/// - `secretRef:env:NAME` (camelCase)
+/// - `secret-ref:env:NAME` (kebab-case)
+/// - `host:env:NAME` (host env compat)
+///
+/// Returns `false` for:
+/// - Non-env vaults: `secret_ref:vault:key`
+/// - Bare host refs: `host:my_secret` (no `env:` prefix)
+/// - Malformed or unrecognized strings
+pub fn is_env_backed_ref(s: &str) -> bool {
+    // Canonical: secret_ref:env:NAME
+    if let Some(rest) = s.strip_prefix("secret_ref:") {
+        if let Some(name) = rest.strip_prefix("env:") {
+            return !name.is_empty();
+        }
+        return false;
+    }
+    // camelCase: secretRef:env:NAME
+    if let Some(rest) = s.strip_prefix("secretRef:") {
+        if let Some(name) = rest.strip_prefix("env:") {
+            return !name.is_empty();
+        }
+        return false;
+    }
+    // kebab-case: secret-ref:env:NAME
+    if let Some(rest) = s.strip_prefix("secret-ref:") {
+        if let Some(name) = rest.strip_prefix("env:") {
+            return !name.is_empty();
+        }
+        return false;
+    }
+    // host:env:NAME (but NOT host:<other-key>)
+    if let Some(rest) = s.strip_prefix("host:") {
+        if let Some(name) = rest.strip_prefix("env:") {
+            return !name.is_empty();
+        }
+        return false;
+    }
+    false
+}
+
 /// Check whether a string value looks like a raw secret (not a reference).
 ///
 /// This uses heuristic patterns to detect values that look like API keys
@@ -188,5 +237,35 @@ mod tests {
 
         let r = SecretRef::with_label("secret_ref:env:MY_KEY", "OpenAI key");
         assert_eq!(r.label, Some("OpenAI key".to_string()));
+    }
+
+    #[test]
+    fn env_backed_ref_accepts_canonical_forms() {
+        assert!(is_env_backed_ref("secret_ref:env:OPENAI_API_KEY"));
+        assert!(is_env_backed_ref("secretRef:env:MY_KEY"));
+        assert!(is_env_backed_ref("secret-ref:env:SOME_VAR"));
+        assert!(is_env_backed_ref("host:env:DEEPSEEK_KEY"));
+    }
+
+    #[test]
+    fn env_backed_ref_rejects_non_env_vaults() {
+        assert!(!is_env_backed_ref("secret_ref:vault:prod/key"));
+        assert!(!is_env_backed_ref("secretRef:vault:my-secret"));
+        assert!(!is_env_backed_ref("secret-ref:aws:secret_name"));
+    }
+
+    #[test]
+    fn env_backed_ref_rejects_bare_host_ref() {
+        assert!(!is_env_backed_ref("host:my_secret"));
+        assert!(!is_env_backed_ref("host:token_value"));
+    }
+
+    #[test]
+    fn env_backed_ref_rejects_malformed() {
+        assert!(!is_env_backed_ref("not_a_secret_ref"));
+        assert!(!is_env_backed_ref(""));
+        assert!(!is_env_backed_ref("secret_ref:env:"));
+        assert!(!is_env_backed_ref("host:env:"));
+        assert!(!is_env_backed_ref("secret_ref:"));
     }
 }

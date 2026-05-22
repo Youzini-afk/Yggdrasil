@@ -236,6 +236,33 @@ where
             }
         }
 
+        // Y2: enforce manifest declarations for secret refs.
+        // Any secret_ref used in top-level `secret_refs` or in
+        // `secret_headers` must be declared in the caller package's
+        // `permissions.secret_refs`. Undeclared refs → fail-closed.
+        if !all_secret_refs.is_empty() {
+            let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "kernel.outbound.execute package '{}' is not loaded",
+                    package_id
+                )
+            })?;
+            let declared: std::collections::HashSet<&str> = manifest
+                .permissions
+                .secret_refs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            for secret_ref in &all_secret_refs {
+                if !declared.contains(secret_ref.as_str()) {
+                    anyhow::bail!(
+                        "secret_ref '{}' is not declared in package manifest permissions.secret_refs",
+                        secret_ref
+                    );
+                }
+            }
+        }
+
         let policy_request = super::OutboundRequest {
             principal: context.principal.clone(),
             package_id: package_id.clone(),
@@ -780,4 +807,271 @@ fn looks_like_raw_secret_value(value: &str) -> bool {
         }
     }
     false
+}
+
+// ---------------------------------------------------------------------------
+// Y2: Dispatch enforcement unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod y2_tests {
+    use std::sync::Arc;
+
+    use ygg_core::{
+        CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
+        PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    };
+    use crate::{
+        FakeOutboundExecutor, InMemoryEventStore, OutboundExecutorConfig, ProtocolContext,
+        Runtime, RuntimeConfig,
+    };
+
+    /// Helper: create a runtime with a FakeOutboundExecutor.
+    fn runtime_with_fake() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeOutboundExecutor>) {
+        let store = Arc::new(InMemoryEventStore::default());
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let config = RuntimeConfig {
+            outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+            ..RuntimeConfig::default()
+        };
+        let runtime = Runtime::new(store.clone(), config);
+        (store, runtime, fake)
+    }
+
+    /// Helper: create a package manifest with network and secret_refs permissions.
+    fn package_with_secret_refs(
+        id: &str,
+        secret_refs: Vec<String>,
+    ) -> PackageManifest {
+        PackageManifest {
+            schema_version: 1,
+            id: id.to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "example-echo-rust-inproc".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: vec![CapabilityDescriptor {
+                id: format!("{id}/fetch"),
+                version: "0.1.0".to_string(),
+                input_schema: serde_json::Value::Null,
+                output_schema: serde_json::Value::Null,
+                streaming: false,
+                side_effects: vec!["network".to_string()],
+                description: None,
+            }],
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                network: NetworkPermissions {
+                    declarations: vec![NetworkDeclaration {
+                        host: "api.openai.com".to_string(),
+                        methods: vec!["POST".to_string()],
+                        purpose: Some("test".to_string()),
+                    }],
+                    hosts: vec![],
+                },
+                secret_refs,
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        }
+    }
+
+    /// Y2: Undeclared secret_ref in secret_headers is rejected.
+    #[tokio::test]
+    async fn outbound_execute_secret_ref_undeclared_fails() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        // Package declares one secret_ref but request uses a different one
+        runtime
+            .load_package(package_with_secret_refs(
+                "example/y2-undeclared",
+                vec!["secret_ref:env:DECLARED_KEY".to_string()],
+            ))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-undeclared", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-undeclared/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_headers": {
+                        "Authorization": {
+                            "secret_ref": "secret_ref:env:UNDECLARED_KEY",
+                            "scheme": "bearer"
+                        }
+                    }
+                }),
+            )
+            .await;
+
+        assert!(result.is_err(), "undeclared secret_ref should be denied");
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("not declared"),
+            "error should mention undeclared secret_ref, got: {err_msg}"
+        );
+        assert_eq!(
+            fake.call_count(), 0,
+            "executor should not be called for undeclared secret_ref"
+        );
+    }
+
+    /// Y2: Declared secret_ref is allowed to proceed.
+    #[tokio::test]
+    async fn outbound_execute_secret_ref_declared_resolves() {
+        let (_store, runtime, _fake) = runtime_with_fake();
+        runtime
+            .load_package(package_with_secret_refs(
+                "example/y2-declared",
+                vec!["secret_ref:env:MY_API_KEY".to_string()],
+            ))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-declared", "in_process");
+
+        // Note: secret resolution will fail (no resolver configured), but
+        // the Y2 check happens BEFORE resolution. The error should be from
+        // the resolver, not from the undeclared check.
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-declared/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_headers": {
+                        "Authorization": {
+                            "secret_ref": "secret_ref:env:MY_API_KEY",
+                            "scheme": "bearer"
+                        }
+                    }
+                }),
+            )
+            .await;
+
+        // The Y2 declaration check passes, but secret resolution may fail
+        // (DenyAllSecretResolver is the default). The key point is we
+        // should NOT get the "not declared" error.
+        if let Err(e) = &result {
+            let err_msg = format!("{:?}", e);
+            assert!(
+                !err_msg.contains("not declared"),
+                "declared secret_ref should not produce 'not declared' error, got: {err_msg}"
+            );
+        }
+        // Executor may or may not be called depending on resolver success,
+        // but the Y2 check should not block it.
+    }
+
+    /// Y2: Request without secret_headers skips the manifest check.
+    #[tokio::test]
+    async fn outbound_execute_no_secret_headers_no_check_required() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        // Package has no secret_refs declared, but also doesn't use any
+        runtime
+            .load_package(package_with_secret_refs("example/y2-no-secret", vec![]))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-no-secret", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-no-secret/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                }),
+            )
+            .await;
+
+        // Should succeed (fake executor returns ok)
+        assert!(result.is_ok(), "request without secret_headers should succeed, got: {:?}", result.err());
+        assert_eq!(fake.call_count(), 1, "executor should be called");
+    }
+
+    /// Y2: Multiple secret_refs must all be declared.
+    #[tokio::test]
+    async fn outbound_execute_multiple_secret_refs_all_must_be_declared() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        // Declare only one of two needed refs
+        runtime
+            .load_package(package_with_secret_refs(
+                "example/y2-multi",
+                vec!["secret_ref:env:KEY_A".to_string()],
+            ))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-multi", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-multi/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_refs": ["secret_ref:env:KEY_A", "secret_ref:env:KEY_B"],
+                }),
+            )
+            .await;
+
+        assert!(result.is_err(), "undeclared second secret_ref should be denied");
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("not declared"),
+            "error should mention undeclared secret_ref, got: {err_msg}"
+        );
+        assert_eq!(
+            fake.call_count(), 0,
+            "executor should not be called when any secret_ref is undeclared"
+        );
+    }
+
+    /// Y2: Top-level secret_refs also require manifest declaration.
+    #[tokio::test]
+    async fn outbound_execute_top_level_secret_ref_undeclared_fails() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        runtime
+            .load_package(package_with_secret_refs("example/y2-toplevel", vec![]))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-toplevel", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-toplevel/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_refs": ["secret_ref:env:UNDECLARED"],
+                }),
+            )
+            .await;
+
+        assert!(result.is_err(), "top-level undeclared secret_ref should be denied");
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("not declared"),
+            "error should mention undeclared, got: {err_msg}"
+        );
+        assert_eq!(fake.call_count(), 0, "executor should not be called");
+    }
 }

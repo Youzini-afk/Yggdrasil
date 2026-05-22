@@ -219,6 +219,18 @@ pub struct PermissionSet {
     pub git_fetch: GitFetchPermissions,
     #[serde(default)]
     pub filesystem: FilesystemPermissions,
+    /// Declared secret references this package may use in
+    /// `kernel.outbound.execute` calls. Each entry must be a valid
+    /// env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`,
+    /// `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
+    ///
+    /// The runtime enforces fail-closed: any `secret_ref` used in
+    /// `secret_headers` or top-level `secret_refs` at dispatch time
+    /// **must** appear in this list, or the request is denied.
+    ///
+    /// Default: empty vec (no secret refs allowed; backward compatible).
+    #[serde(default)]
+    pub secret_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -366,6 +378,15 @@ impl PackageManifest {
                 }
             }
         }
+        // Y2: Validate permissions.secret_refs entries.
+        // Each entry must be an env-backed secret reference (the only
+        // currently supported vault type). Malformed or non-env refs
+        // produce a clear manifest parse error.
+        for secret_ref in &self.permissions.secret_refs {
+            if !crate::is_env_backed_ref(secret_ref) {
+                return Err(ManifestError::InvalidSecretRef(secret_ref.clone()));
+            }
+        }
         Ok(())
     }
 }
@@ -386,6 +407,8 @@ pub enum ManifestError {
     InvalidSchema(String),
     #[error("invalid surface contribution: {0}")]
     InvalidSurface(String),
+    #[error("invalid secret_ref in permissions: {0}")]
+    InvalidSecretRef(String),
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -457,5 +480,167 @@ mod tests {
     fn rejects_bad_package_id() {
         let err = validate_package_id("bad").expect_err("bad id rejected");
         assert_eq!(err, ManifestError::InvalidPackageId("bad".to_string()));
+    }
+
+    // --- Y2: permissions.secret_refs tests ---
+
+    #[test]
+    fn permissions_secret_refs_default_empty() {
+        let manifest = PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet::default(),
+            sandbox_policy: SandboxPolicy::default(),
+        };
+        assert!(manifest.permissions.secret_refs.is_empty(), "default secret_refs should be empty");
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn permissions_secret_refs_parses_canonical_form() {
+        let manifest = PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                secret_refs: vec!["secret_ref:env:OPENAI_API_KEY".to_string()],
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        };
+        assert_eq!(manifest.permissions.secret_refs, vec!["secret_ref:env:OPENAI_API_KEY"]);
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn permissions_secret_refs_parses_compat_prefixes() {
+        let manifest = PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                secret_refs: vec![
+                    "secretRef:env:MY_KEY".to_string(),
+                    "secret-ref:env:ANOTHER_KEY".to_string(),
+                    "host:env:DEEPSEEK_KEY".to_string(),
+                ],
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        };
+        assert_eq!(
+            manifest.permissions.secret_refs,
+            vec![
+                "secretRef:env:MY_KEY",
+                "secret-ref:env:ANOTHER_KEY",
+                "host:env:DEEPSEEK_KEY",
+            ]
+        );
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn permissions_secret_refs_rejects_malformed() {
+        let manifest = PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                secret_refs: vec!["not-a-secret-ref".to_string()],
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        };
+        let err = manifest.validate_basic().expect_err("malformed secret_ref should be rejected");
+        assert_eq!(err, ManifestError::InvalidSecretRef("not-a-secret-ref".to_string()));
+    }
+
+    #[test]
+    fn permissions_secret_refs_rejects_non_env_scheme() {
+        let manifest = PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                secret_refs: vec!["secret_ref:vault:NAME".to_string()],
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        };
+        let err = manifest.validate_basic().expect_err("non-env secret_ref should be rejected");
+        assert_eq!(err, ManifestError::InvalidSecretRef("secret_ref:vault:NAME".to_string()));
+    }
+
+    #[test]
+    fn permissions_secret_refs_round_trips() {
+        let mut perms = PermissionSet::default();
+        perms.secret_refs = vec![
+            "secret_ref:env:OPENAI_API_KEY".to_string(),
+            "secretRef:env:MY_KEY".to_string(),
+        ];
+        let json = serde_json::to_string(&perms).expect("serialize");
+        let perms2: PermissionSet = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(perms.secret_refs, perms2.secret_refs);
     }
 }

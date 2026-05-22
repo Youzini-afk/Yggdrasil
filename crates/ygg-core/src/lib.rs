@@ -35,6 +35,7 @@ pub use manifest::{
     SurfaceSlot,
 };
 pub use secret_ref::{
-    is_secret_field_name, looks_like_raw_secret, SecretRef, SECRET_FIELD_NAMES, SECRET_REF_PREFIX,
+    is_env_backed_ref, is_secret_field_name, looks_like_raw_secret, SecretRef, SECRET_FIELD_NAMES,
+    SECRET_REF_PREFIX,
 };
 pub use session::{KernelSession, SessionStatus};
