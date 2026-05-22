@@ -292,6 +292,13 @@ impl SubprocessHandle {
                 response
                     .get("result")
                     .and_then(|result| result.get("stream_id"))
+                    .or_else(|| {
+                        if matches!(kernel_method, KernelMethod::OutboundWebSocketOpen) {
+                            response.get("result").and_then(|result| result.get("connection_id"))
+                        } else {
+                            None
+                        }
+                    })
                     .and_then(Value::as_str)
                     .map(str::to_string)
             } else {
@@ -350,6 +357,34 @@ impl SubprocessHandle {
             }
 
             let frame = match event.kind.as_str() {
+                ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED => json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "kind": "kernel/outbound.websocket.opened",
+                    "connection_id": stream_id,
+                    "payload": event.payload,
+                }),
+                ygg_core::EVENT_OUTBOUND_WEBSOCKET_FRAME => json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "kind": "kernel/outbound.websocket.frame",
+                    "connection_id": stream_id,
+                    "payload": event.payload,
+                }),
+                ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR => json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "kind": "kernel/outbound.websocket.error",
+                    "connection_id": stream_id,
+                    "payload": event.payload,
+                }),
+                ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED => json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "kind": "kernel/outbound.websocket.completed",
+                    "connection_id": stream_id,
+                    "payload": event.payload,
+                }),
                 ygg_core::EVENT_STREAM_CHUNK => {
                     let sequence = event.payload.get("sequence").and_then(Value::as_u64)
                         .or_else(|| event.payload.get("outbound_seq").and_then(Value::as_u64))
@@ -397,7 +432,7 @@ impl SubprocessHandle {
 
             let terminal = matches!(
                 frame.get("kind").and_then(Value::as_str),
-                Some("kernel/stream.ended" | "kernel/stream.error" | "kernel/stream.cancelled" | "kernel/stream.timeout")
+                Some("kernel/stream.ended" | "kernel/stream.error" | "kernel/stream.cancelled" | "kernel/stream.timeout" | "kernel/outbound.websocket.completed")
             );
             if self.write_json_frame(frame).await.is_err() || terminal {
                 break;

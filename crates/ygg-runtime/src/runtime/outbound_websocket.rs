@@ -156,6 +156,8 @@ struct FakeConnectionState {
 pub struct FakeWebSocketExecutor {
     canned_inbound_frames: Vec<OutboundWebSocketFrame>,
     auto_close_after_canned: bool,
+    simulated_close: Option<(Option<String>, u16, String)>,
+    max_concurrent_connections: Option<usize>,
     connections: RwLock<HashMap<String, FakeConnection>>,
     recorded_outbound: Mutex<Vec<(String, OutboundWebSocketFrame)>>,
 }
@@ -165,6 +167,8 @@ impl FakeWebSocketExecutor {
         Self {
             canned_inbound_frames: Vec::new(),
             auto_close_after_canned: false,
+            simulated_close: None,
+            max_concurrent_connections: None,
             connections: RwLock::new(HashMap::new()),
             recorded_outbound: Mutex::new(Vec::new()),
         }
@@ -174,8 +178,32 @@ impl FakeWebSocketExecutor {
         Self {
             canned_inbound_frames: frames,
             auto_close_after_canned: true,
+            simulated_close: None,
+            max_concurrent_connections: None,
             connections: RwLock::new(HashMap::new()),
             recorded_outbound: Mutex::new(Vec::new()),
+        }
+    }
+
+    pub fn with_simulated_idle_timeout() -> Self {
+        Self {
+            simulated_close: Some((Some("idle_timeout".to_string()), 1001, "idle_timeout".to_string())),
+            ..Self::new()
+        }
+    }
+
+    pub fn with_simulated_byte_limit(frames: Vec<OutboundWebSocketFrame>) -> Self {
+        Self {
+            canned_inbound_frames: frames,
+            simulated_close: Some((Some("inbound_limit".to_string()), 1009, "inbound_limit".to_string())),
+            ..Self::new()
+        }
+    }
+
+    pub fn with_max_concurrent_connections(max: usize) -> Self {
+        Self {
+            max_concurrent_connections: Some(max),
+            ..Self::new()
         }
     }
 
@@ -191,6 +219,11 @@ impl Default for FakeWebSocketExecutor {
 #[async_trait]
 impl WebSocketExecutor for FakeWebSocketExecutor {
     async fn open(&self, req: OutboundWebSocketOpenRequest) -> Result<OutboundWebSocketSession> {
+        if let Some(max) = self.max_concurrent_connections {
+            if self.connections.read().await.len() >= max {
+                anyhow::bail!("websocket connection cap exceeded");
+            }
+        }
         let connection_id = req.metadata.get("connection_id")
             .and_then(Value::as_str)
             .map(str::to_string)
@@ -205,6 +238,7 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
 
         let canned = self.canned_inbound_frames.clone();
         let auto_close = self.auto_close_after_canned;
+        let simulated_close = self.simulated_close.clone();
         let cid = connection_id.clone();
         tokio::spawn(async move {
             let _ = tx.send(WebSocketEvent::Opened { connection_id: cid.clone(), subprotocol });
@@ -224,7 +258,28 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
                 drop(guard);
                 let _ = tx.send(event);
             }
-            if auto_close {
+            if let Some((error_code, close_code, reason)) = simulated_close {
+                let mut guard = state.lock().await;
+                guard.closed = true;
+                if let Some(error_code) = error_code {
+                    let _ = tx.send(WebSocketEvent::Error {
+                        connection_id: cid.clone(),
+                        code: error_code.clone(),
+                        message_redacted: format!("websocket {error_code}"),
+                    });
+                }
+                let duration_ms = guard.started.map(|start| start.elapsed().as_millis() as u64).unwrap_or(0);
+                let _ = tx.send(WebSocketEvent::Closed {
+                    connection_id: cid,
+                    code: close_code,
+                    reason,
+                    total_frames_in: guard.frames_in,
+                    total_frames_out: guard.frames_out,
+                    total_bytes_in: guard.bytes_in,
+                    total_bytes_out: guard.bytes_out,
+                    duration_ms,
+                });
+            } else if auto_close {
                 let mut guard = state.lock().await;
                 guard.closed = true;
                 let duration_ms = guard.started.map(|start| start.elapsed().as_millis() as u64).unwrap_or(0);

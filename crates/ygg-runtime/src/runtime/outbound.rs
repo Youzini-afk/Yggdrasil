@@ -28,7 +28,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ use serde_json::Value;
 use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::time::timeout;
-use ygg_core::RedactionState;
+use ygg_core::{new_id, RedactionState};
 
 use super::Runtime;
 use crate::EventStore;
@@ -741,6 +741,7 @@ impl FakeGitOutboundExecutor {
     pub fn call_count(&self) -> u64 {
         self.call_count.load(std::sync::atomic::Ordering::SeqCst)
     }
+
 }
 
 impl Default for FakeGitOutboundExecutor {
@@ -904,6 +905,17 @@ impl FakeOutboundExecutor {
     pub fn call_count(&self) -> u64 {
         self.call_count.load(std::sync::atomic::Ordering::SeqCst)
     }
+
+    pub fn with_fixture(
+        host: &str,
+        method: &str,
+        path: Option<&str>,
+        response: OutboundExecutorResponse,
+    ) -> Self {
+        let mut executor = Self::new();
+        executor.add_fixture(host, method, path, response);
+        executor
+    }
 }
 
 impl Default for FakeOutboundExecutor {
@@ -1033,6 +1045,7 @@ impl OutboundExecutor for FakeOutboundExecutor {
                 data_shape: event.clone(),
                 bytes_received,
             }).await?;
+            tokio::time::sleep(Duration::from_millis(5)).await;
         }
 
         // Emit final done frame
@@ -1929,15 +1942,92 @@ where
     ) -> anyhow::Result<OutboundExecutorResponse> {
         validate_policy_executor_consistency(&policy_request, &executor_request)?;
 
+        let started = Instant::now();
+        let completion_id = new_id("obc");
+        let total_bytes_request = json_size(&executor_request.body_shape);
+        let configured_executor_kind = self.configured_outbound_executor_kind();
+        let package_id = policy_request.package_id.clone();
+        let capability_id = policy_request.capability_id.clone();
+        let destination_host = policy_request.destination_host.clone();
+        let method = policy_request.method.clone();
+        let secret_refs_used = policy_request.secret_refs_used.clone();
+
         // Step 1: Policy check + audit. If denied, this returns an
         // error and the executor is never called.
-        let _audit_record = self.check_and_audit_outbound(policy_request).await?;
+        if let Err(err) = self.check_and_audit_outbound(policy_request).await {
+            self.emit_outbound_execute_completed(super::OutboundExecuteCompletion {
+                id: &completion_id,
+                package_id: &package_id,
+                capability_id: &capability_id,
+                destination_host: &destination_host,
+                method: &method,
+                status: "denied",
+                executor_kind: executor_kind_str(configured_executor_kind),
+                status_code: None,
+                total_bytes_request,
+                total_bytes_response: 0,
+                duration_ms: started.elapsed().as_millis() as u64,
+                network_performed: false,
+                redaction_state: RedactionState::NotCaptured,
+                secret_refs_used: &secret_refs_used,
+            })
+            .await?;
+            return Err(err);
+        }
 
         // Step 2: Policy passed — call the configured executor.
         let executor = self.outbound_executor();
-        let response = executor.execute(executor_request).await?;
+        let response = match executor.execute(executor_request).await {
+            Ok(response) => response,
+            Err(err) => {
+                self.emit_outbound_execute_completed(super::OutboundExecuteCompletion {
+                    id: &completion_id,
+                    package_id: &package_id,
+                    capability_id: &capability_id,
+                    destination_host: &destination_host,
+                    method: &method,
+                    status: "error",
+                    executor_kind: executor_kind_str(configured_executor_kind),
+                    status_code: None,
+                    total_bytes_request,
+                    total_bytes_response: 0,
+                    duration_ms: started.elapsed().as_millis() as u64,
+                    network_performed: false,
+                    redaction_state: RedactionState::Redacted,
+                    secret_refs_used: &secret_refs_used,
+                })
+                .await?;
+                return Err(err);
+            }
+        };
+
+        self.emit_outbound_execute_completed(super::OutboundExecuteCompletion {
+            id: &completion_id,
+            package_id: &package_id,
+            capability_id: &capability_id,
+            destination_host: &destination_host,
+            method: &method,
+            status: &response.status,
+            executor_kind: executor_kind_str(response.executor_kind),
+            status_code: response.status_code,
+            total_bytes_request,
+            total_bytes_response: json_size(&response.body_shape),
+            duration_ms: started.elapsed().as_millis() as u64,
+            network_performed: response.network_performed,
+            redaction_state: response.redaction_state,
+            secret_refs_used: &secret_refs_used,
+        })
+        .await?;
 
         Ok(response)
+    }
+
+    fn configured_outbound_executor_kind(&self) -> ExecutorKind {
+        match &self.config.outbound_executor {
+            OutboundExecutorConfig::DenyAll => ExecutorKind::DenyAll,
+            OutboundExecutorConfig::Custom(_) => ExecutorKind::Fake,
+            OutboundExecutorConfig::LiveHttp(_) => ExecutorKind::Real,
+        }
     }
 
     /// Get a reference to the configured outbound executor.
@@ -2352,6 +2442,22 @@ fn validate_policy_executor_consistency(
         anyhow::bail!("outbound secret_refs mismatch between policy and executor request");
     }
     Ok(())
+}
+
+pub(crate) fn executor_kind_str(kind: ExecutorKind) -> &'static str {
+    match kind {
+        ExecutorKind::DenyAll => "deny_all",
+        ExecutorKind::Fake => "fake",
+        ExecutorKind::Real => "real",
+    }
+}
+
+fn json_size(value: &Option<Value>) -> u64 {
+    value
+        .as_ref()
+        .and_then(|value| serde_json::to_vec(value).ok())
+        .map(|bytes| bytes.len() as u64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------

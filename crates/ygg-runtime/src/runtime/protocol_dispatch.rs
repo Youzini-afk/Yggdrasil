@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use bytes::Bytes;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
@@ -347,7 +348,7 @@ where
             method: method.clone(),
             path,
             purpose,
-            secret_refs: all_secret_refs,
+            secret_refs: all_secret_refs.clone(),
             redaction_state: None,
             timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
             metadata,
@@ -579,7 +580,7 @@ where
             method: method.clone(),
             path,
             purpose,
-            secret_refs: all_secret_refs,
+            secret_refs: all_secret_refs.clone(),
             redaction_state: None,
             timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
             metadata,
@@ -656,6 +657,11 @@ where
         let host_for_end = destination_host.clone();
         let method_for_end = method.clone();
         let format_str_for_end = stream_format_str.to_string();
+        let secret_refs_for_end = all_secret_refs.clone();
+        let completion_id_for_end = ygg_core::new_id("obc");
+        let started_for_end = Instant::now();
+        let executor_kind_for_error = executor_kind;
+        let network_performed_for_error = network_performed;
 
         tokio::spawn(async move {
             let result = executor_for_task.stream(
@@ -721,6 +727,30 @@ where
                         "executor_kind": summary.executor_kind,
                         "network_performed": summary.network_performed,
                     })).await;
+
+                    let final_termination = match summary.status.as_str() {
+                        "cancelled" => "cancelled",
+                        "timeout" => "timeout",
+                        "error" => "error",
+                        _ => "ended",
+                    };
+                    append_event(ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED, json!({
+                        "id": completion_id_for_end,
+                        "package_id": pkg_id_for_end,
+                        "capability_id": cap_id_for_end,
+                        "destination_host": host_for_end,
+                        "method": method_for_end,
+                        "stream_format": format_str_for_end,
+                        "status": summary.status,
+                        "total_chunks": summary.frame_count,
+                        "total_bytes": summary.bytes_received,
+                        "duration_ms": started_for_end.elapsed().as_millis() as u64,
+                        "final_termination": final_termination,
+                        "executor_kind": summary.executor_kind,
+                        "network_performed": summary.network_performed,
+                        "redaction_state": summary.redaction_state,
+                        "secret_refs_used": secret_refs_for_end,
+                    })).await;
                 }
                 Err(e) => {
                     // Error the invocation in the registry
@@ -731,6 +761,23 @@ where
                         "invocation_id": invocation_id_for_end,
                         "stream_id": stream_id_for_end,
                         "error": e.to_string(),
+                    })).await;
+                    append_event(ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED, json!({
+                        "id": completion_id_for_end,
+                        "package_id": pkg_id_for_end,
+                        "capability_id": cap_id_for_end,
+                        "destination_host": host_for_end,
+                        "method": method_for_end,
+                        "stream_format": format_str_for_end,
+                        "status": "error",
+                        "total_chunks": 0,
+                        "total_bytes": 0,
+                        "duration_ms": started_for_end.elapsed().as_millis() as u64,
+                        "final_termination": "error",
+                        "executor_kind": executor_kind_for_error,
+                        "network_performed": network_performed_for_error,
+                        "redaction_state": ygg_core::RedactionState::Redacted,
+                        "secret_refs_used": secret_refs_for_end,
                     })).await;
                 }
             }
@@ -892,7 +939,7 @@ where
             path,
             purpose,
             subprotocols,
-            secret_refs: all_secret_refs,
+            secret_refs: all_secret_refs.clone(),
             metadata,
             static_headers,
             secret_headers,
@@ -916,10 +963,30 @@ where
         let session_id_for_task = session_id.clone();
         let invocation_id_for_task = stream_record.invocation_id.clone();
         let stream_id_for_task = stream_record.stream_id.clone();
+        let completion_id_for_task = ygg_core::new_id("obc");
+        let pkg_id_for_task = package_id.clone();
+        let cap_id_for_task = capability_id.clone();
+        let host_for_task = destination_host.clone();
+        let executor_kind_for_task = session.executor_kind;
+        let network_performed_for_task = session.network_performed;
+        let redaction_state_for_task = session.redaction_state;
+        let secret_refs_for_task = all_secret_refs.clone();
         let mut events = session.events;
         tokio::spawn(async move {
             while let Some(event) = events.recv().await {
-                let (kind, payload, terminal) = websocket_event_to_kernel_event(event);
+                let (kind, mut payload, terminal) = websocket_event_to_kernel_event(event);
+                if terminal {
+                    if let Value::Object(map) = &mut payload {
+                        map.insert("id".to_string(), Value::String(completion_id_for_task.clone()));
+                        map.insert("package_id".to_string(), Value::String(pkg_id_for_task.clone()));
+                        map.insert("capability_id".to_string(), Value::String(cap_id_for_task.clone()));
+                        map.insert("destination_host".to_string(), Value::String(host_for_task.clone()));
+                        map.insert("executor_kind".to_string(), json!(executor_kind_for_task));
+                        map.insert("network_performed".to_string(), Value::Bool(network_performed_for_task));
+                        map.insert("redaction_state".to_string(), json!(redaction_state_for_task));
+                        map.insert("secret_refs_used".to_string(), json!(secret_refs_for_task));
+                    }
+                }
                 use ygg_core::{EventEnvelope, KERNEL_PACKAGE_ID, new_id};
                 let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
                 let _ = store.append(EventEnvelope {
@@ -1259,6 +1326,11 @@ where
             .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires session_id"))?
             .to_string();
         let frame = self.stream_capability_cancel(&session_id, &invocation_id).await?;
+        if session_id.starts_with("kernel_outbound_websocket_") {
+            self.outbound_websocket_executor()
+                .close(&frame.stream_id, 1001, Some("cancelled".to_string()))
+                .await?;
+        }
         Ok(serde_json::to_value(frame)?)
     }
 
@@ -1971,8 +2043,9 @@ mod z_websocket_tests {
         PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
     };
     use crate::{
-        EventStore, FakeWebSocketExecutor, InMemoryEventStore, ProtocolContext, Runtime,
-        RuntimeConfig,
+        EventStore, FakeOutboundExecutor, FakeWebSocketExecutor, InMemoryEventStore,
+        OutboundExecutePolicyConfig, OutboundExecutorConfig, OutboundExecutorResponse,
+        ProtocolContext, Runtime, RuntimeConfig,
     };
 
     fn runtime_with_fake_ws() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeWebSocketExecutor>) {
@@ -2068,5 +2141,200 @@ mod z_websocket_tests {
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         let events = store.list_kind_prefix(ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED).await.unwrap();
         assert!(events.iter().any(|event| event.payload.get("connection_id").and_then(serde_json::Value::as_str) == Some(connection_id)));
+    }
+
+    fn runtime_with_fake_execute(fake: Arc<FakeOutboundExecutor>) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
+        let store = Arc::new(InMemoryEventStore::default());
+        let config = RuntimeConfig {
+            outbound_executor: OutboundExecutorConfig::Custom(fake),
+            outbound_execute_policy: OutboundExecutePolicyConfig {
+                enabled: true,
+                allowed_hosts: vec!["api.example.com".to_string()],
+                https_only: true,
+                timeout_ms: 30_000,
+                allow_redirects: false,
+                allow_insecure_loopback_for_tests: false,
+            },
+            ..RuntimeConfig::default()
+        };
+        (store.clone(), Runtime::new(store, config))
+    }
+
+    async fn wait_for_event(store: &InMemoryEventStore, kind: &str) -> serde_json::Value {
+        for _ in 0..40 {
+            let events = store.list_kind_prefix(kind).await.unwrap();
+            if let Some(event) = events.last() {
+                return event.payload.clone();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("event {kind} not found");
+    }
+
+    #[tokio::test]
+    async fn outbound_execute_emits_completed_event_on_success() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime.load_package(package_ws("example/z6-exec-ok", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-exec-ok", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+            "capability_id": "example/z6-exec-ok/ws",
+            "destination_host": "api.example.com",
+            "method": "WEBSOCKET"
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        assert_eq!(payload["status"], "ok");
+        assert_eq!(payload["executor_kind"], "fake");
+    }
+
+    #[tokio::test]
+    async fn outbound_execute_emits_completed_event_on_error() {
+        let fake = Arc::new(FakeOutboundExecutor::with_fixture(
+            "api.example.com",
+            "WEBSOCKET",
+            None,
+            OutboundExecutorResponse {
+                status: "error".to_string(),
+                status_code: Some(500),
+                headers_shape: None,
+                body_shape: None,
+                provider_request_id: None,
+                usage: serde_json::Value::Null,
+                cost: serde_json::Value::Null,
+                redaction_state: ygg_core::RedactionState::Redacted,
+                network_performed: false,
+                executor_kind: crate::ExecutorKind::Fake,
+            },
+        ));
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime.load_package(package_ws("example/z6-exec-error", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-exec-error", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+            "capability_id": "example/z6-exec-error/ws",
+            "destination_host": "api.example.com",
+            "method": "WEBSOCKET"
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        assert_eq!(payload["status"], "error");
+    }
+
+    #[tokio::test]
+    async fn outbound_execute_emits_completed_event_on_denied() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime.load_package(package_ws("example/z6-exec-denied", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-exec-denied", "in_process");
+        let result = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+            "capability_id": "example/z6-exec-denied/ws",
+            "destination_host": "denied.example.com",
+            "method": "WEBSOCKET"
+        })).await;
+        assert!(result.is_err());
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        assert_eq!(payload["status"], "denied");
+    }
+
+    #[tokio::test]
+    async fn outbound_stream_emits_completed_event_on_ended() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime.load_package(package_ws("example/z6-stream-ended", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-stream-ended", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.outbound.stream", serde_json::json!({
+            "capability_id": "example/z6-stream-ended/ws",
+            "destination_host": "api.example.com",
+            "method": "WEBSOCKET",
+            "stream_format": "sse"
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED).await;
+        assert_eq!(payload["status"], "ok");
+        assert_eq!(payload["final_termination"], "ended");
+    }
+
+    #[tokio::test]
+    async fn outbound_stream_emits_completed_event_on_cancelled() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime.load_package(package_ws("example/z6-stream-cancel", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-stream-cancel", "in_process");
+        let response = runtime.call_protocol(&context, "kernel.outbound.stream", serde_json::json!({
+            "capability_id": "example/z6-stream-cancel/ws",
+            "destination_host": "api.example.com",
+            "method": "WEBSOCKET",
+            "stream_format": "sse"
+        })).await.unwrap();
+        let stream_id = response["stream_id"].as_str().unwrap();
+        runtime.call_protocol(&context, "kernel.capability.cancel", serde_json::json!({
+            "stream_id": stream_id,
+            "session_id": "kernel_outbound_stream_example_z6-stream-cancel"
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED).await;
+        assert_eq!(payload["status"], "cancelled");
+        assert_eq!(payload["final_termination"], "cancelled");
+    }
+
+    #[tokio::test]
+    async fn outbound_websocket_emits_completed_event_on_close() {
+        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![crate::OutboundWebSocketFrame::Text("hello".to_string())]));
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig { outbound_websocket_executor: fake, ..RuntimeConfig::default() });
+        runtime.load_package(package_ws("example/z6-ws-close", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-ws-close", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+            "capability_id": "example/z6-ws-close/ws",
+            "destination_host": "api.example.com"
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await;
+        assert_eq!(payload["package_id"], "example/z6-ws-close");
+        assert_eq!(payload["total_frames_in"], 1);
+    }
+
+    #[tokio::test]
+    async fn outbound_completion_event_has_no_secrets_and_redaction_state_set() {
+        let env_name = format!("YGG_Z6_SECRET_{}", std::process::id());
+        std::env::set_var(&env_name, "super-secret-value");
+        struct Guard(String);
+        impl Drop for Guard { fn drop(&mut self) { std::env::remove_var(&self.0); } }
+        let _guard = Guard(env_name.clone());
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig {
+            outbound_executor: OutboundExecutorConfig::Custom(fake),
+            outbound_execute_policy: OutboundExecutePolicyConfig { enabled: true, allowed_hosts: vec!["api.example.com".to_string()], https_only: true, timeout_ms: 30_000, allow_redirects: false, allow_insecure_loopback_for_tests: false },
+            secret_resolver: crate::SecretResolverConfig::with_resolver(Arc::new(crate::EnvSecretResolver::from_iter(vec![env_name.clone()]))),
+            ..RuntimeConfig::default()
+        });
+        let secret_ref = format!("secret_ref:env:{env_name}");
+        runtime.load_package(package_ws("example/z6-secret", vec![secret_ref.clone()])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-secret", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+            "capability_id": "example/z6-secret/ws",
+            "destination_host": "api.example.com",
+            "method": "WEBSOCKET",
+            "secret_headers": {"Authorization": {"secret_ref": secret_ref, "scheme": "bearer"}}
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        let text = serde_json::to_string(&payload).unwrap();
+        assert!(text.contains("secret_ref:env:"));
+        assert!(!text.contains("super-secret-value"));
+        assert_eq!(payload["redaction_state"], "redacted");
+    }
+
+    #[tokio::test]
+    async fn outbound_completion_event_no_payload_in_websocket() {
+        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![crate::OutboundWebSocketFrame::Text("raw-frame-payload".to_string())]));
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig { outbound_websocket_executor: fake, ..RuntimeConfig::default() });
+        runtime.load_package(package_ws("example/z6-ws-scrub", vec![])).await.unwrap();
+        let context = ProtocolContext::package("example/z6-ws-scrub", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+            "capability_id": "example/z6-ws-scrub/ws",
+            "destination_host": "api.example.com"
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await;
+        assert!(payload.get("payload").is_none());
+        assert!(payload.get("body").is_none());
+        assert!(payload.get("data").is_none());
+        assert!(!serde_json::to_string(&payload).unwrap().contains("raw-frame-payload"));
     }
 }

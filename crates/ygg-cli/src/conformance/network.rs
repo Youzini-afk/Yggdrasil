@@ -18,12 +18,13 @@ use std::sync::Arc;
 use ygg_core::{
     CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
     PackageEntry, PackageManifest, PermissionSet, RedactionState, SandboxPolicy,
-    EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_REQUEST, EVENT_STREAM_CHUNK,
+    EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED, EVENT_OUTBOUND_REQUEST,
+    EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED, EVENT_STREAM_CHUNK,
 };
 use ygg_runtime::{
     check_network_policy, EnvSecretResolver, EventStore, ExecutorKind, FakeOutboundExecutor,
     FakeWebSocketExecutor, InMemoryEventStore, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
-    OutboundWebSocketFrame,
+    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, OutboundWebSocketFrame,
     OutboundExecutor, OutboundExecutePolicyConfig, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal, Runtime, RuntimeConfig,
     SecretResolverConfig, SseParser, WebSocketExecutor,
@@ -387,6 +388,32 @@ fn runtime_with_fake_stream_executor() -> (Arc<InMemoryEventStore>, Runtime<InMe
     };
     let runtime = Runtime::new(store.clone(), config);
     (store, runtime, fake)
+}
+
+fn runtime_with_fake_ws_executor(fake: Arc<FakeWebSocketExecutor>) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(
+        store.clone(),
+        RuntimeConfig {
+            outbound_websocket_executor: fake,
+            ..RuntimeConfig::default()
+        },
+    );
+    (store, runtime)
+}
+
+async fn wait_for_kind(
+    store: &InMemoryEventStore,
+    kind: &str,
+) -> anyhow::Result<Vec<ygg_core::EventEnvelope>> {
+    for _ in 0..50 {
+        let events = store.list_kind_prefix(kind).await?;
+        if !events.is_empty() {
+            return Ok(events);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    anyhow::bail!("timed out waiting for event kind {kind}")
 }
 
 /// M3: Package without network declaration is denied; executor is never called.
@@ -1630,6 +1657,156 @@ pub(crate) async fn outbound_websocket_profile_live_disabled_returns_deny() -> a
         .await
         .expect_err("disabled websocket profile must return deny-all executor");
     anyhow::ensure!(err.to_string().contains("denied"), "expected deny-all error: {err}");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_secret_ref_undeclared_fails() -> anyhow::Result<()> {
+    let fake = Arc::new(FakeWebSocketExecutor::new());
+    let (_store, runtime) = runtime_with_fake_ws_executor(fake);
+    runtime
+        .load_package(network_package_with_secret_refs(
+            "example/z7-ws-secret",
+            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }],
+            vec![],
+            vec!["secret_ref:env:DECLARED".to_string()],
+        ))
+        .await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-secret", "in_process");
+    let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        "capability_id": "example/z7-ws-secret/fetch",
+        "destination_host": "api.openai.com",
+        "secret_refs": ["secret_ref:env:UNDECLARED"]
+    })).await;
+    anyhow::ensure!(result.is_err(), "undeclared websocket secret_ref must fail");
+    anyhow::ensure!(format!("{:?}", result.unwrap_err()).contains("not declared"), "error should mention not declared");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_capability_namespace_enforced() -> anyhow::Result<()> {
+    let fake = Arc::new(FakeWebSocketExecutor::new());
+    let (_store, runtime) = runtime_with_fake_ws_executor(fake);
+    runtime
+        .load_package(network_package(
+            "example/z7-ws-ns",
+            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }],
+            vec![],
+        ))
+        .await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-ns", "in_process");
+    let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        "capability_id": "other/pkg/fetch",
+        "destination_host": "api.openai.com"
+    })).await;
+    anyhow::ensure!(result.is_err(), "websocket capability namespace spoof must fail");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_wss_only_default() -> anyhow::Result<()> {
+    let executor = LiveWebSocketExecutor::new(LiveWebSocketExecutorConfig {
+        allowed_hosts: vec!["api.openai.com".to_string()],
+        ..LiveWebSocketExecutorConfig::default()
+    });
+    let err = executor.open(ygg_runtime::OutboundWebSocketOpenRequest {
+        capability_id: "example/z7-wss/fetch".to_string(),
+        package_id: "example/z7-wss".to_string(),
+        destination_host: "api.openai.com".to_string(),
+        path: Some("/ws".to_string()),
+        purpose: None,
+        subprotocols: Vec::new(),
+        secret_refs: Vec::new(),
+        metadata: serde_json::json!({"scheme": "ws"}),
+        static_headers: std::collections::HashMap::new(),
+        secret_headers: std::collections::HashMap::new(),
+        max_frame_bytes: 1024,
+        max_total_bytes_inbound: 1024,
+        max_total_bytes_outbound: 1024,
+        max_idle_ms: 1000,
+        max_duration_ms: 5000,
+    }).await.expect_err("non-WSS open should fail before network");
+    anyhow::ensure!(err.to_string().contains("non-WSS"), "expected non-WSS error: {err}");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_idle_timeout_emits_error_and_completed() -> anyhow::Result<()> {
+    let (store, runtime) = runtime_with_fake_ws_executor(Arc::new(FakeWebSocketExecutor::with_simulated_idle_timeout()));
+    runtime.load_package(network_package("example/z7-ws-idle", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-idle", "in_process");
+    runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-idle/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
+    anyhow::ensure!(completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("idle_timeout"), "completed reason should be idle_timeout");
+    let errors = wait_for_kind(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR).await?;
+    anyhow::ensure!(!errors.is_empty(), "idle timeout should emit websocket error");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_max_total_bytes_inbound_terminates() -> anyhow::Result<()> {
+    let fake = Arc::new(FakeWebSocketExecutor::with_simulated_byte_limit(vec![OutboundWebSocketFrame::Text("overflow".to_string())]));
+    let (store, runtime) = runtime_with_fake_ws_executor(fake);
+    runtime.load_package(network_package("example/z7-ws-bytes", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-bytes", "in_process");
+    runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-bytes/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
+    anyhow::ensure!(completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("inbound_limit"), "completed reason should be inbound_limit");
+    anyhow::ensure!(completed[0].payload.get("total_bytes_in").and_then(|v| v.as_u64()).unwrap_or(0) > 0, "completion should include inbound byte total");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_max_concurrent_connections_enforced() -> anyhow::Result<()> {
+    let fake = Arc::new(FakeWebSocketExecutor::with_max_concurrent_connections(1));
+    let (_store, runtime) = runtime_with_fake_ws_executor(fake);
+    runtime.load_package(network_package("example/z7-ws-cap", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-cap", "in_process");
+    runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await;
+    anyhow::ensure!(result.is_err(), "second websocket open should exceed concurrent cap");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_cancel_via_capability_cancel() -> anyhow::Result<()> {
+    let fake = Arc::new(FakeWebSocketExecutor::new());
+    let (store, runtime) = runtime_with_fake_ws_executor(fake.clone());
+    runtime.load_package(network_package("example/z7-ws-cancel", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-cancel", "in_process");
+    let response = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cancel/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let connection_id = response.get("connection_id").and_then(|v| v.as_str()).ok_or_else(|| anyhow::anyhow!("missing connection_id"))?;
+    runtime.call_protocol(&context, "kernel.capability.cancel", serde_json::json!({
+        "stream_id": connection_id,
+        "session_id": "kernel_outbound_websocket_example_z7-ws-cancel"
+    })).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
+    anyhow::ensure!(completed[0].payload.get("code").and_then(|v| v.as_u64()) == Some(1001), "cancel close code should be 1001");
+    Ok(())
+}
+
+pub(crate) async fn outbound_execute_completed_audit_emitted() -> anyhow::Result<()> {
+    let (store, runtime, _fake) = runtime_with_fake_executor();
+    runtime.load_package(network_package("example/z7-exec-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-exec-audit", "in_process");
+    runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-audit/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
+    anyhow::ensure!(events[0].payload.get("status").and_then(|v| v.as_str()) == Some("ok"), "execute completion status should be ok");
+    Ok(())
+}
+
+pub(crate) async fn outbound_stream_completed_audit_emitted() -> anyhow::Result<()> {
+    let (store, runtime, _fake) = runtime_with_fake_stream_executor();
+    runtime.load_package(network_package("example/z7-stream-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-stream-audit", "in_process");
+    runtime.call_protocol(&context, "kernel.outbound.stream", serde_json::json!({"capability_id":"example/z7-stream-audit/fetch","destination_host":"api.openai.com","method":"POST","stream_format":"sse"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let events = wait_for_kind(&store, EVENT_OUTBOUND_STREAM_COMPLETED).await?;
+    anyhow::ensure!(events[0].payload.get("final_termination").and_then(|v| v.as_str()) == Some("ended"), "stream completion should end normally");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_completed_audit_emitted() -> anyhow::Result<()> {
+    let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![OutboundWebSocketFrame::Text("hello".to_string())]));
+    let (store, runtime) = runtime_with_fake_ws_executor(fake);
+    runtime.load_package(network_package("example/z7-ws-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-ws-audit", "in_process");
+    runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-audit/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let events = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
+    anyhow::ensure!(events[0].payload.get("package_id").and_then(|v| v.as_str()) == Some("example/z7-ws-audit"), "websocket completion should include package_id");
+    anyhow::ensure!(events[0].payload.get("payload").is_none() && events[0].payload.get("data").is_none() && events[0].payload.get("body").is_none(), "websocket completion must not contain raw payload/body/data fields");
     Ok(())
 }
 

@@ -8,10 +8,11 @@
 //! The checker is called before the runtime records an outbound
 //! audit event and before the request is forwarded.
 
-use serde_json::json;
+use serde_json::{json, Value};
 use ygg_core::{
     new_id, CapabilityId, NetworkDeclaration, NetworkPermissions, OutboundAuditRecord, PackageId,
-    RedactionState, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_REQUEST,
+    RedactionState, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED,
+    EVENT_OUTBOUND_REQUEST, EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
 };
 
 use super::Runtime;
@@ -140,6 +141,63 @@ pub struct OutboundRequest {
     pub secret_refs_used: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct OutboundExecuteCompletion<'a> {
+    pub id: &'a str,
+    pub package_id: &'a str,
+    pub capability_id: &'a str,
+    pub destination_host: &'a str,
+    pub method: &'a str,
+    pub status: &'a str,
+    pub executor_kind: &'a str,
+    pub status_code: Option<u16>,
+    pub total_bytes_request: u64,
+    pub total_bytes_response: u64,
+    pub duration_ms: u64,
+    pub network_performed: bool,
+    pub redaction_state: RedactionState,
+    pub secret_refs_used: &'a [String],
+}
+
+#[derive(Debug, Clone)]
+pub struct OutboundStreamCompletion<'a> {
+    pub id: &'a str,
+    pub package_id: &'a str,
+    pub capability_id: &'a str,
+    pub destination_host: &'a str,
+    pub method: &'a str,
+    pub stream_format: &'a str,
+    pub status: &'a str,
+    pub total_chunks: u64,
+    pub total_bytes: u64,
+    pub duration_ms: u64,
+    pub final_termination: &'a str,
+    pub executor_kind: &'a str,
+    pub network_performed: bool,
+    pub redaction_state: RedactionState,
+    pub secret_refs_used: &'a [String],
+}
+
+#[derive(Debug, Clone)]
+pub struct OutboundWebSocketCompletion<'a> {
+    pub id: &'a str,
+    pub package_id: &'a str,
+    pub capability_id: &'a str,
+    pub destination_host: &'a str,
+    pub connection_id: &'a str,
+    pub code: u16,
+    pub reason: &'a str,
+    pub total_frames_in: u64,
+    pub total_frames_out: u64,
+    pub total_bytes_in: u64,
+    pub total_bytes_out: u64,
+    pub duration_ms: u64,
+    pub executor_kind: &'a str,
+    pub network_performed: bool,
+    pub redaction_state: RedactionState,
+    pub secret_refs_used: &'a [String],
+}
+
 impl<S> Runtime<S>
 where
     S: EventStore,
@@ -225,6 +283,79 @@ where
         Ok(record)
     }
 
+    pub async fn emit_outbound_execute_completed(
+        &self,
+        completion: OutboundExecuteCompletion<'_>,
+    ) -> anyhow::Result<()> {
+        let session_id = format!("kernel_outbound_{}", completion.package_id.replace('/', "_"));
+        self.append_kernel_event(
+            &session_id,
+            EVENT_OUTBOUND_EXECUTE_COMPLETED,
+            json!({
+                "id": completion.id,
+                "package_id": completion.package_id,
+                "capability_id": completion.capability_id,
+                "destination_host": completion.destination_host,
+                "method": completion.method,
+                "status": completion.status,
+                "executor_kind": completion.executor_kind,
+                "status_code": completion.status_code,
+                "total_bytes_request": completion.total_bytes_request,
+                "total_bytes_response": completion.total_bytes_response,
+                "duration_ms": completion.duration_ms,
+                "network_performed": completion.network_performed,
+                "redaction_state": completion.redaction_state,
+                "secret_refs_used": completion.secret_refs_used,
+            }),
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn emit_outbound_stream_completed(
+        &self,
+        session_id: &str,
+        completion: OutboundStreamCompletion<'_>,
+    ) -> anyhow::Result<()> {
+        append_outbound_completion_event(
+            self.store.clone(),
+            session_id.to_string(),
+            EVENT_OUTBOUND_STREAM_COMPLETED,
+            json!({
+                "id": completion.id,
+                "package_id": completion.package_id,
+                "capability_id": completion.capability_id,
+                "destination_host": completion.destination_host,
+                "method": completion.method,
+                "stream_format": completion.stream_format,
+                "status": completion.status,
+                "total_chunks": completion.total_chunks,
+                "total_bytes": completion.total_bytes,
+                "duration_ms": completion.duration_ms,
+                "final_termination": completion.final_termination,
+                "executor_kind": completion.executor_kind,
+                "network_performed": completion.network_performed,
+                "redaction_state": completion.redaction_state,
+                "secret_refs_used": completion.secret_refs_used,
+            }),
+        )
+        .await
+    }
+
+    pub async fn emit_outbound_websocket_completed(
+        &self,
+        session_id: &str,
+        completion: OutboundWebSocketCompletion<'_>,
+    ) -> anyhow::Result<()> {
+        append_outbound_completion_event(
+            self.store.clone(),
+            session_id.to_string(),
+            EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
+            websocket_completed_payload(&completion),
+        )
+        .await
+    }
+
     /// List outbound audit events for a given package (both allowed and denied).
     pub async fn list_outbound_audit(
         &self,
@@ -238,6 +369,52 @@ where
             .await?;
         Ok(request_events)
     }
+}
+
+pub(crate) fn websocket_completed_payload(completion: &OutboundWebSocketCompletion<'_>) -> Value {
+    json!({
+        "id": completion.id,
+        "package_id": completion.package_id,
+        "capability_id": completion.capability_id,
+        "destination_host": completion.destination_host,
+        "connection_id": completion.connection_id,
+        "code": completion.code,
+        "reason": completion.reason,
+        "total_frames_in": completion.total_frames_in,
+        "total_frames_out": completion.total_frames_out,
+        "total_bytes_in": completion.total_bytes_in,
+        "total_bytes_out": completion.total_bytes_out,
+        "duration_ms": completion.duration_ms,
+        "executor_kind": completion.executor_kind,
+        "network_performed": completion.network_performed,
+        "redaction_state": completion.redaction_state,
+        "secret_refs_used": completion.secret_refs_used,
+    })
+}
+
+pub(crate) async fn append_outbound_completion_event<S: EventStore>(
+    store: std::sync::Arc<S>,
+    session_id: String,
+    kind: &'static str,
+    payload: Value,
+) -> anyhow::Result<()> {
+    use ygg_core::{EventEnvelope, KERNEL_PACKAGE_ID};
+
+    let seq = store.next_sequence(&session_id).await?;
+    store
+        .append(EventEnvelope {
+            id: new_id("evt"),
+            session_id,
+            sequence: seq,
+            timestamp: chrono::Utc::now(),
+            writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+            kind: kind.to_string(),
+            schema_version: 1,
+            payload,
+            metadata: json!({}),
+        })
+        .await?;
+    Ok(())
 }
 
 #[cfg(test)]

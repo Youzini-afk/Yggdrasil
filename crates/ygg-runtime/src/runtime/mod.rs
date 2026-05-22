@@ -34,7 +34,10 @@ pub use self::assets::{
 };
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
-pub use self::network::{check_network_policy, NetworkPolicyDecision, OutboundRequest};
+pub use self::network::{
+    check_network_policy, NetworkPolicyDecision, OutboundExecuteCompletion, OutboundRequest,
+    OutboundStreamCompletion, OutboundWebSocketCompletion,
+};
 pub use self::outbound::{
     is_secret_header_name, is_static_header_allowed, DenyAllGitOutboundExecutor,
     DenyAllOutboundExecutor, ExecutorKind, FakeGitOutboundExecutor, FakeOutboundExecutor,
