@@ -22,10 +22,11 @@ use ygg_core::{
 };
 use ygg_runtime::{
     check_network_policy, EnvSecretResolver, EventStore, ExecutorKind, FakeOutboundExecutor,
-    InMemoryEventStore, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    FakeWebSocketExecutor, InMemoryEventStore, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    OutboundWebSocketFrame,
     OutboundExecutor, OutboundExecutePolicyConfig, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal, Runtime, RuntimeConfig,
-    SecretResolverConfig, SseParser,
+    SecretResolverConfig, SseParser, WebSocketExecutor,
 };
 
 use super::fixtures::runtime;
@@ -1519,6 +1520,116 @@ pub(crate) async fn outbound_execute_profile_live_disabled_returns_deny() -> any
         matches!(executor_config, OutboundExecutorConfig::DenyAll),
         "enabled=false must yield DenyAll regardless of executor field"
     );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Z4: Outbound WebSocket profile conformance cases
+// ---------------------------------------------------------------------------
+
+pub(crate) async fn outbound_websocket_profile_default_deny_all() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(network_package(
+            "example/z4-ws-default",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: Some("websocket default deny".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/z4-ws-default", "in_process");
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.websocket.open",
+            serde_json::json!({
+                "capability_id": "example/z4-ws-default/fetch",
+                "destination_host": "api.openai.com",
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(result.is_err(), "default websocket profile must deny open");
+    let err = format!("{:?}", result.unwrap_err());
+    anyhow::ensure!(err.contains("denied"), "expected deny-all error, got: {err}");
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_profile_fake_executor_works() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let fake = Arc::new(FakeWebSocketExecutor::new());
+    let config = RuntimeConfig {
+        outbound_websocket_executor: fake.clone(),
+        ..RuntimeConfig::default()
+    };
+    let runtime = Runtime::new(store, config);
+    runtime
+        .load_package(network_package(
+            "example/z4-ws-fake",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: Some("fake websocket".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/z4-ws-fake", "in_process");
+    let response = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.websocket.open",
+            serde_json::json!({
+                "capability_id": "example/z4-ws-fake/fetch",
+                "destination_host": "api.openai.com",
+                "subprotocols": ["json"]
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let connection_id = response
+        .get("connection_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("websocket response missing connection_id: {response:?}"))?
+        .to_string();
+    anyhow::ensure!(
+        response.get("status").and_then(|v| v.as_str()) == Some("ok"),
+        "websocket open should return ok: {response:?}"
+    );
+    anyhow::ensure!(
+        response.get("executor_kind").and_then(|v| v.as_str()) == Some("fake"),
+        "websocket open should use fake executor: {response:?}"
+    );
+
+    let status = fake
+        .send(&connection_id, OutboundWebSocketFrame::Text("hello".to_string()))
+        .await?;
+    anyhow::ensure!(format!("{:?}", status) == "Ok", "fake websocket send should be Ok");
+    fake.close(&connection_id, 1000, Some("done".to_string())).await?;
+    Ok(())
+}
+
+pub(crate) async fn outbound_websocket_profile_live_disabled_returns_deny() -> anyhow::Result<()> {
+    use crate::cli::{HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile};
+    use crate::commands::host::build_outbound_websocket_executor;
+
+    let profile = HostWebSocketOutboundProfile {
+        enabled: false,
+        executor: HostWebSocketOutboundExecutorKind::Live,
+        allowed_hosts: vec!["api.openai.com".to_string()],
+        ..HostWebSocketOutboundProfile::default()
+    };
+    let executor = build_outbound_websocket_executor(&profile)?;
+    let err = executor
+        .close("missing", 1000, None)
+        .await
+        .expect_err("disabled websocket profile must return deny-all executor");
+    anyhow::ensure!(err.to_string().contains("denied"), "expected deny-all error: {err}");
     Ok(())
 }
 

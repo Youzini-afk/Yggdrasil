@@ -33,6 +33,19 @@ outbound:
     timeout_ms: 30000
     allow_redirects: false
     allow_insecure_loopback_for_tests: false
+  # websocket:
+  #   enabled: false
+  #   executor: deny_all     # | fake | live
+  #   allowed_hosts:
+  #     - api.openai.com               # OpenAI Realtime
+  #     - generativelanguage.googleapis.com  # Gemini Live
+  #   wss_only: true
+  #   max_idle_ms: 60000
+  #   max_duration_ms: 1800000
+  #   max_frame_bytes: 65536
+  #   max_total_bytes_inbound: 10485760
+  #   max_total_bytes_outbound: 10485760
+  #   max_concurrent_connections: 8
 
 autoload:
   - ../packages/official/playable-creation-board/manifest.yaml

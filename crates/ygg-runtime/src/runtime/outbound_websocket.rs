@@ -352,7 +352,7 @@ impl LiveWebSocketExecutor {
         Self { config, connections: RwLock::new(HashMap::new()) }
     }
 
-    pub fn new_from_profile(
+    pub fn new_from_profile_fields(
         allowed_hosts: Vec<String>,
         wss_only: bool,
         max_idle_ms: u64,
@@ -374,6 +374,23 @@ impl LiveWebSocketExecutor {
             max_concurrent_connections,
             allow_insecure_ws_for_tests,
         })
+    }
+
+    pub fn new_from_profile<P>(profile: &P) -> Result<Self>
+    where
+        P: LiveWebSocketProfile,
+    {
+        Ok(Self::new(LiveWebSocketExecutorConfig {
+            allowed_hosts: profile.allowed_hosts().to_vec(),
+            wss_only: profile.wss_only(),
+            max_idle_ms: profile.max_idle_ms(),
+            max_duration_ms: profile.max_duration_ms(),
+            max_frame_bytes: profile.max_frame_bytes(),
+            max_total_bytes_inbound: profile.max_total_bytes_inbound(),
+            max_total_bytes_outbound: profile.max_total_bytes_outbound(),
+            max_concurrent_connections: profile.max_concurrent_connections(),
+            allow_insecure_ws_for_tests: profile.allow_insecure_ws_for_tests(),
+        }))
     }
 
     fn validate_open_request(&self, req: &OutboundWebSocketOpenRequest) -> Result<String> {
@@ -404,6 +421,18 @@ impl LiveWebSocketExecutor {
         }
         Ok(url)
     }
+}
+
+pub trait LiveWebSocketProfile {
+    fn allowed_hosts(&self) -> &[String];
+    fn wss_only(&self) -> bool;
+    fn max_idle_ms(&self) -> u64;
+    fn max_duration_ms(&self) -> u64;
+    fn max_frame_bytes(&self) -> usize;
+    fn max_total_bytes_inbound(&self) -> usize;
+    fn max_total_bytes_outbound(&self) -> usize;
+    fn max_concurrent_connections(&self) -> usize;
+    fn allow_insecure_ws_for_tests(&self) -> bool;
 }
 
 #[async_trait]

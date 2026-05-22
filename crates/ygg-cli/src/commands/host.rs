@@ -6,18 +6,58 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
-    EventStore, FakeGitOutboundExecutor, FakeOutboundExecutor, GitOutboundExecutorConfig,
-    GitOutboundPolicyConfig, InMemoryEventStore, LiveHttpOutboundExecutor,
+    DenyAllWebSocketExecutor, EventStore, FakeGitOutboundExecutor, FakeOutboundExecutor,
+    FakeWebSocketExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
+    InMemoryEventStore, LiveHttpOutboundExecutor, LiveWebSocketExecutor, LiveWebSocketProfile,
     OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext,
     RealGitOutboundExecutor, RealGitOutboundExecutorConfig, Runtime, RuntimeConfig,
-    SqliteEventStore,
+    SqliteEventStore, WebSocketExecutor,
 };
 
 use super::manifest::read_manifest;
 use crate::cli::{
     HostEventStoreProfile, HostExecuteOutboundExecutorKind, HostExecuteOutboundProfile,
     HostGitOutboundExecutorKind, HostGitOutboundProfile, HostProfile,
+    HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
 };
+
+impl LiveWebSocketProfile for HostWebSocketOutboundProfile {
+    fn allowed_hosts(&self) -> &[String] {
+        &self.allowed_hosts
+    }
+
+    fn wss_only(&self) -> bool {
+        self.wss_only
+    }
+
+    fn max_idle_ms(&self) -> u64 {
+        self.max_idle_ms
+    }
+
+    fn max_duration_ms(&self) -> u64 {
+        self.max_duration_ms
+    }
+
+    fn max_frame_bytes(&self) -> usize {
+        self.max_frame_bytes
+    }
+
+    fn max_total_bytes_inbound(&self) -> usize {
+        self.max_total_bytes_inbound
+    }
+
+    fn max_total_bytes_outbound(&self) -> usize {
+        self.max_total_bytes_outbound
+    }
+
+    fn max_concurrent_connections(&self) -> usize {
+        self.max_concurrent_connections
+    }
+
+    fn allow_insecure_ws_for_tests(&self) -> bool {
+        self.allow_insecure_ws_for_tests
+    }
+}
 
 pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Result<()> {
     if let Some(profile_path) = profile {
@@ -74,6 +114,7 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
 fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
     validate_git_outbound_profile(&profile.outbound.git)?;
     validate_execute_outbound_profile(&profile.outbound.execute)?;
+    validate_websocket_outbound_profile(&profile.outbound.websocket)?;
 
     let git = &profile.outbound.git;
     let mut config = RuntimeConfig::default();
@@ -119,6 +160,9 @@ fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
         allow_insecure_loopback_for_tests: exec.allow_insecure_loopback_for_tests,
     };
     config.outbound_executor = build_outbound_execute_executor(exec)?;
+
+    config.outbound_websocket_executor =
+        build_outbound_websocket_executor(&profile.outbound.websocket)?;
 
     Ok(config)
 }
@@ -187,6 +231,22 @@ pub(crate) fn build_outbound_execute_executor(
     }
 }
 
+pub(crate) fn build_outbound_websocket_executor(
+    profile: &HostWebSocketOutboundProfile,
+) -> Result<Arc<dyn WebSocketExecutor>> {
+    if !profile.enabled {
+        return Ok(Arc::new(DenyAllWebSocketExecutor));
+    }
+    match profile.executor {
+        HostWebSocketOutboundExecutorKind::DenyAll => Ok(Arc::new(DenyAllWebSocketExecutor)),
+        HostWebSocketOutboundExecutorKind::Fake => Ok(Arc::new(FakeWebSocketExecutor::new())),
+        HostWebSocketOutboundExecutorKind::Live => {
+            let executor = LiveWebSocketExecutor::new_from_profile(profile)?;
+            Ok(Arc::new(executor))
+        }
+    }
+}
+
 /// Validate the execute outbound profile section (Y1).
 ///
 /// Enforces fail-closed constraints:
@@ -229,6 +289,88 @@ pub(crate) fn validate_execute_outbound_profile(exec: &HostExecuteOutboundProfil
         )
     }
     Ok(())
+}
+
+pub(crate) fn validate_websocket_outbound_profile(
+    profile: &HostWebSocketOutboundProfile,
+) -> Result<()> {
+    if !profile.wss_only && !profile.allow_insecure_ws_for_tests {
+        anyhow::bail!(
+            "outbound.websocket.wss_only=false is only supported with allow_insecure_ws_for_tests=true"
+        )
+    }
+    if profile.max_idle_ms == 0 {
+        anyhow::bail!("outbound.websocket.max_idle_ms must be greater than zero")
+    }
+    if profile.max_duration_ms == 0 {
+        anyhow::bail!("outbound.websocket.max_duration_ms must be greater than zero")
+    }
+    if profile.max_frame_bytes == 0 {
+        anyhow::bail!("outbound.websocket.max_frame_bytes must be greater than zero")
+    }
+    if profile.max_total_bytes_inbound == 0 {
+        anyhow::bail!("outbound.websocket.max_total_bytes_inbound must be greater than zero")
+    }
+    if profile.max_total_bytes_outbound == 0 {
+        anyhow::bail!("outbound.websocket.max_total_bytes_outbound must be greater than zero")
+    }
+    if profile.max_concurrent_connections == 0 {
+        anyhow::bail!("outbound.websocket.max_concurrent_connections must be greater than zero")
+    }
+    if !profile.enabled {
+        return Ok(());
+    }
+    if matches!(profile.executor, HostWebSocketOutboundExecutorKind::Live)
+        && profile.allowed_hosts.is_empty()
+    {
+        anyhow::bail!(
+            "outbound.websocket.allowed_hosts is required when websocket outbound is enabled with live executor"
+        )
+    }
+    if profile
+        .allowed_hosts
+        .iter()
+        .any(|host| host.trim().is_empty() || host == "*")
+    {
+        anyhow::bail!(
+            "outbound.websocket.allowed_hosts must not contain empty hosts or wildcard hosts"
+        )
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::{HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile};
+
+    #[test]
+    fn validate_websocket_outbound_profile_fails_closed_on_live_with_empty_allowed_hosts() {
+        let profile = HostWebSocketOutboundProfile {
+            enabled: true,
+            executor: HostWebSocketOutboundExecutorKind::Live,
+            allowed_hosts: Vec::new(),
+            ..HostWebSocketOutboundProfile::default()
+        };
+        let err = validate_websocket_outbound_profile(&profile)
+            .expect_err("live websocket without hosts should fail closed");
+        assert!(err.to_string().contains("allowed_hosts"));
+    }
+
+    #[test]
+    fn validate_websocket_outbound_profile_rejects_non_wss_when_no_test_flag() {
+        let profile = HostWebSocketOutboundProfile {
+            enabled: true,
+            executor: HostWebSocketOutboundExecutorKind::Fake,
+            wss_only: false,
+            allow_insecure_ws_for_tests: false,
+            ..HostWebSocketOutboundProfile::default()
+        };
+        let err = validate_websocket_outbound_profile(&profile)
+            .expect_err("non-wss websocket without test flag should fail");
+        assert!(err.to_string().contains("wss_only=false"));
+    }
+
 }
 
 async fn serve_runtime<S>(

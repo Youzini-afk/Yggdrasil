@@ -41,7 +41,7 @@ pub use runtime::{
     FrameKind, GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig,
     GitOutboundPolicyConfig, GitOutboundRequest, GitOutboundResponse, KernelOutboundStreamResponse,
     LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, LiveWebSocketExecutor,
-    LiveWebSocketExecutorConfig, NetworkPolicyDecision, OpenSessionRequest,
+    LiveWebSocketExecutorConfig, LiveWebSocketProfile, NetworkPolicyDecision, OpenSessionRequest,
     OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig,
     OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind, OutboundRequest,
     OutboundStreamFrame, OutboundStreamSummary, OutboundWebSocketFrame,

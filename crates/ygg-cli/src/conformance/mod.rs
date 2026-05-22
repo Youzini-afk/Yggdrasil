@@ -217,6 +217,9 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("outbound_execute.profile_default_deny_all", ["outbound", "network", "profile"], network::outbound_execute_profile_default_deny_all),
         c!("outbound_execute.profile_fake_executor_works", ["outbound", "network", "profile"], network::outbound_execute_profile_fake_executor_works),
         c!("outbound_execute.profile_live_disabled_returns_deny", ["outbound", "network", "profile"], network::outbound_execute_profile_live_disabled_returns_deny),
+        c!("outbound_websocket.profile_default_deny_all", ["outbound", "network", "websocket"], network::outbound_websocket_profile_default_deny_all),
+        c!("outbound_websocket.profile_fake_executor_works", ["outbound", "network", "websocket"], network::outbound_websocket_profile_fake_executor_works),
+        c!("outbound_websocket.profile_live_disabled_returns_deny", ["outbound", "network", "websocket"], network::outbound_websocket_profile_live_disabled_returns_deny),
         // --- Y2: manifest permissions.secret_refs conformance ---
         c!("outbound_execute.secret_ref_undeclared_fails", ["outbound", "network", "secret", "manifest"], network::outbound_execute_secret_ref_undeclared_fails),
         c!("outbound_execute.secret_ref_declared_resolves", ["outbound", "network", "secret", "manifest"], network::outbound_execute_secret_ref_declared_resolves),

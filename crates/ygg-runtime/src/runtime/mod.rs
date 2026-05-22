@@ -56,9 +56,9 @@ pub use self::streaming::StreamRegistry;
 pub use self::outbound_sse::{SseEvent, SseParser};
 pub use self::outbound_websocket::{
     DenyAllWebSocketExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
-    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, OutboundWebSocketFrame,
-    OutboundWebSocketOpenRequest, OutboundWebSocketSession, SendStatus, WebSocketEvent,
-    WebSocketExecutor, WebSocketFramePayload,
+    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, LiveWebSocketProfile,
+    OutboundWebSocketFrame, OutboundWebSocketOpenRequest, OutboundWebSocketSession,
+    SendStatus, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
 };
 
 // ---------------------------------------------------------------------------

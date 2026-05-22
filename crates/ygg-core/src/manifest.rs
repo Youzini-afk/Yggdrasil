@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use crate::ids::{CapabilityId, ExtensionPointId, PackageId};
@@ -272,8 +272,8 @@ pub struct AssetPermissions {
 pub struct NetworkDeclaration {
     /// Destination host (e.g. `"api.openai.com"` or `"*.example.org"`).
     pub host: String,
-    /// Permitted HTTP methods (e.g. `["GET", "POST"]`). Empty means all.
-    #[serde(default)]
+    /// Permitted HTTP/WebSocket methods (e.g. `["GET", "POST", "WEBSOCKET"]`). Empty means all.
+    #[serde(default, deserialize_with = "deserialize_network_methods")]
     pub methods: Vec<String>,
     /// Human-readable purpose for this network access.
     #[serde(default)]
@@ -387,8 +387,35 @@ impl PackageManifest {
                 return Err(ManifestError::InvalidSecretRef(secret_ref.clone()));
             }
         }
+        for declaration in &self.permissions.network.declarations {
+            for method in &declaration.methods {
+                validate_network_method(method)?;
+            }
+        }
         Ok(())
     }
+}
+
+const ALLOWED_NETWORK_METHODS: &[&str] = &[
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "PATCH",
+    "HEAD",
+    "OPTIONS",
+    "WEBSOCKET",
+];
+
+fn deserialize_network_methods<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let methods = Vec::<String>::deserialize(deserializer)?;
+    Ok(methods
+        .into_iter()
+        .map(|method| method.trim().to_ascii_uppercase())
+        .collect())
 }
 
 fn default_surface_version() -> String {
@@ -409,6 +436,8 @@ pub enum ManifestError {
     InvalidSurface(String),
     #[error("invalid secret_ref in permissions: {0}")]
     InvalidSecretRef(String),
+    #[error("invalid network method in permissions.network.declarations: {0}")]
+    InvalidNetworkMethod(String),
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -439,9 +468,52 @@ fn validate_schema_shape(schema: &Value) -> Result<(), ManifestError> {
     }
 }
 
+fn validate_network_method(method: &str) -> Result<(), ManifestError> {
+    if ALLOWED_NETWORK_METHODS
+        .iter()
+        .any(|allowed| allowed.eq_ignore_ascii_case(method))
+    {
+        Ok(())
+    } else {
+        Err(ManifestError::InvalidNetworkMethod(method.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn base_manifest_with_network_methods(methods: Vec<String>) -> PackageManifest {
+        PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                network: NetworkPermissions {
+                    hosts: Vec::new(),
+                    declarations: vec![NetworkDeclaration {
+                        host: "api.example.com".to_string(),
+                        methods,
+                        purpose: Some("test".to_string()),
+                    }],
+                },
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        }
+    }
 
     #[test]
     fn validates_manifest_identity_and_capabilities() {
@@ -642,5 +714,53 @@ mod tests {
         let json = serde_json::to_string(&perms).expect("serialize");
         let perms2: PermissionSet = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(perms.secret_refs, perms2.secret_refs);
+    }
+
+    #[test]
+    fn manifest_network_method_websocket_parses() {
+        let manifest = base_manifest_with_network_methods(vec!["WEBSOCKET".to_string()]);
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn manifest_network_method_websocket_lowercase_normalized() {
+        let raw = serde_json::json!({
+            "schema_version": 1,
+            "id": "org/test",
+            "version": "0.1.0",
+            "entry": {
+                "kind": "rust_inproc",
+                "crate_ref": "org-test",
+                "symbol": "register",
+                "abi_version": 1
+            },
+            "permissions": {
+                "network": {
+                    "declarations": [{
+                        "host": "api.example.com",
+                        "methods": ["websocket"],
+                        "purpose": "test"
+                    }]
+                }
+            }
+        });
+        let manifest: PackageManifest = serde_json::from_value(raw).expect("parse manifest");
+        assert_eq!(
+            manifest.permissions.network.declarations[0].methods,
+            vec!["WEBSOCKET".to_string()]
+        );
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn manifest_network_method_invalid_method_rejected() {
+        let manifest = base_manifest_with_network_methods(vec!["CONNECT_TO_ANYTHING".to_string()]);
+        let err = manifest
+            .validate_basic()
+            .expect_err("invalid network method should be rejected");
+        assert_eq!(
+            err,
+            ManifestError::InvalidNetworkMethod("CONNECT_TO_ANYTHING".to_string())
+        );
     }
 }

@@ -259,6 +259,8 @@ pub(crate) struct HostOutboundProfile {
     pub(crate) git: HostGitOutboundProfile,
     #[serde(default)]
     pub(crate) execute: HostExecuteOutboundProfile,
+    #[serde(default)]
+    pub(crate) websocket: HostWebSocketOutboundProfile,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -349,6 +351,92 @@ pub(crate) enum HostExecuteOutboundExecutorKind {
     DenyAll,
     Fake,
     Live,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct HostWebSocketOutboundProfile {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default = "default_websocket_executor_kind")]
+    pub(crate) executor: HostWebSocketOutboundExecutorKind,
+    #[serde(default)]
+    pub(crate) allowed_hosts: Vec<String>,
+    #[serde(default = "default_wss_only")]
+    pub(crate) wss_only: bool,
+    #[serde(default = "default_max_idle_ms")]
+    pub(crate) max_idle_ms: u64,
+    #[serde(default = "default_max_duration_ms")]
+    pub(crate) max_duration_ms: u64,
+    #[serde(default = "default_max_frame_bytes")]
+    pub(crate) max_frame_bytes: usize,
+    #[serde(default = "default_max_total_bytes_inbound")]
+    pub(crate) max_total_bytes_inbound: usize,
+    #[serde(default = "default_max_total_bytes_outbound")]
+    pub(crate) max_total_bytes_outbound: usize,
+    #[serde(default = "default_max_concurrent_connections")]
+    pub(crate) max_concurrent_connections: usize,
+    #[serde(default)]
+    pub(crate) allow_insecure_ws_for_tests: bool,
+}
+
+impl Default for HostWebSocketOutboundProfile {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            executor: HostWebSocketOutboundExecutorKind::DenyAll,
+            allowed_hosts: Vec::new(),
+            wss_only: default_wss_only(),
+            max_idle_ms: default_max_idle_ms(),
+            max_duration_ms: default_max_duration_ms(),
+            max_frame_bytes: default_max_frame_bytes(),
+            max_total_bytes_inbound: default_max_total_bytes_inbound(),
+            max_total_bytes_outbound: default_max_total_bytes_outbound(),
+            max_concurrent_connections: default_max_concurrent_connections(),
+            allow_insecure_ws_for_tests: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HostWebSocketOutboundExecutorKind {
+    #[default]
+    DenyAll,
+    Fake,
+    Live,
+}
+
+fn default_websocket_executor_kind() -> HostWebSocketOutboundExecutorKind {
+    HostWebSocketOutboundExecutorKind::DenyAll
+}
+
+fn default_wss_only() -> bool {
+    true
+}
+
+fn default_max_idle_ms() -> u64 {
+    60_000
+}
+
+fn default_max_duration_ms() -> u64 {
+    1_800_000
+}
+
+fn default_max_frame_bytes() -> usize {
+    65_536
+}
+
+fn default_max_total_bytes_inbound() -> usize {
+    10_485_760
+}
+
+fn default_max_total_bytes_outbound() -> usize {
+    10_485_760
+}
+
+fn default_max_concurrent_connections() -> usize {
+    8
 }
 
 fn default_true() -> bool {
@@ -583,6 +671,174 @@ outbound:
     }
 
     #[test]
+    fn host_profile_websocket_default_disabled() {
+        let profile: HostProfile = serde_yaml::from_str("title: test\n").expect("parse profile");
+        let ws = &profile.outbound.websocket;
+        assert!(!ws.enabled);
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
+        assert!(ws.wss_only);
+    }
+
+    #[test]
+    fn host_profile_websocket_parses_live_executor() {
+        let yaml = r#"
+title: test
+outbound:
+  websocket:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.openai.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse live websocket");
+        let ws = &profile.outbound.websocket;
+        assert!(ws.enabled);
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::Live);
+        assert_eq!(ws.allowed_hosts, vec!["api.openai.com"]);
+    }
+
+    #[test]
+    fn host_profile_websocket_parses_fake_executor() {
+        let yaml = r#"
+title: test
+outbound:
+  websocket:
+    enabled: true
+    executor: fake
+    allowed_hosts:
+      - api.example.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse fake websocket");
+        let ws = &profile.outbound.websocket;
+        assert!(ws.enabled);
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::Fake);
+    }
+
+    #[test]
+    fn host_profile_websocket_parses_deny_all_executor() {
+        let yaml = r#"
+title: test
+outbound:
+  websocket:
+    enabled: true
+    executor: deny_all
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse deny websocket");
+        let ws = &profile.outbound.websocket;
+        assert!(ws.enabled);
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
+    }
+
+    #[test]
+    fn host_profile_websocket_parses_allowed_hosts() {
+        let yaml = r#"
+title: test
+outbound:
+  websocket:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.openai.com
+      - generativelanguage.googleapis.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse ws hosts");
+        assert_eq!(
+            profile.outbound.websocket.allowed_hosts,
+            vec!["api.openai.com", "generativelanguage.googleapis.com"]
+        );
+    }
+
+    #[test]
+    fn host_profile_websocket_wss_only_default_true() {
+        let profile: HostProfile = serde_yaml::from_str(
+            "title: test\noutbound:\n  websocket:\n    enabled: true\n    executor: live\n",
+        )
+        .expect("parse ws default");
+        assert!(profile.outbound.websocket.wss_only);
+    }
+
+    #[test]
+    fn host_profile_websocket_max_idle_default_60s() {
+        let profile: HostProfile = serde_yaml::from_str("title: test\n").expect("parse profile");
+        assert_eq!(profile.outbound.websocket.max_idle_ms, 60_000);
+    }
+
+    #[test]
+    fn host_profile_websocket_max_duration_default_30min() {
+        let profile: HostProfile = serde_yaml::from_str("title: test\n").expect("parse profile");
+        assert_eq!(profile.outbound.websocket.max_duration_ms, 1_800_000);
+    }
+
+    #[test]
+    fn host_profile_websocket_max_frame_bytes_default_64kib() {
+        let profile: HostProfile = serde_yaml::from_str("title: test\n").expect("parse profile");
+        assert_eq!(profile.outbound.websocket.max_frame_bytes, 65_536);
+    }
+
+    #[test]
+    fn host_profile_websocket_max_concurrent_default_8() {
+        let profile: HostProfile = serde_yaml::from_str("title: test\n").expect("parse profile");
+        assert_eq!(profile.outbound.websocket.max_concurrent_connections, 8);
+    }
+
+    #[test]
+    fn host_profile_websocket_round_trips() {
+        let yaml = r#"
+title: test
+outbound:
+  websocket:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.openai.com
+      - generativelanguage.googleapis.com
+    wss_only: true
+    max_idle_ms: 60000
+    max_duration_ms: 1800000
+    max_frame_bytes: 65536
+    max_total_bytes_inbound: 10485760
+    max_total_bytes_outbound: 10485760
+    max_concurrent_connections: 8
+    allow_insecure_ws_for_tests: false
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse websocket profile");
+        let rendered = format!(
+            r#"title: test
+outbound:
+  websocket:
+    enabled: {}
+    executor: live
+    allowed_hosts:
+      - {}
+      - {}
+    wss_only: {}
+    max_idle_ms: {}
+    max_duration_ms: {}
+    max_frame_bytes: {}
+    max_total_bytes_inbound: {}
+    max_total_bytes_outbound: {}
+    max_concurrent_connections: {}
+    allow_insecure_ws_for_tests: {}
+"#,
+            profile.outbound.websocket.enabled,
+            profile.outbound.websocket.allowed_hosts[0],
+            profile.outbound.websocket.allowed_hosts[1],
+            profile.outbound.websocket.wss_only,
+            profile.outbound.websocket.max_idle_ms,
+            profile.outbound.websocket.max_duration_ms,
+            profile.outbound.websocket.max_frame_bytes,
+            profile.outbound.websocket.max_total_bytes_inbound,
+            profile.outbound.websocket.max_total_bytes_outbound,
+            profile.outbound.websocket.max_concurrent_connections,
+            profile.outbound.websocket.allow_insecure_ws_for_tests
+        );
+        let reparsed: HostProfile = serde_yaml::from_str(&rendered).expect("reparse websocket profile");
+        assert_eq!(reparsed.outbound.websocket.executor, HostWebSocketOutboundExecutorKind::Live);
+        assert_eq!(reparsed.outbound.websocket.allowed_hosts, profile.outbound.websocket.allowed_hosts);
+        assert_eq!(reparsed.outbound.websocket.max_frame_bytes, 65_536);
+    }
+
+    #[test]
     fn forge_alpha_backward_compat() {
         // forge-alpha.yaml must still parse with the new execute field defaulting
         let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -601,6 +857,9 @@ outbound:
             HostExecuteOutboundExecutorKind::DenyAll,
             "forge-alpha executor should default to DenyAll"
         );
+        let ws = &profile.outbound.websocket;
+        assert!(!ws.enabled, "forge-alpha websocket should default to disabled");
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
     }
 
     #[test]
@@ -619,5 +878,40 @@ outbound:
         assert!(!exec.allow_redirects);
         assert!(!exec.allow_insecure_loopback_for_tests);
         assert_eq!(exec.allowed_hosts.len(), 7);
+        let ws = &profile.outbound.websocket;
+        assert!(!ws.enabled, "example websocket section should stay disabled by default");
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
+    }
+
+    #[test]
+    fn forge_with_live_models_example_uncommented_websocket_parses() {
+        let raw = r#"
+title: Yggdrasil Forge Host With Live Model Outbound Enabled (Example)
+outbound:
+  execute:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.openai.com
+    https_only: true
+  websocket:
+    enabled: false
+    executor: deny_all
+    allowed_hosts:
+      - api.openai.com
+      - generativelanguage.googleapis.com
+    wss_only: true
+    max_idle_ms: 60000
+    max_duration_ms: 1800000
+    max_frame_bytes: 65536
+    max_total_bytes_inbound: 10485760
+    max_total_bytes_outbound: 10485760
+    max_concurrent_connections: 8
+"#;
+        let profile: HostProfile = serde_yaml::from_str(raw).expect("parse uncommented ws example");
+        let ws = &profile.outbound.websocket;
+        assert!(!ws.enabled);
+        assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
+        assert_eq!(ws.allowed_hosts.len(), 2);
     }
 }

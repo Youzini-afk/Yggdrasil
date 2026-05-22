@@ -382,6 +382,38 @@ mod tests {
     }
 
     #[test]
+    fn network_policy_matches_websocket_when_declared() {
+        let perms = make_perms(
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: Some("OpenAI Realtime".to_string()),
+            }],
+            vec![],
+        );
+        let decision = check_network_policy(&perms, "api.openai.com", "WEBSOCKET");
+        assert!(decision.allowed);
+        assert_eq!(
+            decision.matched_declaration.unwrap().purpose,
+            Some("OpenAI Realtime".to_string())
+        );
+    }
+
+    #[test]
+    fn network_policy_rejects_websocket_when_not_declared() {
+        let perms = make_perms(
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        );
+        let decision = check_network_policy(&perms, "api.openai.com", "WEBSOCKET");
+        assert!(!decision.allowed);
+    }
+
+    #[test]
     fn exact_host_match() {
         assert!(host_matches("api.example.com", "api.example.com"));
         assert!(!host_matches("api.example.com", "other.example.com"));
