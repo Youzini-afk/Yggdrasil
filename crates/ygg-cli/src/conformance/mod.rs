@@ -213,6 +213,10 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("outbound.execute_spoofed_package_id_rejected", ["outbound", "network"], network::outbound_execute_spoofed_package_id_rejected),
         c!("outbound.execute_no_permission_denied", ["outbound", "network"], network::outbound_execute_no_permission_denied),
         c!("outbound.execute_no_raw_secret_in_response", ["outbound", "network", "secret"], network::outbound_execute_no_raw_secret_in_response),
+        // --- Y1: outbound execute profile conformance ---
+        c!("outbound_execute.profile_default_deny_all", ["outbound", "network", "profile"], network::outbound_execute_profile_default_deny_all),
+        c!("outbound_execute.profile_fake_executor_works", ["outbound", "network", "profile"], network::outbound_execute_profile_fake_executor_works),
+        c!("outbound_execute.profile_live_disabled_returns_deny", ["outbound", "network", "profile"], network::outbound_execute_profile_live_disabled_returns_deny),
         // --- git outbound ---
         c!("git_fetch.deny_all_default", ["git", "outbound"], git_install::git_fetch_deny_all_default),
         c!("git_fetch.requires_https", ["git", "outbound"], git_install::git_fetch_requires_https),

@@ -6,14 +6,17 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
-    EventStore, FakeGitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
-    InMemoryEventStore, ProtocolContext, RealGitOutboundExecutor, RealGitOutboundExecutorConfig,
-    Runtime, RuntimeConfig, SqliteEventStore,
+    EventStore, FakeGitOutboundExecutor, FakeOutboundExecutor, GitOutboundExecutorConfig,
+    GitOutboundPolicyConfig, InMemoryEventStore, LiveHttpOutboundExecutor,
+    OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext,
+    RealGitOutboundExecutor, RealGitOutboundExecutorConfig, Runtime, RuntimeConfig,
+    SqliteEventStore,
 };
 
 use super::manifest::read_manifest;
 use crate::cli::{
-    HostEventStoreProfile, HostGitOutboundExecutorKind, HostGitOutboundProfile, HostProfile,
+    HostEventStoreProfile, HostExecuteOutboundExecutorKind, HostExecuteOutboundProfile,
+    HostGitOutboundExecutorKind, HostGitOutboundProfile, HostProfile,
 };
 
 pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Result<()> {
@@ -70,6 +73,8 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
 
 fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
     validate_git_outbound_profile(&profile.outbound.git)?;
+    validate_execute_outbound_profile(&profile.outbound.execute)?;
+
     let git = &profile.outbound.git;
     let mut config = RuntimeConfig::default();
     config.git_outbound_policy = GitOutboundPolicyConfig {
@@ -102,6 +107,19 @@ fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
             )))
         }
     };
+
+    // Y1: Wire outbound.execute profile into RuntimeConfig
+    let exec = &profile.outbound.execute;
+    config.outbound_execute_policy = OutboundExecutePolicyConfig {
+        enabled: exec.enabled,
+        allowed_hosts: exec.allowed_hosts.clone(),
+        https_only: exec.https_only,
+        timeout_ms: exec.timeout_ms,
+        allow_redirects: exec.allow_redirects,
+        allow_insecure_loopback_for_tests: exec.allow_insecure_loopback_for_tests,
+    };
+    config.outbound_executor = build_outbound_execute_executor(exec)?;
+
     Ok(config)
 }
 
@@ -135,6 +153,80 @@ fn validate_git_outbound_profile(git: &HostGitOutboundProfile) -> Result<()> {
         .any(|host| host.trim().is_empty() || host == "*")
     {
         anyhow::bail!("outbound.git.allowed_hosts must not contain empty hosts or wildcard hosts")
+    }
+    Ok(())
+}
+
+/// Build the `OutboundExecutorConfig` from the execute profile section (Y1).
+///
+/// - If `enabled` is false, always returns `DenyAll` (fail-closed).
+/// - If `enabled` is true, selects based on `executor` field:
+///   - `deny_all` → DenyAll
+///   - `fake` → Custom(FakeOutboundExecutor)
+///   - `live` → LiveHttp(config built from profile fields)
+pub(crate) fn build_outbound_execute_executor(
+    config: &HostExecuteOutboundProfile,
+) -> Result<OutboundExecutorConfig> {
+    if !config.enabled {
+        return Ok(OutboundExecutorConfig::DenyAll);
+    }
+    match config.executor {
+        HostExecuteOutboundExecutorKind::DenyAll => Ok(OutboundExecutorConfig::DenyAll),
+        HostExecuteOutboundExecutorKind::Fake => {
+            Ok(OutboundExecutorConfig::Custom(Arc::new(FakeOutboundExecutor::new())))
+        }
+        HostExecuteOutboundExecutorKind::Live => {
+            let executor = LiveHttpOutboundExecutor::new_from_profile(
+                config.https_only,
+                config.timeout_ms,
+                config.allow_redirects,
+                config.allow_insecure_loopback_for_tests,
+            )?;
+            Ok(OutboundExecutorConfig::Custom(Arc::new(executor)))
+        }
+    }
+}
+
+/// Validate the execute outbound profile section (Y1).
+///
+/// Enforces fail-closed constraints:
+/// - `timeout_ms` must be > 0 when enabled
+/// - `allowed_hosts` must not be empty when enabled with a non-deny_all executor
+/// - `allowed_hosts` must not contain empty or wildcard hosts
+/// - `https_only=false` is not supported (HTTPS-only is the only safe default)
+/// - `allow_redirects=true` is not supported (redirects fail closed)
+pub(crate) fn validate_execute_outbound_profile(exec: &HostExecuteOutboundProfile) -> Result<()> {
+    if !exec.https_only {
+        anyhow::bail!(
+            "outbound.execute.https_only=false is not supported; live outbound is HTTPS-only"
+        )
+    }
+    if exec.allow_redirects {
+        anyhow::bail!(
+            "outbound.execute.allow_redirects=true is not supported; redirects fail closed"
+        )
+    }
+    if exec.timeout_ms == 0 {
+        anyhow::bail!("outbound.execute.timeout_ms must be greater than zero")
+    }
+    if !exec.enabled {
+        return Ok(());
+    }
+    if !matches!(exec.executor, HostExecuteOutboundExecutorKind::DenyAll)
+        && exec.allowed_hosts.is_empty()
+    {
+        anyhow::bail!(
+            "outbound.execute.allowed_hosts is required when execute outbound is enabled with a non-deny_all executor"
+        )
+    }
+    if exec
+        .allowed_hosts
+        .iter()
+        .any(|host| host.trim().is_empty() || host == "*")
+    {
+        anyhow::bail!(
+            "outbound.execute.allowed_hosts must not contain empty hosts or wildcard hosts"
+        )
     }
     Ok(())
 }

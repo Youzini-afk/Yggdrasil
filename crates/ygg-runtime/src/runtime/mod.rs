@@ -38,10 +38,10 @@ pub use self::outbound::{
     DenyAllOutboundExecutor, ExecutorKind, FakeGitOutboundExecutor, FakeOutboundExecutor,
     GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
     GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
-    LiveHttpOutboundExecutorConfig, OutboundExecutor, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundExecutorResponse, RealGitOutboundExecutor,
-    RealGitOutboundExecutorConfig, RedactedHeaderValue, ResolvedSecretHeader, SecretHeaderSpec,
-    StaticHeader, STATIC_HEADER_ALLOWLIST,
+    LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutor,
+    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
+    RealGitOutboundExecutor, RealGitOutboundExecutorConfig, RedactedHeaderValue,
+    ResolvedSecretHeader, SecretHeaderSpec, StaticHeader, STATIC_HEADER_ALLOWLIST,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
@@ -61,6 +61,8 @@ pub struct RuntimeConfig {
     pub secret_resolver: SecretResolverConfig,
     /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub outbound_executor: OutboundExecutorConfig,
+    /// Outbound execute host-level policy. Defaults disabled (fail-closed). (Y1)
+    pub outbound_execute_policy: OutboundExecutePolicyConfig,
     /// Git outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub git_outbound_executor: GitOutboundExecutorConfig,
     /// Git outbound host policy. Defaults disabled (fail-closed).
@@ -75,6 +77,7 @@ impl Default for RuntimeConfig {
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
             outbound_executor: OutboundExecutorConfig::default(),
+            outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             git_outbound_executor: GitOutboundExecutorConfig::default(),
             git_outbound_policy: GitOutboundPolicyConfig::default(),
         }

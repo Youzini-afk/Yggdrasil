@@ -403,6 +403,49 @@ impl Default for GitOutboundPolicyConfig {
 }
 
 // ---------------------------------------------------------------------------
+// OutboundExecutePolicyConfig — Y1 host-level execute policy
+// ---------------------------------------------------------------------------
+
+/// Host policy for outbound HTTP execute (Y1).
+///
+/// This is the execute-side analogue of `GitOutboundPolicyConfig`.
+/// It governs host-level policy for `kernel.outbound.execute` calls:
+/// whether execute is enabled at all, which destination hosts are
+/// allowed, whether HTTPS is required, timeouts, redirect policy, and
+/// a test-only loopback escape hatch.
+///
+/// Default is disabled (fail-closed): `enabled: false`, empty
+/// `allowed_hosts`, `https_only: true`, no redirects, no loopback.
+#[derive(Debug, Clone)]
+pub struct OutboundExecutePolicyConfig {
+    /// Explicit opt-in. Default is false (fail-closed).
+    pub enabled: bool,
+    /// Allowed destination hosts for HTTP execute. Empty means deny-all.
+    pub allowed_hosts: Vec<String>,
+    /// HTTPS-only guard. Must remain true for live executor parity.
+    pub https_only: bool,
+    /// Request timeout in milliseconds.
+    pub timeout_ms: u64,
+    /// Redirects are fail-closed in the current design.
+    pub allow_redirects: bool,
+    /// Test-only: allow insecure (HTTP) URLs to localhost / 127.0.0.1.
+    pub allow_insecure_loopback_for_tests: bool,
+}
+
+impl Default for OutboundExecutePolicyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            allowed_hosts: Vec::new(),
+            https_only: true,
+            timeout_ms: 30_000,
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: false,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // OutboundExecutor trait
 // ---------------------------------------------------------------------------
 
@@ -827,6 +870,39 @@ impl LiveHttpOutboundExecutor {
             .map_err(|e| anyhow::anyhow!("failed to build reqwest client: {e}"))?;
 
         Ok(Self { client, config })
+    }
+
+    /// Create a new live HTTP executor from a host profile's execute config (Y1).
+    ///
+    /// This constructor bridges the `HostExecuteOutboundProfile` (or
+    /// `OutboundExecutePolicyConfig`) fields into the
+    /// `LiveHttpOutboundExecutorConfig` expected by [`Self::new`].
+    /// It maps profile-level fields as follows:
+    ///
+    /// - `timeout_ms` → `config.timeout_ms`
+    /// - `connect_timeout_ms` → 5_000 (sensible default, not in profile)
+    /// - `allow_redirects` → `config.allow_redirects`
+    /// - `allow_insecure_loopback_for_tests` → `config.allow_insecure_loopback_for_tests`
+    /// - `max_response_preview_bytes` → 1024 (sensible default, not in profile)
+    pub fn new_from_profile(
+        https_only: bool,
+        timeout_ms: u64,
+        allow_redirects: bool,
+        allow_insecure_loopback_for_tests: bool,
+    ) -> anyhow::Result<Self> {
+        let config = LiveHttpOutboundExecutorConfig {
+            timeout_ms,
+            connect_timeout_ms: 5_000,
+            allow_redirects,
+            max_response_preview_bytes: 1024,
+            allow_insecure_loopback_for_tests,
+        };
+        // If the profile says https_only but loopback is allowed, the
+        // reqwest https_only flag is determined by the loopback setting
+        // (allowing HTTP to loopback only). When https_only is true and
+        // loopback is not allowed, the client enforces HTTPS-only.
+        let _ = https_only; // Already enforced by policy layer; executor-level handled by allow_insecure_loopback_for_tests
+        Self::new(config)
     }
 
     /// Build the full URL from the executor request.

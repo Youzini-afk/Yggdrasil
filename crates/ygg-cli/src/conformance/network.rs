@@ -1341,3 +1341,150 @@ pub(crate) async fn outbound_execute_no_raw_secret_in_response() -> anyhow::Resu
 
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Y1: Outbound execute profile conformance cases
+// ---------------------------------------------------------------------------
+
+/// Y1: Default profile (no execute section) produces DenyAll executor.
+///
+/// Verifies that `RuntimeConfig::default()` and an empty execute profile
+/// both yield a DenyAll executor. The default profile behavior must not
+/// change when the new `outbound.execute` field is added.
+pub(crate) async fn outbound_execute_profile_default_deny_all() -> anyhow::Result<()> {
+    use ygg_runtime::OutboundExecutePolicyConfig;
+
+    // Default RuntimeConfig must have deny-all executor
+    let config = RuntimeConfig::default();
+    anyhow::ensure!(
+        matches!(config.outbound_executor, OutboundExecutorConfig::DenyAll),
+        "default RuntimeConfig must keep outbound executor DenyAll"
+    );
+
+    // Default OutboundExecutePolicyConfig must be disabled
+    let policy = OutboundExecutePolicyConfig::default();
+    anyhow::ensure!(!policy.enabled, "default execute policy must be disabled");
+    anyhow::ensure!(
+        policy.allowed_hosts.is_empty(),
+        "default execute policy allowed_hosts must be empty"
+    );
+    anyhow::ensure!(
+        policy.https_only,
+        "default execute policy https_only must be true"
+    );
+    anyhow::ensure!(
+        !policy.allow_redirects,
+        "default execute policy allow_redirects must be false"
+    );
+    anyhow::ensure!(
+        !policy.allow_insecure_loopback_for_tests,
+        "default execute policy allow_insecure_loopback_for_tests must be false"
+    );
+    Ok(())
+}
+
+/// Y1: Fake executor injected from profile responds to requests.
+///
+/// Creates a RuntimeConfig with a FakeOutboundExecutor (simulating what
+/// `executor: fake` in a profile would produce), then exercises the
+/// execute path and confirms the fake executor responds.
+pub(crate) async fn outbound_execute_profile_fake_executor_works() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let fake = Arc::new(FakeOutboundExecutor::new());
+    let config = RuntimeConfig {
+        outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+        outbound_execute_policy: ygg_runtime::OutboundExecutePolicyConfig {
+            enabled: true,
+            allowed_hosts: vec!["api.openai.com".to_string()],
+            https_only: true,
+            timeout_ms: 30_000,
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: false,
+        },
+        ..RuntimeConfig::default()
+    };
+    let runtime = Runtime::new(store, config);
+    runtime
+        .load_package(network_package(
+            "example/y1-fake",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("Y1 fake executor test".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let response = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: ProtocolPrincipal::Package {
+                    package_id: "example/y1-fake".to_string(),
+                },
+                package_id: "example/y1-fake".to_string(),
+                capability_id: "example/y1-fake/fetch".to_string(),
+                destination_host: "api.openai.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: vec![],
+            },
+            OutboundExecutorRequest {
+                package_id: "example/y1-fake".to_string(),
+                capability_id: "example/y1-fake/fetch".to_string(),
+                destination_host: "api.openai.com".to_string(),
+                method: "POST".to_string(),
+                path: Some("/v1/chat/completions".to_string()),
+                purpose: Some("Y1 fake executor test".to_string()),
+                secret_refs: vec![],
+                redaction_state: Some(RedactionState::Redacted),
+                timeout_ms: Some(30000),
+                metadata: serde_json::Value::Null,
+                body_shape: None,
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
+            },
+        )
+        .await?;
+
+    anyhow::ensure!(response.status == "ok", "fake executor response should be ok");
+    anyhow::ensure!(
+        response.executor_kind == ExecutorKind::Fake,
+        "response executor_kind must be Fake"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 1,
+        "fake executor should be called once, got call_count={}",
+        fake.call_count()
+    );
+    Ok(())
+}
+
+/// Y1: enabled=false yields DenyAll regardless of executor field.
+///
+/// Even if a profile says `executor: live` but `enabled: false`, the
+/// builder must produce DenyAll. This ensures fail-closed behavior
+/// when the execute section is explicitly disabled.
+pub(crate) async fn outbound_execute_profile_live_disabled_returns_deny() -> anyhow::Result<()> {
+    use crate::cli::{HostExecuteOutboundExecutorKind, HostExecuteOutboundProfile};
+    use crate::commands::host::build_outbound_execute_executor;
+
+    // Simulate a profile where enabled=false but executor=live (contradictory)
+    let profile = HostExecuteOutboundProfile {
+        enabled: false,
+        executor: HostExecuteOutboundExecutorKind::Live,
+        allowed_hosts: vec!["api.openai.com".to_string()],
+        https_only: true,
+        timeout_ms: 30_000,
+        allow_redirects: false,
+        allow_insecure_loopback_for_tests: false,
+    };
+
+    let executor_config = build_outbound_execute_executor(&profile)?;
+    anyhow::ensure!(
+        matches!(executor_config, OutboundExecutorConfig::DenyAll),
+        "enabled=false must yield DenyAll regardless of executor field"
+    );
+    Ok(())
+}

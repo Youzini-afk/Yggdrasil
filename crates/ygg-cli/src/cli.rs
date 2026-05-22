@@ -257,6 +257,8 @@ pub(crate) struct HostProfile {
 pub(crate) struct HostOutboundProfile {
     #[serde(default)]
     pub(crate) git: HostGitOutboundProfile,
+    #[serde(default)]
+    pub(crate) execute: HostExecuteOutboundProfile,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -308,6 +310,47 @@ impl Default for HostGitOutboundExecutorKind {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct HostExecuteOutboundProfile {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) executor: HostExecuteOutboundExecutorKind,
+    #[serde(default)]
+    pub(crate) allowed_hosts: Vec<String>,
+    #[serde(default = "default_true")]
+    pub(crate) https_only: bool,
+    #[serde(default = "default_execute_timeout_ms")]
+    pub(crate) timeout_ms: u64,
+    #[serde(default)]
+    pub(crate) allow_redirects: bool,
+    #[serde(default)]
+    pub(crate) allow_insecure_loopback_for_tests: bool,
+}
+
+impl Default for HostExecuteOutboundProfile {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            executor: HostExecuteOutboundExecutorKind::DenyAll,
+            allowed_hosts: Vec::new(),
+            https_only: true,
+            timeout_ms: default_execute_timeout_ms(),
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HostExecuteOutboundExecutorKind {
+    #[default]
+    DenyAll,
+    Fake,
+    Live,
+}
+
 fn default_true() -> bool {
     true
 }
@@ -317,6 +360,10 @@ fn default_git_max_clone_size_mb() -> u64 {
 }
 
 fn default_git_timeout_ms() -> u64 {
+    30_000
+}
+
+fn default_execute_timeout_ms() -> u64 {
     30_000
 }
 
@@ -370,4 +417,207 @@ pub(crate) enum CapabilityCommand {
         #[arg(long, default_value = "{}")]
         input: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_profile_execute_default_disabled() {
+        let profile: HostProfile =
+            serde_yaml::from_str("title: test\n").expect("parse empty profile");
+        let exec = &profile.outbound.execute;
+        assert!(!exec.enabled, "execute.enabled should default to false");
+        assert_eq!(
+            exec.executor,
+            HostExecuteOutboundExecutorKind::DenyAll,
+            "execute.executor should default to DenyAll"
+        );
+    }
+
+    #[test]
+    fn host_profile_execute_parses_live_executor() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.openai.com
+    https_only: true
+    timeout_ms: 30000
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse live executor profile");
+        let exec = &profile.outbound.execute;
+        assert!(exec.enabled);
+        assert_eq!(exec.executor, HostExecuteOutboundExecutorKind::Live);
+        assert_eq!(exec.allowed_hosts, vec!["api.openai.com"]);
+    }
+
+    #[test]
+    fn host_profile_execute_parses_fake_executor() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: fake
+    allowed_hosts:
+      - api.example.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse fake executor profile");
+        let exec = &profile.outbound.execute;
+        assert!(exec.enabled);
+        assert_eq!(exec.executor, HostExecuteOutboundExecutorKind::Fake);
+    }
+
+    #[test]
+    fn host_profile_execute_parses_deny_all_executor() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: deny_all
+"#;
+        let profile: HostProfile =
+            serde_yaml::from_str(yaml).expect("parse deny_all executor profile");
+        let exec = &profile.outbound.execute;
+        assert!(exec.enabled);
+        assert_eq!(exec.executor, HostExecuteOutboundExecutorKind::DenyAll);
+    }
+
+    #[test]
+    fn host_profile_execute_parses_allowed_hosts() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.openai.com
+      - api.deepseek.com
+      - api.anthropic.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse allowed_hosts profile");
+        let exec = &profile.outbound.execute;
+        assert_eq!(
+            exec.allowed_hosts,
+            vec!["api.openai.com", "api.deepseek.com", "api.anthropic.com"]
+        );
+    }
+
+    #[test]
+    fn host_profile_execute_https_only_default_true() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.example.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse https_only default");
+        let exec = &profile.outbound.execute;
+        assert!(
+            exec.https_only,
+            "https_only should default to true when omitted"
+        );
+    }
+
+    #[test]
+    fn host_profile_execute_timeout_ms_default_30000() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.example.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse timeout default");
+        let exec = &profile.outbound.execute;
+        assert_eq!(
+            exec.timeout_ms, 30_000,
+            "timeout_ms should default to 30000 when omitted"
+        );
+    }
+
+    #[test]
+    fn host_profile_execute_loopback_default_false() {
+        let yaml = r#"
+title: test
+outbound:
+  execute:
+    enabled: true
+    executor: live
+    allowed_hosts:
+      - api.example.com
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse loopback default");
+        let exec = &profile.outbound.execute;
+        assert!(
+            !exec.allow_insecure_loopback_for_tests,
+            "allow_insecure_loopback_for_tests should default to false"
+        );
+    }
+
+    #[test]
+    fn host_profile_execute_defaults_all_via_empty_outbound() {
+        // When outbound section is entirely absent, execute should still default correctly
+        let profile: HostProfile =
+            serde_yaml::from_str("title: test\n").expect("parse profile with no outbound");
+        let exec = &profile.outbound.execute;
+        assert!(!exec.enabled);
+        assert_eq!(exec.executor, HostExecuteOutboundExecutorKind::DenyAll);
+        assert!(exec.allowed_hosts.is_empty());
+        assert!(exec.https_only);
+        assert_eq!(exec.timeout_ms, 30_000);
+        assert!(!exec.allow_redirects);
+        assert!(!exec.allow_insecure_loopback_for_tests);
+    }
+
+    #[test]
+    fn forge_alpha_backward_compat() {
+        // forge-alpha.yaml must still parse with the new execute field defaulting
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let profile_path = base.join("../../profiles/forge-alpha.yaml");
+        let raw = std::fs::read_to_string(&profile_path)
+            .unwrap_or_else(|_| panic!("read {:?}", profile_path));
+        let profile: HostProfile =
+            serde_yaml::from_str(&raw).expect("forge-alpha.yaml should parse");
+        let exec = &profile.outbound.execute;
+        assert!(
+            !exec.enabled,
+            "forge-alpha execute should default to disabled"
+        );
+        assert_eq!(
+            exec.executor,
+            HostExecuteOutboundExecutorKind::DenyAll,
+            "forge-alpha executor should default to DenyAll"
+        );
+    }
+
+    #[test]
+    fn forge_with_live_models_example_parses() {
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let profile_path = base.join("../../profiles/forge-with-live-models.example.yaml");
+        let raw = std::fs::read_to_string(&profile_path)
+            .unwrap_or_else(|_| panic!("read {:?}", profile_path));
+        let profile: HostProfile = serde_yaml::from_str(&raw)
+            .expect("forge-with-live-models.example.yaml should parse");
+        let exec = &profile.outbound.execute;
+        assert!(exec.enabled, "execute should be enabled");
+        assert_eq!(exec.executor, HostExecuteOutboundExecutorKind::Live);
+        assert!(exec.https_only);
+        assert_eq!(exec.timeout_ms, 30_000);
+        assert!(!exec.allow_redirects);
+        assert!(!exec.allow_insecure_loopback_for_tests);
+        assert_eq!(exec.allowed_hosts.len(), 5);
+    }
 }
