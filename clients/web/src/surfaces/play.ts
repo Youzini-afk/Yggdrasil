@@ -7,22 +7,30 @@ export function renderPlaySurface(entries: SurfaceContributionRecord[], sessionI
   const cards = entries.length ? entries.map((entry) => experienceCard(entry)).join("") : placeholderCards();
   return `
     <section class="surface surface-play" aria-labelledby="play-title">
-      <div class="hero-panel">
-        <p class="eyebrow">Home / Play</p>
-        <h1 id="play-title">Choose an Experience</h1>
-        <p>Launcher-first shell discovered from package-declared <code>experience_entry</code> surfaces.</p>
-        <div class="hero-actions">
-          ${sessionId ? `<button type="button" data-action="fork-session">Fork active session</button><span class="session-chip">${escapeHtml(sessionId)}</span>` : `<span class="session-chip">No active session</span>`}
+      <div id="surface-list-area">
+        <div class="hero-panel">
+          <p class="eyebrow">Home / Play</p>
+          <h1 id="play-title">Choose an Experience</h1>
+          <p>Launcher-first shell discovered from package-declared <code>experience_entry</code> surfaces.</p>
+          <div class="hero-actions">
+            ${sessionId ? `<button type="button" data-action="fork-session">Fork active session</button><span class="session-chip">${escapeHtml(sessionId)}</span>` : `<span class="session-chip">No active session</span>`}
+          </div>
         </div>
+        <section class="rail" aria-label="Continue experiences">
+          <div class="rail-header">
+            <h2>Experience Entries</h2>
+            <span>${entries.length} package surface${entries.length === 1 ? "" : "s"}</span>
+          </div>
+          <div class="experience-grid">${cards}</div>
+        </section>
+        ${renderHomeExternalProjects(externalProjects)}
       </div>
-      <section class="rail" aria-label="Continue experiences">
-        <div class="rail-header">
-          <h2>Experience Entries</h2>
-          <span>${entries.length} package surface${entries.length === 1 ? "" : "s"}</span>
+      <div id="surface-outlet" class="hidden">
+        <div class="surface-outlet-controls">
+          <button type="button" data-action="unmount-surface">Unmount</button>
         </div>
-        <div class="experience-grid">${cards}</div>
-      </section>
-      ${renderHomeExternalProjects(externalProjects)}
+        <div id="surface-outlet-inner"></div>
+      </div>
     </section>
   `;
 }
@@ -50,7 +58,10 @@ function experienceCard(entry: SurfaceContributionRecord) {
       </div>
       ${permissionCount ? `<div class="permission-strip">${surface.required_permissions.slice(0, 3).map(permissionBadge).join("")}${permissionCount > 3 ? `<span class="permission-badge">+${permissionCount - 3}</span>` : ""}</div>` : ""}
       <details class="surface-metadata"><summary>Inspect surface descriptor</summary><pre>${escapeHtml(JSON.stringify(surface, null, 2))}</pre></details>
-      <button type="button" data-action="launch-surface" data-surface-id="${escapeHtml(surface.id)}">Start · ${escapeHtml(entry.package_id)}</button>
+      <div class="surface-actions">
+        <button type="button" data-action="launch-surface" data-surface-id="${escapeHtml(surface.id)}">Start · ${escapeHtml(entry.package_id)}</button>
+        <button type="button" data-action="mount-surface" data-surface-id="${escapeHtml(surface.id)}" data-package-id="${escapeHtml(entry.package_id)}" data-export-name="${escapeHtml(String(surface.metadata?.export_name ?? ""))}">Mount surface</button>
+      </div>
     </article>
   `;
 }

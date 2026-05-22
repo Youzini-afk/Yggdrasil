@@ -19,6 +19,7 @@ export interface SurfaceHostOptions {
   wrapperClass?: string;
   hostBridge?: SurfaceHostBridge;
   initialProps?: unknown;
+  stylesheets?: string[];
 }
 
 export interface SurfaceHostBridge {
@@ -38,6 +39,7 @@ interface MountMessage {
   exportName: string;
   wrapperClass?: string;
   initialProps?: unknown;
+  stylesheets?: string[];
 }
 
 interface RpcCallMessage {
@@ -97,6 +99,7 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
     exportName: options.exportName,
     wrapperClass: options.wrapperClass,
     initialProps: options.initialProps,
+    stylesheets: options.stylesheets,
   } satisfies MountMessage, '*');
 
   // Wire host bridge for RPC calls from surface
@@ -136,6 +139,8 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
     surfaceId: options.surfaceId,
     iframe,
     async unmount() {
+      iframe.contentWindow?.postMessage({ type: 'unmount' }, '*');
+      await new Promise((resolve) => setTimeout(resolve, 50));
       window.removeEventListener('message', bridgeListener);
       iframe.remove();
     },

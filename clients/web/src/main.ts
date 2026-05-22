@@ -1,14 +1,15 @@
-// S1 SurfaceHost is available from ./surfaces/surface-host for iframe-hosted
-// third-party bundles; route wiring is intentionally deferred.
 import { renderAssistantDrawer, type TextProofView } from "./drawer/assistant";
 import { YggProtocolClient, type KernelEvent, type PackageRecord, type ProposalRecord, type RegisteredCapability, type SurfaceContributionRecord } from "./protocol/client";
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
+import { resolveSurfaceBundle } from "./surfaces/bundle-resolver";
+import { mountSurface, type SurfaceHostHandle } from "./surfaces/surface-host";
 import { renderPlaySurface } from "./surfaces/play";
 import { buildAgentObservability, filterAgentLikeCapabilities, renderAgentReadinessPanel } from "./agent/observability.js";
 import { buildExternalProjectAggregation, renderAssistantExternalProjectHints, type ExternalProjectAggregation } from "./projects/external-projects.js";
 import { buildStorageInspectorModel, renderAssistantStorageHints, type StorageInspectorModel } from "./storage/storage-inspector.js";
 import { buildMockChunks, createStreamingBuffer, getActiveTextEngine, getActiveTextEngineName, getTextEngineDiagnostics, initializeTextEnginePreference, getInitializationResult } from "./text-layout/index.js";
+import { escapeHtml } from "./utils/html";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 const client = new YggProtocolClient(location.origin === "null" ? "http://127.0.0.1:8787" : location.origin);
@@ -22,6 +23,7 @@ let closeEvents: (() => void) | undefined;
 let assistOpen = false;
 let scheduledRender: ReturnType<typeof setTimeout> | undefined;
 let pendingRenderError: string | undefined;
+let activeMountedSurface: SurfaceHostHandle | null = null;
 
 // --- Text Surface Proof state ---
 const STREAM_PROOF_FONT = "16px Inter, Helvetica Neue, Arial, sans-serif";
@@ -243,9 +245,69 @@ function scheduleRender(error?: string) {
   }, 16);
 }
 
+async function handleMountSurfaceClick(packageId: string, surfaceId: string) {
+  if (activeMountedSurface) {
+    await activeMountedSurface.unmount();
+    activeMountedSurface = null;
+  }
+
+  const record = surfaceEntries.find((entry) => entry.package_id === packageId && entry.surface.id === surfaceId);
+  const resolved = resolveSurfaceBundle(packageId, surfaceId, record?.surface.metadata);
+  const outlet = document.getElementById("surface-outlet");
+  const listArea = document.getElementById("surface-list-area");
+  const inner = document.getElementById("surface-outlet-inner");
+  if (!outlet || !inner) return;
+
+  if (!resolved) {
+    outlet.classList.remove("hidden");
+    listArea?.classList.add("hidden");
+    inner.innerHTML = `<div class="surface-mount-error">No bundle resolution available for ${escapeHtml(packageId)}/${escapeHtml(surfaceId)}</div>`;
+    return;
+  }
+
+  listArea?.classList.add("hidden");
+  outlet.classList.remove("hidden");
+  inner.innerHTML = "";
+
+  try {
+    activeMountedSurface = await mountSurface({
+      containerId: "surface-outlet-inner",
+      surfaceId,
+      bundleUrl: resolved.bundleUrl,
+      exportName: resolved.exportName,
+      wrapperClass: resolved.wrapperClass,
+      stylesheets: resolved.stylesheets,
+      initialProps: {
+        surfaceId,
+        packageId,
+        sessionId,
+      },
+      hostBridge: {
+        async callRpc(method, params) {
+          return client.invoke(method, params);
+        },
+      },
+    });
+  } catch (caught) {
+    inner.innerHTML = `<div class="surface-mount-error">Failed to mount: ${escapeHtml(caught instanceof Error ? caught.message : String(caught))}</div>`;
+  }
+}
+
+async function handleUnmountSurfaceClick() {
+  if (activeMountedSurface) {
+    await activeMountedSurface.unmount();
+    activeMountedSurface = null;
+  }
+  const inner = document.getElementById("surface-outlet-inner");
+  if (inner) inner.innerHTML = "";
+  document.getElementById("surface-outlet")?.classList.add("hidden");
+  document.getElementById("surface-list-area")?.classList.remove("hidden");
+}
+
 function wireEvents() {
   document.querySelectorAll<HTMLButtonElement>("[data-route]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
+      await handleUnmountSurfaceClick();
       route = button.dataset.route as RouteName;
       scheduleRender();
     });
@@ -296,6 +358,21 @@ function wireEvents() {
         scheduleRender(caught instanceof Error ? caught.message : String(caught));
       }
     });
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-action='mount-surface']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const surfaceId = button.dataset.surfaceId;
+        const packageId = button.dataset.packageId;
+        if (!surfaceId || !packageId) return;
+        await handleMountSurfaceClick(packageId, surfaceId);
+      } catch (caught) {
+        scheduleRender(caught instanceof Error ? caught.message : String(caught));
+      }
+    });
+  });
+  document.querySelector<HTMLButtonElement>("[data-action='unmount-surface']")?.addEventListener("click", () => {
+    void handleUnmountSurfaceClick();
   });
   document.querySelector<HTMLButtonElement>("[data-action='fork-session']")?.addEventListener("click", async () => {
     if (!sessionId) return;

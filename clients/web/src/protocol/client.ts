@@ -94,6 +94,10 @@ export interface ProposalRecord {
 export class YggProtocolClient {
   constructor(private readonly baseUrl = "http://127.0.0.1:8787") {}
 
+  invoke(method: string, params: unknown = {}) {
+    return this.call(method, params);
+  }
+
   async call<T>(method: string, params: unknown = {}): Promise<T> {
     const response = await fetch(`${this.baseUrl}/rpc`, {
       method: "POST",
