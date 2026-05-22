@@ -1,10 +1,16 @@
 {
-  "name": "@yggdrasil/web-shell",
+  "name": "ygg-web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite --port 1420 --host 127.0.0.1 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "check": "tsc --noEmit"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "typescript": "^5",
+    "vite": "^5"
+  }
 }

@@ -1,3 +1,5 @@
+// S1 SurfaceHost is available from ./surfaces/surface-host for iframe-hosted
+// third-party bundles; route wiring is intentionally deferred.
 import { renderAssistantDrawer, type TextProofView } from "./drawer/assistant";
 import { YggProtocolClient, type KernelEvent, type PackageRecord, type ProposalRecord, type RegisteredCapability, type SurfaceContributionRecord } from "./protocol/client";
 import { renderShell, type RouteName } from "./shell/shell";

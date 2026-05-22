@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Yggdrasil Surface Frame</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob:; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #root { height: 100%; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    // Surface frame: dynamic bundle loader.
+    //
+    // Flow:
+    //   1. Tell parent we are ready
+    //   2. Wait for {type: 'mount', bundleUrl, exportName, wrapperClass, initialProps}
+    //   3. Dynamic import bundle, find exportName, render
+    //   4. Surface code can call kernel RPC via window.parent.postMessage({type:'rpc.call'})
+
+    const root = document.getElementById('root');
+
+    // Bridge for surface code: window.yggHost.callRpc(method, params)
+    let nextRpcId = 0;
+    const pendingRpc = new Map();
+
+    window.yggHost = {
+      async callRpc(method, params) {
+        const id = String(++nextRpcId);
+        return new Promise((resolve, reject) => {
+          pendingRpc.set(id, { resolve, reject });
+          window.parent.postMessage({ type: 'rpc.call', id, method, params }, '*');
+        });
+      },
+    };
+
+    window.addEventListener('message', async (e) => {
+      const msg = e.data;
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.type === 'rpc.result') {
+        const pending = pendingRpc.get(msg.id);
+        if (!pending) return;
+        pendingRpc.delete(msg.id);
+        if (msg.error) pending.reject(new Error(`${msg.error.code}: ${msg.error.message}`));
+        else pending.resolve(msg.result);
+        return;
+      }
+
+      if (msg.type === 'mount') {
+        try {
+          const mod = await import(msg.bundleUrl);
+          const SurfaceComponent = mod[msg.exportName];
+          if (!SurfaceComponent) {
+            root.textContent = `Surface bundle missing export ${msg.exportName}`;
+            return;
+          }
+          if (msg.wrapperClass) {
+            root.className = msg.wrapperClass;
+          }
+          // For React surfaces: bundle is expected to expose a mount function
+          // that takes (root, props). For plain DOM surfaces: SurfaceComponent
+          // is treated as a function that renders into root.
+          if (typeof SurfaceComponent === 'function') {
+            await SurfaceComponent(root, msg.initialProps ?? {});
+          } else if (typeof SurfaceComponent.mount === 'function') {
+            await SurfaceComponent.mount(root, msg.initialProps ?? {});
+          } else {
+            root.textContent = `Surface bundle export ${msg.exportName} is not callable`;
+          }
+        } catch (err) {
+          root.textContent = `Surface bundle failed to load: ${err && err.message || err}`;
+        }
+      }
+    });
+
+    // Signal ready
+    window.parent.postMessage({ type: 'ready' }, '*');
+  </script>
+</body>
+</html>
