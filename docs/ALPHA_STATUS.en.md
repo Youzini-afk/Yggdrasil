@@ -8,8 +8,8 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 347 named CLI cases pass, plus crate and service unit tests.
-- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary.
+- **Conformance:** 360 named CLI cases pass, plus crate and service unit tests.
+- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
 The platform foundation is in place. From here, real AI-native playable experiences pull the remaining substrate work.
@@ -30,8 +30,9 @@ The platform foundation is in place. From here, real AI-native playable experien
 - **Raw secret blocking:** proposal operations and expected effects, plus asset metadata, are scanned conservatively. Obvious API keys, tokens, and password fields are rejected. Asset content and ordinary prose aren't scanned, to avoid false positives on user content.
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
-- **Outbound executor boundary:** a content-free `OutboundExecutor` trait. Default is deny-all (fail closed). It can switch to a fake executor (with fixtures, used by conformance) or `LiveHttpOutboundExecutor` (reqwest + rustls, HTTPS only, off by default, redirect fail closed). Secret headers are injected into the HTTP request only — never into audit, response, or `Debug`. Real live model API outbound is complete, but requires explicit opt-in through profile and environment variables; default conformance does not use the network.
-- **Protocol methods:** `kernel.outbound.audit` lists outbound audit events for a package; `kernel.outbound.execute` lets ordinary packages issue outbound requests through the host executor; `kernel.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.outbound.git_fetch` lets packages request public HTTPS git fetches under host policy.
+- **Outbound executor boundary:** content-free HTTP and WebSocket executor traits. Default is deny-all (fail closed). They can switch to fake executors (with fixtures, used by conformance) or live executors (HTTP uses reqwest + rustls; WebSocket uses tokio-tungstenite + rustls; both off by default; HTTP is HTTPS-only; WebSocket is WSS-only; redirect fail closed). Secret headers are injected at execution time only — never into audit, response, or `Debug`. Real live model / WebSocket outbound requires explicit opt-in through profile and environment variables; default conformance does not use the network, and real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
+- **Protocol methods:** `kernel.outbound.audit` lists outbound audit events for a package; `kernel.outbound.execute` lets ordinary packages issue unary outbound requests through the host executor; `kernel.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.outbound.websocket.open|send|close` provides bidirectional WebSocket outbound; `kernel.outbound.git_fetch` lets packages request public HTTPS git fetches under host policy.
+- **Completion audit events:** `kernel/outbound.execute.completed`, `kernel/outbound.stream.completed`, and `kernel/outbound.websocket.completed` cover all three outbound primitives; events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references.
 - **Streaming lifecycle:** the stream registry tracks in-flight streaming invocations and emits `kernel/stream.started|chunk|progress|ended|error|cancelled|timeout` in order. Cancel and timeout block further chunks. Non-streaming capabilities are rejected.
 
 ## Public protocol and transport
@@ -159,7 +160,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 347 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 360 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

@@ -171,13 +171,22 @@ kernel.host.diagnostics  local host diagnostics for package/capability/hook obse
 ```text
 kernel.outbound.execute    unary HTTP-style outbound through the host executor
 kernel.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
+kernel.outbound.websocket.open   open an outbound WebSocket stream and return connection_id
+kernel.outbound.websocket.send   send one outbound WebSocket frame
+kernel.outbound.websocket.close  close an outbound WebSocket connection
 kernel.outbound.audit      list redacted outbound audit records for a package
 kernel.outbound.git_fetch  public HTTPS git fetch under host policy
 ```
 
-`execute` and `stream` request shapes are defined by the runtime types: `OutboundExecutorRequest`, `OutboundExecutorResponse`, `KernelOutboundStreamResponse`, and `OutboundStreamFrame` (see `crates/ygg-runtime/src/runtime/outbound.rs`) plus dispatch parsing (see `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`). Core fields include `capability_id`, `destination_host`, `method`, optional `path`, `body_shape`, `metadata`, `secret_headers`, `static_headers`, and `timeout_ms`; `stream` also accepts `stream_format` (`sse` / `ndjson` / `raw`) and frame/duration limits.
+The outbound protocol has three outbound primitives: `execute` is a unary HTTP-style request, `stream` is an SSE / NDJSON / raw one-way stream, and `kernel.outbound.websocket.*` is bidirectional WebSocket. `websocket.open` is a streaming method that establishes a WSS connection and returns `connection_id`; `websocket.send` and `websocket.close` are unary methods. `connection_id` is also the `stream_id`; passing it to `kernel.capability.cancel` uses the same cancel/close path.
 
-Outbound requests pass two fail-closed gates: the package manifest must declare matching `permissions.network.declarations`, and every `secret_headers` / `secret_refs` entry must be declared in `permissions.secret_refs`. The host profile must also explicitly enable outbound execute/stream, the destination host must match the allowlist by equality (or `*.suffix`), HTTPS-only cannot be disabled, and redirects are rejected by default. `capability_id` must be in the caller package namespace; subprocess reverse kernel calls use the host-bound package principal and cannot spoof another package.
+Request/response shapes are defined by runtime types and protocol dispatch parsing, not repeated in full here: HTTP/stream types live in `crates/ygg-runtime/src/runtime/outbound.rs`, WebSocket types live in `crates/ygg-runtime/src/runtime/outbound_websocket.rs`, and protocol parsing lives in `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`. Core fields include `capability_id`, `destination_host`, `method`, optional `path`, `body_shape`, `metadata`, `secret_headers`, `static_headers`, and `timeout_ms`; `stream` also accepts `stream_format` (`sse` / `ndjson` / `raw`) and frame/duration limits; `websocket.open` accepts destination host/path, optional subprotocols, headers, `secret_refs`, and connection/frame/byte limits.
+
+Outbound requests pass two fail-closed gates: the package manifest must declare matching `permissions.network.declarations` (WebSocket uses the `WEBSOCKET` method), and every `secret_headers` / `secret_refs` entry must be declared in `permissions.secret_refs`. The host profile must also explicitly enable the relevant outbound primitive, the destination host must match the allowlist by equality (or `*.suffix`), HTTP/SSE use HTTPS-only, WebSocket defaults to WSS-only, and redirects are rejected by default. `capability_id` must be in the caller package namespace; subprocess reverse kernel calls use the host-bound package principal and cannot spoof another package.
+
+WebSocket-specific events use `kernel/outbound.websocket.*`: `opened` records handshake success and connection/subprotocol metadata; `frame` records inbound/outbound direction, frame kind, byte count, and sequence number without payload; `error` records a redacted error; `completed` records close code, reason, frame/byte counts, duration, executor kind, network_performed, redaction state, and secret_ref references.
+
+All three outbound primitives emit completion audit events: `kernel/outbound.execute.completed`, `kernel/outbound.stream.completed`, and `kernel/outbound.websocket.completed`. These events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references; they do not record raw headers, bodies, secrets, frame payloads, or responses.
 
 `kernel.outbound.audit` returns only redacted audit records: package, capability, destination host, method, purpose, used `secret_ref`s, and redaction state. Raw headers, bodies, secrets, and responses are not written to audit or protocol responses.
 

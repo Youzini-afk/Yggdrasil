@@ -39,7 +39,7 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 The platform substrate is in place. The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 347 named conformance cases pass, plus crate / service unit tests.
+- 360 named conformance cases pass, plus crate / service unit tests.
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
 
@@ -77,9 +77,9 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 **Secure execution**
 
 - `secret_ref` references, manifest `permissions.secret_refs` declarations, and a host-owned environment-variable resolver with an allowlist.
-- Network permission declarations, audit and redaction for outbound requests, and public protocol methods `kernel.outbound.execute` and `kernel.outbound.stream`.
-- A real live HTTP outbound executor (off by default; requires an opt-in profile plus provider env vars; HTTPS only, redirect fail-closed).
-- The subprocess TypeScript SDK `kernelClient` lets subprocess packages issue permission-scoped reverse kernel calls.
+- Network permission declarations, audit and redaction for outbound requests, and the public-protocol outbound trio: unary `kernel.outbound.execute`, SSE/NDJSON/raw `kernel.outbound.stream`, and bidirectional `kernel.outbound.websocket.*`.
+- Real live HTTP / WebSocket outbound executors (off by default; require an opt-in profile plus provider env vars; HTTP is HTTPS-only, WebSocket is WSS-only, redirect fail-closed). Real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
+- The subprocess TypeScript SDK `kernelClient` lets subprocess packages issue permission-scoped reverse kernel calls, including `kernelClient.openWebSocket`.
 - Public HTTPS git install path: `kernel.outbound.git_fetch`, profile-scoped lockfiles, and `official/package-installer-lab`.
 - A generic streaming and cancel lifecycle.
 

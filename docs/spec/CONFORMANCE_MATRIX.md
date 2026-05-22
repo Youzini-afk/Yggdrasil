@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**347**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**360**。
 
 ## Conformance Feedback Loop
 
@@ -181,6 +181,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | kernel.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
 | outbound_execute | profile 默认 deny-all、fake/live executor 配置、包权限、capability namespace、无权限拒绝、secret_ref 声明、response 脱敏 | implemented |
 | outbound_stream | `kernel.outbound.stream` profile 默认拒绝、fake stream frame、secret_ref 声明、capability namespace、HTTPS-only 策略 | implemented |
+| outbound_websocket | `kernel.outbound.websocket.*` profile 默认 deny-all、fake executor open/send/close、live executor 未启用时拒绝 | implemented |
+| outbound_websocket | secret_ref 未声明 fail-closed、capability namespace 校验、默认 WSS-only | implemented |
+| outbound_websocket | idle timeout 产生 error + completed、inbound max_total_bytes 终止、max_concurrent_connections 生效、可通过 `kernel.capability.cancel` 取消 | implemented |
+| outbound | `kernel/outbound.execute.completed` 完成审计事件发出 | implemented |
+| outbound | `kernel/outbound.stream.completed` 完成审计事件发出 | implemented |
+| outbound | `kernel/outbound.websocket.completed` 完成审计事件发出 | implemented |
 | secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call：principal 绑定、execute 调度、stream chunks 回传 | implemented |
 | sse_parser | outbound stream SSE parser basic smoke 与 partial chunk 归并 | implemented |

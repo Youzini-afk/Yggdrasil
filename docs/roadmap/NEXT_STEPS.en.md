@@ -9,11 +9,11 @@ This document is about where Yggdrasil goes next. Completed phases live in [`ALP
 The platform substrate is in place.
 
 - The kernel is content-free. Official packages have no privileges. Entry forms are equal.
-- The secure-execution layer is complete: `secret_ref`, `EnvSecretResolver`, network declarations, outbound audit and redaction, `LiveHttpOutboundExecutor`, streaming and cancel lifecycle.
+- The secure-execution layer is complete: `secret_ref`, `EnvSecretResolver`, network declarations, outbound audit and redaction, live HTTP/WebSocket outbound executors, the outbound trio of unary / SSE-NDJSON-raw stream / WebSocket, plus streaming and cancel lifecycle.
 - Experience runtime, a real playable vertical slice, observability, memory, sharing / distribution — all shipped as ordinary capability packages.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
-- 347 named conformance cases pass, plus crate / service unit tests.
+- 360 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -37,8 +37,9 @@ Not new phases, but known to-dos that will get done:
 - Timeout and error audit for hook handlers.
 - Persistent capability-provider selection policy.
 - Broader transport-consistency coverage in conformance.
-- Expanded real-model outbound conformance with local mock HTTP servers, without adding default public-internet dependencies.
-- More provider tokenizer / billing metadata adapters, still as ordinary capability packages.
+- Expanded real-model outbound conformance with local mock HTTP / WebSocket servers, without adding default public-internet dependencies.
+- Real WebSocket smoke against OpenAI Realtime / Gemini Live, kept explicitly opt-in and out of default CI.
+- More provider registries, tokenizer / billing metadata adapters, still as ordinary capability packages.
 - Execution for WASM and remote package entries.
 - Content-addressed blob storage and runtime-level asset permissions.
 
@@ -90,3 +91,4 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
 - Git Package Installation Substrate
+- Outbound WebSocket Substrate

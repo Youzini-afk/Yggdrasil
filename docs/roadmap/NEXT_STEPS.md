@@ -9,11 +9,11 @@
 平台底座已经搭好。
 
 - 内核对内容无意见、官方包没有特权、入口形式平等。
-- 安全执行底座完整：`secret_ref`、`EnvSecretResolver`、网络声明、外发审计与脱敏、`LiveHttpOutboundExecutor`、流式与取消生命周期。
+- 安全执行底座完整：`secret_ref`、`EnvSecretResolver`、网络声明、外发审计与脱敏、live HTTP/WebSocket 出站执行器、出站一元 / SSE-NDJSON-raw 流 / WebSocket 三原语、流式与取消生命周期。
 - 体验运行时、可玩纵切片、可观测性、记忆、分享/分发——都以普通能力包的形态落地。
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
-- 347 个具名 conformance 用例 + crate / service 单元测试通过。
+- 360 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -37,8 +37,9 @@
 - 钩子处理器的超时与错误审计。
 - 能力 provider 的持久选择策略。
 - conformance 里更广的传输层一致性覆盖。
-- 使用本地 mock HTTP server 扩展真实模型出站 conformance，不引入默认公网依赖。
-- 更多 provider tokenizer / 计费 metadata 适配，仍作为普通能力包实现。
+- 使用本地 mock HTTP / WebSocket server 扩展真实模型出站 conformance，不引入默认公网依赖。
+- OpenAI Realtime / Gemini Live 等真实 WebSocket smoke，保持显式 opt-in，不进入默认 CI。
+- 更多 provider registry、tokenizer / 计费 metadata 适配，仍作为普通能力包实现。
 - WASM 与远程包入口的执行。
 - 内容寻址的 blob 存储与运行时身份层面的资产权限。
 
@@ -90,3 +91,4 @@
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
 - Git Package Installation Substrate
+- Outbound WebSocket Substrate

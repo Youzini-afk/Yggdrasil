@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **347**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **360**.
 
 ## Conformance Feedback Loop
 
@@ -181,6 +181,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | kernel.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
 | outbound_execute | profile default deny-all, fake/live executor config, package permission, capability namespace, no-permission denial, secret_ref declarations, response redaction | implemented |
 | outbound_stream | `kernel.outbound.stream` profile default denial, fake stream frames, secret_ref declarations, capability namespace, HTTPS-only policy | implemented |
+| outbound_websocket | `kernel.outbound.websocket.*` profile default deny-all, fake executor open/send/close, live executor denial when disabled | implemented |
+| outbound_websocket | undeclared secret_ref fails closed, capability namespace enforcement, default WSS-only | implemented |
+| outbound_websocket | idle timeout emits error + completed, inbound max_total_bytes terminates, max_concurrent_connections enforced, cancel via `kernel.capability.cancel` | implemented |
+| outbound | `kernel/outbound.execute.completed` completion audit event emitted | implemented |
+| outbound | `kernel/outbound.stream.completed` completion audit event emitted | implemented |
+| outbound | `kernel/outbound.websocket.completed` completion audit event emitted | implemented |
 | secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call: principal binding, execute dispatch, stream chunks piped back | implemented |
 | sse_parser | outbound stream SSE parser basic smoke and partial chunk coalescing | implemented |

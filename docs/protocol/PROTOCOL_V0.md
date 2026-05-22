@@ -171,13 +171,22 @@ kernel.host.diagnostics  local host diagnostics for package/capability/hook obse
 ```text
 kernel.outbound.execute    unary HTTP-style outbound through the host executor
 kernel.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
+kernel.outbound.websocket.open   open an outbound WebSocket stream and return connection_id
+kernel.outbound.websocket.send   send one outbound WebSocket frame
+kernel.outbound.websocket.close  close an outbound WebSocket connection
 kernel.outbound.audit      list redacted outbound audit records for a package
 kernel.outbound.git_fetch  public HTTPS git fetch under host policy
 ```
 
-`execute` 和 `stream` 的请求 shape 以运行时类型为准：`OutboundExecutorRequest`、`OutboundExecutorResponse`、`KernelOutboundStreamResponse`、`OutboundStreamFrame`（见 `crates/ygg-runtime/src/runtime/outbound.rs`）以及分发解析（见 `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`）。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限。
+出站协议提供三个出站原语：`execute` 是一元 HTTP-style 请求，`stream` 是 SSE / NDJSON / raw 单向流，`kernel.outbound.websocket.*` 是双向 WebSocket。`websocket.open` 是 streaming 方法，建立 WSS 连接并返回 `connection_id`；`websocket.send` 和 `websocket.close` 是 unary 方法。`connection_id` 也是 `stream_id`，调用 `kernel.capability.cancel` 并传入该 id 会走同一条取消/关闭路径。
 
-出站请求按两层 fail-closed 校验：能力包 manifest 必须声明匹配的 `permissions.network.declarations`，并且所有 `secret_headers` / `secret_refs` 必须声明在 `permissions.secret_refs`。host profile 还必须显式启用 outbound execute/stream，目标 host 必须精确匹配 allowlist（支持 `*.suffix`），HTTPS-only 不能关闭，redirect 默认拒绝。`capability_id` 必须属于调用包 namespace；subprocess reverse kernel calls 也使用 host 绑定的 package principal，不能 spoof。
+请求/响应 shape 以运行时类型和协议分发解析为准，不在本文重复完整结构：HTTP/stream 类型见 `crates/ygg-runtime/src/runtime/outbound.rs`，WebSocket 类型见 `crates/ygg-runtime/src/runtime/outbound_websocket.rs`，协议解析见 `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限；`websocket.open` 接受目标 host/path、可选 subprotocol、headers、`secret_refs` 和连接/帧/字节上限。
+
+出站请求按两层 fail-closed 校验：能力包 manifest 必须声明匹配的 `permissions.network.declarations`（WebSocket 使用 `WEBSOCKET` method），并且所有 `secret_headers` / `secret_refs` 必须声明在 `permissions.secret_refs`。host profile 还必须显式启用对应的 outbound primitive，目标 host 必须精确匹配 allowlist（支持 `*.suffix`），HTTP/SSE 使用 HTTPS-only，WebSocket 默认强制 WSS-only，redirect 默认拒绝。`capability_id` 必须属于调用包 namespace；subprocess reverse kernel calls 也使用 host 绑定的 package principal，不能 spoof。
+
+WebSocket 专用事件使用 `kernel/outbound.websocket.*`：`opened` 记录握手成功和 connection/subprotocol 元数据；`frame` 记录 inbound/outbound、frame kind、字节数和序号，不记录 payload；`error` 记录脱敏错误；`completed` 记录关闭码、原因、帧/字节计数、耗时、executor kind、network_performed、redaction state 与 secret_ref 引用。
+
+所有三种出站原语都有完成审计事件：`kernel/outbound.execute.completed`、`kernel/outbound.stream.completed`、`kernel/outbound.websocket.completed`。这些事件只记录状态、计数、耗时、执行器种类、network_performed、redaction state 和 `secret_ref` 引用；不会记录 raw header/body/secret/frame payload/response。
 
 `kernel.outbound.audit` 只返回脱敏审计记录：package、capability、destination host、method、purpose、使用的 `secret_ref` 与 redaction state。raw header/body/secret/response 不进入审计或协议响应。
 
