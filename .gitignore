@@ -6,3 +6,7 @@
 node_modules
 dist
 .DS_Store
+
+# Nested Rust target directories
+**/target/
+
