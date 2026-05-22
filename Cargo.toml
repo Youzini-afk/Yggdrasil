@@ -4,6 +4,7 @@ members = [
   "crates/ygg-runtime",
   "crates/ygg-service",
   "crates/ygg-cli",
+  "clients/desktop/src-tauri",
 ]
 resolver = "2"
 
