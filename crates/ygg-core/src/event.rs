@@ -48,6 +48,10 @@ pub const EVENT_STREAM_ENDED: &str = "kernel/stream.ended";
 pub const EVENT_STREAM_ERROR: &str = "kernel/stream.error";
 pub const EVENT_STREAM_CANCELLED: &str = "kernel/stream.cancelled";
 pub const EVENT_STREAM_TIMEOUT: &str = "kernel/stream.timeout";
+pub const EVENT_OUTBOUND_WEBSOCKET_OPENED: &str = "kernel/outbound.websocket.opened";
+pub const EVENT_OUTBOUND_WEBSOCKET_FRAME: &str = "kernel/outbound.websocket.frame";
+pub const EVENT_OUTBOUND_WEBSOCKET_ERROR: &str = "kernel/outbound.websocket.error";
+pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "kernel/outbound.websocket.completed";
 
 // ---------------------------------------------------------------------------
 // Outbound audit / redaction types (Phase S2)

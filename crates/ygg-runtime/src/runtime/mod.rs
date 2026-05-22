@@ -18,6 +18,7 @@ mod events;
 mod hooks;
 mod network;
 mod outbound;
+mod outbound_websocket;
 mod outbound_sse;
 mod packages;
 mod permissions;
@@ -53,6 +54,12 @@ pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, P
 pub use self::session::OpenSessionRequest;
 pub use self::streaming::StreamRegistry;
 pub use self::outbound_sse::{SseEvent, SseParser};
+pub use self::outbound_websocket::{
+    DenyAllWebSocketExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
+    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, OutboundWebSocketFrame,
+    OutboundWebSocketOpenRequest, OutboundWebSocketSession, SendStatus, WebSocketEvent,
+    WebSocketExecutor, WebSocketFramePayload,
+};
 
 // ---------------------------------------------------------------------------
 // RuntimeConfig
@@ -72,6 +79,8 @@ pub struct RuntimeConfig {
     pub git_outbound_executor: GitOutboundExecutorConfig,
     /// Git outbound host policy. Defaults disabled (fail-closed).
     pub git_outbound_policy: GitOutboundPolicyConfig,
+    /// Outbound WebSocket executor. Defaults to DenyAll (fail-closed).
+    pub outbound_websocket_executor: Arc<dyn WebSocketExecutor>,
 }
 
 impl Default for RuntimeConfig {
@@ -85,6 +94,7 @@ impl Default for RuntimeConfig {
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             git_outbound_executor: GitOutboundExecutorConfig::default(),
             git_outbound_policy: GitOutboundPolicyConfig::default(),
+            outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
         }
     }
 }
@@ -173,6 +183,10 @@ where
 
     pub fn packages(&self) -> Arc<crate::PackageRegistry> {
         self.packages.clone()
+    }
+
+    pub fn outbound_websocket_executor(&self) -> Arc<dyn WebSocketExecutor> {
+        self.config.outbound_websocket_executor.clone()
     }
 
     pub fn capabilities(&self) -> Arc<crate::CapabilityFabric> {

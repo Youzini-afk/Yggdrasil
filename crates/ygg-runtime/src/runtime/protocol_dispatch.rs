@@ -1,11 +1,16 @@
+use std::collections::HashMap;
 use std::sync::Arc;
+use bytes::Bytes;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
 use ygg_core::RedactionState;
 
 use super::Runtime;
 use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal, EventListRequest,
-    OutboundStreamFrame, OutboundFrameKind, StreamEmitter, StreamRegistry};
+    OutboundStreamFrame, OutboundFrameKind, StreamEmitter, StreamRegistry,
+    OutboundWebSocketFrame, WebSocketEvent};
+
+const WEBSOCKET_METHOD: &str = "WEBSOCKET";
 
 impl<S> Runtime<S>
 where
@@ -37,6 +42,9 @@ where
         let result: anyhow::Result<Value> = match kernel_method {
             KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
             KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
+            KernelMethod::OutboundWebSocketOpen => self.dispatch_outbound_websocket_open(context, params).await,
+            KernelMethod::OutboundWebSocketSend => self.dispatch_outbound_websocket_send(&params).await,
+            KernelMethod::OutboundWebSocketClose => self.dispatch_outbound_websocket_close(&params).await,
             KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
             KernelMethod::HostInfo => serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from),
             KernelMethod::HostPing => Ok(json!({"ok": true})),
@@ -68,6 +76,9 @@ where
             KernelMethod::OutboundAudit => self.dispatch_outbound_audit(&params).await,
             KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
             KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
+            KernelMethod::OutboundWebSocketOpen => self.dispatch_outbound_websocket_open(context, params).await,
+            KernelMethod::OutboundWebSocketSend => self.dispatch_outbound_websocket_send(&params).await,
+            KernelMethod::OutboundWebSocketClose => self.dispatch_outbound_websocket_close(&params).await,
             KernelMethod::OutboundGitFetch => self.dispatch_outbound_git_fetch(context, params).await,
 
             // Permission domain
@@ -739,6 +750,233 @@ where
         Ok(response_value)
     }
 
+    async fn dispatch_outbound_websocket_open(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
+        let package_id = match &context.principal {
+            ProtocolPrincipal::Package { package_id } => package_id.clone(),
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => params
+                .get("package_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| "host/test".to_string()),
+            other => anyhow::bail!(
+                "kernel.outbound.websocket.open requires package or host principal, got {:?}",
+                other
+            ),
+        };
+
+        let capability_id = params
+            .get("capability_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.open requires capability_id"))?
+            .to_string();
+        if !capability_id.starts_with(&format!("{package_id}/")) {
+            anyhow::bail!(
+                "kernel.outbound.websocket.open capability_id must belong to the caller package namespace"
+            );
+        }
+        let destination_host = params
+            .get("destination_host")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.open requires destination_host"))?
+            .to_string();
+        let path = params.get("path").and_then(Value::as_str).map(str::to_string);
+        let purpose = params.get("purpose").and_then(Value::as_str).map(str::to_string);
+        let mut metadata = params.get("metadata").cloned().unwrap_or(Value::Null);
+        let subprotocols: Vec<String> = params
+            .get("subprotocols")
+            .and_then(Value::as_array)
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .unwrap_or_default();
+        let secret_refs: Vec<String> = params
+            .get("secret_refs")
+            .and_then(Value::as_array)
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .unwrap_or_default();
+        let secret_headers_spec = parse_secret_headers(&params)?;
+        let static_headers_spec = parse_static_headers(&params)?;
+        let mut all_secret_refs = secret_refs.clone();
+        for spec in &secret_headers_spec {
+            if !all_secret_refs.contains(&spec.secret_ref) {
+                all_secret_refs.push(spec.secret_ref.clone());
+            }
+        }
+
+        if !all_secret_refs.is_empty() {
+            let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "kernel.outbound.websocket.open package '{}' is not loaded",
+                    package_id
+                )
+            })?;
+            let declared: std::collections::HashSet<&str> = manifest
+                .permissions
+                .secret_refs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            for secret_ref in &all_secret_refs {
+                if !declared.contains(secret_ref.as_str()) {
+                    anyhow::bail!(
+                        "secret_ref '{}' is not declared in package manifest permissions.secret_refs",
+                        secret_ref
+                    );
+                }
+            }
+        }
+
+        let policy_request = super::OutboundRequest {
+            principal: context.principal.clone(),
+            package_id: package_id.clone(),
+            capability_id: capability_id.clone(),
+            destination_host: destination_host.clone(),
+            method: WEBSOCKET_METHOD.to_string(),
+            purpose: purpose.clone(),
+            secret_refs_used: all_secret_refs.clone(),
+        };
+        let _audit_record = self.check_and_audit_outbound(policy_request).await?;
+
+        let mut secret_headers = HashMap::new();
+        for spec in &secret_headers_spec {
+            HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
+                anyhow::anyhow!("kernel.outbound.websocket.open secret header name is invalid")
+            })?;
+            let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
+                anyhow::anyhow!("kernel.outbound.websocket.open secret header is unavailable")
+            })?;
+            let header_value = match spec.scheme.to_lowercase().as_str() {
+                "bearer" => format!("Bearer {}", raw_value),
+                "basic" => format!("Basic {}", raw_value),
+                "raw" | "" => raw_value,
+                other => format!("{} {}", other, raw_value),
+            };
+            HeaderValue::from_str(&header_value).map_err(|_| {
+                anyhow::anyhow!("kernel.outbound.websocket.open secret header value is invalid")
+            })?;
+            secret_headers.insert(spec.header_name.clone(), header_value);
+        }
+        let static_headers = static_headers_spec
+            .into_iter()
+            .map(|hdr| (hdr.name, hdr.value))
+            .collect::<HashMap<_, _>>();
+
+        let session_id = format!("kernel_outbound_websocket_{}", package_id.replace('/', "_"));
+        let stream_record = self.streams.start_invocation(
+            capability_id.clone(),
+            package_id.clone(),
+            session_id.clone(),
+            json!({
+                "destination_host": destination_host,
+                "method": WEBSOCKET_METHOD,
+            }),
+        ).await;
+        self.append_kernel_event(&session_id, ygg_core::EVENT_STREAM_STARTED, json!({
+            "invocation_id": stream_record.invocation_id,
+            "stream_id": stream_record.stream_id,
+            "capability_id": capability_id,
+            "provider_package_id": package_id,
+            "session_id": session_id,
+        })).await?;
+
+        metadata = match metadata {
+            Value::Object(mut map) => {
+                map.insert("connection_id".to_string(), Value::String(stream_record.stream_id.clone()));
+                Value::Object(map)
+            }
+            other => json!({"connection_id": stream_record.stream_id, "request_metadata": other}),
+        };
+
+        let req = super::OutboundWebSocketOpenRequest {
+            capability_id: capability_id.clone(),
+            package_id: package_id.clone(),
+            destination_host: destination_host.clone(),
+            path,
+            purpose,
+            subprotocols,
+            secret_refs: all_secret_refs,
+            metadata,
+            static_headers,
+            secret_headers,
+            max_frame_bytes: params.get("max_frame_bytes").and_then(Value::as_u64).unwrap_or(65_536) as usize,
+            max_total_bytes_inbound: params.get("max_total_bytes_inbound").and_then(Value::as_u64).unwrap_or(10 * 1024 * 1024) as usize,
+            max_total_bytes_outbound: params.get("max_total_bytes_outbound").and_then(Value::as_u64).unwrap_or(10 * 1024 * 1024) as usize,
+            max_idle_ms: params.get("max_idle_ms").and_then(Value::as_u64).unwrap_or(60_000),
+            max_duration_ms: params.get("max_duration_ms").and_then(Value::as_u64).unwrap_or(1_800_000),
+        };
+        let session = self.outbound_websocket_executor().open(req).await?;
+        let response = json!({
+            "connection_id": session.connection_id,
+            "status": "ok",
+            "subprotocol_negotiated": session.subprotocol_negotiated,
+            "redaction_state": session.redaction_state,
+            "network_performed": session.network_performed,
+            "executor_kind": session.executor_kind,
+        });
+        let store = self.store.clone();
+        let streams = self.streams.clone();
+        let session_id_for_task = session_id.clone();
+        let invocation_id_for_task = stream_record.invocation_id.clone();
+        let stream_id_for_task = stream_record.stream_id.clone();
+        let mut events = session.events;
+        tokio::spawn(async move {
+            while let Some(event) = events.recv().await {
+                let (kind, payload, terminal) = websocket_event_to_kernel_event(event);
+                use ygg_core::{EventEnvelope, KERNEL_PACKAGE_ID, new_id};
+                let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
+                let _ = store.append(EventEnvelope {
+                    id: new_id("evt"),
+                    session_id: session_id_for_task.clone(),
+                    sequence: seq,
+                    timestamp: chrono::Utc::now(),
+                    writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                    kind: kind.to_string(),
+                    schema_version: 1,
+                    payload,
+                    metadata: json!({}),
+                }).await;
+                if terminal {
+                    let _ = streams.end_invocation(&invocation_id_for_task).await;
+                    let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
+                    let _ = store.append(EventEnvelope {
+                        id: new_id("evt"),
+                        session_id: session_id_for_task.clone(),
+                        sequence: seq,
+                        timestamp: chrono::Utc::now(),
+                        writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                        kind: ygg_core::EVENT_STREAM_ENDED.to_string(),
+                        schema_version: 1,
+                        payload: json!({"invocation_id": invocation_id_for_task, "stream_id": stream_id_for_task}),
+                        metadata: json!({}),
+                    }).await;
+                    break;
+                }
+            }
+        });
+        let mut response_value = response;
+        strip_raw_secrets_from_value(&mut response_value);
+        Ok(response_value)
+    }
+
+    async fn dispatch_outbound_websocket_send(&self, params: &Value) -> anyhow::Result<Value> {
+        let connection_id = params
+            .get("connection_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.send requires connection_id"))?;
+        let frame = parse_websocket_frame(params)?;
+        let status = self.outbound_websocket_executor().send(connection_id, frame).await?;
+        Ok(json!({"status": status}))
+    }
+
+    async fn dispatch_outbound_websocket_close(&self, params: &Value) -> anyhow::Result<Value> {
+        let connection_id = params
+            .get("connection_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.close requires connection_id"))?;
+        let code = params.get("code").and_then(Value::as_u64).unwrap_or(1000) as u16;
+        let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
+        self.outbound_websocket_executor().close(connection_id, code, reason).await?;
+        Ok(json!({"status": "ok"}))
+    }
+
     async fn dispatch_outbound_git_fetch(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
         let package_id = match &context.principal {
             ProtocolPrincipal::Package { package_id } => package_id.clone(),
@@ -1226,6 +1464,86 @@ fn validate_outbound_stream_https_only(
     Ok(())
 }
 
+fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFrame> {
+    let kind = params.get("kind").and_then(Value::as_str).unwrap_or("text");
+    match kind {
+        "text" => Ok(OutboundWebSocketFrame::Text(
+            params
+                .get("text")
+                .or_else(|| params.get("data"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.send requires text data"))?
+                .to_string(),
+        )),
+        "binary" => {
+            let arr = params
+                .get("bytes")
+                .or_else(|| params.get("data"))
+                .and_then(Value::as_array)
+                .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.send requires binary bytes array"))?;
+            let mut bytes = Vec::with_capacity(arr.len());
+            for value in arr {
+                let byte = value.as_u64().ok_or_else(|| {
+                    anyhow::anyhow!("kernel.outbound.websocket.send binary bytes must be integers")
+                })?;
+                if byte > u8::MAX as u64 {
+                    anyhow::bail!("kernel.outbound.websocket.send binary byte out of range");
+                }
+                bytes.push(byte as u8);
+            }
+            Ok(OutboundWebSocketFrame::Binary(Bytes::from(bytes)))
+        }
+        other => anyhow::bail!("kernel.outbound.websocket.send unknown frame kind '{other}'"),
+    }
+}
+
+fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Value, bool) {
+    match event {
+        WebSocketEvent::Opened { connection_id, subprotocol } => (
+            ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED,
+            json!({"connection_id": connection_id, "subprotocol": subprotocol}),
+            false,
+        ),
+        WebSocketEvent::Frame { connection_id, direction, kind, bytes, seq, payload } => {
+            let payload_shape = match payload {
+                super::WebSocketFramePayload::Text(text) => json!({"kind": "text", "bytes": text.len()}),
+                super::WebSocketFramePayload::Binary(bytes) => json!({"kind": "binary", "bytes": bytes.len()}),
+            };
+            (
+                ygg_core::EVENT_OUTBOUND_WEBSOCKET_FRAME,
+                json!({
+                    "connection_id": connection_id,
+                    "direction": direction,
+                    "frame_kind": kind,
+                    "bytes": bytes,
+                    "seq": seq,
+                    "payload_shape": payload_shape,
+                }),
+                false,
+            )
+        }
+        WebSocketEvent::Error { connection_id, code, message_redacted } => (
+            ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
+            json!({"connection_id": connection_id, "error_code": code, "message_redacted": message_redacted}),
+            false,
+        ),
+        WebSocketEvent::Closed { connection_id, code, reason, total_frames_in, total_frames_out, total_bytes_in, total_bytes_out, duration_ms } => (
+            ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
+            json!({
+                "connection_id": connection_id,
+                "code": code,
+                "reason": reason,
+                "total_frames_in": total_frames_in,
+                "total_frames_out": total_frames_out,
+                "total_bytes_in": total_bytes_in,
+                "total_bytes_out": total_bytes_out,
+                "duration_ms": duration_ms,
+            }),
+            true,
+        ),
+    }
+}
+
 /// L4: Parse `secret_headers` from `kernel.outbound.execute` params.
 ///
 /// Expected format:
@@ -1641,5 +1959,114 @@ mod y2_tests {
             "error should mention undeclared, got: {err_msg}"
         );
         assert_eq!(fake.call_count(), 0, "executor should not be called");
+    }
+}
+
+#[cfg(test)]
+mod z_websocket_tests {
+    use std::sync::Arc;
+
+    use ygg_core::{
+        CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
+        PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    };
+    use crate::{
+        EventStore, FakeWebSocketExecutor, InMemoryEventStore, ProtocolContext, Runtime,
+        RuntimeConfig,
+    };
+
+    fn runtime_with_fake_ws() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeWebSocketExecutor>) {
+        let store = Arc::new(InMemoryEventStore::default());
+        let fake = Arc::new(FakeWebSocketExecutor::new());
+        let config = RuntimeConfig {
+            outbound_websocket_executor: fake.clone(),
+            ..RuntimeConfig::default()
+        };
+        let runtime = Runtime::new(store.clone(), config);
+        (store, runtime, fake)
+    }
+
+    fn package_ws(id: &str, secret_refs: Vec<String>) -> PackageManifest {
+        PackageManifest {
+            schema_version: 1,
+            id: id.to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: PackageEntry::RustInproc {
+                crate_ref: "example-echo-rust-inproc".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            provides: vec![CapabilityDescriptor {
+                id: format!("{id}/ws"),
+                version: "0.1.0".to_string(),
+                input_schema: serde_json::Value::Null,
+                output_schema: serde_json::Value::Null,
+                streaming: true,
+                side_effects: vec!["network".to_string()],
+                description: None,
+            }],
+            consumes: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                network: NetworkPermissions {
+                    declarations: vec![NetworkDeclaration {
+                        host: "api.example.com".to_string(),
+                        methods: vec!["WEBSOCKET".to_string()],
+                        purpose: Some("test websocket".to_string()),
+                    }],
+                    hosts: vec![],
+                },
+                secret_refs,
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn dispatch_outbound_websocket_open_namespace_enforced() {
+        let (_store, runtime, _fake) = runtime_with_fake_ws();
+        runtime.load_package(package_ws("example/ws-ns", vec![])).await.expect("load package");
+        let context = ProtocolContext::package("example/ws-ns", "in_process");
+        let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+            "capability_id": "other/pkg/ws",
+            "destination_host": "api.example.com"
+        })).await;
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("namespace"));
+    }
+
+    #[tokio::test]
+    async fn dispatch_outbound_websocket_open_secret_ref_undeclared_fails() {
+        let (_store, runtime, _fake) = runtime_with_fake_ws();
+        runtime.load_package(package_ws("example/ws-secret", vec![])).await.expect("load package");
+        let context = ProtocolContext::package("example/ws-secret", "in_process");
+        let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+            "capability_id": "example/ws-secret/ws",
+            "destination_host": "api.example.com",
+            "secret_refs": ["secret_ref:env:MISSING"]
+        })).await;
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("not declared"));
+    }
+
+    #[tokio::test]
+    async fn dispatch_outbound_websocket_open_with_fake_executor_emits_opened() {
+        let (store, runtime, _fake) = runtime_with_fake_ws();
+        runtime.load_package(package_ws("example/ws-ok", vec![])).await.expect("load package");
+        let context = ProtocolContext::package("example/ws-ok", "in_process");
+        let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+            "capability_id": "example/ws-ok/ws",
+            "destination_host": "api.example.com",
+            "subprotocols": ["json"]
+        })).await.expect("open websocket");
+        let connection_id = result.get("connection_id").and_then(serde_json::Value::as_str).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        let events = store.list_kind_prefix(ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED).await.unwrap();
+        assert!(events.iter().any(|event| event.payload.get("connection_id").and_then(serde_json::Value::as_str) == Some(connection_id)));
     }
 }

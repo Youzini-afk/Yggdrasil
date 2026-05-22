@@ -64,6 +64,9 @@ pub enum KernelMethod {
     OutboundAudit,
     OutboundExecute,
     OutboundStream,
+    OutboundWebSocketOpen,
+    OutboundWebSocketSend,
+    OutboundWebSocketClose,
     OutboundGitFetch,
 }
 
@@ -121,6 +124,9 @@ impl KernelMethod {
             Self::OutboundAudit => "kernel.outbound.audit",
             Self::OutboundExecute => "kernel.outbound.execute",
             Self::OutboundStream => "kernel.outbound.stream",
+            Self::OutboundWebSocketOpen => "kernel.outbound.websocket.open",
+            Self::OutboundWebSocketSend => "kernel.outbound.websocket.send",
+            Self::OutboundWebSocketClose => "kernel.outbound.websocket.close",
             Self::OutboundGitFetch => "kernel.outbound.git_fetch",
         }
     }
@@ -178,6 +184,9 @@ impl KernelMethod {
             Self::OutboundAudit => MethodStatus::Partial,
             Self::OutboundExecute => MethodStatus::Partial,
             Self::OutboundStream => MethodStatus::Partial,
+            Self::OutboundWebSocketOpen => MethodStatus::Partial,
+            Self::OutboundWebSocketSend => MethodStatus::Partial,
+            Self::OutboundWebSocketClose => MethodStatus::Partial,
             Self::OutboundGitFetch => MethodStatus::Partial,
         }
     }
@@ -185,7 +194,10 @@ impl KernelMethod {
     /// Whether this method returns a streaming response.
     pub const fn streaming(&self) -> bool {
         match self {
-            Self::EventSubscribe | Self::CapabilityStream | Self::OutboundStream => true,
+            Self::EventSubscribe
+            | Self::CapabilityStream
+            | Self::OutboundStream
+            | Self::OutboundWebSocketOpen => true,
             _ => false,
         }
     }
@@ -243,6 +255,9 @@ impl KernelMethod {
             Self::OutboundAudit,
             Self::OutboundExecute,
             Self::OutboundStream,
+            Self::OutboundWebSocketOpen,
+            Self::OutboundWebSocketSend,
+            Self::OutboundWebSocketClose,
             Self::OutboundGitFetch,
         ]
     }
@@ -301,6 +316,9 @@ impl KernelMethod {
             | Self::OutboundAudit
             | Self::OutboundExecute
             | Self::OutboundStream
+            | Self::OutboundWebSocketOpen
+            | Self::OutboundWebSocketSend
+            | Self::OutboundWebSocketClose
             | Self::OutboundGitFetch => true,
             // Planned methods with no dispatch yet
             Self::SessionGet
@@ -375,6 +393,9 @@ impl FromStr for KernelMethod {
             "kernel.outbound.audit" => Ok(Self::OutboundAudit),
             "kernel.outbound.execute" => Ok(Self::OutboundExecute),
             "kernel.outbound.stream" => Ok(Self::OutboundStream),
+            "kernel.outbound.websocket.open" => Ok(Self::OutboundWebSocketOpen),
+            "kernel.outbound.websocket.send" => Ok(Self::OutboundWebSocketSend),
+            "kernel.outbound.websocket.close" => Ok(Self::OutboundWebSocketClose),
             "kernel.outbound.git_fetch" => Ok(Self::OutboundGitFetch),
             other => Err(format!("unknown kernel method: {other}")),
         }
@@ -546,6 +567,10 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.outbound.audit", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.outbound.execute", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.outbound.stream", streaming: true, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.outbound.websocket.open", streaming: true, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.outbound.websocket.send", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.outbound.websocket.close", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.outbound.git_fetch", streaming: false, status: MethodStatus::Partial },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {
