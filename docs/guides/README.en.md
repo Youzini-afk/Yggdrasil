@@ -8,6 +8,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough (init-package, check, run-fixture, reload, composition)
 - [`GIT_PACKAGE_INSTALLATION.md`](GIT_PACKAGE_INSTALLATION.en.md) — install capability packages from public HTTPS git repos (git outbound, profile lockfile, installer-lab)
+- [`SURFACE_HOSTING.md`](SURFACE_HOSTING.en.md) — iframe SurfaceHost, third-party web surface bundle contract, and host bridge
 
 ## Creative capability families
 

@@ -13,6 +13,7 @@
 - 体验运行时、可玩纵切片、可观测性、记忆、分享/分发——都以普通能力包的形态落地。
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
+- Web shell 的 Vite 构建、iframe SurfaceHost、Tauri 2.x desktop wrapper、tag 触发的跨平台 release pipeline——全部完成。
 - 360 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
@@ -42,6 +43,12 @@
 - 更多 provider registry、tokenizer / 计费 metadata 适配，仍作为普通能力包实现。
 - WASM 与远程包入口的执行。
 - 内容寻址的 blob 存储与运行时身份层面的资产权限。
+- Desktop release code signing / notarization。
+- Desktop auto-updater integration。
+- 替换 placeholder desktop icons 为真实应用图标。
+- Surface lifecycle hooks（`onClose`、`onProposalDraft` 等）。
+- Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
+- Desktop wrapper 以受控 managed subprocess 启动 / 停止 `host serve`。
 
 这些项目解除某些场景的阻塞，但都不应该成为下一阶段的中心。
 
@@ -92,3 +99,4 @@
 - Real TDB Rust Adapter Alpha
 - Git Package Installation Substrate
 - Outbound WebSocket Substrate
+- Shell + Release S-track（Vite Web build、iframe SurfaceHost、Tauri desktop wrapper、GitHub Actions release）

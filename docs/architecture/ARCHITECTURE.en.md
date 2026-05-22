@@ -92,6 +92,32 @@ Studio isn't a kernel layer. It's a client of the public protocol, like any othe
 
 External game engines aren't a kernel layer. They join as remote-entry packages or as protocol clients.
 
+## Client shell and release boundary
+
+### Web client architecture
+
+`clients/web` is a plain TypeScript SPA. Vite provides the dev server, type-check/build flow, and production bundling. The shell does not make React or another frontend framework part of its architecture; Home / Play, Forge, and Assist are public-protocol clients.
+
+The web shell talks to the host only through public transports: HTTP `POST /rpc` for capability and kernel-method calls, plus SSE for event subscriptions. It does not read SQLite, import runtime crates, or use private shortcuts for official packages.
+
+### SurfaceHost
+
+Third-party web surface bundles are mounted through an iframe-based SurfaceHost. The host creates a `sandbox="allow-scripts"` iframe, loads `surface-frame.html`, and sends a mount instruction by `postMessage`. A surface sends `{type: 'rpc.call'}` to the host, and the host returns `{type: 'rpc.result'}` according to the explicit bridge configuration.
+
+By default there is no kernel access; the host must explicitly wire `hostBridge.callRpc`. For the surface bundle contract, iframe CSP, YdlTavern example, and v0 limits, see [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
+
+### Desktop wrapper
+
+`clients/desktop` is a Tauri 2.x wrapper. Production builds embed `clients/web/dist`; development points at the Vite dev server. It is a desktop container for the web shell, not a second protocol or private Studio.
+
+v0 boundary: the desktop wrapper does not spawn `ygg-cli host serve`; users run the host separately. Managed subprocess support can be added later, but should preserve the public-protocol boundary. Build requirements are in [`../../BUILDING.md`](../../BUILDING.md).
+
+### Release pipeline
+
+Releases are triggered by `v*` tags in GitHub Actions. The pipeline builds the web shell, builds cross-platform Tauri installers, and creates a draft GitHub release. `scripts/release-version.sh` synchronizes the version across Cargo, the web package, the desktop package, and Tauri config.
+
+The current release pipeline does not include signing, notarization, or auto-update. Build and release steps are in [`../../BUILDING.md`](../../BUILDING.md); release notes are in [`../../CHANGELOG.md`](../../CHANGELOG.md).
+
 ## Repository map
 
 The Yggdrasil Foundation Alpha workspace:
@@ -102,7 +128,8 @@ crates/ygg-runtime   Kernel scheduler: sessions, packages, capabilities, hooks, 
                      proposals, assets, branches, projections, sandbox, transports
 crates/ygg-service   Public protocol surface (HTTP /rpc, SSE event subscribe)
 crates/ygg-cli       Host modes, manifest tools, package authoring, conformance
-clients/web          Public-protocol Home/Play, Forge, and Assist shell
+clients/web          Vite + plain TS Home/Play, Forge, and Assist shell
+clients/desktop      Tauri 2.x desktop wrapper
 packages/official    Foundation capability packages loaded through ordinary manifests
 sdk/typescript       Subprocess-package authoring helpers and template runtime
 profiles/            Host profiles for autoloading sets of packages
@@ -120,3 +147,6 @@ The kernel crate is content-free. Conversation, worlds, agents, memory, and mode
 - [`EVENT_MODEL.md`](EVENT_MODEL.en.md) for the opaque event log.
 - [`RUNTIME_LIFECYCLE.md`](RUNTIME_LIFECYCLE.en.md) for kernel-side lifecycles.
 - [`../protocol/PROTOCOL_V0.md`](../protocol/PROTOCOL_V0.en.md) for the public protocol.
+- [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md) for third-party web surface hosting.
+- [`../../BUILDING.md`](../../BUILDING.md) for web / desktop build and release steps.
+- [`../../CHANGELOG.md`](../../CHANGELOG.md) for release notes.

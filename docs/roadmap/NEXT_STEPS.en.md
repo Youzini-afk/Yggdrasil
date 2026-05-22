@@ -13,6 +13,7 @@ The platform substrate is in place.
 - Experience runtime, a real playable vertical slice, observability, memory, sharing / distribution — all shipped as ordinary capability packages.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
+- Vite web-shell builds, iframe SurfaceHost, the Tauri 2.x desktop wrapper, and the tag-triggered cross-platform release pipeline — all complete.
 - 360 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
@@ -42,6 +43,12 @@ Not new phases, but known to-dos that will get done:
 - More provider registries, tokenizer / billing metadata adapters, still as ordinary capability packages.
 - Execution for WASM and remote package entries.
 - Content-addressed blob storage and runtime-level asset permissions.
+- Desktop release code signing / notarization.
+- Desktop auto-updater integration.
+- Replace placeholder desktop icons with real app icons.
+- Surface lifecycle hooks (`onClose`, `onProposalDraft`, and related callbacks).
+- Cross-origin surface-bundle allowlist, including CSP and origin checks.
+- Desktop wrapper starts / stops `host serve` as a controlled managed subprocess.
 
 These unblock specific scenarios, but none should be the center of the next stage.
 
@@ -92,3 +99,4 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - Real TDB Rust Adapter Alpha
 - Git Package Installation Substrate
 - Outbound WebSocket Substrate
+- Shell + Release S-track (Vite web build, iframe SurfaceHost, Tauri desktop wrapper, GitHub Actions release)

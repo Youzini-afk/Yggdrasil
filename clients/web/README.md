@@ -4,6 +4,8 @@
 
 Public-protocol Home/Play, Forge, and Assist shell for the current Platform Foundation Alpha surface.
 
+This client is a plain TypeScript SPA built by Vite. It does not use React or another frontend framework for the shell itself.
+
 - `Home/Play` is the launcher-first surface for package-discovered experiences.
 - `Forge` is the creation and inspection surface for sessions, events, proposals, capabilities, surfaces, assets, projections, and package labs.
 - `Assist` is a drawer that bridges lightweight play edits and deeper Forge work through approval-gated proposals.
@@ -23,7 +25,29 @@ Run the host first:
 cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 ```
 
-Then serve `clients/web` with any static web server. This is intentionally not a final visual design or a content runtime.
+## Vite scripts
+
+Run commands from the repository root with `--prefix clients/web`, or from this directory without the prefix.
+
+```bash
+npm run dev --prefix clients/web
+npm run build --prefix clients/web
+npm run check --prefix clients/web
+npm run preview --prefix clients/web
+```
+
+- `npm run dev` starts the Vite dev server on `127.0.0.1:1420`.
+- `npm run build` runs `tsc --noEmit` and writes the production bundle to `clients/web/dist/`.
+- `npm run check` runs TypeScript without emitting files.
+- `npm run preview` serves the built `dist/` bundle for local inspection.
+
+For production, serve `clients/web/dist/` with a static web server or embed it through `clients/desktop`. This is intentionally not a final visual design or a content runtime.
+
+## SurfaceHost
+
+`src/surfaces/surface-host.ts` mounts third-party surface bundles in sandboxed iframes using `/surface-frame.html`. Surface bundles are ESM modules with a named export that is either callable as `(root, props) => void` or exposes `{ mount(root, props) }`.
+
+The iframe uses `sandbox="allow-scripts"`; host access is opt-in through the explicit postMessage RPC bridge. See [`../../docs/guides/SURFACE_HOSTING.md`](../../docs/guides/SURFACE_HOSTING.md) for the full contract.
 
 ## Text Surface Proof
 

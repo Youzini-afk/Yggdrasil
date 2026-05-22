@@ -126,14 +126,21 @@ Under `sdk/typescript/`:
 
 `ygg init-package --template <name>`: `basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`, `networked`, `streaming`, `agent-runtime`, `experience-runtime`, `playable-board`, `playable-experience`. Generated packages are safe by default — no raw secrets, no implicit network.
 
+## Completed (S-track shell / release)
+
+- **Web client (S1):** `clients/web` now uses Vite for dev/build while remaining a plain TypeScript SPA. Home / Play, Forge, and Assist still use only HTTP `/rpc` and SSE; the iframe-based SurfaceHost can mount third-party surface bundles and communicate with the host through an explicit `postMessage` RPC bridge. See [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
+- **Desktop wrapper (S2):** `clients/desktop` provides a Tauri 2.x wrapper. Production embeds `clients/web/dist`; development points at the Vite dev server. v0 does not start `ygg-cli host serve`; users still run the host separately.
+- **Release pipeline (S3):** GitHub Actions CI and the `v*` tag release workflow are in place, building cross-platform Tauri installers and creating a draft release. `scripts/release-version.sh` synchronizes Cargo, the web package, the desktop package, and Tauri config. Build notes are in [`../BUILDING.md`](../BUILDING.md); changes are in [`../CHANGELOG.md`](../CHANGELOG.md). Signing, notarization, and auto-update are not enabled.
+
 ## Web shell (`clients/web`)
 
-Home / Play, Forge, and Assist over the public protocol.
+Home / Play, Forge, and Assist over the public protocol. The web shell is built with Vite, and the shell itself does not use React or another frontend framework.
 
 - **Home / Play:** discovers `experience_entry` surfaces, launches sessions through package-declared launch capabilities, supports fork.
 - **Forge:** inspects events, capabilities, assets, projections, proposals, and forge-panel contributions; offers approve / apply controls. Adds Agentic Forge workspace panels (run timeline, plan graph, branch lineage, candidate compare, tool / inference trace, controls), all driven by public protocol data.
 - **Assist:** a lightweight live-edit and proposal drawer.
 - No hardcoded official packages — the shell is just a public-protocol client like any other.
+- **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes. There is no kernel access by default; only host-configured bridge methods can call the public protocol.
 - **Optional text engine:** a generic `TextEngine` interface plus a cached fallback engine, with an optional `PretextTextEngine` loaded by dynamic import. The repo builds without `@chenglou/pretext` installed; the Assistant Drawer shows engine preference, availability, and fallback reason.
 - **Forge text preview:** safe plain-text previews extracted from event payloads, stream frames, and proposal objects, sitting alongside the existing JSON inspectors.
 
@@ -170,7 +177,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 Every case has tags (runtime / event / capability / package / subprocess / official / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval, and so on). See [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.en.md).
 
-Plus crate and service unit tests via `cargo test --workspace`, and `tsc -p clients/web/tsconfig.json --noEmit` for the web shell.
+Plus crate and service unit tests via `cargo test --workspace`, and `npm run check --prefix clients/web` / `npm run build --prefix clients/web` for the web shell.
 
 ## Partial (started, not finished)
 
@@ -184,6 +191,8 @@ Plus crate and service unit tests via `cargo test --workspace`, and `tsc -p clie
 - Richer crash monitoring and health checks.
 - Broader transport consistency coverage.
 - Heavier TypeScript SDK packaging.
+- Desktop release code signing / notarization, auto-updater, real app icons, and desktop-wrapper management of the host subprocess.
+- Surface lifecycle callbacks such as `onClose` and `onProposalDraft`, plus a cross-origin surface-bundle allowlist.
 - Full surfacing of `kernel.session.get|list`, `kernel.package.describe`, `kernel.capability.describe`, `kernel.extension_point.describe`, `kernel.host.principal`, `kernel.host.ping`.
 
 ## Deferred (explicitly out of kernel scope)
@@ -208,7 +217,8 @@ cargo run -p ygg-cli -- conformance
 cargo run -p ygg-cli -- conformance --list
 cargo run -p ygg-cli -- conformance --tag sharing --slowest 3
 cargo run -p ygg-cli -- play-create-demo
-tsc -p clients/web/tsconfig.json --noEmit
+npm run check --prefix clients/web
+npm run build --prefix clients/web
 ```
 
 If anything fails, the code is the source of truth — update this document.

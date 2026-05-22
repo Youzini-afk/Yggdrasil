@@ -8,6 +8,7 @@
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.md) — 第三方能力包创作 walkthrough（init-package、check、run-fixture、reload、composition）
 - [`GIT_PACKAGE_INSTALLATION.md`](GIT_PACKAGE_INSTALLATION.md) — 从公开 HTTPS git 仓库安装能力包（git outbound、profile lockfile、installer-lab）
+- [`SURFACE_HOSTING.md`](SURFACE_HOSTING.md) — iframe SurfaceHost、第三方 Web surface bundle 约定与 host bridge
 
 ## 创作能力族
 

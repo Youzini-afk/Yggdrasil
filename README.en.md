@@ -42,6 +42,7 @@ The platform substrate is in place. The next stage isn't more substrate sprawl �
 - 360 named conformance cases pass, plus crate / service unit tests.
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
+- The web shell now uses Vite for dev/build; `clients/desktop/` provides a Tauri 2.x desktop wrapper, and `v*` tags build cross-platform installers through GitHub Actions.
 
 For details, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 
@@ -55,7 +56,8 @@ crates/                Rust kernel and runtime
   ygg-service/           Public protocol surface (HTTP /rpc, SSE event subscribe)
   ygg-cli/               Host modes, manifest tools, package authoring, conformance
 
-clients/web/           Public-protocol Home / Play, Forge, and Assist shell
+clients/web/           Vite + plain TS Home / Play, Forge, and Assist shell
+clients/desktop/       Tauri 2.x desktop wrapper embedding the web shell
 
 packages/official/     Foundation capability packages loaded through ordinary manifests
 profiles/              Host profiles for autoloading sets of packages
@@ -104,8 +106,16 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 **Web shell**
 
 - Home / Play, Forge, and Assist — three first-class surfaces, all over the public protocol.
+- Plain TypeScript SPA with Vite dev/build/preview; no React or frontend framework in the shell.
+- An iframe SurfaceHost can mount third-party surface bundles such as `@ydltavern/surface`, with an explicit postMessage bridge back to the host.
 - An optional frontend text engine (a fallback engine plus an optional Pretext loader).
 - Forge text preview, plus agent / experience / storage / proposal observability panels.
+
+**Desktop and releases**
+
+- `clients/desktop/` is a Tauri 2.x wrapper that embeds `clients/web/dist` in production.
+- v0 does not spawn `ygg-cli host serve`; users still run the host separately.
+- `v*` tags trigger the GitHub Actions release workflow and produce draft Linux / macOS / Windows installers. Signing, notarization, and auto-update are not enabled yet.
 
 ## Quick start
 
@@ -117,10 +127,11 @@ cargo run -p ygg-cli -- host serve \
   --profile profiles/forge-alpha.yaml
 ```
 
-Type-check the web shell:
+Check or build the web shell:
 
 ```bash
-tsc -p clients/web/tsconfig.json --noEmit
+npm run check --prefix clients/web
+npm run build --prefix clients/web
 ```
 
 Run the full conformance suite:
@@ -151,6 +162,7 @@ Shortest path by intent:
 | Use the public protocol | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.en.md) → [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.en.md) |
 | Write your first package | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Write agent / model / experience packages | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
+| Host third-party web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |
 | See current status | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) |
 | See what's next | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) |
 
