@@ -81,5 +81,54 @@ export default defineConfig({
         });
       },
     },
+    {
+      name: 'ydltavern-st-compat-server',
+      configureServer(server) {
+        const compatBase = resolve(__dirname, '../../../YdlTavern/packages/ydltavern-surface/dist/st-compat');
+        const routes = {
+          '/script.js': 'script.js',
+          '/scripts/extensions.js': 'scripts/extensions.js',
+          '/scripts/events.js': 'scripts/events.js',
+          '/scripts/st-context.js': 'scripts/st-context.js',
+          '/scripts/group-chats.js': 'scripts/group-chats.js',
+          '/scripts/secrets.js': 'scripts/secrets.js',
+          '/scripts/power-user.js': 'scripts/power-user.js',
+        } as const;
+
+        server.middlewares.use((req, res, next) => {
+          const url = req.url?.split('?')[0];
+          if (!url) {
+            next();
+            return;
+          }
+
+          const routePath = routes[url as keyof typeof routes];
+          if (routePath) {
+            const filePath = resolve(compatBase, routePath);
+            readFile(filePath)
+              .then((data) => {
+                res.setHeader('Content-Type', 'application/javascript');
+                res.end(data);
+              })
+              .catch(() => {
+                res.statusCode = 404;
+                res.end(`Not found: ${url} (st-compat shim missing — did you run npm run build in packages/ydltavern-surface?)`);
+              });
+            return;
+          }
+
+          // TODO(Round 9): Serve installed third-party ST extensions from the
+          // host-managed extension install directory once that route is wired.
+          if (url.startsWith('/scripts/extensions/')) {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(`/scripts/extensions/* serving not yet wired (Round 9 work). Path requested: ${url}`);
+            return;
+          }
+
+          next();
+        });
+      },
+    },
   ],
 });

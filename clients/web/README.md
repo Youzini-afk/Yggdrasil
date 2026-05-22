@@ -49,6 +49,20 @@ For production, serve `clients/web/dist/` with a static web server or embed it t
 
 The iframe uses `sandbox="allow-scripts"`; host access is opt-in through the explicit postMessage RPC bridge. See [`../../docs/guides/SURFACE_HOSTING.md`](../../docs/guides/SURFACE_HOSTING.md) for the full contract.
 
+## ST URL layout (for ST extension compatibility)
+
+YdlTavern surfaces serve SillyTavern-compatible ESM modules at standard ST URLs:
+
+- `/script.js` — ST core globals shim
+- `/scripts/extensions.js` — Extension manager shim
+- `/scripts/events.js`, `/scripts/st-context.js`, `/scripts/group-chats.js`,
+  `/scripts/secrets.js`, `/scripts/power-user.js`
+
+These are served by the `ydltavern-st-compat-server` Vite plugin during dev,
+reading from `../../YdlTavern/packages/ydltavern-surface/dist/st-compat/`.
+
+Production hosting needs a static fileserver route (TODO Round 9).
+
 ## Text Surface Proof
 
 The `src/text-layout` module provides a Pretext-aligned API shape with a browser-only canvas fallback:
