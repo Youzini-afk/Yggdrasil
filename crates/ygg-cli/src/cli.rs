@@ -618,6 +618,6 @@ outbound:
         assert_eq!(exec.timeout_ms, 30_000);
         assert!(!exec.allow_redirects);
         assert!(!exec.allow_insecure_loopback_for_tests);
-        assert_eq!(exec.allowed_hosts.len(), 5);
+        assert_eq!(exec.allowed_hosts.len(), 7);
     }
 }

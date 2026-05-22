@@ -39,7 +39,7 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 The platform substrate is in place. The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 329 named conformance cases pass, plus crate / service unit tests.
+- 347 named conformance cases pass, plus crate / service unit tests.
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
 
@@ -76,9 +76,10 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 
 **Secure execution**
 
-- `secret_ref` references, a host-owned environment-variable resolver with an allowlist.
-- Network permission declarations, audit and redaction for outbound requests, public `kernel.outbound.execute`.
-- A real HTTPS outbound executor (off by default, HTTPS only, redirect fail-closed).
+- `secret_ref` references, manifest `permissions.secret_refs` declarations, and a host-owned environment-variable resolver with an allowlist.
+- Network permission declarations, audit and redaction for outbound requests, and public protocol methods `kernel.outbound.execute` and `kernel.outbound.stream`.
+- A real live HTTP outbound executor (off by default; requires an opt-in profile plus provider env vars; HTTPS only, redirect fail-closed).
+- The subprocess TypeScript SDK `kernelClient` lets subprocess packages issue permission-scoped reverse kernel calls.
 - Public HTTPS git install path: `kernel.outbound.git_fetch`, profile-scoped lockfiles, and `official/package-installer-lab`.
 - A generic streaming and cancel lifecycle.
 

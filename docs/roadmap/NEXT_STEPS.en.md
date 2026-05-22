@@ -13,7 +13,7 @@ The platform substrate is in place.
 - Experience runtime, a real playable vertical slice, observability, memory, sharing / distribution — all shipped as ordinary capability packages.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
-- 329 named conformance cases pass, plus crate / service unit tests.
+- 347 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -37,6 +37,8 @@ Not new phases, but known to-dos that will get done:
 - Timeout and error audit for hook handlers.
 - Persistent capability-provider selection policy.
 - Broader transport-consistency coverage in conformance.
+- Expanded real-model outbound conformance with local mock HTTP servers, without adding default public-internet dependencies.
+- More provider tokenizer / billing metadata adapters, still as ordinary capability packages.
 - Execution for WASM and remote package entries.
 - Content-addressed blob storage and runtime-level asset permissions.
 
@@ -54,7 +56,7 @@ These don't belong in the kernel. They'll arrive as ordinary capability packages
 - pi as a wholesale product shell embedding — see [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.en.md). Agent infrastructure can only move forward as ordinary packages and SDKs.
 - External game-engine bridges (UE5, Godot, Unity, web clients).
 - A privileged built-in Studio, a UI that bypasses the public protocol, or a kernel-owned official inspector. Public-protocol clients and package-contributed surfaces can keep evolving.
-- Memory models, world simulation, directors, prompt rendering, and model-provider abstractions in the kernel. Agent loops, production-grade live model calls, and model providers all stay in ordinary packages.
+- Memory models, world simulation, directors, prompt rendering, and model-provider abstractions in the kernel. Agent loops and production-grade model-provider capabilities stay in ordinary packages.
 - Marketplace, package signing networks, dependency-resolver economy. The local sharing proof is done — see [`../guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.en.md).
 
 ## Scoring

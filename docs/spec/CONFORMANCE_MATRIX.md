@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**347**。
 
 ## Conformance Feedback Loop
 
@@ -179,6 +179,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | kernel.outbound.execute 无 network permission denied，executor 不调用 | implemented |
 | outbound | kernel.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
 | outbound | kernel.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
+| outbound_execute | profile 默认 deny-all、fake/live executor 配置、包权限、capability namespace、无权限拒绝、secret_ref 声明、response 脱敏 | implemented |
+| outbound_stream | `kernel.outbound.stream` profile 默认拒绝、fake stream frame、secret_ref 声明、capability namespace、HTTPS-only 策略 | implemented |
+| secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
+| subprocess_outbound | subprocess SDK reverse kernel call：principal 绑定、execute 调度、stream chunks 回传 | implemented |
+| sse_parser | outbound stream SSE parser basic smoke 与 partial chunk 归并 | implemented |
+| live_model | live smoke 默认跳过；`YGG_LIVE_MODEL_TESTS=1` + provider env 才 opt-in 真实调用 | implemented |
 | git outbound | `kernel.outbound.git_fetch` 默认 deny-all、要求 HTTPS、要求 host allowlist、FakeGitOutboundExecutor fixture 成功、审计不含 raw secret、RealGitOutboundExecutor 真实联网 opt-in | implemented |
 | package install | profile 级 git install lockfile 支持 install/list/update/uninstall/inspect round-trip，并拒绝不安全 URL | implemented |
 | outbound | local loopback HTTP server secret injection：Authorization header 真实到达 server，raw secret 不在 protocol response/audit/log | implemented |

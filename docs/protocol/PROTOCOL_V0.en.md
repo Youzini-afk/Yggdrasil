@@ -166,6 +166,21 @@ kernel.host.ping         liveness
 kernel.host.diagnostics  local host diagnostics for package/capability/hook observability
 ```
 
+### Outbound
+
+```text
+kernel.outbound.execute    unary HTTP-style outbound through the host executor
+kernel.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
+kernel.outbound.audit      list redacted outbound audit records for a package
+kernel.outbound.git_fetch  public HTTPS git fetch under host policy
+```
+
+`execute` and `stream` request shapes are defined by the runtime types: `OutboundExecutorRequest`, `OutboundExecutorResponse`, `KernelOutboundStreamResponse`, and `OutboundStreamFrame` (see `crates/ygg-runtime/src/runtime/outbound.rs`) plus dispatch parsing (see `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`). Core fields include `capability_id`, `destination_host`, `method`, optional `path`, `body_shape`, `metadata`, `secret_headers`, `static_headers`, and `timeout_ms`; `stream` also accepts `stream_format` (`sse` / `ndjson` / `raw`) and frame/duration limits.
+
+Outbound requests pass two fail-closed gates: the package manifest must declare matching `permissions.network.declarations`, and every `secret_headers` / `secret_refs` entry must be declared in `permissions.secret_refs`. The host profile must also explicitly enable outbound execute/stream, the destination host must match the allowlist by equality (or `*.suffix`), HTTPS-only cannot be disabled, and redirects are rejected by default. `capability_id` must be in the caller package namespace; subprocess reverse kernel calls use the host-bound package principal and cannot spoof another package.
+
+`kernel.outbound.audit` returns only redacted audit records: package, capability, destination host, method, purpose, used `secret_ref`s, and redaction state. Raw headers, bodies, secrets, and responses are not written to audit or protocol responses.
+
 ## Package methods
 
 Each package contributes its own protocol methods through capability registrations and extension-point declarations. Their schemas are discoverable via `kernel.capability.describe` and `kernel.extension_point.describe`.

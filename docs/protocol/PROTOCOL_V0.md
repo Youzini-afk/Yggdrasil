@@ -166,6 +166,21 @@ kernel.host.ping         liveness
 kernel.host.diagnostics  local host diagnostics for package/capability/hook observability
 ```
 
+### Outbound
+
+```text
+kernel.outbound.execute    unary HTTP-style outbound through the host executor
+kernel.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
+kernel.outbound.audit      list redacted outbound audit records for a package
+kernel.outbound.git_fetch  public HTTPS git fetch under host policy
+```
+
+`execute` 和 `stream` 的请求 shape 以运行时类型为准：`OutboundExecutorRequest`、`OutboundExecutorResponse`、`KernelOutboundStreamResponse`、`OutboundStreamFrame`（见 `crates/ygg-runtime/src/runtime/outbound.rs`）以及分发解析（见 `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`）。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限。
+
+出站请求按两层 fail-closed 校验：能力包 manifest 必须声明匹配的 `permissions.network.declarations`，并且所有 `secret_headers` / `secret_refs` 必须声明在 `permissions.secret_refs`。host profile 还必须显式启用 outbound execute/stream，目标 host 必须精确匹配 allowlist（支持 `*.suffix`），HTTPS-only 不能关闭，redirect 默认拒绝。`capability_id` 必须属于调用包 namespace；subprocess reverse kernel calls 也使用 host 绑定的 package principal，不能 spoof。
+
+`kernel.outbound.audit` 只返回脱敏审计记录：package、capability、destination host、method、purpose、使用的 `secret_ref` 与 redaction state。raw header/body/secret/response 不进入审计或协议响应。
+
 ## 包方法
 
 每个包通过能力注册和扩展点声明贡献自己的协议方法。它们的 schema 可以通过 `kernel.capability.describe` 和 `kernel.extension_point.describe` 发现。

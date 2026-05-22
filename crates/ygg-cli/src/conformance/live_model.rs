@@ -504,6 +504,54 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
 // L4-4: Opt-in live conformance stub
 // ---------------------------------------------------------------------------
 
+/// Y5: Default conformance must not perform live calls when
+/// `YGG_LIVE_MODEL_TESTS` is unset, even if a provider key exists.
+pub(crate) async fn live_model_default_disabled_when_env_unset() -> anyhow::Result<()> {
+    let prev_live = std::env::var_os("YGG_LIVE_MODEL_TESTS");
+    let prev_key = std::env::var_os("DEEPSEEK_API_KEY");
+
+    std::env::remove_var("YGG_LIVE_MODEL_TESTS");
+    std::env::set_var("DEEPSEEK_API_KEY", "test-live-model-default-disabled-do-not-log");
+
+    let result = outbound_live_deepseek_opt_in().await;
+
+    match prev_live {
+        Some(value) => std::env::set_var("YGG_LIVE_MODEL_TESTS", value),
+        None => std::env::remove_var("YGG_LIVE_MODEL_TESTS"),
+    }
+    match prev_key {
+        Some(value) => std::env::set_var("DEEPSEEK_API_KEY", value),
+        None => std::env::remove_var("DEEPSEEK_API_KEY"),
+    }
+
+    result?;
+    Ok(())
+}
+
+/// Y5: Default run skips the opt-in live smoke path when both the
+/// `YGG_LIVE_MODEL_TESTS=1` gate and provider key are absent.
+pub(crate) async fn live_model_smoke_skipped_in_default_run() -> anyhow::Result<()> {
+    let prev_live = std::env::var_os("YGG_LIVE_MODEL_TESTS");
+    let prev_key = std::env::var_os("DEEPSEEK_API_KEY");
+
+    std::env::remove_var("YGG_LIVE_MODEL_TESTS");
+    std::env::remove_var("DEEPSEEK_API_KEY");
+
+    let result = outbound_live_deepseek_opt_in().await;
+
+    match prev_live {
+        Some(value) => std::env::set_var("YGG_LIVE_MODEL_TESTS", value),
+        None => std::env::remove_var("YGG_LIVE_MODEL_TESTS"),
+    }
+    match prev_key {
+        Some(value) => std::env::set_var("DEEPSEEK_API_KEY", value),
+        None => std::env::remove_var("DEEPSEEK_API_KEY"),
+    }
+
+    result?;
+    Ok(())
+}
+
 /// L4: Opt-in live DeepSeek conformance. Only runs when
 /// `YGG_LIVE_MODEL_TESTS=1` AND `DEEPSEEK_API_KEY` is set.
 /// Default conformance skips this test (no public internet dependency).

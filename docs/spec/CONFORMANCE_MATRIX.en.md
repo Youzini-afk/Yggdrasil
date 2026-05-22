@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **347**.
 
 ## Conformance Feedback Loop
 
@@ -179,6 +179,12 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | kernel.outbound.execute no network permission denied, executor not called | implemented |
 | outbound | kernel.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
 | outbound | kernel.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
+| outbound_execute | profile default deny-all, fake/live executor config, package permission, capability namespace, no-permission denial, secret_ref declarations, response redaction | implemented |
+| outbound_stream | `kernel.outbound.stream` profile default denial, fake stream frames, secret_ref declarations, capability namespace, HTTPS-only policy | implemented |
+| secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
+| subprocess_outbound | subprocess SDK reverse kernel call: principal binding, execute dispatch, stream chunks piped back | implemented |
+| sse_parser | outbound stream SSE parser basic smoke and partial chunk coalescing | implemented |
+| live_model | live smoke is skipped by default; real calls require `YGG_LIVE_MODEL_TESTS=1` plus provider env vars | implemented |
 | git outbound | `kernel.outbound.git_fetch` denies by default, requires HTTPS, requires host allowlist, succeeds with FakeGitOutboundExecutor fixtures, audits without raw secrets, and supports opt-in RealGitOutboundExecutor coverage | implemented |
 | package install | profile-scoped git install lockfile supports install/list/update/uninstall/inspect round-trip and rejects unsafe URLs | implemented |
 | outbound | local loopback HTTP server secret injection: Authorization header actually arrives at server, raw secret not in protocol response/audit/log | implemented |

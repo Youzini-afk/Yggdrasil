@@ -13,7 +13,7 @@
 - 体验运行时、可玩纵切片、可观测性、记忆、分享/分发——都以普通能力包的形态落地。
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
-- 329 个具名 conformance 用例 + crate / service 单元测试通过。
+- 347 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -37,6 +37,8 @@
 - 钩子处理器的超时与错误审计。
 - 能力 provider 的持久选择策略。
 - conformance 里更广的传输层一致性覆盖。
+- 使用本地 mock HTTP server 扩展真实模型出站 conformance，不引入默认公网依赖。
+- 更多 provider tokenizer / 计费 metadata 适配，仍作为普通能力包实现。
 - WASM 与远程包入口的执行。
 - 内容寻址的 blob 存储与运行时身份层面的资产权限。
 
@@ -54,7 +56,7 @@
 - pi 作为产品壳的整包嵌入 —— 见 [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.md)。Agent 基础设施只能以普通能力包 / SDK 形态推进。
 - 外部游戏引擎桥接（UE5 / Godot / Unity / Web 客户端）。
 - 享受特权的内置 Studio、绕过公开协议的 UI、由内核拥有的官方审查器。公开协议的客户端和能力包贡献的 surface 可以继续演化。
-- 内核里的记忆模型、世界模拟、导演、提示词渲染、模型 provider 抽象。Agent 循环、生产级真实模型调用、模型 provider，都只能作为普通能力包存在。
+- 内核里的记忆模型、世界模拟、导演、提示词渲染、模型 provider 抽象。Agent 循环、生产级模型 provider 能力，都只能作为普通能力包存在。
 - 市场、包签名网络、依赖解析经济。本地分享 proof 已完成，见 [`../guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.md)。
 
 ## 评分标准
