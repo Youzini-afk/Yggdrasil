@@ -18,13 +18,14 @@ use std::sync::Arc;
 use ygg_core::{
     CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
     PackageEntry, PackageManifest, PermissionSet, RedactionState, SandboxPolicy,
-    EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_REQUEST,
+    EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_REQUEST, EVENT_STREAM_CHUNK,
 };
 use ygg_runtime::{
-    check_network_policy, EventStore, ExecutorKind, FakeOutboundExecutor, InMemoryEventStore,
-    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, OutboundExecutor,
-    OutboundExecutorConfig, OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal,
-    Runtime, RuntimeConfig,
+    check_network_policy, EnvSecretResolver, EventStore, ExecutorKind, FakeOutboundExecutor,
+    InMemoryEventStore, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    OutboundExecutor, OutboundExecutePolicyConfig, OutboundExecutorConfig,
+    OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal, Runtime, RuntimeConfig,
+    SecretResolverConfig, SseParser,
 };
 
 use super::fixtures::runtime;
@@ -361,6 +362,26 @@ fn runtime_with_fake_executor() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEve
     let fake = Arc::new(FakeOutboundExecutor::new());
     let config = RuntimeConfig {
         outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+        ..RuntimeConfig::default()
+    };
+    let runtime = Runtime::new(store.clone(), config);
+    (store, runtime, fake)
+}
+
+/// Helper: create a runtime with FakeOutboundExecutor and enabled outbound stream policy.
+fn runtime_with_fake_stream_executor() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeOutboundExecutor>) {
+    let store = Arc::new(InMemoryEventStore::default());
+    let fake = Arc::new(FakeOutboundExecutor::new());
+    let config = RuntimeConfig {
+        outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+        outbound_execute_policy: OutboundExecutePolicyConfig {
+            enabled: true,
+            allowed_hosts: vec!["api.openai.com".to_string(), "api.example.com".to_string()],
+            https_only: true,
+            timeout_ms: 30_000,
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: false,
+        },
         ..RuntimeConfig::default()
     };
     let runtime = Runtime::new(store.clone(), config);
@@ -1651,5 +1672,298 @@ pub(crate) async fn outbound_execute_secret_ref_declared_resolves() -> anyhow::R
     // succeeds (e.g. in a future test with a proper resolver), it would
     // be called. The key invariant: the Y2 check does NOT block.
     let _ = fake; // avoid unused warning
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Y3: kernel.outbound.stream conformance cases
+// ---------------------------------------------------------------------------
+
+/// Y3: Default profile/runtime denies kernel.outbound.stream requests.
+pub(crate) async fn outbound_stream_profile_default_deny_all() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(network_package(
+            "example/y3-default-deny",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("stream default deny".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y3-default-deny", "in_process");
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            serde_json::json!({
+                "capability_id": "example/y3-default-deny/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "stream_format": "sse",
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(result.is_err(), "default profile must reject outbound.stream");
+    Ok(())
+}
+
+/// Y3: FakeOutboundExecutor emits deterministic canned stream frames.
+pub(crate) async fn outbound_stream_fake_executor_emits_canned_frames() -> anyhow::Result<()> {
+    let (store, runtime, fake) = runtime_with_fake_stream_executor();
+    runtime
+        .load_package(network_package(
+            "example/y3-fake-stream",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("fake stream".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y3-fake-stream", "in_process");
+    let response = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            serde_json::json!({
+                "capability_id": "example/y3-fake-stream/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "stream_format": "sse",
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+
+    anyhow::ensure!(
+        response.get("status").and_then(|v| v.as_str()) == Some("ok"),
+        "outbound.stream should start ok, got {:?}",
+        response
+    );
+
+    for _ in 0..20 {
+        if fake.call_count() >= 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    anyhow::ensure!(fake.call_count() == 1, "fake stream executor should be called once");
+
+    let session_id = "kernel_outbound_stream_example_y3-fake-stream".to_string();
+    let mut chunk_count = 0usize;
+    for _ in 0..20 {
+        let events = store.list_session(&session_id).await?;
+        chunk_count = events.iter().filter(|e| e.kind == EVENT_STREAM_CHUNK).count();
+        if chunk_count >= 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    anyhow::ensure!(chunk_count >= 1, "fake stream should emit at least one frame");
+    Ok(())
+}
+
+/// Y3: Y2 secret_ref declaration enforcement applies to outbound.stream.
+pub(crate) async fn outbound_stream_secret_ref_undeclared_fails() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_stream_executor();
+    runtime
+        .load_package(network_package_with_secret_refs(
+            "example/y3-secret-undeclared",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("stream secret".to_string()),
+            }],
+            vec![],
+            vec!["secret_ref:env:DECLARED_KEY".to_string()],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y3-secret-undeclared", "in_process");
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            serde_json::json!({
+                "capability_id": "example/y3-secret-undeclared/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "secret_headers": {
+                    "Authorization": {"secret_ref": "secret_ref:env:UNDECLARED_KEY", "scheme": "bearer"}
+                }
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(result.is_err(), "undeclared secret_ref should be denied");
+    let err_msg = format!("{:?}", result.unwrap_err());
+    anyhow::ensure!(err_msg.contains("not declared"), "error should mention not declared: {err_msg}");
+    anyhow::ensure!(fake.call_count() == 0, "executor must not be called for undeclared secret_ref");
+    Ok(())
+}
+
+/// Y3: A declared secret_ref resolves and stream proceeds with a fake executor.
+pub(crate) async fn outbound_stream_secret_ref_declared_resolves() -> anyhow::Result<()> {
+    let env_name = format!("YGG_Y3_STREAM_KEY_{}", std::process::id());
+    std::env::set_var(&env_name, "test-y3-stream-secret");
+    struct EnvGuard(String);
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            std::env::remove_var(&self.0);
+        }
+    }
+    let _guard = EnvGuard(env_name.clone());
+
+    let store = Arc::new(InMemoryEventStore::default());
+    let fake = Arc::new(FakeOutboundExecutor::new());
+    let config = RuntimeConfig {
+        outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+        outbound_execute_policy: OutboundExecutePolicyConfig {
+            enabled: true,
+            allowed_hosts: vec!["api.openai.com".to_string()],
+            https_only: true,
+            timeout_ms: 30_000,
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: false,
+        },
+        secret_resolver: SecretResolverConfig::with_resolver(Arc::new(EnvSecretResolver::from_iter(vec![env_name.clone()]))),
+        ..RuntimeConfig::default()
+    };
+    let runtime = Runtime::new(store, config);
+    let secret_ref = format!("secret_ref:env:{env_name}");
+    runtime
+        .load_package(network_package_with_secret_refs(
+            "example/y3-secret-declared",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("stream secret".to_string()),
+            }],
+            vec![],
+            vec![secret_ref.clone()],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y3-secret-declared", "in_process");
+    let response = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            serde_json::json!({
+                "capability_id": "example/y3-secret-declared/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "secret_headers": {
+                    "Authorization": {"secret_ref": secret_ref, "scheme": "bearer"}
+                }
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+
+    anyhow::ensure!(response.get("status").and_then(|v| v.as_str()) == Some("ok"), "declared secret_ref should proceed");
+    for _ in 0..20 {
+        if fake.call_count() >= 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    anyhow::ensure!(fake.call_count() == 1, "executor should be called after declared secret_ref resolves");
+    Ok(())
+}
+
+/// Y3: outbound.stream capability_id must stay in the caller package namespace.
+pub(crate) async fn outbound_stream_capability_namespace_enforced() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_stream_executor();
+    runtime
+        .load_package(network_package(
+            "example/y3-namespace",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y3-namespace", "in_process");
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            serde_json::json!({
+                "capability_id": "other/package/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(result.is_err(), "cross-namespace capability_id should be denied");
+    anyhow::ensure!(fake.call_count() == 0, "executor must not be called for namespace denial");
+    Ok(())
+}
+
+/// Y3: outbound.stream enforces HTTPS-only URL policy.
+pub(crate) async fn outbound_stream_https_only() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_stream_executor();
+    runtime
+        .load_package(network_package(
+            "example/y3-https-only",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let context = ygg_runtime::ProtocolContext::package("example/y3-https-only", "in_process");
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            serde_json::json!({
+                "capability_id": "example/y3-https-only/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "metadata": {"base_url": "http://api.openai.com"}
+            }),
+        )
+        .await;
+
+    anyhow::ensure!(result.is_err(), "http:// outbound.stream URL should be denied");
+    let err_msg = format!("{:?}", result.unwrap_err());
+    anyhow::ensure!(err_msg.contains("HTTPS") || err_msg.contains("https"), "error should mention HTTPS: {err_msg}");
+    anyhow::ensure!(fake.call_count() == 0, "executor must not be called for http URL");
+    Ok(())
+}
+
+/// Y3: SSE parser handles a basic one-event stream.
+pub(crate) async fn sse_parser_basic_smoke() -> anyhow::Result<()> {
+    let mut parser = SseParser::new();
+    let events = parser.push(b"data: x\n\n");
+    anyhow::ensure!(events.len() == 1, "expected one SSE event, got {}", events.len());
+    anyhow::ensure!(events[0].data == "x", "SSE data mismatch");
+    Ok(())
+}
+
+/// Y3: SSE parser assembles an event split across push() calls.
+pub(crate) async fn sse_parser_partial_chunks() -> anyhow::Result<()> {
+    let mut parser = SseParser::new();
+    let first = parser.push(b"data: ");
+    anyhow::ensure!(first.is_empty(), "partial chunk should not emit");
+    let second = parser.push(b"x\n\n");
+    anyhow::ensure!(second.len() == 1, "completed partial event should emit once");
+    anyhow::ensure!(second[0].data == "x", "partial chunk SSE data mismatch");
     Ok(())
 }

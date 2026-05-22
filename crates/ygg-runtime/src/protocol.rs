@@ -63,6 +63,7 @@ pub enum KernelMethod {
     SurfaceContributionDescribe,
     OutboundAudit,
     OutboundExecute,
+    OutboundStream,
     OutboundGitFetch,
 }
 
@@ -119,6 +120,7 @@ impl KernelMethod {
             Self::SurfaceContributionDescribe => "kernel.surface.contribution.describe",
             Self::OutboundAudit => "kernel.outbound.audit",
             Self::OutboundExecute => "kernel.outbound.execute",
+            Self::OutboundStream => "kernel.outbound.stream",
             Self::OutboundGitFetch => "kernel.outbound.git_fetch",
         }
     }
@@ -175,6 +177,7 @@ impl KernelMethod {
             Self::SurfaceContributionDescribe => MethodStatus::Partial,
             Self::OutboundAudit => MethodStatus::Partial,
             Self::OutboundExecute => MethodStatus::Partial,
+            Self::OutboundStream => MethodStatus::Partial,
             Self::OutboundGitFetch => MethodStatus::Partial,
         }
     }
@@ -182,7 +185,7 @@ impl KernelMethod {
     /// Whether this method returns a streaming response.
     pub const fn streaming(&self) -> bool {
         match self {
-            Self::EventSubscribe | Self::CapabilityStream => true,
+            Self::EventSubscribe | Self::CapabilityStream | Self::OutboundStream => true,
             _ => false,
         }
     }
@@ -239,6 +242,7 @@ impl KernelMethod {
             Self::SurfaceContributionDescribe,
             Self::OutboundAudit,
             Self::OutboundExecute,
+            Self::OutboundStream,
             Self::OutboundGitFetch,
         ]
     }
@@ -296,6 +300,7 @@ impl KernelMethod {
             | Self::SurfaceContributionDescribe
             | Self::OutboundAudit
             | Self::OutboundExecute
+            | Self::OutboundStream
             | Self::OutboundGitFetch => true,
             // Planned methods with no dispatch yet
             Self::SessionGet
@@ -369,6 +374,7 @@ impl FromStr for KernelMethod {
             "kernel.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
             "kernel.outbound.audit" => Ok(Self::OutboundAudit),
             "kernel.outbound.execute" => Ok(Self::OutboundExecute),
+            "kernel.outbound.stream" => Ok(Self::OutboundStream),
             "kernel.outbound.git_fetch" => Ok(Self::OutboundGitFetch),
             other => Err(format!("unknown kernel method: {other}")),
         }
@@ -539,6 +545,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.surface.contribution.describe", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.outbound.audit", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.outbound.execute", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.outbound.stream", streaming: true, status: MethodStatus::Partial },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {

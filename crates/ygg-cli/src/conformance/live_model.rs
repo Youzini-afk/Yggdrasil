@@ -95,6 +95,19 @@ fn networked_package(id: &str, host: &str) -> PackageManifest {
                 }],
                 hosts: vec![],
             },
+            secret_refs: vec![
+                "secret_ref:env:YGG_L4_PARSE_KEY".to_string(),
+                "secret_ref:env:YGG_L4_TEST_KEY".to_string(),
+                "secret_ref:env:DEEPSEEK_API_KEY".to_string(),
+                "secret_ref:env:YGG_L5_OPENAI_CHAT_KEY".to_string(),
+                "secret_ref:env:YGG_L5_OPENAI_RESP_KEY".to_string(),
+                "secret_ref:env:YGG_L5_ANTHROPIC_KEY".to_string(),
+                "secret_ref:env:YGG_L5_GEMINI_KEY".to_string(),
+                "secret_ref:env:YGG_L5_MISSING_KEY".to_string(),
+                "secret_ref:env:YGG_L6_OPENROUTER_KEY".to_string(),
+                "secret_ref:env:YGG_L6_XAI_KEY".to_string(),
+                "secret_ref:env:YGG_L6_FIREWORKS_KEY".to_string(),
+            ],
             ..PermissionSet::default()
         },
         sandbox_policy: SandboxPolicy::default(),
@@ -117,6 +130,14 @@ fn runtime_with_live_http_and_env_resolver(
     let config = RuntimeConfig {
         outbound_executor: OutboundExecutorConfig::LiveHttp(live_config),
         secret_resolver: SecretResolverConfig::with_resolver(Arc::new(secret_resolver)),
+        outbound_execute_policy: ygg_runtime::OutboundExecutePolicyConfig {
+            enabled: true,
+            allowed_hosts: vec!["127.0.0.1".to_string(), "api.deepseek.com".to_string()],
+            https_only: true,
+            timeout_ms: 5_000,
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: true,
+        },
         ..RuntimeConfig::default()
     };
     let runtime = Runtime::new(store.clone(), config);

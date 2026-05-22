@@ -220,6 +220,15 @@ fn build_cases() -> Vec<ConformanceCase> {
         // --- Y2: manifest permissions.secret_refs conformance ---
         c!("outbound_execute.secret_ref_undeclared_fails", ["outbound", "network", "secret", "manifest"], network::outbound_execute_secret_ref_undeclared_fails),
         c!("outbound_execute.secret_ref_declared_resolves", ["outbound", "network", "secret", "manifest"], network::outbound_execute_secret_ref_declared_resolves),
+        // --- Y3: kernel.outbound.stream conformance ---
+        c!("outbound_stream.profile_default_deny_all", ["outbound", "network", "stream", "profile"], network::outbound_stream_profile_default_deny_all),
+        c!("outbound_stream.fake_executor_emits_canned_frames", ["outbound", "network", "stream"], network::outbound_stream_fake_executor_emits_canned_frames),
+        c!("outbound_stream.secret_ref_undeclared_fails", ["outbound", "network", "stream", "secret", "manifest"], network::outbound_stream_secret_ref_undeclared_fails),
+        c!("outbound_stream.secret_ref_declared_resolves", ["outbound", "network", "stream", "secret", "manifest"], network::outbound_stream_secret_ref_declared_resolves),
+        c!("outbound_stream.capability_namespace_enforced", ["outbound", "network", "stream", "permission"], network::outbound_stream_capability_namespace_enforced),
+        c!("outbound_stream.https_only", ["outbound", "network", "stream", "profile"], network::outbound_stream_https_only),
+        c!("sse_parser.basic_smoke", ["outbound", "network", "stream", "sse"], network::sse_parser_basic_smoke),
+        c!("sse_parser.partial_chunks", ["outbound", "network", "stream", "sse"], network::sse_parser_partial_chunks),
         // --- git outbound ---
         c!("git_fetch.deny_all_default", ["git", "outbound"], git_install::git_fetch_deny_all_default),
         c!("git_fetch.requires_https", ["git", "outbound"], git_install::git_fetch_requires_https),

@@ -1,8 +1,11 @@
+use std::sync::Arc;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
+use ygg_core::RedactionState;
 
 use super::Runtime;
-use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal, EventListRequest};
+use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal, EventListRequest,
+    OutboundStreamFrame, OutboundFrameKind, StreamEmitter, StreamRegistry};
 
 impl<S> Runtime<S>
 where
@@ -36,6 +39,7 @@ where
             // Outbound domain
             KernelMethod::OutboundAudit => self.dispatch_outbound_audit(&params).await,
             KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
+            KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
             KernelMethod::OutboundGitFetch => self.dispatch_outbound_git_fetch(context, params).await,
 
             // Permission domain
@@ -323,6 +327,385 @@ where
         // struct is already content-free by design, but we do an
         // extra sweep to ensure conformance: no raw_secret,
         // api_key, Bearer, sk- patterns in the serialized output.
+        let mut response_value = serde_json::to_value(&response)?;
+        strip_raw_secrets_from_value(&mut response_value);
+        Ok(response_value)
+    }
+
+    /// Y3: Dispatch `kernel.outbound.stream`.
+    ///
+    /// Performs the same permission checks as `kernel.outbound.execute`,
+    /// then starts a kernel stream and spawns the executor's `stream`
+    /// method to emit frames asynchronously. Returns a stream_id
+    /// that the caller subscribes to via the existing event stream.
+    async fn dispatch_outbound_stream(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
+        // --- Same auth/permission checks as dispatch_outbound_execute ---
+        let package_id = match &context.principal {
+            ProtocolPrincipal::Package { package_id } => package_id.clone(),
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
+                params
+                    .get("package_id")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| "host/test".to_string())
+            }
+            other => {
+                anyhow::bail!(
+                    "kernel.outbound.stream requires package or host principal, got {:?}",
+                    other
+                )
+            }
+        };
+
+        let capability_id = params
+            .get("capability_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream requires capability_id"))?
+            .to_string();
+        if !capability_id.starts_with(&format!("{package_id}/")) {
+            anyhow::bail!(
+                "kernel.outbound.stream capability_id must belong to the caller package namespace"
+            );
+        }
+        let destination_host = params
+            .get("destination_host")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream requires destination_host"))?
+            .to_string();
+        let method = params
+            .get("method")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream requires method"))?
+            .to_string();
+        let path: Option<String> = params
+            .get("path")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let purpose: Option<String> = params
+            .get("purpose")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let secret_refs: Vec<String> = params
+            .get("secret_refs")
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let metadata = params
+            .get("metadata")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let body_shape = params.get("body_shape").cloned();
+
+        // Y3: Host-level stream policy mirrors outbound.execute fail-closed
+        // profile behavior. The default profile has this disabled, so stream
+        // requests are rejected before any stream is registered or executor is
+        // called.
+        let stream_policy = &self.config.outbound_execute_policy;
+        if !stream_policy.enabled {
+            anyhow::bail!("host policy has not enabled outbound.stream");
+        }
+        if stream_policy.allow_redirects {
+            anyhow::bail!("outbound.stream redirects are disabled");
+        }
+        if stream_policy.allowed_hosts.is_empty()
+            || !stream_policy
+                .allowed_hosts
+                .iter()
+                .any(|allowed| outbound_host_matches(allowed, &destination_host))
+        {
+            anyhow::bail!(
+                "host policy does not allow outbound.stream host '{}'",
+                destination_host
+            );
+        }
+        if stream_policy.https_only {
+            validate_outbound_stream_https_only(
+                &destination_host,
+                path.as_deref(),
+                &metadata,
+                stream_policy.allow_insecure_loopback_for_tests,
+            )?;
+        } else {
+            anyhow::bail!("host policy attempted to disable HTTPS-only outbound.stream");
+        }
+
+        // Parse secret_headers (same as execute)
+        let secret_headers_spec = parse_secret_headers(&params)?;
+
+        // Parse static_headers (same as execute)
+        let static_headers = parse_static_headers(&params)?;
+
+        // Collect all secret_refs
+        let mut all_secret_refs = secret_refs.clone();
+        for spec in &secret_headers_spec {
+            if !all_secret_refs.contains(&spec.secret_ref) {
+                all_secret_refs.push(spec.secret_ref.clone());
+            }
+        }
+
+        // Y2: enforce manifest declarations for secret refs
+        if !all_secret_refs.is_empty() {
+            let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "kernel.outbound.stream package '{}' is not loaded",
+                    package_id
+                )
+            })?;
+            let declared: std::collections::HashSet<&str> = manifest
+                .permissions
+                .secret_refs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            for secret_ref in &all_secret_refs {
+                if !declared.contains(secret_ref.as_str()) {
+                    anyhow::bail!(
+                        "secret_ref '{}' is not declared in package manifest permissions.secret_refs",
+                        secret_ref
+                    );
+                }
+            }
+        }
+
+        // Y3: Parse stream_format
+        let stream_format_str = params
+            .get("stream_format")
+            .and_then(Value::as_str)
+            .unwrap_or("sse");
+        let stream_format = match stream_format_str {
+            "sse" => super::outbound::StreamFormat::Sse,
+            "ndjson" => super::outbound::StreamFormat::Ndjson,
+            "raw" => super::outbound::StreamFormat::Raw,
+            other => anyhow::bail!("kernel.outbound.stream unknown stream_format '{other}'"),
+        };
+        let max_frame_bytes = params
+            .get("max_frame_bytes")
+            .and_then(Value::as_u64)
+            .map(|v| v as usize);
+        let max_total_bytes = params
+            .get("max_total_bytes")
+            .and_then(Value::as_u64)
+            .map(|v| v as usize);
+        let max_duration_ms = params
+            .get("max_duration_ms")
+            .and_then(Value::as_u64);
+
+        // Build the policy request (same checks as execute)
+        let policy_request = super::OutboundRequest {
+            principal: context.principal.clone(),
+            package_id: package_id.clone(),
+            capability_id: capability_id.clone(),
+            destination_host: destination_host.clone(),
+            method: method.clone(),
+            purpose: purpose.clone(),
+            secret_refs_used: all_secret_refs.clone(),
+        };
+
+        // Resolve secret headers
+        let mut resolved_secret_headers = Vec::new();
+        for spec in &secret_headers_spec {
+            reqwest::header::HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
+                anyhow::anyhow!("kernel.outbound.stream secret header name is invalid")
+            })?;
+            let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
+                anyhow::anyhow!("kernel.outbound.stream secret header is unavailable")
+            })?;
+            let header_value = match spec.scheme.to_lowercase().as_str() {
+                "bearer" => format!("Bearer {}", raw_value),
+                "basic" => format!("Basic {}", raw_value),
+                "raw" | "" => raw_value,
+                other => format!("{} {}", other, raw_value),
+            };
+            reqwest::header::HeaderValue::from_str(&header_value).map_err(|_| {
+                anyhow::anyhow!("kernel.outbound.stream secret header value is invalid")
+            })?;
+            resolved_secret_headers.push(super::outbound::ResolvedSecretHeader {
+                header_name: spec.header_name.clone(),
+                value: super::outbound::RedactedHeaderValue(header_value),
+            });
+        }
+
+        // Run the policy check
+        let _audit_record = self.check_and_audit_outbound(policy_request).await?;
+
+        // Build the executor request
+        let executor_request = super::OutboundExecutorRequest {
+            package_id: package_id.clone(),
+            capability_id: capability_id.clone(),
+            destination_host: destination_host.clone(),
+            method: method.clone(),
+            path,
+            purpose,
+            secret_refs: all_secret_refs,
+            redaction_state: None,
+            timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
+            metadata,
+            body_shape,
+            secret_headers: secret_headers_spec,
+            resolved_secret_headers,
+            static_headers,
+        };
+
+        // Start a kernel stream via the existing streaming infrastructure.
+        // We create a synthetic "capability" for the outbound stream.
+        let outbound_capability_id = capability_id.clone();
+        let session_id = format!("kernel_outbound_stream_{}", package_id.replace('/', "_"));
+
+        // Register the stream in the StreamRegistry
+        let stream_record = self.streams.start_invocation(
+            outbound_capability_id.clone(),
+            package_id.clone(),
+            session_id.clone(),
+            serde_json::json!({
+                "destination_host": destination_host,
+                "method": method,
+                "stream_format": stream_format_str,
+            }),
+        ).await;
+
+        // Emit kernel/stream.started event
+        let event_payload = json!({
+            "invocation_id": stream_record.invocation_id,
+            "stream_id": stream_record.stream_id,
+            "capability_id": outbound_capability_id,
+            "provider_package_id": package_id,
+            "session_id": session_id,
+        });
+        self.append_kernel_event(&session_id, ygg_core::EVENT_STREAM_STARTED, event_payload)
+            .await?;
+
+        // Create cancel signal
+        let (cancel_tx, cancel_rx) = super::outbound::CancelSignal::new();
+
+        // Store the cancel sender so that kernel.capability.cancel can set it
+        let invocation_id = stream_record.invocation_id.clone();
+        let stream_id = stream_record.stream_id.clone();
+
+        // Determine executor kind for the response
+        let executor = self.outbound_executor();
+        let executor_kind = match &self.config.outbound_executor {
+            super::outbound::OutboundExecutorConfig::DenyAll => super::outbound::ExecutorKind::DenyAll,
+            super::outbound::OutboundExecutorConfig::Custom(_) => super::outbound::ExecutorKind::Fake,
+            super::outbound::OutboundExecutorConfig::LiveHttp(_) => super::outbound::ExecutorKind::Real,
+        };
+        let network_performed = matches!(executor_kind, super::outbound::ExecutorKind::Real);
+
+        // Create a StreamEmitter that feeds into the kernel stream lifecycle
+        let emitter = Arc::new(StreamEmitterAdapter {
+            streams: self.streams.clone(),
+            store: self.store.clone(),
+            session_id: session_id.clone(),
+            invocation_id: invocation_id.clone(),
+            stream_id: stream_id.clone(),
+            cancel_tx,
+        });
+
+        // Spawn the executor stream in a background task
+        let executor_for_task = executor.clone();
+        let invocation_id_for_end = invocation_id.clone();
+        let session_id_for_end = session_id.clone();
+        let streams_for_end = self.streams.clone();
+        let store_for_end = self.store.clone();
+        let stream_id_for_end = stream_id.clone();
+        let context_principal = context.principal.clone();
+        let pkg_id_for_end = package_id.clone();
+        let cap_id_for_end = outbound_capability_id.clone();
+        let host_for_end = destination_host.clone();
+        let method_for_end = method.clone();
+        let format_str_for_end = stream_format_str.to_string();
+
+        tokio::spawn(async move {
+            let result = executor_for_task.stream(
+                executor_request,
+                stream_format,
+                emitter.clone(),
+                cancel_rx,
+                max_frame_bytes,
+                max_total_bytes,
+                max_duration_ms,
+            ).await;
+
+            // Helper closure for appending kernel events
+            let append_event = |kind: &'static str, payload: Value| {
+                let store = store_for_end.clone();
+                let session_id = session_id_for_end.clone();
+                async move {
+                    use ygg_core::{EventEnvelope, new_id, KERNEL_PACKAGE_ID};
+                    let seq = store.next_sequence(&session_id).await.unwrap_or(0);
+                    let event = EventEnvelope {
+                        id: new_id("evt"),
+                        session_id,
+                        sequence: seq,
+                        timestamp: chrono::Utc::now(),
+                        writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                        kind: kind.to_string(),
+                        schema_version: 1,
+                        payload,
+                        metadata: json!({}),
+                    };
+                    let _ = store.append(event).await;
+                }
+            };
+
+            // On stream end, write the terminal state and audit
+            match result {
+                Ok(summary) => {
+                    // End the invocation in the registry
+                    let _ = streams_for_end.end_invocation(&invocation_id_for_end).await;
+
+                    // Emit kernel/stream.ended event
+                    append_event(ygg_core::EVENT_STREAM_ENDED, json!({
+                        "invocation_id": invocation_id_for_end,
+                        "stream_id": stream_id_for_end,
+                        "status": summary.status,
+                        "frame_count": summary.frame_count,
+                        "bytes_received": summary.bytes_received,
+                        "executor_kind": summary.executor_kind,
+                    })).await;
+
+                    // Emit outbound audit record
+                    append_event(ygg_core::EVENT_OUTBOUND_REQUEST, json!({
+                        "principal": context_principal,
+                        "package_id": pkg_id_for_end,
+                        "capability_id": cap_id_for_end,
+                        "destination_host": host_for_end,
+                        "method": method_for_end,
+                        "status": summary.status,
+                        "stream_format": format_str_for_end,
+                        "frame_count": summary.frame_count,
+                        "bytes_received": summary.bytes_received,
+                        "redaction_state": serde_json::to_value(summary.redaction_state).unwrap_or(Value::Null),
+                        "executor_kind": summary.executor_kind,
+                        "network_performed": summary.network_performed,
+                    })).await;
+                }
+                Err(e) => {
+                    // Error the invocation in the registry
+                    let _ = streams_for_end.error_invocation(&invocation_id_for_end, &e.to_string()).await;
+
+                    // Emit kernel/stream.error event
+                    append_event(ygg_core::EVENT_STREAM_ERROR, json!({
+                        "invocation_id": invocation_id_for_end,
+                        "stream_id": stream_id_for_end,
+                        "error": e.to_string(),
+                    })).await;
+                }
+            }
+        });
+
+        // Return the stream response immediately
+        let response = super::outbound::KernelOutboundStreamResponse {
+            stream_id: stream_record.stream_id.clone(),
+            status: super::outbound::StreamStartStatus::Ok,
+            redaction_state: RedactionState::Redacted,
+            network_performed,
+            executor_kind,
+        };
+
         let mut response_value = serde_json::to_value(&response)?;
         strip_raw_secrets_from_value(&mut response_value);
         Ok(response_value)
@@ -633,6 +1016,89 @@ where
     }
 }
 
+// ---------------------------------------------------------------------------
+// Y3: StreamEmitterAdapter — bridges OutboundStreamFrame to kernel stream lifecycle
+// ---------------------------------------------------------------------------
+
+/// Adapter that implements `StreamEmitter` and feeds frames into
+/// the kernel stream registry.
+///
+/// Each emitted `OutboundStreamFrame` is converted to a chunk in
+/// the `StreamRegistry` and records `kernel/stream.chunk` events.
+/// The spawned task's completion handler emits terminal events.
+struct StreamEmitterAdapter<S: EventStore> {
+    streams: Arc<StreamRegistry>,
+    store: Arc<S>,
+    session_id: String,
+    invocation_id: String,
+    stream_id: String,
+    cancel_tx: tokio::sync::watch::Sender<bool>,
+}
+
+#[async_trait::async_trait]
+impl<S> StreamEmitter for StreamEmitterAdapter<S>
+where
+    S: EventStore,
+{
+    async fn emit(&self, frame: OutboundStreamFrame) -> anyhow::Result<()> {
+        // Check if the invocation is still active
+        let record = self.streams.get_invocation(&self.invocation_id).await;
+        if let Some(rec) = &record {
+            if rec.is_terminal() {
+                // Invocation is already terminal (cancelled/timed out/etc).
+                // Signal the cancel so the executor stops.
+                let _ = self.cancel_tx.send(true);
+                return Ok(());
+            }
+        }
+
+        // If this is a Done frame, end the invocation instead of appending a chunk
+        if frame.kind == OutboundFrameKind::Done {
+            // Signal cancel to stop any further emissions
+            let _ = self.cancel_tx.send(true);
+            return Ok(());
+        }
+
+        // Build the chunk payload from the outbound frame
+        let payload = json!({
+            "invocation_id": self.invocation_id,
+            "stream_id": self.stream_id,
+            "seq": frame.seq,
+            "kind": frame.kind,
+            "data_shape": frame.data_shape,
+            "bytes_received": frame.bytes_received,
+        });
+
+        // Append a chunk frame to the kernel stream
+        let _kernel_frame = self.streams
+            .append_chunk(&self.invocation_id, payload, RedactionState::Redacted)
+            .await?;
+
+        use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID, EVENT_STREAM_CHUNK};
+        let seq = self.store.next_sequence(&self.session_id).await?;
+        self.store
+            .append(EventEnvelope {
+                id: new_id("evt"),
+                session_id: self.session_id.clone(),
+                sequence: seq,
+                timestamp: chrono::Utc::now(),
+                writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                kind: EVENT_STREAM_CHUNK.to_string(),
+                schema_version: 1,
+                payload: json!({
+                    "invocation_id": self.invocation_id,
+                    "stream_id": self.stream_id,
+                    "outbound_seq": frame.seq,
+                    "redaction_state": serde_json::to_value(RedactionState::Redacted)?,
+                }),
+                metadata: json!({}),
+            })
+            .await?;
+
+        Ok(())
+    }
+}
+
 /// Recursively strip raw-secret-like field values from a JSON value
 /// before returning it to a protocol caller.
 ///
@@ -656,6 +1122,70 @@ fn strip_raw_secrets_from_value(value: &mut Value) {
         }
         _ => {}
     }
+}
+
+fn outbound_host_matches(pattern: &str, destination: &str) -> bool {
+    if pattern.eq_ignore_ascii_case(destination) {
+        return true;
+    }
+    let pattern = pattern.to_ascii_lowercase();
+    let destination = destination.to_ascii_lowercase();
+    if let Some(suffix) = pattern.strip_prefix("*.") {
+        return destination == suffix
+            || destination
+                .strip_suffix(suffix)
+                .is_some_and(|prefix| prefix.ends_with('.') && prefix.len() > 1);
+    }
+    false
+}
+
+fn validate_outbound_stream_https_only(
+    destination_host: &str,
+    path: Option<&str>,
+    metadata: &Value,
+    allow_insecure_loopback_for_tests: bool,
+) -> anyhow::Result<()> {
+    let base_url = metadata.get("base_url").and_then(Value::as_str);
+    let url_str = if let Some(base) = base_url {
+        let mut url = base.trim_end_matches('/').to_string();
+        if let Some(path) = path {
+            if !path.starts_with('/') {
+                url.push('/');
+            }
+            url.push_str(path);
+        }
+        url
+    } else {
+        let scheme = metadata
+            .get("scheme")
+            .and_then(Value::as_str)
+            .unwrap_or("https");
+        let raw_path = path.unwrap_or("/");
+        let path = if raw_path.starts_with('/') {
+            raw_path.to_string()
+        } else {
+            format!("/{raw_path}")
+        };
+        format!("{scheme}://{destination_host}{path}")
+    };
+
+    let url = reqwest::Url::parse(&url_str)
+        .map_err(|e| anyhow::anyhow!("invalid outbound.stream URL '{}': {e}", url_str))?;
+    let actual_host = url.host_str().unwrap_or("");
+    if !actual_host.eq_ignore_ascii_case(destination_host) {
+        anyhow::bail!(
+            "outbound.stream URL host '{}' does not match destination_host '{}'",
+            actual_host,
+            destination_host
+        );
+    }
+    if url.scheme() != "https" {
+        let is_loopback = actual_host == "127.0.0.1" || actual_host == "localhost" || actual_host == "[::1]";
+        if !allow_insecure_loopback_for_tests || !is_loopback {
+            anyhow::bail!("outbound.stream rejects non-HTTPS URL: {}", url_str);
+        }
+    }
+    Ok(())
 }
 
 /// L4: Parse `secret_headers` from `kernel.outbound.execute` params.

@@ -18,6 +18,7 @@ mod events;
 mod hooks;
 mod network;
 mod outbound;
+mod outbound_sse;
 mod packages;
 mod permissions;
 mod projections;
@@ -40,14 +41,18 @@ pub use self::outbound::{
     GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutor,
     OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
-    RealGitOutboundExecutor, RealGitOutboundExecutorConfig, RedactedHeaderValue,
-    ResolvedSecretHeader, SecretHeaderSpec, StaticHeader, STATIC_HEADER_ALLOWLIST,
+    OutboundFrameKind, OutboundStreamFrame, OutboundStreamSummary, RealGitOutboundExecutor,
+    RealGitOutboundExecutorConfig, RedactedHeaderValue, ResolvedSecretHeader,
+    SecretHeaderSpec, StaticHeader, StreamFormat, StreamStartStatus,
+    KernelOutboundStreamResponse, CancelSignal, StreamEmitter,
+    STATIC_HEADER_ALLOWLIST,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};
 pub use self::session::OpenSessionRequest;
 pub use self::streaming::StreamRegistry;
+pub use self::outbound_sse::{SseEvent, SseParser};
 
 // ---------------------------------------------------------------------------
 // RuntimeConfig

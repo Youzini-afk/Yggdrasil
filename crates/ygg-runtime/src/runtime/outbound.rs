@@ -34,6 +34,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::process::Command;
+use tokio::sync::watch;
 use tokio::time::timeout;
 use ygg_core::RedactionState;
 
@@ -291,6 +292,158 @@ pub struct OutboundExecutorResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Y3: Outbound streaming types
+// ---------------------------------------------------------------------------
+
+/// The format of a streaming response for `kernel.outbound.stream`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamFormat {
+    /// Server-Sent Events (`text/event-stream`). Parses `data: ...\n\n` events.
+    Sse,
+    /// Newline-delimited JSON. Splits on `\n` and emits each line as a frame.
+    Ndjson,
+    /// Raw binary stream. Emits chunks as they arrive.
+    Raw,
+}
+
+impl std::fmt::Display for StreamFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sse => f.write_str("sse"),
+            Self::Ndjson => f.write_str("ndjson"),
+            Self::Raw => f.write_str("raw"),
+        }
+    }
+}
+
+/// Status returned when a streaming outbound request starts.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamStartStatus {
+    /// Stream started successfully.
+    Ok,
+    /// Stream request was denied by policy.
+    Denied,
+    /// Stream request encountered an error before starting.
+    Error,
+}
+
+/// Response returned by `kernel.outbound.stream` on the initial call.
+///
+/// Contains the stream_id for subscribing to events, the start status,
+/// and metadata about the executor that will handle the stream.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KernelOutboundStreamResponse {
+    /// The stream_id to subscribe to for stream frames.
+    pub stream_id: String,
+    /// Whether the stream started successfully.
+    pub status: StreamStartStatus,
+    /// Redaction state applied to stream frames.
+    #[serde(default)]
+    pub redaction_state: RedactionState,
+    /// Whether real network I/O will be performed.
+    pub network_performed: bool,
+    /// What kind of executor is handling the stream.
+    pub executor_kind: ExecutorKind,
+}
+
+/// The kind of a stream frame payload for outbound streaming.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OutboundFrameKind {
+    /// A parsed SSE event or NDJSON line.
+    Event,
+    /// A raw data chunk.
+    Data,
+    /// An error frame (stream continues but reports the error).
+    Error,
+    /// Terminal frame indicating the stream is complete.
+    Done,
+}
+
+/// A frame emitted during outbound streaming.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutboundStreamFrame {
+    /// Sequence number, monotonically increasing from 1.
+    pub seq: u64,
+    /// The kind of frame.
+    pub kind: OutboundFrameKind,
+    /// The frame payload. For SSE: parsed event; for NDJSON: the JSON line;
+    /// for Raw: the chunk shape (redacted). Never includes raw secrets.
+    pub data_shape: Value,
+    /// Total bytes received so far in this stream.
+    pub bytes_received: u64,
+}
+
+/// Summary of a completed outbound stream, returned by the executor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutboundStreamSummary {
+    /// Final status: "ok", "error", "timeout", "cancelled".
+    pub status: String,
+    /// HTTP status code if available.
+    #[serde(default)]
+    pub status_code: Option<u16>,
+    /// Total number of frames emitted.
+    pub frame_count: u64,
+    /// Total bytes received.
+    pub bytes_received: u64,
+    /// JSON shape of response headers (redacted).
+    #[serde(default)]
+    pub headers_shape: Option<Value>,
+    /// JSON shape of the response body (redacted preview).
+    #[serde(default)]
+    pub body_shape: Option<Value>,
+    /// Provider-assigned request id if available.
+    #[serde(default)]
+    pub provider_request_id: Option<String>,
+    /// Redaction state applied to the stream.
+    #[serde(default)]
+    pub redaction_state: RedactionState,
+    /// Whether real network I/O was performed.
+    pub network_performed: bool,
+    /// What kind of executor produced this summary.
+    pub executor_kind: ExecutorKind,
+}
+
+// ---------------------------------------------------------------------------
+// Y3: StreamEmitter and CancelSignal traits
+// ---------------------------------------------------------------------------
+
+/// Trait for emitting frames into the kernel stream lifecycle.
+///
+/// Implementations are wired into the existing `StreamRegistry` /
+/// `stream_capability_chunk` infrastructure. The executor calls
+/// `emit` for each frame it produces.
+#[async_trait]
+pub trait StreamEmitter: Send + Sync {
+    /// Emit a frame into the stream.
+    async fn emit(&self, frame: OutboundStreamFrame) -> anyhow::Result<()>;
+}
+
+/// Signal for cancelling an outbound stream.
+///
+/// When the caller invokes `kernel.capability.cancel`, the cancel signal
+/// is set, and the executor's stream loop checks it before each iteration.
+#[derive(Clone)]
+pub struct CancelSignal {
+    rx: watch::Receiver<bool>,
+}
+
+impl CancelSignal {
+    /// Create a new cancel signal pair (sender, receiver).
+    pub fn new() -> (watch::Sender<bool>, Self) {
+        let (tx, rx) = watch::channel(false);
+        (tx, Self { rx })
+    }
+
+    /// Check whether the stream has been cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        *self.rx.borrow()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Git outbound request / response types (G1)
 // ---------------------------------------------------------------------------
 
@@ -465,6 +618,32 @@ pub trait OutboundExecutor: Send + Sync + 'static {
         &self,
         request: OutboundExecutorRequest,
     ) -> anyhow::Result<OutboundExecutorResponse>;
+
+    /// Execute an outbound streaming request (Y3).
+    ///
+    /// Called only after policy and permission checks have approved the
+    /// request. The executor should:
+    /// 1. Perform the HTTP request with streaming response
+    /// 2. Parse the response body according to `format` (SSE, NDJSON, Raw)
+    /// 3. Emit frames via the `emit` callback
+    /// 4. Respect the `cancel` signal for client-initiated cancellation
+    /// 5. Apply `max_frame_bytes`, `max_total_bytes`, `max_duration_ms`
+    /// 6. Return a summary on completion (success, error, timeout, cancel)
+    ///
+    /// Default implementation returns "unsupported" error, so existing
+    /// executors (DenyAll) don't need to implement this.
+    async fn stream(
+        &self,
+        _request: OutboundExecutorRequest,
+        _format: StreamFormat,
+        _emit: Arc<dyn StreamEmitter>,
+        _cancel: CancelSignal,
+        _max_frame_bytes: Option<usize>,
+        _max_total_bytes: Option<usize>,
+        _max_duration_ms: Option<u64>,
+    ) -> anyhow::Result<OutboundStreamSummary> {
+        Err(anyhow::anyhow!("streaming not supported by this executor"))
+    }
 }
 
 /// Trait for host-controlled git fetch execution.
@@ -767,6 +946,112 @@ impl OutboundExecutor for FakeOutboundExecutor {
             provider_request_id: Some("fake_req_001".to_string()),
             usage: serde_json::json!({"prompt_tokens": 0, "completion_tokens": 0}),
             cost: serde_json::json!({}),
+            redaction_state: RedactionState::Redacted,
+            network_performed: false,
+            executor_kind: ExecutorKind::Fake,
+        })
+    }
+
+    /// Y3: Fake executor streams a small canned sequence of SSE frames.
+    ///
+    /// Emits 3 deterministic SSE events for testing, then a done frame.
+    async fn stream(
+        &self,
+        _request: OutboundExecutorRequest,
+        format: StreamFormat,
+        emit: Arc<dyn StreamEmitter>,
+        cancel: CancelSignal,
+        _max_frame_bytes: Option<usize>,
+        _max_total_bytes: Option<usize>,
+        _max_duration_ms: Option<u64>,
+    ) -> anyhow::Result<OutboundStreamSummary> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+        let canned_events = match format {
+            StreamFormat::Sse => vec![
+                serde_json::json!({
+                    "event": None::<String>,
+                    "data": "fake sse event 1",
+                    "id": None::<String>,
+                }),
+                serde_json::json!({
+                    "event": None::<String>,
+                    "data": "fake sse event 2",
+                    "id": None::<String>,
+                }),
+                serde_json::json!({
+                    "event": None::<String>,
+                    "data": "fake sse event 3",
+                    "id": None::<String>,
+                }),
+            ],
+            StreamFormat::Ndjson => vec![
+                serde_json::json!({"id": "ndjson_1", "chunk": "first"}),
+                serde_json::json!({"id": "ndjson_2", "chunk": "second"}),
+                serde_json::json!({"id": "ndjson_3", "chunk": "third"}),
+            ],
+            StreamFormat::Raw => vec![
+                serde_json::json!({"bytes": 64, "kind": "binary_chunk"}),
+                serde_json::json!({"bytes": 64, "kind": "binary_chunk"}),
+                serde_json::json!({"bytes": 32, "kind": "final_chunk"}),
+            ],
+        };
+
+        let mut seq: u64 = 0;
+        let mut bytes_received: u64 = 0;
+
+        for event in &canned_events {
+            if cancel.is_cancelled() {
+                // Emit done frame with cancelled status
+                seq += 1;
+                emit.emit(OutboundStreamFrame {
+                    seq,
+                    kind: OutboundFrameKind::Done,
+                    data_shape: serde_json::json!({"status": "cancelled"}),
+                    bytes_received,
+                }).await?;
+                return Ok(OutboundStreamSummary {
+                    status: "cancelled".to_string(),
+                    status_code: Some(200),
+                    frame_count: seq,
+                    bytes_received,
+                    headers_shape: Some(serde_json::json!({"content-type": "text/event-stream"})),
+                    body_shape: None,
+                    provider_request_id: Some("fake_stream_001".to_string()),
+                    redaction_state: RedactionState::Redacted,
+                    network_performed: false,
+                    executor_kind: ExecutorKind::Fake,
+                });
+            }
+
+            seq += 1;
+            bytes_received += 64; // Simulate bytes received per frame
+            emit.emit(OutboundStreamFrame {
+                seq,
+                kind: OutboundFrameKind::Event,
+                data_shape: event.clone(),
+                bytes_received,
+            }).await?;
+        }
+
+        // Emit final done frame
+        seq += 1;
+        emit.emit(OutboundStreamFrame {
+            seq,
+            kind: OutboundFrameKind::Done,
+            data_shape: serde_json::json!({"status": "ok"}),
+            bytes_received,
+        }).await?;
+
+        Ok(OutboundStreamSummary {
+            status: "ok".to_string(),
+            status_code: Some(200),
+            frame_count: seq,
+            bytes_received,
+            headers_shape: Some(serde_json::json!({"content-type": "text/event-stream"})),
+            body_shape: None,
+            provider_request_id: Some("fake_stream_001".to_string()),
             redaction_state: RedactionState::Redacted,
             network_performed: false,
             executor_kind: ExecutorKind::Fake,
@@ -1262,6 +1547,315 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
             executor_kind: ExecutorKind::Real,
         })
     }
+
+    /// Y3: Stream an outbound HTTP request and emit frames.
+    ///
+    /// Uses `reqwest::Response::bytes_stream()` to get chunks, then
+    /// parses them according to the specified `format` (SSE, NDJSON, Raw).
+    /// Emits frames via the `emit` callback, respects cancellation,
+    /// and applies safety caps.
+    async fn stream(
+        &self,
+        request: OutboundExecutorRequest,
+        format: StreamFormat,
+        emit: Arc<dyn StreamEmitter>,
+        cancel: CancelSignal,
+        max_frame_bytes: Option<usize>,
+        max_total_bytes: Option<usize>,
+        max_duration_ms: Option<u64>,
+    ) -> anyhow::Result<OutboundStreamSummary> {
+        // Build URL (enforces HTTPS)
+        let url = self.build_url(&request)?;
+
+        // Build safe headers
+        let headers = self.build_headers(&request)?;
+
+        // Build the request method
+        let method = match request.method.to_uppercase().as_str() {
+            "GET" => reqwest::Method::GET,
+            "POST" => reqwest::Method::POST,
+            "PUT" => reqwest::Method::PUT,
+            "DELETE" => reqwest::Method::DELETE,
+            "PATCH" => reqwest::Method::PATCH,
+            "HEAD" => reqwest::Method::HEAD,
+            "OPTIONS" => reqwest::Method::OPTIONS,
+            other => anyhow::bail!("unsupported outbound HTTP method '{}'", other),
+        };
+
+        // Build the request
+        let mut builder = self.client.request(method, url).headers(headers);
+
+        // For streaming, we need a longer timeout for the initial connection
+        // but the per-request timeout should be removed (we handle it ourselves)
+        if let Some(body_shape) = &request.body_shape {
+            builder = builder.json(body_shape);
+        }
+
+        // Apply max_duration as the request-level timeout if provided,
+        // otherwise use a sensible default for streaming (5 minutes).
+        let effective_timeout = max_duration_ms.unwrap_or(300_000);
+        builder = builder.timeout(std::time::Duration::from_millis(effective_timeout));
+
+        // Execute the request
+        let response = match builder.send().await {
+            Ok(r) => r,
+            Err(e) => {
+                let status = if e.is_timeout() { "timeout" } else { "error" };
+                return Ok(OutboundStreamSummary {
+                    status: status.to_string(),
+                    status_code: None,
+                    frame_count: 0,
+                    bytes_received: 0,
+                    headers_shape: None,
+                    body_shape: None,
+                    provider_request_id: None,
+                    redaction_state: RedactionState::Redacted,
+                    network_performed: true,
+                    executor_kind: ExecutorKind::Real,
+                });
+            }
+        };
+
+        let status_code = response.status().as_u16();
+        let response_status = if response.status().is_success() {
+            "ok"
+        } else {
+            "error"
+        };
+        let headers_shape = Some(Self::redacted_headers_shape(&response));
+        let provider_request_id = response
+            .headers()
+            .iter()
+            .find(|(name, _)| {
+                let n = name.as_str().to_lowercase();
+                n == "request-id" || n == "x-request-id"
+            })
+            .and_then(|(_, v)| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        // Stream the response body
+        let use_stream = response.status().is_success();
+        let mut seq: u64 = 0;
+        let mut bytes_received: u64 = 0;
+        let mut final_status = response_status.to_string();
+
+        if use_stream {
+            use futures::StreamExt;
+            use crate::runtime::outbound_sse::SseParser;
+
+            let mut sse_parser = SseParser::new();
+            let mut ndjson_buffer = String::new();
+            let mut stream = response.bytes_stream();
+
+            let start_time = std::time::Instant::now();
+
+            while let Some(chunk_result) = stream.next().await {
+                // Check cancel signal
+                if cancel.is_cancelled() {
+                    final_status = "cancelled".to_string();
+                    break;
+                }
+
+                // Check max_duration
+                if let Some(max_ms) = max_duration_ms {
+                    if start_time.elapsed().as_millis() as u64 > max_ms {
+                        // Emit timeout error frame
+                        seq += 1;
+                        let _ = emit.emit(OutboundStreamFrame {
+                            seq,
+                            kind: OutboundFrameKind::Error,
+                            data_shape: serde_json::json!({"error": "stream timeout", "max_duration_ms": max_ms}),
+                            bytes_received,
+                        }).await;
+                        final_status = "timeout".to_string();
+                        break;
+                    }
+                }
+
+                let chunk = match chunk_result {
+                    Ok(c) => c,
+                    Err(e) => {
+                        let error_msg = if e.is_timeout() { "stream timeout" } else { "stream error" };
+                        seq += 1;
+                        let _ = emit.emit(OutboundStreamFrame {
+                            seq,
+                            kind: OutboundFrameKind::Error,
+                            data_shape: serde_json::json!({"error": error_msg}),
+                            bytes_received,
+                        }).await;
+                        final_status = if e.is_timeout() { "timeout" } else { "error" }.to_string();
+                        break;
+                    }
+                };
+
+                bytes_received += chunk.len() as u64;
+
+                // Check max_total_bytes
+                if let Some(max_bytes) = max_total_bytes {
+                    if bytes_received > max_bytes as u64 {
+                        seq += 1;
+                        let _ = emit.emit(OutboundStreamFrame {
+                            seq,
+                            kind: OutboundFrameKind::Error,
+                            data_shape: serde_json::json!({"error": "max_total_bytes exceeded", "max_total_bytes": max_bytes}),
+                            bytes_received,
+                        }).await;
+                        final_status = "error".to_string();
+                        break;
+                    }
+                }
+
+                // Parse according to format
+                match format {
+                    StreamFormat::Sse => {
+                        let events = sse_parser.push(&chunk);
+                        for event in events {
+                            // Apply max_frame_bytes: truncate data if needed
+                            let data_preview = if let Some(max) = max_frame_bytes {
+                                if event.data.len() > max {
+                                    event.data[..max].to_string()
+                                } else {
+                                    event.data.clone()
+                                }
+                            } else {
+                                event.data.clone()
+                            };
+
+                            // Redact: emit shape only, not raw content
+                            let data_shape = serde_json::json!({
+                                "event": event.event,
+                                "data_preview": redact_json_value(&serde_json::from_str::<Value>(&data_preview).unwrap_or_else(|_| Value::String(data_preview.clone()))),
+                                "id": event.id,
+                            });
+
+                            seq += 1;
+                            emit.emit(OutboundStreamFrame {
+                                seq,
+                                kind: OutboundFrameKind::Event,
+                                data_shape,
+                                bytes_received,
+                            }).await?;
+                        }
+                    }
+                    StreamFormat::Ndjson => {
+                        ndjson_buffer.push_str(&String::from_utf8_lossy(&chunk));
+                        while let Some(newline_pos) = ndjson_buffer.find('\n') {
+                            let line = ndjson_buffer[..newline_pos].to_string();
+                            ndjson_buffer = ndjson_buffer[newline_pos + 1..].to_string();
+
+                            let line = line.trim_end_matches('\r');
+                            if line.is_empty() {
+                                continue;
+                            }
+
+                            // Apply max_frame_bytes
+                            let line_preview = if let Some(max) = max_frame_bytes {
+                                if line.len() > max {
+                                    line[..max].to_string()
+                                } else {
+                                    line.to_string()
+                                }
+                            } else {
+                                line.to_string()
+                            };
+
+                            // Redact: parse as JSON and redact, or emit as string shape
+                            let data_shape = serde_json::from_str::<Value>(&line_preview)
+                                .map(|v| redact_json_value(&v))
+                                .unwrap_or_else(|_| Value::String(format!("ndjson_line_{}bytes", line_preview.len())));
+
+                            seq += 1;
+                            emit.emit(OutboundStreamFrame {
+                                seq,
+                                kind: OutboundFrameKind::Event,
+                                data_shape,
+                                bytes_received,
+                            }).await?;
+                        }
+                    }
+                    StreamFormat::Raw => {
+                        let chunk_size = chunk.len();
+                        // Apply max_frame_bytes
+                        let effective_size = if let Some(max) = max_frame_bytes {
+                            chunk_size.min(max)
+                        } else {
+                            chunk_size
+                        };
+
+                        let data_shape = serde_json::json!({
+                            "kind": "raw_chunk",
+                            "bytes": effective_size,
+                            "total_bytes_received": bytes_received,
+                        });
+
+                        seq += 1;
+                        emit.emit(OutboundStreamFrame {
+                            seq,
+                            kind: OutboundFrameKind::Data,
+                            data_shape,
+                            bytes_received,
+                        }).await?;
+                    }
+                }
+
+                // Check cancel after processing
+                if cancel.is_cancelled() {
+                    final_status = "cancelled".to_string();
+                    break;
+                }
+            }
+
+            // Flush remaining SSE events
+            if matches!(format, StreamFormat::Sse) {
+                let remaining = sse_parser.flush_remaining();
+                for event in remaining {
+                    let data_preview = if let Some(max) = max_frame_bytes {
+                        if event.data.len() > max {
+                            event.data[..max].to_string()
+                        } else {
+                            event.data.clone()
+                        }
+                    } else {
+                        event.data.clone()
+                    };
+                    let data_shape = serde_json::json!({
+                        "event": event.event,
+                        "data_preview": redact_json_value(&serde_json::from_str::<Value>(&data_preview).unwrap_or_else(|_| Value::String(data_preview.clone()))),
+                        "id": event.id,
+                    });
+                    seq += 1;
+                    emit.emit(OutboundStreamFrame {
+                        seq,
+                        kind: OutboundFrameKind::Event,
+                        data_shape,
+                        bytes_received,
+                    }).await?;
+                }
+            }
+        }
+
+        // Emit done frame
+        seq += 1;
+        emit.emit(OutboundStreamFrame {
+            seq,
+            kind: OutboundFrameKind::Done,
+            data_shape: serde_json::json!({"status": final_status}),
+            bytes_received,
+        }).await?;
+
+        Ok(OutboundStreamSummary {
+            status: final_status,
+            status_code: Some(status_code),
+            frame_count: seq,
+            bytes_received,
+            headers_shape,
+            body_shape: None,
+            provider_request_id,
+            redaction_state: RedactionState::Redacted,
+            network_performed: true,
+            executor_kind: ExecutorKind::Real,
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1347,7 +1941,7 @@ where
     }
 
     /// Get a reference to the configured outbound executor.
-    fn outbound_executor(&self) -> Arc<dyn OutboundExecutor> {
+    pub fn outbound_executor(&self) -> Arc<dyn OutboundExecutor> {
         match &self.config.outbound_executor {
             OutboundExecutorConfig::DenyAll => Arc::new(DenyAllOutboundExecutor),
             OutboundExecutorConfig::Custom(executor) => executor.clone(),
