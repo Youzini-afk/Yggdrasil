@@ -22,6 +22,34 @@ where
             .map_err(crate::ProtocolError::from_anyhow)
     }
 
+    pub async fn call_subprocess_protocol(
+        &self,
+        context: &ProtocolContext,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, crate::ProtocolError> {
+        let kernel_method: KernelMethod = method.parse().map_err(|_| {
+            crate::ProtocolError::invalid_request(format!(
+                "protocol method '{}' is not a known kernel method",
+                method
+            ))
+        })?;
+        let result: anyhow::Result<Value> = match kernel_method {
+            KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
+            KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
+            KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
+            KernelMethod::HostInfo => serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from),
+            KernelMethod::HostPing => Ok(json!({"ok": true})),
+            KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
+            KernelMethod::CapabilityDiscover => serde_json::to_value(self.discover_capabilities().await).map_err(anyhow::Error::from),
+            other => Err(anyhow::anyhow!(
+                "protocol method '{}' is not available over subprocess reverse stdio yet",
+                other
+            )),
+        };
+        result.map_err(crate::ProtocolError::from_anyhow)
+    }
+
     pub(crate) async fn call_protocol_inner(&self, context: &ProtocolContext, method: &str, params: Value) -> anyhow::Result<Value> {
         let kernel_method: KernelMethod = method.parse().map_err(|_| {
             anyhow::anyhow!("protocol method '{}' is not a known kernel method", method)
@@ -973,11 +1001,20 @@ where
     }
 
     async fn dispatch_capability_cancel(&self, params: &Value) -> anyhow::Result<Value> {
-        let invocation_id = params
-            .get("invocation_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires invocation_id"))?
-            .to_string();
+        let invocation_id = match params.get("invocation_id").and_then(Value::as_str) {
+            Some(invocation_id) => invocation_id.to_string(),
+            None => {
+                let stream_id = params
+                    .get("stream_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires invocation_id or stream_id"))?;
+                self.streams
+                    .get_invocation_by_stream_id(stream_id)
+                    .await
+                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel stream_id '{}' not found", stream_id))?
+                    .invocation_id
+            }
+        };
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
@@ -1071,7 +1108,7 @@ where
 
         // Append a chunk frame to the kernel stream
         let _kernel_frame = self.streams
-            .append_chunk(&self.invocation_id, payload, RedactionState::Redacted)
+            .append_chunk(&self.invocation_id, payload.clone(), RedactionState::Redacted)
             .await?;
 
         use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID, EVENT_STREAM_CHUNK};
@@ -1090,6 +1127,7 @@ where
                     "stream_id": self.stream_id,
                     "outbound_seq": frame.seq,
                     "redaction_state": serde_json::to_value(RedactionState::Redacted)?,
+                    "data": payload,
                 }),
                 metadata: json!({}),
             })

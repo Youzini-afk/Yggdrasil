@@ -1770,6 +1770,131 @@ pub(crate) async fn outbound_stream_fake_executor_emits_canned_frames() -> anyho
     Ok(())
 }
 
+/// Y4: subprocess reverse kernel call dispatches through the public outbound path.
+pub(crate) async fn subprocess_reverse_kernel_call_dispatched() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    runtime
+        .load_package(network_package(
+            "example/y4-reverse",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: Some("reverse outbound".to_string()),
+            }],
+            vec![],
+        ))
+        .await?;
+
+    let response = ygg_runtime::dispatch_reverse_kernel_frame(
+        &runtime,
+        "example/y4-reverse",
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "kreq-1",
+            "method": "kernel.outbound.execute",
+            "params": {
+                "capability_id": "example/y4-reverse/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST"
+            }
+        }),
+    )
+    .await;
+
+    anyhow::ensure!(response.get("result").is_some(), "reverse response should contain result: {response:?}");
+    anyhow::ensure!(fake.call_count() == 1, "fake executor should be called once");
+    Ok(())
+}
+
+/// Y4: subprocess reverse calls cannot spoof another package principal.
+pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow::Result<()> {
+    let (_store, runtime, fake) = runtime_with_fake_executor();
+    runtime
+        .load_package(network_package(
+            "example/y4-real",
+            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }],
+            vec![],
+        ))
+        .await?;
+    runtime.load_package(network_package("example/y4-victim", vec![], vec![])).await?;
+
+    let response = ygg_runtime::dispatch_reverse_kernel_frame(
+        &runtime,
+        "example/y4-victim",
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "kreq-2",
+            "method": "kernel.outbound.execute",
+            "params": {
+                "package_id": "example/y4-real",
+                "capability_id": "example/y4-real/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST"
+            }
+        }),
+    )
+    .await;
+
+    anyhow::ensure!(response.get("error").is_some(), "spoofed reverse call should fail: {response:?}");
+    anyhow::ensure!(fake.call_count() == 0, "executor must not run for spoofed principal");
+    Ok(())
+}
+
+/// Y4: reverse outbound stream starts and emits kernel stream chunks.
+pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<()> {
+    let (store, runtime, fake) = runtime_with_fake_stream_executor();
+    runtime
+        .load_package(network_package(
+            "example/y4-stream",
+            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }],
+            vec![],
+        ))
+        .await?;
+
+    let response = ygg_runtime::dispatch_reverse_kernel_frame(
+        &runtime,
+        "example/y4-stream",
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "kreq-3",
+            "method": "kernel.outbound.stream",
+            "params": {
+                "capability_id": "example/y4-stream/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST",
+                "stream_format": "sse"
+            }
+        }),
+    )
+    .await;
+
+    let stream_id = response
+        .get("result")
+        .and_then(|result| result.get("stream_id"))
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| anyhow::anyhow!("reverse stream did not return stream_id: {response:?}"))?;
+
+    for _ in 0..20 {
+        if fake.call_count() >= 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+
+    let session_id = "kernel_outbound_stream_example_y4-stream".to_string();
+    for _ in 0..20 {
+        let events = store.list_session(&session_id).await?;
+        if events.iter().any(|event| {
+            event.kind == EVENT_STREAM_CHUNK
+                && event.payload.get("stream_id").and_then(|value| value.as_str()) == Some(stream_id)
+        }) {
+            return Ok(());
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    anyhow::bail!("reverse stream emitted no chunk for {stream_id}")
+}
+
 /// Y3: Y2 secret_ref declaration enforcement applies to outbound.stream.
 pub(crate) async fn outbound_stream_secret_ref_undeclared_fails() -> anyhow::Result<()> {
     let (_store, runtime, fake) = runtime_with_fake_stream_executor();

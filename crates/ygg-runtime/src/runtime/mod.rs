@@ -103,7 +103,6 @@ pub(crate) struct StoredAsset {
 // Runtime<S>
 // ---------------------------------------------------------------------------
 
-#[derive(Clone)]
 pub struct Runtime<S>
 where
     S: EventStore,
@@ -121,6 +120,29 @@ where
     pub(crate) proposals: Arc<RwLock<HashMap<String, ProposalRecord>>>,
     pub(crate) streams: Arc<StreamRegistry>,
     pub(crate) config: RuntimeConfig,
+}
+
+impl<S> Clone for Runtime<S>
+where
+    S: EventStore,
+{
+    fn clone(&self) -> Self {
+        Self {
+            store: self.store.clone(),
+            packages: self.packages.clone(),
+            capabilities: self.capabilities.clone(),
+            extensions: self.extensions.clone(),
+            subprocesses: self.subprocesses.clone(),
+            sessions: self.sessions.clone(),
+            assets: self.assets.clone(),
+            projections: self.projections.clone(),
+            branches: self.branches.clone(),
+            grants: self.grants.clone(),
+            proposals: self.proposals.clone(),
+            streams: self.streams.clone(),
+            config: self.config.clone(),
+        }
+    }
 }
 
 impl<S> Runtime<S>

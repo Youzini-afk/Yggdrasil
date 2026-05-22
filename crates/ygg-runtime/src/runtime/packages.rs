@@ -28,7 +28,7 @@ where
                 .await
                 .unwrap_or(record);
             self.append_package_lifecycle_event(&record, EVENT_PACKAGE_STARTING, None).await?;
-            if let Err(error) = self.subprocesses.start(&record.manifest).await {
+            if let Err(error) = self.subprocesses.start(&record.manifest, (*self).clone()).await {
                 let degraded = self
                     .packages
                     .set_state(&record.id, PackageState::Degraded)
@@ -79,7 +79,7 @@ where
         if let Some(stopping) = self.packages.set_state(package_id, PackageState::Stopping).await {
             self.append_package_lifecycle_event(&stopping, EVENT_PACKAGE_STOPPING, Some("restart")).await?;
         }
-        self.subprocesses.restart(&record.manifest).await?;
+        self.subprocesses.restart(&record.manifest, (*self).clone()).await?;
         let ready = self
             .packages
             .set_state(package_id, PackageState::Ready)

@@ -52,5 +52,5 @@ pub use secret::{
     extract_env_name, DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver,
     SecretResolverConfig,
 };
-pub use subprocess::{SubprocessLogLine, SubprocessSupervisor};
+pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;

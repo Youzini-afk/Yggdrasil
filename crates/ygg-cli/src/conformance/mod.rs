@@ -227,6 +227,9 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("outbound_stream.secret_ref_declared_resolves", ["outbound", "network", "stream", "secret", "manifest"], network::outbound_stream_secret_ref_declared_resolves),
         c!("outbound_stream.capability_namespace_enforced", ["outbound", "network", "stream", "permission"], network::outbound_stream_capability_namespace_enforced),
         c!("outbound_stream.https_only", ["outbound", "network", "stream", "profile"], network::outbound_stream_https_only),
+        c!("subprocess.reverse_kernel_call_dispatched", ["subprocess", "outbound", "network"], network::subprocess_reverse_kernel_call_dispatched),
+        c!("subprocess.reverse_kernel_call_principal_locked", ["subprocess", "outbound", "network"], network::subprocess_reverse_kernel_call_principal_locked),
+        c!("subprocess.reverse_stream_chunks_piped", ["subprocess", "outbound", "network", "stream"], network::subprocess_reverse_stream_chunks_piped),
         c!("sse_parser.basic_smoke", ["outbound", "network", "stream", "sse"], network::sse_parser_basic_smoke),
         c!("sse_parser.partial_chunks", ["outbound", "network", "stream", "sse"], network::sse_parser_partial_chunks),
         // --- git outbound ---

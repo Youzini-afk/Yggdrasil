@@ -70,6 +70,16 @@ impl StreamRegistry {
         self.invocations.read().await.get(invocation_id).cloned()
     }
 
+    /// Get a streaming invocation record by stream id.
+    pub async fn get_invocation_by_stream_id(&self, stream_id: &str) -> Option<StreamInvocationRecord> {
+        self.invocations
+            .read()
+            .await
+            .values()
+            .find(|record| record.stream_id == stream_id)
+            .cloned()
+    }
+
     /// Append a chunk frame to an active invocation.
     ///
     /// Returns an error if the invocation is terminal or not found.
@@ -376,6 +386,7 @@ where
             "stream_id": frame.stream_id,
             "sequence": frame.sequence,
             "redaction_state": serde_json::to_value(redaction_state)?,
+            "data": payload,
         });
         self.append_kernel_event(session_id, EVENT_STREAM_CHUNK, event_payload)
             .await?;
