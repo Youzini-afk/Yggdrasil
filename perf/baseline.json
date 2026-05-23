@@ -1,0 +1,292 @@
+{
+  "schema": "yggdrasil.bench.v1",
+  "created_at": 1779515224,
+  "git": {
+    "commit": "f4f1bbfd92a3d55d433c39023c7bb42dd7967db9",
+    "branch": "main",
+    "dirty": false
+  },
+  "env": {
+    "os": "linux",
+    "target_triple": "x86_64-linux-unix",
+    "num_cpus": 14,
+    "cpu_brand": "AMD EPYC 9645 96-Core Processor"
+  },
+  "baseline": [
+    {
+      "scenario_id": "inproc_echo_invoke",
+      "iterations": 30,
+      "total_ms": 0.30790900000000004,
+      "avg_ms": 0.010263633333333334,
+      "min_ms": 0.009344,
+      "max_ms": 0.021152999999999998,
+      "p50_ms": 0.009745,
+      "p95_ms": 0.013671,
+      "p99_ms": 0.021152999999999998,
+      "memory_rss_mb_delta": 0.1875,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "scenario_id": "official_capability_invoke",
+      "iterations": 30,
+      "total_ms": 0.437335,
+      "avg_ms": 0.014577833333333333,
+      "min_ms": 0.012408,
+      "max_ms": 0.055637000000000006,
+      "p50_ms": 0.01284,
+      "p95_ms": 0.018639,
+      "p99_ms": 0.055637000000000006,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "official/composition-lab/describe"
+      ]
+    },
+    {
+      "scenario_id": "event_store_append_list_range",
+      "iterations": 30,
+      "total_ms": 109.19445800000001,
+      "avg_ms": 3.639815266666667,
+      "min_ms": 2.1694240000000002,
+      "max_ms": 5.0865540000000005,
+      "p50_ms": 3.7346060000000003,
+      "p95_ms": 4.815832,
+      "p99_ms": 5.0865540000000005,
+      "memory_rss_mb_delta": 5.16796875,
+      "status": "ok",
+      "notes": [
+        "100 events per iteration"
+      ]
+    },
+    {
+      "scenario_id": "event_store_append_list_range_1k",
+      "iterations": 30,
+      "total_ms": 110.599022,
+      "avg_ms": 3.686634066666667,
+      "min_ms": 3.258763,
+      "max_ms": 5.145676,
+      "p50_ms": 3.491276,
+      "p95_ms": 5.14152,
+      "p99_ms": 5.145676,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "1000 events per iteration"
+      ]
+    },
+    {
+      "scenario_id": "event_store_append_list_range_10k",
+      "iterations": 30,
+      "total_ms": 1270.757628,
+      "avg_ms": 42.3585876,
+      "min_ms": 38.29218,
+      "max_ms": 54.724071,
+      "p50_ms": 40.491461,
+      "p95_ms": 52.42211,
+      "p99_ms": 54.724071,
+      "memory_rss_mb_delta": 0.0078125,
+      "status": "ok",
+      "notes": [
+        "10000 events per iteration"
+      ]
+    },
+    {
+      "scenario_id": "event_store_append_list_range_100k",
+      "iterations": 1,
+      "total_ms": 416.264621,
+      "avg_ms": 416.264621,
+      "min_ms": 416.264621,
+      "max_ms": 416.264621,
+      "p50_ms": 416.264621,
+      "p95_ms": 416.264621,
+      "p99_ms": 416.264621,
+      "memory_rss_mb_delta": -25.69921875,
+      "iterations_capped": true,
+      "status": "ok",
+      "notes": [
+        "100000 events per iteration (capped to 1 iteration from 30)"
+      ]
+    },
+    {
+      "scenario_id": "composition_check",
+      "iterations": 30,
+      "total_ms": 22.385366000000005,
+      "avg_ms": 0.7461788666666668,
+      "min_ms": 0.690848,
+      "max_ms": 0.814391,
+      "p50_ms": 0.746244,
+      "p95_ms": 0.783493,
+      "p99_ms": 0.814391,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "playable-seed-replacement"
+      ]
+    },
+    {
+      "scenario_id": "profile_load",
+      "iterations": 30,
+      "total_ms": 7.903544999999999,
+      "avg_ms": 0.2634515,
+      "min_ms": 0.24299900000000002,
+      "max_ms": 0.282991,
+      "p50_ms": 0.262009,
+      "p95_ms": 0.28276100000000004,
+      "p99_ms": 0.282991,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "forge-alpha.yaml parse"
+      ]
+    },
+    {
+      "scenario_id": "subprocess_echo_invoke",
+      "iterations": 30,
+      "total_ms": 3.1946639999999995,
+      "avg_ms": 0.10648879999999998,
+      "min_ms": 0.086404,
+      "max_ms": 0.207132,
+      "p50_ms": 0.10189899999999999,
+      "p95_ms": 0.143484,
+      "p99_ms": 0.207132,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "scenario_id": "subprocess_cold_start_ms",
+      "iterations": 30,
+      "total_ms": 478.5578719999999,
+      "avg_ms": 15.951929066666663,
+      "min_ms": 14.245209,
+      "max_ms": 19.161469,
+      "p50_ms": 15.930670000000001,
+      "p95_ms": 17.586223,
+      "p99_ms": 19.161469,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "fresh subprocess per iteration: load_package handshake + first invoke"
+      ]
+    },
+    {
+      "scenario_id": "subprocess_handshake_ms",
+      "iterations": 30,
+      "total_ms": 494.020274,
+      "avg_ms": 16.467342466666665,
+      "min_ms": 14.980357,
+      "max_ms": 19.529243,
+      "p50_ms": 16.609887999999998,
+      "p95_ms": 18.582557,
+      "p99_ms": 19.529243,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "Runtime::load_package includes subprocess spawn + handshake; no separate spawn-only API"
+      ]
+    },
+    {
+      "scenario_id": "subprocess_invoke_steady_1kb",
+      "iterations": 30,
+      "total_ms": 4.236523,
+      "avg_ms": 0.14121743333333334,
+      "min_ms": 0.104014,
+      "max_ms": 0.24157599999999999,
+      "p50_ms": 0.130884,
+      "p95_ms": 0.230199,
+      "p99_ms": 0.24157599999999999,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "echo payload data field is 1024 bytes"
+      ]
+    },
+    {
+      "scenario_id": "subprocess_invoke_steady_10kb",
+      "iterations": 30,
+      "total_ms": 14.261481999999996,
+      "avg_ms": 0.4753827333333332,
+      "min_ms": 0.349264,
+      "max_ms": 0.866612,
+      "p50_ms": 0.467799,
+      "p95_ms": 0.793887,
+      "p99_ms": 0.866612,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "echo payload data field is 10240 bytes"
+      ]
+    },
+    {
+      "scenario_id": "subprocess_invoke_steady_100kb",
+      "iterations": 30,
+      "total_ms": 97.21491799999998,
+      "avg_ms": 3.240497266666666,
+      "min_ms": 2.919435,
+      "max_ms": 3.9445230000000002,
+      "p50_ms": 3.202196,
+      "p95_ms": 3.765253,
+      "p99_ms": 3.9445230000000002,
+      "memory_rss_mb_delta": 0.0,
+      "status": "ok",
+      "notes": [
+        "echo payload data field is 102400 bytes"
+      ]
+    },
+    {
+      "scenario_id": "outbound_execute_fake_throughput_req_s",
+      "iterations": 30,
+      "total_ms": 1443.9045359999998,
+      "avg_ms": 48.13015119999999,
+      "min_ms": 43.916864,
+      "max_ms": 59.171349,
+      "p50_ms": 47.099227,
+      "p95_ms": 56.722498,
+      "p99_ms": 59.171349,
+      "memory_rss_mb_delta": 11.4609375,
+      "status": "ok",
+      "notes": [
+        "1000 execute_outbound_with_policy calls per iteration; 20777.00 req/s"
+      ]
+    },
+    {
+      "scenario_id": "outbound_stream_fake_ttft_ms",
+      "iterations": 30,
+      "total_ms": 16.984923999999996,
+      "avg_ms": 0.5661641333333332,
+      "min_ms": 0.45530899999999996,
+      "max_ms": 0.7751490000000001,
+      "p50_ms": 0.5666840000000001,
+      "p95_ms": 0.712282,
+      "p99_ms": 0.7751490000000001,
+      "memory_rss_mb_delta": 0.3125,
+      "status": "ok",
+      "notes": [
+        "FakeOutboundExecutor emits 3 canned SSE events; drained to completion"
+      ]
+    },
+    {
+      "scenario_id": "outbound_stream_fake_steady_events_s",
+      "iterations": 30,
+      "total_ms": -0.0,
+      "avg_ms": 0.0,
+      "min_ms": 0.0,
+      "max_ms": 0.0,
+      "status": "skipped",
+      "notes": [
+        "FakeOutboundExecutor currently emits a fixed 3-event stream and exposes no public N-frame fixture API; needs runtime support to measure 100 steady events"
+      ]
+    }
+  ],
+  "meta": {
+    "iterations": 30,
+    "warmup": 3,
+    "tool": "ygg-cli perf baseline",
+    "version": "0.1.0",
+    "note": "developer-machine reference, not CI budget; no-network/deterministic",
+    "ok_count": 16,
+    "skipped_count": 1,
+    "error_count": 0
+  }
+}
