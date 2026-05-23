@@ -337,7 +337,8 @@ async fn rpc<S>(
 where
     S: EventStore,
 {
-    let context = ProtocolContext::host_dev("http_rpc");
+    let mut context = ProtocolContext::host_dev("http_rpc");
+    context.session_id = request.session_id.clone();
     match state
         .runtime
         .call_protocol(&context, &request.method, request.params)

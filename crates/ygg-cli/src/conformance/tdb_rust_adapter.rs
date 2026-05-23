@@ -25,6 +25,7 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
             caller_package_id: None,
             provider_package_id: Some("official/tdb-rust-adapter".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -39,6 +40,7 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
             caller_package_id: None,
             provider_package_id: Some("official/tdb-rust-adapter".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -65,6 +67,7 @@ pub(crate) async fn subprocess_adapter_rejects_secret_and_raw_path() -> anyhow::
                 caller_package_id: None,
                 provider_package_id: Some("official/tdb-rust-adapter".to_string()),
                 version: None,
+                session_id: None,
                 input,
             })
             .await;

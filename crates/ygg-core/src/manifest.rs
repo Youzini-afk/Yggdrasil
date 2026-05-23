@@ -498,7 +498,10 @@ impl PackageManifest {
         // Each entry must be a supported host-backed secret reference.
         // Malformed or unsupported refs produce a clear manifest parse error.
         for secret_ref in &self.permissions.secret_refs {
-            if !crate::is_env_backed_ref(secret_ref) && !crate::is_store_backed_ref(secret_ref) {
+            if !crate::is_env_backed_ref(secret_ref)
+                && !crate::is_store_backed_ref(secret_ref)
+                && !crate::is_project_backed_ref(secret_ref)
+            {
                 return Err(ManifestError::InvalidSecretRef(secret_ref.clone()));
             }
         }
@@ -830,6 +833,34 @@ mod tests {
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 secret_refs: vec!["secret_ref:store:OPENAI_API_KEY".to_string()],
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        };
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn permissions_secret_refs_parses_project_form() {
+        let manifest = PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            }),
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            requires: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                secret_refs: vec!["secret_ref:project:OPENAI_API_KEY".to_string()],
                 ..PermissionSet::default()
             },
             sandbox_policy: SandboxPolicy::default(),

@@ -139,6 +139,10 @@ export interface CapabilityInvocationRequest {
   "handle"?: CapHandleId | null;
   "input"?: unknown;
   "provider_package_id"?: null | string;
+  /**
+   * Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.
+   */
+  "session_id"?: null | string;
   "version"?: null | string;
 }
 
@@ -1169,6 +1173,10 @@ export interface ProtocolContext {
   "correlation_id"?: null | string;
   "parent_invocation_id"?: null | string;
   "principal": ProtocolPrincipal;
+  /**
+   * Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.
+   */
+  "session_id"?: null | string;
   "transport": string;
 }
 

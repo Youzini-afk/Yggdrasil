@@ -2406,6 +2406,7 @@ pub(crate) async fn subprocess_reverse_kernel_call_dispatched() -> anyhow::Resul
     let response = ygg_runtime::dispatch_reverse_kernel_frame(
         &runtime,
         "example/y4-reverse",
+        None,
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "kreq-1",
@@ -2451,6 +2452,7 @@ pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow:
     let response = ygg_runtime::dispatch_reverse_kernel_frame(
         &runtime,
         "example/y4-victim",
+        None,
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "kreq-2",
@@ -2494,6 +2496,7 @@ pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<(
     let response = ygg_runtime::dispatch_reverse_kernel_frame(
         &runtime,
         "example/y4-stream",
+        None,
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "kreq-3",

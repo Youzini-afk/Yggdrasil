@@ -1134,6 +1134,7 @@ mod tests {
         InprocInvocation {
             capability_id: format!("official/capability-tool-bridge-lab/{cap}"),
             provider_package_id: PACKAGE_ID.to_string(),
+            session_id: None,
             input,
         }
     }
@@ -1325,6 +1326,7 @@ mod tests {
         let request = InprocInvocation {
             capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
             provider_package_id: "other/package".to_string(),
+            session_id: None,
             input: serde_json::json!({}),
         };
         assert!(try_handle(&request).is_none());

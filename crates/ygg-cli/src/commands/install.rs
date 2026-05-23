@@ -160,6 +160,7 @@ pub(crate) async fn invoke_install_lab(
             caller_package_id: None,
             provider_package_id: Some(INSTALL_PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input,
         })
         .await

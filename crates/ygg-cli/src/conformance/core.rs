@@ -175,6 +175,7 @@ pub(crate) async fn capability_invoke() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"ok": true}),
         })
         .await?;
@@ -195,6 +196,7 @@ pub(crate) async fn capability_handle_invoke() -> anyhow::Result<()> {
             caller_package_id: Some("example/handle".to_string()),
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"via": "handle"}),
         })
         .await?;
@@ -233,6 +235,7 @@ pub(crate) async fn capability_handle_attenuate_invoke() -> anyhow::Result<()> {
             caller_package_id: Some("example/attenuate".to_string()),
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"via": "attenuated"}),
         })
         .await?;
@@ -264,6 +267,7 @@ pub(crate) async fn capability_handle_revoke_blocks_invoke() -> anyhow::Result<(
             caller_package_id: Some("example/revoke".to_string()),
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"blocked": true}),
         })
         .await;
@@ -283,6 +287,7 @@ pub(crate) async fn capability_auto_mint_legacy_invoke() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"legacy": true}),
         })
         .await?;
@@ -305,6 +310,7 @@ pub(crate) async fn capability_invoke_events_completed() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"events": true}),
         })
         .await?;
@@ -344,6 +350,7 @@ pub(crate) async fn capability_invoke_events_failed() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -406,6 +413,7 @@ pub(crate) async fn ambiguous_provider_denied() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -434,6 +442,7 @@ pub(crate) async fn explicit_provider_selected() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("example/provider-b".to_string()),
             version: Some("^0.1".to_string()),
+            session_id: None,
             input: json!({"selected": true}),
         })
         .await?;
@@ -457,6 +466,7 @@ pub(crate) async fn unload_removes_capability() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -479,6 +489,7 @@ pub(crate) async fn official_no_privilege() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -506,6 +517,7 @@ pub(crate) async fn capability_schema_rejects_invalid() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;

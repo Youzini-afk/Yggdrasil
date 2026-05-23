@@ -245,6 +245,7 @@ pub(crate) async fn package_run_fixture(path: PathBuf) -> Result<()> {
                         caller_package_id: None,
                         provider_package_id: None,
                         version: None,
+                        session_id: None,
                         input: input.clone(),
                     })
                     .await;
@@ -333,6 +334,7 @@ pub(crate) async fn package_invoke_local(
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: payload,
         })
         .await?;
@@ -361,6 +363,7 @@ pub(crate) async fn package_conformance(path: PathBuf) -> Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"package_conformance": true}),
         })
         .await?;

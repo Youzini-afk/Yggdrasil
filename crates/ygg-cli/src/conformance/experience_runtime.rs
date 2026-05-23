@@ -43,6 +43,7 @@ pub(crate) async fn experience_runtime_describe_contract() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -154,6 +155,7 @@ pub(crate) async fn experience_runtime_checkpoint_shape() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": "session_conf",
                 "state_snapshot": {"health": 100, "step_index": 5},
@@ -197,6 +199,7 @@ pub(crate) async fn experience_runtime_checkpoint_shape() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "checkpoint_id": "cp:1",
                 "session_id": "session_conf",
@@ -232,6 +235,7 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": "session_conf",
                 "failure_kind": "state_corruption",
@@ -273,6 +277,7 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": "session_conf",
                 "failure_kind": "checkpoint_missing",
@@ -324,6 +329,7 @@ pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<(
                 caller_package_id: None,
                 provider_package_id: Some(PACKAGE_ID.to_string()),
                 version: None,
+                session_id: None,
                 input: json!({"session_id": "session_ns_test"}),
             })
             .await?;
@@ -478,6 +484,7 @@ pub(crate) async fn experience_runtime_bind_agent_run() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": "session_bind",
                 "agent_package_id": "official/agentic-forge-lab",

@@ -53,7 +53,12 @@ where
                         break;
                     }
                     let output = match self
-                        .execute_registered_capability(&provider, &handler_id, payload.clone())
+                        .execute_registered_capability(
+                            &provider,
+                            &handler_id,
+                            None,
+                            payload.clone(),
+                        )
                         .await
                     {
                         Ok(output) => output,

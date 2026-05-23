@@ -54,6 +54,7 @@ async fn invoke(
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input,
         })
         .await
@@ -322,6 +323,7 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"objective": "modify board module"}),
         })
         .await?;
@@ -335,6 +337,7 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "run_id": run_id,
                 "target_branch_ref": "branch:target:default",
@@ -356,6 +359,7 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "candidate_id": cand.output["candidate"]["candidate_id"],
                 "run_id": run_id,
@@ -399,6 +403,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"objective": "test reject/approve"}),
         })
         .await?;
@@ -411,6 +416,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"run_id": run_id, "target_revision": 1}),
         })
         .await?;
@@ -426,6 +432,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "candidate_id": cand_id,
                 "run_id": run_id,
@@ -449,6 +456,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"candidate_id": cand_id}),
         })
         .await?;

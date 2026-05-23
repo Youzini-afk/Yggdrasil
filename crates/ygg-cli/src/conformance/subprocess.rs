@@ -41,6 +41,7 @@ pub(crate) async fn subprocess_invoke_echo() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"subprocess": true}),
         })
         .await?;
@@ -124,6 +125,7 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
             caller_package_id: Some("examples/path-b-app".to_string()),
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"path_b": true}),
         })
         .await?;
@@ -151,6 +153,7 @@ pub(crate) async fn package_logs_capture() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"logs": true}),
         })
         .await?;
@@ -220,6 +223,7 @@ pub(crate) async fn subprocess_timeout() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -254,6 +258,7 @@ pub(crate) async fn subprocess_invalid_output_schema() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -281,6 +286,7 @@ pub(crate) async fn subprocess_unload_removes_capability() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -401,6 +407,7 @@ pub(crate) async fn subprocess_bindings_injected_and_invokable() -> anyhow::Resu
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"__return_binding": "modelLiveCall"}),
         })
         .await?;
@@ -413,6 +420,7 @@ pub(crate) async fn subprocess_bindings_injected_and_invokable() -> anyhow::Resu
             caller_package_id: Some("example/echo-subprocess-python".to_string()),
             provider_package_id: Some("example/model-provider".to_string()),
             version: None,
+            session_id: None,
             input: json!({"binding": true}),
         })
         .await?;

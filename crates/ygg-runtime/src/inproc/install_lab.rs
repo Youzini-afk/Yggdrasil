@@ -615,6 +615,7 @@ async fn invoke_package_capability(
         caller_package_id: Some(PACKAGE_ID.to_string()),
         provider_package_id: Some(provider.to_string()),
         version: None,
+        session_id: None,
         input,
     })
     .await?

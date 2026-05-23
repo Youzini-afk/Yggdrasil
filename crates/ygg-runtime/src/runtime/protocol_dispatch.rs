@@ -393,7 +393,7 @@ where
                 anyhow::anyhow!("kernel.v1.outbound.execute secret header name is invalid")
             })?;
             let raw_value = self
-                .resolve_secret_ref(&spec.secret_ref)
+                .resolve_secret_ref_with_session(&spec.secret_ref, context.session_id.as_deref())
                 .await
                 .map_err(|_| {
                     anyhow::anyhow!("kernel.v1.outbound.execute secret header is unavailable")
@@ -622,7 +622,7 @@ where
                 anyhow::anyhow!("kernel.v1.outbound.stream secret header name is invalid")
             })?;
             let raw_value = self
-                .resolve_secret_ref(&spec.secret_ref)
+                .resolve_secret_ref_with_session(&spec.secret_ref, context.session_id.as_deref())
                 .await
                 .map_err(|_| {
                     anyhow::anyhow!("kernel.v1.outbound.stream secret header is unavailable")
@@ -1016,7 +1016,7 @@ where
                 anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header name is invalid")
             })?;
             let raw_value = self
-                .resolve_secret_ref(&spec.secret_ref)
+                .resolve_secret_ref_with_session(&spec.secret_ref, context.session_id.as_deref())
                 .await
                 .map_err(|_| {
                     anyhow::anyhow!(

@@ -24,6 +24,7 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"official": "ordinary"}),
         })
         .await?;
@@ -38,6 +39,7 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"schema": {"type": "object"}, "value": {}}),
         })
         .await?;
@@ -52,6 +54,7 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"events": [{"kind": "x"}, {"kind": "y"}]}),
         })
         .await?;

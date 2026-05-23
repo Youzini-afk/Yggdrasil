@@ -158,6 +158,7 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("thirdparty/playable-seed".to_string()),
             version: None,
+            session_id: None,
             input: json!({"title": "Community Seed"}),
         })
         .await?;
@@ -175,6 +176,7 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("thirdparty/playable-seed".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -216,6 +218,7 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -232,6 +235,7 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("thirdparty/replacement-fixture".to_string()),
             version: None,
+            session_id: None,
             input: json!({"source": "thirdparty"}),
         })
         .await?;
@@ -362,6 +366,7 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -402,6 +407,7 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
+            session_id: None,
             input: json!({"change": "community-driven modification"}),
         })
         .await?;
@@ -426,6 +432,7 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
+            session_id: None,
             input: json!({"trace_events": [{"step": 1}, {"step": 2}]}),
         })
         .await?;
@@ -454,6 +461,7 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
+            session_id: None,
             input: json!({"trace_events": [{"e": 1}, {"e": 2}, {"e": 3}]}),
         })
         .await?;
@@ -482,6 +490,7 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
+            session_id: None,
             input: json!({"hello": "community"}),
         })
         .await?;

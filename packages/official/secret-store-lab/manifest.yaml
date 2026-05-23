@@ -43,6 +43,32 @@ provides:
     output_schema: { type: object }
     side_effects: []
     streaming: false
+  - id: official/secret-store-lab/put_project_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects:
+      - filesystem.write
+    streaming: false
+  - id: official/secret-store-lab/has_project_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: official/secret-store-lab/list_project_secrets
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: official/secret-store-lab/delete_project_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects:
+      - filesystem.write
+    streaming: false
 consumes: []
 contributes:
   schemas: []
@@ -56,6 +82,7 @@ permissions:
     write:
       - ~/.yggdrasil/secrets.dat
       - ~/.yggdrasil/secret-store.key
+      - ~/.yggdrasil/projects/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
   memory_mb: 128

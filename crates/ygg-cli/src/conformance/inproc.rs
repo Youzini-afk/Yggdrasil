@@ -55,6 +55,7 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("thirdparty/asset-hijack".to_string()),
             version: None,
+            session_id: None,
             input: json!({"asset_id": "test", "content": "should not preview"}),
         })
         .await;
@@ -111,6 +112,7 @@ pub(crate) async fn unknown_inproc_capability_errors() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/test-unknown-cap".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -177,6 +179,7 @@ pub(crate) async fn inproc_bindings_init_receives_manifest_bindings() -> anyhow:
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;

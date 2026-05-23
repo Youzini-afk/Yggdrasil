@@ -97,9 +97,8 @@ pub fn load_store(path: &Path, key: &age::x25519::Identity) -> Result<StoreFile>
 pub fn save_store(path: &Path, store: &StoreFile, key: &age::x25519::Recipient) -> Result<()> {
     let json = serde_json::to_vec(store)?;
     let recipient = key.clone();
-    let encryptor = age::Encryptor::with_recipients(std::iter::once(
-        &recipient as &dyn age::Recipient
-    ))?;
+    let encryptor =
+        age::Encryptor::with_recipients(std::iter::once(&recipient as &dyn age::Recipient))?;
     let mut encrypted = Vec::new();
     let mut writer = encryptor.wrap_output(&mut encrypted)?;
     writer.write_all(&json)?;

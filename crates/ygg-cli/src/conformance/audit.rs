@@ -19,6 +19,7 @@ pub(crate) async fn package_audit_report() -> anyhow::Result<()> {
             caller_package_id: Some("example/audit-caller".to_string()),
             provider_package_id: Some("example/audit-provider".to_string()),
             version: None,
+            session_id: None,
             input: json!({"ok": true}),
         })
         .await?;

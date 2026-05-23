@@ -23,6 +23,7 @@ pub(crate) async fn capability_invoke(
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: payload,
         })
         .await?;

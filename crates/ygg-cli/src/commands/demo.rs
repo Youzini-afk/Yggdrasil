@@ -156,6 +156,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"title": "Blank Loop", "intent": "prove play-create substrate"}),
         })
         .await?;
@@ -171,6 +172,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant)?,
         transport: "demo".to_string(),
+        session_id: None,
         correlation_id: None,
         parent_invocation_id: None,
     };
@@ -256,6 +258,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({"board_id": "board:demo", "title": "Demo Board", "modules": [{"id": "mod_1", "kind": "grid"}], "constraints": [{"id": "c_1", "rule": "max_markers=10"}]}),
         })
         .await?;
@@ -274,6 +277,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
                 caller_package_id: None,
                 provider_package_id: Some(pkg.to_string()),
                 version: None,
+                session_id: None,
                 input: json!({
                     "board_id": "board:demo",
                     "action_kind": "place_marker",
@@ -301,6 +305,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({"board_id": "board:demo", "lifecycle_state": "running"}),
         })
         .await?;
@@ -313,6 +318,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({"board_id": "board:demo"}),
         })
         .await?;
@@ -326,6 +332,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "board_id": "board:demo",
                 "state_snapshot": {"markers": 3},
@@ -346,6 +353,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "checkpoint_id": checkpoint.output["checkpoint_id"],
                 "board_id": "board:demo",
@@ -368,6 +376,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "board_id": "board:demo",
                 "failure_kind": "constraint_violation",
@@ -388,6 +397,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "board_id": "board:demo",
                 "objective": "add a new grid module with placement constraint",
@@ -412,6 +422,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "board_id": "board:demo",
                 "agent_package_id": "official/agentic-forge-lab",
@@ -436,6 +447,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({"objective": "add grid module with placement constraint"}),
         })
         .await?;
@@ -449,6 +461,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({"run_id": run_id}),
         })
         .await?;
@@ -467,6 +480,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "run_id": run_id,
                 "target_branch_ref": "branch:target:default",
@@ -492,6 +506,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "candidate_id": cand_id,
                 "target_revision": 1,
@@ -508,6 +523,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "candidate_id": cand_id,
                 "run_id": run_id,
@@ -535,6 +551,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "board_id": "board:demo",
                 "action_id": "action:board:demo:1",

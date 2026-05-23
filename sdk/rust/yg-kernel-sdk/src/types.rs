@@ -2324,6 +2324,13 @@ for CapabilityFailedPayload {
 ///        "null"
 ///      ]
 ///    },
+///    "session_id": {
+///      "description": "Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
 ///    "version": {
 ///      "default": null,
 ///      "type": [
@@ -2350,6 +2357,9 @@ pub struct CapabilityInvocationRequest {
     pub input: ::serde_json::Value,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub provider_package_id: ::std::option::Option<::std::string::String>,
+    ///Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub session_id: ::std::option::Option<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub version: ::std::option::Option<::std::string::String>,
 }
@@ -2361,6 +2371,7 @@ impl ::std::default::Default for CapabilityInvocationRequest {
             handle: Default::default(),
             input: defaults::capability_invocation_request_input(),
             provider_package_id: Default::default(),
+            session_id: Default::default(),
             version: Default::default(),
         }
     }
@@ -2411,6 +2422,13 @@ impl ::std::default::Default for CapabilityInvocationRequest {
 ///        "null"
 ///      ]
 ///    },
+///    "session_id": {
+///      "description": "Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
 ///    "version": {
 ///      "default": null,
 ///      "type": [
@@ -2437,6 +2455,9 @@ pub struct CapabilityInvocationRequest {
     pub input: ::serde_json::Value,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub provider_package_id: ::std::option::Option<::std::string::String>,
+    ///Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub session_id: ::std::option::Option<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub version: ::std::option::Option<::std::string::String>,
 }
@@ -2448,6 +2469,7 @@ impl ::std::default::Default for CapabilityInvocationRequest {
             handle: Default::default(),
             input: defaults::capability_invocation_request_input(),
             provider_package_id: Default::default(),
+            session_id: Default::default(),
             version: Default::default(),
         }
     }
@@ -21975,7 +21997,7 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T11:39:31.073765047Z",
+///        "default": "2026-05-23T14:32:45.038886097Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -22688,7 +22710,7 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.075803240Z",
+///      "default": "2026-05-23T14:32:45.040915521Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22816,7 +22838,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.074575412Z",
+///      "default": "2026-05-23T14:32:45.039592769Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22944,7 +22966,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.072011337Z",
+///      "default": "2026-05-23T14:32:45.037068482Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23072,7 +23094,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.072231741Z",
+///      "default": "2026-05-23T14:32:45.037285992Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23200,7 +23222,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.073181745Z",
+///      "default": "2026-05-23T14:32:45.038214129Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23328,7 +23350,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.075216153Z",
+///      "default": "2026-05-23T14:32:45.040250214Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23456,7 +23478,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.080478511Z",
+///      "default": "2026-05-23T14:32:45.046115950Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23584,7 +23606,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.080199256Z",
+///      "default": "2026-05-23T14:32:45.045834601Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23712,7 +23734,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.080019955Z",
+///      "default": "2026-05-23T14:32:45.045656574Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23840,7 +23862,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.080613471Z",
+///      "default": "2026-05-23T14:32:45.046301078Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23968,7 +23990,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T11:39:31.080341176Z",
+///      "default": "2026-05-23T14:32:45.045972377Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25211,6 +25233,13 @@ impl ::std::convert::TryFrom<::std::string::String> for ProposalStatus {
 ///    "principal": {
 ///      "$ref": "#/definitions/ProtocolPrincipal"
 ///    },
+///    "session_id": {
+///      "description": "Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
 ///    "transport": {
 ///      "type": "string"
 ///    }
@@ -25226,6 +25255,9 @@ pub struct ProtocolContext {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub parent_invocation_id: ::std::option::Option<::uuid::Uuid>,
     pub principal: ProtocolPrincipal,
+    ///Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub session_id: ::std::option::Option<::std::string::String>,
     pub transport: ::std::string::String,
 }
 ///`ProtocolMethod`
@@ -30996,7 +31028,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.065973317Z",
+///      "default": "2026-05-23T14:32:45.030471075Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31087,7 +31119,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.081538887Z",
+///      "default": "2026-05-23T14:32:45.047184767Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31178,7 +31210,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.081268414Z",
+///      "default": "2026-05-23T14:32:45.046878700Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31269,7 +31301,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.081407583Z",
+///      "default": "2026-05-23T14:32:45.047018828Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31360,7 +31392,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.081473265Z",
+///      "default": "2026-05-23T14:32:45.047114037Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31451,7 +31483,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.081340908Z",
+///      "default": "2026-05-23T14:32:45.046952545Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31542,7 +31574,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T11:39:31.081604479Z",
+///      "default": "2026-05-23T14:32:45.047257201Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -38171,7 +38203,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.075803240Z\"")
+        >("\"2026-05-23T14:32:45.040915521Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38191,7 +38223,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.074575412Z\"")
+        >("\"2026-05-23T14:32:45.039592769Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38211,7 +38243,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.072011337Z\"")
+        >("\"2026-05-23T14:32:45.037068482Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38231,7 +38263,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.072231741Z\"")
+        >("\"2026-05-23T14:32:45.037285992Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38251,7 +38283,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.073181745Z\"")
+        >("\"2026-05-23T14:32:45.038214129Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38271,7 +38303,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.075216153Z\"")
+        >("\"2026-05-23T14:32:45.040250214Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38291,7 +38323,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.080478511Z\"")
+        >("\"2026-05-23T14:32:45.046115950Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38311,7 +38343,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.080199256Z\"")
+        >("\"2026-05-23T14:32:45.045834601Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38331,7 +38363,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.080019955Z\"")
+        >("\"2026-05-23T14:32:45.045656574Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38351,7 +38383,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.080613471Z\"")
+        >("\"2026-05-23T14:32:45.046301078Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38371,7 +38403,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.080341176Z\"")
+        >("\"2026-05-23T14:32:45.045972377Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38421,7 +38453,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.065973317Z\"")
+        >("\"2026-05-23T14:32:45.030471075Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38438,7 +38470,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.081538887Z\"")
+        >("\"2026-05-23T14:32:45.047184767Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38455,7 +38487,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.081268414Z\"")
+        >("\"2026-05-23T14:32:45.046878700Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38472,7 +38504,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.081407583Z\"")
+        >("\"2026-05-23T14:32:45.047018828Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38489,7 +38521,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.081473265Z\"")
+        >("\"2026-05-23T14:32:45.047114037Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38506,7 +38538,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.081340908Z\"")
+        >("\"2026-05-23T14:32:45.046952545Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38523,7 +38555,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T11:39:31.081604479Z\"")
+        >("\"2026-05-23T14:32:45.047257201Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

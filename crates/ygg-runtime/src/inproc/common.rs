@@ -501,6 +501,7 @@ mod tests {
         InprocInvocation {
             capability_id: cap.to_string(),
             provider_package_id: provider.to_string(),
+            session_id: None,
             input: serde_json::json!({}),
         }
     }

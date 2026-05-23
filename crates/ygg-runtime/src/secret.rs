@@ -207,10 +207,12 @@ impl HostSecretResolver for StoreSecretResolver {
 /// Routing:
 /// - `secret_ref:env:` (and variants) → env_resolver
 /// - `secret_ref:store:` (and variants) → store_resolver
+/// - `secret_ref:project:` → project_resolver
 /// - Everything else → DenyAll error
 pub struct CompositeSecretResolver {
     env_resolver: Option<Arc<EnvSecretResolver>>,
     store_resolver: Option<Arc<StoreSecretResolver>>,
+    project_resolver: Option<Arc<crate::project_secret::ProjectStoreSecretResolver>>,
 }
 
 impl CompositeSecretResolver {
@@ -218,6 +220,7 @@ impl CompositeSecretResolver {
         Self {
             env_resolver: None,
             store_resolver: None,
+            project_resolver: None,
         }
     }
 
@@ -228,6 +231,14 @@ impl CompositeSecretResolver {
 
     pub fn with_store(mut self, r: Arc<StoreSecretResolver>) -> Self {
         self.store_resolver = Some(r);
+        self
+    }
+
+    pub fn with_project(
+        mut self,
+        r: Arc<crate::project_secret::ProjectStoreSecretResolver>,
+    ) -> Self {
+        self.project_resolver = Some(r);
         self
     }
 }
@@ -251,6 +262,12 @@ impl HostSecretResolver for CompositeSecretResolver {
             return match &self.store_resolver {
                 Some(r) => r.resolve(ref_id).await,
                 None => anyhow::bail!("store resolver not configured (ref_id='{}')", ref_id),
+            };
+        }
+        if ygg_core::secret_ref::is_project_backed_ref(ref_id) {
+            return match &self.project_resolver {
+                Some(r) => r.resolve(ref_id).await,
+                None => anyhow::bail!("project resolver not configured (ref_id='{}')", ref_id),
             };
         }
         anyhow::bail!("unsupported secret reference scheme (ref_id='{}')", ref_id);

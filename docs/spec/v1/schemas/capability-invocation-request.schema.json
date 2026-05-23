@@ -44,6 +44,13 @@
         "null"
       ]
     },
+    "session_id": {
+      "description": "Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "version": {
       "default": null,
       "type": [

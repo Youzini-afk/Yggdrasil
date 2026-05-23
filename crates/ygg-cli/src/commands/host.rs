@@ -157,12 +157,30 @@ pub(crate) fn build_secret_resolver(
         composite = composite.with_env(Arc::new(EnvSecretResolver::new(allowlist)));
     }
 
-    if profile.store_enabled {
+    let platform_store = if profile.store_enabled {
         // StoreSecretResolver::new() resolves the default store path via
         // ygg_core::paths::secret_store_path(). It can fail if data_dir
         // resolution fails on this system — propagate that error.
-        composite = composite.with_store(Arc::new(StoreSecretResolver::new()?));
-    }
+        let r = Arc::new(StoreSecretResolver::new()?);
+        composite = composite.with_store(r.clone());
+        Some(r)
+    } else {
+        None
+    };
+
+    // Always wire the project resolver when a composite is active. Platform
+    // fallback is whichever StoreSecretResolver we just built (or none).
+    let project_resolver = ygg_runtime::ProjectStoreSecretResolver::new(|| {
+        ygg_runtime::ACTIVE_PROJECT_SCOPE
+            .try_with(|scope| scope.clone())
+            .ok()
+    });
+    let project_resolver = if let Some(platform) = platform_store {
+        project_resolver.with_platform_fallback(platform)
+    } else {
+        project_resolver
+    };
+    composite = composite.with_project(Arc::new(project_resolver));
 
     Ok(SecretResolverConfig::with_resolver(Arc::new(composite)))
 }
@@ -346,6 +364,8 @@ async fn serve_runtime<S>(
 where
     S: EventStore,
 {
+    let count = runtime.config().project_registry.load_from_disk()?;
+    println!("  projects loaded: {count}");
     let listener = tokio::net::TcpListener::bind(http).await?;
     println!("Yggdrasil host serving http://{http}");
     println!("  event store: {backend_kind} (config redacted)");

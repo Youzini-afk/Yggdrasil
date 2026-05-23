@@ -23,6 +23,7 @@ mod official_play_creation;
 mod permissions;
 mod playable_creation_board;
 mod project_intake_lab;
+mod project_secret;
 mod proposals;
 mod protocol;
 mod replacement;
@@ -1933,6 +1934,42 @@ fn build_cases() -> Vec<ConformanceCase> {
             "secret_store_resolver.host_profile_installs_composite_resolver",
             ["official", "secret_store", "secret", "host"],
             secret_store::host_profile_installs_composite_resolver
+        ),
+        // --- project-scoped secrets (Round 10A.2 Wave 2C) ---
+        c!(
+            "project_secret.put_then_resolve_via_project_ref",
+            ["project", "secret"],
+            project_secret::put_then_resolve_via_project_ref
+        ),
+        c!(
+            "project_secret.fallback_to_platform_when_missing",
+            ["project", "secret"],
+            project_secret::fallback_to_platform_when_missing
+        ),
+        c!(
+            "project_secret.no_fallback_when_disabled",
+            ["project", "secret"],
+            project_secret::no_fallback_when_disabled
+        ),
+        c!(
+            "project_secret.require_per_project_blocks_fallback",
+            ["project", "secret"],
+            project_secret::require_per_project_blocks_fallback
+        ),
+        c!(
+            "project_secret.isolation_between_projects",
+            ["project", "secret"],
+            project_secret::isolation_between_projects
+        ),
+        c!(
+            "project_secret.no_session_context_fails_closed",
+            ["project", "secret", "outbound"],
+            project_secret::no_session_context_fails_closed
+        ),
+        c!(
+            "project_secret.list_returns_names_not_values",
+            ["project", "secret"],
+            project_secret::list_returns_names_not_values
         ),
         // --- sharing lab Beta 6 ---
         c!(

@@ -471,6 +471,11 @@ pub enum ProtocolPrincipal {
 pub struct ProtocolContext {
     pub principal: ProtocolPrincipal,
     pub transport: String,
+    /// Optional kernel session id this call is operating under.
+    /// Used by outbound dispatch to scope secret resolution to the
+    /// session's project.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     #[serde(default)]
     #[schemars(schema_with = "optional_uuid_schema")]
     pub correlation_id: Option<Uuid>,
@@ -484,6 +489,7 @@ impl ProtocolContext {
         Self {
             principal: ProtocolPrincipal::HostDev,
             transport: transport.into(),
+            session_id: None,
             correlation_id: Some(Uuid::new_v4()),
             parent_invocation_id: None,
         }
@@ -495,6 +501,7 @@ impl ProtocolContext {
                 package_id: package_id.into(),
             },
             transport: transport.into(),
+            session_id: None,
             correlation_id: Some(Uuid::new_v4()),
             parent_invocation_id: None,
         }
@@ -525,6 +532,8 @@ fn optional_uuid_schema(_gen: &mut SchemaGenerator) -> Schema {
 pub struct ProtocolRequest {
     pub id: String,
     pub method: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     #[serde(default)]
     pub params: Value,
 }
@@ -927,6 +936,39 @@ mod tests {
         ] {
             assert!(ids.contains(&expected), "missing {expected}");
         }
+    }
+
+    #[test]
+    fn protocol_context_serializes_session_id_when_set() {
+        let ctx = ProtocolContext {
+            principal: ProtocolPrincipal::HostAdmin,
+            transport: "http".into(),
+            session_id: Some("session-abc".into()),
+            correlation_id: None,
+            parent_invocation_id: None,
+        };
+        let json = serde_json::to_string(&ctx).unwrap();
+        assert!(json.contains("\"session_id\":\"session-abc\""));
+    }
+
+    #[test]
+    fn protocol_context_omits_session_id_when_none() {
+        let ctx = ProtocolContext {
+            principal: ProtocolPrincipal::HostAdmin,
+            transport: "http".into(),
+            session_id: None,
+            correlation_id: None,
+            parent_invocation_id: None,
+        };
+        let json = serde_json::to_string(&ctx).unwrap();
+        assert!(!json.contains("session_id"));
+    }
+
+    #[test]
+    fn protocol_context_deserializes_without_session_id() {
+        let json = r#"{"principal":{"kind":"host_admin"},"transport":"http"}"#;
+        let ctx: ProtocolContext = serde_json::from_str(json).unwrap();
+        assert!(ctx.session_id.is_none());
     }
 
     // --- KernelMethod / registry alignment tests ---

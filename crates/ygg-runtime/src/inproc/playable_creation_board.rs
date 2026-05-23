@@ -1286,6 +1286,7 @@ mod tests {
         InprocInvocation {
             capability_id: cap.to_string(),
             provider_package_id: PACKAGE_ID.to_string(),
+            session_id: None,
             input,
         }
     }
@@ -1304,6 +1305,7 @@ mod tests {
         let req = InprocInvocation {
             capability_id: "official/playable-creation-board/describe_contract".to_string(),
             provider_package_id: "official/other".to_string(),
+            session_id: None,
             input: json!({}),
         };
         assert!(try_handle(&req).is_none());

@@ -166,6 +166,31 @@ pub fn extract_store_name(ref_id: &str) -> Option<&str> {
     None
 }
 
+/// Check whether a string is a valid **project-backed** secret reference.
+///
+/// Valid forms:
+/// - `secret_ref:project:NAME` (canonical)
+/// - `secretRef:project:NAME` (camelCase)
+/// - `secret-ref:project:NAME` (kebab-case)
+pub fn is_project_backed_ref(s: &str) -> bool {
+    extract_project_name(s).is_some()
+}
+
+/// Extract the project secret name from a project-backed reference.
+pub fn extract_project_name(ref_id: &str) -> Option<&str> {
+    for prefix in &["secret_ref:", "secretRef:", "secret-ref:"] {
+        if let Some(rest) = ref_id.strip_prefix(prefix) {
+            if let Some(name) = rest.strip_prefix("project:") {
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+            return None;
+        }
+    }
+    None
+}
+
 /// Check whether a string value looks like a raw secret (not a reference).
 ///
 /// This uses heuristic patterns to detect values that look like API keys
@@ -335,5 +360,41 @@ mod tests {
             extract_store_name("secret-ref:store:MY_KEY"),
             Some("MY_KEY")
         );
+    }
+
+    #[test]
+    fn project_backed_ref_accepts_all_prefix_variants() {
+        assert!(is_project_backed_ref("secret_ref:project:MY_KEY"));
+        assert!(is_project_backed_ref("secretRef:project:MY_KEY"));
+        assert!(is_project_backed_ref("secret-ref:project:MY_KEY"));
+        assert_eq!(
+            extract_project_name("secret_ref:project:MY_KEY"),
+            Some("MY_KEY")
+        );
+        assert_eq!(
+            extract_project_name("secretRef:project:MY_KEY"),
+            Some("MY_KEY")
+        );
+        assert_eq!(
+            extract_project_name("secret-ref:project:MY_KEY"),
+            Some("MY_KEY")
+        );
+    }
+
+    #[test]
+    fn project_backed_ref_rejects_non_project_vault_and_empty_name() {
+        assert!(!is_project_backed_ref("secret_ref:env:OPENAI_API_KEY"));
+        assert!(!is_project_backed_ref("secret_ref:store:OPENAI_API_KEY"));
+        assert!(!is_project_backed_ref("secret_ref:vault:OPENAI_API_KEY"));
+        assert!(!is_project_backed_ref("secret_ref:project:"));
+    }
+
+    #[test]
+    fn project_backed_ref_rejects_malformed() {
+        assert!(!is_project_backed_ref("not_a_secret_ref"));
+        assert!(!is_project_backed_ref(""));
+        assert!(!is_project_backed_ref("secret_ref:"));
+        assert!(!is_project_backed_ref("project:MY_KEY"));
+        assert_eq!(extract_project_name("secret_ref:project:"), None);
     }
 }

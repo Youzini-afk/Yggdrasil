@@ -335,6 +335,7 @@ mod tests {
         let request = InprocInvocation {
             capability_id: format!("{PACKAGE_ID}/{capability}"),
             provider_package_id: PACKAGE_ID.to_string(),
+            session_id: None,
             input,
         };
         try_handle(&request).unwrap().unwrap()
@@ -356,6 +357,7 @@ mod tests {
         let request = InprocInvocation {
             capability_id: format!("{PACKAGE_ID}/draft_tdb_index_plan"),
             provider_package_id: PACKAGE_ID.to_string(),
+            session_id: None,
             input: json!({"index_id": "../secret"}),
         };
         assert!(try_handle(&request).unwrap().is_err());

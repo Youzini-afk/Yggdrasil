@@ -132,6 +132,7 @@ async fn invoke(
             caller_package_id: None,
             provider_package_id: Some("official/git-tools-lab".to_string()),
             version: None,
+            session_id: None,
             input,
         })
         .await?)

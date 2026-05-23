@@ -189,7 +189,7 @@ where
                 cap_version: provider.descriptor.version,
                 scope: HandleScope {
                     holder_package_id: holder,
-                    session_id: None,
+                    session_id: request.session_id.clone(),
                 },
                 constraints: json!({}),
                 lease: HandleLease {
@@ -242,7 +242,12 @@ where
             .await?;
         validate_json_schema_subset(&provider.descriptor.input_schema, &request.input)?;
         let output = self
-            .execute_registered_capability(&provider, &capability_id, request.input)
+            .execute_registered_capability(
+                &provider,
+                &capability_id,
+                request.session_id.clone(),
+                request.input,
+            )
             .await?;
         self.handles.record_invocation(active_handle).await?;
         let result = CapabilityInvocationResult {
@@ -291,6 +296,7 @@ where
         &self,
         provider: &RegisteredCapability,
         capability_id: &str,
+        session_id: Option<String>,
         input: Value,
     ) -> anyhow::Result<Value> {
         let output = match self.package_status(&provider.provider_package_id).await {
@@ -310,14 +316,24 @@ where
                     let invocation = InprocInvocation {
                         capability_id: capability_id.to_string(),
                         provider_package_id: provider.provider_package_id.clone(),
+                        session_id: session_id.clone(),
                         input,
                     };
-                    crate::inproc::with_runtime_invoker(self.clone(), package.invoke(invocation))
-                        .await?
+                    crate::inproc::with_runtime_invoker(
+                        self.clone(),
+                        session_id.clone(),
+                        package.invoke(invocation),
+                    )
+                    .await?
                 }
                 PackageEntry::Subprocess { .. } => match self
                     .subprocesses
-                    .invoke(&provider.provider_package_id, capability_id, input)
+                    .invoke(
+                        &provider.provider_package_id,
+                        capability_id,
+                        session_id,
+                        input,
+                    )
                     .await
                 {
                     Ok(output) => output,
@@ -354,11 +370,15 @@ where
     ) -> anyhow::Result<CapabilityInvocationResult> {
         match &context.principal {
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
+                if context.session_id.is_some() {
+                    request.session_id = context.session_id.clone();
+                }
                 request.caller_package_id = None;
                 self.invoke_capability_authorized(request, context.effective_correlation_id())
                     .await
             }
             ProtocolPrincipal::Package { package_id } => {
+                request.session_id = context.session_id.clone();
                 request.caller_package_id = Some(package_id.clone());
                 self.invoke_capability_authorized(request, context.effective_correlation_id())
                     .await
@@ -374,6 +394,9 @@ where
                     )
                     .await
                 {
+                    if context.session_id.is_some() {
+                        request.session_id = context.session_id.clone();
+                    }
                     request.caller_package_id = None;
                     self.invoke_capability_authorized(request, context.effective_correlation_id())
                         .await
@@ -466,6 +489,7 @@ mod tests {
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
+                session_id: None,
                 input: json!({"ping": true}),
             })
             .await?;
@@ -537,6 +561,7 @@ mod tests {
                 caller_package_id: Some("example/caller".to_string()),
                 provider_package_id: None,
                 version: None,
+                session_id: None,
                 input: json!({}),
             })
             .await;
@@ -617,6 +642,7 @@ mod tests {
                     caller_package_id: None,
                     provider_package_id: None,
                     version: None,
+                    session_id: None,
                     input: json!({}),
                 },
             )

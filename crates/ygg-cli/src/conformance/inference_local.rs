@@ -29,6 +29,7 @@ pub(crate) async fn inference_local_lab_describe_capabilities() -> anyhow::Resul
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -100,6 +101,7 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_id": "op_test_001",
                 "operation_kind": "generate",
@@ -151,6 +153,7 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_id": "op_test_002",
                 "operation_kind": "classify",
@@ -175,6 +178,7 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_id": "op_test_003",
                 "operation_kind": "transform",
@@ -213,6 +217,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "transport_kind": "http"
@@ -236,6 +241,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "url": "https://api.example.com/v1/chat"
@@ -255,6 +261,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "headers": {"x-test-auth": "rawSecretPlaceholder1234567890ABCDEF"}
@@ -274,6 +281,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "status_code": 200
@@ -293,6 +301,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "messages": [{"role": "user", "content": "hello"}]
@@ -312,6 +321,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "system": "You are a helpful assistant"
@@ -331,6 +341,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_kind": "generate",
                 "api_key": "rawSecretPlaceholder1234567890ABCDEF"
@@ -363,6 +374,7 @@ pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "invocation_id": "inv_stream_conf_001",
                 "operation_kind": "generate",
@@ -470,6 +482,7 @@ pub(crate) async fn inference_local_lab_explain_error() -> anyhow::Result<()> {
                 caller_package_id: None,
                 provider_package_id: Some("official/inference-local-lab".to_string()),
                 version: None,
+                session_id: None,
                 input: json!({"error_kind": error_kind}),
             })
             .await?;

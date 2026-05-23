@@ -35,6 +35,7 @@ pub struct SubprocessHandle {
     invoke_timeout: Duration,
     pending_responses: Mutex<HashMap<String, oneshot::Sender<Value>>>,
     reverse_kernel_requests: Mutex<HashSet<String>>,
+    current_session_id: Mutex<Option<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
@@ -91,6 +92,7 @@ impl SubprocessSupervisor {
             invoke_timeout: Duration::from_millis(manifest.sandbox_policy.cpu_quota_ms_per_invoke),
             pending_responses: Mutex::new(HashMap::new()),
             reverse_kernel_requests: Mutex::new(HashSet::new()),
+            current_session_id: Mutex::new(None),
         });
 
         let handshake_timeout =
@@ -145,6 +147,7 @@ impl SubprocessSupervisor {
         &self,
         package_id: &PackageId,
         capability_id: &str,
+        session_id: Option<String>,
         input: Value,
     ) -> anyhow::Result<Value> {
         let handle = self
@@ -158,11 +161,16 @@ impl SubprocessSupervisor {
             "jsonrpc": "2.0",
             "id": "invoke-1",
             "method": "capability.invoke",
-            "params": { "capability_id": capability_id, "input": input }
+            "params": { "capability_id": capability_id, "session_id": session_id, "input": input }
         });
+        *handle.current_session_id.lock().await = session_id;
         let response = match timeout(handle.invoke_timeout, handle.call(request)).await {
-            Ok(result) => result?,
+            Ok(result) => {
+                *handle.current_session_id.lock().await = None;
+                result?
+            }
             Err(_) => {
+                *handle.current_session_id.lock().await = None;
                 handle.pending_responses.lock().await.remove("invoke-1");
                 handle.kill().await;
                 self.handles.write().await.remove(package_id);
@@ -172,11 +180,14 @@ impl SubprocessSupervisor {
         if let Some(error) = response.get("error") {
             anyhow::bail!("subprocess package '{package_id}' returned error: {error}");
         }
-        response
+        let output = response
             .get("result")
             .and_then(|result| result.get("output"))
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("subprocess package '{package_id}' returned no output"))
+            .ok_or_else(|| {
+                anyhow::anyhow!("subprocess package '{package_id}' returned no output")
+            })?;
+        Ok(output)
     }
 
     pub async fn stop(&self, package_id: &PackageId) {
@@ -337,7 +348,9 @@ impl SubprocessHandle {
             } else {
                 None
             };
-            let response = dispatch_reverse_kernel_frame(&runtime, &self.package_id, frame).await;
+            let session_id = self.current_session_id.lock().await.clone();
+            let response =
+                dispatch_reverse_kernel_frame(&runtime, &self.package_id, session_id, frame).await;
             let stream_id = if kernel_method.streaming() {
                 response
                     .get("result")
@@ -549,6 +562,7 @@ pub(crate) fn id_to_key(id: &Value) -> String {
 pub async fn dispatch_reverse_kernel_frame<S>(
     runtime: &Runtime<S>,
     package_id: &str,
+    session_id: Option<String>,
     frame: Value,
 ) -> Value
 where
@@ -569,7 +583,8 @@ where
             "error": ProtocolError::invalid_request("reverse subprocess request method must start with kernel.v1."),
         });
     }
-    let context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
+    let mut context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
+    context.session_id = session_id;
     match runtime
         .call_subprocess_protocol(
             &context,

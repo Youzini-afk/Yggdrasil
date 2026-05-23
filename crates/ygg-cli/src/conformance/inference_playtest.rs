@@ -48,6 +48,7 @@ async fn invoke_inference_local(
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "operation_id": "op_c4_001",
                 "operation_kind": "generate",
@@ -71,6 +72,7 @@ pub(crate) async fn inference_playtest_draft() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": session_id,
                 "inference_result": inference_result,
@@ -148,6 +150,7 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": session_id,
                 "inference_result": inference_result.clone(),
@@ -179,6 +182,7 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "proposal": proposal,
             }),
@@ -222,6 +226,7 @@ pub(crate) async fn inference_playtest_reject_apply_denied() -> anyhow::Result<(
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": session_id,
                 "inference_result": inference_result,
@@ -286,6 +291,7 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": session_id,
                 "inference_result": inference_result.clone(),
@@ -358,6 +364,7 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": session_id,
                 "proposal_id": proposal_id,
@@ -416,6 +423,7 @@ pub(crate) async fn inference_playtest_no_chat_kernel_terms() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "session_id": session_id,
                 "inference_result": inference_result,
@@ -458,6 +466,7 @@ pub(crate) async fn inference_playtest_no_chat_kernel_terms() -> anyhow::Result<
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;

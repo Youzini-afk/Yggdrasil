@@ -128,6 +128,13 @@
     "principal": {
       "$ref": "#/definitions/ProtocolPrincipal"
     },
+    "session_id": {
+      "description": "Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "transport": {
       "type": "string"
     }

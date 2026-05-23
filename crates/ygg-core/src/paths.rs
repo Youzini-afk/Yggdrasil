@@ -13,6 +13,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
+use crate::project::ProjectId;
+
 /// Top-level Yggdrasil data directory.
 pub fn data_dir() -> Result<PathBuf> {
     if let Ok(explicit) = std::env::var("YGG_DATA_DIR") {
@@ -64,6 +66,73 @@ pub fn secret_store_key_path() -> Result<PathBuf> {
     Ok(data_dir()?.join("secret-store.key"))
 }
 
+/// Per-user mutable projects directory.
+/// Path: `<data_dir>/projects/`
+pub fn projects_dir() -> Result<PathBuf> {
+    Ok(data_dir()?.join("projects"))
+}
+
+/// Path to a specific project's directory.
+pub fn project_dir(id: &ProjectId) -> Result<PathBuf> {
+    Ok(projects_dir()?.join(id.as_str()))
+}
+
+/// Path to a project's encrypted secret store.
+pub fn project_secret_store_path(id: &ProjectId) -> Result<PathBuf> {
+    Ok(project_dir(id)?.join("secrets.dat"))
+}
+
+/// Path to a project's lockfile.
+pub fn project_lockfile_path(id: &ProjectId) -> Result<PathBuf> {
+    Ok(project_dir(id)?.join("lockfile.toml"))
+}
+
+/// Path to a project's project.yaml descriptor.
+pub fn project_descriptor_path(id: &ProjectId) -> Result<PathBuf> {
+    Ok(project_dir(id)?.join("project.yaml"))
+}
+
+/// Per-project sessions directory (where event-store backends may store project data).
+pub fn project_sessions_dir(id: &ProjectId) -> Result<PathBuf> {
+    Ok(project_dir(id)?.join("sessions"))
+}
+
+/// Per-project state directory (where capability packages may store project-scoped state).
+pub fn project_state_dir(id: &ProjectId) -> Result<PathBuf> {
+    Ok(project_dir(id)?.join("state"))
+}
+
+/// Archived projects directory (soft-delete parking).
+/// Path: `<data_dir>/projects/.archived/`
+pub fn archived_projects_dir() -> Result<PathBuf> {
+    Ok(projects_dir()?.join(".archived"))
+}
+
+/// Path where an archived project lives.
+pub fn archived_project_dir(id: &ProjectId) -> Result<PathBuf> {
+    Ok(archived_projects_dir()?.join(id.as_str()))
+}
+
+/// Initialize a project's directory layout. Creates dirs with 0700 on Unix.
+pub fn ensure_project_initialized(id: &ProjectId) -> Result<()> {
+    use std::fs;
+
+    fs::create_dir_all(project_dir(id)?)?;
+    fs::create_dir_all(project_sessions_dir(id)?)?;
+    fs::create_dir_all(project_state_dir(id)?)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let p = project_dir(id)?;
+        let mut perms = fs::metadata(&p)?.permissions();
+        perms.set_mode(0o700);
+        fs::set_permissions(&p, perms)?;
+    }
+
+    Ok(())
+}
+
 /// Initialize the directory layout if missing. Creates all directories with
 /// 0700 permissions on Unix.
 pub fn ensure_initialized() -> Result<()> {
@@ -75,6 +144,8 @@ pub fn ensure_initialized() -> Result<()> {
     fs::create_dir_all(profiles_dir()?)?;
     fs::create_dir_all(keys_dir()?)?;
     fs::create_dir_all(cache_dir()?)?;
+    fs::create_dir_all(projects_dir()?)?;
+    fs::create_dir_all(archived_projects_dir()?)?;
 
     #[cfg(unix)]
     {
@@ -131,6 +202,12 @@ mod tests {
                 _lock: lock,
             }
         }
+    }
+
+    fn scope_env(key: &str, value: &str) -> EnvGuard {
+        let guard = EnvGuard::lock();
+        std::env::set_var(key, value);
+        guard
     }
 
     impl Drop for EnvGuard {
@@ -210,6 +287,38 @@ mod tests {
         assert!(tmp.path().join("profiles").exists());
         assert!(tmp.path().join("keys").exists());
         assert!(tmp.path().join("cache").exists());
+        assert!(tmp.path().join("projects").exists());
+        assert!(tmp.path().join("projects/.archived").exists());
         std::env::remove_var("YGG_DATA_DIR");
+    }
+
+    #[test]
+    fn project_dir_uses_data_dir() {
+        let _guard = scope_env("YGG_DATA_DIR", "/tmp/ygg-test-paths");
+        let id = ProjectId::new("foo__abc123").unwrap();
+        let pd = project_dir(&id).unwrap();
+        assert_eq!(
+            pd,
+            PathBuf::from("/tmp/ygg-test-paths/projects/foo__abc123")
+        );
+    }
+
+    #[test]
+    fn project_secret_store_path_format() {
+        let _guard = scope_env("YGG_DATA_DIR", "/tmp/ygg-test-paths");
+        let id = ProjectId::new("test__xyz").unwrap();
+        let p = project_secret_store_path(&id).unwrap();
+        assert!(p.ends_with("projects/test__xyz/secrets.dat"));
+    }
+
+    #[test]
+    fn ensure_project_initialized_creates_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let _guard = scope_env("YGG_DATA_DIR", tmp.path().to_str().unwrap());
+        let id = ProjectId::new("init__test").unwrap();
+        ensure_project_initialized(&id).unwrap();
+        assert!(project_dir(&id).unwrap().exists());
+        assert!(project_sessions_dir(&id).unwrap().exists());
+        assert!(project_state_dir(&id).unwrap().exists());
     }
 }

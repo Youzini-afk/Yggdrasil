@@ -47,6 +47,8 @@ mod workspace_lab;
 pub struct InprocInvocation {
     pub capability_id: CapabilityId,
     pub provider_package_id: PackageId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     #[serde(default)]
     pub input: Value,
 }
@@ -77,6 +79,7 @@ where
     S: EventStore,
 {
     runtime: Runtime<S>,
+    session_id: Option<String>,
 }
 
 impl<S> InprocCapabilityInvoker for RuntimeInprocInvoker<S>
@@ -85,9 +88,12 @@ where
 {
     fn invoke_capability(
         &self,
-        request: CapabilityInvocationRequest,
+        mut request: CapabilityInvocationRequest,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>> {
         let runtime = self.runtime.clone();
+        if request.session_id.is_none() {
+            request.session_id = self.session_id.clone();
+        }
         Box::pin(async move { runtime.invoke_capability(request).await })
     }
 }
@@ -96,13 +102,23 @@ tokio::task_local! {
     static INPROC_INVOKER: Arc<dyn InprocCapabilityInvoker>;
 }
 
-pub(crate) async fn with_runtime_invoker<S, F, T>(runtime: Runtime<S>, future: F) -> T
+pub(crate) async fn with_runtime_invoker<S, F, T>(
+    runtime: Runtime<S>,
+    session_id: Option<String>,
+    future: F,
+) -> T
 where
     S: EventStore,
     F: Future<Output = T>,
 {
     INPROC_INVOKER
-        .scope(Arc::new(RuntimeInprocInvoker { runtime }), future)
+        .scope(
+            Arc::new(RuntimeInprocInvoker {
+                runtime,
+                session_id,
+            }),
+            future,
+        )
         .await
 }
 

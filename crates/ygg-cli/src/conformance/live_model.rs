@@ -401,6 +401,7 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "deepseek",
                 "invocation_id": "inv_l4_canary",
@@ -701,6 +702,7 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "deepseek",
@@ -1562,6 +1564,7 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1607,6 +1610,7 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1644,6 +1648,7 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "anthropic",
@@ -1702,6 +1707,7 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "gemini",
@@ -2533,6 +2539,7 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "deepseek",
                 "invocation_id": "inv_l6_ds_reasoning",
@@ -2677,6 +2684,7 @@ pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "openrouter",
                 "invocation_id": "inv_l6_or_error",

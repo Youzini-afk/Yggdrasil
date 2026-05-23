@@ -37,6 +37,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     let human_context = ProtocolContext {
         principal: serde_json::from_value(human.clone())?,
         transport: "conformance".to_string(),
+        session_id: None,
         correlation_id: None,
         parent_invocation_id: None,
     };
@@ -110,6 +111,7 @@ pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant.clone())?,
         transport: "conformance".to_string(),
+        session_id: None,
         correlation_id: None,
         parent_invocation_id: None,
     };
@@ -186,6 +188,7 @@ pub(crate) async fn principal_cannot_self_assert_capability_caller() -> anyhow::
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
+                session_id: None,
                 input: json!({}),
             },
         )

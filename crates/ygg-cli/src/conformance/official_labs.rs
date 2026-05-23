@@ -20,6 +20,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant.clone())?,
         transport: "conformance".to_string(),
+        session_id: None,
         correlation_id: None,
         parent_invocation_id: None,
     };
@@ -86,6 +87,7 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "id": "example/composed-experience",
                 "entry_surface_id": "example/composed-experience/entry",
@@ -104,6 +106,7 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"entry_surface_id": "example/composed-experience/entry", "surfaces": [{"slot": "experience_entry"}]}),
         })
         .await?;
@@ -134,6 +137,7 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "id": "example/diag-comp",
                 "entry_surface_id": "example/diag-comp/entry",
@@ -176,6 +180,7 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "entry_surface_id": "example/diag-comp/entry",
                 "surfaces": [{"slot": "experience_entry"}],
@@ -215,6 +220,7 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "id": "example/diag-comp",
                 "required_capabilities": ["example/diag-comp/echo", "example/missing/cap"],
@@ -264,6 +270,7 @@ pub(crate) async fn asset_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"asset_id": "asset/demo", "mime": "application/json", "content": "{\"hello\":\"world\"}"}),
         })
         .await?;
@@ -278,6 +285,7 @@ pub(crate) async fn asset_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"mime": "application/json", "metadata": {"source": "conformance"}}),
         })
         .await?;
@@ -305,6 +313,7 @@ pub(crate) async fn projection_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/projection-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"projection_id": "example/projection/state", "source_kind_prefix": "example/projection"}),
         })
         .await?;
@@ -319,6 +328,7 @@ pub(crate) async fn projection_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/projection-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"projection_id": "example/projection/state", "events": [{"sequence": 1}], "source_kind_prefix": "example/projection"}),
         })
         .await?;
@@ -346,6 +356,7 @@ pub(crate) async fn playable_seed() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/playable-seed".to_string()),
             version: None,
+            session_id: None,
             input: json!({"title": "Conformance Seed"}),
         })
         .await?;
@@ -360,6 +371,7 @@ pub(crate) async fn playable_seed() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/playable-seed".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -374,6 +386,7 @@ pub(crate) async fn playable_seed() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/playable-seed".to_string()),
             version: None,
+            session_id: None,
             input: json!({"change": "add one seed block"}),
         })
         .await?;
@@ -411,6 +424,7 @@ pub(crate) async fn persona_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/persona-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"source": "conformance", "data": {"spec": "chara_card_v2", "data": {"name": "Mira", "description": "Maps dream cities", "extensions": {"unknown": true}}}}),
         })
         .await?;
@@ -429,6 +443,7 @@ pub(crate) async fn persona_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/persona-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"profile": imported.output}),
         })
         .await?;
@@ -460,6 +475,7 @@ pub(crate) async fn knowledge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/knowledge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"format": "worldbook-like", "data": {"name": "Dream City", "entries": {"1": {"key": ["bell"], "content": "Alleys rotate."}}}}),
         })
         .await?;
@@ -474,6 +490,7 @@ pub(crate) async fn knowledge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/knowledge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"query": "the bell rings", "entries": imported.output["entries"]}),
         })
         .await?;
@@ -495,6 +512,7 @@ pub(crate) async fn knowledge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/knowledge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"matches": matched.output["matches"]}),
         })
         .await?;
@@ -524,6 +542,7 @@ pub(crate) async fn context_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/context-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"budget": 20, "sources": [{"id": "short", "text": "fits"}, {"id": "long", "text": "this source should be omitted by budget"}]}),
         })
         .await?;
@@ -545,6 +564,7 @@ pub(crate) async fn context_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/context-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"template": "Hello {{name}}", "variables": {"name": "Yggdrasil"}}),
         })
         .await?;
@@ -572,6 +592,7 @@ pub(crate) async fn text_transform_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/text-transform-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"text": "Mira whispers now", "rules": [{"id": "quiet", "find": "whispers", "replace": "says quietly"}]}),
         })
         .await?;
@@ -597,6 +618,7 @@ pub(crate) async fn text_transform_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/text-transform-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"rules": [{"id": "bad"}]}),
         })
         .await?;
@@ -624,6 +646,7 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -645,6 +668,7 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"provider_family": "openai-compatible", "base_url": "http://127.0.0.1:11434/v1", "model_id": "fixture", "secret_ref": "env:LOCAL_KEY"}),
         })
         .await?;
@@ -663,6 +687,7 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"provider_family": "openai", "model_id": "fixture", "api_key": "rawSecretPlaceholder1234567890ABCDEF"}),
         })
         .await?;
@@ -677,6 +702,7 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"provider_family": "google"}),
         })
         .await?;
@@ -708,6 +734,7 @@ pub(crate) async fn model_routing_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-routing-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"consumer_slot": "play.primary", "bindings": bindings}),
         })
         .await?;
@@ -730,6 +757,7 @@ pub(crate) async fn model_routing_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-routing-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"params": {"temperature": 0.2, "max_tokens": 128, "provider_options": {"openai": {"reasoning_effort": "low"}}}}),
         })
         .await?;
@@ -767,6 +795,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capabilities": [
                     {
@@ -808,6 +837,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capabilities": [
                     {
@@ -837,6 +867,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capabilities": [
                     {
@@ -866,6 +897,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/echo"
             }),
@@ -892,6 +924,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "thirdparty/my-tool"
@@ -919,6 +952,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "thirdparty/not-a-provider",
@@ -945,6 +979,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "required_permissions": ["capabilities.invoke"],
                 "grants": [],
@@ -975,6 +1010,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "required_permissions": ["capabilities.invoke"],
                 "grants": ["*"],
@@ -995,6 +1031,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "official/pkg",
@@ -1019,6 +1056,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/stream"
             }),
@@ -1045,6 +1083,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/stream",
                 "provider_package_id": "thirdparty/not-a-provider",
@@ -1071,6 +1110,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "thirdparty/my-tool",
@@ -1152,6 +1192,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -1210,6 +1251,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "openai",
                 "credential": "rawSecretPlaceholder1234567890ABCDEF",
@@ -1230,6 +1272,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "openai_compatible",
                 "credential": "secret_ref:env:MY_KEY",
@@ -1251,6 +1294,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "openai_compatible",
                 "credential": "secret_ref:env:MY_KEY",
@@ -1272,6 +1316,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "anthropic",
@@ -1317,6 +1362,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "gemini",
@@ -1345,6 +1391,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openrouter",
@@ -1374,6 +1421,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "deepseek",
@@ -1405,6 +1453,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "xai",
@@ -1437,6 +1486,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "fireworks",
@@ -1469,6 +1519,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "status": 401,
                 "family": "openai",
@@ -1493,6 +1544,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "status": 429,
                 "family": "anthropic",
@@ -1517,6 +1569,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "status": 529,
                 "family": "anthropic",
@@ -1549,6 +1602,7 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"hello": "provider"}),
         })
         .await?;
@@ -1579,6 +1633,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1665,6 +1720,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1701,6 +1757,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "anthropic",
@@ -1761,6 +1818,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "gemini",
@@ -1802,6 +1860,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1836,6 +1895,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1865,6 +1925,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai",
@@ -1894,6 +1955,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai_compatible",
@@ -1952,6 +2014,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai_compatible",
@@ -1980,6 +2043,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openai_compatible",
@@ -2005,6 +2069,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openrouter",
@@ -2048,6 +2113,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "openrouter",
@@ -2084,6 +2150,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "deepseek",
@@ -2131,6 +2198,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "xai",
@@ -2174,6 +2242,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "xai",
@@ -2203,6 +2272,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "fireworks",
@@ -2246,6 +2316,7 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "profile": {
                     "family": "fireworks",
@@ -2302,6 +2373,7 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
                 caller_package_id: None,
                 provider_package_id: Some("official/model-provider-lab".to_string()),
                 version: None,
+                session_id: None,
                 input: json!({
                     "family": family,
                 }),
@@ -2422,6 +2494,7 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "openai",
                 "invocation_id": "inv_test_openai_stream",
@@ -2472,6 +2545,7 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "anthropic",
                 "invocation_id": "inv_test_anthropic_stream",
@@ -2515,6 +2589,7 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "gemini",
                 "invocation_id": "inv_test_gemini_stream",
@@ -2552,6 +2627,7 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "openrouter",
                 "sample_provider_events": or_events,
@@ -2580,6 +2656,7 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "family": "nonexistent",
             }),
@@ -2623,6 +2700,7 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await?;
@@ -2663,6 +2741,7 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"trace_events": [{"step": 1}, {"step": 2}]}),
         })
         .await?;
@@ -2691,6 +2770,7 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"change": "agent-driven modification"}),
         })
         .await?;
@@ -2715,6 +2795,7 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"trace_events": [{"e": 1}, {"e": 2}, {"e": 3}]}),
         })
         .await?;
@@ -2743,6 +2824,7 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"hello": "agent"}),
         })
         .await?;
@@ -2820,6 +2902,7 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"content": "hello world", "disclosure": "test"}),
         })
         .await?;
@@ -2853,6 +2936,7 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"content": "hello world"}),
         })
         .await?;
@@ -2869,6 +2953,7 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({"content": "different content"}),
         })
         .await?;
@@ -2897,6 +2982,7 @@ pub(crate) async fn asset_lab_provenance_graph() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "asset_id": "ast_test_123",
                 "nodes": [{"id": "source", "kind": "player_action"}],
@@ -2945,6 +3031,7 @@ pub(crate) async fn projection_lab_state_snapshot() -> anyhow::Result<()> {
             caller_package_id: None,
             provider_package_id: Some("official/projection-lab".to_string()),
             version: None,
+            session_id: None,
             input: json!({
                 "projection_id": "example/projection/state",
                 "branch_ref": "branch:target:default",

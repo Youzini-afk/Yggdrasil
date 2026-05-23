@@ -1,15 +1,20 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
+use ygg_core::project::ProjectId;
 use ygg_core::{
     AssetRecord, EventEnvelope, KernelSession, SessionId, EVENT_ASSET_PUT,
     EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED,
     EVENT_SESSION_FORKED,
 };
 
-use crate::{EventStore, HostPolicy, InprocPackageCatalog, SecretResolverConfig};
+use crate::{
+    EventStore, HostPolicy, InprocPackageCatalog, ProjectRegistry, ProjectScopeContext,
+    SecretResolverConfig,
+};
 
 mod assets;
 mod audit;
@@ -69,6 +74,10 @@ pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, P
 pub use self::session::OpenSessionRequest;
 pub use self::streaming::StreamRegistry;
 
+tokio::task_local! {
+    pub static ACTIVE_PROJECT_SCOPE: ProjectScopeContext;
+}
+
 // ---------------------------------------------------------------------------
 // RuntimeConfig
 // ---------------------------------------------------------------------------
@@ -79,6 +88,8 @@ pub struct RuntimeConfig {
     pub host_policy: HostPolicy,
     pub inproc_packages: InprocPackageCatalog,
     pub secret_resolver: SecretResolverConfig,
+    /// In-memory project registry. Default: empty.
+    pub project_registry: Arc<ProjectRegistry>,
     /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub outbound_executor: OutboundExecutorConfig,
     /// Outbound execute host-level policy. Defaults disabled (fail-closed). (Y1)
@@ -94,6 +105,7 @@ impl Default for RuntimeConfig {
             host_policy: HostPolicy::default(),
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
+            project_registry: Arc::new(ProjectRegistry::new()),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
@@ -206,6 +218,10 @@ where
         self.extensions.clone()
     }
 
+    pub fn config(&self) -> &RuntimeConfig {
+        &self.config
+    }
+
     /// Resolve a secret reference using the configured host secret resolver.
     ///
     /// This is a host-internal method (not a protocol method) for use by
@@ -216,7 +232,75 @@ where
     /// reference cannot be resolved. Raw values must never be written
     /// to events, proposals, logs, or audit records.
     pub async fn resolve_secret_ref(&self, ref_id: &str) -> anyhow::Result<String> {
+        self.resolve_secret_ref_with_session(ref_id, None).await
+    }
+
+    /// Resolve a secret reference with optional session context.
+    ///
+    /// For `secret_ref:project:NAME`, the `session_id` is used to look up the
+    /// session's `metadata.project_id`, which scopes the resolution.
+    pub async fn resolve_secret_ref_with_session(
+        &self,
+        ref_id: &str,
+        session_id: Option<&str>,
+    ) -> anyhow::Result<String> {
+        if ygg_core::secret_ref::is_project_backed_ref(ref_id) {
+            let project_id = self.lookup_project_id_from_session(session_id).await?;
+            let scope = self.build_project_scope(&project_id)?;
+            return self
+                .with_active_project_scope(scope, async {
+                    self.config.secret_resolver.resolver.resolve(ref_id).await
+                })
+                .await;
+        }
+
         self.config.secret_resolver.resolver.resolve(ref_id).await
+    }
+
+    async fn lookup_project_id_from_session(
+        &self,
+        session_id: Option<&str>,
+    ) -> anyhow::Result<ProjectId> {
+        let sid = session_id.ok_or_else(|| {
+            anyhow::anyhow!("project secret resolution requires session_id in context")
+        })?;
+        let sessions = self.sessions.read().await;
+        let session = sessions
+            .get(sid)
+            .ok_or_else(|| anyhow::anyhow!("session '{}' not found", sid))?;
+        let pid_str = session
+            .metadata
+            .get("project_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("session '{}' has no metadata.project_id", sid))?;
+        ProjectId::new(pid_str)
+    }
+
+    fn build_project_scope(&self, project_id: &ProjectId) -> anyhow::Result<ProjectScopeContext> {
+        let entry = self
+            .config
+            .project_registry
+            .get(project_id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not registered", project_id))?;
+        let store_path = ygg_core::paths::project_secret_store_path(project_id)?;
+        Ok(ProjectScopeContext {
+            project_id: project_id.clone(),
+            project_store_path: store_path,
+            fallback_to_platform: entry.descriptor.project.secret_policy.fallback_to_platform,
+            require_per_project: entry
+                .descriptor
+                .project
+                .secret_policy
+                .require_per_project
+                .clone(),
+        })
+    }
+
+    async fn with_active_project_scope<F, T>(&self, scope: ProjectScopeContext, future: F) -> T
+    where
+        F: Future<Output = T>,
+    {
+        ACTIVE_PROJECT_SCOPE.scope(scope, future).await
     }
 
     pub async fn hydrate_substrate_from_events(&self) -> anyhow::Result<()> {

@@ -6,6 +6,7 @@ pub mod ids;
 pub mod lockfile;
 pub mod manifest;
 pub mod paths;
+pub mod project;
 pub mod secret_ref;
 pub mod session;
 
@@ -42,11 +43,19 @@ pub use manifest::{
     SurfacePermissionRequirement, SurfaceRisk, SurfaceSlot,
 };
 pub use paths::{
-    cache_dir, data_dir, ensure_initialized, keys_dir, lockfile_path, profile_path, profiles_dir,
-    secret_store_key_path, secret_store_path, store_dir, store_path_for_hash,
+    archived_project_dir, archived_projects_dir, cache_dir, data_dir, ensure_initialized,
+    ensure_project_initialized, keys_dir, lockfile_path, profile_path, profiles_dir,
+    project_descriptor_path, project_dir, project_lockfile_path, project_secret_store_path,
+    project_sessions_dir, project_state_dir, projects_dir, secret_store_key_path,
+    secret_store_path, store_dir, store_path_for_hash,
+};
+pub use project::{
+    ExternalProjectData, ProjectDescriptor, ProjectId, ProjectInner, ProjectState, ProjectType,
+    SecretPolicy,
 };
 pub use secret_ref::{
-    extract_store_name, is_env_backed_ref, is_secret_field_name, is_store_backed_ref,
-    looks_like_raw_secret, SecretRef, SECRET_FIELD_NAMES, SECRET_REF_PREFIX,
+    extract_project_name, extract_store_name, is_env_backed_ref, is_project_backed_ref,
+    is_secret_field_name, is_store_backed_ref, looks_like_raw_secret, SecretRef,
+    SECRET_FIELD_NAMES, SECRET_REF_PREFIX,
 };
 pub use session::{KernelSession, SessionStatus};

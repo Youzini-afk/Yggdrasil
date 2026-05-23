@@ -255,6 +255,7 @@ async fn check_capability_smoke_invocations(
                 caller_package_id: None,
                 provider_package_id: Some(manifest.id.clone()),
                 version: Some(cap.version.clone()),
+                session_id: None,
                 input: json!({}),
             })
             .await;
@@ -364,6 +365,7 @@ async fn check_streaming_cancel_and_timeout(
                 caller_package_id: None,
                 provider_package_id: Some(manifest.id.clone()),
                 version: None,
+                session_id: None,
                 input: json!({}),
             })
             .await
@@ -417,6 +419,7 @@ async fn check_permission_denial_paths(
             caller_package_id: Some(manifest.id.clone()),
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -506,6 +509,7 @@ async fn check_handle_lifecycle(
             caller_package_id: Some(manifest.id.clone()),
             provider_package_id: Some(manifest.id.clone()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;
@@ -532,6 +536,7 @@ async fn check_handle_lifecycle(
             caller_package_id: Some(manifest.id.clone()),
             provider_package_id: Some(manifest.id.clone()),
             version: None,
+            session_id: None,
             input: json!({}),
         })
         .await;

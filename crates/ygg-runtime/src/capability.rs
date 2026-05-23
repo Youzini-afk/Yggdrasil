@@ -32,6 +32,10 @@ pub struct CapabilityInvocationRequest {
     pub provider_package_id: Option<PackageId>,
     #[serde(default)]
     pub version: Option<String>,
+    /// Kernel session id this invocation is part of, if any.
+    /// Propagated from ProtocolContext for downstream scope resolution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     #[serde(default)]
     pub input: Value,
 }

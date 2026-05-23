@@ -65,6 +65,7 @@ async fn invoke(
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
+            session_id: None,
             input,
         })
         .await

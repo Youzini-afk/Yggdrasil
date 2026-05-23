@@ -3,6 +3,8 @@ pub mod event_store;
 pub mod inproc;
 pub mod package;
 pub mod pi;
+pub mod project_registry;
+pub mod project_secret;
 pub mod protocol;
 pub mod redaction;
 pub mod runtime;
@@ -25,6 +27,8 @@ pub use package::{
     entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel,
 };
 pub use pi::PI_INTEGRATION_DEFERRED;
+pub use project_registry::{ProjectEntry, ProjectRegistry};
+pub use project_secret::{ProjectScopeContext, ProjectStoreSecretResolver};
 pub use protocol::{
     host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolContext, ProtocolError,
     ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS,
@@ -50,7 +54,7 @@ pub use runtime::{
     ProposalRecord, ProposalStatus, RedactedHeaderValue, ResolvedSecretHeader, Runtime,
     RuntimeConfig, SecretHeaderSpec, SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter,
     StreamFormat, StreamRegistry, StreamStartStatus, TighteningSuggestion, UnusedAuthority,
-    UsedAuthority, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
+    UsedAuthority, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload, ACTIVE_PROJECT_SCOPE,
     STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;

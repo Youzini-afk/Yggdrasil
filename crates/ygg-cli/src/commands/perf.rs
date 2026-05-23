@@ -385,6 +385,7 @@ where
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
+                session_id: None,
                 input: json!({"baseline": true}),
             })
             .await?;
@@ -443,6 +444,7 @@ where
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
+                session_id: None,
                 input: json!({}),
             })
             .await?;
@@ -807,6 +809,7 @@ where
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
+                session_id: None,
                 input: json!({"baseline": true}),
             })
             .await?;
@@ -864,6 +867,7 @@ async fn scenario_subprocess_cold_start_sample() -> Result<f64> {
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input: json!({"baseline": true}),
         })
         .await?;
@@ -1003,6 +1007,7 @@ where
             caller_package_id: None,
             provider_package_id: None,
             version: None,
+            session_id: None,
             input,
         })
         .await?;
