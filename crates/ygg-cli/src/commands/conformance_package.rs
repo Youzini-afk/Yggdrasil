@@ -133,7 +133,10 @@ async fn add_runtime_checks(report: &mut PackageConformanceReport) {
     let manifest = match read_manifest(report.manifest_path.clone()).await {
         Ok(manifest) => manifest,
         Err(error) => {
-            replace_check(report, fail("handshake.feature_negotiation", error.to_string()));
+            replace_check(
+                report,
+                fail("handshake.feature_negotiation", error.to_string()),
+            );
             return;
         }
     };
@@ -147,14 +150,20 @@ async fn add_runtime_checks(report: &mut PackageConformanceReport) {
                 report,
                 check_capability_smoke_invocations(&manifest, &rt.runtime).await,
             );
-            replace_check(report, check_streaming_cancel_and_timeout(&manifest, &rt).await);
+            replace_check(
+                report,
+                check_streaming_cancel_and_timeout(&manifest, &rt).await,
+            );
             replace_check(report, check_permission_denial_paths(&manifest, &rt).await);
             replace_check(report, check_handle_lifecycle(&manifest, &rt.runtime).await);
             replace_check(report, check_events_and_errors(&manifest, &rt).await);
             let _ = rt.runtime.unload_package(&manifest.id).await;
         }
         Err(error) => {
-            replace_check(report, fail("handshake.feature_negotiation", error.to_string()));
+            replace_check(
+                report,
+                fail("handshake.feature_negotiation", error.to_string()),
+            );
             for id in [
                 "capability.smoke_invocations",
                 "streaming.cancel_and_timeout",
@@ -169,7 +178,11 @@ async fn add_runtime_checks(report: &mut PackageConformanceReport) {
 }
 
 fn replace_check(report: &mut PackageConformanceReport, check: CheckResult) {
-    if let Some(existing) = report.checks.iter_mut().find(|existing| existing.id == check.id) {
+    if let Some(existing) = report
+        .checks
+        .iter_mut()
+        .find(|existing| existing.id == check.id)
+    {
         *existing = check;
     } else {
         report.checks.push(check);
@@ -208,7 +221,10 @@ async fn check_handshake_feature_negotiation(
     }
     pass(
         "handshake.feature_negotiation",
-        Some(format!("ready {:?}; {} bindings", record.state, actual_bindings)),
+        Some(format!(
+            "ready {:?}; {} bindings",
+            record.state, actual_bindings
+        )),
     )
 }
 
@@ -217,7 +233,10 @@ async fn check_capability_smoke_invocations(
     runtime: &Runtime<InMemoryEventStore>,
 ) -> CheckResult {
     if manifest.provides.is_empty() {
-        return pass("capability.smoke_invocations", Some("0/0 capabilities".to_string()));
+        return pass(
+            "capability.smoke_invocations",
+            Some("0/0 capabilities".to_string()),
+        );
     }
     let mut subreports = Vec::new();
     for cap in &manifest.provides {
@@ -240,21 +259,44 @@ async fn check_capability_smoke_invocations(
             })
             .await;
         match result {
-            Ok(_) => subreports.push(SubReport { id: cap.id.clone(), status: CheckStatus::Pass, details: None }),
-            Err(error) if acceptable_structured_error(&error.to_string()) => subreports.push(SubReport {
+            Ok(_) => subreports.push(SubReport {
                 id: cap.id.clone(),
                 status: CheckStatus::Pass,
+                details: None,
+            }),
+            Err(error) if acceptable_structured_error(&error.to_string()) => {
+                subreports.push(SubReport {
+                    id: cap.id.clone(),
+                    status: CheckStatus::Pass,
+                    details: Some(error.to_string()),
+                })
+            }
+            Err(error) => subreports.push(SubReport {
+                id: cap.id.clone(),
+                status: CheckStatus::Fail,
                 details: Some(error.to_string()),
             }),
-            Err(error) => subreports.push(SubReport { id: cap.id.clone(), status: CheckStatus::Fail, details: Some(error.to_string()) }),
         }
     }
-    let failures = subreports.iter().filter(|r| r.status == CheckStatus::Fail).count();
-    let passed = subreports.iter().filter(|r| r.status == CheckStatus::Pass).count();
-    let total = subreports.iter().filter(|r| r.status != CheckStatus::Skip).count();
+    let failures = subreports
+        .iter()
+        .filter(|r| r.status == CheckStatus::Fail)
+        .count();
+    let passed = subreports
+        .iter()
+        .filter(|r| r.status == CheckStatus::Pass)
+        .count();
+    let total = subreports
+        .iter()
+        .filter(|r| r.status != CheckStatus::Skip)
+        .count();
     CheckResult {
         id: "capability.smoke_invocations".to_string(),
-        status: if failures == 0 { CheckStatus::Pass } else { CheckStatus::Fail },
+        status: if failures == 0 {
+            CheckStatus::Pass
+        } else {
+            CheckStatus::Fail
+        },
         details: Some(format!("{passed}/{total} capabilities")),
         subreports,
     }
@@ -264,7 +306,11 @@ async fn check_streaming_cancel_and_timeout(
     manifest: &ygg_core::PackageManifest,
     rt: &LoadedRuntime,
 ) -> CheckResult {
-    let streaming: Vec<_> = manifest.provides.iter().filter(|cap| cap.streaming).collect();
+    let streaming: Vec<_> = manifest
+        .provides
+        .iter()
+        .filter(|cap| cap.streaming)
+        .collect();
     if streaming.is_empty() {
         return skip("streaming.cancel_and_timeout", "no streaming");
     }
@@ -273,10 +319,20 @@ async fn check_streaming_cancel_and_timeout(
         let session_id = format!("conformance_stream_{}", cap.id.replace('/', "_"));
         let started = rt
             .runtime
-            .stream_capability_start(&session_id, &cap.id, Some(&manifest.id), Some(&cap.version), json!({}))
+            .stream_capability_start(
+                &session_id,
+                &cap.id,
+                Some(&manifest.id),
+                Some(&cap.version),
+                json!({}),
+            )
             .await;
         let Ok((_frame, record)) = started else {
-            subreports.push(SubReport { id: cap.id.clone(), status: CheckStatus::Fail, details: Some(started.err().unwrap().to_string()) });
+            subreports.push(SubReport {
+                id: cap.id.clone(),
+                status: CheckStatus::Fail,
+                details: Some(started.err().unwrap().to_string()),
+            });
             continue;
         };
         let _ = rt
@@ -288,14 +344,23 @@ async fn check_streaming_cancel_and_timeout(
                 ygg_core::RedactionState::NotCaptured,
             )
             .await;
-        let cancelled = rt.runtime.stream_capability_cancel(&session_id, &record.invocation_id).await;
+        let cancelled = rt
+            .runtime
+            .stream_capability_cancel(&session_id, &record.invocation_id)
+            .await;
         let events = rt.store.list_session(&session_id).await.unwrap_or_default();
-        let emitted = events.iter().any(|e| e.kind == ygg_core::EVENT_STREAM_CANCELLED);
+        let emitted = events
+            .iter()
+            .any(|e| e.kind == ygg_core::EVENT_STREAM_CANCELLED);
         let next_ok = rt
             .runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
-                capability_id: manifest.provides.iter().find(|c| !c.streaming).map(|c| c.id.clone()),
+                capability_id: manifest
+                    .provides
+                    .iter()
+                    .find(|c| !c.streaming)
+                    .map(|c| c.id.clone()),
                 caller_package_id: None,
                 provider_package_id: Some(manifest.id.clone()),
                 version: None,
@@ -307,14 +372,27 @@ async fn check_streaming_cancel_and_timeout(
         let ok = cancelled.is_ok() && emitted && next_ok;
         subreports.push(SubReport {
             id: cap.id.clone(),
-            status: if ok { CheckStatus::Pass } else { CheckStatus::Fail },
-            details: Some(format!("cancelled_event={emitted}, next_invoke_ok={next_ok}")),
+            status: if ok {
+                CheckStatus::Pass
+            } else {
+                CheckStatus::Fail
+            },
+            details: Some(format!(
+                "cancelled_event={emitted}, next_invoke_ok={next_ok}"
+            )),
         });
     }
-    let failures = subreports.iter().filter(|r| r.status == CheckStatus::Fail).count();
+    let failures = subreports
+        .iter()
+        .filter(|r| r.status == CheckStatus::Fail)
+        .count();
     CheckResult {
         id: "streaming.cancel_and_timeout".to_string(),
-        status: if failures == 0 { CheckStatus::Pass } else { CheckStatus::Fail },
+        status: if failures == 0 {
+            CheckStatus::Pass
+        } else {
+            CheckStatus::Fail
+        },
         details: None,
         subreports,
     }
@@ -352,9 +430,15 @@ async fn check_permission_denial_paths(
         .iter()
         .any(|e| e.kind == ygg_core::EVENT_PERMISSION_DENIED);
     if denied && emitted {
-        pass("permission.denial_paths", Some("undeclared capability invoke denied".to_string()))
+        pass(
+            "permission.denial_paths",
+            Some("undeclared capability invoke denied".to_string()),
+        )
     } else {
-        fail("permission.denial_paths", format!("denied={denied}, event_emitted={emitted}"))
+        fail(
+            "permission.denial_paths",
+            format!("denied={denied}, event_emitted={emitted}"),
+        )
     }
 }
 
@@ -363,7 +447,10 @@ async fn check_handle_lifecycle(
     runtime: &Runtime<InMemoryEventStore>,
 ) -> CheckResult {
     if manifest.entry.contract == ContractMode::None {
-        return skip("handle.lifecycle", "Path B contract=none; handles are not enforced");
+        return skip(
+            "handle.lifecycle",
+            "Path B contract=none; handles are not enforced",
+        );
     }
     let Some(cap) = manifest.provides.iter().find(|cap| !cap.streaming) else {
         return skip("handle.lifecycle", "no non-streaming capability");
@@ -374,9 +461,16 @@ async fn check_handle_lifecycle(
             id: CapHandleId::new(),
             cap_type: cap.id.clone(),
             cap_version: cap.version.clone(),
-            scope: HandleScope { holder_package_id: manifest.id.clone(), session_id: None },
+            scope: HandleScope {
+                holder_package_id: manifest.id.clone(),
+                session_id: None,
+            },
             constraints: json!({}),
-            lease: HandleLease { expires_at: None, max_invocations: None, invocations_used: 0 },
+            lease: HandleLease {
+                expires_at: None,
+                max_invocations: None,
+                invocations_used: 0,
+            },
             provenance: HandleProvenance {
                 granted_at: chrono::Utc::now(),
                 granted_by_package_id: ygg_core::KERNEL_PACKAGE_ID.to_string(),
@@ -396,7 +490,12 @@ async fn check_handle_lifecycle(
     {
         Ok(value) => match serde_json::from_value::<CapHandleId>(value["handle"]["id"].clone()) {
             Ok(id) => id,
-            Err(error) => return fail("handle.lifecycle", format!("parse attenuated handle: {error}")),
+            Err(error) => {
+                return fail(
+                    "handle.lifecycle",
+                    format!("parse attenuated handle: {error}"),
+                )
+            }
         },
         Err(error) => return fail("handle.lifecycle", format!("attenuate failed: {error:?}")),
     };
@@ -411,10 +510,17 @@ async fn check_handle_lifecycle(
         })
         .await;
     if let Err(error) = invoke {
-        return fail("handle.lifecycle", format!("invoke with attenuated handle failed: {error}"));
+        return fail(
+            "handle.lifecycle",
+            format!("invoke with attenuated handle failed: {error}"),
+        );
     }
     if let Err(error) = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.cap.revoke", json!({"handle": child}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.cap.revoke",
+            json!({"handle": child}),
+        )
         .await
     {
         return fail("handle.lifecycle", format!("revoke failed: {error:?}"));
@@ -430,13 +536,22 @@ async fn check_handle_lifecycle(
         })
         .await;
     if revoked.is_err() {
-        pass("handle.lifecycle", Some("attenuate/invoke/revoke lifecycle enforced".to_string()))
+        pass(
+            "handle.lifecycle",
+            Some("attenuate/invoke/revoke lifecycle enforced".to_string()),
+        )
     } else {
-        fail("handle.lifecycle", "revoked handle still invoked successfully")
+        fail(
+            "handle.lifecycle",
+            "revoked handle still invoked successfully",
+        )
     }
 }
 
-async fn check_events_and_errors(manifest: &ygg_core::PackageManifest, rt: &LoadedRuntime) -> CheckResult {
+async fn check_events_and_errors(
+    manifest: &ygg_core::PackageManifest,
+    rt: &LoadedRuntime,
+) -> CheckResult {
     let registry = event_registry();
     let events = rt.store.list_all().await.unwrap_or_default();
     let mut failures = Vec::new();
@@ -445,20 +560,40 @@ async fn check_events_and_errors(manifest: &ygg_core::PackageManifest, rt: &Load
         if event.kind.starts_with("kernel/v1/") && !registry.contains(event.kind.as_str()) {
             failures.push(format!("off-registry kernel event '{}'", event.kind));
         } else if event.kind.starts_with(&format!("{}/", manifest.id)) {
-            warnings.push(format!("package namespace event '{}' is allowed but not registry-standard", event.kind));
+            warnings.push(format!(
+                "package namespace event '{}' is allowed but not registry-standard",
+                event.kind
+            ));
         }
         if event.kind == ygg_core::EVENT_CAPABILITY_FAILED {
-            let ok = event.payload.get("error_kind").and_then(Value::as_str).is_some()
-                && event.payload.get("error_message").and_then(Value::as_str).is_some();
+            let ok = event
+                .payload
+                .get("error_kind")
+                .and_then(Value::as_str)
+                .is_some()
+                && event
+                    .payload
+                    .get("error_message")
+                    .and_then(Value::as_str)
+                    .is_some();
             if !ok {
-                failures.push(format!("capability failure event '{}' has invalid error shape", event.id));
+                failures.push(format!(
+                    "capability failure event '{}' has invalid error shape",
+                    event.id
+                ));
             }
         }
     }
     if !failures.is_empty() {
-        fail("events_and_errors_consistent_with_registry", failures.join("; "))
+        fail(
+            "events_and_errors_consistent_with_registry",
+            failures.join("; "),
+        )
     } else if !warnings.is_empty() {
-        warning("events_and_errors_consistent_with_registry", warnings.join("; "))
+        warning(
+            "events_and_errors_consistent_with_registry",
+            warnings.join("; "),
+        )
     } else {
         pass("events_and_errors_consistent_with_registry", None)
     }
@@ -513,19 +648,39 @@ fn event_registry() -> BTreeSet<&'static str> {
 }
 
 fn pass(id: &str, details: Option<String>) -> CheckResult {
-    CheckResult { id: id.to_string(), status: CheckStatus::Pass, details, subreports: Vec::new() }
+    CheckResult {
+        id: id.to_string(),
+        status: CheckStatus::Pass,
+        details,
+        subreports: Vec::new(),
+    }
 }
 
 fn fail(id: &str, details: impl Into<String>) -> CheckResult {
-    CheckResult { id: id.to_string(), status: CheckStatus::Fail, details: Some(details.into()), subreports: Vec::new() }
+    CheckResult {
+        id: id.to_string(),
+        status: CheckStatus::Fail,
+        details: Some(details.into()),
+        subreports: Vec::new(),
+    }
 }
 
 fn skip(id: &str, details: impl Into<String>) -> CheckResult {
-    CheckResult { id: id.to_string(), status: CheckStatus::Skip, details: Some(details.into()), subreports: Vec::new() }
+    CheckResult {
+        id: id.to_string(),
+        status: CheckStatus::Skip,
+        details: Some(details.into()),
+        subreports: Vec::new(),
+    }
 }
 
 fn warning(id: &str, details: impl Into<String>) -> CheckResult {
-    CheckResult { id: id.to_string(), status: CheckStatus::Warning, details: Some(details.into()), subreports: Vec::new() }
+    CheckResult {
+        id: id.to_string(),
+        status: CheckStatus::Warning,
+        details: Some(details.into()),
+        subreports: Vec::new(),
+    }
 }
 
 fn acceptable_structured_error(error: &str) -> bool {

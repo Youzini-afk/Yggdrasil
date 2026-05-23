@@ -181,6 +181,20 @@ export interface DeclaredAuthority {
   "secret_refs": Array<string>;
 }
 
+export type DependencySource = {
+  "kind": "git";
+  /**
+   * Tag, branch, or commit ref
+   */
+  "ref"?: string;
+  "url": string;
+} | {
+  "kind": "internal";
+} | {
+  "kind": "local";
+  "path": string;
+};
+
 export type EmptyParams = Record<string, unknown>;
 
 export type EntryDescriptor = {
@@ -736,6 +750,25 @@ export interface PackageContributions {
   "surfaces"?: Array<SurfaceContribution>;
 }
 
+export interface PackageDependency {
+  /**
+   * Logical package id (must match the dependency's manifest.id once resolved)
+   */
+  "id": string;
+  /**
+   * Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+   */
+  "minimum_signed_by"?: Array<string>;
+  /**
+   * Where the package comes from
+   */
+  "source": DependencySource;
+  /**
+   * Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+   */
+  "version"?: string;
+}
+
 export type PackageDescribeResult = null;
 
 export interface PackageIdParams {
@@ -788,6 +821,10 @@ export interface PackageManifest {
   "license"?: null | string;
   "permissions"?: PermissionSet;
   "provides"?: Array<CapabilityDescriptor>;
+  /**
+   * First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+   */
+  "requires"?: Array<PackageDependency>;
   "sandbox_policy"?: SandboxPolicy;
   "schema_version": number;
   "version": string;
@@ -804,6 +841,10 @@ export interface PackageManifest2 {
   "license"?: null | string;
   "permissions"?: PermissionSet;
   "provides"?: Array<CapabilityDescriptor>;
+  /**
+   * First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+   */
+  "requires"?: Array<PackageDependency>;
   "sandbox_policy"?: SandboxPolicy;
   "schema_version": number;
   "version": string;

@@ -15,7 +15,7 @@ The platform substrate is in place.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
 - Vite web-shell builds, iframe SurfaceHost, the Tauri 2.x desktop wrapper, and the tag-triggered cross-platform release pipeline — all complete.
 - Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, SDK generation, and 105 schemas are in place.
-- 362 named conformance cases pass, plus crate / service unit tests.
+- 387 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -33,7 +33,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- **Round 10+: `official/git-tools-lab`.** Implement the `yg install <github-url>` flow as an ordinary official capability package using `kernel.v1.outbound.execute` (smart-http) plus `permissions.filesystem.write`, with sigstore/GPG signed-tag verification. This replaces the deleted kernel git fetch.
+- The package-installation foundation is complete; only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.
@@ -51,6 +51,28 @@ Not new phases, but known to-dos that will get done:
 - Cross-origin surface-bundle allowlist, including CSP and origin checks.
 - Desktop wrapper starts / stops `host serve` as a controlled managed subprocess.
 - Phase B optimizations (next): use [`../../perf/baseline.json`](../../perf/baseline.json) as the regression reference and measure before changing behavior.
+
+## Round 10A — Package Installation Foundation (complete)
+
+- `yg install <github-url>` end to end.
+- `official/git-tools-lab` + `integrity-lab` + `install-lab` capability packages.
+- `manifest.requires` field + Lockfile (`yggdrasil.lock.v1`).
+- `~/.yggdrasil` filesystem convention.
+- Interactive consent prompts + static conformance integration.
+
+## Round 10B — Contract Frontier (not started)
+
+- WIT worlds + WASM entry form (move from scaffold toward partial).
+- Powerbox late-bound provider selection.
+- Cap'n Proto / Biscuit experiments.
+
+## Round 11 — Distribution polish (not started)
+
+- `yg gc` orphaned-store cleanup.
+- Tauri UI install path.
+- Sigstore keyless verification.
+- Auto-update daemon.
+- Binary package distribution.
 
 ## Round 10: Contract Frontier
 
@@ -112,7 +134,7 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - Storage Backend Neutrality Alpha
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
-- Git Package Installation Substrate
+- Package Installation Foundation (Round 10A)
 - Outbound WebSocket Substrate
 - Shell + Release S-track (Vite web build, iframe SurfaceHost, Tauri desktop wrapper, GitHub Actions release)
 - Round 9 Contract Foundation (Contract V1, capability handles, bindings, Path B, audit, conformance kit, SDK generation)

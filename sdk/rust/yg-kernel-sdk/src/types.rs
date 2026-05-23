@@ -4544,6 +4544,615 @@ pub struct DeclaredAuthority {
     pub network_hosts: ::std::vec::Vec<::std::string::String>,
     pub secret_refs: ::std::vec::Vec<::std::string::String>,
 }
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
+///`DependencySource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "internal"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "description": "Fetched from a git remote",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "url"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "git"
+///          ]
+///        },
+///        "ref": {
+///          "description": "Tag, branch, or commit ref",
+///          "default": "",
+///          "type": "string"
+///        },
+///        "url": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "description": "Local filesystem path (for development)",
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "path"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "local"
+///          ]
+///        },
+///        "path": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum DependencySource {
+    #[serde(rename = "internal")]
+    Internal,
+    ///Fetched from a git remote
+    #[serde(rename = "git")]
+    Git {
+        ///Tag, branch, or commit ref
+        #[serde(rename = "ref", default)]
+        ref_: ::std::string::String,
+        url: ::std::string::String,
+    },
+    ///Local filesystem path (for development)
+    #[serde(rename = "local")]
+    Local { path: ::std::string::String },
+}
 ///`EmptyParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -13281,6 +13890,384 @@ impl ::std::default::Default for PackageContributions {
         }
     }
 }
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
+///`PackageDependency`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "source"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///      "type": "string"
+///    },
+///    "minimum_signed_by": {
+///      "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "source": {
+///      "description": "Where the package comes from",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/DependencySource"
+///        }
+///      ]
+///    },
+///    "version": {
+///      "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///      "default": "",
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageDependency {
+    ///Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: ::std::string::String,
+    ///Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub minimum_signed_by: ::std::vec::Vec<::std::string::String>,
+    ///Where the package comes from
+    pub source: DependencySource,
+    ///Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+    #[serde(default)]
+    pub version: ::std::string::String,
+}
 ///`PackageDescribeResult`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14214,6 +15201,68 @@ pub struct PackageLifecyclePayload {
 ///          }
 ///        ]
 ///      },
+///      "DependencySource": {
+///        "oneOf": [
+///          {
+///            "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///            "properties": {
+///              "kind": {
+///                "enum": [
+///                  "internal"
+///                ],
+///                "type": "string"
+///              }
+///            },
+///            "required": [
+///              "kind"
+///            ],
+///            "type": "object"
+///          },
+///          {
+///            "description": "Fetched from a git remote",
+///            "properties": {
+///              "kind": {
+///                "enum": [
+///                  "git"
+///                ],
+///                "type": "string"
+///              },
+///              "ref": {
+///                "default": "",
+///                "description": "Tag, branch, or commit ref",
+///                "type": "string"
+///              },
+///              "url": {
+///                "type": "string"
+///              }
+///            },
+///            "required": [
+///              "kind",
+///              "url"
+///            ],
+///            "type": "object"
+///          },
+///          {
+///            "description": "Local filesystem path (for development)",
+///            "properties": {
+///              "kind": {
+///                "enum": [
+///                  "local"
+///                ],
+///                "type": "string"
+///              },
+///              "path": {
+///                "type": "string"
+///              }
+///            },
+///            "required": [
+///              "kind",
+///              "path"
+///            ],
+///            "type": "object"
+///          }
+///        ]
+///      },
 ///      "EntryDescriptor": {
 ///        "oneOf": [
 ///          {
@@ -14515,6 +15564,39 @@ pub struct PackageLifecyclePayload {
 ///        },
 ///        "type": "object"
 ///      },
+///      "PackageDependency": {
+///        "properties": {
+///          "id": {
+///            "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///            "type": "string"
+///          },
+///          "minimum_signed_by": {
+///            "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///            "items": {
+///              "type": "string"
+///            },
+///            "type": "array"
+///          },
+///          "source": {
+///            "allOf": [
+///              {
+///                "$ref": "#/definitions/DependencySource"
+///              }
+///            ],
+///            "description": "Where the package comes from"
+///          },
+///          "version": {
+///            "default": "",
+///            "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///            "type": "string"
+///          }
+///        },
+///        "required": [
+///          "id",
+///          "source"
+///        ],
+///        "type": "object"
+///      },
 ///      "PackageManifest": {
 ///        "properties": {
 ///          "author": {
@@ -14607,6 +15689,13 @@ pub struct PackageLifecyclePayload {
 ///            "default": [],
 ///            "items": {
 ///              "$ref": "#/definitions/CapabilityDescriptor"
+///            },
+///            "type": "array"
+///          },
+///          "requires": {
+///            "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///            "items": {
+///              "$ref": "#/definitions/PackageDependency"
 ///            },
 ///            "type": "array"
 ///          },
@@ -15140,6 +16229,13 @@ impl ::std::convert::From<::std::vec::Vec<SubprocessLogLine>> for PackageLogsRes
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -15185,6 +16281,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -15297,6 +16396,13 @@ pub struct PackageManifest {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -15342,6 +16448,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -15455,6 +16564,13 @@ pub struct PackageManifest {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -15500,6 +16616,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -15612,6 +16731,13 @@ pub struct PackageManifest {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -15657,6 +16783,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -15769,6 +16898,13 @@ pub struct PackageManifest {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -15814,6 +16950,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -15926,6 +17065,13 @@ pub struct PackageManifest {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -15971,6 +17117,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -16083,6 +17232,13 @@ pub struct PackageManifest {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      }
 ///    },
+///    "requires": {
+///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackageDependency"
+///      }
+///    },
 ///    "sandbox_policy": {
 ///      "default": {
 ///        "cpu_quota_ms_per_invoke": 5000,
@@ -16128,6 +17284,9 @@ pub struct PackageManifest {
     pub permissions: PermissionSet,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub requires: ::std::vec::Vec<PackageDependency>,
     #[serde(default = "defaults::package_manifest_sandbox_policy")]
     pub sandbox_policy: SandboxPolicy,
     pub schema_version: u16,
@@ -16536,6 +17695,68 @@ impl ::std::default::Default for PackagePermissions {
 ///        }
 ///      ]
 ///    },
+///    "DependencySource": {
+///      "oneOf": [
+///        {
+///          "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+///          "properties": {
+///            "kind": {
+///              "enum": [
+///                "internal"
+///              ],
+///              "type": "string"
+///            }
+///          },
+///          "required": [
+///            "kind"
+///          ],
+///          "type": "object"
+///        },
+///        {
+///          "description": "Fetched from a git remote",
+///          "properties": {
+///            "kind": {
+///              "enum": [
+///                "git"
+///              ],
+///              "type": "string"
+///            },
+///            "ref": {
+///              "default": "",
+///              "description": "Tag, branch, or commit ref",
+///              "type": "string"
+///            },
+///            "url": {
+///              "type": "string"
+///            }
+///          },
+///          "required": [
+///            "kind",
+///            "url"
+///          ],
+///          "type": "object"
+///        },
+///        {
+///          "description": "Local filesystem path (for development)",
+///          "properties": {
+///            "kind": {
+///              "enum": [
+///                "local"
+///              ],
+///              "type": "string"
+///            },
+///            "path": {
+///              "type": "string"
+///            }
+///          },
+///          "required": [
+///            "kind",
+///            "path"
+///          ],
+///          "type": "object"
+///        }
+///      ]
+///    },
 ///    "EntryDescriptor": {
 ///      "oneOf": [
 ///        {
@@ -16837,6 +18058,39 @@ impl ::std::default::Default for PackagePermissions {
 ///      },
 ///      "type": "object"
 ///    },
+///    "PackageDependency": {
+///      "properties": {
+///        "id": {
+///          "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+///          "type": "string"
+///        },
+///        "minimum_signed_by": {
+///          "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+///          "items": {
+///            "type": "string"
+///          },
+///          "type": "array"
+///        },
+///        "source": {
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/DependencySource"
+///            }
+///          ],
+///          "description": "Where the package comes from"
+///        },
+///        "version": {
+///          "default": "",
+///          "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+///          "type": "string"
+///        }
+///      },
+///      "required": [
+///        "id",
+///        "source"
+///      ],
+///      "type": "object"
+///    },
 ///    "PackageManifest": {
 ///      "properties": {
 ///        "author": {
@@ -16929,6 +18183,13 @@ impl ::std::default::Default for PackagePermissions {
 ///          "default": [],
 ///          "items": {
 ///            "$ref": "#/definitions/CapabilityDescriptor"
+///          },
+///          "type": "array"
+///        },
+///        "requires": {
+///          "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+///          "items": {
+///            "$ref": "#/definitions/PackageDependency"
 ///          },
 ///          "type": "array"
 ///        },
@@ -20714,7 +21975,7 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T09:38:51.040813838Z",
+///        "default": "2026-05-23T11:39:31.073765047Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -21427,7 +22688,7 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.042879829Z",
+///      "default": "2026-05-23T11:39:31.075803240Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -21555,7 +22816,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.041592431Z",
+///      "default": "2026-05-23T11:39:31.074575412Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -21683,7 +22944,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.039104992Z",
+///      "default": "2026-05-23T11:39:31.072011337Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -21811,7 +23072,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.039297293Z",
+///      "default": "2026-05-23T11:39:31.072231741Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -21939,7 +23200,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.040180730Z",
+///      "default": "2026-05-23T11:39:31.073181745Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22067,7 +23328,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.042192578Z",
+///      "default": "2026-05-23T11:39:31.075216153Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22195,7 +23456,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.048040246Z",
+///      "default": "2026-05-23T11:39:31.080478511Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22323,7 +23584,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.047759439Z",
+///      "default": "2026-05-23T11:39:31.080199256Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22451,7 +23712,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.047602684Z",
+///      "default": "2026-05-23T11:39:31.080019955Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22579,7 +23840,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.048171381Z",
+///      "default": "2026-05-23T11:39:31.080613471Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22707,7 +23968,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T09:38:51.047908391Z",
+///      "default": "2026-05-23T11:39:31.080341176Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -29735,7 +30996,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.033176047Z",
+///      "default": "2026-05-23T11:39:31.065973317Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -29826,7 +31087,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.049022638Z",
+///      "default": "2026-05-23T11:39:31.081538887Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -29917,7 +31178,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.048744164Z",
+///      "default": "2026-05-23T11:39:31.081268414Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -30008,7 +31269,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.048894158Z",
+///      "default": "2026-05-23T11:39:31.081407583Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -30099,7 +31360,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.048958728Z",
+///      "default": "2026-05-23T11:39:31.081473265Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -30190,7 +31451,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.048828005Z",
+///      "default": "2026-05-23T11:39:31.081340908Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -30281,7 +31542,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T09:38:51.049086828Z",
+///      "default": "2026-05-23T11:39:31.081604479Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36910,7 +38171,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.042879829Z\"")
+        >("\"2026-05-23T11:39:31.075803240Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -36930,7 +38191,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.041592431Z\"")
+        >("\"2026-05-23T11:39:31.074575412Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -36950,7 +38211,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.039104992Z\"")
+        >("\"2026-05-23T11:39:31.072011337Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -36970,7 +38231,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.039297293Z\"")
+        >("\"2026-05-23T11:39:31.072231741Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -36990,7 +38251,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.040180730Z\"")
+        >("\"2026-05-23T11:39:31.073181745Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37010,7 +38271,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.042192578Z\"")
+        >("\"2026-05-23T11:39:31.075216153Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37030,7 +38291,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.048040246Z\"")
+        >("\"2026-05-23T11:39:31.080478511Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37050,7 +38311,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.047759439Z\"")
+        >("\"2026-05-23T11:39:31.080199256Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37070,7 +38331,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.047602684Z\"")
+        >("\"2026-05-23T11:39:31.080019955Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37090,7 +38351,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.048171381Z\"")
+        >("\"2026-05-23T11:39:31.080613471Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37110,7 +38371,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.047908391Z\"")
+        >("\"2026-05-23T11:39:31.080341176Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -37160,7 +38421,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.033176047Z\"")
+        >("\"2026-05-23T11:39:31.065973317Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -37177,7 +38438,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.049022638Z\"")
+        >("\"2026-05-23T11:39:31.081538887Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -37194,7 +38455,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.048744164Z\"")
+        >("\"2026-05-23T11:39:31.081268414Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -37211,7 +38472,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.048894158Z\"")
+        >("\"2026-05-23T11:39:31.081407583Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -37228,7 +38489,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.048958728Z\"")
+        >("\"2026-05-23T11:39:31.081473265Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -37245,7 +38506,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.048828005Z\"")
+        >("\"2026-05-23T11:39:31.081340908Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -37262,7 +38523,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T09:38:51.049086828Z\"")
+        >("\"2026-05-23T11:39:31.081604479Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

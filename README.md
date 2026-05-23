@@ -39,13 +39,14 @@
 
 平台底座已经搭好。Contract V1 是公开平台规范，见 [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md)。下一阶段不再继续摊大表面积，而是用真实的可玩体验来牵引剩下的工作。
 
-- 362 个具名 conformance 用例 + crate / service 单元测试，全部通过；105 个 v1 schema（57 methods + 41 events + 7 top-level）可验证。
+- 387 个具名 conformance 用例 + crate / service 单元测试，全部通过；105 个 v1 schema（57 methods + 41 events + 7 top-level）可验证。
 - 内核内容无关，官方包无特权，公开协议唯一入口。
 - 安全执行、提案审批、能力句柄、bindings 注入、Path A / Path B、conformance kit、生成 SDK、流式生命周期、模型接入、agent 基础设施都已落地。
 - Path A（`entry.contract: "v1"`）和 Path B（`entry.contract: "none"`）都是一等参与方式。
 - SDK 通过三种渠道获得：npm `@yggdrasil/kernel-sdk`、工作空间 `file:../yggdrasil/sdk/typescript/kernel-sdk`、或直接读取 `docs/spec/v1/schemas/` 自行生成。
 - Web shell 已切到 Vite dev/build；`clients/desktop/` 提供 Tauri 2.x 桌面 wrapper，`v*` tag 通过 GitHub Actions 构建跨平台安装包。
 - perf baseline 现在记录 p50/p95/p99 + memory + env/git，支持 `--compare` + `--threshold-pct`，并已提交 `perf/baseline.json`。
+- `yg install <github-url>` 端到端从 GitHub 安装能力包，HTTPS-only、GPG 签名校验、内容寻址存储、conformance 验证、同意提示。
 
 详细情况见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)；下一步方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
@@ -144,6 +145,16 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
+安装和管理能力包：
+
+```bash
+yg install github.com/user/yggdrasil-package#v1.2.0
+yg list-installed
+yg uninstall <package-id>
+yg update [<package-id>]
+yg lockfile --check
+```
+
 只用公开协议跑通空白游创循环：
 
 ```bash
@@ -164,6 +175,7 @@ cargo run -p ygg-cli -- play-create-demo
 | 理解架构 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) |
 | 接入公开协议 | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md) |
 | 写第一个能力包 | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
+| 安装能力包 | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) |
 | 写 agent / 模型 / 体验包 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
 | 挂载第三方 Web surface | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.md) |
 | 看当前状态 | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) |

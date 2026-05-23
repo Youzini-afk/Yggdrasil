@@ -192,6 +192,45 @@ components:
             enum:
             - none
             type: string
+        DependencySource:
+          oneOf:
+          - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+            properties:
+              kind:
+                enum:
+                - internal
+                type: string
+            required:
+            - kind
+            type: object
+          - description: Fetched from a git remote
+            properties:
+              kind:
+                enum:
+                - git
+                type: string
+              ref:
+                default: ''
+                description: Tag, branch, or commit ref
+                type: string
+              url:
+                type: string
+            required:
+            - kind
+            - url
+            type: object
+          - description: Local filesystem path (for development)
+            properties:
+              kind:
+                enum:
+                - local
+                type: string
+              path:
+                type: string
+            required:
+            - kind
+            - path
+            type: object
         EntryDescriptor:
           oneOf:
           - properties:
@@ -398,6 +437,28 @@ components:
               items:
                 $ref: '#/$defs/SurfaceContribution'
               type: array
+          type: object
+        PackageDependency:
+          properties:
+            id:
+              description: Logical package id (must match the dependency's manifest.id once resolved)
+              type: string
+            minimum_signed_by:
+              description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+              items:
+                type: string
+              type: array
+            source:
+              allOf:
+              - $ref: '#/$defs/DependencySource'
+              description: Where the package comes from
+            version:
+              default: ''
+              description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+              type: string
+          required:
+          - id
+          - source
           type: object
         PackagePermissions:
           properties:
@@ -659,6 +720,11 @@ components:
           default: []
           items:
             $ref: '#/$defs/CapabilityDescriptor'
+          type: array
+        requires:
+          description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+          items:
+            $ref: '#/$defs/PackageDependency'
           type: array
         sandbox_policy:
           allOf:
@@ -1976,7 +2042,7 @@ paths:
                         description: Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
                         type: string
                       timestamp:
-                        default: 2026-05-23T09:38:51.033176047Z
+                        default: 2026-05-23T11:39:31.065973317Z
                         description: Timestamp of frame emission.
                         format: date-time
                         type: string
@@ -4335,6 +4401,45 @@ paths:
                             enum:
                             - none
                             type: string
+                        DependencySource:
+                          oneOf:
+                          - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+                            properties:
+                              kind:
+                                enum:
+                                - internal
+                                type: string
+                            required:
+                            - kind
+                            type: object
+                          - description: Fetched from a git remote
+                            properties:
+                              kind:
+                                enum:
+                                - git
+                                type: string
+                              ref:
+                                default: ''
+                                description: Tag, branch, or commit ref
+                                type: string
+                              url:
+                                type: string
+                            required:
+                            - kind
+                            - url
+                            type: object
+                          - description: Local filesystem path (for development)
+                            properties:
+                              kind:
+                                enum:
+                                - local
+                                type: string
+                              path:
+                                type: string
+                            required:
+                            - kind
+                            - path
+                            type: object
                         EntryDescriptor:
                           oneOf:
                           - properties:
@@ -4542,6 +4647,28 @@ paths:
                                 $ref: '#/$defs/SurfaceContribution'
                               type: array
                           type: object
+                        PackageDependency:
+                          properties:
+                            id:
+                              description: Logical package id (must match the dependency's manifest.id once resolved)
+                              type: string
+                            minimum_signed_by:
+                              description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+                              items:
+                                type: string
+                              type: array
+                            source:
+                              allOf:
+                              - $ref: '#/$defs/DependencySource'
+                              description: Where the package comes from
+                            version:
+                              default: ''
+                              description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+                              type: string
+                          required:
+                          - id
+                          - source
+                          type: object
                         PackageManifest:
                           properties:
                             author:
@@ -4606,6 +4733,11 @@ paths:
                               default: []
                               items:
                                 $ref: '#/$defs/CapabilityDescriptor'
+                              type: array
+                            requires:
+                              description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+                              items:
+                                $ref: '#/$defs/PackageDependency'
                               type: array
                             sandbox_policy:
                               allOf:
@@ -4977,6 +5109,45 @@ paths:
                         enum:
                         - none
                         type: string
+                    DependencySource:
+                      oneOf:
+                      - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+                        properties:
+                          kind:
+                            enum:
+                            - internal
+                            type: string
+                        required:
+                        - kind
+                        type: object
+                      - description: Fetched from a git remote
+                        properties:
+                          kind:
+                            enum:
+                            - git
+                            type: string
+                          ref:
+                            default: ''
+                            description: Tag, branch, or commit ref
+                            type: string
+                          url:
+                            type: string
+                        required:
+                        - kind
+                        - url
+                        type: object
+                      - description: Local filesystem path (for development)
+                        properties:
+                          kind:
+                            enum:
+                            - local
+                            type: string
+                          path:
+                            type: string
+                        required:
+                        - kind
+                        - path
+                        type: object
                     EntryDescriptor:
                       oneOf:
                       - properties:
@@ -5183,6 +5354,28 @@ paths:
                           items:
                             $ref: '#/$defs/SurfaceContribution'
                           type: array
+                      type: object
+                    PackageDependency:
+                      properties:
+                        id:
+                          description: Logical package id (must match the dependency's manifest.id once resolved)
+                          type: string
+                        minimum_signed_by:
+                          description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+                          items:
+                            type: string
+                          type: array
+                        source:
+                          allOf:
+                          - $ref: '#/$defs/DependencySource'
+                          description: Where the package comes from
+                        version:
+                          default: ''
+                          description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+                          type: string
+                      required:
+                      - id
+                      - source
                       type: object
                     PackagePermissions:
                       properties:
@@ -5445,6 +5638,11 @@ paths:
                       items:
                         $ref: '#/$defs/CapabilityDescriptor'
                       type: array
+                    requires:
+                      description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+                      items:
+                        $ref: '#/$defs/PackageDependency'
+                      type: array
                     sandbox_policy:
                       allOf:
                       - $ref: '#/$defs/SandboxPolicy'
@@ -5563,6 +5761,45 @@ paths:
                           enum:
                           - none
                           type: string
+                      DependencySource:
+                        oneOf:
+                        - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+                          properties:
+                            kind:
+                              enum:
+                              - internal
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        - description: Fetched from a git remote
+                          properties:
+                            kind:
+                              enum:
+                              - git
+                              type: string
+                            ref:
+                              default: ''
+                              description: Tag, branch, or commit ref
+                              type: string
+                            url:
+                              type: string
+                          required:
+                          - kind
+                          - url
+                          type: object
+                        - description: Local filesystem path (for development)
+                          properties:
+                            kind:
+                              enum:
+                              - local
+                              type: string
+                            path:
+                              type: string
+                          required:
+                          - kind
+                          - path
+                          type: object
                       EntryDescriptor:
                         oneOf:
                         - properties:
@@ -5770,6 +6007,28 @@ paths:
                               $ref: '#/$defs/SurfaceContribution'
                             type: array
                         type: object
+                      PackageDependency:
+                        properties:
+                          id:
+                            description: Logical package id (must match the dependency's manifest.id once resolved)
+                            type: string
+                          minimum_signed_by:
+                            description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+                            items:
+                              type: string
+                            type: array
+                          source:
+                            allOf:
+                            - $ref: '#/$defs/DependencySource'
+                            description: Where the package comes from
+                          version:
+                            default: ''
+                            description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+                            type: string
+                        required:
+                        - id
+                        - source
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -5834,6 +6093,11 @@ paths:
                             default: []
                             items:
                               $ref: '#/$defs/CapabilityDescriptor'
+                            type: array
+                          requires:
+                            description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+                            items:
+                              $ref: '#/$defs/PackageDependency'
                             type: array
                           sandbox_policy:
                             allOf:
@@ -6327,6 +6591,45 @@ paths:
                           enum:
                           - none
                           type: string
+                      DependencySource:
+                        oneOf:
+                        - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+                          properties:
+                            kind:
+                              enum:
+                              - internal
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        - description: Fetched from a git remote
+                          properties:
+                            kind:
+                              enum:
+                              - git
+                              type: string
+                            ref:
+                              default: ''
+                              description: Tag, branch, or commit ref
+                              type: string
+                            url:
+                              type: string
+                          required:
+                          - kind
+                          - url
+                          type: object
+                        - description: Local filesystem path (for development)
+                          properties:
+                            kind:
+                              enum:
+                              - local
+                              type: string
+                            path:
+                              type: string
+                          required:
+                          - kind
+                          - path
+                          type: object
                       EntryDescriptor:
                         oneOf:
                         - properties:
@@ -6534,6 +6837,28 @@ paths:
                               $ref: '#/$defs/SurfaceContribution'
                             type: array
                         type: object
+                      PackageDependency:
+                        properties:
+                          id:
+                            description: Logical package id (must match the dependency's manifest.id once resolved)
+                            type: string
+                          minimum_signed_by:
+                            description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+                            items:
+                              type: string
+                            type: array
+                          source:
+                            allOf:
+                            - $ref: '#/$defs/DependencySource'
+                            description: Where the package comes from
+                          version:
+                            default: ''
+                            description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+                            type: string
+                        required:
+                        - id
+                        - source
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -6598,6 +6923,11 @@ paths:
                             default: []
                             items:
                               $ref: '#/$defs/CapabilityDescriptor'
+                            type: array
+                          requires:
+                            description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+                            items:
+                              $ref: '#/$defs/PackageDependency'
                             type: array
                           sandbox_policy:
                             allOf:
@@ -7009,6 +7339,45 @@ paths:
                           enum:
                           - none
                           type: string
+                      DependencySource:
+                        oneOf:
+                        - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+                          properties:
+                            kind:
+                              enum:
+                              - internal
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        - description: Fetched from a git remote
+                          properties:
+                            kind:
+                              enum:
+                              - git
+                              type: string
+                            ref:
+                              default: ''
+                              description: Tag, branch, or commit ref
+                              type: string
+                            url:
+                              type: string
+                          required:
+                          - kind
+                          - url
+                          type: object
+                        - description: Local filesystem path (for development)
+                          properties:
+                            kind:
+                              enum:
+                              - local
+                              type: string
+                            path:
+                              type: string
+                          required:
+                          - kind
+                          - path
+                          type: object
                       EntryDescriptor:
                         oneOf:
                         - properties:
@@ -7216,6 +7585,28 @@ paths:
                               $ref: '#/$defs/SurfaceContribution'
                             type: array
                         type: object
+                      PackageDependency:
+                        properties:
+                          id:
+                            description: Logical package id (must match the dependency's manifest.id once resolved)
+                            type: string
+                          minimum_signed_by:
+                            description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+                            items:
+                              type: string
+                            type: array
+                          source:
+                            allOf:
+                            - $ref: '#/$defs/DependencySource'
+                            description: Where the package comes from
+                          version:
+                            default: ''
+                            description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+                            type: string
+                        required:
+                        - id
+                        - source
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -7280,6 +7671,11 @@ paths:
                             default: []
                             items:
                               $ref: '#/$defs/CapabilityDescriptor'
+                            type: array
+                          requires:
+                            description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+                            items:
+                              $ref: '#/$defs/PackageDependency'
                             type: array
                           sandbox_policy:
                             allOf:
@@ -7691,6 +8087,45 @@ paths:
                           enum:
                           - none
                           type: string
+                      DependencySource:
+                        oneOf:
+                        - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+                          properties:
+                            kind:
+                              enum:
+                              - internal
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        - description: Fetched from a git remote
+                          properties:
+                            kind:
+                              enum:
+                              - git
+                              type: string
+                            ref:
+                              default: ''
+                              description: Tag, branch, or commit ref
+                              type: string
+                            url:
+                              type: string
+                          required:
+                          - kind
+                          - url
+                          type: object
+                        - description: Local filesystem path (for development)
+                          properties:
+                            kind:
+                              enum:
+                              - local
+                              type: string
+                            path:
+                              type: string
+                          required:
+                          - kind
+                          - path
+                          type: object
                       EntryDescriptor:
                         oneOf:
                         - properties:
@@ -7898,6 +8333,28 @@ paths:
                               $ref: '#/$defs/SurfaceContribution'
                             type: array
                         type: object
+                      PackageDependency:
+                        properties:
+                          id:
+                            description: Logical package id (must match the dependency's manifest.id once resolved)
+                            type: string
+                          minimum_signed_by:
+                            description: 'Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep''s GPG-signed tag must be signed by one of these'
+                            items:
+                              type: string
+                            type: array
+                          source:
+                            allOf:
+                            - $ref: '#/$defs/DependencySource'
+                            description: Where the package comes from
+                          version:
+                            default: ''
+                            description: Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3") Empty string means "any version"
+                            type: string
+                        required:
+                        - id
+                        - source
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -7962,6 +8419,11 @@ paths:
                             default: []
                             items:
                               $ref: '#/$defs/CapabilityDescriptor'
+                            type: array
+                          requires:
+                            description: First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
+                            items:
+                              $ref: '#/$defs/PackageDependency'
                             type: array
                           sandbox_policy:
                             allOf:
@@ -9492,7 +9954,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T09:38:51.042879829Z
+                        default: 2026-05-23T11:39:31.075803240Z
                         format: date-time
                         type: string
                       created_by:
@@ -9713,7 +10175,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T09:38:51.041592431Z
+                        default: 2026-05-23T11:39:31.074575412Z
                         format: date-time
                         type: string
                       created_by:
@@ -9889,7 +10351,7 @@ paths:
                       - type: 'null'
                       default: null
                     created_at:
-                      default: 2026-05-23T09:38:51.039104992Z
+                      default: 2026-05-23T11:39:31.072011337Z
                       format: date-time
                       type: string
                     created_by:
@@ -10073,7 +10535,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T09:38:51.039297293Z
+                        default: 2026-05-23T11:39:31.072231741Z
                         format: date-time
                         type: string
                       created_by:
@@ -10290,7 +10752,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T09:38:51.040180730Z
+                        default: 2026-05-23T11:39:31.073181745Z
                         format: date-time
                         type: string
                       created_by:
@@ -10503,7 +10965,7 @@ paths:
                           - type: 'null'
                           default: null
                         created_at:
-                          default: 2026-05-23T09:38:51.040813838Z
+                          default: 2026-05-23T11:39:31.073765047Z
                           format: date-time
                           type: string
                         created_by:
@@ -10725,7 +11187,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T09:38:51.042192578Z
+                        default: 2026-05-23T11:39:31.075216153Z
                         format: date-time
                         type: string
                       created_by:

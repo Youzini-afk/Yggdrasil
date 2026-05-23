@@ -12,6 +12,7 @@ mod inference_local;
 mod inference_playtest;
 mod inproc;
 mod install_lab;
+mod install_real_smoke;
 mod integrity_tools;
 mod live_model;
 mod memory_lab;
@@ -2259,6 +2260,11 @@ fn build_cases() -> Vec<ConformanceCase> {
             "install_lab.check_lockfile_drift_detection",
             ["official", "install", "package_install", "fixture"],
             install_lab::check_lockfile_drift_detection
+        ),
+        c!(
+            "install.real_github_smoke",
+            ["install", "real-network", "opt-in"],
+            install_real_smoke::real_github_smoke
         ),
         // --- real TDB Rust adapter subprocess proof ---
         c!(

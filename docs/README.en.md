@@ -22,6 +22,7 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 - [`guides/`](guides/README.en.md) — capability package authoring guides, grouped by domain (foundation / agent / model / inference / experience / memory / storage / external projects / sharing)
 - [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.en.md) — v1 capability handles, attenuation, revoke, and effect audit
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.en.md) — third-party package v1 conformance kit
+- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — `yg install`, lockfiles, content-addressed store, and consent prompts
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.en.md) — `entry.contract: "none"` self-contained path
 - [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) — `clients/web` iframe SurfaceHost and third-party web surface bundle hosting
 
@@ -39,6 +40,7 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 | Understand the architecture | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
 | Use the public protocol | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.en.md) |
 | Write your first package | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
+| Install capability packages | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) |
 | Host third-party web surfaces | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) |
 | Build web / desktop / release | [`../BUILDING.md`](../BUILDING.md) |
 | See current status | [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) |

@@ -270,6 +270,8 @@ The kernel validates namespace, permission, and schema shape only. Event meaning
 
 A manifest declares package identity, entry, contract mode, provided capabilities, consumed capabilities, surface contributions, hooks, extension points, asset/schema declarations, permissions, and sandbox policy.
 
+## Package dependencies (manifest.requires)
+
 `requires` is the first-class package dependency declaration field in the manifest. It expresses which other packages must be resolved and installed for this package. It is distinct from `consumes`: `consumes` declares capability requirements, while `requires` declares package dependency data. It is not a protocol method and does not grant runtime authority; installers use it to resolve dependencies and write lockfiles, while runtime authorization still comes from permissions, bindings, and capability handles.
 
 ```yaml
@@ -283,6 +285,9 @@ requires:
     minimum_signed_by:
       - "0123456789ABCDEF0123456789ABCDEF01234567"
 ```
+
+Actual install and resolution are handled by `official/install-lab`; the kernel does not participate in dependency resolution.
+See [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.en.md).
 
 The manifest is audit and handle-minting input, not runtime authority. Runtime authority is expressed through bindings and capability handles.
 

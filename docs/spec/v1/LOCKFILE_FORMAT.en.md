@@ -181,6 +181,17 @@ This lets tools answer why a package was installed, which constraint caused the 
 
 ## Drift detection
 
+`yg lockfile --check` will:
+
+1. read the lockfile;
+2. for each `LockEntry`:
+   a. verify the store path exists;
+   b. recompute `manifest_hash` and compare it with the lockfile;
+   c. recompute `tree_hash` and compare it with the lockfile;
+3. report any drift.
+
+Non-zero exit codes are for CI: drift = failure.
+
 When reading a lockfile, the installer should canonicalize the current profile manifest again and compute its SHA-256. If it differs from the top-level `manifest_hash`, the profile manifest has drifted.
 
 The default policy should fail closed and require the user to run install/update to regenerate the lockfile. Development mode may allow `--allow-drift`, but it must show a clear warning.

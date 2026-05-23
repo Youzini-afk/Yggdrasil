@@ -8,7 +8,7 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 362 named CLI cases pass, plus crate and service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
+- **Conformance:** 387 named CLI cases pass, plus crate and service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
@@ -68,7 +68,7 @@ All ordinary packages, no kernel privilege. They live in `packages/official/` an
 **Platform foundation**
 
 - `package-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
-- The former installer lab for git-install experiments has been removed; future git installation belongs in the ordinary Round 10+ package `official/git-tools-lab`.
+- Package installation foundation is implemented by ordinary capability packages: `official/git-tools-lab`, `official/integrity-lab`, and `official/install-lab`; the CLI exposes `yg install` / `uninstall` / `list-installed` / `update` / `lockfile`.
 
 **Creative capability families**
 
@@ -136,6 +136,28 @@ Under `sdk/typescript/`:
 
 `ygg init-package --template <name>`: `basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`, `networked`, `streaming`, `agent-runtime`, `experience-runtime`, `playable-board`, `playable-experience`. Generated packages are safe by default — no raw secrets, no implicit network.
 
+## Package Installation (new, Round 10A)
+
+| Capability | Status |
+|---|---|
+| manifest.requires field | implemented |
+| Lockfile schema (`yggdrasil.lock.v1`) | implemented |
+| official/git-tools-lab (gix) | implemented |
+| official/integrity-lab (sequoia GPG + sha256) | implemented |
+| official/install-lab orchestrator | implemented |
+| yg install / uninstall / list-installed / update / lockfile CLI | implemented |
+| ~/.yggdrasil filesystem convention | implemented |
+| Interactive consent prompt | implemented |
+| Static conformance integration | implemented |
+| GPG signature verification | implemented |
+| Cycle detection | implemented |
+| Real GitHub smoke (opt-in) | implemented |
+| Sigstore verification | deferred |
+| Tauri UI install | deferred |
+| Auto-update daemon | deferred |
+| Binary package distribution | deferred |
+| yg gc orphaned-store cleanup | deferred |
+
 ## Completed (S-track shell / release)
 
 - **Web client (S1):** `clients/web` now uses Vite for dev/build while remaining a plain TypeScript SPA. Home / Play, Forge, and Assist still use only HTTP `/rpc` and SSE; the iframe-based SurfaceHost can mount third-party surface bundles and communicate with the host through an explicit `postMessage` RPC bridge. See [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
@@ -176,7 +198,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 362 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 387 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

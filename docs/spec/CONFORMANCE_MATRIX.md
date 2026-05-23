@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**362**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**387**。
 
 ## Conformance Feedback Loop
 
@@ -286,6 +286,11 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | bindings | rust_inproc `KernelEnv` 注入 bindings | implemented |
 | package | `package.audit_report` / `kernel.v1.audit.package` 报告 declared vs used authority | implemented |
 | package | `package.path_b_self_contained` 验证 `entry.contract: none` 自包含路径 | implemented |
+| git tools | 5 个 git-tools 用例：URL/path validation 与 signed tag fixture | implemented |
+| integrity | 7 个 integrity 用例：tree hash、manifest hash、GPG verify、fingerprint | implemented |
+| install lab | 8+ 个 install-lab 用例：resolve_plan、execute_plan、uninstall、list、check_lockfile、cycle detection | implemented |
+| install gating | 4 个 install conformance gating 用例：runs_conformance、blocks、ignore_overrides、transitive_propagates | implemented |
+| install real smoke | `install.real_github_smoke` 真实 GitHub opt-in smoke | implemented |
 
 ## Host 必需的拒绝类 conformance
 
@@ -593,6 +598,31 @@ tdb_retrieval_lab.backend_fit_boundary PASS
 tdb_retrieval_lab.invalid_input_rejected PASS
 tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected PASS
 tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available PASS
+integrity.tree_hash_deterministic PASS
+integrity.tree_hash_excludes_metadata PASS
+integrity.manifest_hash_yaml_json_equivalent PASS
+integrity.gpg_verify_valid_signature PASS
+integrity.gpg_verify_wrong_key_fails PASS
+integrity.gpg_verify_invalid_signature_no_panic PASS
+integrity.fingerprint_extraction_consistent PASS
+git_tools.url_validation_https_only PASS
+git_tools.url_validation_no_userinfo PASS
+git_tools.path_validation_absolute PASS
+git_tools.path_validation_no_traversal PASS
+git_tools.read_signed_tag_unsigned PASS
+install_lab.resolve_plan_local_source PASS
+install_lab.resolve_plan_runs_conformance PASS
+install_lab.resolve_plan_blocks_on_conformance_failure PASS
+install_lab.resolve_plan_ignore_conformance_overrides PASS
+install_lab.transitive_conformance_propagates PASS
+install_lab.resolve_plan_with_transitive PASS
+install_lab.resolve_plan_cycle_detection PASS
+install_lab.execute_plan_local PASS
+install_lab.execute_plan_consent_mismatch PASS
+install_lab.uninstall_removes_from_profile PASS
+install_lab.list_installed_reflects_lockfile PASS
+install_lab.check_lockfile_drift_detection PASS
+install.real_github_smoke PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS

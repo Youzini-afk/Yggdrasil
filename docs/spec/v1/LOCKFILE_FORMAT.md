@@ -181,6 +181,17 @@ schema = "yggdrasil.lock.v1"
 
 ## Drift 检测
 
+`yg lockfile --check` 会：
+
+1. 读取 lockfile；
+2. 对每个 `LockEntry`：
+   a. 验证 store 路径存在；
+   b. 重新计算 `manifest_hash`，与 lockfile 比对；
+   c. 重新计算 `tree_hash`，与 lockfile 比对；
+3. 报告任何漂移。
+
+非零退出码用于 CI：漂移 = 失败。
+
 读取 lockfile 时，安装器应重新规范化当前 profile manifest 并计算 SHA-256。如果它与顶层 `manifest_hash` 不一致，说明 profile manifest 已经漂移。
 
 默认策略应 fail closed：要求用户运行 install/update 重新生成 lockfile。开发模式可以允许 `--allow-drift`，但必须给出清晰警告。

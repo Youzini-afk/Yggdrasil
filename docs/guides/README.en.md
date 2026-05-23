@@ -7,6 +7,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 ## Getting started
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough (init-package, check, run-fixture, reload, composition)
+- [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package install, lockfiles, `~/.yggdrasil` layout, signatures/integrity, and consent prompts
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md) — kernel v1 capability handles, attenuation, revoke, bindings, and effect audit
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.en.md) — local v1 contract compliance validation for third-party packages
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.en.md) — self-contained Path B packages (`entry.contract: "none"`)

@@ -270,6 +270,8 @@ Session id 只表示内核排序与权限范围，不表示某种产品体验。
 
 Manifest 声明 package 身份、entry、contract mode、提供的能力、消费的能力、surface contributions、hooks、extension points、asset/schema 声明、permissions 和 sandbox policy。
 
+## 包依赖（manifest.requires）
+
 `requires` 是 manifest 中的一等 package 依赖声明字段，用于表达“此包需要哪些其他包被解析和安装”。它不同于 `consumes`：`consumes` 声明 capability 需求，`requires` 声明 package 依赖数据。它不是协议方法，也不授予运行时权威；安装器用它解析依赖并写入 lockfile，运行时仍通过 permissions、bindings 与 capability handles 执行授权。
 
 ```yaml
@@ -283,6 +285,9 @@ requires:
     minimum_signed_by:
       - "0123456789ABCDEF0123456789ABCDEF01234567"
 ```
+
+实际安装/解析由 `official/install-lab` 负责，内核不参与依赖解析。
+详见 [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.md)。
 
 Manifest 是审核与句柄铸造输入，不是运行时权威本身。运行时权威必须通过 bindings 和 capability handles 表达。
 

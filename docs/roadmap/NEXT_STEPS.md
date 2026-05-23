@@ -15,7 +15,7 @@
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
 - Web shell 的 Vite 构建、iframe SurfaceHost、Tauri 2.x desktop wrapper、tag 触发的跨平台 release pipeline——全部完成。
 - Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成与 105 schemas 已落地。
-- 362 个具名 conformance 用例 + crate / service 单元测试通过。
+- 387 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -33,7 +33,7 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- **Round 10+：`official/git-tools-lab`。** 以普通官方能力包实现 `yg install <github-url>` 流程：通过 `kernel.v1.outbound.execute`（smart-http）+ `permissions.filesystem.write` 取代已删除的内核 git fetch，并加入 sigstore/GPG signed-tag 校验。
+- 包安装的基础层已完成；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
 - 钩子处理器的超时与错误审计。
@@ -51,6 +51,28 @@
 - Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
 - Desktop wrapper 以受控 managed subprocess 启动 / 停止 `host serve`。
 - Phase B 优化（next）：使用 [`../../perf/baseline.json`](../../perf/baseline.json) 作为 regression reference，先测量再改动。
+
+## Round 10A — Package Installation Foundation（完成）
+
+- `yg install <github-url>` 端到端。
+- `official/git-tools-lab` + `integrity-lab` + `install-lab` 三个能力包。
+- `manifest.requires` 字段 + Lockfile (`yggdrasil.lock.v1`)。
+- `~/.yggdrasil` 文件系统约定。
+- 交互式同意提示 + 静态 conformance 集成。
+
+## Round 10B — Contract Frontier（待开始）
+
+- WIT worlds + WASM entry form（从 scaffold 推进 partial）。
+- Powerbox late-bound provider 选择。
+- Cap'n Proto / Biscuit 实验。
+
+## Round 11 — Distribution polish（待开始）
+
+- `yg gc` 孤立 store 回收。
+- Tauri UI 安装路径。
+- Sigstore keyless 验签。
+- 自动更新守护进程。
+- 二进制包分发。
 
 ## Round 10：Contract Frontier
 
@@ -112,7 +134,7 @@ Round 10 之后仍保留的底座项：package-owned projection 执行、package
 - Storage Backend Neutrality Alpha
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
-- Git Package Installation Substrate
+- Package Installation Foundation (Round 10A)
 - Outbound WebSocket Substrate
 - Shell + Release S-track（Vite Web build、iframe SurfaceHost、Tauri desktop wrapper、GitHub Actions release）
 - Round 9 Contract Foundation（Contract V1、capability handles、bindings、Path B、audit、conformance kit、SDK generation）
