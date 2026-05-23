@@ -91,15 +91,15 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
   return (
     <div className="flex min-h-[calc(100dvh-60px)] flex-col">
       {/* Project frame topbar */}
-      <div className="flex h-10 items-center justify-between border-b border-whisper-border bg-pure-surface px-4">
-        <div className="flex items-center gap-3">
+      <div className="flex h-10 items-center justify-between border-b border-whisper-border bg-pure-surface px-3 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Tooltip label="Back to Home">
             <Button tone="icon" size="icon-sm" onClick={() => navigate({ kind: "home" })} aria-label="Back to Home">
               <ArrowLeft size={16} />
             </Button>
           </Tooltip>
-          <BookOpenText size={16} className="text-aged-brass" />
-          <span className="font-display text-[14px] font-bold leading-none text-charcoal-ink">
+          <BookOpenText size={16} className="hidden text-aged-brass sm:inline" />
+          <span className="truncate font-display text-[14px] font-bold leading-none text-charcoal-ink">
             {project?.title ?? projectId}
           </span>
           <StatusPill
@@ -108,11 +108,11 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           />
         </div>
         <div className="flex items-center gap-1">
-          <Button tone="tertiary" size="sm">
+          <Button tone="tertiary" size="sm" className="hidden sm:inline-flex">
             <ListBullets size={14} />
             Audit log
           </Button>
-          <span className="mx-2 h-4 w-px bg-whisper-border" aria-hidden />
+          <span className="mx-2 hidden h-4 w-px bg-whisper-border sm:inline" aria-hidden />
           {project?.state === "running" ? (
             <Tooltip label="Stop project">
               <Button tone="icon" size="icon-sm" onClick={onStop} disabled={stopping} aria-label="Stop">
@@ -129,7 +129,12 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       </div>
 
       {/* Iframe surface */}
-      <div ref={containerRef} id={FRAME_CONTAINER_ID} className="flex-1 bg-warm-ivory dark:bg-deep-bark" />
+      <div
+        ref={containerRef}
+        id={FRAME_CONTAINER_ID}
+        className="flex-1"
+        style={{ background: "var(--color-warm-ivory, #f5f2ec)" }}
+      />
     </div>
   );
 }

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Bind `dark:` Tailwind modifier to our explicit theme attribute.
+   Theme is controlled by ThemeProvider via document.documentElement.dataset.theme. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ====================================================================
    Yggdrasil Editorial Workshop — design tokens (Tailwind v4 @theme)
    Reference: docs/design/PLATFORM_UI_DESIGN.md
@@ -34,7 +38,16 @@
   --color-steel-secondary-light: #9b968b;
   --color-muted-tone-dark: #6b6862;
   --color-whisper-border-dark: rgba(245, 242, 236, 0.08);
+  --color-whisper-border-strong-dark: rgba(245, 242, 236, 0.18);
   --color-diffused-shadow-dark: rgba(0, 0, 0, 0.35);
+
+  /* ---- Always-dark overlay (backdrops, scrim) — does NOT flip with theme ---- */
+  --color-overlay: rgba(20, 16, 12, 0.55);
+
+  /* ---- Animation timings ---- */
+  --motion-fast: 160ms;
+  --motion-natural: 240ms;
+  --motion-slow: 360ms;
 
   /* ---- Typography ---- */
   --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
@@ -80,8 +93,20 @@ html[data-theme="dark"] {
   --color-steel-secondary: var(--color-steel-secondary-light);
   --color-muted-tone: var(--color-muted-tone-dark);
   --color-whisper-border: var(--color-whisper-border-dark);
+  --color-whisper-border-strong: var(--color-whisper-border-strong-dark);
   --color-diffused-shadow: var(--color-diffused-shadow-dark);
   --color-aged-brass: var(--color-aged-brass-glow);
+  --color-aged-brass-deep: #d9b78c;
+  --color-aged-brass-surface: rgba(201, 168, 122, 0.16);
+  --color-aged-brass-surface-soft: rgba(201, 168, 122, 0.08);
+  --color-aged-brass-border: rgba(201, 168, 122, 0.4);
+  --color-deep-rust: #c47254;
+  --color-deep-rust-surface: rgba(196, 114, 84, 0.18);
+  --color-deep-rust-surface-soft: rgba(196, 114, 84, 0.08);
+  --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.45);
+  --shadow-card-hover: 0 24px 48px -15px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 32px 64px -20px rgba(0, 0, 0, 0.6);
+  --shadow-toast: 0 16px 32px -12px rgba(0, 0, 0, 0.5);
 }
 
 body {
@@ -114,6 +139,25 @@ select {
 ::selection {
   background: var(--color-aged-brass-surface);
   color: var(--color-charcoal-ink);
+}
+
+/* Visible focus ring tuned for light + dark surfaces. */
+:focus-visible {
+  outline: 2px solid var(--color-aged-brass);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Honor reduced-motion: keep layout, drop transitions/animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ====================================================================

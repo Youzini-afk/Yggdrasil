@@ -23,10 +23,10 @@ export function PlatformTopbar({ route }: { route: Route }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-whisper-border bg-warm-bone/85 px-8 backdrop-blur-[20px]",
+        "sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-whisper-border bg-warm-bone/85 px-4 backdrop-blur-[20px] sm:px-6 lg:px-8",
       )}
     >
-      <nav className="flex items-center gap-3 text-[14px]">
+      <nav className="flex min-w-0 items-center gap-3 text-[14px]">
         <button
           type="button"
           onClick={() => navigate({ kind: "home" })}
@@ -34,10 +34,12 @@ export function PlatformTopbar({ route }: { route: Route }) {
         >
           Yggdrasil
         </button>
-        <span className="text-muted-tone" aria-hidden>
+        <span className="hidden text-muted-tone sm:inline" aria-hidden>
           /
         </span>
-        <span className="text-[13px] text-steel-secondary">{breadcrumbForRoute(route)}</span>
+        <span className="hidden truncate text-[13px] text-steel-secondary sm:inline">
+          {breadcrumbForRoute(route)}
+        </span>
       </nav>
 
       <div className="flex items-center gap-1">

@@ -18,9 +18,9 @@ export interface ModalProps {
 }
 
 const sizeWidths: Record<NonNullable<ModalProps["size"]>, string> = {
-  sm: "w-[480px]",
-  md: "w-[640px]",
-  lg: "w-[760px]",
+  sm: "w-[min(calc(100vw-24px),480px)]",
+  md: "w-[min(calc(100vw-24px),640px)]",
+  lg: "w-[min(calc(100vw-24px),760px)]",
 };
 
 export function Modal({ open, onOpenChange, children, accent = null, size = "md", className, contentLabel }: ModalProps) {
@@ -35,7 +35,8 @@ export function Modal({ open, onOpenChange, children, accent = null, size = "md"
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18 }}
-                className="fixed inset-0 z-40 bg-charcoal-ink/40 backdrop-blur-[8px]"
+                className="fixed inset-0 z-40 backdrop-blur-[8px]"
+                style={{ background: "var(--color-overlay)" }}
               />
             </RadixDialog.Overlay>
             <RadixDialog.Content asChild aria-label={contentLabel}>
@@ -53,7 +54,7 @@ export function Modal({ open, onOpenChange, children, accent = null, size = "md"
                   className,
                 )}
               >
-                <div className="relative max-h-[calc(100dvh-48px)] overflow-y-auto p-9">
+                <div className="relative max-h-[calc(100dvh-48px)] overflow-y-auto p-6 sm:p-9">
                   <RadixDialog.Close asChild>
                     <Button
                       tone="icon"
