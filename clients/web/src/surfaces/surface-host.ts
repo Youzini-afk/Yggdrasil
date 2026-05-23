@@ -60,7 +60,46 @@ interface ReadyMessage {
   type: 'ready';
 }
 
-type SurfaceMessage = MountMessage | RpcCallMessage | RpcResultMessage | ReadyMessage;
+interface StreamSubscribeMessage {
+  type: 'stream.subscribe';
+  id: string;
+  stream_id: string;
+  session_id: string;
+}
+
+interface StreamUnsubscribeMessage {
+  type: 'stream.unsubscribe';
+  subscription_id: string;
+}
+
+interface StreamFrameMessage {
+  type: 'stream.frame';
+  subscription_id: string;
+  kind: 'started' | 'chunk' | 'progress';
+  payload: unknown;
+}
+
+interface StreamEndedMessage {
+  type: 'stream.ended';
+  subscription_id: string;
+}
+
+interface StreamErrorMessage {
+  type: 'stream.error';
+  subscription_id: string;
+  error: { code: string; message: string };
+}
+
+type SurfaceMessage =
+  | MountMessage
+  | RpcCallMessage
+  | RpcResultMessage
+  | ReadyMessage
+  | StreamSubscribeMessage
+  | StreamUnsubscribeMessage
+  | StreamFrameMessage
+  | StreamEndedMessage
+  | StreamErrorMessage;
 
 export async function mountSurface(options: SurfaceHostOptions): Promise<SurfaceHostHandle> {
   const container = document.getElementById(options.containerId);
@@ -135,6 +174,20 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
   };
   window.addEventListener('message', bridgeListener);
 
+  // Wire stream subscriptions from surface to session SSE events.
+  const activeSubs = new Map<string, () => void>();
+  const streamListener = async (e: MessageEvent) => {
+    if (e.source !== iframe.contentWindow) return;
+    const msg = e.data as SurfaceMessage;
+
+    if (msg.type === 'stream.subscribe') {
+      await handleStreamSubscribe(msg, iframe, options.hostBridge, activeSubs);
+    } else if (msg.type === 'stream.unsubscribe') {
+      handleStreamUnsubscribe(msg, activeSubs);
+    }
+  };
+  window.addEventListener('message', streamListener);
+
   return {
     surfaceId: options.surfaceId,
     iframe,
@@ -142,7 +195,112 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
       iframe.contentWindow?.postMessage({ type: 'unmount' }, '*');
       await new Promise((resolve) => setTimeout(resolve, 50));
       window.removeEventListener('message', bridgeListener);
+      window.removeEventListener('message', streamListener);
+      for (const close of activeSubs.values()) close();
+      activeSubs.clear();
       iframe.remove();
     },
   };
+}
+
+function payloadStreamId(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const streamId = (payload as { stream_id?: unknown }).stream_id;
+  return typeof streamId === 'string' ? streamId : undefined;
+}
+
+async function handleStreamSubscribe(
+  msg: StreamSubscribeMessage,
+  iframe: HTMLIFrameElement,
+  hostBridge: SurfaceHostBridge | undefined,
+  activeSubs: Map<string, () => void>,
+) {
+  if (!hostBridge?.subscribeEvents) {
+    iframe.contentWindow?.postMessage({
+      type: 'stream.error',
+      subscription_id: msg.id,
+      error: { code: 'no_bridge', message: 'host did not configure event subscription bridge' },
+    } satisfies StreamErrorMessage, '*');
+    return;
+  }
+
+  let close: () => void = () => {};
+  try {
+    close = hostBridge.subscribeEvents(msg.session_id, (event: unknown) => {
+      const ev = event as { kind?: string; payload?: unknown };
+      const kind = ev.kind ?? '';
+      if (!kind.startsWith('kernel/v1/stream.')) return;
+      if (payloadStreamId(ev.payload) !== msg.stream_id) return;
+
+      if (kind === 'kernel/v1/stream.started') {
+        iframe.contentWindow?.postMessage({
+          type: 'stream.frame',
+          subscription_id: msg.id,
+          kind: 'started',
+          payload: ev.payload,
+        } satisfies StreamFrameMessage, '*');
+      } else if (kind === 'kernel/v1/stream.chunk') {
+        iframe.contentWindow?.postMessage({
+          type: 'stream.frame',
+          subscription_id: msg.id,
+          kind: 'chunk',
+          payload: ev.payload,
+        } satisfies StreamFrameMessage, '*');
+      } else if (kind === 'kernel/v1/stream.progress') {
+        iframe.contentWindow?.postMessage({
+          type: 'stream.frame',
+          subscription_id: msg.id,
+          kind: 'progress',
+          payload: ev.payload,
+        } satisfies StreamFrameMessage, '*');
+      } else if (kind === 'kernel/v1/stream.ended') {
+        iframe.contentWindow?.postMessage({
+          type: 'stream.ended',
+          subscription_id: msg.id,
+        } satisfies StreamEndedMessage, '*');
+        const c = activeSubs.get(msg.id);
+        if (c) {
+          c();
+          activeSubs.delete(msg.id);
+        }
+      } else if (
+        kind === 'kernel/v1/stream.error' ||
+        kind === 'kernel/v1/stream.cancelled' ||
+        kind === 'kernel/v1/stream.timeout'
+      ) {
+        const errMsg = ev.payload && typeof ev.payload === 'object'
+          ? JSON.stringify(ev.payload)
+          : String(ev.payload ?? '');
+        iframe.contentWindow?.postMessage({
+          type: 'stream.error',
+          subscription_id: msg.id,
+          error: { code: kind, message: errMsg },
+        } satisfies StreamErrorMessage, '*');
+        const c = activeSubs.get(msg.id);
+        if (c) {
+          c();
+          activeSubs.delete(msg.id);
+        }
+      }
+    });
+    activeSubs.set(msg.id, close);
+  } catch (err) {
+    iframe.contentWindow?.postMessage({
+      type: 'stream.error',
+      subscription_id: msg.id,
+      error: { code: 'subscribe_failed', message: err instanceof Error ? err.message : String(err) },
+    } satisfies StreamErrorMessage, '*');
+    close();
+  }
+}
+
+function handleStreamUnsubscribe(
+  msg: StreamUnsubscribeMessage,
+  activeSubs: Map<string, () => void>,
+) {
+  const close = activeSubs.get(msg.subscription_id);
+  if (close) {
+    close();
+    activeSubs.delete(msg.subscription_id);
+  }
 }

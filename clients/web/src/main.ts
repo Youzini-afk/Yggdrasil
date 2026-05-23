@@ -397,6 +397,7 @@ async function mountProjectSurface(projectId: string, startedSessionId?: string)
               ? client.invokeWithSession(method, rpcParams, projectSessionId)
               : client.invoke(method, rpcParams);
           },
+          subscribeEvents: (sid, callback) => client.subscribeEvents(sid, callback),
         },
         initialProps: { projectId, sessionId: projectSessionId },
       });
