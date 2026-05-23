@@ -42,14 +42,14 @@ yg install github.com/user/yggdrasil-package#v1.2.0
 # Local path (development)
 yg install ./packages/my-package
 
-# Skip signature verification (local/test only)
-yg install <url> --allow-unsigned
+# Require a signed tag (release/controlled environments)
+yg install <url> --require-signed
 
 # Non-interactive (CI)
 yg install <url> --yes
 
-# Override conformance failures (dangerous)
-yg install <url> --ignore-conformance
+# Strict conformance gating
+yg install <url> --strict
 ```
 
 ### Other commands
@@ -68,9 +68,17 @@ Use `--profile <name>` to operate on a different profile.
 Use `--data-dir <path>` to override the data directory for tests and CI.
 
 ```bash
-yg install ./packages/dev --profile alpha --data-dir /tmp/ygg-alpha --yes --allow-unsigned
+yg install ./packages/dev --profile alpha --data-dir /tmp/ygg-alpha --yes
 yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 ```
+
+Install-related flags:
+
+- `--require-signed`: require a verifiable signed Git tag; signatures are not mandatory by default.
+- `--strict`: block install on conformance failure; the default warns and continues.
+- `--yes`: non-interactive approval for consent prompts.
+- `--profile <name>`: choose the profile to update.
+- `--data-dir <path>`: override the `~/.yggdrasil` data directory for tests and CI.
 
 ## Manifest `requires`
 
@@ -221,18 +229,33 @@ Once written, content is not mutated.
 Uninstall removes only profile and lockfile references; store content remains as orphaned content.
 A future `yg gc` command will collect orphaned store directories.
 
+### Default safety baseline
+
+The default behavior matches the technical baseline of package managers such as cargo/npm/pip: HTTPS-only, atomic writes, and content hashing are always on; signature verification and conformance gating are explicit opt-ins.
+
+- HTTPS-only and URL credential rejection are always enabled.
+- Content hashes (tree hash / manifest hash) are always recorded.
+- Profile, lockfile, and store writes always use atomic writes.
+- Signature verification is enabled with `--require-signed`.
+- Conformance blocking is enabled with `--strict`.
+
 ### Signature verification
 
-Git packages should pass GPG signed-tag verification by default.
+Git packages are not required to have GPG signed tags by default, but signature state is still recorded when present.
 `minimum_signed_by` requires a specific fingerprint.
-`--allow-unsigned` should be used only for local development or tests.
+`--require-signed` requires a verifiable signature and fits release, controlled, or organizational policy environments.
 The integrity tool uses `sequoia-openpgp` and supports common RSA / Ed25519 signing material.
 
 ### Conformance gating
 
 Static v1 conformance checks run before install.
-Packages that fail are rejected by default.
-`--ignore-conformance` is an explicit dangerous override and is reflected in the install plan/audit semantics.
+The default is warning-only: failures appear in the install plan but do not block installation.
+`--strict` promotes conformance failures into install blockers for CI, releases, or organizational policy.
+
+### API keys and secrets
+
+Install records only the `secret_ref` authority the user consented to. It does not collect raw API keys.
+For API key management, see [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md): desktop flows should prefer `secret_ref:store:*`, while development and CI can keep using `secret_ref:env:*`.
 
 ### Consent audit
 
@@ -304,7 +327,7 @@ Round 10A covers:
 - tree hash, manifest hash, GPG verify, and fingerprint;
 - resolve plan, execute plan, uninstall, list, lockfile drift;
 - transitive dependencies and cycle detection;
-- conformance gating, block, override, and transitive propagation;
+- conformance gating, strict blocking, lenient warning, and transitive propagation;
 - `install.real_github_smoke`, the opt-in real GitHub smoke.
 
 Default conformance does not use the network.
@@ -330,5 +353,5 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - Use signed tags for GitHub packages.
 - Pin upstream refs in `requires` and use clear version constraints.
 - Run `yg lockfile --check` in CI.
-- Use `--allow-unsigned` locally, but do not recommend it in release docs.
+- Local development can use plain `yg install <url>`; release or controlled environments can add `--require-signed` and `--strict` as needed.
 - Describe new network and secret authority with clear purposes so users can consent.

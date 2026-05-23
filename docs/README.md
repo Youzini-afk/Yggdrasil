@@ -23,6 +23,7 @@
 - [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.md) — v1 能力句柄、衰减、撤销与 effect audit
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.md) — 第三方包 v1 conformance kit
 - [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) — `yg install`、lockfile、内容寻址 store 与同意提示
+- [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 store 与 API key 管理
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.md) — `entry.contract: "none"` 自包含路径
 - [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.md) — `clients/web` iframe SurfaceHost 与第三方 Web surface bundle 托管
 
@@ -41,6 +42,7 @@
 | 接入公开协议 | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.md) |
 | 写第一个能力包 | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 安装能力包 | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) |
+| 管理 API key / secret | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) |
 | 挂载第三方 Web surface | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.md) |
 | 构建 Web / Desktop / Release | [`../BUILDING.md`](../BUILDING.md) |
 | 看当前状态 | [`ALPHA_STATUS.md`](ALPHA_STATUS.md) |

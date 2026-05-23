@@ -8,7 +8,7 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 387 named CLI cases pass, plus crate and service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
+- **Conformance:** 398 named CLI cases pass, plus crate and service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
@@ -28,6 +28,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 
 - **`secret_ref` references:** `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` prefixes are all supported. Packages refer to secrets through these references; raw values never appear in events, proposals, logs, or audit records.
 - **Environment-variable resolver:** a host-owned resolver with an explicit allowlist. Deny-all by default; an env name has to be allowed before it can be resolved. Errors carry only the env name, never the raw value.
+- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.yggdrasil/secrets.dat`; the store uses age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
 - **Raw secret blocking:** proposal operations and expected effects, plus asset metadata, are scanned conservatively. Obvious API keys, tokens, and password fields are rejected. Asset content and ordinary prose aren't scanned, to avoid false positives on user content.
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
@@ -158,6 +159,23 @@ Under `sdk/typescript/`:
 | Binary package distribution | deferred |
 | yg gc orphaned-store cleanup | deferred |
 
+After Round 10A.1, install defaults are relaxed: HTTPS-only, content hashing, and atomic writes are always on; signature verification and conformance blocking are opt-in through `--require-signed` / `--strict`.
+
+## Round 10A.1 — Install Simplification + Secret Store
+
+| Capability | Status |
+|---|---|
+| Install defaults relaxed (cargo/npm/pip baseline) | implemented |
+| --require-signed / --strict opt-in flags | implemented |
+| Single-line consent prompt | implemented |
+| official/secret-store-lab encrypted storage | implemented |
+| StoreSecretResolver | implemented |
+| CompositeSecretResolver (env + store) | implemented |
+| age encryption (X25519) + 0600 file permissions | implemented |
+| OS keyring integration | deferred (libdbus-sys system dep) |
+| YdlTavern API Connections wired | implemented |
+| `yg secret put / list / delete` CLI | deferred |
+
 ## Completed (S-track shell / release)
 
 - **Web client (S1):** `clients/web` now uses Vite for dev/build while remaining a plain TypeScript SPA. Home / Play, Forge, and Assist still use only HTTP `/rpc` and SSE; the iframe-based SurfaceHost can mount third-party surface bundles and communicate with the host through an explicit `postMessage` RPC bridge. See [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
@@ -198,7 +216,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 387 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 398 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

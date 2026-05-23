@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**387**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**398**。
 
 ## Conformance Feedback Loop
 
@@ -78,6 +78,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | env resolver | `EnvSecretResolver` 在 env name 于 allowlist 中时允许解析（`secret_ref:env`、`secretRef:env`、`secret-ref:env`、`host:env`） | implemented |
 | env resolver | `EnvSecretResolver` 在 env name 不在 allowlist 中时拒绝解析；非 env vault 和 `host:<key>` 被拒绝 | implemented |
 | env resolver | `EnvSecretResolver` 缺失 env var 返回 typed error，不泄漏 raw value | implemented |
+| secret store | 10 个 secret_store 用例：put / has / list / delete / health + env/store/composite resolver paths | implemented |
 | protocol | 方法列表不包含内容方法 | implemented in unit tests |
 | protocol | 结构化权限错误码 | implemented |
 | protocol | in-process 协议分发器调用 host.info | implemented |
@@ -289,7 +290,8 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | git tools | 5 个 git-tools 用例：URL/path validation 与 signed tag fixture | implemented |
 | integrity | 7 个 integrity 用例：tree hash、manifest hash、GPG verify、fingerprint | implemented |
 | install lab | 8+ 个 install-lab 用例：resolve_plan、execute_plan、uninstall、list、check_lockfile、cycle detection | implemented |
-| install gating | 4 个 install conformance gating 用例：runs_conformance、blocks、ignore_overrides、transitive_propagates | implemented |
+| install gating | 4 个 install conformance gating 用例：runs_conformance、strict_conformance_blocks（原 blocks 形状重命名）、lenient_conformance_warns_not_blocks、transitive_propagates | implemented |
+| install lab | `install_lab.lenient_conformance_warns_not_blocks` 验证默认 conformance warning 不阻断安装 | implemented |
 | install real smoke | `install.real_github_smoke` 真实 GitHub opt-in smoke | implemented |
 
 ## Host 必需的拒绝类 conformance

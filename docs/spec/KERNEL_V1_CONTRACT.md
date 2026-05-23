@@ -388,6 +388,13 @@ Audit 记录只包含 destination、method、package id、capability id、purpos
 
 包只能传 `secret_ref:<vault>:<key>` 等引用。Host resolver 在运行时解析，解析结果只进入 executor 或 provider adapter，不写回事件、日志、proposal 或 audit。
 
+```yaml
+secret_ref:env:OPENAI_API_KEY    # resolved via host env var（allowlisted）
+secret_ref:store:OPENAI_API_KEY  # resolved via local encrypted store
+```
+
+store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.yggdrasil/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.md).
+
 未声明 secret_ref、解析失败、resolver deny、raw secret 出现在受保护 payload 中，都必须 fail closed。
 
 ## Proposal 契约

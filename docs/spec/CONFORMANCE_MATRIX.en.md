@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **387**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **398**.
 
 ## Conformance Feedback Loop
 
@@ -78,6 +78,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | env resolver | `EnvSecretResolver` allows resolution when env name is in allowlist (`secret_ref:env`, `secretRef:env`, `secret-ref:env`, `host:env`) | implemented |
 | env resolver | `EnvSecretResolver` denies resolution when env name is not in allowlist; non-env vault and `host:<key>` rejected | implemented |
 | env resolver | `EnvSecretResolver` missing env var returns typed error without leaking raw value | implemented |
+| secret store | 10 secret_store cases: put / has / list / delete / health plus env/store/composite resolver paths | implemented |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
@@ -298,7 +299,8 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | git tools | 5 git-tools cases: URL/path validation and signed-tag fixture | implemented |
 | integrity | 7 integrity cases: tree hash, manifest hash, GPG verify, fingerprint | implemented |
 | install lab | 8+ install-lab cases: resolve_plan, execute_plan, uninstall, list, check_lockfile, cycle detection | implemented |
-| install gating | 4 install conformance-gating cases: runs_conformance, blocks, ignore_overrides, transitive_propagates | implemented |
+| install gating | 4 install conformance-gating cases: runs_conformance, strict_conformance_blocks (renamed from the existing blocks shape), lenient_conformance_warns_not_blocks, transitive_propagates | implemented |
+| install lab | `install_lab.lenient_conformance_warns_not_blocks` verifies default conformance warnings do not block install | implemented |
 | install real smoke | `install.real_github_smoke` opt-in real GitHub smoke | implemented |
 
 ## Required rejection conformance for the host

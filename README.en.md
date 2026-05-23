@@ -39,14 +39,15 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 The platform substrate is in place. Contract V1 is the public platform spec; see [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md). The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 387 named conformance cases pass, plus crate / service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
+- 398 named conformance cases pass, plus crate / service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, capability handles, binding injection, Path A / Path B, the conformance kit, generated SDKs, streaming lifecycle, model integration, and agent infrastructure are all in.
 - Path A (`entry.contract: "v1"`) and Path B (`entry.contract: "none"`) are both first-class participation modes.
 - SDKs are available through three channels: npm `@yggdrasil/kernel-sdk`, workspace path `file:../yggdrasil/sdk/typescript/kernel-sdk`, or direct generation from `docs/spec/v1/schemas/`.
 - The web shell now uses Vite for dev/build; `clients/desktop/` provides a Tauri 2.x desktop wrapper, and `v*` tags build cross-platform installers through GitHub Actions.
 - The perf baseline now records p50/p95/p99 + memory + env/git, supports `--compare` + `--threshold-pct`, and commits `perf/baseline.json`.
-- `yg install <github-url>` installs capability packages from GitHub end to end with HTTPS-only fetches, GPG signature checks, content-addressed storage, conformance validation, and consent prompts.
+- `yg install <github-url>` installs capability packages from GitHub end to end with HTTPS-only fetches, content-addressed storage, optional GPG signature checks, optional strict conformance, and consent prompts.
+- Encrypted local secret store through `official/secret-store-lab` — paste API keys in the UI, no env vars required.
 
 For details, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 
@@ -82,7 +83,7 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 
 **Secure execution**
 
-- `secret_ref` references, manifest `permissions.secret_refs` declarations, and a host-owned environment-variable resolver with an allowlist.
+- `secret_ref:env:` / `secret_ref:store:` references, manifest `permissions.secret_refs` declarations, and host-owned environment-variable plus local encrypted store resolvers.
 - Network permission declarations, audit and redaction for outbound requests, and the public-protocol outbound trio: unary `kernel.v1.outbound.execute`, SSE/NDJSON/raw `kernel.v1.outbound.stream`, and bidirectional `kernel.v1.outbound.websocket.*`.
 - Real live HTTP / WebSocket outbound executors (off by default; require an opt-in profile plus provider env vars; HTTP is HTTPS-only, WebSocket is WSS-only, redirect fail-closed). Real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
 - The subprocess TypeScript SDK `kernelClient` lets subprocess packages issue permission-scoped reverse kernel calls, including `kernelClient.openWebSocket`.
@@ -176,6 +177,7 @@ Shortest path by intent:
 | Use the public protocol | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.en.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md) |
 | Write your first package | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Install capability packages | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) |
+| Manage API keys / secrets | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.en.md) |
 | Write agent / model / experience packages | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
 | Host third-party web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |
 | See current status | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) |

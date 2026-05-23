@@ -388,6 +388,13 @@ Audit records contain destination, method, package id, capability id, purpose, r
 
 Packages pass references such as `secret_ref:<vault>:<key>`. The host resolver resolves them at runtime. Resolved values only enter executors or provider adapters; they are not written back to events, logs, proposals, or audit.
 
+```yaml
+secret_ref:env:OPENAI_API_KEY    # resolved via host env var (allowlisted)
+secret_ref:store:OPENAI_API_KEY  # resolved via local encrypted store
+```
+
+Store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.yggdrasil/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.en.md).
+
 Undeclared secret refs, resolution failure, resolver denial, and raw secrets in protected payloads must fail closed.
 
 ## Proposal contract

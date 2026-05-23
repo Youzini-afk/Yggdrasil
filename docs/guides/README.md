@@ -8,6 +8,7 @@
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.md) — 第三方能力包创作 walkthrough（init-package、check、run-fixture、reload、composition）
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.md) — 包安装、lockfile、`~/.yggdrasil` 布局、签名/完整性与同意提示
+- [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 secret store 与 API key 管理
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md) — 内核 v1 能力句柄模型、衰减、撤销、bindings 与 effect audit
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.md) — 第三方包本地验证 v1 contract compliance
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.md) — 自包含 Path B 包（`entry.contract: "none"`）

@@ -9,13 +9,13 @@ This document is about where Yggdrasil goes next. Completed phases live in [`ALP
 The platform substrate is in place.
 
 - The kernel is content-free. Official packages have no privileges. Entry forms are equal.
-- The secure-execution layer is complete: `secret_ref`, `EnvSecretResolver`, network declarations, outbound audit and redaction, live HTTP/WebSocket outbound executors, the outbound trio of unary / SSE-NDJSON-raw stream / WebSocket, plus streaming and cancel lifecycle.
+- The secure-execution layer is complete: `secret_ref`, `EnvSecretResolver`, `StoreSecretResolver`, local encrypted secret store, network declarations, outbound audit and redaction, live HTTP/WebSocket outbound executors, the outbound trio of unary / SSE-NDJSON-raw stream / WebSocket, plus streaming and cancel lifecycle.
 - Experience runtime, a real playable vertical slice, observability, memory, sharing / distribution — all shipped as ordinary capability packages.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
 - Vite web-shell builds, iframe SurfaceHost, the Tauri 2.x desktop wrapper, and the tag-triggered cross-platform release pipeline — all complete.
 - Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, SDK generation, and 105 schemas are in place.
-- 387 named conformance cases pass, plus crate / service unit tests.
+- 398 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -33,7 +33,8 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- The package-installation foundation is complete; only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
+- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store. Only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
+- OS keyring integration is deferred until CI / cross-platform builds have stable system dependencies.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.
@@ -59,6 +60,16 @@ Not new phases, but known to-dos that will get done:
 - `manifest.requires` field + Lockfile (`yggdrasil.lock.v1`).
 - `~/.yggdrasil` filesystem convention.
 - Interactive consent prompts + static conformance integration.
+- Round 10A.1 follow-up: defaults relaxed to the cargo/npm/pip technical baseline; `--require-signed` / `--strict` are opt-in; added `official/secret-store-lab`, `StoreSecretResolver`, and YdlTavern API Connections encrypted saving.
+
+## Round 10A.1 — Install Simplification + Secret Store (complete)
+
+- `yg install <url>` no longer requires signatures by default, and conformance failures are warning-only by default.
+- `--require-signed` and `--strict` provide controlled-environment opt-ins.
+- `official/secret-store-lab` provides an age-encrypted local secret store.
+- `StoreSecretResolver` and `CompositeSecretResolver` support `secret_ref:store:*` plus `secret_ref:env:*`.
+- YdlTavern API Connections is wired for paste + save → encrypted store.
+- OS keyring and `yg secret put / list / delete` CLI are deferred.
 
 ## Round 10B — Contract Frontier (not started)
 
@@ -135,6 +146,7 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
 - Package Installation Foundation (Round 10A)
+- Install Simplification + Secret Store (Round 10A.1)
 - Outbound WebSocket Substrate
 - Shell + Release S-track (Vite web build, iframe SurfaceHost, Tauri desktop wrapper, GitHub Actions release)
 - Round 9 Contract Foundation (Contract V1, capability handles, bindings, Path B, audit, conformance kit, SDK generation)

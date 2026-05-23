@@ -42,14 +42,14 @@ yg install github.com/user/yggdrasil-package#v1.2.0
 # 本地路径（开发）
 yg install ./packages/my-package
 
-# 跳过签名校验（仅本地/测试）
-yg install <url> --allow-unsigned
+# 要求签名标签（发布/受控环境）
+yg install <url> --require-signed
 
 # 非交互式（CI）
 yg install <url> --yes
 
-# 覆盖 conformance 失败（危险）
-yg install <url> --ignore-conformance
+# 严格 conformance gating
+yg install <url> --strict
 ```
 
 ### 其他命令
@@ -68,9 +68,17 @@ yg lockfile [--check]         # 验证 lockfile 与 store 一致
 命令可通过 `--data-dir <path>` 覆盖数据目录，适合测试和 CI。
 
 ```bash
-yg install ./packages/dev --profile alpha --data-dir /tmp/ygg-alpha --yes --allow-unsigned
+yg install ./packages/dev --profile alpha --data-dir /tmp/ygg-alpha --yes
 yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 ```
+
+安装相关 flag：
+
+- `--require-signed`：要求 Git tag 签名可验证；默认不强制签名。
+- `--strict`：conformance 失败时阻断安装；默认只警告并继续。
+- `--yes`：非交互式批准同意提示。
+- `--profile <name>`：选择要更新的 profile。
+- `--data-dir <path>`：覆盖 `~/.yggdrasil` 数据目录，适合测试和 CI。
 
 ## 清单 `requires` 字段
 
@@ -221,18 +229,33 @@ URL 含 username/password 也拒绝，避免 credential 进入日志、审计或
 卸载只移除 profile 与 lockfile 引用，store 目录保留为孤立内容。
 未来 `yg gc` 命令会回收孤立 store 目录。
 
+### 默认安全基线
+
+默认行为对齐 cargo/npm/pip 这类包管理器的技术基线：HTTPS-only、原子写入、内容哈希始终启用；签名验证和 conformance gating 是显式 opt-in。
+
+- HTTPS-only 与 URL credential 拒绝始终启用。
+- content hash（tree hash / manifest hash）始终记录。
+- profile、lockfile、store 写入始终使用原子写入。
+- 签名验证通过 `--require-signed` 启用。
+- conformance 阻断通过 `--strict` 启用。
+
 ### 签名验证
 
-Git 包默认应通过 GPG 签名标签验证。
+默认不要求 Git 包带 GPG 签名标签，但如果存在签名仍会记录状态。
 `minimum_signed_by` 字段强制特定 fingerprint。
-`--allow-unsigned` 只应在本地开发或测试中使用。
+`--require-signed` 要求签名可验证，适合发布、受控环境或组织策略。
 底层完整性工具基于 `sequoia-openpgp`，支持常见 RSA / Ed25519 签名材料。
 
 ### Conformance gating
 
 安装前会运行静态 v1 conformance 检查。
-默认拒绝安装失败的包。
-`--ignore-conformance` 是显式危险覆盖，会进入安装计划和审计语义。
+默认行为是 warning-only：失败会显示在安装计划中，但不阻断安装。
+`--strict` 会把 conformance 失败提升为安装阻断，适合 CI、发布或组织策略。
+
+### API key 与 secret
+
+安装只记录用户同意的 `secret_ref` 权限，不采集 raw API key。
+API key 管理见 [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md)：桌面端推荐 `secret_ref:store:*`，开发和 CI 可继续使用 `secret_ref:env:*`。
 
 ### 同意审计
 
@@ -306,7 +329,7 @@ Round 10A 覆盖：
 - tree hash、manifest hash、GPG verify、fingerprint；
 - resolve plan、execute plan、uninstall、list、lockfile drift；
 - transitive dependency 与循环依赖；
-- conformance gating、block、override、transitive propagation；
+- conformance gating、strict block、lenient warning、transitive propagation；
 - `install.real_github_smoke` 真实 GitHub opt-in smoke。
 
 默认 conformance 不联网。
@@ -332,5 +355,5 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - 对 GitHub 包启用签名标签。
 - 在 `requires` 中固定上游 ref，并使用合理 version constraint。
 - 在 CI 中运行 `yg lockfile --check`。
-- 本地开发可以用 `--allow-unsigned`，发布说明中不要推荐它。
+- 本地开发可直接使用 `yg install <url>`；发布或受控环境按需加 `--require-signed` 与 `--strict`。
 - 对新增网络和 secret 权限写清楚 purpose，方便用户同意。

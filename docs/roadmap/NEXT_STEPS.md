@@ -9,13 +9,13 @@
 平台底座已经搭好。
 
 - 内核对内容无意见、官方包没有特权、入口形式平等。
-- 安全执行底座完整：`secret_ref`、`EnvSecretResolver`、网络声明、外发审计与脱敏、live HTTP/WebSocket 出站执行器、出站一元 / SSE-NDJSON-raw 流 / WebSocket 三原语、流式与取消生命周期。
+- 安全执行底座完整：`secret_ref`、`EnvSecretResolver`、`StoreSecretResolver`、本地加密 secret store、网络声明、外发审计与脱敏、live HTTP/WebSocket 出站执行器、出站一元 / SSE-NDJSON-raw 流 / WebSocket 三原语、流式与取消生命周期。
 - 体验运行时、可玩纵切片、可观测性、记忆、分享/分发——都以普通能力包的形态落地。
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
 - Web shell 的 Vite 构建、iframe SurfaceHost、Tauri 2.x desktop wrapper、tag 触发的跨平台 release pipeline——全部完成。
 - Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成与 105 schemas 已落地。
-- 387 个具名 conformance 用例 + crate / service 单元测试通过。
+- 398 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -33,7 +33,8 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- 包安装的基础层已完成；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
+- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
+- OS keyring 集成延后，等 CI / 跨平台构建环境具备稳定系统依赖时再恢复。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
 - 钩子处理器的超时与错误审计。
@@ -59,6 +60,16 @@
 - `manifest.requires` 字段 + Lockfile (`yggdrasil.lock.v1`)。
 - `~/.yggdrasil` 文件系统约定。
 - 交互式同意提示 + 静态 conformance 集成。
+- Round 10A.1 follow-up：默认值放宽到 cargo/npm/pip 技术基线；`--require-signed` / `--strict` 改为 opt-in；新增 `official/secret-store-lab`、`StoreSecretResolver` 与 YdlTavern API Connections 加密保存。
+
+## Round 10A.1 — Install Simplification + Secret Store（完成）
+
+- `yg install <url>` 默认不要求签名，conformance 失败默认 warning-only。
+- `--require-signed` 和 `--strict` 提供受控环境 opt-in。
+- `official/secret-store-lab` 提供 age 加密本地 secret store。
+- `StoreSecretResolver` 与 `CompositeSecretResolver` 支持 `secret_ref:store:*` + `secret_ref:env:*`。
+- YdlTavern API Connections 抽屉已接入 paste + save → encrypted store。
+- OS keyring 与 `yg secret put / list / delete` CLI 延后。
 
 ## Round 10B — Contract Frontier（待开始）
 
@@ -135,6 +146,7 @@ Round 10 之后仍保留的底座项：package-owned projection 执行、package
 - PostgreSQL + TDB Integration Alpha
 - Real TDB Rust Adapter Alpha
 - Package Installation Foundation (Round 10A)
+- Install Simplification + Secret Store (Round 10A.1)
 - Outbound WebSocket Substrate
 - Shell + Release S-track（Vite Web build、iframe SurfaceHost、Tauri desktop wrapper、GitHub Actions release）
 - Round 9 Contract Foundation（Contract V1、capability handles、bindings、Path B、audit、conformance kit、SDK generation）
