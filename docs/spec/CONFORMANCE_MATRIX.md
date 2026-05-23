@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**360**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**371**。
 
 ## Conformance Feedback Loop
 
@@ -278,6 +278,17 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | storage lab | backend fit TDB 是 provider slot，真实 Rust adapter 为 opt-in proof — 无 kernel vector namespace、无 credentials | implemented |
 | storage lab | retrieval 所有能力输入阻断 raw secret | implemented |
 | storage lab | retrieval 所有能力输出无 kernel vector/embedding namespace 或 credentials | implemented |
+| capability handles | package load 自动 mint manifest 声明对应的 capability handles | implemented |
+| capability handles | `kernel.v1.cap.attenuate` 生成更窄子句柄且不能扩权 | implemented |
+| capability handles | `kernel.v1.cap.revoke` 使句柄及相关调用立刻失效 | implemented |
+| capability handles | `kernel.v1.cap.list_for` 返回 package 当前 live handles | implemented |
+| invoke instrumentation | capability invoke 发出 `kernel/v1/capability.invoked` | implemented |
+| invoke instrumentation | capability invoke 成功发出 `kernel/v1/capability.completed` | implemented |
+| invoke instrumentation | capability invoke 失败发出 `kernel/v1/capability.failed` | implemented |
+| bindings | subprocess handshake 注入 v1 bindings 字典 | implemented |
+| bindings | rust_inproc `KernelEnv` 注入 bindings | implemented |
+| package | `package.audit_report` / `kernel.v1.audit.package` 报告 declared vs used authority | implemented |
+| package | `package.path_b_self_contained` 验证 `entry.contract: none` 自包含路径 | implemented |
 
 ## Host 必需的拒绝类 conformance
 
@@ -597,6 +608,17 @@ tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS
+capability_handles.auto_mint PASS
+capability_handles.attenuate PASS
+capability_handles.revoke PASS
+capability_handles.list_for PASS
+invoke_instrumentation.invoked_event PASS
+invoke_instrumentation.completed_event PASS
+invoke_instrumentation.failed_event PASS
+bindings.subprocess_injection PASS
+bindings.rust_inproc_kernel_env PASS
+package.audit_report PASS
+package.path_b_self_contained PASS
 ```
 
 该套件应该以封闭失败为原则：任何列为 host 必需的用例都必须通过，对应里程碑才能宣布完成。

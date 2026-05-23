@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **360**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **371**.
 
 ## Conformance Feedback Loop
 
@@ -287,6 +287,17 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | creator loop | composition check provides experience surface coverage, replacement hints, checkpoint/recovery coverage, memory/observability hints | implemented |
 | creator loop | playable-creation-board package check output is verifiable with expected diagnostic fields | implemented |
 | creator loop | third-party playable-seed replaces official playable-seed without privilege | implemented |
+| capability handles | package load auto-mints capability handles from manifest declarations | implemented |
+| capability handles | `kernel.v1.cap.attenuate` creates a narrower child handle and cannot expand authority | implemented |
+| capability handles | `kernel.v1.cap.revoke` immediately invalidates handles and related calls | implemented |
+| capability handles | `kernel.v1.cap.list_for` returns current live handles for a package | implemented |
+| invoke instrumentation | capability invoke emits `kernel/v1/capability.invoked` | implemented |
+| invoke instrumentation | successful capability invoke emits `kernel/v1/capability.completed` | implemented |
+| invoke instrumentation | failed capability invoke emits `kernel/v1/capability.failed` | implemented |
+| bindings | subprocess handshake injects the v1 bindings dictionary | implemented |
+| bindings | rust_inproc `KernelEnv` injects bindings | implemented |
+| package | `package.audit_report` / `kernel.v1.audit.package` reports declared vs used authority | implemented |
+| package | `package.path_b_self_contained` validates the `entry.contract: none` self-contained path | implemented |
 
 ## Required rejection conformance for the host
 
@@ -606,6 +617,17 @@ tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS
+capability_handles.auto_mint PASS
+capability_handles.attenuate PASS
+capability_handles.revoke PASS
+capability_handles.list_for PASS
+invoke_instrumentation.invoked_event PASS
+invoke_instrumentation.completed_event PASS
+invoke_instrumentation.failed_event PASS
+bindings.subprocess_injection PASS
+bindings.rust_inproc_kernel_env PASS
+package.audit_report PASS
+package.path_b_self_contained PASS
 ```
 
 The suite should fail closed: any case listed as required for the host must pass before the corresponding milestone is declared complete.

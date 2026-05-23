@@ -8,8 +8,8 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 360 named CLI cases pass, plus crate and service unit tests.
-- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
+- **Conformance:** 371 named CLI cases pass, plus crate and service unit tests; 110 v1 schemas validate (58 methods + 45 events + 7 top-level).
+- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
 The platform foundation is in place. From here, real AI-native playable experiences pull the remaining substrate work.
@@ -22,6 +22,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Human and assistant principals get scoped grants.
 - Audit events: `kernel/v1/permission.granted|revoked|denied`, `kernel/v1/package.*` lifecycle, `kernel/v1/proposal.*` lifecycle.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
+- Contract V1 is the public platform spec: 58 protocol methods, 45 event kinds, and 110 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
@@ -48,6 +49,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - `rust_inproc` packages run through host-provided traits and a catalog. Manifests that declare an in-process provider but aren't in the catalog are rejected.
 - `subprocess` packages run over JSON-RPC on stdio: handshake, invoke, timeouts, degraded state, restart, kill-on-unload, stderr capture.
 - `wasm` and `remote` entries: manifests support them; execution is deferred.
+- Path A (`entry.contract: "v1"`) receives capability-handle bindings and permission enforcement; Path B (`entry.contract: "none"`) runs self-contained with no v1 authority, while lifecycle remains observable.
 - Capability routing supports explicit provider selection and simple exact / `^x.y` version constraints. Ambiguous routes are rejected unless the caller supplies `provider_package_id`.
 - Hook fabric: deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup. Covers `kernel/v1/event.before_append|after_append` and `kernel/v1/capability.before_invoke|after_invoke`.
 
@@ -122,6 +124,13 @@ Under `sdk/typescript/`:
 
 `text-surface`, `agentic-forge`, `inference-capability`, and several others ship pure-TS self-tests.
 
+## Contract v1 and SDK generation
+
+- `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 58 methods, 45 events, 7 top-level schemas, 110 total.
+- `sdk/typescript/kernel-sdk/` and `sdk/rust/yg-kernel-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
+- `yg conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
+
 ## Package templates
 
 `ygg init-package --template <name>`: `basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`, `networked`, `streaming`, `agent-runtime`, `experience-runtime`, `playable-board`, `playable-experience`. Generated packages are safe by default — no raw secrets, no implicit network.
@@ -167,7 +176,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 360 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 371 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.
@@ -181,7 +190,6 @@ Plus crate and service unit tests via `cargo test --workspace`, and `npm run che
 
 ## Partial (started, not finished)
 
-- Capability invocation lifecycle events (`kernel/v1/capability.invoked|completed|failed`): contract reserved, not yet emitted.
 - `event.subscribe` permission for package principals.
 - Timeout / error audit for package-owned hook handlers.
 - Persistent capability-provider selection policy beyond explicit per-call selection.
@@ -190,7 +198,6 @@ Plus crate and service unit tests via `cargo test --workspace`, and `npm run che
 - Package-owned projection execution.
 - Richer crash monitoring and health checks.
 - Broader transport consistency coverage.
-- Heavier TypeScript SDK packaging.
 - Desktop release code signing / notarization, auto-updater, real app icons, and desktop-wrapper management of the host subprocess.
 - Surface lifecycle callbacks such as `onClose` and `onProposalDraft`, plus a cross-origin surface-bundle allowlist.
 - Full surfacing of `kernel.v1.session.get|list`, `kernel.v1.package.describe`, `kernel.v1.capability.describe`, `kernel.v1.extension_point.describe`, `kernel.v1.host.principal`, `kernel.v1.host.ping`.

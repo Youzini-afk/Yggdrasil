@@ -82,6 +82,26 @@ Side effects, network reach, filesystem reach, cross-package calls — all decla
 
 Multiple packages can coexist in one session. There is no canonical "main experience." Conflicts are resolved by host-configured priority, not kernel defaults.
 
+## Contract v1 boundary
+
+The public platform spec is [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md). v1 schemas live under `../spec/v1/schemas/`; method, event, and top-level schemas are the single source of truth for SDK generation, the conformance kit, and third-party implementations.
+
+### Capability handles
+
+Manifest strings declare an authority ceiling; runtime capability handles represent actual authority. The kernel mints handles during package load / handshake / init, and can attenuate, revoke, and expire them. Capability calls, event access, outbound requests, and secret resolution should use handles or equivalent runtime bindings rather than package names or bare strings.
+
+See [`../guides/CAPABILITY_HANDLES.md`](../guides/CAPABILITY_HANDLES.en.md).
+
+### Binding injection
+
+Path A packages (`entry.contract: "v1"`) receive bindings at startup. Subprocess packages receive a bindings dictionary during `package.handshake`; Rust in-process packages initialize through `KernelEnv`; WASM and remote will be completed in Round 10 through WIT resource imports and SPIFFE/Biscuit token exchange. Bindings contain only the package's least granted authority.
+
+### Path B
+
+Path B packages (`entry.contract: "none"`) run self-contained. The kernel still hosts lifecycle, captures logs, and emits events, but does not inject v1 handles, enforce manifest permissions, or turn manifest declarations into platform authority. Path A and Path B are both first-class modes; packages needing capability invoke, network, secrets, or declared-vs-used audit should use Path A.
+
+See [`../guides/PATH_B_SELF_CONTAINED.md`](../guides/PATH_B_SELF_CONTAINED.en.md).
+
 ## What's not on this picture
 
 Tavern isn't a kernel layer. It will arrive as a future capability package family.
@@ -146,6 +166,8 @@ The kernel crate is content-free. Conversation, worlds, agents, memory, and mode
 - [`EXTENSION_POINTS.md`](EXTENSION_POINTS.en.md) for the hook contract.
 - [`EVENT_MODEL.md`](EVENT_MODEL.en.md) for the opaque event log.
 - [`RUNTIME_LIFECYCLE.md`](RUNTIME_LIFECYCLE.en.md) for kernel-side lifecycles.
+- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md) for the public v1 contract and schemas.
+- [`../guides/CAPABILITY_HANDLES.md`](../guides/CAPABILITY_HANDLES.en.md) for capability handles and audit.
 - [`../protocol/PROTOCOL_V0.md`](../protocol/PROTOCOL_V0.en.md) for the public protocol.
 - [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md) for third-party web surface hosting.
 - [`../../BUILDING.md`](../../BUILDING.md) for web / desktop build and release steps.

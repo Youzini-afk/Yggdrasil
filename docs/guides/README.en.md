@@ -7,6 +7,9 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 ## Getting started
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough (init-package, check, run-fixture, reload, composition)
+- [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md) — kernel v1 capability handles, attenuation, revoke, bindings, and effect audit
+- [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.en.md) — local v1 contract compliance validation for third-party packages
+- [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.en.md) — self-contained Path B packages (`entry.contract: "none"`)
 - [`GIT_PACKAGE_INSTALLATION.md`](GIT_PACKAGE_INSTALLATION.en.md) — install capability packages from public HTTPS git repos (git outbound, profile lockfile, installer-lab)
 - [`SURFACE_HOSTING.md`](SURFACE_HOSTING.en.md) — iframe SurfaceHost, third-party web surface bundle contract, and host bridge
 

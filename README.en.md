@@ -37,11 +37,13 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 ## Status
 
-The platform substrate is in place. The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
+The platform substrate is in place. Contract V1 is the public platform spec; see [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md). The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 360 named conformance cases pass, plus crate / service unit tests.
+- 371 named conformance cases pass, plus crate / service unit tests; 110 v1 schemas validate (58 methods + 45 events + 7 top-level).
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
-- Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
+- Secure execution, proposal approval, capability handles, binding injection, Path A / Path B, the conformance kit, generated SDKs, streaming lifecycle, model integration, and agent infrastructure are all in.
+- Path A (`entry.contract: "v1"`) and Path B (`entry.contract: "none"`) are both first-class participation modes.
+- SDKs are available through three channels: npm `@yggdrasil/kernel-sdk`, workspace path `file:../yggdrasil/sdk/typescript/kernel-sdk`, or direct generation from `docs/spec/v1/schemas/`.
 - The web shell now uses Vite for dev/build; `clients/desktop/` provides a Tauri 2.x desktop wrapper, and `v*` tags build cross-platform installers through GitHub Actions.
 - The perf baseline now records p50/p95/p99 + memory + env/git, supports `--compare` + `--threshold-pct`, and commits `perf/baseline.json`.
 
@@ -99,6 +101,7 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 
 **TypeScript SDKs**
 
+- `kernel-sdk` — generated public kernel SDK from v1 schemas, usable through npm, workspace path, or independent codegen.
 - `subprocess` — subprocess-package scaffolding.
 - `secure-execution`, `agentic-forge`, `ygg-agent-adapter`.
 - `inference-capability`, `model-provider-adapter`, `experience-runtime`.
@@ -160,7 +163,7 @@ Shortest path by intent:
 |---|---|
 | Understand the platform stance | [`docs/CHARTER.md`](docs/CHARTER.en.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.en.md) → [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md) |
 | Understand the architecture | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.en.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.en.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.en.md) |
-| Use the public protocol | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.en.md) → [`docs/spec/KERNEL_V0_ALPHA_CONTRACT.md`](docs/spec/KERNEL_V0_ALPHA_CONTRACT.en.md) |
+| Use the public protocol | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.en.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md) |
 | Write your first package | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Write agent / model / experience packages | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
 | Host third-party web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |

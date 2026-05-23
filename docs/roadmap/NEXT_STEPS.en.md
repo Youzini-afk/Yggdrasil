@@ -14,7 +14,8 @@ The platform substrate is in place.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
 - Vite web-shell builds, iframe SurfaceHost, the Tauri 2.x desktop wrapper, and the tag-triggered cross-platform release pipeline — all complete.
-- 360 named conformance cases pass, plus crate / service unit tests.
+- Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, SDK generation, and 110 schemas are in place.
+- 371 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -50,6 +51,19 @@ Not new phases, but known to-dos that will get done:
 - Cross-origin surface-bundle allowlist, including CSP and origin checks.
 - Desktop wrapper starts / stops `host serve` as a controlled managed subprocess.
 - Phase B optimizations (next): use [`../../perf/baseline.json`](../../perf/baseline.json) as the regression reference and measure before changing behavior.
+
+## Round 10: Contract Frontier
+
+Round 10 pushes the v1 contract to farther boundaries without expanding kernel content semantics:
+
+- WASM WIT worlds: map bindings into resource imports and complete wasm package execution.
+- Remote packages: SPIFFE identity, Biscuit token exchange, remote package lifecycle, and audit.
+- Powerbox: explicit user/host grants, handle delegation, temporary authority, and revocable delegation.
+- Advanced authority patterns: cross-package delegation, attenuation-chain audit, lease refresh, and bulk revoke.
+- Conformance kit library: extract package conformance as an embeddable library with project custom checks.
+- SDK packaging: complete npm publishing, Rust crate publishing, and OpenAPI/codegen documentation.
+
+Items remaining after Round 10 planning: package-owned projection execution, package-principal event.subscribe, hook timeout/error audit, persistent provider selection, broader transport parity, content-addressed blob storage, desktop signing/auto-update, surface lifecycle, and cross-origin allowlists.
 
 These unblock specific scenarios, but none should be the center of the next stage.
 
@@ -101,3 +115,4 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - Git Package Installation Substrate
 - Outbound WebSocket Substrate
 - Shell + Release S-track (Vite web build, iframe SurfaceHost, Tauri desktop wrapper, GitHub Actions release)
+- Round 9 Contract Foundation (Contract V1, capability handles, bindings, Path B, audit, conformance kit, SDK generation)

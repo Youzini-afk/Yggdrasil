@@ -14,7 +14,8 @@
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
 - Web shell 的 Vite 构建、iframe SurfaceHost、Tauri 2.x desktop wrapper、tag 触发的跨平台 release pipeline——全部完成。
-- 360 个具名 conformance 用例 + crate / service 单元测试通过。
+- Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成与 110 schemas 已落地。
+- 371 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -50,6 +51,19 @@
 - Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
 - Desktop wrapper 以受控 managed subprocess 启动 / 停止 `host serve`。
 - Phase B 优化（next）：使用 [`../../perf/baseline.json`](../../perf/baseline.json) 作为 regression reference，先测量再改动。
+
+## Round 10：Contract Frontier
+
+Round 10 的中心是把 v1 契约推进到更远的边界，而不是扩大内容语义：
+
+- WASM WIT worlds：把 bindings 映射成 resource imports，补齐 wasm package execution。
+- Remote packages：SPIFFE 身份、Biscuit token 兑换、远端 package lifecycle 与 audit。
+- Powerbox：显式用户/host 授权、句柄转授、临时权威与可撤销 delegation。
+- Advanced authority patterns：跨包委派、衰减链审计、租约刷新、批量撤销。
+- Conformance kit library：把 package conformance 抽成可嵌入库，支持项目自定义检查。
+- SDK packaging：完善 npm 发布、Rust crate 发布与 OpenAPI/codegen 文档。
+
+Round 10 之后仍保留的底座项：package-owned projection 执行、package-principal event.subscribe、hook timeout/error audit、持久 provider selection、更广传输一致性、content-addressed blob 存储、桌面签名/自动更新、surface lifecycle 与跨源 allowlist。
 
 这些项目解除某些场景的阻塞，但都不应该成为下一阶段的中心。
 
@@ -101,3 +115,4 @@
 - Git Package Installation Substrate
 - Outbound WebSocket Substrate
 - Shell + Release S-track（Vite Web build、iframe SurfaceHost、Tauri desktop wrapper、GitHub Actions release）
+- Round 9 Contract Foundation（Contract V1、capability handles、bindings、Path B、audit、conformance kit、SDK generation）
