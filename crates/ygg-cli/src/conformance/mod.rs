@@ -27,6 +27,7 @@ mod proposals;
 mod protocol;
 mod replacement;
 mod secret_conformance;
+mod secret_store;
 mod sharing_lab;
 mod storage_backend;
 mod storage_lab;
@@ -1877,6 +1878,57 @@ fn build_cases() -> Vec<ConformanceCase> {
             ["official", "integrity", "package_install"],
             integrity_tools::fingerprint_extraction_consistent
         ),
+        // --- secret-store-lab (Round 10A.1 Phase B) ---
+        c!(
+            "secret_store.put_then_has_succeeds",
+            ["official", "secret_store", "secret"],
+            secret_store::put_then_has_succeeds
+        ),
+        c!(
+            "secret_store.list_returns_names_not_values",
+            ["official", "secret_store", "secret"],
+            secret_store::list_returns_names_not_values
+        ),
+        c!(
+            "secret_store.delete_removes",
+            ["official", "secret_store", "secret"],
+            secret_store::delete_removes
+        ),
+        c!(
+            "secret_store.put_invalid_name_rejected",
+            ["official", "secret_store", "secret"],
+            secret_store::put_invalid_name_rejected
+        ),
+        c!(
+            "secret_store.put_oversized_value_rejected",
+            ["official", "secret_store", "secret"],
+            secret_store::put_oversized_value_rejected
+        ),
+        c!(
+            "secret_store.health_reports_layout",
+            ["official", "secret_store", "secret"],
+            secret_store::health_reports_layout
+        ),
+        c!(
+            "secret_store_resolver.resolves_existing",
+            ["official", "secret_store", "secret"],
+            secret_store::resolver_resolves_existing
+        ),
+        c!(
+            "secret_store_resolver.missing_name_fails_closed",
+            ["official", "secret_store", "secret"],
+            secret_store::resolver_missing_name_fails_closed
+        ),
+        c!(
+            "secret_store_resolver.non_store_ref_rejected",
+            ["official", "secret_store", "secret"],
+            secret_store::resolver_non_store_ref_rejected
+        ),
+        c!(
+            "secret_store_resolver.error_does_not_leak_value",
+            ["official", "secret_store", "secret"],
+            secret_store::resolver_error_does_not_leak_value
+        ),
         // --- sharing lab Beta 6 ---
         c!(
             "sharing_lab.contract_shape",
@@ -2212,14 +2264,19 @@ fn build_cases() -> Vec<ConformanceCase> {
             install_lab::resolve_plan_runs_conformance
         ),
         c!(
-            "install_lab.resolve_plan_blocks_on_conformance_failure",
+            "install_lab.resolve_plan_blocks_when_strict",
             ["official", "install", "package_install", "fixture"],
-            install_lab::resolve_plan_blocks_on_conformance_failure
+            install_lab::resolve_plan_blocks_when_strict
         ),
         c!(
-            "install_lab.resolve_plan_ignore_conformance_overrides",
+            "install_lab.strict_conformance_blocks",
             ["official", "install", "package_install", "fixture"],
-            install_lab::resolve_plan_ignore_conformance_overrides
+            install_lab::strict_conformance_blocks
+        ),
+        c!(
+            "install_lab.lenient_conformance_warns_not_blocks",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::lenient_conformance_warns_not_blocks
         ),
         c!(
             "install_lab.transitive_conformance_propagates",

@@ -35,3 +35,4 @@ autoload:
   - ../packages/official/tdb-retrieval-lab/manifest.yaml
   - ../packages/official/git-tools-lab/manifest.yaml
   - ../packages/official/install-lab/manifest.yaml
+  - ../packages/official/secret-store-lab/manifest.yaml

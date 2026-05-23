@@ -8,6 +8,7 @@ pub mod redaction;
 pub mod runtime;
 pub mod schema;
 pub mod secret;
+pub mod secret_store;
 pub mod storage;
 pub mod subprocess;
 pub mod tavern;
@@ -54,8 +55,8 @@ pub use runtime::{
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{
-    extract_env_name, DenyAllSecretResolver, EnvSecretResolver, HostSecretResolver,
-    SecretResolverConfig,
+    extract_env_name, CompositeSecretResolver, DenyAllSecretResolver, EnvSecretResolver,
+    HostSecretResolver, SecretResolverConfig, StoreSecretResolver,
 };
 pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;

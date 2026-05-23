@@ -55,10 +55,16 @@ struct ResolvePlanInput {
     root_ref: String,
     #[serde(default)]
     lockfile: Option<String>,
+    /// Require GPG-signed git tags. When false (default), unsigned packages
+    /// install without signature verification (matches cargo/npm/pip baseline).
+    /// When true, missing or invalid signatures abort install.
     #[serde(default)]
-    allow_unsigned: bool,
+    require_signed: bool,
+    /// Block install on conformance failure. When false (default), failures
+    /// are reported as warnings but install proceeds. When true, any conformance
+    /// failure aborts install.
     #[serde(default)]
-    ignore_conformance: bool,
+    strict_conformance: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,8 +199,8 @@ pub async fn resolve_plan(input: Value) -> Result<Value> {
     let mut resolving = HashSet::new();
     resolve_transitive(
         root,
-        input.allow_unsigned,
-        input.ignore_conformance,
+        input.require_signed,
+        input.strict_conformance,
         &mut visited,
         &mut resolving,
         &mut stack,
@@ -251,8 +257,8 @@ pub async fn resolve_plan(input: Value) -> Result<Value> {
 
 fn resolve_transitive(
     root: PackageDescriptor,
-    allow_unsigned: bool,
-    ignore_conformance: bool,
+    require_signed: bool,
+    strict_conformance: bool,
     visited: &mut HashSet<String>,
     resolving: &mut HashSet<String>,
     stack: &mut Vec<String>,
@@ -273,7 +279,7 @@ fn resolve_transitive(
         SourceDescriptor::Git { .. } => {}
     }
 
-    let resolved = resolve_one(root, allow_unsigned, ignore_conformance)?;
+    let resolved = resolve_one(root, require_signed, strict_conformance)?;
     if let Some(pos) = stack.iter().position(|id| id == &resolved.id) {
         let mut cycle = stack[pos..].to_vec();
         cycle.push(resolved.id.clone());
@@ -294,8 +300,8 @@ fn resolve_transitive(
         let next = resolve_dep(&req)?;
         resolve_transitive(
             next,
-            allow_unsigned,
-            ignore_conformance,
+            require_signed,
+            strict_conformance,
             visited,
             resolving,
             stack,
@@ -312,16 +318,16 @@ fn resolve_transitive(
 
 fn resolve_one(
     desc: PackageDescriptor,
-    allow_unsigned: bool,
-    ignore_conformance: bool,
+    require_signed: bool,
+    strict_conformance: bool,
 ) -> Result<PlannedPackage> {
     match desc.source {
-        SourceDescriptor::Local { path } => resolve_local_package(path, ignore_conformance),
+        SourceDescriptor::Local { path } => resolve_local_package(path, strict_conformance),
         SourceDescriptor::Git { url, ref_name } => block_on_current(resolve_git_package(
             url,
             ref_name,
-            allow_unsigned,
-            ignore_conformance,
+            require_signed,
+            strict_conformance,
         )),
         SourceDescriptor::Internal => {
             anyhow::bail!("internal packages do not require installation")
@@ -329,7 +335,7 @@ fn resolve_one(
     }
 }
 
-fn resolve_local_package(path: PathBuf, ignore_conformance: bool) -> Result<PlannedPackage> {
+fn resolve_local_package(path: PathBuf, strict_conformance: bool) -> Result<PlannedPackage> {
     let path = fs::canonicalize(&path)
         .with_context(|| format!("failed to canonicalize local package {}", path.display()))?;
     let manifest_path = manifest_path_in(&path)?;
@@ -349,15 +355,15 @@ fn resolve_local_package(path: PathBuf, ignore_conformance: bool) -> Result<Plan
         false,
         None,
     );
-    attach_conformance(&mut planned, &path, ignore_conformance)?;
+    attach_conformance(&mut planned, &path, strict_conformance)?;
     Ok(planned)
 }
 
 async fn resolve_git_package(
     url: String,
     ref_name: String,
-    allow_unsigned: bool,
-    ignore_conformance: bool,
+    require_signed: bool,
+    strict_conformance: bool,
 ) -> Result<PlannedPackage> {
     let resolved = invoke_package_capability(
         "official/git-tools-lab",
@@ -380,7 +386,7 @@ async fn resolve_git_package(
         let manifest_hash = compute_manifest_hash(&manifest_path).await?;
         let tree_hash = compute_tree_hash(&tmp).await?;
         let mut signed = false;
-        if !allow_unsigned {
+        if require_signed {
             let tag = invoke_package_capability(
                 "official/git-tools-lab",
                 "official/git-tools-lab/read_signed_tag",
@@ -405,7 +411,7 @@ async fn resolve_git_package(
             signed,
             None,
         );
-        attach_conformance(&mut planned, &tmp, ignore_conformance)?;
+        attach_conformance(&mut planned, &tmp, strict_conformance)?;
         Ok(planned)
     }
     .await;
@@ -673,10 +679,10 @@ fn planned_from_manifest(
 fn attach_conformance(
     planned: &mut PlannedPackage,
     package_path: &Path,
-    ignore_conformance: bool,
+    strict_conformance: bool,
 ) -> Result<()> {
     let report = block_on_current(ygg_core::conformance::run_checks(package_path, "v1", true))?;
-    if !report.summary.passed_all_blocking() && !ignore_conformance {
+    if !report.summary.passed_all_blocking() && strict_conformance {
         let errors = report.failed_checks().join("; ");
         anyhow::bail!("package {} fails v1 conformance: {errors}", planned.id);
     }

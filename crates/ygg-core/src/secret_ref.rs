@@ -141,6 +141,31 @@ pub fn is_env_backed_ref(s: &str) -> bool {
     false
 }
 
+/// Check whether a string is a valid **store-backed** secret reference.
+///
+/// Valid forms:
+/// - `secret_ref:store:NAME` (canonical)
+/// - `secretRef:store:NAME` (camelCase)
+/// - `secret-ref:store:NAME` (kebab-case)
+pub fn is_store_backed_ref(s: &str) -> bool {
+    extract_store_name(s).is_some()
+}
+
+/// Extract the store secret name from a store-backed reference.
+pub fn extract_store_name(ref_id: &str) -> Option<&str> {
+    for prefix in &["secret_ref:", "secretRef:", "secret-ref:"] {
+        if let Some(rest) = ref_id.strip_prefix(prefix) {
+            if let Some(name) = rest.strip_prefix("store:") {
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+            return None;
+        }
+    }
+    None
+}
+
 /// Check whether a string value looks like a raw secret (not a reference).
 ///
 /// This uses heuristic patterns to detect values that look like API keys
@@ -279,5 +304,36 @@ mod tests {
         assert!(!is_env_backed_ref("secret_ref:env:"));
         assert!(!is_env_backed_ref("host:env:"));
         assert!(!is_env_backed_ref("secret_ref:"));
+    }
+
+    #[test]
+    fn store_backed_ref_accepts_canonical_form() {
+        assert!(is_store_backed_ref("secret_ref:store:OPENAI_API_KEY"));
+    }
+
+    #[test]
+    fn store_backed_ref_rejects_env_and_empty_name() {
+        assert!(!is_store_backed_ref("secret_ref:env:OPENAI_API_KEY"));
+        assert!(!is_store_backed_ref("secret_ref:store:"));
+    }
+
+    #[test]
+    fn extract_store_name_returns_name() {
+        assert_eq!(
+            extract_store_name("secret_ref:store:MY_KEY"),
+            Some("MY_KEY")
+        );
+    }
+
+    #[test]
+    fn store_backed_ref_accepts_all_prefix_variants() {
+        assert!(is_store_backed_ref("secret_ref:store:MY_KEY"));
+        assert!(is_store_backed_ref("secretRef:store:MY_KEY"));
+        assert!(is_store_backed_ref("secret-ref:store:MY_KEY"));
+        assert_eq!(extract_store_name("secretRef:store:MY_KEY"), Some("MY_KEY"));
+        assert_eq!(
+            extract_store_name("secret-ref:store:MY_KEY"),
+            Some("MY_KEY")
+        );
     }
 }

@@ -35,6 +35,7 @@ mod playable_seed;
 mod project_intake_lab;
 mod projection_lab;
 pub mod safety;
+mod secret_store_lab;
 mod sharing_lab;
 mod storage_lab;
 mod tdb_retrieval_lab;
@@ -140,6 +141,10 @@ impl InprocPackageCatalog {
         );
         entries.insert(
             entry_key("official-install-lab", "official_install_lab"),
+            Arc::new(OfficialFoundationPackage),
+        );
+        entries.insert(
+            entry_key("official-secret-store-lab", "official_secret_store_lab"),
             Arc::new(OfficialFoundationPackage),
         );
         entries.insert(
@@ -253,6 +258,7 @@ async fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> 
         "official/workspace-lab" => workspace_lab::try_handle(request),
         "official/git-tools-lab" => git_tools_lab::try_handle(request),
         "official/integrity-lab" => integrity_lab::try_handle(request),
+        "official/secret-store-lab" => secret_store_lab::try_handle(request),
         _ => None,
     };
 

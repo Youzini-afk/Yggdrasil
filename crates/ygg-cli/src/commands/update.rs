@@ -76,7 +76,8 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
                 "root_url": url,
                 "root_ref": ref_name,
                 "lockfile": std::fs::read_to_string(lockfile_path(&data_dir, &args.profile)).ok(),
-                "allow_unsigned": true,
+                "require_signed": false,
+                "strict_conformance": false,
             }),
         )
         .await?

@@ -43,10 +43,10 @@ pub use manifest::{
 };
 pub use paths::{
     cache_dir, data_dir, ensure_initialized, keys_dir, lockfile_path, profile_path, profiles_dir,
-    store_dir, store_path_for_hash,
+    secret_store_key_path, secret_store_path, store_dir, store_path_for_hash,
 };
 pub use secret_ref::{
-    is_env_backed_ref, is_secret_field_name, looks_like_raw_secret, SecretRef, SECRET_FIELD_NAMES,
-    SECRET_REF_PREFIX,
+    extract_store_name, is_env_backed_ref, is_secret_field_name, is_store_backed_ref,
+    looks_like_raw_secret, SecretRef, SECRET_FIELD_NAMES, SECRET_REF_PREFIX,
 };
 pub use session::{KernelSession, SessionStatus};

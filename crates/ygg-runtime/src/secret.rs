@@ -11,6 +11,8 @@
 //! not the kernel.v1.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
@@ -146,6 +148,112 @@ impl HostSecretResolver for EnvSecretResolver {
                 );
             }
         }
+    }
+}
+
+/// A host-owned resolver that reads from the encrypted local secret store.
+///
+/// Resolves `secret_ref:store:NAME` (and prefix variants) by reading the
+/// encrypted store file directly. Does not go through the capability fabric;
+/// the store file is host-owned state that the resolver reads in-process.
+///
+/// ## Security properties
+///
+/// - **Fail-closed**: Missing store file, missing master key, or missing entry
+///   all produce typed errors without leaking values.
+/// - **Bounded**: Only resolves `store:` references; rejects everything else.
+/// - **No raw leak**: Errors mention names but never values.
+pub struct StoreSecretResolver {
+    store_path: PathBuf,
+}
+
+impl StoreSecretResolver {
+    pub fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            store_path: ygg_core::paths::secret_store_path()?,
+        })
+    }
+
+    pub fn with_path(path: PathBuf) -> Self {
+        Self { store_path: path }
+    }
+}
+
+impl std::fmt::Debug for StoreSecretResolver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StoreSecretResolver")
+            .field("store_path", &self.store_path)
+            .finish_non_exhaustive()
+    }
+}
+
+#[async_trait]
+impl HostSecretResolver for StoreSecretResolver {
+    async fn resolve(&self, ref_id: &str) -> anyhow::Result<String> {
+        let name = ygg_core::secret_ref::extract_store_name(ref_id)
+            .ok_or_else(|| anyhow::anyhow!("not a store-backed reference (ref_id='{}')", ref_id))?;
+
+        let (key, _) = crate::secret_store::resolve_master_key()?;
+        let store = crate::secret_store::load_store(&self.store_path, &key)?;
+        store.secrets.get(name).cloned().ok_or_else(|| {
+            anyhow::anyhow!("secret resolution failed: name '{}' not in store", name)
+        })
+    }
+}
+
+/// A resolver that delegates to one of several inner resolvers based on the
+/// vault prefix of the secret reference.
+///
+/// Routing:
+/// - `secret_ref:env:` (and variants) → env_resolver
+/// - `secret_ref:store:` (and variants) → store_resolver
+/// - Everything else → DenyAll error
+pub struct CompositeSecretResolver {
+    env_resolver: Option<Arc<EnvSecretResolver>>,
+    store_resolver: Option<Arc<StoreSecretResolver>>,
+}
+
+impl CompositeSecretResolver {
+    pub fn new() -> Self {
+        Self {
+            env_resolver: None,
+            store_resolver: None,
+        }
+    }
+
+    pub fn with_env(mut self, r: Arc<EnvSecretResolver>) -> Self {
+        self.env_resolver = Some(r);
+        self
+    }
+
+    pub fn with_store(mut self, r: Arc<StoreSecretResolver>) -> Self {
+        self.store_resolver = Some(r);
+        self
+    }
+}
+
+impl Default for CompositeSecretResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl HostSecretResolver for CompositeSecretResolver {
+    async fn resolve(&self, ref_id: &str) -> anyhow::Result<String> {
+        if ygg_core::secret_ref::is_env_backed_ref(ref_id) {
+            return match &self.env_resolver {
+                Some(r) => r.resolve(ref_id).await,
+                None => anyhow::bail!("env resolver not configured (ref_id='{}')", ref_id),
+            };
+        }
+        if ygg_core::secret_ref::is_store_backed_ref(ref_id) {
+            return match &self.store_resolver {
+                Some(r) => r.resolve(ref_id).await,
+                None => anyhow::bail!("store resolver not configured (ref_id='{}')", ref_id),
+            };
+        }
+        anyhow::bail!("unsupported secret reference scheme (ref_id='{}')", ref_id);
     }
 }
 
@@ -455,5 +563,27 @@ mod tests {
     fn extract_env_name_unrecognized() {
         assert_eq!(extract_env_name("not_a_ref"), None);
         assert_eq!(extract_env_name(""), None);
+    }
+
+    #[tokio::test]
+    async fn composite_routes_env_refs() {
+        let name = unique_env_name("COMPOSITE");
+        let _guard = EnvVarGuard::set(&name, "composite-value");
+        let resolver = CompositeSecretResolver::new().with_env(Arc::new(EnvSecretResolver::new(
+            HashSet::from([name.clone()]),
+        )));
+
+        let result = resolver.resolve(&format!("secret_ref:env:{name}")).await;
+        assert_eq!(result.unwrap(), "composite-value");
+    }
+
+    #[tokio::test]
+    async fn composite_rejects_unconfigured_store_refs() {
+        let resolver = CompositeSecretResolver::new();
+        let result = resolver.resolve("secret_ref:store:MY_KEY").await;
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("store resolver not configured"));
     }
 }

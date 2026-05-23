@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+age = { version = "0.11.3", default-features = false }
 anyhow.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
@@ -41,3 +42,6 @@ optional = true
 [dependencies.deadpool-postgres]
 workspace = true
 optional = true
+
+[dev-dependencies]
+tempfile = "3"

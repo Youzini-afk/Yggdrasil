@@ -31,14 +31,13 @@ pub struct InstallArgs {
     #[arg(long)]
     pub data_dir: Option<PathBuf>,
 
-    /// Skip GPG signature verification (only for testing/local sources)
+    /// Require GPG-signed git tags (off by default — matches cargo/npm baseline)
     #[arg(long)]
-    pub allow_unsigned: bool,
+    pub require_signed: bool,
 
-    /// Override conformance failures (DANGEROUS; allows installing
-    /// packages that don't comply with the v1 contract)
+    /// Treat conformance failures as errors instead of warnings
     #[arg(long)]
-    pub ignore_conformance: bool,
+    pub strict: bool,
 
     /// Skip interactive consent prompt (CI mode)
     #[arg(short = 'y', long)]
@@ -73,8 +72,8 @@ pub async fn run(args: InstallArgs) -> Result<()> {
             "root_url": install_url.url_for_resolver(),
             "root_ref": install_url.ref_or_default(),
             "lockfile": existing_lockfile,
-            "allow_unsigned": args.allow_unsigned,
-            "ignore_conformance": args.ignore_conformance,
+            "require_signed": args.require_signed,
+            "strict_conformance": args.strict,
         }),
     )
     .await?;
@@ -83,14 +82,12 @@ pub async fn run(args: InstallArgs) -> Result<()> {
         .get("plan")
         .cloned()
         .context("install-lab resolve_plan response missing plan")?;
+    print_conformance_warnings(&plan, args.strict);
 
     match args.format {
         OutputFormat::Json => println!("{}", serde_json::to_string_pretty(&plan)?),
         OutputFormat::Human => {
             print_plan_human(&plan);
-            if args.ignore_conformance {
-                print_ignored_conformance_failures(&plan);
-            }
         }
     }
 
@@ -176,65 +173,58 @@ pub(crate) fn lockfile_path(data_dir: &Path, profile: &str) -> PathBuf {
 }
 
 pub(crate) fn print_plan_human(plan: &Value) {
-    println!("Install plan:");
-    if let Some(packages) = plan["packages"].as_array() {
+    println!(
+        "Resolved {} package(s):",
+        plan.pointer("/packages")
+            .and_then(Value::as_array)
+            .map(|a| a.len())
+            .unwrap_or(0)
+    );
+    if let Some(packages) = plan.pointer("/packages").and_then(Value::as_array) {
         for pkg in packages {
-            let id = pkg["id"].as_str().unwrap_or("(unknown)");
-            let version = pkg["version"].as_str().unwrap_or("(unknown)");
-            let source = pkg["source"].as_str().unwrap_or("(unknown)");
-            println!("  {id} @ {version} ({source})");
-        }
-    }
-    let summary = &plan["permissions_summary"];
-    println!("Permissions:");
-    println!(
-        "  capabilities: {}",
-        join_or_none(summary["new_capabilities"].as_array())
-    );
-    println!(
-        "  network: {}",
-        join_or_none(summary["new_network_hosts"].as_array())
-    );
-    println!(
-        "  secrets: {}",
-        join_or_none(summary["new_secret_refs"].as_array())
-    );
-    if let Some(unsigned) = plan["signature_summary"]["unsigned_packages"].as_array() {
-        if !unsigned.is_empty() {
-            println!("Unsigned packages: {}", join_or_none(Some(unsigned)));
+            let id = pkg.pointer("/id").and_then(Value::as_str).unwrap_or("?");
+            let version = pkg
+                .pointer("/version")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let signed = pkg
+                .pointer("/signed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let signed_marker = if signed { " (signed)" } else { "" };
+            println!("  {id} @ {version}{signed_marker}");
         }
     }
 }
 
-fn print_ignored_conformance_failures(plan: &Value) {
-    let failures = plan["packages"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .flat_map(|pkg| {
-            let package_id = pkg["id"].as_str().unwrap_or("(unknown)").to_string();
-            pkg["conformance"]["checks"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter(|check| check["status"].as_str() == Some("Fail"))
-                .map(move |check| {
-                    let check_id = check["id"].as_str().unwrap_or("(unknown)");
-                    let details = check["details"].as_str().unwrap_or("no details");
-                    format!("  - {package_id}: {check_id}: FAIL ({details})")
-                })
-        })
-        .collect::<Vec<_>>();
-
-    if failures.is_empty() {
+fn print_conformance_warnings(plan: &Value, strict: bool) {
+    if strict {
         return;
     }
-
-    println!("⚠ Installing despite conformance failures:");
-    for failure in failures {
-        println!("{failure}");
+    if let Some(packages) = plan.pointer("/packages").and_then(Value::as_array) {
+        for pkg in packages {
+            let Some(report) = pkg.pointer("/conformance") else {
+                continue;
+            };
+            let summary = report.pointer("/summary");
+            let failed = summary
+                .and_then(|s| s.pointer("/failed_blocking"))
+                .and_then(Value::as_u64)
+                .or_else(|| {
+                    summary
+                        .and_then(|s| s.pointer("/failed"))
+                        .and_then(Value::as_u64)
+                })
+                .unwrap_or(0);
+            if failed > 0 {
+                eprintln!(
+                    "⚠ {} has {} conformance warning(s) (use --strict to block)",
+                    pkg.pointer("/id").and_then(Value::as_str).unwrap_or("?"),
+                    failed
+                );
+            }
+        }
     }
-    println!("These would normally block install. You used --ignore-conformance to bypass.");
 }
 
 pub(crate) fn join_or_none(values: Option<&Vec<Value>>) -> String {
@@ -267,8 +257,8 @@ mod tests {
             "dev",
             "--data-dir",
             "/tmp/ygg",
-            "--allow-unsigned",
-            "--ignore-conformance",
+            "--require-signed",
+            "--strict",
             "--yes",
             "--format",
             "json",
@@ -279,8 +269,8 @@ mod tests {
                 assert_eq!(args.source, "github.com/user/repo#v1.0");
                 assert_eq!(args.profile, "dev");
                 assert_eq!(args.data_dir, Some(PathBuf::from("/tmp/ygg")));
-                assert!(args.allow_unsigned);
-                assert!(args.ignore_conformance);
+                assert!(args.require_signed);
+                assert!(args.strict);
                 assert!(args.yes);
                 assert_eq!(args.format, OutputFormat::Json);
             }

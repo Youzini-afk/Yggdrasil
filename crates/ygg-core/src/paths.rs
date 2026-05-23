@@ -52,6 +52,18 @@ pub fn cache_dir() -> Result<PathBuf> {
     Ok(data_dir()?.join("cache"))
 }
 
+/// Path to the encrypted secret store file.
+/// Default: `<data_dir>/secrets.dat`
+pub fn secret_store_path() -> Result<PathBuf> {
+    Ok(data_dir()?.join("secrets.dat"))
+}
+
+/// Path to the secret store master key file (fallback when keyring unavailable).
+/// Default: `<data_dir>/secret-store.key`
+pub fn secret_store_key_path() -> Result<PathBuf> {
+    Ok(data_dir()?.join("secret-store.key"))
+}
+
 /// Initialize the directory layout if missing. Creates all directories with
 /// 0700 permissions on Unix.
 pub fn ensure_initialized() -> Result<()> {
@@ -170,6 +182,21 @@ mod tests {
         std::env::set_var("YGG_DATA_DIR", "/tmp/test");
         let path = store_path_for_hash("sha256:abc123").unwrap();
         assert_eq!(path, PathBuf::from("/tmp/test/store/sha256-abc123"));
+        std::env::remove_var("YGG_DATA_DIR");
+    }
+
+    #[test]
+    fn secret_store_paths_use_data_dir() {
+        let _guard = EnvGuard::lock();
+        std::env::set_var("YGG_DATA_DIR", "/tmp/test-ygg-secrets");
+        assert_eq!(
+            secret_store_path().unwrap(),
+            PathBuf::from("/tmp/test-ygg-secrets/secrets.dat")
+        );
+        assert_eq!(
+            secret_store_key_path().unwrap(),
+            PathBuf::from("/tmp/test-ygg-secrets/secret-store.key")
+        );
         std::env::remove_var("YGG_DATA_DIR");
     }
 

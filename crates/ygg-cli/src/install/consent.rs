@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use console::style;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
@@ -33,26 +32,38 @@ pub fn approve_all(plan: &Value) -> Value {
 }
 
 pub fn prompt_for_consent(plan: &Value, existing_lockfile: Option<&str>) -> Result<Value> {
-    let requested = aggregate_plan_permissions(plan);
-    let existing = match existing_lockfile {
-        Some(lockfile_toml) => read_existing_grants(lockfile_toml)?,
-        None => AggregatedPermissions::default(),
+    let plan_perms = aggregate_plan_permissions(plan);
+    let existing_perms = if let Some(lockfile_toml) = existing_lockfile {
+        read_existing_grants(lockfile_toml).unwrap_or_default()
+    } else {
+        AggregatedPermissions::default()
     };
-    let diff = diff_permissions(&requested, &existing);
+    let diff = diff_permissions(&plan_perms, &existing_perms);
+
+    if diff.is_empty() {
+        return Ok(approve_all(plan));
+    }
 
     if !std::io::stdin().is_terminal() {
-        anyhow::bail!("no TTY; use --yes for non-interactive consent");
+        anyhow::bail!("no TTY available; use --yes for non-interactive consent");
     }
 
-    if !diff.has_new_permissions() {
-        return Ok(consent_from_permissions(&requested));
+    let summary = format_diff_summary(&diff);
+    let prompt_text = format!("Install will request: {summary}. Continue?");
+    let confirmed = dialoguer::Confirm::new()
+        .with_prompt(prompt_text)
+        .default(false)
+        .interact()?;
+
+    if !confirmed {
+        anyhow::bail!("install declined by user");
     }
 
-    if render_prompt(&diff, plan)? {
-        Ok(consent_from_permissions(&requested))
-    } else {
-        anyhow::bail!("install declined by user")
-    }
+    Ok(json!({
+        "approved_capabilities": diff.new_capabilities.iter().cloned().collect::<Vec<_>>(),
+        "approved_network_hosts": diff.new_network_hosts.iter().cloned().collect::<Vec<_>>(),
+        "approved_secret_refs": diff.new_secret_refs.iter().cloned().collect::<Vec<_>>(),
+    }))
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -71,10 +82,10 @@ struct PermissionDiff {
 }
 
 impl PermissionDiff {
-    fn has_new_permissions(&self) -> bool {
-        !self.new_capabilities.is_empty()
-            || !self.new_network_hosts.is_empty()
-            || !self.new_secret_refs.is_empty()
+    fn is_empty(&self) -> bool {
+        self.new_capabilities.is_empty()
+            && self.new_network_hosts.is_empty()
+            && self.new_secret_refs.is_empty()
     }
 }
 
@@ -159,91 +170,36 @@ fn diff_permissions(
     }
 }
 
-fn consent_from_permissions(permissions: &AggregatedPermissions) -> Value {
-    json!({
-        "approved_capabilities": permissions.capabilities.iter().cloned().collect::<Vec<_>>(),
-        "approved_network_hosts": permissions.network_hosts.iter().cloned().collect::<Vec<_>>(),
-        "approved_secret_refs": permissions.secret_refs.iter().cloned().collect::<Vec<_>>(),
-    })
-}
-
-fn render_prompt(diff: &PermissionDiff, plan: &Value) -> Result<bool> {
-    println!();
-    println!("{}", style("Install plan:").bold().underlined());
-
-    if let Some(packages) = plan.pointer("/packages").and_then(Value::as_array) {
-        for pkg in packages {
-            let id = pkg.pointer("/id").and_then(Value::as_str).unwrap_or("?");
-            let version = pkg
-                .pointer("/version")
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            let signed = pkg
-                .pointer("/signed")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let signed_marker = if signed {
-                style("✓ signed").green()
-            } else {
-                style("⚠ unsigned").yellow()
-            };
-            println!("  {} @ {}  {}", style(id).cyan(), version, signed_marker);
-        }
-    }
-
+fn format_diff_summary(diff: &PermissionDiff) -> String {
+    let mut parts = Vec::new();
     if !diff.new_capabilities.is_empty() {
-        println!();
-        println!(
-            "{}",
-            style("New capability invocations requested:")
-                .bold()
-                .yellow()
-        );
-        for cap in &diff.new_capabilities {
-            println!("  - {}", style(cap).red());
-        }
+        parts.push(format!(
+            "{} capability invocation(s)",
+            diff.new_capabilities.len()
+        ));
     }
     if !diff.new_network_hosts.is_empty() {
-        println!();
-        println!("{}", style("New network hosts requested:").bold().yellow());
-        for host in &diff.new_network_hosts {
-            println!("  - {}", style(host).red());
-        }
+        parts.push(format!(
+            "{} network host(s): {}",
+            diff.new_network_hosts.len(),
+            diff.new_network_hosts
+                .iter()
+                .take(2)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
     }
     if !diff.new_secret_refs.is_empty() {
-        println!();
-        println!(
-            "{}",
-            style("New secret references requested:").bold().yellow()
-        );
-        for secret in &diff.new_secret_refs {
-            println!("  - {}", style(secret).red());
-        }
+        parts.push(format!(
+            "{} secret reference(s)",
+            diff.new_secret_refs.len()
+        ));
     }
-    if !diff.already_granted.capabilities.is_empty()
-        || !diff.already_granted.network_hosts.is_empty()
-        || !diff.already_granted.secret_refs.is_empty()
-    {
-        println!();
-        println!("{}", style("Already granted (reused):").dim());
-        for cap in &diff.already_granted.capabilities {
-            println!("  - {}", style(format!("{cap} (capability)")).dim());
-        }
-        for host in &diff.already_granted.network_hosts {
-            println!("  - {}", style(format!("{host} (network host)")).dim());
-        }
-        for secret in &diff.already_granted.secret_refs {
-            println!("  - {}", style(format!("{secret} (secret ref)")).dim());
-        }
+    if parts.is_empty() {
+        return "no new permissions".to_string();
     }
-
-    println!();
-    let confirmed = dialoguer::Confirm::new()
-        .with_prompt("Proceed with install?")
-        .default(false)
-        .interact()?;
-
-    Ok(confirmed)
+    parts.join(", ")
 }
 
 #[cfg(test)]
@@ -342,25 +298,23 @@ mod tests {
     }
 
     #[test]
-    fn consent_from_permissions_approves_requested_permissions() {
-        let plan = json!({
-            "packages": [{
-                "permissions": {
-                    "capabilities_invoke": ["model.live_call"],
-                    "network_hosts": ["api.openai.com"],
-                    "secret_refs": ["secret_ref:env:OPENAI_API_KEY"]
-                }
-            }]
-        });
-        let permissions = aggregate_plan_permissions(&plan);
+    fn diff_summary_renders_single_line() {
+        let plan = AggregatedPermissions {
+            capabilities: ["model.live_call", "vector.search"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+            network_hosts: ["api.openai.com"].into_iter().map(String::from).collect(),
+            secret_refs: ["secret_ref:env:OPENAI_API_KEY"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        };
+        let diff = diff_permissions(&plan, &AggregatedPermissions::default());
 
-        let consent = consent_from_permissions(&permissions);
-
-        assert_eq!(consent["approved_capabilities"], json!(["model.live_call"]));
-        assert_eq!(consent["approved_network_hosts"], json!(["api.openai.com"]));
         assert_eq!(
-            consent["approved_secret_refs"],
-            json!(["secret_ref:env:OPENAI_API_KEY"])
+            format_diff_summary(&diff),
+            "2 capability invocation(s), 1 network host(s): api.openai.com, 1 secret reference(s)"
         );
     }
 }

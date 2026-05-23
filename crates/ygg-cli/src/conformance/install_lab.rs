@@ -89,15 +89,18 @@ pub(crate) async fn resolve_plan_runs_conformance() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn resolve_plan_blocks_on_conformance_failure() -> anyhow::Result<()> {
+pub(crate) async fn resolve_plan_blocks_when_strict() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let err = invoke(
         &rt,
         "official/install-lab/resolve_plan",
-        json!({ "root_url": fixture_path("pkg-broken-manifest") }),
+        json!({
+            "root_url": fixture_path("pkg-broken-manifest"),
+            "strict_conformance": true,
+        }),
     )
     .await
-    .expect_err("broken manifest should fail conformance");
+    .expect_err("broken manifest should fail conformance in strict mode");
     anyhow::ensure!(
         err.to_string().contains("fails v1 conformance"),
         "unexpected error: {err}"
@@ -105,14 +108,45 @@ pub(crate) async fn resolve_plan_blocks_on_conformance_failure() -> anyhow::Resu
     Ok(())
 }
 
-pub(crate) async fn resolve_plan_ignore_conformance_overrides() -> anyhow::Result<()> {
+pub(crate) async fn strict_conformance_blocks() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let err = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({
+            "root_url": fixture_path("pkg-broken-manifest"),
+            "strict_conformance": true,
+        }),
+    )
+    .await
+    .expect_err("strict mode should block broken manifest");
+    anyhow::ensure!(
+        err.to_string().contains("fails v1 conformance"),
+        "unexpected error: {err}"
+    );
+
+    let out = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({
+            "root_url": fixture_path("pkg-broken-manifest"),
+            "strict_conformance": false,
+        }),
+    )
+    .await?;
+    let report = &out.output["plan"]["packages"][0]["conformance"];
+    anyhow::ensure!(report["summary"]["failed"].as_u64().unwrap_or(0) > 0);
+    Ok(())
+}
+
+pub(crate) async fn lenient_conformance_warns_not_blocks() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let out = invoke(
         &rt,
         "official/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-broken-manifest"),
-            "ignore_conformance": true,
+            "strict_conformance": false,
         }),
     )
     .await?;
@@ -128,7 +162,7 @@ pub(crate) async fn transitive_conformance_propagates() -> anyhow::Result<()> {
         "official/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-a-broken-dep"),
-            "ignore_conformance": true,
+            "strict_conformance": false,
         }),
     )
     .await?;
