@@ -2,9 +2,14 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Yggdrasil has two layers: a kernel that hosts capability packages, and the packages themselves. The kernel is small and content-free; everything meaningful lives in packages.
+Yggdrasil has three tiers: a content-free kernel, reusable capability packages, and projects that use those packages. The kernel is small and content-free; everything meaningful lives in packages, and a project is a host/runtime-managed instance, not kernel ontology.
 
 ```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Projects (launchable Home instances: YdlTavern / coding agent / ...)│
+└─────────────────────────────────────────────────────────────────┘
+                          ▲     use packages     ▲
+                          │                      │
 ┌─────────────────────────────────────────────────────────────────┐
 │ Capability packages (every meaningful concept lives here)        │
 │                                                                  │
@@ -38,7 +43,7 @@ Yggdrasil has two layers: a kernel that hosts capability packages, and the packa
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## The two layers
+## The three tiers
 
 ### The kernel
 
@@ -49,6 +54,10 @@ The kernel hosts capability packages and nothing else. The full responsibility l
 Capability packages provide every meaningful concept on the platform: characters, prompts, models, agents, worlds, rules, memory, presentation, and so on. See [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md).
 
 A package can be a Rust in-process crate, a subprocess, a WASM module, or a remote service. The kernel treats all four the same.
+
+### Projects
+
+A project is a runtime instance: it has an entry surface, its own state and data directory, and can appear as a Home card with independent start/stop lifecycle. Projects reference capability packages, but the project concept is not written into the kernel. The host owns `ProjectDescriptor`, `ProjectRegistry`, per-project data directories, project-level secret stores, and the Home lifecycle. See [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md).
 
 ## Boundary rules
 
@@ -101,6 +110,12 @@ Path A packages (`entry.contract: "v1"`) receive bindings at startup. Subprocess
 Path B packages (`entry.contract: "none"`) run self-contained. The kernel still hosts lifecycle, captures logs, and emits events, but does not inject v1 handles, enforce manifest permissions, or turn manifest declarations into platform authority. Path A and Path B are both first-class modes; packages needing capability invoke, network, secrets, or declared-vs-used audit should use Path A.
 
 See [`../guides/PATH_B_SELF_CONTAINED.md`](../guides/PATH_B_SELF_CONTAINED.en.md).
+
+## Project layer
+
+The project layer sits above capability packages. It combines a package set, entry surface, state directory, and secret policy into a runtime instance users can see, launch, and uninstall. The Home screen renders projects as cards; clicking Play asks the host through `kernel.v1.project.start`, then navigates to the project's entry surface.
+
+Projects still preserve the kernel invariants: the kernel does not interpret YdlTavern, coding-agent, image-gen, or other content shapes; project management belongs to host/admin protocol and the runtime registry, and ordinary packages cannot use project methods to gain authority.
 
 ## What's not on this picture
 
@@ -170,5 +185,6 @@ The kernel crate is content-free. Conversation, worlds, agents, memory, and mode
 - [`../guides/CAPABILITY_HANDLES.md`](../guides/CAPABILITY_HANDLES.en.md) for capability handles and audit.
 - [`../protocol/PROTOCOL_V0.md`](../protocol/PROTOCOL_V0.en.md) for the public protocol.
 - [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md) for third-party web surface hosting.
+- [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) for the Home project layer and lifecycle.
 - [`../../BUILDING.md`](../../BUILDING.md) for web / desktop build and release steps.
 - [`../../CHANGELOG.md`](../../CHANGELOG.md) for release notes.

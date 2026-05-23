@@ -2,12 +2,12 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-The kernel + packages two-layer architecture, capability package contract, extension points, event model, and lifecycles.
+The kernel + packages + projects three-tier architecture, capability package contract, extension points, event model, and lifecycles.
 
 ## Platform stance
 
 - [`VISION.md`](VISION.en.md) — what the platform is for
-- [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — kernel + packages layering
+- [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — kernel + packages + projects layering
 - [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — what the kernel does and does not do
 
 ## Capability package contract

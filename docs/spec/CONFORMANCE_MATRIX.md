@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**398**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**418**。
 
 ## Conformance Feedback Loop
 
@@ -35,6 +35,34 @@ cargo run -p ygg-cli -- conformance --slowest 3
 ```
 
 ## 当前 conformance 覆盖
+
+### Round 10A.2 project model conformance additions
+
+Round 10A.2 新增 20 个用例，CLI conformance 总数从 398 增至 418。实际 case id 可用 `cargo run -p ygg-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"` 核对。
+
+| Wave | Case id | 覆盖 | 状态 |
+|---|---|---|---|
+| Wave 1 | `secret_store_resolver.host_profile_installs_composite_resolver` | host profile 安装 env+store/project composite resolver | implemented |
+| Wave 2 | `project_secret.put_then_resolve_via_project_ref` | `secret_ref:project:*` 读取项目 store | implemented |
+| Wave 2 | `project_secret.fallback_to_platform_when_missing` | 项目缺失时按 policy 回退平台 store | implemented |
+| Wave 2 | `project_secret.no_fallback_when_disabled` | 关闭 fallback 后 fail-closed | implemented |
+| Wave 2 | `project_secret.require_per_project_blocks_fallback` | `require_per_project` 阻断平台 fallback | implemented |
+| Wave 2 | `project_secret.isolation_between_projects` | 项目间 secret store 软隔离 | implemented |
+| Wave 2 | `project_secret.no_session_context_fails_closed` | 无项目/session 上下文时 fail-closed | implemented |
+| Wave 2 | `project_secret.list_returns_names_not_values` | 列出项目 secret 只返回名称不返回值 | implemented |
+| Wave 3 | `project.detect_native_yaml` | 检测原生 `project.yaml` | implemented |
+| Wave 3 | `project.detect_no_yaml` | 无 `project.yaml` 进入外部项目路径 | implemented |
+| Wave 3 | `project.detect_invalid_yaml_rejected` | 无效 descriptor 被拒绝 | implemented |
+| Wave 3 | `project.register_creates_project_dir` | 注册项目创建数据目录 | implemented |
+| Wave 3 | `project.list_returns_registered` | registry/list 返回已注册项目 | implemented |
+| Wave 3 | `project.state_transitions` | start/stop 状态转换 | implemented |
+| Wave 3 | `project.archive_keeps_data` | uninstall keep-data 归档项目目录 | implemented |
+| Wave 4 | `protocol.project_list_returns_registered_projects` | `kernel.v1.project.list` 返回项目列表 | implemented |
+| Wave 4 | `protocol.project_get_returns_full_descriptor` | `kernel.v1.project.get` 返回完整 descriptor | implemented |
+| Wave 4 | `protocol.project_start_transitions_state` | `kernel.v1.project.start` 转换状态 | implemented |
+| Wave 4 | `protocol.project_methods_require_admin_principal` | project methods 限 HostAdmin/HostDev | implemented |
+| Wave 4 | `protocol.project_lifecycle_event_emitted_on_start` | start 发出项目 lifecycle event | implemented |
+
 
 | 领域 | 用例 | 状态 |
 |---|---|---:|
@@ -625,6 +653,26 @@ install_lab.uninstall_removes_from_profile PASS
 install_lab.list_installed_reflects_lockfile PASS
 install_lab.check_lockfile_drift_detection PASS
 install.real_github_smoke PASS
+secret_store_resolver.host_profile_installs_composite_resolver PASS
+project_secret.put_then_resolve_via_project_ref PASS
+project_secret.fallback_to_platform_when_missing PASS
+project_secret.no_fallback_when_disabled PASS
+project_secret.require_per_project_blocks_fallback PASS
+project_secret.isolation_between_projects PASS
+project_secret.no_session_context_fails_closed PASS
+project_secret.list_returns_names_not_values PASS
+project.detect_native_yaml PASS
+project.detect_no_yaml PASS
+project.detect_invalid_yaml_rejected PASS
+project.register_creates_project_dir PASS
+project.list_returns_registered PASS
+project.state_transitions PASS
+project.archive_keeps_data PASS
+protocol.project_list_returns_registered_projects PASS
+protocol.project_get_returns_full_descriptor PASS
+protocol.project_start_transitions_state PASS
+protocol.project_methods_require_admin_principal PASS
+protocol.project_lifecycle_event_emitted_on_start PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS

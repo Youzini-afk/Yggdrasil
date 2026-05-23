@@ -14,8 +14,8 @@ The platform substrate is in place.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
 - Vite web-shell builds, iframe SurfaceHost, the Tauri 2.x desktop wrapper, and the tag-triggered cross-platform release pipeline — all complete.
-- Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, SDK generation, and 105 schemas are in place.
-- 398 named conformance cases pass, plus crate / service unit tests.
+- Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, and SDK generation are in place; after Round 10A.2 there are 114 schemas.
+- 418 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -33,7 +33,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store. Only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
+- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store; Round 10A.2 completed the Home project shelf, project lifecycle, project-level secret fallback, and YdlTavern project.yaml. Only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
 - OS keyring integration is deferred until CI / cross-platform builds have stable system dependencies.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
@@ -71,6 +71,17 @@ Not new phases, but known to-dos that will get done:
 - YdlTavern API Connections is wired for paste + save → encrypted store.
 - OS keyring and `yg secret put / list / delete` CLI are deferred.
 
+
+## Round 10A.2 — Steam-Game Project Concept (complete)
+
+- Projects are first-class runtime concepts: `ProjectDescriptor`, `ProjectRegistry`, `ProjectType`, and `SecretPolicy`.
+- `~/.yggdrasil/projects/<id>/`, project-level secret stores, `secret_ref:project:*`, and platform fallback are implemented.
+- Install detection distinguishes native `project.yaml` from the external-project wizard (wrap / workspace).
+- `yg project list/info/status/start/stop` and `yg uninstall` archival prompts are implemented.
+- `kernel.v1.project.list/get/start/stop/status` and project lifecycle events are implemented.
+- Home is now a project shelf; YdlTavern declares itself as a `yggdrasil_native` project.
+- Multi-tenant-grade `ProtocolContext.project_id` / session-based project scoping hardening is deferred to Round 11+.
+
 ## Round 10B — Contract Frontier (not started)
 
 - WIT worlds + WASM entry form (move from scaffold toward partial).
@@ -84,6 +95,7 @@ Not new phases, but known to-dos that will get done:
 - Sigstore keyless verification.
 - Auto-update daemon.
 - Binary package distribution.
+- Multi-tenant project scoping based on `ProtocolContext.session_id`: make project identity explicit in runtime permission, event, and resolver context.
 
 ## Round 10: Contract Frontier
 
@@ -147,6 +159,7 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - Real TDB Rust Adapter Alpha
 - Package Installation Foundation (Round 10A)
 - Install Simplification + Secret Store (Round 10A.1)
+- Steam-Game Project Concept (Round 10A.2)
 - Outbound WebSocket Substrate
 - Shell + Release S-track (Vite web build, iframe SurfaceHost, Tauri desktop wrapper, GitHub Actions release)
 - Round 9 Contract Foundation (Contract V1, capability handles, bindings, Path B, audit, conformance kit, SDK generation)

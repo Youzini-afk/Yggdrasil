@@ -4,13 +4,15 @@
 
 **An extensible creation platform for AI-native worlds, games, stories, and play.**
 
-It has two parts: a small, restrained, opinion-free kernel, and an open ecosystem of capability packages. Every meaningful concept on the platform — characters, prompts, models, agents, worlds, rules, memory — comes from a package, not the kernel.v1.
+It has three tiers: a small, restrained, opinion-free kernel; an open ecosystem of capability packages; and projects on Home that can be installed, started, and stopped. Every meaningful concept on the platform — characters, prompts, models, agents, worlds, rules, memory — comes from a package, not the kernel; projects are host-runtime concepts.
 
 ```text
 ┌──────────────────────────────────────────────┐
 │  Web shell · CLI · third-party clients         │   public protocol only
 ├──────────────────────────────────────────────┤
 │  Public protocol  ·  /rpc + SSE              │
+├──────────────────────────────────────────────┤
+│  Projects (Home cards: YdlTavern / ...)       │   install/start/stop
 ├──────────────────────────────────────────────┤
 │  Capability packages (official = third-party)  │   manifest-driven
 ├──────────────────────────────────────────────┤
@@ -39,15 +41,16 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 The platform substrate is in place. Contract V1 is the public platform spec; see [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md). The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 398 named conformance cases pass, plus crate / service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
+- 418 named conformance cases pass, plus crate / service unit tests; 114 v1 schemas validate (62 methods + 45 events + 7 top-level).
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, capability handles, binding injection, Path A / Path B, the conformance kit, generated SDKs, streaming lifecycle, model integration, and agent infrastructure are all in.
 - Path A (`entry.contract: "v1"`) and Path B (`entry.contract: "none"`) are both first-class participation modes.
 - SDKs are available through three channels: npm `@yggdrasil/kernel-sdk`, workspace path `file:../yggdrasil/sdk/typescript/kernel-sdk`, or direct generation from `docs/spec/v1/schemas/`.
 - The web shell now uses Vite for dev/build; `clients/desktop/` provides a Tauri 2.x desktop wrapper, and `v*` tags build cross-platform installers through GitHub Actions.
 - The perf baseline now records p50/p95/p99 + memory + env/git, supports `--compare` + `--threshold-pct`, and commits `perf/baseline.json`.
-- `yg install <github-url>` installs capability packages from GitHub end to end with HTTPS-only fetches, content-addressed storage, optional GPG signature checks, optional strict conformance, and consent prompts.
+- `yg install <github-url>` installs capability packages or native projects from GitHub end to end with HTTPS-only fetches, content-addressed storage, optional GPG signature checks, optional strict conformance, and consent prompts.
 - Encrypted local secret store through `official/secret-store-lab` — paste API keys in the UI, no env vars required.
+- Home is now a project shelf: projects appear as cards and support `yg project list/info/status/start/stop` plus Play lifecycle.
 
 For details, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 
@@ -78,6 +81,7 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 **Kernel and execution**
 
 - Content-free sessions, opaque events, a durable SQLite event log, a rehydratable substrate.
+- Three-tier model: the kernel provides protocol and scheduling, capability packages provide reusable abilities, and projects compose packages while holding runtime state.
 - Real in-process and subprocess package execution, the hook fabric, the capability fabric.
 - A principal model with scoped permissions, plus the proposal / approval lifecycle.
 
@@ -151,7 +155,10 @@ Install and manage capability packages:
 ```bash
 yg install github.com/user/yggdrasil-package#v1.2.0
 yg list-installed
-yg uninstall <package-id>
+yg project list
+yg project start <project-id>
+yg project stop <project-id>
+yg uninstall <package-id-or-project-id>
 yg update [<package-id>]
 yg lockfile --check
 ```
@@ -176,7 +183,7 @@ Shortest path by intent:
 | Understand the architecture | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.en.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.en.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.en.md) |
 | Use the public protocol | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.en.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md) |
 | Write your first package | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
-| Install capability packages | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) |
+| Install capability packages/projects | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.en.md) |
 | Manage API keys / secrets | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.en.md) |
 | Write agent / model / experience packages | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
 | Host third-party web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |

@@ -8,7 +8,7 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 398 named CLI cases pass, plus crate and service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
+- **Conformance:** 418 named CLI cases pass, plus crate and service unit tests; 114 v1 schemas validate (62 methods + 45 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
@@ -22,13 +22,13 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Human and assistant principals get scoped grants.
 - Audit events: `kernel/v1/permission.granted|revoked|denied`, `kernel/v1/package.*` lifecycle, `kernel/v1/proposal.*` lifecycle.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 57 protocol methods, 41 event kinds, and 105 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 62 protocol methods, 45 event kinds, and 114 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
 - **`secret_ref` references:** `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` prefixes are all supported. Packages refer to secrets through these references; raw values never appear in events, proposals, logs, or audit records.
 - **Environment-variable resolver:** a host-owned resolver with an explicit allowlist. Deny-all by default; an env name has to be allowed before it can be resolved. Errors carry only the env name, never the raw value.
-- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.yggdrasil/secrets.dat`; the store uses age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
+- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.yggdrasil/secrets.dat`; `secret_ref:project:NAME` reads the project-level store first and then falls back to the platform store according to `secret_policy`; stores use age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
 - **Raw secret blocking:** proposal operations and expected effects, plus asset metadata, are scanned conservatively. Obvious API keys, tokens, and password fields are rejected. Asset content and ordinary prose aren't scanned, to avoid false positives on user content.
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
@@ -59,6 +59,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Asset registry: opaque `id`, `mime`, `hash`, `size`, `origin_package_id`, `metadata`. Rehydrates from SQLite. Permission enforcement and content-addressed blob storage are next.
 - Session fork / branch lineage rehydrates from the event log.
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
+- Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, and `yg project list/info/status/start/stop` are implemented.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
@@ -129,7 +130,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 57 methods, 41 events, 7 top-level schemas, 105 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 62 methods, 45 events, 7 top-level schemas, 114 total.
 - `sdk/typescript/kernel-sdk/` and `sdk/rust/yg-kernel-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `yg conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -176,6 +177,29 @@ After Round 10A.1, install defaults are relaxed: HTTPS-only, content hashing, an
 | YdlTavern API Connections wired | implemented |
 | `yg secret put / list / delete` CLI | deferred |
 
+
+## Round 10A.2 — Steam-Game Project Concept
+
+| Capability | Status |
+|---|---|
+| P0 Wave 1: secret resolver host-profile wiring | implemented |
+| Project as first-class runtime concept | implemented |
+| ProjectDescriptor + ProjectId + ProjectType + SecretPolicy | implemented |
+| ~/.yggdrasil/projects/<id>/ filesystem layout | implemented |
+| secret_ref:project:NAME with platform fallback | implemented |
+| ProjectRegistry (in-memory + disk scan) | implemented |
+| ProtocolContext.session_id propagation | implemented |
+| Install detection (native vs external) | implemented |
+| External project wizard (wrap / workspace) | implemented |
+| yg project list/info/status/start/stop | implemented |
+| yg uninstall with archival prompt | implemented |
+| kernel.v1.project.list/get/start/stop/status | implemented |
+| kernel/v1/project.installed/started/stopped/uninstalled | implemented |
+| Home surface project cards | implemented |
+| YdlTavern project.yaml | implemented |
+| Multi-tenant project_id in ProtocolContext | deferred (Round 11+) |
+| Project archive auto-cleanup beyond 30 days | deferred |
+
 ## Completed (S-track shell / release)
 
 - **Web client (S1):** `clients/web` now uses Vite for dev/build while remaining a plain TypeScript SPA. Home / Play, Forge, and Assist still use only HTTP `/rpc` and SSE; the iframe-based SurfaceHost can mount third-party surface bundles and communicate with the host through an explicit `postMessage` RPC bridge. See [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
@@ -216,7 +240,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 398 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 418 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

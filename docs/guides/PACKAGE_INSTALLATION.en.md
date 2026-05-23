@@ -2,8 +2,8 @@
 
 > [English](./PACKAGE_INSTALLATION.en.md) · [中文](./PACKAGE_INSTALLATION.md)
 
-Yggdrasil's package installation system lets users install capability packages from GitHub or local paths while keeping the result reproducible, auditable, and reversible.
-This guide covers the install flow, manifest fields, lockfiles, filesystem conventions, and CLI usage.
+Yggdrasil's installation system lets users install capability packages and projects from GitHub or local paths while keeping the result reproducible, auditable, and reversible.
+This guide covers the install flow, native/external project detection, manifest fields, lockfiles, filesystem conventions, and CLI usage.
 
 ## Goals
 
@@ -36,6 +36,9 @@ This guide covers the install flow, manifest fields, lockfiles, filesystem conve
 # Simple case
 yg install github.com/user/yggdrasil-package
 
+# Native project (repository root has project.yaml)
+yg install github.com/Youzini-afk/Yggdrasil-Tavern
+
 # Pinned version (recommended)
 yg install github.com/user/yggdrasil-package#v1.2.0
 
@@ -50,13 +53,22 @@ yg install <url> --yes
 
 # Strict conformance gating
 yg install <url> --strict
+
+# External project strategy
+yg install github.com/user/external-app --wrap-as-adapter
+yg install github.com/user/external-app --workspace-only
 ```
 
 ### Other commands
 
 ```bash
 yg list-installed [--profile <name>]
-yg uninstall <package-id> [--profile <name>]
+yg project list
+yg project info <id>
+yg project status <id>
+yg project start <id>
+yg project stop <id>
+yg uninstall <package-id-or-project-id> [--profile <name>]
 yg update [<package-id>]      # Check upstream and install updates
 yg lockfile [--check]         # Verify lockfile and store consistency
 ```
@@ -79,6 +91,41 @@ Install-related flags:
 - `--yes`: non-interactive approval for consent prompts.
 - `--profile <name>`: choose the profile to update.
 - `--data-dir <path>`: override the `~/.yggdrasil` data directory for tests and CI.
+- `--wrap-as-adapter`: for an external project, generate/use an adapter package.
+- `--workspace-only`: for an external project, register it only as an agent workspace, without wrapping.
+
+
+## Native vs external project detection
+
+`yg install <url>` first checks whether the source root contains `project.yaml`.
+
+| Detection result | Behavior |
+|---|---|
+| Valid `project.yaml` with `project.type: yggdrasil_native` | Install as a native Yggdrasil project, register in `ProjectRegistry`, write `~/.yggdrasil/projects/<id>/`, and show a Home project card. |
+| Present but invalid `project.yaml` | Fail closed and require descriptor fixes. |
+| No `project.yaml` | Enter the external-project wizard. |
+
+A native project's `project.yaml` references the package manifests it needs and declares `entry_surface_id`. That surface should be contributed by one of those packages, usually with `slot: experience_entry`.
+
+See [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
+
+## External project wizard
+
+An external project is a repository not written for Yggdrasil. The installer shows detected language, package manager, entry points, and lifecycle risks, then asks the user to choose:
+
+1. **Wrap with adapter**: generate an adapter package and connect the external project as a controlled capability or surface. Best for long-lived use.
+2. **Workspace only**: register only as an agent workspace, with no wrapper. Best for temporary analysis, modification, or migration.
+3. **Cancel**: do not install.
+
+Without a TTY and without explicit flags, the default is `workspace-only`, so adapter code is not generated implicitly.
+
+### `--wrap-as-adapter`
+
+Forces the wrapping path. The installer uses external-project intake / adapter planning to produce an adapter manifest preview, and writes the project record after consent. The adapter is still an ordinary capability package with no kernel privilege.
+
+### `--workspace-only`
+
+Forces the workspace path. Yggdrasil records source, workspace path, detection metadata, and future agent action policy. It does not claim the external project has become a Yggdrasil capability package.
 
 ## Manifest `requires`
 
@@ -255,7 +302,7 @@ The default is warning-only: failures appear in the install plan but do not bloc
 ### API keys and secrets
 
 Install records only the `secret_ref` authority the user consented to. It does not collect raw API keys.
-For API key management, see [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md): desktop flows should prefer `secret_ref:store:*`, while development and CI can keep using `secret_ref:env:*`.
+For API key management, see [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md): projects should prefer `secret_ref:project:*` (with policy fallback to `store`), desktop platform defaults should prefer `secret_ref:store:*`, and development/CI can keep using `secret_ref:env:*`.
 
 ### Consent audit
 
@@ -354,4 +401,5 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - Pin upstream refs in `requires` and use clear version constraints.
 - Run `yg lockfile --check` in CI.
 - Local development can use plain `yg install <url>`; release or controlled environments can add `--require-signed` and `--strict` as needed.
+- For Yggdrasil-native experiences, prefer a root `project.yaml` over publishing only loose package manifests.
 - Describe new network and secret authority with clear purposes so users can consent.

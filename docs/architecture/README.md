@@ -2,12 +2,12 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-内核与能力包两层架构、能力包契约、扩展点、事件模型与生命周期。
+内核、能力包与项目三层架构、能力包契约、扩展点、事件模型与生命周期。
 
 ## 平台立场
 
 - [`VISION.md`](VISION.md) — 平台为何而存在
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — kernel + packages 两层架构
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — kernel + packages + projects 三层架构
 - [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.md) — 内核做什么、不做什么
 
 ## 能力包契约

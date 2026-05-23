@@ -21,7 +21,7 @@ The v1 contract supports two first-class participation modes:
 
 Path A is for packages that need kernel capabilities, network, secrets, audit, and SDK support. Path B is for self-contained apps, migration tools, and third-party processes that do not need platform authority.
 
-## Protocol method matrix (58)
+## Protocol method matrix (63)
 
 Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Method names are stable public API. v1 only allows additive changes.
 
@@ -121,6 +121,17 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 
 Git installation is not a kernel transport; future support belongs in the ordinary official capability package `official/git-tools-lab` using `kernel.v1.outbound.execute` plus `permissions.filesystem.write`.
 
+
+### `kernel.v1.project.*` (5)
+
+| Method | Status | Contract |
+|---|---:|---|
+| `kernel.v1.project.list` | implemented | HostAdmin/HostDev only; list installed projects and state. |
+| `kernel.v1.project.get` | implemented | HostAdmin/HostDev only; return one project's full descriptor and registry record. |
+| `kernel.v1.project.start` | implemented | HostAdmin/HostDev only; transition an Installed/Stopped project to Running and emit lifecycle events. |
+| `kernel.v1.project.stop` | implemented | HostAdmin/HostDev only; stop a Running project and emit lifecycle events. |
+| `kernel.v1.project.status` | implemented | HostAdmin/HostDev only; return project state and last error. |
+
 ### `kernel.v1.host.*` (4)
 
 | Method | Status | Contract |
@@ -146,7 +157,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `kernel.v1.extension_point.describe` | planned | Describe one extension point. |
 | `kernel.v1.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (41)
+## Event kind matrix (45)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -154,6 +165,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 |---|---:|---|
 | session | 3 | `kernel/v1/session.opened`, `.closed`, `.forked` |
 | package lifecycle | 9 | `loading`, `starting`, `ready`, `loaded`, `stopping`, `stopped`, `unloaded`, `degraded`, `log` |
+| project lifecycle | 4 | `project.installed`, `.started`, `.stopped`, `.uninstalled` |
 | capability lifecycle | 3 | `capability.invoked`, `.completed`, `.failed` |
 | stream lifecycle | 7 | `stream.started`, `.chunk`, `.progress`, `.ended`, `.error`, `.cancelled`, `.timeout` |
 | permissions | 3 | `permission.granted`, `.revoked`, `.denied` |
@@ -240,13 +252,13 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 
 ## Schemas and error codes
 
-- Method schemas: `docs/spec/v1/schemas/methods/` (57).
-- Event schemas: `docs/spec/v1/schemas/events/` (41).
+- Method schemas: `docs/spec/v1/schemas/methods/` (62).
+- Event schemas: `docs/spec/v1/schemas/events/` (45).
 - Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (7).
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 105 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 114 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -391,7 +403,10 @@ Packages pass references such as `secret_ref:<vault>:<key>`. The host resolver r
 ```yaml
 secret_ref:env:OPENAI_API_KEY    # resolved via host env var (allowlisted)
 secret_ref:store:OPENAI_API_KEY  # resolved via local encrypted store
+secret_ref:project:OPENAI_API_KEY # resolved via project store, then policy fallback
 ```
+
+Project-backed references resolve from the active project store first, then fall back to the platform store when `secret_policy.fallback_to_platform` allows it and the key is not listed in `require_per_project`.
 
 Store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.yggdrasil/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.en.md).
 
@@ -413,8 +428,8 @@ Official and third-party surfaces use the same descriptors, permission declarati
 
 A v1 implementation must at least prove:
 
-1. 57 method schemas export.
-2. 41 event schemas validate.
+1. 62 method schemas export.
+2. 45 event schemas validate.
 3. 7 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
@@ -452,6 +467,7 @@ The old alpha contract has been replaced by this file. Long-term references shou
 | `kernel.v1.asset.*` | 3 |
 | `kernel.v1.projection.*` | 4 |
 | `kernel.v1.outbound.*` | 4 |
+| `kernel.v1.project.*` | 5 |
 | `kernel.v1.host.*` | 4 |
 | `kernel.v1.audit.*` | 1 |
 | `kernel.v1.surface.*` | 2 |

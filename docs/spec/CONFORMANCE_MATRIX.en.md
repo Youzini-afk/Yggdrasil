@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **398**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **418**.
 
 ## Conformance Feedback Loop
 
@@ -35,6 +35,34 @@ cargo run -p ygg-cli -- conformance --slowest 3
 ```
 
 ## Current conformance coverage
+
+### Round 10A.2 project model conformance additions
+
+Round 10A.2 adds 20 cases, bringing CLI conformance from 398 to 418. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"`.
+
+| Wave | Case id | Coverage | Status |
+|---|---|---|---|
+| Wave 1 | `secret_store_resolver.host_profile_installs_composite_resolver` | host profile installs env+store/project composite resolver | implemented |
+| Wave 2 | `project_secret.put_then_resolve_via_project_ref` | `secret_ref:project:*` reads project store | implemented |
+| Wave 2 | `project_secret.fallback_to_platform_when_missing` | project miss falls back to platform store by policy | implemented |
+| Wave 2 | `project_secret.no_fallback_when_disabled` | disabled fallback fails closed | implemented |
+| Wave 2 | `project_secret.require_per_project_blocks_fallback` | `require_per_project` blocks platform fallback | implemented |
+| Wave 2 | `project_secret.isolation_between_projects` | project secret stores are softly isolated | implemented |
+| Wave 2 | `project_secret.no_session_context_fails_closed` | missing project/session context fails closed | implemented |
+| Wave 2 | `project_secret.list_returns_names_not_values` | project secret list returns names, not values | implemented |
+| Wave 3 | `project.detect_native_yaml` | detects native `project.yaml` | implemented |
+| Wave 3 | `project.detect_no_yaml` | no `project.yaml` enters external-project path | implemented |
+| Wave 3 | `project.detect_invalid_yaml_rejected` | invalid descriptor rejected | implemented |
+| Wave 3 | `project.register_creates_project_dir` | project registration creates data directory | implemented |
+| Wave 3 | `project.list_returns_registered` | registry/list returns registered projects | implemented |
+| Wave 3 | `project.state_transitions` | start/stop state transitions | implemented |
+| Wave 3 | `project.archive_keeps_data` | uninstall keep-data archives project directory | implemented |
+| Wave 4 | `protocol.project_list_returns_registered_projects` | `kernel.v1.project.list` returns projects | implemented |
+| Wave 4 | `protocol.project_get_returns_full_descriptor` | `kernel.v1.project.get` returns full descriptor | implemented |
+| Wave 4 | `protocol.project_start_transitions_state` | `kernel.v1.project.start` transitions state | implemented |
+| Wave 4 | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
+| Wave 4 | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
+
 
 | Area | Case | Status |
 |---|---|---:|
@@ -634,6 +662,26 @@ install_lab.uninstall_removes_from_profile PASS
 install_lab.list_installed_reflects_lockfile PASS
 install_lab.check_lockfile_drift_detection PASS
 install.real_github_smoke PASS
+secret_store_resolver.host_profile_installs_composite_resolver PASS
+project_secret.put_then_resolve_via_project_ref PASS
+project_secret.fallback_to_platform_when_missing PASS
+project_secret.no_fallback_when_disabled PASS
+project_secret.require_per_project_blocks_fallback PASS
+project_secret.isolation_between_projects PASS
+project_secret.no_session_context_fails_closed PASS
+project_secret.list_returns_names_not_values PASS
+project.detect_native_yaml PASS
+project.detect_no_yaml PASS
+project.detect_invalid_yaml_rejected PASS
+project.register_creates_project_dir PASS
+project.list_returns_registered PASS
+project.state_transitions PASS
+project.archive_keeps_data PASS
+protocol.project_list_returns_registered_projects PASS
+protocol.project_get_returns_full_descriptor PASS
+protocol.project_start_transitions_state PASS
+protocol.project_methods_require_admin_principal PASS
+protocol.project_lifecycle_event_emitted_on_start PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS

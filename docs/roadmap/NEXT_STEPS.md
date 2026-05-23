@@ -14,8 +14,8 @@
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
 - Web shell 的 Vite 构建、iframe SurfaceHost、Tauri 2.x desktop wrapper、tag 触发的跨平台 release pipeline——全部完成。
-- Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成与 105 schemas 已落地。
-- 398 个具名 conformance 用例 + crate / service 单元测试通过。
+- Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成已落地；Round 10A.2 后共有 114 schemas。
+- 418 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -33,7 +33,7 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
+- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
 - OS keyring 集成延后，等 CI / 跨平台构建环境具备稳定系统依赖时再恢复。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
@@ -71,6 +71,17 @@
 - YdlTavern API Connections 抽屉已接入 paste + save → encrypted store。
 - OS keyring 与 `yg secret put / list / delete` CLI 延后。
 
+
+## Round 10A.2 — Steam-Game Project Concept（完成）
+
+- 项目成为一等运行时概念：`ProjectDescriptor`、`ProjectRegistry`、`ProjectType`、`SecretPolicy`。
+- `~/.yggdrasil/projects/<id>/` 目录、项目级 secret store、`secret_ref:project:*` 与平台 fallback 已落地。
+- 安装检测区分原生 `project.yaml` 与外部项目 wizard（wrap / workspace）。
+- `yg project list/info/status/start/stop` 与 `yg uninstall` 归档提示已落地。
+- `kernel.v1.project.list/get/start/stop/status` 与项目 lifecycle events 已落地。
+- Home 屏幕现在是项目货架；YdlTavern 声明为 `yggdrasil_native` 项目。
+- 多租户级 `ProtocolContext.project_id` / 基于 session 的项目范围强隔离推迟到 Round 11+。
+
 ## Round 10B — Contract Frontier（待开始）
 
 - WIT worlds + WASM entry form（从 scaffold 推进 partial）。
@@ -84,6 +95,7 @@
 - Sigstore keyless 验签。
 - 自动更新守护进程。
 - 二进制包分发。
+- 基于 `ProtocolContext.session_id` 的多租户项目范围加固：把项目身份显式传入运行时权限、事件与 resolver 上下文。
 
 ## Round 10：Contract Frontier
 
@@ -147,6 +159,7 @@ Round 10 之后仍保留的底座项：package-owned projection 执行、package
 - Real TDB Rust Adapter Alpha
 - Package Installation Foundation (Round 10A)
 - Install Simplification + Secret Store (Round 10A.1)
+- Steam-Game Project Concept (Round 10A.2)
 - Outbound WebSocket Substrate
 - Shell + Release S-track（Vite Web build、iframe SurfaceHost、Tauri desktop wrapper、GitHub Actions release）
 - Round 9 Contract Foundation（Contract V1、capability handles、bindings、Path B、audit、conformance kit、SDK generation）
