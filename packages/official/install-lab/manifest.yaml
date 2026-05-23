@@ -1,0 +1,80 @@
+schema_version: 1
+id: official/install-lab
+version: 0.1.0
+display_name: Install Lab
+description: Package installation orchestrator; composes git-tools, integrity, and project-intake.
+license: AGPL-3.0
+entry:
+  kind: rust_inproc
+  crate_ref: official-install-lab
+  contract: v1
+  symbol: official_install_lab
+  abi_version: 1
+provides:
+  - id: official/install-lab/list_installed
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects: []
+    streaming: false
+  - id: official/install-lab/resolve_plan
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects:
+      - filesystem.write
+    streaming: false
+  - id: official/install-lab/execute_plan
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects:
+      - filesystem.write
+      - package.activation
+    streaming: false
+  - id: official/install-lab/uninstall
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects:
+      - filesystem.write
+    streaming: false
+  - id: official/install-lab/check_lockfile
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects: []
+    streaming: false
+requires:
+  - id: official/git-tools-lab
+    source:
+      kind: internal
+    version: ">=0.1.0"
+  - id: official/integrity-lab
+    source:
+      kind: internal
+    version: ">=0.1.0"
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
+permissions:
+  capabilities:
+    invoke:
+      - official/git-tools-lab/*
+      - official/integrity-lab/*
+  filesystem:
+    read:
+      - /tmp/yggdrasil-git/
+      - ~/.yggdrasil/
+    write:
+      - /tmp/yggdrasil-git/
+      - ~/.yggdrasil/store/
+      - ~/.yggdrasil/profiles/
+      - ~/.yggdrasil/cache/
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 30000
+  memory_mb: 512
+  wall_clock_ms: 120000

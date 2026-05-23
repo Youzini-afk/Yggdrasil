@@ -10,6 +10,7 @@ mod git_tools;
 mod hooks;
 mod inference_local;
 mod inference_playtest;
+mod install_lab;
 mod integrity_tools;
 mod inproc;
 mod live_model;
@@ -2197,6 +2198,47 @@ fn build_cases() -> Vec<ConformanceCase> {
             "git_tools.read_signed_tag_unsigned",
             ["official", "git_tools", "install", "fixture"],
             git_tools::read_signed_tag_unsigned
+        ),
+        // --- install-lab (Package Installation Foundation I4) ---
+        c!(
+            "install_lab.resolve_plan_local_source",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::resolve_plan_local_source
+        ),
+        c!(
+            "install_lab.resolve_plan_with_transitive",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::resolve_plan_with_transitive
+        ),
+        c!(
+            "install_lab.resolve_plan_cycle_detection",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::resolve_plan_cycle_detection
+        ),
+        c!(
+            "install_lab.execute_plan_local",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::execute_plan_local
+        ),
+        c!(
+            "install_lab.execute_plan_consent_mismatch",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::execute_plan_consent_mismatch
+        ),
+        c!(
+            "install_lab.uninstall_removes_from_profile",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::uninstall_removes_from_profile
+        ),
+        c!(
+            "install_lab.list_installed_reflects_lockfile",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::list_installed_reflects_lockfile
+        ),
+        c!(
+            "install_lab.check_lockfile_drift_detection",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::check_lockfile_drift_detection
         ),
         // --- real TDB Rust adapter subprocess proof ---
         c!(

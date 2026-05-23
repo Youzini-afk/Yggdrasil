@@ -1,0 +1,24 @@
+schema_version: 1
+id: fixture/pkg-a
+version: 0.1.0
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  contract: v1
+  symbol: register
+  abi_version: 1
+provides: []
+requires:
+  - id: fixture/pkg-b
+    source:
+      kind: local
+      path: ../pkg-b
+permissions:
+  capabilities:
+    invoke:
+      - fixture/cap-a
+  network:
+    hosts:
+      - api.fixture.test
+  secret_refs:
+    - secret_ref:env:FIXTURE_TOKEN

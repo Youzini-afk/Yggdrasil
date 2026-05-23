@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -8,6 +10,7 @@ use serde_json::Value;
 use ygg_core::{CapHandleId, CapabilityId, PackageId};
 
 use crate::runtime::HandleTable;
+use crate::{CapabilityInvocationRequest, CapabilityInvocationResult, EventStore, Runtime};
 
 mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
@@ -19,6 +22,7 @@ mod git_tools_lab;
 mod inference_local_lab;
 mod inference_playtest_lab;
 mod integrity_lab;
+mod install_lab;
 mod knowledge_lab;
 mod memory_lab;
 mod model_connector_lab;
@@ -60,6 +64,56 @@ pub trait InprocPackage: Send + Sync {
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value>;
 }
 
+pub trait InprocCapabilityInvoker: Send + Sync {
+    fn invoke_capability(
+        &self,
+        request: CapabilityInvocationRequest,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>>;
+}
+
+struct RuntimeInprocInvoker<S>
+where
+    S: EventStore,
+{
+    runtime: Runtime<S>,
+}
+
+impl<S> InprocCapabilityInvoker for RuntimeInprocInvoker<S>
+where
+    S: EventStore,
+{
+    fn invoke_capability(
+        &self,
+        request: CapabilityInvocationRequest,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>> {
+        let runtime = self.runtime.clone();
+        Box::pin(async move { runtime.invoke_capability(request).await })
+    }
+}
+
+tokio::task_local! {
+    static INPROC_INVOKER: Arc<dyn InprocCapabilityInvoker>;
+}
+
+pub(crate) async fn with_runtime_invoker<S, F, T>(runtime: Runtime<S>, future: F) -> T
+where
+    S: EventStore,
+    F: Future<Output = T>,
+{
+    INPROC_INVOKER
+        .scope(Arc::new(RuntimeInprocInvoker { runtime }), future)
+        .await
+}
+
+pub(crate) async fn invoke_capability_from_inproc(
+    request: CapabilityInvocationRequest,
+) -> anyhow::Result<CapabilityInvocationResult> {
+    let invoker = INPROC_INVOKER
+        .try_with(Clone::clone)
+        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
+    invoker.invoke_capability(request).await
+}
+
 #[derive(Clone, Default)]
 pub struct InprocPackageCatalog {
     entries: Arc<HashMap<String, Arc<dyn InprocPackage>>>,
@@ -82,6 +136,10 @@ impl InprocPackageCatalog {
         );
         entries.insert(
             entry_key("official-foundation", "register"),
+            Arc::new(OfficialFoundationPackage),
+        );
+        entries.insert(
+            entry_key("official-install-lab", "official_install_lab"),
             Arc::new(OfficialFoundationPackage),
         );
         entries.insert(
@@ -155,9 +213,15 @@ impl InprocPackage for HookInprocPackage {
 /// falling through to `common::try_handle` when the specific handler returns `None`
 /// or when the package_id is an unknown official package.
 /// Non-official packages are never served by `common::try_handle`.
-fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
+async fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Try the package-specific handler first, then fall through to common
     // namespace-scoped handlers if the specific handler doesn't match.
+    if request.provider_package_id == "official/install-lab" {
+        if let Some(result) = install_lab::try_handle(request).await {
+            return result;
+        }
+    }
+
     let specific_result = match request.provider_package_id.as_str() {
         "official/persona-lab" => persona_lab::try_handle(request),
         "official/knowledge-lab" => knowledge_lab::try_handle(request),
@@ -211,7 +275,7 @@ struct OfficialFoundationPackage;
 #[async_trait]
 impl InprocPackage for OfficialFoundationPackage {
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
-        dispatch_official(&request)
+        dispatch_official(&request).await
     }
 }
 

@@ -34,3 +34,4 @@ autoload:
   - ../packages/official/storage-lab/manifest.yaml
   - ../packages/official/tdb-retrieval-lab/manifest.yaml
   - ../packages/official/git-tools-lab/manifest.yaml
+  - ../packages/official/install-lab/manifest.yaml

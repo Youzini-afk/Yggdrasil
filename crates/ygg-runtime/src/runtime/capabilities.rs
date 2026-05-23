@@ -307,12 +307,12 @@ where
                                 "rust_inproc entry '{crate_ref}::{symbol}' is not available"
                             )
                         })?;
-                    package
-                        .invoke(InprocInvocation {
-                            capability_id: capability_id.to_string(),
-                            provider_package_id: provider.provider_package_id.clone(),
-                            input,
-                        })
+                    let invocation = InprocInvocation {
+                        capability_id: capability_id.to_string(),
+                        provider_package_id: provider.provider_package_id.clone(),
+                        input,
+                    };
+                    crate::inproc::with_runtime_invoker(self.clone(), package.invoke(invocation))
                         .await?
                 }
                 PackageEntry::Subprocess { .. } => match self
