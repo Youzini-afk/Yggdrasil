@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Copy, DotsThree, Eye, EyeSlash, Key, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -15,86 +15,109 @@ import {
   DropdownItem,
   DropdownSeparator,
 } from "@/components/ui/dropdown";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { useAsync, useKernel } from "@/lib/kernel-client";
 import { cn } from "@/lib/cn";
 
-interface SecretEntry {
-  id: string;
+interface DraftSecret {
   name: string;
+  value: string;
+  scope: string;
   provider: string;
-  scope: "platform" | string; // project id otherwise
-  scopeLabel: string;
-  usageCount: number;
-  updatedAge: string;
 }
 
-const MOCK_SECRETS: SecretEntry[] = [
-  {
-    id: "s1",
-    name: "OPENAI_API_KEY",
-    provider: "OpenAI",
-    scope: "platform",
-    scopeLabel: "PLATFORM",
-    usageCount: 2,
-    updatedAge: "3 days ago",
-  },
-  {
-    id: "s2",
-    name: "ANTHROPIC_API_KEY",
-    provider: "Anthropic",
-    scope: "platform",
-    scopeLabel: "PLATFORM",
-    usageCount: 1,
-    updatedAge: "1 week ago",
-  },
-  {
-    id: "s3",
-    name: "GEMINI_API_KEY",
-    provider: "Google",
-    scope: "platform",
-    scopeLabel: "PLATFORM",
-    usageCount: 0,
-    updatedAge: "2 weeks ago",
-  },
-  {
-    id: "s4",
-    name: "OPENROUTER_API_KEY",
-    provider: "OpenRouter",
-    scope: "ydltavern",
-    scopeLabel: "YDLTAVERN ONLY",
-    usageCount: 1,
-    updatedAge: "yesterday",
-  },
-  {
-    id: "s5",
-    name: "DEEPSEEK_API_KEY",
-    provider: "DeepSeek",
-    scope: "coding-workshop",
-    scopeLabel: "CODING WORKSHOP ONLY",
-    usageCount: 1,
-    updatedAge: "4 days ago",
-  },
+interface SecretView {
+  name: string;
+  scope: string;
+  scopeLabel: string;
+  provider: string;
+}
+
+const PROVIDERS: Array<{ id: string; label: string }> = [
+  { id: "OpenAI", label: "OpenAI" },
+  { id: "Anthropic", label: "Anthropic" },
+  { id: "Google", label: "Google" },
+  { id: "OpenRouter", label: "OpenRouter" },
+  { id: "DeepSeek", label: "DeepSeek" },
+  { id: "xAI", label: "xAI" },
+  { id: "Fireworks", label: "Fireworks" },
+  { id: "Custom", label: "Custom" },
 ];
 
+const PROVIDER_HINTS: Record<string, string> = {
+  OPENAI_API_KEY: "OpenAI",
+  ANTHROPIC_API_KEY: "Anthropic",
+  GEMINI_API_KEY: "Google",
+  OPENROUTER_API_KEY: "OpenRouter",
+  DEEPSEEK_API_KEY: "DeepSeek",
+  XAI_API_KEY: "xAI",
+  FIREWORKS_API_KEY: "Fireworks",
+};
+
 export function ApiConnectionsPanel() {
+  const client = useKernel();
   const toast = useToast();
-  const [secrets, setSecrets] = useState(MOCK_SECRETS);
+
+  const platform = useAsync(() => client.listSecrets(), [client]);
+  const health = useAsync(() => client.secretsHealth().catch(() => null), [client]);
   const [showAdd, setShowAdd] = useState(false);
 
-  const handleDelete = (id: string, name: string) => {
-    setSecrets((current) => current.filter((s) => s.id !== id));
-    toast.push({ variant: "info", title: `Removed ${name}` });
+  const secrets = useMemo<SecretView[]>(() => {
+    return (platform.data ?? []).map((name) => ({
+      name,
+      scope: "platform",
+      scopeLabel: "PLATFORM",
+      provider: PROVIDER_HINTS[name] ?? "Custom",
+    }));
+  }, [platform.data]);
+
+  const handleDelete = async (name: string) => {
+    try {
+      await client.deleteSecret(name);
+      platform.refresh();
+      health.refresh();
+      toast.push({ variant: "info", title: `Removed ${name}` });
+    } catch (err) {
+      toast.push({
+        variant: "error",
+        title: "Delete failed",
+        body: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const handleCopy = (name: string) => {
     navigator.clipboard?.writeText(name);
-    toast.push({ variant: "success", title: "Copied secret name" });
+    toast.push({ variant: "success", title: "Copied secret name", duration: 2000 });
+  };
+
+  const handleSave = async (entry: DraftSecret) => {
+    if (!entry.name || !entry.value) return;
+    try {
+      await client.putSecret(entry.name, entry.value);
+      platform.refresh();
+      health.refresh();
+      setShowAdd(false);
+      toast.push({ variant: "success", title: `Stored ${entry.name}` });
+    } catch (err) {
+      toast.push({
+        variant: "error",
+        title: "Save failed",
+        body: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   return (
     <>
       <header className="mb-8">
-        <Eyebrow>API Connections · {secrets.length} keys stored</Eyebrow>
+        <Eyebrow>
+          {platform.loading
+            ? "API Connections · loading…"
+            : `API Connections · ${secrets.length} keys stored`}
+        </Eyebrow>
         <PageTitle className="mt-2">Local secret store</PageTitle>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-steel-secondary">
           Keys stay on this machine, encrypted with your platform key. Yggdrasil never transmits raw
@@ -112,18 +135,42 @@ export function ApiConnectionsPanel() {
             </Button>
           </div>
           <Card>
-            {secrets.length === 0 ? (
-              <CardSection className="text-center text-[13px] text-muted-tone">
-                No secrets stored. Add your first key above.
-              </CardSection>
+            {platform.error ? (
+              <EmptyState
+                icon={<Key />}
+                title="Couldn't load secrets"
+                body={platform.error.message}
+                action={{ label: "Retry", onClick: () => platform.refresh() }}
+              />
+            ) : platform.loading ? (
+              <ul className="divide-y divide-whisper-border">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <li key={idx} className="flex items-center gap-4 px-5 py-4">
+                    <Skeleton className="size-9 rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-40" />
+                      <Skeleton className="h-2.5 w-60" />
+                    </div>
+                    <Skeleton className="h-7 w-7 rounded" />
+                    <Skeleton className="h-7 w-7 rounded" />
+                  </li>
+                ))}
+              </ul>
+            ) : secrets.length === 0 ? (
+              <EmptyState
+                icon={<Key />}
+                title="No secrets stored"
+                body="Add your first key. Yggdrasil encrypts it with your platform key."
+                action={{ label: "Add secret", onClick: () => setShowAdd(true) }}
+              />
             ) : (
               <ul className="divide-y divide-whisper-border">
                 {secrets.map((secret) => (
                   <SecretRow
-                    key={secret.id}
+                    key={secret.name}
                     secret={secret}
                     onCopy={() => handleCopy(secret.name)}
-                    onDelete={() => handleDelete(secret.id, secret.name)}
+                    onDelete={() => handleDelete(secret.name)}
                   />
                 ))}
               </ul>
@@ -138,13 +185,20 @@ export function ApiConnectionsPanel() {
               <dl className="mt-3 space-y-2 text-[12px]">
                 {[
                   ["Encryption", "age (X25519)"],
-                  ["Master key", "OS keychain"],
-                  ["Path", "~/.yggdrasil/secrets.dat"],
-                  ["Total", `${secrets.length} secrets · 1.2 KB`],
+                  ["Master key", health.data?.key_source ?? "—"],
+                  ["Path", health.data?.store_path ?? "—"],
+                  [
+                    "Total",
+                    health.data
+                      ? `${health.data.secret_count} secrets`
+                      : platform.loading
+                        ? "—"
+                        : `${secrets.length} secrets`,
+                  ],
                 ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between">
+                  <div key={label} className="flex items-center justify-between gap-3">
                     <dt className="text-steel-secondary">{label}</dt>
-                    <dd className="font-mono text-charcoal-ink">{value}</dd>
+                    <dd className="truncate font-mono text-charcoal-ink">{value}</dd>
                   </div>
                 ))}
               </dl>
@@ -152,19 +206,17 @@ export function ApiConnectionsPanel() {
           </Card>
           <Card>
             <CardSection>
-              <EyebrowSm>Access last 24h</EyebrowSm>
-              <p className="mt-3 font-display text-[22px] font-bold leading-none text-charcoal-ink">
-                47 requests
+              <EyebrowSm>How they're used</EyebrowSm>
+              <p className="mt-3 text-[12px] leading-relaxed text-steel-secondary">
+                Projects reference keys with{" "}
+                <span className="font-mono text-charcoal-ink">secret_ref:store:NAME</span>. The host
+                injects the raw value into outbound requests on the project's behalf.
               </p>
-              <ul className="mt-2 text-[11px] text-steel-secondary">
-                <li>YdlTavern · 41</li>
-                <li>Coding Workshop · 6</li>
-              </ul>
               <button
                 type="button"
                 className="mt-3 text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
               >
-                View audit log →
+                Open audit log →
               </button>
             </CardSection>
           </Card>
@@ -172,10 +224,24 @@ export function ApiConnectionsPanel() {
             <CardSection>
               <EyebrowSm>Backup</EyebrowSm>
               <div className="mt-3 flex flex-col gap-1.5">
-                <Button tone="secondary" size="sm" className="justify-start">
+                <Button
+                  tone="secondary"
+                  size="sm"
+                  className="justify-start"
+                  onClick={() =>
+                    toast.push({ variant: "info", title: "Use yg secrets export on the CLI" })
+                  }
+                >
                   Export to file
                 </Button>
-                <Button tone="secondary" size="sm" className="justify-start">
+                <Button
+                  tone="secondary"
+                  size="sm"
+                  className="justify-start"
+                  onClick={() =>
+                    toast.push({ variant: "info", title: "Use yg secrets import on the CLI" })
+                  }
+                >
                   Import from file
                 </Button>
               </div>
@@ -184,15 +250,7 @@ export function ApiConnectionsPanel() {
         </aside>
       </div>
 
-      <AddSecretModal
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onSave={(entry) => {
-          setSecrets((current) => [...current, { ...entry, id: crypto.randomUUID() }]);
-          setShowAdd(false);
-          toast.push({ variant: "success", title: `Added ${entry.name}` });
-        }}
-      />
+      <AddSecretModal open={showAdd} onClose={() => setShowAdd(false)} onSave={handleSave} />
     </>
   );
 }
@@ -202,16 +260,13 @@ function SecretRow({
   onCopy,
   onDelete,
 }: {
-  secret: SecretEntry;
+  secret: SecretView;
   onCopy: () => void;
   onDelete: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   return (
-    <motion.li
-      layout
-      className="flex items-center gap-4 px-5 py-4"
-    >
+    <motion.li layout className="flex items-center gap-4 px-5 py-4">
       <span className="rounded-full border border-whisper-border bg-aged-brass-surface-soft p-2 text-aged-brass">
         <Key size={16} />
       </span>
@@ -229,15 +284,16 @@ function SecretRow({
         <p className="mt-1 text-[11px] text-steel-secondary">
           <span>{secret.provider}</span>
           <span className="mx-1.5 text-whisper-border-strong/70">·</span>
-          <span>
-            used by {secret.usageCount} project{secret.usageCount === 1 ? "" : "s"}
-          </span>
-          <span className="mx-1.5 text-whisper-border-strong/70">·</span>
-          <span className="font-mono text-muted-tone">Updated {secret.updatedAge}</span>
+          <span className="font-mono text-muted-tone">secret_ref:store:{secret.name}</span>
         </p>
       </div>
       <Tooltip label={revealed ? "Hide name" : "Reveal name"}>
-        <Button tone="icon" size="icon-sm" onClick={() => setRevealed((v) => !v)} aria-label="Toggle reveal">
+        <Button
+          tone="icon"
+          size="icon-sm"
+          onClick={() => setRevealed((v) => !v)}
+          aria-label="Toggle reveal"
+        >
           {revealed ? <EyeSlash size={14} /> : <Eye size={14} />}
         </Button>
       </Tooltip>
@@ -253,7 +309,6 @@ function SecretRow({
           </Button>
         </DropdownTrigger>
         <DropdownMenu>
-          <DropdownItem>Edit scope…</DropdownItem>
           <DropdownItem>Rotate</DropdownItem>
           <DropdownSeparator />
           <DropdownItem destructive onSelect={onDelete}>
@@ -272,23 +327,18 @@ function AddSecretModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (entry: Omit<SecretEntry, "id">) => void;
+  onSave: (entry: DraftSecret) => void;
 }) {
   const [name, setName] = useState("");
+  const [value, setValue] = useState("");
   const [provider, setProvider] = useState("OpenAI");
-  const [scope, setScope] = useState<"platform" | string>("platform");
+  const [scope, setScope] = useState<string>("platform");
 
   const handleSave = () => {
-    if (!name) return;
-    onSave({
-      name,
-      provider,
-      scope,
-      scopeLabel: scope === "platform" ? "PLATFORM" : scope.toUpperCase(),
-      usageCount: 0,
-      updatedAge: "just now",
-    });
+    if (!name || !value) return;
+    onSave({ name, value, scope, provider });
     setName("");
+    setValue("");
   };
 
   return (
@@ -303,21 +353,18 @@ function AddSecretModal({
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
-            className={cn(
-              "h-10 rounded-[10px] border border-whisper-border bg-transparent px-3 text-[13px] outline-none transition focus-visible:border-aged-brass focus-visible:ring-2 focus-visible:ring-aged-brass/40",
-            )}
+            className="h-10 rounded-[10px] border border-whisper-border bg-transparent px-3 text-[13px] outline-none transition focus-visible:border-aged-brass focus-visible:ring-2 focus-visible:ring-aged-brass/40"
           >
-            <option>OpenAI</option>
-            <option>Anthropic</option>
-            <option>Google</option>
-            <option>OpenRouter</option>
-            <option>DeepSeek</option>
-            <option>xAI</option>
-            <option>Fireworks</option>
-            <option>Custom</option>
+            {PROVIDERS.map((p) => (
+              <option key={p.id}>{p.label}</option>
+            ))}
           </select>
         </Field>
-        <Field label="Secret name" helper="Convention: PROVIDER_API_KEY (uppercase, underscores)" required>
+        <Field
+          label="Secret name"
+          helper="Convention: PROVIDER_API_KEY (uppercase, underscores)"
+          required
+        >
           <Input
             value={name}
             onChange={(e) => setName(e.target.value.toUpperCase())}
@@ -325,22 +372,28 @@ function AddSecretModal({
             spellCheck={false}
           />
         </Field>
-        <Field label="Value" helper="The raw key never leaves this machine.">
-          <Input type="password" placeholder="sk-…" autoComplete="new-password" />
+        <Field label="Value" helper="The raw key never leaves this machine." required>
+          <Input
+            type="password"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="sk-…"
+            autoComplete="new-password"
+          />
         </Field>
         <Field label="Scope">
           <div className="flex flex-wrap gap-2">
             {[
               { id: "platform", label: "Platform-wide" },
-              { id: "ydltavern", label: "YdlTavern only" },
-              { id: "coding-workshop", label: "Coding Workshop only" },
+              { id: "project", label: "Project-only (configure on Home)" },
             ].map((option) => (
               <button
                 key={option.id}
                 type="button"
                 onClick={() => setScope(option.id)}
+                disabled={option.id !== "platform"}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-[12px] font-medium transition",
+                  "rounded-full border px-3 py-1 text-[12px] font-medium transition disabled:opacity-50",
                   scope === option.id
                     ? "border-aged-brass-border bg-aged-brass-surface text-charcoal-ink"
                     : "border-whisper-border text-steel-secondary hover:bg-whisper-border-strong/30",
@@ -356,7 +409,7 @@ function AddSecretModal({
         <Button tone="secondary" onClick={onClose}>
           Cancel
         </Button>
-        <Button tone="primary" onClick={handleSave} disabled={!name}>
+        <Button tone="primary" onClick={handleSave} disabled={!name || !value}>
           Save key
         </Button>
       </ModalFooter>

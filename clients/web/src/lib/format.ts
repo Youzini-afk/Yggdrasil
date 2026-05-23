@@ -1,33 +1,57 @@
-/** Format helpers — short, no dependencies. */
+/**
+ * Format helpers used across the settings panels and Home.
+ */
 
-const SECOND = 1000;
-const MINUTE = 60 * SECOND;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
+const RELATIVE_THRESHOLDS: Array<[number, string, number]> = [
+  [60_000, "just now", 0],
+  [3_600_000, "minute", 60_000],
+  [86_400_000, "hour", 3_600_000],
+  [604_800_000, "day", 86_400_000],
+  [2_628_000_000, "week", 604_800_000],
+  [31_536_000_000, "month", 2_628_000_000],
+];
 
-export function formatRelativeAge(timestamp: string | number | Date): string {
-  const ms = typeof timestamp === "number"
-    ? timestamp
-    : typeof timestamp === "string"
-      ? new Date(timestamp).getTime()
-      : timestamp.getTime();
-  const elapsed = Date.now() - ms;
-  if (Number.isNaN(elapsed) || elapsed < 0) return "—";
-  if (elapsed < MINUTE) return "just now";
-  if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)}m ago`;
-  if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)}h ago`;
-  if (elapsed < 7 * DAY) return `${Math.floor(elapsed / DAY)}d ago`;
-  return new Date(ms).toLocaleDateString();
+export function formatRelativeAge(timestamp: string | number | Date | undefined): string {
+  if (!timestamp) return "just now";
+  const value = timestamp instanceof Date ? timestamp.getTime() : new Date(timestamp).getTime();
+  if (Number.isNaN(value)) return "just now";
+  const diff = Date.now() - value;
+  if (diff < 0) return "just now";
+  for (const [limit, unit, divisor] of RELATIVE_THRESHOLDS) {
+    if (diff < limit) {
+      if (unit === "just now") return unit;
+      const n = Math.floor(diff / divisor);
+      return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+    }
+  }
+  const years = Math.floor(diff / 31_536_000_000);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
 }
 
-export function formatGreetingTime(date = new Date()): string {
-  const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
-  const day = days[date.getDay()];
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `WORKSHOP · ${day} ${hh}:${mm}`;
+export function formatBytes(bytes: number | undefined, fractionDigits = 1): string {
+  if (bytes == null || Number.isNaN(bytes)) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1_048_576) return `${(bytes / 1024).toFixed(fractionDigits)} KB`;
+  if (bytes < 1_073_741_824) return `${(bytes / 1_048_576).toFixed(fractionDigits)} MB`;
+  return `${(bytes / 1_073_741_824).toFixed(fractionDigits)} GB`;
 }
 
-export function pluralize(count: number, singular: string, plural?: string): string {
-  return `${count} ${count === 1 ? singular : plural ?? `${singular}s`}`;
+export function formatGreetingTime(now = new Date()): string {
+  const day = now.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase();
+  const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `WORKSHOP · ${day} ${time}`;
+}
+
+/** Categorize a package_id into one of the inventory kinds for filtering. */
+export function classifyPackageKind(packageId: string): "PROJECT" | "OFFICIAL" | "THIRD-PARTY" {
+  if (packageId.startsWith("official/") || packageId.startsWith("official__")) return "OFFICIAL";
+  if (
+    packageId.includes("__") ||
+    packageId.startsWith("github__") ||
+    packageId.startsWith("local__") ||
+    packageId.includes("/")
+  ) {
+    return "PROJECT";
+  }
+  return "THIRD-PARTY";
 }

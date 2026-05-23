@@ -260,4 +260,55 @@ export class YggProtocolClient {
     source.addEventListener("kernel.v1.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
     return () => source.close();
   }
+
+  /* ────────────────────────────────────────────────────────────────
+     Secret store — wraps `official/secret-store-lab` capabilities.
+     The host injects raw values via secret_ref; the UI never reads
+     raw secret values.
+     ──────────────────────────────────────────────────────────────── */
+
+  async secretsHealth(): Promise<{
+    store_path: string;
+    exists: boolean;
+    secret_count: number;
+    key_source: string;
+  }> {
+    return (await this.invokeCapability("official/secret-store-lab/health", {})) as {
+      store_path: string;
+      exists: boolean;
+      secret_count: number;
+      key_source: string;
+    };
+  }
+
+  async listSecrets(projectId?: string): Promise<string[]> {
+    if (projectId) {
+      const result = (await this.invokeCapability("official/secret-store-lab/list_project_secrets", {
+        project_id: projectId,
+      })) as { names: string[] };
+      return result.names ?? [];
+    }
+    const result = (await this.invokeCapability("official/secret-store-lab/list_secrets", {})) as {
+      names: string[];
+    };
+    return result.names ?? [];
+  }
+
+  async putSecret(name: string, value: string, projectId?: string): Promise<{ created: boolean }> {
+    const capability = projectId
+      ? "official/secret-store-lab/put_project_secret"
+      : "official/secret-store-lab/put_secret";
+    const params = projectId ? { project_id: projectId, name, value } : { name, value };
+    const result = (await this.invokeCapability(capability, params)) as { created: boolean };
+    return { created: result.created };
+  }
+
+  async deleteSecret(name: string, projectId?: string): Promise<{ removed: boolean }> {
+    const capability = projectId
+      ? "official/secret-store-lab/delete_project_secret"
+      : "official/secret-store-lab/delete_secret";
+    const params = projectId ? { project_id: projectId, name } : { name };
+    const result = (await this.invokeCapability(capability, params)) as { removed: boolean };
+    return { removed: result.removed };
+  }
 }
