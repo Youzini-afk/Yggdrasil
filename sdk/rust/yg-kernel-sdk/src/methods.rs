@@ -387,7 +387,7 @@ impl KernelClient {
     pub async fn project_start(
         &self,
         params: ProjectIdParams,
-    ) -> Result<ProjectTransitionResult> {
+    ) -> Result<ProjectStartResult> {
         let raw = self
             .transport
             .invoke("kernel.v1.project.start", serde_json::to_value(params)?)
@@ -407,7 +407,7 @@ impl KernelClient {
     pub async fn project_stop(
         &self,
         params: ProjectIdParams,
-    ) -> Result<ProjectTransitionResult> {
+    ) -> Result<ProjectStopResult> {
         let raw = self
             .transport
             .invoke("kernel.v1.project.stop", serde_json::to_value(params)?)
@@ -541,7 +541,7 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
-    pub async fn session_get(&self, params: EmptyParams) -> Result<SessionGetResult> {
+    pub async fn session_get(&self, params: SessionGetParams) -> Result<KernelSession> {
         let raw = self
             .transport
             .invoke("kernel.v1.session.get", serde_json::to_value(params)?)

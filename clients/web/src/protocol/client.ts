@@ -99,6 +99,7 @@ export interface ProjectRecord {
   state: "installed" | "stopped" | "starting" | "running" | "stopping" | "failed" | "archived";
   icon?: string;
   entry_surface_id?: string;
+  running_session_id?: string;
 }
 
 export class YggProtocolClient {
@@ -106,6 +107,19 @@ export class YggProtocolClient {
 
   invoke(method: string, params: unknown = {}) {
     return this.call(method, params);
+  }
+
+  async invokeWithSession(method: string, params: unknown = {}, sessionId: string): Promise<unknown> {
+    const response = await fetch(`${this.baseUrl}/rpc`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: crypto.randomUUID(), method, params, session_id: sessionId }),
+    });
+    const envelope = (await response.json()) as ProtocolResponse<unknown>;
+    if (envelope.error) {
+      throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
+    }
+    return envelope.result;
   }
 
   async call<T>(method: string, params: unknown = {}): Promise<T> {
@@ -172,20 +186,34 @@ export class YggProtocolClient {
       project?: Omit<ProjectRecord, "type" | "state"> & { type?: ProjectRecord["type"] };
       state?: ProjectRecord["state"];
       paths?: Record<string, unknown>;
+      running_session_id?: string;
     };
     return {
       ...(descriptor.project as ProjectRecord),
       state: descriptor.state ?? "installed",
       paths: descriptor.paths,
+      running_session_id: descriptor.running_session_id,
     };
   }
 
-  async startProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string }> {
-    return await this.invoke("kernel.v1.project.start", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string };
+  async startProject(projectId: string): Promise<{
+    project_id: string;
+    previous_state: string;
+    new_state: string;
+    session_id: string;
+    already_running: boolean;
+  }> {
+    return await this.invoke("kernel.v1.project.start", { project_id: projectId }) as {
+      project_id: string;
+      previous_state: string;
+      new_state: string;
+      session_id: string;
+      already_running: boolean;
+    };
   }
 
-  async stopProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string }> {
-    return await this.invoke("kernel.v1.project.stop", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string };
+  async stopProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string; session_id?: string }> {
+    return await this.invoke("kernel.v1.project.stop", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string; session_id?: string };
   }
 
   async getProjectStatus(projectId: string): Promise<{

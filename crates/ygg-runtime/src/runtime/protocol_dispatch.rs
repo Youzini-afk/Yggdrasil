@@ -11,7 +11,7 @@ use ygg_core::{
     CapHandleId, PackageId, RedactionState,
 };
 
-use super::Runtime;
+use super::{OpenSessionRequest, Runtime};
 use crate::{
     EventListRequest, EventStore, KernelMethod, OutboundFrameKind, OutboundStreamFrame,
     OutboundWebSocketFrame, ProtocolContext, ProtocolPrincipal, StreamEmitter, StreamRegistry,
@@ -203,6 +203,7 @@ where
             KernelMethod::SessionClose => self.dispatch_session_close(&params).await,
             KernelMethod::SessionFork => self.dispatch_session_fork(&params).await,
             KernelMethod::SessionBranchList => self.dispatch_session_branch_list(&params).await,
+            KernelMethod::SessionGet => self.dispatch_session_get(&params).await,
 
             // Event domain
             KernelMethod::EventAppend => Ok(serde_json::to_value(
@@ -272,8 +273,7 @@ where
             KernelMethod::ProjectionList => Ok(serde_json::to_value(self.projection_list().await)?),
 
             // Planned methods — no dispatch yet
-            KernelMethod::SessionGet
-            | KernelMethod::SessionList
+            KernelMethod::SessionList
             | KernelMethod::EventSubscribe
             | KernelMethod::PackageDescribe
             | KernelMethod::CapabilityDescribe
@@ -412,7 +412,7 @@ where
     }
 
     fn project_summary(entry: &crate::ProjectEntry) -> anyhow::Result<Value> {
-        Ok(json!({
+        let mut summary = json!({
             "id": entry.descriptor.project.id.as_str(),
             "title": entry.descriptor.project.title,
             "description": entry.descriptor.project.description,
@@ -420,7 +420,19 @@ where
             "state": serde_json::to_value(entry.state)?,
             "icon": entry.descriptor.project.icon,
             "entry_surface_id": entry.descriptor.project.entry_surface_id,
-        }))
+        });
+        if let Value::Object(map) = &mut summary {
+            if let Some(session_id) = entry
+                .descriptor
+                .project
+                .metadata
+                .get("running_session_id")
+                .and_then(Value::as_str)
+            {
+                map.insert("running_session_id".to_string(), json!(session_id));
+            }
+        }
+        Ok(summary)
     }
 
     fn count_dir_entries(path: &std::path::Path) -> usize {
@@ -444,33 +456,6 @@ where
             "sessions_count": sessions_count,
             "secrets_count": secrets_count,
         })
-    }
-
-    async fn emit_project_event(
-        &self,
-        context: &ProtocolContext,
-        kind: &'static str,
-        entry: &crate::ProjectEntry,
-        previous_state: Option<ProjectState>,
-        new_state: ProjectState,
-    ) -> anyhow::Result<()> {
-        let session_id = context
-            .session_id
-            .clone()
-            .unwrap_or_else(|| "kernel_project_lifecycle".to_string());
-        self.append_kernel_event(
-            &session_id,
-            kind,
-            json!({
-                "project_id": entry.descriptor.project.id.as_str(),
-                "title": entry.descriptor.project.title,
-                "type": serde_json::to_value(&entry.descriptor.project.project_type)?,
-                "previous_state": previous_state.map(serde_json::to_value).transpose()?,
-                "new_state": serde_json::to_value(new_state)?,
-            }),
-        )
-        .await?;
-        Ok(())
     }
 
     async fn dispatch_project_list(
@@ -510,6 +495,11 @@ where
         if let Value::Object(map) = &mut value {
             map.insert("state".to_string(), serde_json::to_value(entry.state)?);
             map.insert("paths".to_string(), Self::project_paths_and_counts(&id));
+            if matches!(entry.state, ProjectState::Running | ProjectState::Starting) {
+                if let Some(session_id) = self.find_session_for_project(&id).await {
+                    map.insert("running_session_id".to_string(), json!(session_id));
+                }
+            }
         }
         Ok(value)
     }
@@ -527,12 +517,20 @@ where
             .get(&id)
             .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
         let details = Self::project_paths_and_counts(&id);
-        Ok(json!({
+        let mut value = json!({
             "project_id": id.as_str(),
             "state": serde_json::to_value(entry.state)?,
             "sessions_count": details.get("sessions_count").and_then(Value::as_u64).unwrap_or(0),
             "secrets_count": details.get("secrets_count").and_then(Value::as_u64).unwrap_or(0),
-        }))
+        });
+        if matches!(entry.state, ProjectState::Running | ProjectState::Starting) {
+            if let Some(session_id) = self.find_session_for_project(&id).await {
+                if let Value::Object(map) = &mut value {
+                    map.insert("running_session_id".to_string(), json!(session_id));
+                }
+            }
+        }
+        Ok(value)
     }
 
     async fn dispatch_project_start(
@@ -547,36 +545,71 @@ where
             .project_registry
             .get(&id)
             .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        let previous_state = entry.state;
+
+        if matches!(entry.state, ProjectState::Running | ProjectState::Starting) {
+            if let Some(existing_session_id) = self.find_session_for_project(&id).await {
+                return Ok(json!({
+                    "project_id": id.as_str(),
+                    "previous_state": serde_json::to_value(previous_state)?,
+                    "new_state": serde_json::to_value(entry.state)?,
+                    "session_id": existing_session_id,
+                    "already_running": true,
+                }));
+            }
+        }
+
+        if matches!(entry.state, ProjectState::Archived) {
+            anyhow::bail!("project '{}' is archived; restore before starting", id);
+        }
+
         if !matches!(
             entry.state,
             ProjectState::Installed | ProjectState::Stopped | ProjectState::Failed
         ) {
             anyhow::bail!("project '{}' cannot start from state {:?}", id, entry.state);
         }
-        let previous_state = entry.state;
+
         self.config
             .project_registry
             .set_state(&id, ProjectState::Starting)?;
+
+        let session = self
+            .open_session(OpenSessionRequest {
+                labels: vec![format!("project:{}", id.as_str())],
+                metadata: json!({
+                    "project_id": id.as_str(),
+                    "project_title": entry.descriptor.project.title,
+                    "project_type": serde_json::to_value(&entry.descriptor.project.project_type)?,
+                }),
+                ..OpenSessionRequest::default()
+            })
+            .await?;
+        let session_id = session.id.clone();
+
+        self.append_kernel_event(
+            &session_id,
+            ygg_core::PROJECT_STARTED,
+            json!({
+                "project_id": entry.descriptor.project.id.as_str(),
+                "title": entry.descriptor.project.title,
+                "type": serde_json::to_value(&entry.descriptor.project.project_type)?,
+                "previous_state": serde_json::to_value(previous_state)?,
+                "new_state": serde_json::to_value(ProjectState::Running)?,
+                "session_id": session_id,
+            }),
+        )
+        .await?;
+
         self.config
             .project_registry
             .set_state(&id, ProjectState::Running)?;
-        let running_entry = self
-            .config
-            .project_registry
-            .get(&id)
-            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
-        self.emit_project_event(
-            context,
-            ygg_core::PROJECT_STARTED,
-            &running_entry,
-            Some(previous_state),
-            ProjectState::Running,
-        )
-        .await?;
         Ok(json!({
             "project_id": id.as_str(),
             "previous_state": serde_json::to_value(previous_state)?,
             "new_state": serde_json::to_value(ProjectState::Running)?,
+            "session_id": session_id,
+            "already_running": false,
         }))
     }
 
@@ -596,29 +629,36 @@ where
             anyhow::bail!("project '{}' cannot stop from state {:?}", id, entry.state);
         }
         let previous_state = entry.state;
+        let session_id = self.find_session_for_project(&id).await;
         self.config
             .project_registry
             .set_state(&id, ProjectState::Stopping)?;
+
+        if let Some(session_id) = &session_id {
+            self.append_kernel_event(
+                session_id,
+                ygg_core::PROJECT_STOPPED,
+                json!({
+                    "project_id": entry.descriptor.project.id.as_str(),
+                    "title": entry.descriptor.project.title,
+                    "type": serde_json::to_value(&entry.descriptor.project.project_type)?,
+                    "previous_state": serde_json::to_value(previous_state)?,
+                    "new_state": serde_json::to_value(ProjectState::Stopped)?,
+                    "session_id": session_id,
+                }),
+            )
+            .await?;
+            self.close_session(session_id.clone()).await?;
+        }
+
         self.config
             .project_registry
             .set_state(&id, ProjectState::Stopped)?;
-        let stopped_entry = self
-            .config
-            .project_registry
-            .get(&id)
-            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
-        self.emit_project_event(
-            context,
-            ygg_core::PROJECT_STOPPED,
-            &stopped_entry,
-            Some(previous_state),
-            ProjectState::Stopped,
-        )
-        .await?;
         Ok(json!({
             "project_id": id.as_str(),
             "previous_state": serde_json::to_value(previous_state)?,
             "new_state": serde_json::to_value(ProjectState::Stopped)?,
+            "session_id": session_id,
         }))
     }
 
@@ -1750,6 +1790,18 @@ where
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.close requires session_id"))?
             .to_string();
         Ok(serde_json::to_value(self.close_session(session_id).await?)?)
+    }
+
+    async fn dispatch_session_get(&self, params: &Value) -> anyhow::Result<Value> {
+        let session_id = params
+            .get("session_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.get requires session_id"))?;
+        Ok(serde_json::to_value(
+            self.get_session(session_id)
+                .await
+                .ok_or_else(|| anyhow::anyhow!("session '{session_id}' not found"))?,
+        )?)
     }
 
     async fn dispatch_session_fork(&self, params: &Value) -> anyhow::Result<Value> {

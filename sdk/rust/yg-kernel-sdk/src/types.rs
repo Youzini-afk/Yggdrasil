@@ -5804,43 +5804,6 @@ for EmptyParams {
         Self(value)
     }
 }
-///`EmptyParams`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "EmptyParams",
-///  "type": "object"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct EmptyParams(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for EmptyParams {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
-    }
-}
-impl ::std::convert::From<EmptyParams>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: EmptyParams) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for EmptyParams {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
-}
 ///`EntryDescriptor`
 ///
 /// <details><summary>JSON schema</summary>
@@ -10728,6 +10691,76 @@ pub struct KernelOutboundStreamResponse {
     pub status: StreamStartStatus,
     ///The stream_id to subscribe to for stream frames.
     pub stream_id: ::std::string::String,
+}
+///`KernelSession`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "KernelSession",
+///  "type": "object",
+///  "required": [
+///    "active_package_set",
+///    "created_at",
+///    "id",
+///    "labels",
+///    "status",
+///    "updated_at"
+///  ],
+///  "properties": {
+///    "active_package_set": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "created_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "labels": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "metadata": {
+///      "default": null
+///    },
+///    "principal_scope": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/SessionStatus"
+///    },
+///    "updated_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct KernelSession {
+    pub active_package_set: ::std::vec::Vec<::std::string::String>,
+    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub id: ::std::string::String,
+    pub labels: ::std::vec::Vec<::std::string::String>,
+    #[serde(default = "defaults::kernel_session_metadata")]
+    pub metadata: ::serde_json::Value,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub principal_scope: ::std::option::Option<::std::string::String>,
+    pub status: SessionStatus,
+    pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
 }
 ///`KernelSession`
 ///
@@ -21359,6 +21392,10 @@ impl ::std::default::Default for PermissionSet {
 ///    "paths": {
 ///      "type": "object"
 ///    },
+///    "running_session_id": {
+///      "description": "Session id when project state is running; absent otherwise",
+///      "type": "string"
+///    },
 ///    "state": {
 ///      "title": "ProjectState",
 ///      "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
@@ -21426,6 +21463,9 @@ pub struct ProjectGetResult {
     pub paths: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
     ///The actual project content.
     pub project: ProjectInner,
+    ///Session id when project state is running; absent otherwise
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub running_session_id: ::std::option::Option<::std::string::String>,
     ///Schema version. Currently always 1.
     pub schema_version: u32,
     ///Runtime project state. Not serialized to project.yaml; tracked by registry.
@@ -21954,6 +21994,50 @@ pub struct ProjectListResult {
     pub projects: ::std::vec::Vec<
         ::serde_json::Map<::std::string::String, ::serde_json::Value>,
     >,
+}
+///`ProjectStartResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectStartResult",
+///  "type": "object",
+///  "required": [
+///    "already_running",
+///    "new_state",
+///    "previous_state",
+///    "project_id",
+///    "session_id"
+///  ],
+///  "properties": {
+///    "already_running": {
+///      "type": "boolean"
+///    },
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "project_id": {
+///      "type": "string"
+///    },
+///    "session_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectStartResult {
+    pub already_running: bool,
+    pub new_state: ProjectState,
+    pub previous_state: ProjectState,
+    pub project_id: ::std::string::String,
+    pub session_id: ::std::string::String,
 }
 ///Runtime project state. Not serialized to project.yaml; tracked by registry.
 ///
@@ -23326,12 +23410,16 @@ impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
 ///  "type": "object",
 ///  "required": [
 ///    "project_id",
+///    "running_session_id",
 ///    "secrets_count",
 ///    "sessions_count",
 ///    "state"
 ///  ],
 ///  "properties": {
 ///    "project_id": {
+///      "type": "string"
+///    },
+///    "running_session_id": {
 ///      "type": "string"
 ///    },
 ///    "secrets_count": {
@@ -23355,22 +23443,24 @@ impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ProjectStatusResult {
     pub project_id: ::std::string::String,
+    pub running_session_id: ::std::string::String,
     pub secrets_count: u32,
     pub sessions_count: u32,
     pub state: ProjectState,
 }
-///`ProjectTransitionResult`
+///`ProjectStopResult`
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
-///  "title": "ProjectTransitionResult",
+///  "title": "ProjectStopResult",
 ///  "type": "object",
 ///  "required": [
 ///    "new_state",
 ///    "previous_state",
-///    "project_id"
+///    "project_id",
+///    "session_id"
 ///  ],
 ///  "properties": {
 ///    "new_state": {
@@ -23381,39 +23471,8 @@ pub struct ProjectStatusResult {
 ///    },
 ///    "project_id": {
 ///      "type": "string"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct ProjectTransitionResult {
-    pub new_state: ProjectState,
-    pub previous_state: ProjectState,
-    pub project_id: ::std::string::String,
-}
-///`ProjectTransitionResult`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "ProjectTransitionResult",
-///  "type": "object",
-///  "required": [
-///    "new_state",
-///    "previous_state",
-///    "project_id"
-///  ],
-///  "properties": {
-///    "new_state": {
-///      "$ref": "#/definitions/ProjectState"
 ///    },
-///    "previous_state": {
-///      "$ref": "#/definitions/ProjectState"
-///    },
-///    "project_id": {
+///    "session_id": {
 ///      "type": "string"
 ///    }
 ///  }
@@ -23422,10 +23481,11 @@ pub struct ProjectTransitionResult {
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct ProjectTransitionResult {
+pub struct ProjectStopResult {
     pub new_state: ProjectState,
     pub previous_state: ProjectState,
     pub project_id: ::std::string::String,
+    pub session_id: ::std::string::String,
 }
 ///`ProjectType`
 ///
@@ -24852,7 +24912,7 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T16:20:53.865614897Z",
+///        "default": "2026-05-23T16:35:57.517713838Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -25565,7 +25625,7 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.867538517Z",
+///      "default": "2026-05-23T16:35:57.519954412Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25693,7 +25753,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.866283310Z",
+///      "default": "2026-05-23T16:35:57.518409744Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25821,7 +25881,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.863929409Z",
+///      "default": "2026-05-23T16:35:57.516131100Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25949,7 +26009,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.864114808Z",
+///      "default": "2026-05-23T16:35:57.516297770Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26077,7 +26137,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.864957202Z",
+///      "default": "2026-05-23T16:35:57.517153985Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26205,7 +26265,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.866965714Z",
+///      "default": "2026-05-23T16:35:57.519131729Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26333,7 +26393,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.872596044Z",
+///      "default": "2026-05-23T16:35:57.527747105Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26461,7 +26521,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.872308054Z",
+///      "default": "2026-05-23T16:35:57.527368976Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26589,7 +26649,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.872126582Z",
+///      "default": "2026-05-23T16:35:57.527153239Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26717,7 +26777,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.872725185Z",
+///      "default": "2026-05-23T16:35:57.527960578Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26845,7 +26905,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:20:53.872458379Z",
+///      "default": "2026-05-23T16:35:57.527557941Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -33588,36 +33648,29 @@ pub struct SessionForkParams {
     pub metadata: ::serde_json::Value,
     pub parent_session_id: ::std::string::String,
 }
-///`SessionGetResult`
+///`SessionGetParams`
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
-///  "title": "SessionGetResult",
-///  "type": "null"
+///  "title": "SessionGetParams",
+///  "type": "object",
+///  "required": [
+///    "session_id"
+///  ],
+///  "properties": {
+///    "session_id": {
+///      "type": "string"
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct SessionGetResult(pub ());
-impl ::std::ops::Deref for SessionGetResult {
-    type Target = ();
-    fn deref(&self) -> &() {
-        &self.0
-    }
-}
-impl ::std::convert::From<SessionGetResult> for () {
-    fn from(value: SessionGetResult) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<()> for SessionGetResult {
-    fn from(value: ()) -> Self {
-        Self(value)
-    }
+pub struct SessionGetParams {
+    pub session_id: ::std::string::String,
 }
 ///`SessionListResult`
 ///
@@ -33685,6 +33738,83 @@ for SessionOpenedPayload {
         value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
     ) -> Self {
         Self(value)
+    }
+}
+///`SessionStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "open",
+///    "closed"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum SessionStatus {
+    #[serde(rename = "open")]
+    Open,
+    #[serde(rename = "closed")]
+    Closed,
+}
+impl ::std::fmt::Display for SessionStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Open => f.write_str("open"),
+            Self::Closed => f.write_str("closed"),
+        }
+    }
+}
+impl ::std::str::FromStr for SessionStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "open" => Ok(Self::Open),
+            "closed" => Ok(Self::Closed),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for SessionStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for SessionStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for SessionStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
     }
 }
 ///`SessionStatus`
@@ -33926,7 +34056,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.858373304Z",
+///      "default": "2026-05-23T16:35:57.510580645Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34017,7 +34147,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.873600821Z",
+///      "default": "2026-05-23T16:35:57.529289641Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34108,7 +34238,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.873312100Z",
+///      "default": "2026-05-23T16:35:57.528836324Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34199,7 +34329,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.873471970Z",
+///      "default": "2026-05-23T16:35:57.529031327Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34290,7 +34420,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.873536991Z",
+///      "default": "2026-05-23T16:35:57.529170966Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34381,7 +34511,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.873394048Z",
+///      "default": "2026-05-23T16:35:57.528938283Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34472,7 +34602,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:20:53.873664811Z",
+///      "default": "2026-05-23T16:35:57.529383448Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -40595,6 +40725,9 @@ pub mod defaults {
     pub(super) fn kernel_session_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
+    pub(super) fn kernel_session_metadata() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
     pub(super) fn outbound_audit_record_cost() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -41274,7 +41407,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.867538517Z\"")
+        >("\"2026-05-23T16:35:57.519954412Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41294,7 +41427,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.866283310Z\"")
+        >("\"2026-05-23T16:35:57.518409744Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41314,7 +41447,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.863929409Z\"")
+        >("\"2026-05-23T16:35:57.516131100Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41334,7 +41467,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.864114808Z\"")
+        >("\"2026-05-23T16:35:57.516297770Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41354,7 +41487,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.864957202Z\"")
+        >("\"2026-05-23T16:35:57.517153985Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41374,7 +41507,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.866965714Z\"")
+        >("\"2026-05-23T16:35:57.519131729Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41394,7 +41527,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.872596044Z\"")
+        >("\"2026-05-23T16:35:57.527747105Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41414,7 +41547,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.872308054Z\"")
+        >("\"2026-05-23T16:35:57.527368976Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41434,7 +41567,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.872126582Z\"")
+        >("\"2026-05-23T16:35:57.527153239Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41454,7 +41587,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.872725185Z\"")
+        >("\"2026-05-23T16:35:57.527960578Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41474,7 +41607,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.872458379Z\"")
+        >("\"2026-05-23T16:35:57.527557941Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41524,7 +41657,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.858373304Z\"")
+        >("\"2026-05-23T16:35:57.510580645Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41541,7 +41674,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.873600821Z\"")
+        >("\"2026-05-23T16:35:57.529289641Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41558,7 +41691,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.873312100Z\"")
+        >("\"2026-05-23T16:35:57.528836324Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41575,7 +41708,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.873471970Z\"")
+        >("\"2026-05-23T16:35:57.529031327Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41592,7 +41725,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.873536991Z\"")
+        >("\"2026-05-23T16:35:57.529170966Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41609,7 +41742,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.873394048Z\"")
+        >("\"2026-05-23T16:35:57.528938283Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41626,7 +41759,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:20:53.873664811Z\"")
+        >("\"2026-05-23T16:35:57.529383448Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

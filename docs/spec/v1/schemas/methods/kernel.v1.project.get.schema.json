@@ -251,6 +251,10 @@
         "paths": {
           "type": "object"
         },
+        "running_session_id": {
+          "description": "Session id when project state is running; absent otherwise",
+          "type": "string"
+        },
         "state": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",

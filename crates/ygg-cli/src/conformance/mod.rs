@@ -363,6 +363,31 @@ fn build_cases() -> Vec<ConformanceCase> {
             protocol_project::project_start_transitions_state
         ),
         c!(
+            "project.start_returns_session_id",
+            ["protocol", "project", "session"],
+            protocol_project::project_start_returns_session_id
+        ),
+        c!(
+            "project.start_idempotent_returns_existing_session",
+            ["protocol", "project", "session"],
+            protocol_project::project_start_idempotent_returns_existing_session
+        ),
+        c!(
+            "project.session_metadata_carries_project_id",
+            ["protocol", "project", "session"],
+            protocol_project::project_session_metadata_carries_project_id
+        ),
+        c!(
+            "project.stop_closes_session",
+            ["protocol", "project", "session"],
+            protocol_project::project_stop_closes_session
+        ),
+        c!(
+            "project.get_returns_running_session_id",
+            ["protocol", "project", "session"],
+            protocol_project::project_get_returns_running_session_id
+        ),
+        c!(
             "protocol.project_methods_require_admin_principal",
             ["protocol", "project", "permission"],
             protocol_project::project_methods_require_admin_principal

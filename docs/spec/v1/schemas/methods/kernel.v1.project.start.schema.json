@@ -94,6 +94,9 @@
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "already_running": {
+          "type": "boolean"
+        },
         "new_state": {
           "$ref": "#/definitions/ProjectState"
         },
@@ -102,14 +105,19 @@
         },
         "project_id": {
           "type": "string"
+        },
+        "session_id": {
+          "type": "string"
         }
       },
       "required": [
+        "already_running",
         "new_state",
         "previous_state",
-        "project_id"
+        "project_id",
+        "session_id"
       ],
-      "title": "ProjectTransitionResult",
+      "title": "ProjectStartResult",
       "type": "object"
     }
   },

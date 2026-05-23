@@ -367,8 +367,9 @@ async function handleUnmountSurfaceClick() {
   document.getElementById("surface-list-area")?.classList.remove("hidden");
 }
 
-async function mountProjectSurface(projectId: string) {
+async function mountProjectSurface(projectId: string, startedSessionId?: string) {
   const project = await client.getProject(projectId);
+  const projectSessionId = startedSessionId ?? project.running_session_id;
   route = "project";
   scheduleRender();
   setTimeout(async () => {
@@ -389,8 +390,15 @@ async function mountProjectSurface(projectId: string) {
         exportName: resolved.exportName,
         wrapperClass: resolved.wrapperClass,
         stylesheets: resolved.stylesheets,
-        hostBridge: { callRpc: (method, params) => client.invoke(method, params) },
-        initialProps: { projectId },
+        hostBridge: {
+          callRpc: (method, params) => {
+            const rpcParams = (typeof params === "object" && params !== null) ? params : {};
+            return projectSessionId
+              ? client.invokeWithSession(method, rpcParams, projectSessionId)
+              : client.invoke(method, rpcParams);
+          },
+        },
+        initialProps: { projectId, sessionId: projectSessionId },
       });
     } catch (caught) {
       container.innerHTML = `<div class="project-placeholder">${escapeHtml(project.title)} is running. No bundle mapping found for ${escapeHtml(project.entry_surface_id)}: ${escapeHtml(caught instanceof Error ? caught.message : String(caught))}</div>`;
@@ -401,9 +409,9 @@ async function mountProjectSurface(projectId: string) {
 async function handleProjectAction(action: string, projectId?: string) {
   try {
     if (action === "play" && projectId) {
-      await client.startProject(projectId);
+      const startResult = await client.startProject(projectId);
       await loadProjects();
-      await mountProjectSurface(projectId);
+      await mountProjectSurface(projectId, startResult.session_id);
     } else if (action === "stop" && projectId) {
       await client.stopProject(projectId);
       await loadProjects();

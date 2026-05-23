@@ -4,7 +4,11 @@ use serde_json::json;
 use ygg_core::project::{
     ExternalProjectData, ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy,
 };
-use ygg_runtime::{EventStore, ProtocolContext, RuntimeConfig};
+use ygg_core::SessionStatus;
+use ygg_runtime::{
+    CompositeSecretResolver, EventStore, ProjectStoreSecretResolver, ProtocolContext,
+    RuntimeConfig, SecretResolverConfig, StoreSecretResolver, ACTIVE_PROJECT_SCOPE,
+};
 
 use super::fixtures::*;
 
@@ -32,6 +36,26 @@ fn descriptor(id: &str) -> ProjectDescriptor {
             metadata: BTreeMap::new(),
         },
     }
+}
+
+fn project_secret_runtime() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>>
+{
+    let store = std::sync::Arc::new(ygg_runtime::InMemoryEventStore::default());
+    let platform = std::sync::Arc::new(StoreSecretResolver::new()?);
+    let project_resolver = ProjectStoreSecretResolver::new(|| {
+        ACTIVE_PROJECT_SCOPE.try_with(|scope| scope.clone()).ok()
+    })
+    .with_platform_fallback(platform.clone());
+    let resolver = CompositeSecretResolver::new()
+        .with_store(platform)
+        .with_project(std::sync::Arc::new(project_resolver));
+    Ok(ygg_runtime::Runtime::new(
+        store,
+        RuntimeConfig {
+            secret_resolver: SecretResolverConfig::with_resolver(std::sync::Arc::new(resolver)),
+            ..RuntimeConfig::default()
+        },
+    ))
 }
 
 pub(crate) async fn project_list_returns_registered_projects() -> anyhow::Result<()> {
@@ -100,6 +124,8 @@ pub(crate) async fn project_start_transitions_state() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(value["previous_state"] == json!("installed"));
     anyhow::ensure!(value["new_state"] == json!("running"));
+    anyhow::ensure!(value["session_id"].as_str().is_some());
+    anyhow::ensure!(value["already_running"] == json!(false));
     let list = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
@@ -115,6 +141,161 @@ pub(crate) async fn project_start_transitions_state() -> anyhow::Result<()> {
         .find(|p| p["id"] == json!("proto-start__abc12345"))
         .unwrap();
     anyhow::ensure!(project["state"] == json!("running"));
+    Ok(())
+}
+
+pub(crate) async fn project_start_returns_session_id() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .config()
+        .project_registry
+        .register(descriptor("proto-start-session__abc12345"))?;
+    let value = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.start",
+            json!({"project_id":"proto-start-session__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let session_id = value["session_id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("session_id missing"))?;
+    let session = runtime
+        .get_session(session_id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("session missing"))?;
+    anyhow::ensure!(session.metadata["project_id"] == json!("proto-start-session__abc12345"));
+    anyhow::ensure!(session
+        .labels
+        .contains(&"project:proto-start-session__abc12345".to_string()));
+    Ok(())
+}
+
+pub(crate) async fn project_start_idempotent_returns_existing_session() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .config()
+        .project_registry
+        .register(descriptor("proto-start-idempotent__abc12345"))?;
+    let first = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.start",
+            json!({"project_id":"proto-start-idempotent__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let second = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.start",
+            json!({"project_id":"proto-start-idempotent__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(first["session_id"] == second["session_id"]);
+    anyhow::ensure!(second["already_running"] == json!(true));
+    Ok(())
+}
+
+pub(crate) async fn project_session_metadata_carries_project_id() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .config()
+        .project_registry
+        .register(descriptor("proto-session-meta__abc12345"))?;
+    let started = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.start",
+            json!({"project_id":"proto-session-meta__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let session_id = started["session_id"].as_str().unwrap();
+    let fetched = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.session.get",
+            json!({"session_id": session_id}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(fetched["metadata"]["project_id"] == json!("proto-session-meta__abc12345"));
+    anyhow::ensure!(fetched["status"] == json!("open"));
+    Ok(())
+}
+
+pub(crate) async fn project_stop_closes_session() -> anyhow::Result<()> {
+    let runtime = project_secret_runtime()?;
+    runtime
+        .config()
+        .project_registry
+        .register(descriptor("proto-stop-session__abc12345"))?;
+    let started = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.start",
+            json!({"project_id":"proto-stop-session__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let session_id = started["session_id"].as_str().unwrap().to_string();
+    let stopped = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.stop",
+            json!({"project_id":"proto-stop-session__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(stopped["session_id"] == json!(session_id));
+    let session = runtime
+        .get_session(&session_id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("session missing"))?;
+    anyhow::ensure!(session.status == SessionStatus::Closed);
+    let err = runtime
+        .resolve_secret_ref_with_session("secret_ref:project:API_KEY", Some(&session_id))
+        .await
+        .expect_err("closed project session should not resolve project secrets");
+    anyhow::ensure!(err.to_string().contains("closed"));
+    Ok(())
+}
+
+pub(crate) async fn project_get_returns_running_session_id() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .config()
+        .project_registry
+        .register(descriptor("proto-get-session__abc12345"))?;
+    let started = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.start",
+            json!({"project_id":"proto-get-session__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let got = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.get",
+            json!({"project_id":"proto-get-session__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(got["running_session_id"] == started["session_id"]);
+    let status = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.project.status",
+            json!({"project_id":"proto-get-session__abc12345"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(status["running_session_id"] == started["session_id"]);
     Ok(())
 }
 
@@ -138,17 +319,16 @@ pub(crate) async fn project_lifecycle_event_emitted_on_start() -> anyhow::Result
         .config()
         .project_registry
         .register(descriptor("proto-event__abc12345"))?;
-    let mut context = ProtocolContext::host_dev("conformance");
-    context.session_id = Some("project-events".to_string());
-    runtime
+    let started = runtime
         .call_protocol(
-            &context,
+            &ProtocolContext::host_dev("conformance"),
             "kernel.v1.project.start",
             json!({"project_id":"proto-event__abc12345"}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let events = store.list_session(&"project-events".to_string()).await?;
+    let session_id = started["session_id"].as_str().unwrap().to_string();
+    let events = store.list_session(&session_id).await?;
     anyhow::ensure!(events
         .iter()
         .any(|event| event.kind == ygg_core::PROJECT_STARTED

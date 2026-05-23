@@ -26,6 +26,10 @@ struct SessionCloseParams {
     session_id: String,
 }
 #[derive(JsonSchema)]
+struct SessionGetParams {
+    session_id: String,
+}
+#[derive(JsonSchema)]
 struct SessionForkParams {
     parent_session_id: String,
     forked_from_sequence: u64,
@@ -49,10 +53,20 @@ struct ProjectListParams {
     filter_state: Option<ygg_core::project::ProjectState>,
 }
 #[derive(JsonSchema)]
-struct ProjectTransitionResult {
+struct ProjectStartResult {
     project_id: ygg_core::project::ProjectId,
     previous_state: ygg_core::project::ProjectState,
     new_state: ygg_core::project::ProjectState,
+    session_id: String,
+    already_running: bool,
+}
+#[derive(JsonSchema)]
+struct ProjectStopResult {
+    project_id: ygg_core::project::ProjectId,
+    previous_state: ygg_core::project::ProjectState,
+    new_state: ygg_core::project::ProjectState,
+    #[schemars(schema_with = "string_schema")]
+    session_id: Option<String>,
 }
 #[derive(JsonSchema)]
 struct ProjectStatusResult {
@@ -60,6 +74,8 @@ struct ProjectStatusResult {
     state: ygg_core::project::ProjectState,
     sessions_count: usize,
     secrets_count: usize,
+    #[schemars(schema_with = "string_schema")]
+    running_session_id: Option<String>,
 }
 #[derive(JsonSchema)]
 struct ProjectLifecyclePayloadSchema {
@@ -232,6 +248,14 @@ fn optional_json_value_schema(
     schemars::schema::Schema::Bool(true)
 }
 
+fn string_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    use schemars::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
+
+    let mut schema = SchemaObject::default();
+    schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::String)));
+    Schema::Object(schema)
+}
+
 fn schema_value<T: JsonSchema>() -> Value {
     let schema = schema_for!(T);
     let mut value = serde_json::to_value(schema).expect("schema serializes");
@@ -363,6 +387,10 @@ fn main() -> anyhow::Result<()> {
                 schema_value::<SessionCloseParams>(),
                 schema_value::<EventEnvelope>(),
             ),
+            KernelMethod::SessionGet => (
+                schema_value::<SessionGetParams>(),
+                schema_value::<KernelSession>(),
+            ),
             KernelMethod::SessionFork => (
                 schema_value::<SessionForkParams>(),
                 schema_value::<BranchRecord>(),
@@ -371,8 +399,7 @@ fn main() -> anyhow::Result<()> {
                 schema_value::<SessionBranchListParams>(),
                 json!({"type":"array","items":schema_value::<BranchRecord>()}),
             ),
-            KernelMethod::SessionGet
-            | KernelMethod::SessionList
+            KernelMethod::SessionList
             | KernelMethod::EventSubscribe
             | KernelMethod::PackageDescribe
             | KernelMethod::CapabilityDescribe
@@ -413,11 +440,15 @@ fn main() -> anyhow::Result<()> {
             ),
             KernelMethod::ProjectGet => (
                 schema_value::<ProjectIdParams>(),
-                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"paths":{"type":"object"}}}),
+                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"paths":{"type":"object"},"running_session_id":{"type":"string","description":"Session id when project state is running; absent otherwise"}}}),
             ),
-            KernelMethod::ProjectStart | KernelMethod::ProjectStop => (
+            KernelMethod::ProjectStart => (
                 schema_value::<ProjectIdParams>(),
-                schema_value::<ProjectTransitionResult>(),
+                schema_value::<ProjectStartResult>(),
+            ),
+            KernelMethod::ProjectStop => (
+                schema_value::<ProjectIdParams>(),
+                schema_value::<ProjectStopResult>(),
             ),
             KernelMethod::ProjectStatus => (
                 schema_value::<ProjectIdParams>(),

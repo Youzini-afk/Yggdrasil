@@ -991,6 +991,14 @@ export interface ProjectListResult {
   "projects": Array<Record<string, unknown>>;
 }
 
+export interface ProjectStartResult {
+  "already_running": boolean;
+  "new_state": ProjectState;
+  "previous_state": ProjectState;
+  "project_id": string;
+  "session_id": string;
+}
+
 /**
  * Runtime project state. Not serialized to project.yaml; tracked by registry.
  */
@@ -998,15 +1006,17 @@ export type ProjectState = "archived" | "failed" | "installed" | "running" | "st
 
 export interface ProjectStatusResult {
   "project_id": string;
+  "running_session_id": string;
   "secrets_count": number;
   "sessions_count": number;
   "state": ProjectState;
 }
 
-export interface ProjectTransitionResult {
+export interface ProjectStopResult {
   "new_state": ProjectState;
   "previous_state": ProjectState;
   "project_id": string;
+  "session_id": string;
 }
 
 export type ProjectType = "external_workspace" | "external_wrapped" | "yggdrasil_native";
@@ -1303,7 +1313,9 @@ export interface SessionForkParams {
   "parent_session_id": string;
 }
 
-export type SessionGetResult = null;
+export interface SessionGetParams {
+  "session_id": string;
+}
 
 export type SessionListResult = null;
 

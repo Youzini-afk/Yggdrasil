@@ -97,6 +97,9 @@
         "project_id": {
           "type": "string"
         },
+        "running_session_id": {
+          "type": "string"
+        },
         "secrets_count": {
           "format": "uint",
           "minimum": 0.0,
@@ -113,6 +116,7 @@
       },
       "required": [
         "project_id",
+        "running_session_id",
         "secrets_count",
         "sessions_count",
         "state"

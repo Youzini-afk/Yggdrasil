@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::project::ProjectId;
 use ygg_core::{
-    AssetRecord, EventEnvelope, KernelSession, SessionId, EVENT_ASSET_PUT,
+    AssetRecord, EventEnvelope, KernelSession, SessionId, SessionStatus, EVENT_ASSET_PUT,
     EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED,
     EVENT_SESSION_FORKED,
 };
@@ -272,6 +272,9 @@ where
         let session = sessions
             .get(sid)
             .ok_or_else(|| anyhow::anyhow!("session '{}' not found", sid))?;
+        if session.status != SessionStatus::Open {
+            anyhow::bail!("session '{}' is closed", sid);
+        }
         let pid_str = session
             .metadata
             .get("project_id")
@@ -305,6 +308,22 @@ where
         F: Future<Output = T>,
     {
         ACTIVE_PROJECT_SCOPE.scope(scope, future).await
+    }
+
+    pub(crate) async fn find_session_for_project(&self, project_id: &ProjectId) -> Option<String> {
+        let sessions = self.sessions.read().await;
+        sessions
+            .values()
+            .find(|session| {
+                session.status == SessionStatus::Open
+                    && session.metadata.get("project_id").and_then(Value::as_str)
+                        == Some(project_id.as_str())
+            })
+            .map(|session| session.id.clone())
+    }
+
+    pub async fn get_session(&self, session_id: &str) -> Option<KernelSession> {
+        self.sessions.read().await.get(session_id).cloned()
     }
 
     pub async fn hydrate_substrate_from_events(&self) -> anyhow::Result<()> {

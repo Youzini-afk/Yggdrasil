@@ -162,7 +162,7 @@ impl KernelMethod {
             Self::SessionClose => MethodStatus::Implemented,
             Self::SessionFork => MethodStatus::Partial,
             Self::SessionBranchList => MethodStatus::Partial,
-            Self::SessionGet => MethodStatus::Planned,
+            Self::SessionGet => MethodStatus::Partial,
             Self::SessionList => MethodStatus::Planned,
             Self::EventAppend => MethodStatus::Implemented,
             Self::EventList => MethodStatus::Partial,
@@ -323,6 +323,7 @@ impl KernelMethod {
             | Self::SessionClose
             | Self::SessionFork
             | Self::SessionBranchList
+            | Self::SessionGet
             | Self::EventAppend
             | Self::EventList
             | Self::PackageLoad
@@ -376,8 +377,7 @@ impl KernelMethod {
             | Self::OutboundWebSocketSend
             | Self::OutboundWebSocketClose => true,
             // Planned methods with no dispatch yet
-            Self::SessionGet
-            | Self::SessionList
+            Self::SessionList
             | Self::EventSubscribe
             | Self::PackageDescribe
             | Self::CapabilityDescribe
@@ -668,7 +668,7 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod {
         id: "kernel.v1.session.get",
         streaming: false,
-        status: MethodStatus::Planned,
+        status: MethodStatus::Partial,
     },
     ProtocolMethod {
         id: "kernel.v1.session.list",
