@@ -187,14 +187,12 @@ export function InstalledPackagesPanel() {
       </div>
 
       {packages.error ? (
-        <Card>
-          <EmptyState
-            icon={<Package />}
-            title="Couldn't load packages"
-            body={packages.error.message}
-            action={{ label: "Retry", onClick: () => packages.refresh() }}
-          />
-        </Card>
+        <EmptyState
+          icon={<Package />}
+          title="Couldn't load packages"
+          body={packages.error.message}
+          action={{ label: "Retry", onClick: () => packages.refresh() }}
+        />
       ) : packages.loading ? (
         <Card>
           <ul className="divide-y divide-whisper-border">

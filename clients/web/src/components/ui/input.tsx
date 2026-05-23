@@ -16,7 +16,9 @@ export function Field({ label, required, helper, error, children, className }: F
       {label ? (
         <span className="text-[12px] font-medium leading-none">
           {label}
-          {required ? <span className="text-aged-brass ml-1">•</span> : null}
+          {required ? (
+            <span className="ml-1 align-middle text-[14px] leading-none text-aged-brass">•</span>
+          ) : null}
         </span>
       ) : null}
       {children}

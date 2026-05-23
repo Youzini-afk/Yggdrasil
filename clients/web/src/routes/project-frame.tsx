@@ -122,7 +122,7 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
             <ListBullets size={14} />
             Audit log
           </Button>
-          <span className="mx-2 hidden h-4 w-px bg-whisper-border sm:inline" aria-hidden />
+          <span className="mx-2 hidden h-4 w-px bg-whisper-border sm:inline-block" aria-hidden />
           {project?.state === "running" ? (
             <Tooltip label="Stop project">
               <Button tone="icon" size="icon-sm" onClick={onStop} disabled={stopping} aria-label="Stop">

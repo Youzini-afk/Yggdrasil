@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
-import * as RadixDropdown from "@radix-ui/react-dropdown-menu";
 import { motion, AnimatePresence } from "motion/react";
+import * as RadixDropdown from "@radix-ui/react-dropdown-menu";
+import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
 export const Dropdown = RadixDropdown.Root;

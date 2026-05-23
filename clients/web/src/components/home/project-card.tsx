@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { DotsThree, Play, ArrowsClockwise } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/typography";
+import { SPRING } from "@/lib/motion";
 import {
   Dropdown,
   DropdownTrigger,
@@ -74,7 +75,7 @@ export function ProjectCard({
     <motion.article
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index, 11) * 0.06, type: "spring", stiffness: 320, damping: 32 }}
+      transition={{ delay: Math.min(index, 11) * 0.06, ...SPRING.soft }}
       whileHover={{ y: -2 }}
       className={cn(
         "group flex flex-col rounded-[20px] border border-whisper-border bg-pure-surface p-5 shadow-card transition-shadow hover:shadow-card-hover",

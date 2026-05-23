@@ -30,10 +30,13 @@ export function SettingsNavRail({ active }: { active: SettingsTab }) {
               type="button"
               onClick={() => navigate({ kind: "settings", tab: id })}
               className={cn(
-                "flex items-center gap-2 rounded-[8px] px-3 py-2 text-left text-[13px] font-medium transition",
+                // Structural left border (transparent when inactive) keeps the
+                // content offset stable so hovering doesn't shift label
+                // position by 2px.
+                "flex items-center gap-2 rounded-[8px] py-2 pr-3 pl-[10px] text-left text-[13px] font-medium transition border-l-2",
                 isActive
-                  ? "bg-aged-brass-surface text-charcoal-ink border-l-2 border-l-aged-brass pl-[10px] [&_svg]:text-aged-brass"
-                  : "text-charcoal-ink hover:bg-whisper-border-strong/30 [&_svg]:text-steel-secondary",
+                  ? "border-l-aged-brass bg-aged-brass-surface text-charcoal-ink [&_svg]:text-aged-brass"
+                  : "border-l-transparent text-charcoal-ink hover:bg-whisper-border-strong/30 [&_svg]:text-steel-secondary",
               )}
             >
               <Icon size={16} />

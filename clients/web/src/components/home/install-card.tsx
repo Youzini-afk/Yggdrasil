@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { Plus } from "@/components/icons";
+import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
 export function InstallCard({ onClick, index = 0 }: { onClick: () => void; index?: number }) {
@@ -9,7 +10,7 @@ export function InstallCard({ onClick, index = 0 }: { onClick: () => void; index
       onClick={onClick}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index, 11) * 0.06, type: "spring", stiffness: 320, damping: 32 }}
+      transition={{ delay: Math.min(index, 11) * 0.06, ...SPRING.soft }}
       whileHover={{ y: -2 }}
       className={cn(
         "flex flex-col items-center justify-center gap-3 rounded-[20px] border border-dashed border-whisper-border-strong/70 bg-transparent p-8 text-center transition hover:border-aged-brass-border hover:bg-aged-brass-surface-soft",

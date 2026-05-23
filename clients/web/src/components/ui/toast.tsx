@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle, Cloud, Info, Warning, X, XCircle } from "@/components/icons";
+import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
 export type ToastVariant = "info" | "success" | "warning" | "error" | "progress";
@@ -122,7 +123,7 @@ function ToastViewport({
               initial={{ opacity: 0, y: 16, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 520, damping: 38 }}
+              transition={SPRING.snap}
               className="pointer-events-auto relative overflow-hidden rounded-[16px] border border-whisper-border bg-pure-surface shadow-toast"
             >
               <span className={cn("absolute inset-y-0 left-0 w-1", variantStripe[toast.variant])} />
