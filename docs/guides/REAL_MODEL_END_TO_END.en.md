@@ -57,6 +57,73 @@ TavernProvider.sendMessage parses text with extractContentFromResult
 Assistant message content updates → React re-renders → user sees the reply
 ```
 
+## Streaming call chain (`settings.streaming = true`)
+
+The non-streaming path returns one complete response. The streaming path pushes chunks incrementally to the surface through the kernel event stream.
+
+```text
+SendForm onSend(text)
+  ↓
+TavernProvider.sendMessage(text) (settings.streaming === true)
+  ↓
+streamCapability("ydltavern/engine/model.live_call.stream", { ... })
+  ├─ Step 1: callHostRpc("kernel.v1.capability.stream", { capability_id, input })
+  │          → returns stream_id
+  ├─ Step 2: postMessage to host: { type: "stream.subscribe", id, stream_id, session_id }
+  └─ returns StreamHandle { streamId, frames: AsyncIterable<StreamFrame>, cancel() }
+  ↓
+host (surface-host.ts) receives stream.subscribe:
+  ✓ subscribes to SSE through hostBridge.subscribeEvents(session_id, callback)
+  ✓ filters kernel/v1/stream.* events and matches payload.stream_id
+  ✓ forwards postMessage { type: "stream.frame" / "stream.ended" / "stream.error" }
+  ↓
+engine inside the subprocess:
+  ✓ reverse-calls kernel.v1.outbound.stream, not .execute
+  ✓ parses SSE / chunked JSON
+  ✓ normalizes frames such as { delta_text, kind: "chunk" }
+  ✓ writes frames through the kernel into the session event stream (kernel/v1/stream.chunk)
+  ↓
+host SSE pushes those events into the surface-host subscribeEvents callback
+  ↓
+surface-host converts them into postMessage events for the iframe
+  ↓
+TavernProvider consumes frames in a for-await loop:
+  - "started" / "progress": ignore
+  - "chunk": extractStreamChunkDelta(frame.payload) → append to assistant message
+  - "ended" / "final": mark streaming: false and exit the loop
+  - "error" / "cancelled" / "timeout": show partial content or an error
+  ↓
+React re-renders and the user sees token-by-token streaming output
+```
+
+## Cancelling generation
+
+The user clicks Stop:
+
+```text
+SendForm "Stop" button onClick
+  ↓
+tavern.cancelGeneration()
+  ↓
+activeStreamRef.current.cancel()
+  ├─ callHostRpc("kernel.v1.capability.cancel", { stream_id })
+  ├─ postMessage { type: "stream.unsubscribe", subscription_id }
+  └─ closes AsyncQueue and removes event listeners
+  ↓
+host:
+  ✓ kernel.v1.capability.cancel cancels the engine reverse call (engine receives abort signal)
+  ✓ kernel/v1/stream.cancelled is written into the session
+  ✓ surface-host sees cancelled and forwards stream.error to the iframe
+  ↓
+TavernProvider exits the loop, keeps accumulated content, and sets isGenerating: false
+```
+
+## Only one active generation at a time
+
+Current behavior: when `isGenerating` is true, `sendMessage` returns immediately. The user must click Stop or wait for completion before sending a new message.
+
+Queueing may come later, but it is out of scope for v1.
+
 ## Configuring real calls (user view)
 
 Start the Yggdrasil host and web shell:
@@ -227,7 +294,6 @@ Check that Play returned `session_id`, iframe `initialProps.sessionId` is non-em
 
 ## Deferred items
 
-- Streaming response UX: the current v1 surface path updates non-streaming text; the engine and outbound layer already have streaming primitives, but surface consumption is a Wave 3.6+ follow-up.
 - Concurrent active projects: current host scope flows through project sessions; stronger multi-tenant `project_id` in `ProtocolContext` is Round 11+.
 - Real paths and managed host lifecycle in the Tauri shell: Round 11+.
 - Production cross-origin surface-bundle allowlists and CSP hardening.

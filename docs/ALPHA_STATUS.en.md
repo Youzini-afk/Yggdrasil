@@ -217,8 +217,28 @@ After Round 10A.1, install defaults are relaxed: HTTPS-only, content hashing, an
 | TavernProvider.sendMessage invokes engine model.live_call | implemented |
 | API Connections drawer scope toggle (platform/project) | implemented |
 | Engine manifest declares secret_ref:project:* | implemented |
-| Streaming response UX in surface | deferred (Wave 3.6+) |
+| Streaming response UX in surface | implemented (Round 10A.4) |
 | Multi-tenant project_id in ProtocolContext | deferred (Round 11+) |
+
+## Round 10A.4 — Streaming UX
+
+| Capability | Status |
+|---|---|
+| Surface-host stream postMessage protocol | implemented |
+| stream.subscribe / stream.frame / stream.ended / stream.error / stream.unsubscribe | implemented |
+| Host bridge taps client.subscribeEvents, filters by stream_id | implemented |
+| streamCapability helper in YdlTavern host-rpc | implemented |
+| AsyncIterable<StreamFrame> consumption + iterator early-return cleanup | implemented |
+| TavernProvider.sendMessage streaming branch | implemented |
+| Progressive assistant message updates (chunk delta accumulation) | implemented |
+| Engine `final` frame defensive handling | implemented |
+| cancelGeneration action | implemented |
+| Stop button swap in SendForm when isGenerating | implemented |
+| Multi-concurrent generation in single chat | deferred |
+| Stream rate / token-rate indicator UI | deferred |
+| Realtime/WebSocket streaming UX | deferred (separate capability path) |
+
+Round 10A.4 does not change conformance or schema counts: 427 conformance cases and 115 v1 schemas remain current. YdlTavern test summary: surface 110/4 (94/4 in Round 10A.3, +16 from Wave 1B + Wave 2 streaming tests), engine 90/2, engine-core 307/0, and golden harness 20/20 perfect.
 
 ## Completed (S-track shell / release)
 

@@ -52,6 +52,7 @@
 - 通过 `official/secret-store-lab` 提供加密本地 secret store——可在 UI 中粘贴 API key，不再需要环境变量。
 - Home 现在是项目货架：项目以 card 形式显示，支持 `yg project list/info/status/start/stop` 与 Play 启动生命周期。
 - YdlTavern 的真实模型端到端路径已打通：SendForm → engine `model.live_call` → host live outbound → provider API → surface 回复，密钥走平台或项目 secret store。
+- YdlTavern 流式响应 UX 已工作：聊天 UI 可逐 chunk 更新，并支持 Stop 取消当前生成。
 
 详细情况见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)；下一步方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 

@@ -33,8 +33,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store; Round 10A.2 completed the Home project shelf, project lifecycle, project-level secret fallback, and YdlTavern project.yaml. Round 10A.3 completed the real path from YdlTavern Send → engine `model.live_call` → live outbound → provider response. Only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
-- Wave 3.6 can be a small follow-up before Round 10B: have the surface consume engine/outbound streaming responses and finish streaming response UX without expanding kernel surface area.
+- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store; Round 10A.2 completed the Home project shelf, project lifecycle, project-level secret fallback, and YdlTavern project.yaml. Round 10A.3 completed the real path from YdlTavern Send → engine `model.live_call` → live outbound → provider response. Round 10A.4 completed surface streaming response UX. Only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
 - OS keyring integration is deferred until CI / cross-platform builds have stable system dependencies.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
@@ -91,6 +90,13 @@ Not new phases, but known to-dos that will get done:
 - `clients/web` injects `sessionId` / `projectId` into surface initialProps, and surface RPCs automatically carry `session_id`.
 - YdlTavern `SendForm` is wired to engine `model.live_call`; API Connections supports platform/project save scope; the engine manifest declares `secret_ref:project:*`.
 - Documentation convergence is in [`../guides/REAL_MODEL_END_TO_END.md`](../guides/REAL_MODEL_END_TO_END.en.md).
+
+## Round 10A.4 — Streaming UX (complete)
+
+- The surface-host stream postMessage protocol is implemented: `stream.subscribe` / `stream.frame` / `stream.ended` / `stream.error` / `stream.unsubscribe`.
+- The host bridge subscribes to session SSE through `client.subscribeEvents`, filters `kernel/v1/stream.*` events by `stream_id`, and forwards matching frames.
+- YdlTavern now has the `streamCapability` helper, the `TavernProvider.sendMessage` streaming branch, chunk-delta accumulation updates, and Stop/cancelGeneration.
+- Multi-concurrent generation in one chat, token-rate UI, and Realtime/WebSocket streaming UX remain deferred; Round 10B remains the next focus.
 
 ## Round 10B — WIT/WASM Contract Frontier (next focus)
 
@@ -171,6 +177,7 @@ In rough order. Each one has support in `ALPHA_STATUS` and conformance. For deta
 - Package Installation Foundation (Round 10A)
 - Install Simplification + Secret Store (Round 10A.1)
 - Steam-Game Project Concept (Round 10A.2)
+- Streaming UX (Round 10A.4)
 - Outbound WebSocket Substrate
 - Shell + Release S-track (Vite web build, iframe SurfaceHost, Tauri desktop wrapper, GitHub Actions release)
 - Round 9 Contract Foundation (Contract V1, capability handles, bindings, Path B, audit, conformance kit, SDK generation)

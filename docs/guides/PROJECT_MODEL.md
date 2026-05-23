@@ -201,6 +201,11 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 这条链路让项目级 secret 解析能从 session metadata 找到项目范围，也让真实模型调用回到同一个项目 session。端到端说明见 [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md)。
 
+注：这个 `sessionId` 之后被用于：
+
+- 所有 RPC 调用自动附带（`callHostRpc` 通过 `setActiveSessionId` 读取）。
+- 流式调用（`streamCapability`）用它作为订阅范围，接收 `kernel/v1/stream.*` 事件。
+
 ## 协议
 
 宿主管理项目的协议（HostAdmin/HostDev only，普通包不能调）：

@@ -196,6 +196,11 @@ After a user clicks Play on a Home card, the web shell and host follow a fixed p
 
 This chain lets project-level secret resolution find the project scope from session metadata, and it keeps real model calls in the same project session. For the end-to-end path, see [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md).
 
+Note: this `sessionId` is then used for:
+
+- All RPC calls, which carry it automatically (`callHostRpc` reads it through `setActiveSessionId`).
+- Streaming calls (`streamCapability`), which use it as the subscription scope for receiving `kernel/v1/stream.*` events.
+
 ## Protocol
 
 Host project-management methods are HostAdmin/HostDev only; ordinary packages cannot call them:

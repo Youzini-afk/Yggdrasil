@@ -52,6 +52,7 @@ The platform substrate is in place. Contract V1 is the public platform spec; see
 - Encrypted local secret store through `official/secret-store-lab` — paste API keys in the UI, no env vars required.
 - Home is now a project shelf: projects appear as cards and support `yg project list/info/status/start/stop` plus Play lifecycle.
 - YdlTavern's real model end-to-end path is wired: SendForm → engine `model.live_call` → host live outbound → provider API → surface reply, with keys coming from the platform or project secret store.
+- YdlTavern streaming response UX works: the chat UI updates chunk by chunk and supports Stop to cancel the active generation.
 
 For details, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 

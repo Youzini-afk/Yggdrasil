@@ -57,6 +57,73 @@ TavernProvider.sendMessage 用 extractContentFromResult 解析成文本
 更新 assistant message 内容 → React 重渲染 → 用户看到回复
 ```
 
+## 流式调用链 (`settings.streaming = true`)
+
+非流式版本一次返回完整响应；流式版本通过 kernel 事件流增量推送 chunk 到 surface。
+
+```text
+SendForm onSend(text)
+  ↓
+TavernProvider.sendMessage(text) (settings.streaming === true)
+  ↓
+streamCapability("ydltavern/engine/model.live_call.stream", { ... })
+  ├─ 第一步: callHostRpc("kernel.v1.capability.stream", { capability_id, input })
+  │           → 返回 stream_id
+  ├─ 第二步: postMessage 到 host: { type: "stream.subscribe", id, stream_id, session_id }
+  └─ 返回 StreamHandle { streamId, frames: AsyncIterable<StreamFrame>, cancel() }
+  ↓
+host (surface-host.ts) 收到 stream.subscribe:
+  ✓ 通过 hostBridge.subscribeEvents(session_id, callback) 订阅 SSE
+  ✓ 过滤 kernel/v1/stream.* 事件, 匹配 stream_id 的 payload
+  ✓ 转发为 postMessage { type: "stream.frame" / "stream.ended" / "stream.error" }
+  ↓
+engine 在 subprocess 内部:
+  ✓ 反向调用 kernel.v1.outbound.stream (而非 .execute)
+  ✓ 解析 SSE / chunked JSON
+  ✓ 归一化为 { delta_text, kind: "chunk" } 等帧
+  ✓ 通过 kernel 把帧写入 session 事件流 (kernel/v1/stream.chunk)
+  ↓
+host SSE 把这些事件推到 surface-host 的 subscribeEvents callback
+  ↓
+surface-host 转换为 postMessage 给 iframe
+  ↓
+TavernProvider 的 for-await 循环消费 frames:
+  - "started" / "progress": 忽略
+  - "chunk": extractStreamChunkDelta(frame.payload) → 累加到 assistant message
+  - "ended" / "final": 标记 streaming: false, 退出循环
+  - "error" / "cancelled" / "timeout": 显示部分内容或错误
+  ↓
+React 重渲染, 用户看到逐字流式输出
+```
+
+## 取消生成
+
+用户点 Stop 按钮：
+
+```text
+SendForm "Stop" 按钮 onClick
+  ↓
+tavern.cancelGeneration()
+  ↓
+activeStreamRef.current.cancel()
+  ├─ callHostRpc("kernel.v1.capability.cancel", { stream_id })
+  ├─ postMessage { type: "stream.unsubscribe", subscription_id }
+  └─ 关闭 AsyncQueue, 移除事件监听器
+  ↓
+host:
+  ✓ kernel.v1.capability.cancel 取消 engine 反向调用 (engine 收到 abort 信号)
+  ✓ kernel/v1/stream.cancelled 事件落入 session
+  ✓ surface-host 看到 cancelled, 转发为 stream.error 给 iframe
+  ↓
+TavernProvider 循环退出, 保留已累积内容, isGenerating: false
+```
+
+## 同时只一个 active 生成
+
+当前实现：`isGenerating` 为 true 时，`sendMessage` 直接 return。用户必须先 Stop 或等当前完成才能发新消息。
+
+未来可能队列化，但不在 v1 范围。
+
 ## 配置真实调用（用户视角）
 
 启动 Yggdrasil host 与 Web shell：
@@ -227,7 +294,6 @@ engine 包 manifest 的 `permissions.secret_refs` 没声明这个 ref。编辑 m
 
 ## 推迟事项
 
-- 流式响应 UX：当前 v1 surface 路径按非流式文本更新；engine 与 outbound 已有流式原语，surface 消费是后续 Wave 3.6+。
 - 多并发活跃项目：当前 host 以项目 session 传递 scope；更强的 multi-tenant `project_id` in `ProtocolContext` 是 Round 11+。
 - Tauri shell 中的真实路径与 managed host lifecycle：Round 11+。
 - 生产级跨源 surface bundle allowlist 与 CSP 加固。

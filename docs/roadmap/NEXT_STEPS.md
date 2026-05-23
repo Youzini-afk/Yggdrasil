@@ -33,8 +33,7 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；Round 10A.3 已打通 YdlTavern Send → engine `model.live_call` → live outbound → provider response 的真实路径；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
-- Wave 3.6 可作为 Round 10B 前的小型 follow-up：surface 消费 engine/outbound 流式响应，补齐 streaming response UX，而不扩大内核表面积。
+- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；Round 10A.3 已打通 YdlTavern Send → engine `model.live_call` → live outbound → provider response 的真实路径；Round 10A.4 已补齐 surface streaming response UX；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
 - OS keyring 集成延后，等 CI / 跨平台构建环境具备稳定系统依赖时再恢复。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
@@ -91,6 +90,13 @@
 - `clients/web` 将 `sessionId` / `projectId` 注入 surface initialProps，surface RPC 自动带 `session_id`。
 - YdlTavern `SendForm` 已接到 engine `model.live_call`，API Connections 支持 platform/project 保存范围，engine manifest 声明 `secret_ref:project:*`。
 - 文档收敛见 [`../guides/REAL_MODEL_END_TO_END.md`](../guides/REAL_MODEL_END_TO_END.md)。
+
+## Round 10A.4 — Streaming UX（完成）
+
+- Surface-host stream postMessage protocol 已落地：`stream.subscribe` / `stream.frame` / `stream.ended` / `stream.error` / `stream.unsubscribe`。
+- Host bridge 通过 `client.subscribeEvents` 订阅 session SSE，过滤并转发匹配 `stream_id` 的 `kernel/v1/stream.*` 事件。
+- YdlTavern `streamCapability` helper、`TavernProvider.sendMessage` streaming branch、chunk delta 累加更新和 Stop/cancelGeneration 已落地。
+- 单 chat 多并发生成、token-rate UI、Realtime/WebSocket streaming UX 仍推迟；Round 10B 仍是下一焦点。
 
 ## Round 10B — WIT/WASM Contract Frontier（下一焦点）
 
@@ -171,6 +177,7 @@ Round 10 之后仍保留的底座项：package-owned projection 执行、package
 - Package Installation Foundation (Round 10A)
 - Install Simplification + Secret Store (Round 10A.1)
 - Steam-Game Project Concept (Round 10A.2)
+- Streaming UX (Round 10A.4)
 - Outbound WebSocket Substrate
 - Shell + Release S-track（Vite Web build、iframe SurfaceHost、Tauri desktop wrapper、GitHub Actions release）
 - Round 9 Contract Foundation（Contract V1、capability handles、bindings、Path B、audit、conformance kit、SDK generation）
