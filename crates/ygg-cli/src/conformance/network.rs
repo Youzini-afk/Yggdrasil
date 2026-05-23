@@ -69,6 +69,7 @@ fn network_package_with_secret_refs(
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             network: NetworkPermissions {
@@ -2161,6 +2162,7 @@ fn package_with_secret_refs(id: &str, secret_refs: Vec<String>) -> PackageManife
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             network: NetworkPermissions {

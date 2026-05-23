@@ -103,6 +103,7 @@ fn audit_provider_package() -> PackageManifest {
             })
             .collect(),
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet::default(),
         sandbox_policy: SandboxPolicy::default(),
@@ -125,6 +126,7 @@ fn audit_caller_package() -> PackageManifest {
         }),
         provides: Vec::new(),
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             capabilities: CapabilityPermissions {

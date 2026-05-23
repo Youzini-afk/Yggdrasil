@@ -220,6 +220,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet::default(),
             sandbox_policy: SandboxPolicy::default(),

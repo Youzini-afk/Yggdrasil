@@ -84,6 +84,7 @@ fn networked_package(id: &str, host: &str) -> PackageManifest {
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             network: NetworkPermissions {
@@ -787,6 +788,7 @@ fn multi_host_networked_package(id: &str, hosts: Vec<(&str, &str)>) -> PackageMa
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             network: NetworkPermissions {

@@ -2156,6 +2156,7 @@ mod y2_tests {
                 description: None,
             }],
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 network: NetworkPermissions {
@@ -2431,6 +2432,7 @@ mod z_websocket_tests {
                 description: None,
             }],
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 network: NetworkPermissions {

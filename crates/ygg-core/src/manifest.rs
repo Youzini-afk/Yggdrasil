@@ -22,6 +22,11 @@ pub struct PackageManifest {
     pub provides: Vec<CapabilityDescriptor>,
     #[serde(default)]
     pub consumes: Vec<CapabilityRequirement>,
+    /// First-class package dependency declarations.
+    /// Distinct from `consumes` (which declares capability requirements).
+    /// Empty by default for backward compat.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub requires: Vec<PackageDependency>,
     #[serde(default)]
     pub contributes: PackageContributions,
     #[serde(default)]
@@ -159,6 +164,44 @@ pub struct CapabilityDescriptor {
 pub struct CapabilityRequirement {
     pub id: CapabilityId,
     pub version: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PackageDependency {
+    /// Logical package id (must match the dependency's manifest.id once resolved)
+    pub id: PackageId,
+
+    /// Where the package comes from
+    pub source: DependencySource,
+
+    /// Semver constraint (e.g., ">=1.0.0", "^2.1", "=1.2.3")
+    /// Empty string means "any version"
+    #[serde(default)]
+    pub version: String,
+
+    /// Optional: GPG public key fingerprints required to sign this dep
+    /// If empty, no signature verification required
+    /// If set, the dep's GPG-signed tag must be signed by one of these
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub minimum_signed_by: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DependencySource {
+    /// Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+    Internal,
+
+    /// Fetched from a git remote
+    Git {
+        url: String,
+        /// Tag, branch, or commit ref
+        #[serde(default)]
+        r#ref: String,
+    },
+
+    /// Local filesystem path (for development)
+    Local { path: String },
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -418,6 +461,16 @@ impl PackageManifest {
                 return Err(ManifestError::InvalidVersion(requirement.version.clone()));
             }
         }
+        for dependency in &self.requires {
+            validate_package_id(&dependency.id)?;
+            validate_dependency_source(&dependency.source)?;
+            if !dependency.version.trim().is_empty() {
+                validate_semver_constraint(&dependency.version)?;
+            }
+            for fingerprint in &dependency.minimum_signed_by {
+                validate_gpg_fingerprint(fingerprint)?;
+            }
+        }
         for schema in &self.contributes.schemas {
             validate_namespaced_id(&schema.id)?;
             validate_schema_shape(&schema.schema)?;
@@ -521,6 +574,10 @@ pub enum ManifestError {
     InvalidSecretRef(String),
     #[error("invalid network method in permissions.network.declarations: {0}")]
     InvalidNetworkMethod(String),
+    #[error("invalid dependency source for {id}: {reason}")]
+    InvalidDependencySource { id: String, reason: String },
+    #[error("invalid GPG fingerprint in package dependency: {0}")]
+    InvalidGpgFingerprint(String),
     #[error("contract mode '{contract:?}' is not valid for entry kind '{kind}'")]
     InvalidContractMode {
         kind: String,
@@ -546,6 +603,52 @@ fn validate_semver_like(version: &str) -> Result<(), ManifestError> {
         return Err(ManifestError::InvalidVersion(version.to_string()));
     }
     Ok(())
+}
+
+fn validate_semver_constraint(version: &str) -> Result<(), ManifestError> {
+    semver::VersionReq::parse(version)
+        .map(|_| ())
+        .map_err(|_| ManifestError::InvalidVersion(version.to_string()))
+}
+
+fn validate_dependency_source(source: &DependencySource) -> Result<(), ManifestError> {
+    if let DependencySource::Git { url, .. } = source {
+        let parsed =
+            url::Url::parse(url).map_err(|error| ManifestError::InvalidDependencySource {
+                id: url.clone(),
+                reason: error.to_string(),
+            })?;
+        if parsed.scheme() != "https" {
+            return Err(ManifestError::InvalidDependencySource {
+                id: url.clone(),
+                reason: "git dependency URL must use https".to_string(),
+            });
+        }
+        if !parsed.username().is_empty() || parsed.password().is_some() {
+            return Err(ManifestError::InvalidDependencySource {
+                id: url.clone(),
+                reason: "git dependency URL must not contain userinfo".to_string(),
+            });
+        }
+        if parsed.host_str().is_none() {
+            return Err(ManifestError::InvalidDependencySource {
+                id: url.clone(),
+                reason: "git dependency URL must include a host".to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_gpg_fingerprint(fingerprint: &str) -> Result<(), ManifestError> {
+    let trimmed = fingerprint.trim();
+    if trimmed.len() == 40 && trimmed.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        Ok(())
+    } else {
+        Err(ManifestError::InvalidGpgFingerprint(
+            fingerprint.to_string(),
+        ))
+    }
 }
 
 fn validate_schema_shape(schema: &Value) -> Result<(), ManifestError> {
@@ -587,6 +690,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 network: NetworkPermissions {
@@ -628,6 +732,7 @@ mod tests {
                 description: None,
             }],
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet::default(),
             sandbox_policy: SandboxPolicy::default(),
@@ -661,6 +766,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet::default(),
             sandbox_policy: SandboxPolicy::default(),
@@ -689,6 +795,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 secret_refs: vec!["secret_ref:env:OPENAI_API_KEY".to_string()],
@@ -720,6 +827,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 secret_refs: vec![
@@ -759,6 +867,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 secret_refs: vec!["not-a-secret-ref".to_string()],
@@ -792,6 +901,7 @@ mod tests {
             }),
             provides: Vec::new(),
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 secret_refs: vec!["secret_ref:vault:NAME".to_string()],
@@ -919,5 +1029,210 @@ entry:
             err,
             ManifestError::InvalidNetworkMethod("CONNECT_TO_ANYTHING".to_string())
         );
+    }
+
+    fn base_manifest() -> PackageManifest {
+        PackageManifest {
+            schema_version: 1,
+            id: "org/test".to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
+                crate_ref: "org-test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            }),
+            provides: Vec::new(),
+            consumes: Vec::new(),
+            requires: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet::default(),
+            sandbox_policy: SandboxPolicy::default(),
+        }
+    }
+
+    #[test]
+    fn requires_default_empty_and_skips_serialization() {
+        let yaml = r#"
+schema_version: 1
+id: org/test
+version: 0.1.0
+entry:
+  kind: rust_inproc
+  crate_ref: org-test
+  symbol: register
+  abi_version: 1
+"#;
+        let manifest: PackageManifest = serde_yaml::from_str(yaml).expect("parse manifest");
+        assert!(manifest.requires.is_empty());
+        let json = serde_json::to_string(&manifest).expect("serialize manifest");
+        assert!(!json.contains("requires"));
+        let decoded: PackageManifest = serde_json::from_str(&json).expect("round trip json");
+        assert!(decoded.requires.is_empty());
+    }
+
+    #[test]
+    fn requires_internal_source_serializes() {
+        let mut manifest = base_manifest();
+        manifest.requires = vec![PackageDependency {
+            id: "official/core".to_string(),
+            source: DependencySource::Internal,
+            version: String::new(),
+            minimum_signed_by: Vec::new(),
+        }];
+        assert_eq!(manifest.validate_basic(), Ok(()));
+        let yaml = serde_yaml::to_string(&manifest).expect("serialize yaml");
+        assert!(yaml.contains("kind: internal"), "{yaml}");
+        let decoded: PackageManifest = serde_yaml::from_str(&yaml).expect("round trip yaml");
+        assert!(matches!(
+            decoded.requires[0].source,
+            DependencySource::Internal
+        ));
+    }
+
+    #[test]
+    fn requires_git_source_https_tag_serializes() {
+        let mut manifest = base_manifest();
+        manifest.requires = vec![PackageDependency {
+            id: "vendor/tool".to_string(),
+            source: DependencySource::Git {
+                url: "https://example.com/vendor/tool.git".to_string(),
+                r#ref: "v1.2.3".to_string(),
+            },
+            version: "^1.2".to_string(),
+            minimum_signed_by: vec!["0123456789abcdef0123456789ABCDEF01234567".to_string()],
+        }];
+        assert_eq!(manifest.validate_basic(), Ok(()));
+        let json = serde_json::to_string(&manifest).expect("serialize json");
+        assert!(json.contains("\"kind\":\"git\""), "{json}");
+        assert!(json.contains("\"ref\":\"v1.2.3\""), "{json}");
+        let decoded: PackageManifest = serde_json::from_str(&json).expect("round trip json");
+        assert!(matches!(
+            decoded.requires[0].source,
+            DependencySource::Git { .. }
+        ));
+    }
+
+    #[test]
+    fn requires_local_source_relative_path_serializes() {
+        let mut manifest = base_manifest();
+        manifest.requires = vec![PackageDependency {
+            id: "local/dev-tool".to_string(),
+            source: DependencySource::Local {
+                path: "../dev-tool".to_string(),
+            },
+            version: String::new(),
+            minimum_signed_by: Vec::new(),
+        }];
+        assert_eq!(manifest.validate_basic(), Ok(()));
+        let yaml = serde_yaml::to_string(&manifest).expect("serialize yaml");
+        assert!(yaml.contains("kind: local"), "{yaml}");
+        assert!(yaml.contains("path: ../dev-tool"), "{yaml}");
+        let decoded: PackageManifest = serde_yaml::from_str(&yaml).expect("round trip yaml");
+        assert!(matches!(
+            decoded.requires[0].source,
+            DependencySource::Local { .. }
+        ));
+    }
+
+    #[test]
+    fn requires_invalid_git_urls_rejected() {
+        for url in [
+            "ssh://git@example.com/vendor/tool.git",
+            "git://example.com/vendor/tool.git",
+            "https://user@example.com/vendor/tool.git",
+        ] {
+            let mut manifest = base_manifest();
+            manifest.requires = vec![PackageDependency {
+                id: "vendor/tool".to_string(),
+                source: DependencySource::Git {
+                    url: url.to_string(),
+                    r#ref: "v1.0.0".to_string(),
+                },
+                version: ">=1.0.0".to_string(),
+                minimum_signed_by: Vec::new(),
+            }];
+            assert!(matches!(
+                manifest.validate_basic(),
+                Err(ManifestError::InvalidDependencySource { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn requires_invalid_semver_constraint_rejected() {
+        let mut manifest = base_manifest();
+        manifest.requires = vec![PackageDependency {
+            id: "vendor/tool".to_string(),
+            source: DependencySource::Internal,
+            version: "not a constraint".to_string(),
+            minimum_signed_by: Vec::new(),
+        }];
+        assert_eq!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidVersion(
+                "not a constraint".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn requires_invalid_gpg_fingerprint_rejected() {
+        let mut manifest = base_manifest();
+        manifest.requires = vec![PackageDependency {
+            id: "vendor/tool".to_string(),
+            source: DependencySource::Internal,
+            version: String::new(),
+            minimum_signed_by: vec!["not-a-fingerprint".to_string()],
+        }];
+        assert_eq!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidGpgFingerprint(
+                "not-a-fingerprint".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn requires_yaml_and_json_round_trip() {
+        let mut manifest = base_manifest();
+        manifest.requires = vec![
+            PackageDependency {
+                id: "official/core".to_string(),
+                source: DependencySource::Internal,
+                version: String::new(),
+                minimum_signed_by: Vec::new(),
+            },
+            PackageDependency {
+                id: "vendor/tool".to_string(),
+                source: DependencySource::Git {
+                    url: "https://example.com/vendor/tool.git".to_string(),
+                    r#ref: "v1.2.3".to_string(),
+                },
+                version: "=1.2.3".to_string(),
+                minimum_signed_by: Vec::new(),
+            },
+            PackageDependency {
+                id: "local/dev-tool".to_string(),
+                source: DependencySource::Local {
+                    path: "../dev-tool".to_string(),
+                },
+                version: String::new(),
+                minimum_signed_by: Vec::new(),
+            },
+        ];
+
+        let yaml = serde_yaml::to_string(&manifest).expect("serialize yaml");
+        let from_yaml: PackageManifest = serde_yaml::from_str(&yaml).expect("deserialize yaml");
+        assert_eq!(from_yaml.requires.len(), 3);
+        assert_eq!(from_yaml.validate_basic(), Ok(()));
+
+        let json = serde_json::to_string(&from_yaml).expect("serialize json");
+        let from_json: PackageManifest = serde_json::from_str(&json).expect("deserialize json");
+        assert_eq!(from_json.requires.len(), 3);
+        assert_eq!(from_json.validate_basic(), Ok(()));
     }
 }

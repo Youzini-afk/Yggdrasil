@@ -2,6 +2,7 @@ pub mod asset;
 pub mod capability_handle;
 pub mod event;
 pub mod ids;
+pub mod lockfile;
 pub mod manifest;
 pub mod secret_ref;
 pub mod session;
@@ -29,11 +30,12 @@ pub use ids::{
     new_id, AssetId, CapabilityId, EventId, ExtensionPointId, HookId, InvocationId, PackageId,
     PrincipalId, SessionId,
 };
+pub use lockfile::{LockEntry, LockRequirement, LockSource, Lockfile};
 pub use manifest::{
     AssetPermissions, CapabilityDescriptor, CapabilityPermissions, CapabilityRequirement,
-    ContractMode, EntryDescriptor, EventPermissions, ExtensionPointDescriptor,
+    ContractMode, DependencySource, EntryDescriptor, EventPermissions, ExtensionPointDescriptor,
     FilesystemPermissions, HookSubscription, HookTiming, ManifestError, NetworkDeclaration,
-    NetworkPermissions, PackageContributions, PackageEntry, PackageManifest,
+    NetworkPermissions, PackageContributions, PackageDependency, PackageEntry, PackageManifest,
     PackagePermissions, PermissionSet, RemoteAuth, SandboxPolicy, SchemaContribution,
     SubprocessTransport, SurfaceActivation, SurfaceApprovalPolicy, SurfaceContribution,
     SurfacePermissionRequirement, SurfaceRisk, SurfaceSlot,

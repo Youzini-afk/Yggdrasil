@@ -1043,6 +1043,7 @@ fn perf_outbound_manifest() -> ygg_core::PackageManifest {
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: ygg_core::PackageContributions::default(),
         permissions: ygg_core::PermissionSet {
             network: ygg_core::NetworkPermissions {

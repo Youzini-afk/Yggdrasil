@@ -63,6 +63,7 @@ pub(crate) fn demo_event_writer_manifest() -> ygg_core::PackageManifest {
         }),
         provides: Vec::new(),
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             events: EventPermissions {

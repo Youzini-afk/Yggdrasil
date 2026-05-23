@@ -270,6 +270,20 @@ Session id 只表示内核排序与权限范围，不表示某种产品体验。
 
 Manifest 声明 package 身份、entry、contract mode、提供的能力、消费的能力、surface contributions、hooks、extension points、asset/schema 声明、permissions 和 sandbox policy。
 
+`requires` 是 manifest 中的一等 package 依赖声明字段，用于表达“此包需要哪些其他包被解析和安装”。它不同于 `consumes`：`consumes` 声明 capability 需求，`requires` 声明 package 依赖数据。它不是协议方法，也不授予运行时权威；安装器用它解析依赖并写入 lockfile，运行时仍通过 permissions、bindings 与 capability handles 执行授权。
+
+```yaml
+requires:
+  - id: official/model-provider-lab
+    source:
+      kind: git
+      url: https://example.com/yggdrasil/model-provider-lab.git
+      ref: v1.2.3
+    version: "^1.2"
+    minimum_signed_by:
+      - "0123456789ABCDEF0123456789ABCDEF01234567"
+```
+
 Manifest 是审核与句柄铸造输入，不是运行时权威本身。运行时权威必须通过 bindings 和 capability handles 表达。
 
 ### `PackageRecord`

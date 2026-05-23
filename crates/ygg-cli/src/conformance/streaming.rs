@@ -35,6 +35,7 @@ fn streaming_echo_package(id: &str, capability_id: &str, streaming: bool) -> Pac
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet::default(),
         sandbox_policy: SandboxPolicy::default(),

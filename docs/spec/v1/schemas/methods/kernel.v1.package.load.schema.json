@@ -121,6 +121,68 @@
             }
           ]
         },
+        "DependencySource": {
+          "oneOf": [
+            {
+              "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "internal"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "description": "Fetched from a git remote",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "git"
+                  ],
+                  "type": "string"
+                },
+                "ref": {
+                  "default": "",
+                  "description": "Tag, branch, or commit ref",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "type": "object"
+            },
+            {
+              "description": "Local filesystem path (for development)",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "local"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "EntryDescriptor": {
           "oneOf": [
             {
@@ -420,6 +482,39 @@
               "type": "array"
             }
           },
+          "type": "object"
+        },
+        "PackageDependency": {
+          "properties": {
+            "id": {
+              "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+              "type": "string"
+            },
+            "minimum_signed_by": {
+              "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "source": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/DependencySource"
+                }
+              ],
+              "description": "Where the package comes from"
+            },
+            "version": {
+              "default": "",
+              "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "source"
+          ],
           "type": "object"
         },
         "PackagePermissions": {
@@ -812,6 +907,13 @@
           },
           "type": "array"
         },
+        "requires": {
+          "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+          "items": {
+            "$ref": "#/definitions/PackageDependency"
+          },
+          "type": "array"
+        },
         "sandbox_policy": {
           "allOf": [
             {
@@ -938,6 +1040,68 @@
                 "none"
               ],
               "type": "string"
+            }
+          ]
+        },
+        "DependencySource": {
+          "oneOf": [
+            {
+              "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "internal"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "description": "Fetched from a git remote",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "git"
+                  ],
+                  "type": "string"
+                },
+                "ref": {
+                  "default": "",
+                  "description": "Tag, branch, or commit ref",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "type": "object"
+            },
+            {
+              "description": "Local filesystem path (for development)",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "local"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object"
             }
           ]
         },
@@ -1242,6 +1406,39 @@
           },
           "type": "object"
         },
+        "PackageDependency": {
+          "properties": {
+            "id": {
+              "description": "Logical package id (must match the dependency's manifest.id once resolved)",
+              "type": "string"
+            },
+            "minimum_signed_by": {
+              "description": "Optional: GPG public key fingerprints required to sign this dep If empty, no signature verification required If set, the dep's GPG-signed tag must be signed by one of these",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "source": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/DependencySource"
+                }
+              ],
+              "description": "Where the package comes from"
+            },
+            "version": {
+              "default": "",
+              "description": "Semver constraint (e.g., \">=1.0.0\", \"^2.1\", \"=1.2.3\") Empty string means \"any version\"",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "source"
+          ],
+          "type": "object"
+        },
         "PackageManifest": {
           "properties": {
             "author": {
@@ -1334,6 +1531,13 @@
               "default": [],
               "items": {
                 "$ref": "#/definitions/CapabilityDescriptor"
+              },
+              "type": "array"
+            },
+            "requires": {
+              "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
+              "items": {
+                "$ref": "#/definitions/PackageDependency"
               },
               "type": "array"
             },

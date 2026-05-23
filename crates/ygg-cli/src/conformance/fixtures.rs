@@ -76,6 +76,7 @@ pub(crate) fn hook_handler_package(
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions {
             hooks: vec![HookSubscription {
                 extension_point: extension_point.to_string(),
@@ -128,6 +129,7 @@ pub(crate) fn schema_echo_package(
             description: None,
         }],
         consumes: Vec::new(),
+        requires: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
             capabilities: CapabilityPermissions {

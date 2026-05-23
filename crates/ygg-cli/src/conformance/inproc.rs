@@ -42,6 +42,7 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
                 description: None,
             }],
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet::default(),
             sandbox_policy: SandboxPolicy::default(),
@@ -97,6 +98,7 @@ pub(crate) async fn unknown_inproc_capability_errors() -> anyhow::Result<()> {
                 description: None,
             }],
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet::default(),
             sandbox_policy: SandboxPolicy::default(),
@@ -156,6 +158,7 @@ pub(crate) async fn inproc_bindings_init_receives_manifest_bindings() -> anyhow:
                 description: None,
             }],
             consumes: Vec::new(),
+            requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
                 capabilities: CapabilityPermissions {

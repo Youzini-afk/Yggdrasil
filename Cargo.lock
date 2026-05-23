@@ -6295,12 +6295,16 @@ dependencies = [
 name = "ygg-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "schemars 0.8.22",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",
  "thiserror 1.0.69",
+ "toml 0.8.2",
+ "url",
  "uuid",
 ]
 
