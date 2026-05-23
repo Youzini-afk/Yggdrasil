@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
-    DependencySource, LockEntry, LockRequirement, LockSource, Lockfile, PackageDependency,
+    paths, DependencySource, LockEntry, LockRequirement, LockSource, Lockfile, PackageDependency,
     PackageManifest, PermissionSet,
 };
 
@@ -286,7 +286,15 @@ fn resolve_transitive(
     plan.push(resolved);
     for req in requires {
         let next = resolve_dep(&req)?;
-        resolve_transitive(next, allow_unsigned, visited, resolving, stack, plan, max_depth - 1)?;
+        resolve_transitive(
+            next,
+            allow_unsigned,
+            visited,
+            resolving,
+            stack,
+            plan,
+            max_depth - 1,
+        )?;
     }
     let done = stack.pop();
     if let Some(done) = done {
@@ -298,8 +306,12 @@ fn resolve_transitive(
 fn resolve_one(desc: PackageDescriptor, allow_unsigned: bool) -> Result<PlannedPackage> {
     match desc.source {
         SourceDescriptor::Local { path } => resolve_local_package(path),
-        SourceDescriptor::Git { url, ref_name } => block_on_current(resolve_git_package(url, ref_name, allow_unsigned)),
-        SourceDescriptor::Internal => anyhow::bail!("internal packages do not require installation"),
+        SourceDescriptor::Git { url, ref_name } => {
+            block_on_current(resolve_git_package(url, ref_name, allow_unsigned))
+        }
+        SourceDescriptor::Internal => {
+            anyhow::bail!("internal packages do not require installation")
+        }
     }
 }
 
@@ -325,7 +337,11 @@ fn resolve_local_package(path: PathBuf) -> Result<PlannedPackage> {
     ))
 }
 
-async fn resolve_git_package(url: String, ref_name: String, allow_unsigned: bool) -> Result<PlannedPackage> {
+async fn resolve_git_package(
+    url: String,
+    ref_name: String,
+    allow_unsigned: bool,
+) -> Result<PlannedPackage> {
     let resolved = invoke_package_capability(
         "official/git-tools-lab",
         "official/git-tools-lab/resolve_ref",
@@ -384,23 +400,30 @@ pub async fn execute_plan(input: Value) -> Result<Value> {
     }
     let input: ExecutePlanInput = serde_json::from_value(input)?;
     verify_consent(&input.plan, &input.consent)?;
-    let data_dir = data_dir(input.data_dir)?;
-    let store_dir = data_dir.join("store");
-    let profiles_dir = data_dir.join("profiles");
+    ensure_layout(input.data_dir.as_deref())?;
+    let store_dir = store_dir(input.data_dir.as_deref())?;
+    let profiles_dir = profiles_dir(input.data_dir.as_deref())?;
     let staging_dir = store_dir.join(".staging");
     fs::create_dir_all(&staging_dir)?;
     fs::create_dir_all(&profiles_dir)?;
 
     let mut installed = Vec::new();
     for pkg in input.plan.packages.iter().rev() {
-        let store_path = store_dir.join(store_dir_name(&pkg.tree_hash));
+        let store_path = store_path_for_hash(&pkg.tree_hash, input.data_dir.as_deref())?;
         if !store_path.exists() {
             let staging = staging_dir.join(Uuid::new_v4().to_string());
             match pkg.source.as_str() {
-                "local" => copy_dir_atomic(Path::new(pkg.path.as_deref().context("local package missing path")?), &staging, &store_path)?,
+                "local" => copy_dir_atomic(
+                    Path::new(pkg.path.as_deref().context("local package missing path")?),
+                    &staging,
+                    &store_path,
+                )?,
                 "git" => {
                     let url = pkg.url.as_deref().context("git package missing url")?;
-                    let commit = pkg.commit_sha.as_deref().context("git package missing commit_sha")?;
+                    let commit = pkg
+                        .commit_sha
+                        .as_deref()
+                        .context("git package missing commit_sha")?;
                     invoke_package_capability(
                         "official/git-tools-lab",
                         "official/git-tools-lab/fetch_tree",
@@ -408,7 +431,11 @@ pub async fn execute_plan(input: Value) -> Result<Value> {
                     )
                     .await?;
                     fs::rename(&staging, &store_path).with_context(|| {
-                        format!("failed to atomically move {} to {}", staging.display(), store_path.display())
+                        format!(
+                            "failed to atomically move {} to {}",
+                            staging.display(),
+                            store_path.display()
+                        )
                     })?;
                 }
                 other => anyhow::bail!("unsupported install source: {other}"),
@@ -422,10 +449,15 @@ pub async fn execute_plan(input: Value) -> Result<Value> {
         }));
     }
 
-    let profile_path = profiles_dir.join(format!("{}.yaml", input.profile));
-    let lockfile_path = profiles_dir.join(format!("{}.lock.toml", input.profile));
-    write_profile(&profile_path, &input.plan, &store_dir)?;
-    let lock = build_lockfile(&input.profile, &input.plan, &input.consent, &store_dir)?;
+    let profile_path = profile_path(&input.profile, input.data_dir.as_deref())?;
+    let lockfile_path = lockfile_path(&input.profile, input.data_dir.as_deref())?;
+    write_profile(&profile_path, &input.plan, input.data_dir.as_deref())?;
+    let lock = build_lockfile(
+        &input.profile,
+        &input.plan,
+        &input.consent,
+        input.data_dir.as_deref(),
+    )?;
     let lockfile = toml::to_string_pretty(&lock)?;
     atomic_write(&lockfile_path, lockfile.as_bytes())?;
 
@@ -442,16 +474,19 @@ pub async fn uninstall(input: Value) -> Result<Value> {
         return Ok(json!({ "removed_from_profile": false, "store_path_orphaned": null }));
     }
     let input: UninstallInput = serde_json::from_value(input)?;
-    let data_dir = data_dir(input.data_dir)?;
-    let profile_path = data_dir.join("profiles").join(format!("{}.yaml", input.profile));
-    let lockfile_path = data_dir.join("profiles").join(format!("{}.lock.toml", input.profile));
+    let profile_path = profile_path(&input.profile, input.data_dir.as_deref())?;
+    let lockfile_path = lockfile_path(&input.profile, input.data_dir.as_deref())?;
     let mut orphaned = None;
     let mut removed = false;
 
     if lockfile_path.exists() {
         let raw = fs::read_to_string(&lockfile_path)?;
         let mut lock: Lockfile = toml::from_str(&raw)?;
-        if let Some(entry) = lock.package.iter().find(|entry| entry.id == input.package_id) {
+        if let Some(entry) = lock
+            .package
+            .iter()
+            .find(|entry| entry.id == input.package_id)
+        {
             orphaned = Some(entry.installed_at_store.clone());
         }
         let before = lock.package.len();
@@ -465,8 +500,12 @@ pub async fn uninstall(input: Value) -> Result<Value> {
         let mut value: Value = serde_yaml::from_str(&raw)?;
         if let Some(autoload) = value.get_mut("autoload").and_then(Value::as_array_mut) {
             let before = autoload.len();
-            let manifest_yaml = orphaned.as_ref().map(|store| format!("{store}/manifest.yaml"));
-            let manifest_json = orphaned.as_ref().map(|store| format!("{store}/manifest.json"));
+            let manifest_yaml = orphaned
+                .as_ref()
+                .map(|store| format!("{store}/manifest.yaml"));
+            let manifest_json = orphaned
+                .as_ref()
+                .map(|store| format!("{store}/manifest.json"));
             autoload.retain(|entry| {
                 !entry.as_str().is_some_and(|s| {
                     manifest_yaml.as_deref() == Some(s) || manifest_json.as_deref() == Some(s)
@@ -481,7 +520,7 @@ pub async fn uninstall(input: Value) -> Result<Value> {
 
 pub async fn list_installed(input: Value) -> Result<Value> {
     let input: ProfileInput = serde_json::from_value(input)?;
-    let lockfile_path = data_dir(input.data_dir)?.join("profiles").join(format!("{}.lock.toml", input.profile));
+    let lockfile_path = lockfile_path(&input.profile, input.data_dir.as_deref())?;
     if !lockfile_path.exists() {
         return Ok(json!({ "packages": [] }));
     }
@@ -489,25 +528,29 @@ pub async fn list_installed(input: Value) -> Result<Value> {
     let packages = lock
         .package
         .into_iter()
-        .map(|entry| json!({
-            "id": entry.id,
-            "version": entry.version,
-            "store_path": entry.installed_at_store,
-            "granted_capabilities": entry.granted_capabilities,
-            "granted_network": entry.granted_network,
-            "granted_secrets": entry.granted_secrets,
-            "tree_hash": entry.tree_hash,
-            "manifest_hash": entry.manifest_hash,
-        }))
+        .map(|entry| {
+            json!({
+                "id": entry.id,
+                "version": entry.version,
+                "store_path": entry.installed_at_store,
+                "granted_capabilities": entry.granted_capabilities,
+                "granted_network": entry.granted_network,
+                "granted_secrets": entry.granted_secrets,
+                "tree_hash": entry.tree_hash,
+                "manifest_hash": entry.manifest_hash,
+            })
+        })
         .collect::<Vec<_>>();
     Ok(json!({ "packages": packages }))
 }
 
 pub async fn check_lockfile(input: Value) -> Result<Value> {
     let input: ProfileInput = serde_json::from_value(input)?;
-    let lockfile_path = data_dir(input.data_dir)?.join("profiles").join(format!("{}.lock.toml", input.profile));
+    let lockfile_path = lockfile_path(&input.profile, input.data_dir.as_deref())?;
     if !lockfile_path.exists() {
-        return Ok(json!({ "ok": false, "drift": [{ "id": "lockfile", "kind": "missing", "expected": lockfile_path.to_string_lossy(), "actual": null }] }));
+        return Ok(
+            json!({ "ok": false, "drift": [{ "id": "lockfile", "kind": "missing", "expected": lockfile_path.to_string_lossy(), "actual": null }] }),
+        );
     }
     let lock: Lockfile = toml::from_str(&fs::read_to_string(lockfile_path)?)?;
     let mut drift = Vec::new();
@@ -536,7 +579,11 @@ pub async fn check_lockfile(input: Value) -> Result<Value> {
     Ok(json!({ "ok": drift.is_empty(), "drift": drift }))
 }
 
-async fn invoke_package_capability(provider: &str, capability_id: &str, input: Value) -> Result<Value> {
+async fn invoke_package_capability(
+    provider: &str,
+    capability_id: &str,
+    input: Value,
+) -> Result<Value> {
     Ok(invoke_capability_from_inproc(CapabilityInvocationRequest {
         handle: None,
         capability_id: Some(capability_id.to_string()),
@@ -628,7 +675,13 @@ fn planned_requirement(req: &PackageDependency, base_dir: &Path) -> PlannedRequi
 
 fn permissions_from_manifest(permissions: &PermissionSet) -> PlannedPermissions {
     let mut network_hosts = permissions.network.hosts.clone();
-    network_hosts.extend(permissions.network.declarations.iter().map(|d| d.host.clone()));
+    network_hosts.extend(
+        permissions
+            .network
+            .declarations
+            .iter()
+            .map(|d| d.host.clone()),
+    );
     PlannedPermissions {
         capabilities_invoke: sorted_vec(permissions.capabilities.invoke.iter().cloned()),
         network_hosts: sorted_vec(network_hosts),
@@ -638,16 +691,40 @@ fn permissions_from_manifest(permissions: &PermissionSet) -> PlannedPermissions 
 
 fn aggregate_permissions(packages: &[PlannedPackage]) -> PermissionsSummary {
     PermissionsSummary {
-        new_capabilities: sorted_vec(packages.iter().flat_map(|pkg| pkg.permissions.capabilities_invoke.clone())),
-        new_network_hosts: sorted_vec(packages.iter().flat_map(|pkg| pkg.permissions.network_hosts.clone())),
-        new_secret_refs: sorted_vec(packages.iter().flat_map(|pkg| pkg.permissions.secret_refs.clone())),
+        new_capabilities: sorted_vec(
+            packages
+                .iter()
+                .flat_map(|pkg| pkg.permissions.capabilities_invoke.clone()),
+        ),
+        new_network_hosts: sorted_vec(
+            packages
+                .iter()
+                .flat_map(|pkg| pkg.permissions.network_hosts.clone()),
+        ),
+        new_secret_refs: sorted_vec(
+            packages
+                .iter()
+                .flat_map(|pkg| pkg.permissions.secret_refs.clone()),
+        ),
     }
 }
 
 fn verify_consent(plan: &InstallPlan, consent: &Consent) -> Result<()> {
-    ensure_subset(&plan.permissions_summary.new_capabilities, &consent.approved_capabilities, "capability")?;
-    ensure_subset(&plan.permissions_summary.new_network_hosts, &consent.approved_network_hosts, "network host")?;
-    ensure_subset(&plan.permissions_summary.new_secret_refs, &consent.approved_secret_refs, "secret ref")?;
+    ensure_subset(
+        &plan.permissions_summary.new_capabilities,
+        &consent.approved_capabilities,
+        "capability",
+    )?;
+    ensure_subset(
+        &plan.permissions_summary.new_network_hosts,
+        &consent.approved_network_hosts,
+        "network host",
+    )?;
+    ensure_subset(
+        &plan.permissions_summary.new_secret_refs,
+        &consent.approved_secret_refs,
+        "secret ref",
+    )?;
     Ok(())
 }
 
@@ -662,14 +739,24 @@ fn ensure_subset(required: &[String], approved: &[String], kind: &str) -> Result
 
 fn parse_root_descriptor(root_url: &str, root_ref: &str) -> Result<PackageDescriptor> {
     if let Some(path) = root_url.strip_prefix("file://") {
-        return Ok(PackageDescriptor { source: SourceDescriptor::Local { path: PathBuf::from(path) } });
+        return Ok(PackageDescriptor {
+            source: SourceDescriptor::Local {
+                path: PathBuf::from(path),
+            },
+        });
     }
     if let Some(path) = root_url.strip_prefix("local:") {
-        return Ok(PackageDescriptor { source: SourceDescriptor::Local { path: PathBuf::from(path) } });
+        return Ok(PackageDescriptor {
+            source: SourceDescriptor::Local {
+                path: PathBuf::from(path),
+            },
+        });
     }
     let path = PathBuf::from(root_url);
     if path.exists() || root_url.starts_with('/') || root_url.starts_with('.') {
-        return Ok(PackageDescriptor { source: SourceDescriptor::Local { path } });
+        return Ok(PackageDescriptor {
+            source: SourceDescriptor::Local { path },
+        });
     }
     let parsed = url::Url::parse(root_url)?;
     let mut url = parsed.clone();
@@ -679,21 +766,32 @@ fn parse_root_descriptor(root_url: &str, root_ref: &str) -> Result<PackageDescri
     } else {
         root_ref.to_string()
     };
-    Ok(PackageDescriptor { source: SourceDescriptor::Git { url: url.to_string(), ref_name } })
+    Ok(PackageDescriptor {
+        source: SourceDescriptor::Git {
+            url: url.to_string(),
+            ref_name,
+        },
+    })
 }
 
 fn resolve_dep(req: &PlannedRequirement) -> Result<PackageDescriptor> {
     let source: DependencySource = serde_json::from_value(req.source.clone())?;
     let source = match source {
         DependencySource::Internal => SourceDescriptor::Internal,
-        DependencySource::Git { url, r#ref } => SourceDescriptor::Git { url, ref_name: r#ref },
-        DependencySource::Local { path } => SourceDescriptor::Local { path: PathBuf::from(path) },
+        DependencySource::Git { url, r#ref } => SourceDescriptor::Git {
+            url,
+            ref_name: r#ref,
+        },
+        DependencySource::Local { path } => SourceDescriptor::Local {
+            path: PathBuf::from(path),
+        },
     };
     Ok(PackageDescriptor { source })
 }
 
 fn parse_manifest_at(path: &Path) -> Result<PackageManifest> {
-    let raw = fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
     let manifest = match path.extension().and_then(|ext| ext.to_str()) {
         Some("json") => serde_json::from_str(&raw)?,
         _ => serde_yaml::from_str(&raw)?,
@@ -716,7 +814,13 @@ fn copy_dir_atomic(src: &Path, staging: &Path, dest: &Path) -> Result<()> {
         fs::remove_dir_all(staging).ok();
     }
     copy_dir_recursive(src, staging)?;
-    fs::rename(staging, dest).with_context(|| format!("failed to atomically move {} to {}", staging.display(), dest.display()))?;
+    fs::rename(staging, dest).with_context(|| {
+        format!(
+            "failed to atomically move {} to {}",
+            staging.display(),
+            dest.display()
+        )
+    })?;
     Ok(())
 }
 
@@ -748,7 +852,11 @@ async fn verify_installed_hashes(pkg: &PlannedPackage, store_path: &Path) -> Res
     Ok(())
 }
 
-fn write_profile(profile_path: &Path, plan: &InstallPlan, store_dir: &Path) -> Result<()> {
+fn write_profile(
+    profile_path: &Path,
+    plan: &InstallPlan,
+    data_dir_override: Option<&str>,
+) -> Result<()> {
     let mut autoload = if profile_path.exists() {
         let raw = fs::read_to_string(profile_path)?;
         serde_yaml::from_str::<Value>(&raw)
@@ -758,21 +866,34 @@ fn write_profile(profile_path: &Path, plan: &InstallPlan, store_dir: &Path) -> R
     } else {
         Vec::new()
     };
-    let existing = autoload.iter().filter_map(Value::as_str).map(str::to_string).collect::<HashSet<_>>();
+    let existing = autoload
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect::<HashSet<_>>();
     for pkg in &plan.packages {
-        let package_store = store_dir.join(store_dir_name(&pkg.tree_hash));
+        let package_store = store_path_for_hash(&pkg.tree_hash, data_dir_override)?;
         let manifest = manifest_path_in(&package_store)?;
         let entry = manifest.to_string_lossy().to_string();
         if !existing.contains(&entry) {
             autoload.push(Value::String(entry));
         }
     }
-    atomic_write(profile_path, serde_yaml::to_string(&json!({ "autoload": autoload }))?.as_bytes())
+    atomic_write(
+        profile_path,
+        serde_yaml::to_string(&json!({ "autoload": autoload }))?.as_bytes(),
+    )
 }
 
-fn build_lockfile(profile: &str, plan: &InstallPlan, consent: &Consent, store_dir: &Path) -> Result<Lockfile> {
+fn build_lockfile(
+    profile: &str,
+    plan: &InstallPlan,
+    consent: &Consent,
+    data_dir_override: Option<&str>,
+) -> Result<Lockfile> {
     let mut lock = Lockfile::new(profile, "sha256:profile");
     for pkg in &plan.packages {
+        let installed_at_store = store_path_for_hash(&pkg.tree_hash, data_dir_override)?;
         lock.package.push(LockEntry {
             id: pkg.id.clone(),
             version: pkg.version.clone(),
@@ -788,15 +909,19 @@ fn build_lockfile(profile: &str, plan: &InstallPlan, consent: &Consent, store_di
             manifest_hash: pkg.manifest_hash.clone(),
             signed: pkg.signed,
             signed_by: pkg.signed_by.clone(),
-            installed_at_store: store_dir.join(store_dir_name(&pkg.tree_hash)).to_string_lossy().to_string(),
+            installed_at_store: installed_at_store.to_string_lossy().to_string(),
             granted_capabilities: consent.approved_capabilities.clone(),
             granted_network: consent.approved_network_hosts.clone(),
             granted_secrets: consent.approved_secret_refs.clone(),
-            requires: pkg.requires.iter().map(|req| LockRequirement {
-                id: req.id.clone(),
-                constraint: req.version.clone(),
-                resolved_to: req.id.clone(),
-            }).collect(),
+            requires: pkg
+                .requires
+                .iter()
+                .map(|req| LockRequirement {
+                    id: req.id.clone(),
+                    constraint: req.version.clone(),
+                    resolved_to: req.id.clone(),
+                })
+                .collect(),
         });
     }
     Ok(lock)
@@ -812,26 +937,82 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn data_dir(input: Option<String>) -> Result<PathBuf> {
-    if let Some(dir) = input {
-        return Ok(PathBuf::from(dir));
+fn ensure_layout(data_dir_override: Option<&str>) -> Result<()> {
+    if let Some(dir) = data_dir_override {
+        let data = PathBuf::from(dir);
+        fs::create_dir_all(&data)?;
+        fs::create_dir_all(data.join("store"))?;
+        fs::create_dir_all(data.join("profiles"))?;
+        fs::create_dir_all(data.join("keys"))?;
+        fs::create_dir_all(data.join("cache"))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&data)?.permissions();
+            perms.set_mode(0o700);
+            fs::set_permissions(&data, perms)?;
+        }
+
+        return Ok(());
     }
-    if let Some(home) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(home).join(".yggdrasil"));
-    }
-    anyhow::bail!("data_dir omitted and HOME is not set")
+    paths::ensure_initialized()
 }
 
-fn store_dir_name(hash: &str) -> String {
-    format!("sha256-{}", hash.trim_start_matches("sha256:").replace('/', "-"))
+fn store_dir(data_dir_override: Option<&str>) -> Result<PathBuf> {
+    if let Some(dir) = data_dir_override {
+        return Ok(PathBuf::from(dir).join("store"));
+    }
+    paths::store_dir()
+}
+
+fn profiles_dir(data_dir_override: Option<&str>) -> Result<PathBuf> {
+    if let Some(dir) = data_dir_override {
+        return Ok(PathBuf::from(dir).join("profiles"));
+    }
+    paths::profiles_dir()
+}
+
+fn lockfile_path(profile: &str, data_dir_override: Option<&str>) -> Result<PathBuf> {
+    if let Some(dir) = data_dir_override {
+        return Ok(PathBuf::from(dir)
+            .join("profiles")
+            .join(format!("{profile}.lock.toml")));
+    }
+    paths::lockfile_path(profile)
+}
+
+fn profile_path(profile: &str, data_dir_override: Option<&str>) -> Result<PathBuf> {
+    if let Some(dir) = data_dir_override {
+        return Ok(PathBuf::from(dir)
+            .join("profiles")
+            .join(format!("{profile}.yaml")));
+    }
+    paths::profile_path(profile)
+}
+
+fn store_path_for_hash(tree_hash: &str, data_dir_override: Option<&str>) -> Result<PathBuf> {
+    if let Some(dir) = data_dir_override {
+        return Ok(PathBuf::from(dir)
+            .join("store")
+            .join(tree_hash.replace(':', "-")));
+    }
+    paths::store_path_for_hash(tree_hash)
 }
 
 fn value_str<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
-    value.get(key).and_then(Value::as_str).ok_or_else(|| anyhow::anyhow!("missing string field '{key}'"))
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("missing string field '{key}'"))
 }
 
 fn sorted_vec(values: impl IntoIterator<Item = String>) -> Vec<String> {
-    values.into_iter().collect::<BTreeSet<_>>().into_iter().collect()
+    values
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn default_profile() -> String {

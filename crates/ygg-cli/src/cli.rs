@@ -5,7 +5,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, ValueEnum)]
-pub(crate) enum PackageTemplate {
+pub enum PackageTemplate {
     Basic,
     Experience,
     PlayRenderer,
@@ -40,19 +40,19 @@ pub(crate) enum PackageTemplate {
 #[derive(Debug, Parser)]
 #[command(name = "ygg")]
 #[command(about = "Yggdrasil kernel CLI")]
-pub(crate) struct Cli {
+pub struct Cli {
     #[command(subcommand)]
-    pub(crate) command: Command,
+    pub command: Command,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
-pub(crate) enum BaselineFormat {
+pub enum BaselineFormat {
     Text,
     Json,
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum PerfCommand {
+pub enum PerfCommand {
     /// Run deterministic performance baseline measurements.
     Baseline {
         /// Number of iterations per scenario (default 10).
@@ -77,35 +77,35 @@ pub(crate) enum PerfCommand {
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct ConformanceArgs {
+pub struct ConformanceArgs {
     /// Run package conformance checks instead of internal kernel conformance.
     #[command(subcommand)]
-    pub(crate) command: Option<ConformanceCommand>,
+    pub command: Option<ConformanceCommand>,
     /// List case ids and tags without executing.
     #[arg(long)]
-    pub(crate) list: bool,
+    pub list: bool,
     /// Filter cases by substring match on case id (can be repeated).
     #[arg(long, value_name = "PATTERN")]
-    pub(crate) case: Vec<String>,
+    pub case: Vec<String>,
     /// Filter cases by tag (can be repeated; case matches if it has ANY of the specified tags).
     #[arg(long, value_name = "TAG")]
-    pub(crate) tag: Vec<String>,
+    pub tag: Vec<String>,
     /// Stop on first failure.
     #[arg(long)]
-    pub(crate) fail_fast: bool,
+    pub fail_fast: bool,
     /// Show the N slowest cases at the end (default 10).
     #[arg(long, default_value = "10")]
-    pub(crate) slowest: usize,
+    pub slowest: usize,
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum ConformanceCommand {
+pub enum ConformanceCommand {
     /// Run the public v1 package conformance test kit.
     Package(crate::commands::conformance_package::ConformancePackageArgs),
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum Command {
+pub enum Command {
     /// Run a content-free kernel event demo.
     Demo,
     /// Run a durable SQLite-backed kernel event demo.
@@ -139,6 +139,16 @@ pub(crate) enum Command {
     },
     /// Audit declared package authority against observed effects.
     Audit(crate::commands::audit::AuditArgs),
+    /// Install a package into a profile.
+    Install(crate::commands::install::InstallArgs),
+    /// Uninstall a package from a profile.
+    Uninstall(crate::commands::uninstall::UninstallArgs),
+    /// List packages installed in a profile.
+    ListInstalled(crate::commands::list_installed::ListInstalledArgs),
+    /// Update installed packages.
+    Update(crate::commands::update::UpdateArgs),
+    /// Verify or inspect a profile lockfile.
+    Lockfile(crate::commands::lockfile::LockfileArgs),
     /// Generate package skeletons.
     InitPackage {
         path: PathBuf,
@@ -178,12 +188,12 @@ pub(crate) enum Command {
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum ManifestCommand {
+pub enum ManifestCommand {
     Validate { path: PathBuf },
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum PackageCommand {
+pub enum PackageCommand {
     Load {
         path: PathBuf,
     },
@@ -209,7 +219,7 @@ pub(crate) enum PackageCommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum HostCommand {
+pub enum HostCommand {
     /// Serve a profile-backed host with HTTP /rpc and event SSE.
     Serve {
         #[arg(long, default_value = "127.0.0.1:8787")]
@@ -220,7 +230,7 @@ pub(crate) enum HostCommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum CompositionCommand {
+pub enum CompositionCommand {
     Check { path: PathBuf },
 }
 

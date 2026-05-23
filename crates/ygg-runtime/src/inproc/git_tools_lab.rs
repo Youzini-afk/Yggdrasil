@@ -120,7 +120,11 @@ fn resolve_ref(input: Value) -> Result<Value> {
 
     let resolved = refs
         .iter()
-        .find(|remote_ref| candidates.iter().any(|candidate| candidate == &remote_ref.name))
+        .find(|remote_ref| {
+            candidates
+                .iter()
+                .any(|candidate| candidate == &remote_ref.name)
+        })
         .with_context(|| format!("ref '{wanted}' not found on remote"))?;
 
     Ok(serde_json::json!({
@@ -165,7 +169,12 @@ fn fetch_tree(input: Value) -> Result<Value> {
     let file_name = dest
         .file_name()
         .and_then(|name| name.to_str())
-        .with_context(|| format!("dest_dir must end in a valid UTF-8 directory name: {}", dest.display()))?;
+        .with_context(|| {
+            format!(
+                "dest_dir must end in a valid UTF-8 directory name: {}",
+                dest.display()
+            )
+        })?;
     fs::create_dir_all(parent)?;
     let tmp = parent.join(format!("{file_name}.tmp.{}", Uuid::new_v4()));
 
@@ -211,7 +220,9 @@ fn read_signed_tag(input: Value) -> Result<Value> {
         .iter()
         .find(|remote_ref| {
             remote_ref.kind == RefKind::Tag
-                && candidates.iter().any(|candidate| candidate == &remote_ref.name)
+                && candidates
+                    .iter()
+                    .any(|candidate| candidate == &remote_ref.name)
         })
         .with_context(|| format!("tag '{wanted}' not found on remote"))?;
 
@@ -251,7 +262,10 @@ fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
     let result = (|| -> Result<Vec<RemoteRef>> {
         let repo = gix::init_bare(&tmp)?;
         let remote = repo.remote_at(remote_url)?.with_refspecs(
-            ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"],
+            [
+                "+refs/heads/*:refs/remotes/origin/*",
+                "+refs/tags/*:refs/tags/*",
+            ],
             gix::remote::Direction::Fetch,
         )?;
         let connection = remote.connect(gix::remote::Direction::Fetch)?;
@@ -273,7 +287,11 @@ fn remote_ref_from_gix(remote_ref: &gix::protocol::handshake::Ref) -> Option<Rem
             full_ref_name,
             tag,
             object,
-        } => classify_remote_ref(full_ref_name.as_bstr(), object.to_string(), Some(tag.to_string())),
+        } => classify_remote_ref(
+            full_ref_name.as_bstr(),
+            object.to_string(),
+            Some(tag.to_string()),
+        ),
         gix::protocol::handshake::Ref::Direct {
             full_ref_name,
             object,
@@ -326,7 +344,10 @@ fn clone_shallow(remote_url: &str, ref_name: &str, path: &Path) -> Result<gix::R
         .configure_remote(|remote| {
             remote
                 .with_refspecs(
-                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"],
+                    [
+                        "+refs/heads/*:refs/remotes/origin/*",
+                        "+refs/tags/*:refs/tags/*",
+                    ],
                     gix::remote::Direction::Fetch,
                 )
                 .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
@@ -408,7 +429,10 @@ fn is_full_sha(value: &str) -> bool {
 
 fn signed_data_before_pgp(data: &[u8]) -> &[u8] {
     const MARKER: &[u8] = b"-----BEGIN PGP SIGNATURE-----";
-    match data.windows(MARKER.len()).position(|window| window == MARKER) {
+    match data
+        .windows(MARKER.len())
+        .position(|window| window == MARKER)
+    {
         Some(0) => &data[..0],
         Some(pos) if data.get(pos.wrapping_sub(1)) == Some(&b'\n') => &data[..pos - 1],
         Some(pos) => &data[..pos],

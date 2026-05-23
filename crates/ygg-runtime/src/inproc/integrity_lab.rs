@@ -239,7 +239,9 @@ fn verify_gpg_signature(request: &InprocInvocation) -> Result<Value> {
     let mut certs = Vec::new();
     for (idx, key) in public_keys.iter().enumerate() {
         let Some(key) = key.as_str() else {
-            return Ok(verify_error(format!("invalid public key at index {idx}: expected armored string")));
+            return Ok(verify_error(format!(
+                "invalid public key at index {idx}: expected armored string"
+            )));
         };
         match Cert::from_bytes(key.as_bytes()) {
             Ok(cert) => certs.push(cert),
@@ -385,8 +387,9 @@ mod tests {
     #[test]
     fn gpg_signature_roundtrip_unit() -> Result<()> {
         let data = b"integrity-lab runtime unit data";
-        let (cert, _) = CertBuilder::general_purpose(None, Some("Runtime Test <runtime@example.test>"))
-            .generate()?;
+        let (cert, _) =
+            CertBuilder::general_purpose(None, Some("Runtime Test <runtime@example.test>"))
+                .generate()?;
         let policy = StandardPolicy::new();
         let signing_keypair = cert
             .keys()

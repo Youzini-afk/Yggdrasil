@@ -283,7 +283,10 @@ fn emit_ts_types(registry: &TypeRegistry) -> String {
         if let Some(description) = schema.get("description").and_then(Value::as_str) {
             out.push_str(&doc_comment(description));
         }
-        if schema.get("properties").and_then(Value::as_object).is_some()
+        if schema
+            .get("properties")
+            .and_then(Value::as_object)
+            .is_some()
             && schema.get("oneOf").is_none()
             && schema.get("anyOf").is_none()
             && schema.get("allOf").is_none()
@@ -680,7 +683,8 @@ fn normalize_for_typify(value: &mut Value) {
 }
 
 fn emit_rust_methods(methods: &[MethodSpec]) -> Result<String> {
-    let header = generated_rust_header("Rust client methods generated from docs/spec/v1/schemas/methods/.");
+    let header =
+        generated_rust_header("Rust client methods generated from docs/spec/v1/schemas/methods/.");
     let mut out = String::new();
     out.push_str(
         "use anyhow::Result;\n\nuse crate::client::KernelClient;\nuse crate::types::*;\n\n",

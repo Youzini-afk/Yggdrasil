@@ -1765,7 +1765,6 @@ where
             }
         }
     }
-
 }
 
 fn validate_policy_executor_consistency(

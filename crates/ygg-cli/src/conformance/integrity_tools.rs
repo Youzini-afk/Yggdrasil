@@ -74,7 +74,10 @@ pub(crate) async fn tree_hash_deterministic() -> anyhow::Result<()> {
     .await?;
 
     anyhow::ensure!(first.output["sha256"] == second.output["sha256"]);
-    anyhow::ensure!(first.output["sha256"].as_str().unwrap_or("").starts_with("sha256:"));
+    anyhow::ensure!(first.output["sha256"]
+        .as_str()
+        .unwrap_or("")
+        .starts_with("sha256:"));
     anyhow::ensure!(first.output["files_hashed"] == json!(2));
     anyhow::ensure!(first.output["total_bytes"] == json!(10));
     Ok(())
@@ -111,8 +114,14 @@ pub(crate) async fn manifest_hash_yaml_json_equivalent() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let yaml = tmp.path().join("manifest.yaml");
     let json_path = tmp.path().join("manifest.json");
-    write_file(&yaml, b"id: pkg/example\nversion: 0.1.0\nitems:\n  - a\n  - b\n")?;
-    write_file(&json_path, br#"{"version":"0.1.0","items":["a","b"],"id":"pkg/example"}"#)?;
+    write_file(
+        &yaml,
+        b"id: pkg/example\nversion: 0.1.0\nitems:\n  - a\n  - b\n",
+    )?;
+    write_file(
+        &json_path,
+        br#"{"version":"0.1.0","items":["a","b"],"id":"pkg/example"}"#,
+    )?;
 
     let yaml_hash = invoke(
         &rt,
@@ -128,7 +137,10 @@ pub(crate) async fn manifest_hash_yaml_json_equivalent() -> anyhow::Result<()> {
     .await?;
 
     anyhow::ensure!(yaml_hash.output["sha256"] == json_hash.output["sha256"]);
-    anyhow::ensure!(yaml_hash.output["sha256"].as_str().unwrap_or("").starts_with("sha256:"));
+    anyhow::ensure!(yaml_hash.output["sha256"]
+        .as_str()
+        .unwrap_or("")
+        .starts_with("sha256:"));
     Ok(())
 }
 
@@ -181,7 +193,10 @@ pub(crate) async fn gpg_verify_invalid_signature_no_panic() -> anyhow::Result<()
     .await?;
 
     anyhow::ensure!(result.output["verified"] == json!(false));
-    anyhow::ensure!(result.output["error"].as_str().unwrap_or("").contains("invalid signature format"));
+    anyhow::ensure!(result.output["error"]
+        .as_str()
+        .unwrap_or("")
+        .contains("invalid signature format"));
     Ok(())
 }
 
@@ -196,8 +211,12 @@ pub(crate) async fn fingerprint_extraction_consistent() -> anyhow::Result<()> {
     .await?;
 
     anyhow::ensure!(result.output["fingerprint"] == json!(fixture.fingerprint));
-    let user_ids = result.output["user_ids"].as_array().context("missing user_ids")?;
-    anyhow::ensure!(user_ids.iter().any(|id| id == "Alice Fixture <alice.integrity@example.test>"));
+    let user_ids = result.output["user_ids"]
+        .as_array()
+        .context("missing user_ids")?;
+    anyhow::ensure!(user_ids
+        .iter()
+        .any(|id| id == "Alice Fixture <alice.integrity@example.test>"));
     Ok(())
 }
 

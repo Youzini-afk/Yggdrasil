@@ -1,6 +1,7 @@
 mod cli;
 mod commands;
 mod conformance;
+mod install;
 mod templates;
 
 use clap::Parser;
@@ -10,7 +11,10 @@ use cli::{
     ManifestCommand, PackageCommand, PerfCommand,
 };
 use commands::audit;
-use commands::{capability, composition, conformance_package, demo, host, manifest, package, perf};
+use commands::{
+    capability, composition, conformance_package, demo, host, install as install_command,
+    list_installed, lockfile, manifest, package, perf, uninstall, update,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -48,6 +52,11 @@ async fn main() -> anyhow::Result<()> {
             } => capability::capability_invoke(manifest, capability_id, input).await,
         },
         Command::Audit(args) => audit::run(args).await,
+        Command::Install(args) => install_command::run(args).await,
+        Command::Uninstall(args) => uninstall::run(args).await,
+        Command::ListInstalled(args) => list_installed::run(args).await,
+        Command::Update(args) => update::run(args).await,
+        Command::Lockfile(args) => lockfile::run(args).await,
         Command::InitPackage {
             path,
             id,

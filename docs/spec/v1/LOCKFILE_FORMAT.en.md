@@ -20,6 +20,38 @@ Default location:
 
 `<name>` is the profile name. Implementations may support an explicit `--lockfile <path>`, but writes for the default profile should use this path.
 
+## Filesystem layout
+
+Yggdrasil's state lives under a single base directory, resolved as:
+
+1. `YGG_DATA_DIR` environment variable (explicit override)
+2. `$XDG_DATA_HOME/yggdrasil/` (XDG-compliant)
+3. `~/.yggdrasil/` (default)
+
+Layout:
+
+```text
+<data_dir>/
+├── store/                       # Immutable, content-addressed package store
+│   ├── sha256-abc.../          # One directory per tree hash
+│   └── sha256-def.../
+├── profiles/                    # Per-user mutable
+│   ├── default.yaml            # Profile autoload list
+│   ├── default.lock.toml       # Lockfile
+│   ├── alpha.yaml
+│   └── alpha.lock.toml
+├── keys/                        # GPG public keys (trust roots)
+│   └── trusted-keys.asc
+└── cache/
+    └── git/                    # Git fetch cache
+```
+
+The store is treated as append-only: `yg uninstall` removes references from
+profiles and lockfiles but does not delete from the store. Old store entries
+become orphaned and can be garbage-collected by `yg gc` (Round 11+).
+
+Permissions: data directory is created with 0700 on Unix.
+
 ## Encoding
 
 - Format: TOML.
