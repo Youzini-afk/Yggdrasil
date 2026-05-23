@@ -51,12 +51,12 @@ async function openHandle(connectionId = "conn-1") {
   return { capture, handle, frames, openFrame: frame };
 }
 
-test("openWebSocket sends correct kernel.outbound.websocket.open frame", async () => {
+test("openWebSocket sends correct kernel.v1.outbound.websocket.open frame", async () => {
   const capture = captureStdout();
   try {
     const promise = kernelClient.openWebSocket(openParams, { onFrame: () => undefined });
     const frame = capture.frame(0);
-    assert.equal(frame.method, "kernel.outbound.websocket.open");
+    assert.equal(frame.method, "kernel.v1.outbound.websocket.open");
     assert.deepEqual(frame.params, openParams);
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { connection_id: "conn-open", status: "ok" } });
     await promise;
@@ -97,7 +97,7 @@ test("openWebSocket onFrame called for inbound frame events filtered by connecti
     __handleKernelInboundForTest({
       jsonrpc: "2.0",
       id: openFrame.id,
-      kind: "kernel/outbound.websocket.frame",
+      kind: "kernel/v1/outbound.websocket.frame",
       connection_id: "conn-frame",
       direction: "inbound",
       frame_kind: "text",
@@ -116,7 +116,7 @@ test("openWebSocket onFrame NOT called for events with different connection_id",
     const handled = __handleKernelInboundForTest({
       jsonrpc: "2.0",
       id: openFrame.id,
-      kind: "kernel/outbound.websocket.frame",
+      kind: "kernel/v1/outbound.websocket.frame",
       connection_id: "conn-other",
       direction: "inbound",
       frame: { kind: "text", data: "ignore" },
@@ -137,7 +137,7 @@ test("openWebSocket onClose called with code+reason on closed event", async () =
     const frame = capture.frame(0);
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { connection_id: "conn-close", status: "ok" } });
     await promise;
-    __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, kind: "kernel/outbound.websocket.completed", connection_id: "conn-close", code: 1001, reason: "going away" });
+    __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, kind: "kernel/v1/outbound.websocket.completed", connection_id: "conn-close", code: 1001, reason: "going away" });
     assert.deepEqual(closeInfo, { code: 1001, reason: "going away" });
   } finally {
     capture.restore();
@@ -152,19 +152,19 @@ test("openWebSocket onError called on error event", async () => {
     const frame = capture.frame(0);
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { connection_id: "conn-error", status: "ok" } });
     await promise;
-    __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, kind: "kernel/outbound.websocket.error", connection_id: "conn-error", error_code: "idle_timeout", message_redacted: "idle timeout" });
+    __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, kind: "kernel/v1/outbound.websocket.error", connection_id: "conn-error", error_code: "idle_timeout", message_redacted: "idle timeout" });
     assert.deepEqual(errorInfo, { code: "idle_timeout", message: "idle timeout" });
   } finally {
     capture.restore();
   }
 });
 
-test("handle.send writes kernel.outbound.websocket.send frame with connection_id", async () => {
+test("handle.send writes kernel.v1.outbound.websocket.send frame with connection_id", async () => {
   const { capture, handle } = await openHandle("conn-send");
   try {
     const sendPromise = handle.send({ kind: "text", data: "hello" });
     const frame = capture.frame(1);
-    assert.equal(frame.method, "kernel.outbound.websocket.send");
+    assert.equal(frame.method, "kernel.v1.outbound.websocket.send");
     assert.equal(frame.params.connection_id, "conn-send");
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { status: "ok" } });
     await sendPromise;
@@ -202,12 +202,12 @@ test("handle.send binary frame is encoded as bytes array for runtime parser", as
   }
 });
 
-test("handle.close writes kernel.outbound.websocket.close frame", async () => {
+test("handle.close writes kernel.v1.outbound.websocket.close frame", async () => {
   const { capture, handle } = await openHandle("conn-close-send");
   try {
     const closePromise = handle.close(1000, "done");
     const frame = capture.frame(1);
-    assert.equal(frame.method, "kernel.outbound.websocket.close");
+    assert.equal(frame.method, "kernel.v1.outbound.websocket.close");
     assert.deepEqual(frame.params, { connection_id: "conn-close-send", code: 1000, reason: "done" });
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { status: "ok" } });
     await closePromise;
@@ -219,7 +219,7 @@ test("handle.close writes kernel.outbound.websocket.close frame", async () => {
 test("handle.send after close rejects with descriptive error", async () => {
   const { capture, handle, openFrame } = await openHandle("conn-after-close");
   try {
-    __handleKernelInboundForTest({ jsonrpc: "2.0", id: openFrame.id, kind: "kernel/outbound.websocket.completed", connection_id: "conn-after-close", code: 1000, reason: "done" });
+    __handleKernelInboundForTest({ jsonrpc: "2.0", id: openFrame.id, kind: "kernel/v1/outbound.websocket.completed", connection_id: "conn-after-close", code: 1000, reason: "done" });
     await assert.rejects(handle.send({ kind: "text", data: "late" }), /conn-after-close.*closed/);
   } finally {
     capture.restore();
@@ -243,8 +243,8 @@ test("multiple concurrent openWebSocket calls have distinct connection_ids and l
     assert.equal(first.connectionId, "conn-one");
     assert.equal(second.connectionId, "conn-two");
 
-    __handleKernelInboundForTest({ jsonrpc: "2.0", id: firstOpen.id, kind: "kernel/outbound.websocket.frame", connection_id: "conn-one", direction: "inbound", seq: 1, frame: { kind: "text", data: "one" } });
-    __handleKernelInboundForTest({ jsonrpc: "2.0", id: secondOpen.id, kind: "kernel/outbound.websocket.frame", connection_id: "conn-two", direction: "inbound", seq: 1, frame: { kind: "text", data: "two" } });
+    __handleKernelInboundForTest({ jsonrpc: "2.0", id: firstOpen.id, kind: "kernel/v1/outbound.websocket.frame", connection_id: "conn-one", direction: "inbound", seq: 1, frame: { kind: "text", data: "one" } });
+    __handleKernelInboundForTest({ jsonrpc: "2.0", id: secondOpen.id, kind: "kernel/v1/outbound.websocket.frame", connection_id: "conn-two", direction: "inbound", seq: 1, frame: { kind: "text", data: "two" } });
     assert.deepEqual(firstFrames, [{ kind: "text", data: "one", seq: 1, direction: "inbound" }]);
     assert.deepEqual(secondFrames, [{ kind: "text", data: "two", seq: 1, direction: "inbound" }]);
   } finally {

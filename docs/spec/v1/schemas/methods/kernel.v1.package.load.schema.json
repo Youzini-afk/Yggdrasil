@@ -1,0 +1,1755 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$defs": {
+        "AssetPermissions": {
+          "properties": {
+            "read": {
+              "default": false,
+              "type": "boolean"
+            },
+            "write": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "CapabilityDescriptor": {
+          "properties": {
+            "description": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_schema": {
+              "default": null
+            },
+            "output_schema": {
+              "default": null
+            },
+            "side_effects": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "streaming": {
+              "default": false,
+              "type": "boolean"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "CapabilityPermissions": {
+          "properties": {
+            "invoke": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "CapabilityRequirement": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "EventPermissions": {
+          "properties": {
+            "append": {
+              "default": false,
+              "type": "boolean"
+            },
+            "read": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "ExtensionPointDescriptor": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "modifiable": {
+              "type": "boolean"
+            },
+            "payload_schema": {
+              "default": null
+            },
+            "short_circuit": {
+              "type": "boolean"
+            },
+            "timing": {
+              "$ref": "#/definitions/HookTiming"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "modifiable",
+            "short_circuit",
+            "timing",
+            "version"
+          ],
+          "type": "object"
+        },
+        "FilesystemPermissions": {
+          "properties": {
+            "read": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "write": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "GitFetchPermissions": {
+          "properties": {
+            "hosts": {
+              "default": [],
+              "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "HookSubscription": {
+          "properties": {
+            "extension_point": {
+              "type": "string"
+            },
+            "handler": {
+              "type": "string"
+            },
+            "precedence": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            },
+            "timing": {
+              "$ref": "#/definitions/HookTiming"
+            }
+          },
+          "required": [
+            "extension_point",
+            "handler",
+            "timing"
+          ],
+          "type": "object"
+        },
+        "HookTiming": {
+          "enum": [
+            "sync",
+            "async"
+          ],
+          "type": "string"
+        },
+        "NetworkDeclaration": {
+          "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
+          "properties": {
+            "host": {
+              "description": "Destination host (e.g. `\"api.openai.com\"` or `\"*.example.org\"`).",
+              "type": "string"
+            },
+            "methods": {
+              "default": [],
+              "description": "Permitted HTTP/WebSocket methods (e.g. `[\"GET\", \"POST\", \"WEBSOCKET\"]`). Empty means all.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "purpose": {
+              "default": null,
+              "description": "Human-readable purpose for this network access.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "host"
+          ],
+          "type": "object"
+        },
+        "NetworkPermissions": {
+          "properties": {
+            "declarations": {
+              "default": [],
+              "description": "Structured network declarations (host, methods, purpose).",
+              "items": {
+                "$ref": "#/definitions/NetworkDeclaration"
+              },
+              "type": "array"
+            },
+            "hosts": {
+              "default": [],
+              "description": "Flat host list for backward compatibility. Packages using the structured form should populate `declarations` instead.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "PackageContributions": {
+          "properties": {
+            "extension_points": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/ExtensionPointDescriptor"
+              },
+              "type": "array"
+            },
+            "hooks": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/HookSubscription"
+              },
+              "type": "array"
+            },
+            "schemas": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/SchemaContribution"
+              },
+              "type": "array"
+            },
+            "surfaces": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/SurfaceContribution"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "PackageEntry": {
+          "oneOf": [
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "crate_ref": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "rust_inproc"
+                  ],
+                  "type": "string"
+                },
+                "symbol": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "crate_ref",
+                "kind",
+                "symbol"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "command": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "kind": {
+                  "enum": [
+                    "subprocess"
+                  ],
+                  "type": "string"
+                },
+                "transport": {
+                  "$ref": "#/definitions/SubprocessTransport"
+                }
+              },
+              "required": [
+                "command",
+                "kind",
+                "transport"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "wasm"
+                  ],
+                  "type": "string"
+                },
+                "memory_limit_mb": {
+                  "format": "uint64",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "module": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "kind",
+                "memory_limit_mb",
+                "module"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "auth": {
+                  "$ref": "#/definitions/RemoteAuth"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "remote"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "auth",
+                "endpoint",
+                "kind"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "PackagePermissions": {
+          "properties": {
+            "call": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "PermissionSet": {
+          "properties": {
+            "assets": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/AssetPermissions"
+                }
+              ],
+              "default": {
+                "read": false,
+                "write": false
+              }
+            },
+            "capabilities": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/CapabilityPermissions"
+                }
+              ],
+              "default": {
+                "invoke": []
+              }
+            },
+            "events": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/EventPermissions"
+                }
+              ],
+              "default": {
+                "append": false,
+                "read": false
+              }
+            },
+            "filesystem": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FilesystemPermissions"
+                }
+              ],
+              "default": {
+                "read": [],
+                "write": []
+              }
+            },
+            "git_fetch": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/GitFetchPermissions"
+                }
+              ],
+              "default": {
+                "hosts": []
+              }
+            },
+            "network": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/NetworkPermissions"
+                }
+              ],
+              "default": {
+                "declarations": [],
+                "hosts": []
+              }
+            },
+            "packages": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PackagePermissions"
+                }
+              ],
+              "default": {
+                "call": []
+              }
+            },
+            "secret_refs": {
+              "default": [],
+              "description": "Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "RemoteAuth": {
+          "properties": {
+            "config": {
+              "default": null
+            },
+            "scheme": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "scheme"
+          ],
+          "type": "object"
+        },
+        "SandboxPolicy": {
+          "properties": {
+            "cpu_quota_ms_per_invoke": {
+              "default": 5000,
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "memory_mb": {
+              "default": 128,
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "wall_clock_ms": {
+              "default": 30000,
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "SchemaContribution": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "schema": true
+          },
+          "required": [
+            "id",
+            "schema"
+          ],
+          "type": "object"
+        },
+        "SubprocessTransport": {
+          "enum": [
+            "json_rpc_stdio",
+            "json_rpc_tcp"
+          ],
+          "type": "string"
+        },
+        "SurfaceActivation": {
+          "properties": {
+            "input_schema": {
+              "default": null
+            },
+            "launch_capability_id": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "session_template": {
+              "default": null
+            }
+          },
+          "type": "object"
+        },
+        "SurfaceApprovalPolicy": {
+          "enum": [
+            "none",
+            "user_approval",
+            "fork_then_approve"
+          ],
+          "type": "string"
+        },
+        "SurfaceContribution": {
+          "properties": {
+            "activation": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SurfaceActivation"
+                }
+              ],
+              "default": {
+                "input_schema": null,
+                "launch_capability_id": null,
+                "session_template": null
+              }
+            },
+            "approval_policy": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SurfaceApprovalPolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "capability_id": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "metadata": {
+              "default": null
+            },
+            "required_permissions": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/SurfacePermissionRequirement"
+              },
+              "type": "array"
+            },
+            "slot": {
+              "$ref": "#/definitions/SurfaceSlot"
+            },
+            "title": {
+              "type": "string"
+            },
+            "version": {
+              "default": "0.1.0",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "slot",
+            "title"
+          ],
+          "type": "object"
+        },
+        "SurfacePermissionRequirement": {
+          "properties": {
+            "permission": {
+              "type": "string"
+            },
+            "reason": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "risk": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SurfaceRisk"
+                }
+              ],
+              "default": "low"
+            },
+            "scope": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "permission"
+          ],
+          "type": "object"
+        },
+        "SurfaceRisk": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
+        "SurfaceSlot": {
+          "enum": [
+            "experience_entry",
+            "home_card",
+            "play_renderer",
+            "forge_panel",
+            "asset_editor",
+            "assistant_action"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "author": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "consumes": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/CapabilityRequirement"
+          },
+          "type": "array"
+        },
+        "contributes": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/PackageContributions"
+            }
+          ],
+          "default": {
+            "extension_points": [],
+            "hooks": [],
+            "schemas": [],
+            "surfaces": []
+          }
+        },
+        "description": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display_name": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entry": {
+          "$ref": "#/definitions/PackageEntry"
+        },
+        "id": {
+          "type": "string"
+        },
+        "license": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/PermissionSet"
+            }
+          ],
+          "default": {
+            "assets": {
+              "read": false,
+              "write": false
+            },
+            "capabilities": {
+              "invoke": []
+            },
+            "events": {
+              "append": false,
+              "read": false
+            },
+            "filesystem": {
+              "read": [],
+              "write": []
+            },
+            "git_fetch": {
+              "hosts": []
+            },
+            "network": {
+              "declarations": [],
+              "hosts": []
+            },
+            "packages": {
+              "call": []
+            },
+            "secret_refs": []
+          }
+        },
+        "provides": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/CapabilityDescriptor"
+          },
+          "type": "array"
+        },
+        "sandbox_policy": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/SandboxPolicy"
+            }
+          ],
+          "default": {
+            "cpu_quota_ms_per_invoke": 5000,
+            "memory_mb": 128,
+            "wall_clock_ms": 30000
+          }
+        },
+        "schema_version": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entry",
+        "id",
+        "schema_version",
+        "version"
+      ],
+      "title": "PackageManifest",
+      "type": "object"
+    },
+    "Result": {
+      "$defs": {
+        "AssetPermissions": {
+          "properties": {
+            "read": {
+              "default": false,
+              "type": "boolean"
+            },
+            "write": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "CapabilityDescriptor": {
+          "properties": {
+            "description": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_schema": {
+              "default": null
+            },
+            "output_schema": {
+              "default": null
+            },
+            "side_effects": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "streaming": {
+              "default": false,
+              "type": "boolean"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "CapabilityPermissions": {
+          "properties": {
+            "invoke": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "CapabilityRequirement": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "EventPermissions": {
+          "properties": {
+            "append": {
+              "default": false,
+              "type": "boolean"
+            },
+            "read": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "ExtensionPointDescriptor": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "modifiable": {
+              "type": "boolean"
+            },
+            "payload_schema": {
+              "default": null
+            },
+            "short_circuit": {
+              "type": "boolean"
+            },
+            "timing": {
+              "$ref": "#/definitions/HookTiming"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "modifiable",
+            "short_circuit",
+            "timing",
+            "version"
+          ],
+          "type": "object"
+        },
+        "FilesystemPermissions": {
+          "properties": {
+            "read": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "write": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "GitFetchPermissions": {
+          "properties": {
+            "hosts": {
+              "default": [],
+              "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "HookSubscription": {
+          "properties": {
+            "extension_point": {
+              "type": "string"
+            },
+            "handler": {
+              "type": "string"
+            },
+            "precedence": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            },
+            "timing": {
+              "$ref": "#/definitions/HookTiming"
+            }
+          },
+          "required": [
+            "extension_point",
+            "handler",
+            "timing"
+          ],
+          "type": "object"
+        },
+        "HookTiming": {
+          "enum": [
+            "sync",
+            "async"
+          ],
+          "type": "string"
+        },
+        "NetworkDeclaration": {
+          "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
+          "properties": {
+            "host": {
+              "description": "Destination host (e.g. `\"api.openai.com\"` or `\"*.example.org\"`).",
+              "type": "string"
+            },
+            "methods": {
+              "default": [],
+              "description": "Permitted HTTP/WebSocket methods (e.g. `[\"GET\", \"POST\", \"WEBSOCKET\"]`). Empty means all.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "purpose": {
+              "default": null,
+              "description": "Human-readable purpose for this network access.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "host"
+          ],
+          "type": "object"
+        },
+        "NetworkPermissions": {
+          "properties": {
+            "declarations": {
+              "default": [],
+              "description": "Structured network declarations (host, methods, purpose).",
+              "items": {
+                "$ref": "#/definitions/NetworkDeclaration"
+              },
+              "type": "array"
+            },
+            "hosts": {
+              "default": [],
+              "description": "Flat host list for backward compatibility. Packages using the structured form should populate `declarations` instead.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "PackageContributions": {
+          "properties": {
+            "extension_points": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/ExtensionPointDescriptor"
+              },
+              "type": "array"
+            },
+            "hooks": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/HookSubscription"
+              },
+              "type": "array"
+            },
+            "schemas": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/SchemaContribution"
+              },
+              "type": "array"
+            },
+            "surfaces": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/SurfaceContribution"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "PackageEntry": {
+          "oneOf": [
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "crate_ref": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "rust_inproc"
+                  ],
+                  "type": "string"
+                },
+                "symbol": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "crate_ref",
+                "kind",
+                "symbol"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "command": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "kind": {
+                  "enum": [
+                    "subprocess"
+                  ],
+                  "type": "string"
+                },
+                "transport": {
+                  "$ref": "#/definitions/SubprocessTransport"
+                }
+              },
+              "required": [
+                "command",
+                "kind",
+                "transport"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "wasm"
+                  ],
+                  "type": "string"
+                },
+                "memory_limit_mb": {
+                  "format": "uint64",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "module": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "kind",
+                "memory_limit_mb",
+                "module"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "auth": {
+                  "$ref": "#/definitions/RemoteAuth"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "remote"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "auth",
+                "endpoint",
+                "kind"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "PackageManifest": {
+          "properties": {
+            "author": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "consumes": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/CapabilityRequirement"
+              },
+              "type": "array"
+            },
+            "contributes": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PackageContributions"
+                }
+              ],
+              "default": {
+                "extension_points": [],
+                "hooks": [],
+                "schemas": [],
+                "surfaces": []
+              }
+            },
+            "description": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display_name": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "entry": {
+              "$ref": "#/definitions/PackageEntry"
+            },
+            "id": {
+              "type": "string"
+            },
+            "license": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "permissions": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PermissionSet"
+                }
+              ],
+              "default": {
+                "assets": {
+                  "read": false,
+                  "write": false
+                },
+                "capabilities": {
+                  "invoke": []
+                },
+                "events": {
+                  "append": false,
+                  "read": false
+                },
+                "filesystem": {
+                  "read": [],
+                  "write": []
+                },
+                "git_fetch": {
+                  "hosts": []
+                },
+                "network": {
+                  "declarations": [],
+                  "hosts": []
+                },
+                "packages": {
+                  "call": []
+                },
+                "secret_refs": []
+              }
+            },
+            "provides": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/CapabilityDescriptor"
+              },
+              "type": "array"
+            },
+            "sandbox_policy": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SandboxPolicy"
+                }
+              ],
+              "default": {
+                "cpu_quota_ms_per_invoke": 5000,
+                "memory_mb": 128,
+                "wall_clock_ms": 30000
+              }
+            },
+            "schema_version": {
+              "format": "uint16",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "entry",
+            "id",
+            "schema_version",
+            "version"
+          ],
+          "type": "object"
+        },
+        "PackagePermissions": {
+          "properties": {
+            "call": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "PackageState": {
+          "enum": [
+            "discovered",
+            "loading",
+            "starting",
+            "ready",
+            "degraded",
+            "stopping",
+            "stopped",
+            "unloaded"
+          ],
+          "type": "string"
+        },
+        "PermissionSet": {
+          "properties": {
+            "assets": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/AssetPermissions"
+                }
+              ],
+              "default": {
+                "read": false,
+                "write": false
+              }
+            },
+            "capabilities": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/CapabilityPermissions"
+                }
+              ],
+              "default": {
+                "invoke": []
+              }
+            },
+            "events": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/EventPermissions"
+                }
+              ],
+              "default": {
+                "append": false,
+                "read": false
+              }
+            },
+            "filesystem": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FilesystemPermissions"
+                }
+              ],
+              "default": {
+                "read": [],
+                "write": []
+              }
+            },
+            "git_fetch": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/GitFetchPermissions"
+                }
+              ],
+              "default": {
+                "hosts": []
+              }
+            },
+            "network": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/NetworkPermissions"
+                }
+              ],
+              "default": {
+                "declarations": [],
+                "hosts": []
+              }
+            },
+            "packages": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PackagePermissions"
+                }
+              ],
+              "default": {
+                "call": []
+              }
+            },
+            "secret_refs": {
+              "default": [],
+              "description": "Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "RemoteAuth": {
+          "properties": {
+            "config": {
+              "default": null
+            },
+            "scheme": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "scheme"
+          ],
+          "type": "object"
+        },
+        "SandboxPolicy": {
+          "properties": {
+            "cpu_quota_ms_per_invoke": {
+              "default": 5000,
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "memory_mb": {
+              "default": 128,
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "wall_clock_ms": {
+              "default": 30000,
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "SchemaContribution": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "schema": true
+          },
+          "required": [
+            "id",
+            "schema"
+          ],
+          "type": "object"
+        },
+        "SubprocessTransport": {
+          "enum": [
+            "json_rpc_stdio",
+            "json_rpc_tcp"
+          ],
+          "type": "string"
+        },
+        "SurfaceActivation": {
+          "properties": {
+            "input_schema": {
+              "default": null
+            },
+            "launch_capability_id": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "session_template": {
+              "default": null
+            }
+          },
+          "type": "object"
+        },
+        "SurfaceApprovalPolicy": {
+          "enum": [
+            "none",
+            "user_approval",
+            "fork_then_approve"
+          ],
+          "type": "string"
+        },
+        "SurfaceContribution": {
+          "properties": {
+            "activation": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SurfaceActivation"
+                }
+              ],
+              "default": {
+                "input_schema": null,
+                "launch_capability_id": null,
+                "session_template": null
+              }
+            },
+            "approval_policy": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SurfaceApprovalPolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "capability_id": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "metadata": {
+              "default": null
+            },
+            "required_permissions": {
+              "default": [],
+              "items": {
+                "$ref": "#/definitions/SurfacePermissionRequirement"
+              },
+              "type": "array"
+            },
+            "slot": {
+              "$ref": "#/definitions/SurfaceSlot"
+            },
+            "title": {
+              "type": "string"
+            },
+            "version": {
+              "default": "0.1.0",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "slot",
+            "title"
+          ],
+          "type": "object"
+        },
+        "SurfacePermissionRequirement": {
+          "properties": {
+            "permission": {
+              "type": "string"
+            },
+            "reason": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "risk": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SurfaceRisk"
+                }
+              ],
+              "default": "low"
+            },
+            "scope": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "permission"
+          ],
+          "type": "object"
+        },
+        "SurfaceRisk": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
+        "SurfaceSlot": {
+          "enum": [
+            "experience_entry",
+            "home_card",
+            "play_renderer",
+            "forge_panel",
+            "asset_editor",
+            "assistant_action"
+          ],
+          "type": "string"
+        },
+        "TrustLevel": {
+          "enum": [
+            "trusted_inproc",
+            "process_isolated",
+            "wasm_sandbox",
+            "remote_boundary"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "capability_count": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "entry_kind": {
+          "type": "string"
+        },
+        "extension_point_count": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "hook_count": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "loaded_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "manifest": {
+          "$ref": "#/definitions/PackageManifest"
+        },
+        "state": {
+          "$ref": "#/definitions/PackageState"
+        },
+        "trust_level": {
+          "$ref": "#/definitions/TrustLevel"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability_count",
+        "entry_kind",
+        "extension_point_count",
+        "hook_count",
+        "id",
+        "loaded_at",
+        "manifest",
+        "state",
+        "trust_level",
+        "updated_at",
+        "version"
+      ],
+      "title": "PackageRecord",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.package.load.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.package.load.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.package.load"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.package.load",
+  "type": "object"
+}

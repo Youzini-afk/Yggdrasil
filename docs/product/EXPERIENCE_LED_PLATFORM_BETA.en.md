@@ -12,7 +12,7 @@ Yggdrasil is not a production-complete platform, but it has enough foundation to
 
 The stable base now includes:
 
-- A content-free kernel.
+- A content-free kernel.v1.
 - Manifest-driven capability packages.
 - No official package privilege, backed by third-party replacement proofs.
 - Public protocol, HTTP `/rpc`, SSE, and host stdio.
@@ -50,7 +50,7 @@ Implications for Yggdrasil:
 - Generated objects need provenance, derived asset relationships, behavior binding, preview, diff, and runtime attachment metadata.
 - In-experience player creation can itself become gameplay, not merely a creator tool.
 
-Yggdrasil should not embed cars, doors, characters, or scenes into the kernel. It should provide strong enough asset, state, proposal, and branch substrate for ordinary packages to generate and inspect objects that can enter runtime.
+Yggdrasil should not embed cars, doors, characters, or scenes into the kernel.v1. It should provide strong enough asset, state, proposal, and branch substrate for ordinary packages to generate and inspect objects that can enter runtime.
 
 ### Roblox Studio agentic: the loop is plan / build / test
 
@@ -62,7 +62,7 @@ Implications for Yggdrasil:
 - The next step cannot stop at showing a plan graph. Agents must plan/build/test against a real experience.
 - A playtesting agent is valuable because it reads state, logs, events, projections, and user goals, then produces inspectable fixes rather than privileged mutation.
 
-Yggdrasil agents must remain ordinary package-owned creative processes, not `kernel.agent.*`.
+Yggdrasil agents must remain ordinary package-owned creative processes, not `kernel.v1.agent.*`.
 
 ### Roblox Hybrid Architecture: do not treat neural world models as game engines
 
@@ -84,7 +84,7 @@ Yggdrasil should not chase a pure neural game world. It needs:
 - Inference provenance.
 - Branch-aware state diff.
 
-These are state substrate, not world ontology. They must not introduce world, scene, character, or turn semantics into the kernel.
+These are state substrate, not world ontology. They must not introduce world, scene, character, or turn semantics into the kernel.v1.
 
 ### Unity AI: AI must be embedded in creation context and provide data controls
 
@@ -175,15 +175,15 @@ If new work does not serve these questions, defer it.
 Do not add:
 
 ```text
-kernel.agent.*
-kernel.model.*
-kernel.prompt.*
-kernel.memory.*
-kernel.world.*
-kernel.scene.*
-kernel.character.*
-kernel.turn.*
-kernel.chat.*
+kernel.v1.agent.*
+kernel.v1.model.*
+kernel.v1.prompt.*
+kernel.v1.memory.*
+kernel.v1.world.*
+kernel.v1.scene.*
+kernel.v1.character.*
+kernel.v1.turn.*
+kernel.v1.chat.*
 ```
 
 Acceptable kernel-side work is content-free mechanism: asset blobs, resource policy, projection execution, event subscription permissions, transport parity, health/audit records. Even then, first check whether the existing package/protocol substrate can express it.
@@ -232,7 +232,7 @@ Deliverables:
 - Play surface state subscription pattern.
 - How Forge/Assist connect to an experience session.
 
-Non-goals: `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`.
+Non-goals: `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`.
 
 ### Experience Beta 1 — First Real Playable Vertical Slice (complete)
 
@@ -254,7 +254,7 @@ Delivered:
 - Forge profile autoloads.
 - Conformance cases.
 
-Non-goals: `kernel.experience.*`, `kernel.world.*`, chat shell, assistant messages/conversation/prompt transcript.
+Non-goals: `kernel.v1.experience.*`, `kernel.v1.world.*`, chat shell, assistant messages/conversation/prompt transcript.
 
 This is the actual product proof for Yggdrasil. Subsequent state, asset, memory, and observability work is pulled by real needs exposed by this vertical slice.
 
@@ -316,7 +316,7 @@ Delivered:
 - Conformance cases.
 - Guide: `docs/guides/MEMORY_PACKAGE_AUTHORING.md`.
 
-Non-goals: `kernel.memory.*`, one official RAG, chat memory system.
+Non-goals: `kernel.v1.memory.*`, one official RAG, chat memory system.
 
 ### Experience Beta 5 — Creator Loop Beta
 
@@ -392,7 +392,7 @@ Core metrics become:
 
 ## Red lines
 
-- Do not put content semantics into the kernel.
+- Do not put content semantics into the kernel.v1.
 - Do not promote cloud API adapters into the platform model abstraction.
 - Do not turn Agentic Forge into a chat product or coding-agent clone.
 - Do not give official packages hidden privilege.

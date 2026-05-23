@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::broadcast;
+use schemars::JsonSchema;
 use ygg_core::{EventEnvelope, EventKind, EventSequence, PackageId, SessionId, KERNEL_PACKAGE_ID};
 
 use super::Runtime;
 use crate::{EventStore, ProtocolContext, ProtocolPrincipal, validate_json_schema_subset};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AppendEventRequest {
     pub session_id: SessionId,
     pub writer_package_id: PackageId,
@@ -15,7 +16,7 @@ pub struct AppendEventRequest {
     pub metadata: Value,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct EventListRequest {
     pub session_id: SessionId,
     #[serde(default)]
@@ -57,7 +58,7 @@ where
         let mut request = request;
         let before = self
             .dispatch_extension_handlers(
-                "kernel/event.before_append",
+                "kernel/v1/event.before_append",
                 json!({
                     "session_id": request.session_id,
                     "writer_package_id": request.writer_package_id,
@@ -73,7 +74,7 @@ where
         request.metadata = before.payload.get("metadata").cloned().unwrap_or(request.metadata);
         let event = self.append_event_unchecked(request).await?;
         let _ = self
-            .dispatch_extension_handlers("kernel/event.after_append", serde_json::to_value(&event).unwrap_or_else(|_| json!({})))
+            .dispatch_extension_handlers("kernel/v1/event.after_append", serde_json::to_value(&event).unwrap_or_else(|_| json!({})))
             .await;
         Ok(event)
     }

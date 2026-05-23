@@ -9,7 +9,7 @@ This is the long-term guide for performance and code health. It replaces the tem
 1. Measure before optimizing. Use `ygg perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
 2. Optimization must not change the platform contract. Official and third-party packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
 3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case official packages.
-4. Do not introduce content ontology in the name of performance. Do not add `kernel.agent.*`, `kernel.model.*`, `kernel.memory.*`, `kernel.experience.*`, `kernel.sharing.*`, or similar product/content namespaces.
+4. Do not introduce content ontology in the name of performance. Do not add `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.memory.*`, `kernel.v1.experience.*`, `kernel.v1.sharing.*`, or similar product/content namespaces.
 5. Advanced optimization needs evidence. Capability or surface caches, RawValue, registry helpers/codegen, per-domain crates, and similar changes require baseline or profiling evidence.
 
 ## Common commands

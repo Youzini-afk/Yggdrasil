@@ -3,7 +3,7 @@
 //! Covers:
 //! - describe_contract shape (surfaces, capabilities, lifecycle states)
 //! - checkpoint/recovery shape (create, inspect, draft recovery)
-//! - No kernel.experience.* / kernel.world.* / kernel.turn.* namespace
+//! - No kernel.v1.experience.* / kernel.v1.world.* / kernel.v1.turn.* namespace
 //! - Template generation (experience-runtime template produces 4 surfaces)
 //! - Third-party shape parity / ordinary routing
 
@@ -126,16 +126,16 @@ pub(crate) async fn experience_runtime_describe_contract() -> anyhow::Result<()>
     // No kernel experience namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("kernel.experience."),
-        "must not contain kernel.experience."
+        !output_str.contains("kernel.v1.experience."),
+        "must not contain kernel.v1.experience."
     );
     anyhow::ensure!(
-        !output_str.contains("kernel.world."),
-        "must not contain kernel.world."
+        !output_str.contains("kernel.v1.world."),
+        "must not contain kernel.v1.world."
     );
     anyhow::ensure!(
-        !output_str.contains("kernel.turn."),
-        "must not contain kernel.turn."
+        !output_str.contains("kernel.v1.turn."),
+        "must not contain kernel.v1.turn."
     );
 
     Ok(())
@@ -287,18 +287,18 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
     // No kernel namespace
     let output_str = serde_json::to_string(&recovery_with_cp.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("kernel.experience."),
-        "recovery must not contain kernel.experience."
+        !output_str.contains("kernel.v1.experience."),
+        "recovery must not contain kernel.v1.experience."
     );
     anyhow::ensure!(
-        !output_str.contains("kernel.turn."),
-        "recovery must not contain kernel.turn."
+        !output_str.contains("kernel.v1.turn."),
+        "recovery must not contain kernel.v1.turn."
     );
 
     Ok(())
 }
 
-/// Case 4: no kernel.experience.* / kernel.world.* / kernel.turn.* namespace
+/// Case 4: no kernel.v1.experience.* / kernel.v1.world.* / kernel.v1.turn.* namespace
 /// in any output from the package.
 pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<()> {
     let runtime = load_experience_runtime_lab().await?;
@@ -324,24 +324,24 @@ pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<(
 
         let output_str = serde_json::to_string(&result.output).unwrap();
         anyhow::ensure!(
-            !output_str.contains("kernel.experience."),
-            "{cap} must not contain kernel.experience."
+            !output_str.contains("kernel.v1.experience."),
+            "{cap} must not contain kernel.v1.experience."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.world."),
-            "{cap} must not contain kernel.world."
+            !output_str.contains("kernel.v1.world."),
+            "{cap} must not contain kernel.v1.world."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.turn."),
-            "{cap} must not contain kernel.turn."
+            !output_str.contains("kernel.v1.turn."),
+            "{cap} must not contain kernel.v1.turn."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.chat."),
-            "{cap} must not contain kernel.chat."
+            !output_str.contains("kernel.v1.chat."),
+            "{cap} must not contain kernel.v1.chat."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.memory."),
-            "{cap} must not contain kernel.memory."
+            !output_str.contains("kernel.v1.memory."),
+            "{cap} must not contain kernel.v1.memory."
         );
     }
 
@@ -428,11 +428,11 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
     for token in &[
-        "kernel.experience.",
-        "kernel.world.",
-        "kernel.turn.",
-        "kernel.chat.",
-        "kernel.memory.",
+        "kernel.v1.experience.",
+        "kernel.v1.world.",
+        "kernel.v1.turn.",
+        "kernel.v1.chat.",
+        "kernel.v1.memory.",
     ] {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -443,11 +443,11 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
 
     let package_ts = std::fs::read_to_string(path.join("package.ts"))?;
     for token in &[
-        "kernel.experience.",
-        "kernel.world.",
-        "kernel.turn.",
-        "kernel.chat.",
-        "kernel.memory.",
+        "kernel.v1.experience.",
+        "kernel.v1.world.",
+        "kernel.v1.turn.",
+        "kernel.v1.chat.",
+        "kernel.v1.memory.",
     ] {
         anyhow::ensure!(
             !package_ts.contains(token),
@@ -508,8 +508,8 @@ pub(crate) async fn experience_runtime_bind_agent_run() -> anyhow::Result<()> {
     // No kernel namespace
     let output_str = serde_json::to_string(&binding.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("kernel.experience."),
-        "binding must not contain kernel.experience."
+        !output_str.contains("kernel.v1.experience."),
+        "binding must not contain kernel.v1.experience."
     );
 
     Ok(())

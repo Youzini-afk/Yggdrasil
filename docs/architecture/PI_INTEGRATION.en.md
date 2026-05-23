@@ -10,12 +10,12 @@ Yggdrasil should be able to host, constrain, observe, and replace agent-like cap
 
 Agent infrastructure must sit on existing public primitives:
 
-- `kernel.capability.invoke` / `kernel.capability.stream` starts or advances an agent-like package capability.
-- `kernel.capability.cancel` cancels an in-flight stream invocation.
-- `kernel.capability.discover` / `kernel.capability.describe` discovers capabilities that can be adapted into agent tools.
-- `kernel.proposal.create/get/list/approve/reject/apply` carries agent-produced change proposals.
-- `kernel.event.append/list/subscribe` carries package-owned trace, tool-call, and run events.
-- `kernel.surface.contribution.*` lets Assist / Forge discover agent actions and trace panels through public protocol.
+- `kernel.v1.capability.invoke` / `kernel.v1.capability.stream` starts or advances an agent-like package capability.
+- `kernel.v1.capability.cancel` cancels an in-flight stream invocation.
+- `kernel.v1.capability.discover` / `kernel.v1.capability.describe` discovers capabilities that can be adapted into agent tools.
+- `kernel.v1.proposal.create/get/list/approve/reject/apply` carries agent-produced change proposals.
+- `kernel.v1.event.append/list/subscribe` carries package-owned trace, tool-call, and run events.
+- `kernel.v1.surface.contribution.*` lets Assist / Forge discover agent actions and trace panels through public protocol.
 - Permissions, `secret_ref`, network declarations, outbound audit/redaction, and stream/cancel lifecycle continue to be enforced by the secure execution substrate.
 
 ## pi layer absorption strategy
@@ -23,7 +23,7 @@ Agent infrastructure must sit on existing public primitives:
 | pi layer | Yggdrasil handling | Reason |
 |---|---|---|
 | `pi-ai` | Reference + future ordinary model/inference package internal option | Provider registry, stream/tool-call shape, and faux provider are valuable. Real model calls still require mature host policy, secret, network, audit, usage, and redaction contracts. |
-| `pi-agent-core` | Adapter now + package-internal optional | `AgentEvent`, `AgentTool`, before/after tool-call hooks, parallel/sequential execution, and steer/followUp queues are worth absorbing. model/message/systemPrompt/thinkingLevel must not enter the kernel. |
+| `pi-agent-core` | Adapter now + package-internal optional | `AgentEvent`, `AgentTool`, before/after tool-call hooks, parallel/sequential execution, and steer/followUp queues are worth absorbing. model/message/systemPrompt/thinkingLevel must not enter the kernel.v1. |
 | `pi-coding-agent` | Reference only | It is a complete coding-agent product with TUI, bash/read/write/edit tools, session JSONL, model resolver, skills/extensions, and coding workflow. It is not suitable as a Ygg platform dependency or product shell. |
 
 For the finer ledger, see [`../../integrations/pi/README.md`](../../integrations/pi/README.md).
@@ -33,13 +33,13 @@ For the finer ledger, see [`../../integrations/pi/README.md`](../../integrations
 | Agent concept | Yggdrasil public primitive | Rule |
 |---|---|---|
 | run / turn / step | package capability invocation or stream invocation | The kernel does not gain an agent lifecycle. |
-| cancellation | `kernel.capability.cancel` | Use the generic stream/cancel lifecycle. |
-| tool discovery | `kernel.capability.discover` / `describe` | A tool is an adapter view of a capability. |
-| tool execution | `kernel.capability.invoke` / `stream` | Preserve caller principal, provider package, permission gate, and audit. |
+| cancellation | `kernel.v1.capability.cancel` | Use the generic stream/cancel lifecycle. |
+| tool discovery | `kernel.v1.capability.discover` / `describe` | A tool is an adapter view of a capability. |
+| tool execution | `kernel.v1.capability.invoke` / `stream` | Preserve caller principal, provider package, permission gate, and audit. |
 | tool ambiguity | explicit `provider_package_id` | Never prefer official providers automatically. |
-| proposal | `kernel.proposal.*` | Agents do not directly mutate trusted state. |
+| proposal | `kernel.v1.proposal.*` | Agents do not directly mutate trusted state. |
 | trace | package-owned events or stream frames | The kernel does not interpret trace payloads. |
-| state | package-owned asset/projection/get_state capability | No `kernel.agent.state`. |
+| state | package-owned asset/projection/get_state capability | No `kernel.v1.agent.state`. |
 | memory/prompt/model | future ordinary packages | Not kernel concepts. |
 | UI | surface contributions + public protocol | Assist/Forge do not read runtime internals. |
 
@@ -67,11 +67,11 @@ These components must not:
 
 The kernel will not add or standardize:
 
-- `kernel.agent.*`
-- `kernel.model.*`
-- `kernel.prompt.*`
-- `kernel.memory.*`
-- `kernel.turn.*`
+- `kernel.v1.agent.*`
+- `kernel.v1.model.*`
+- `kernel.v1.prompt.*`
+- `kernel.v1.memory.*`
+- `kernel.v1.turn.*`
 - agent state, chat transcript, prompt template, model provider, thinking/reasoning, or memory taxonomy.
 
 ## Anti-patterns

@@ -244,7 +244,7 @@ function testTextPreview(): SelfTestResult[] {
   const results: SelfTestResult[] = [];
 
   // 1. Stream chunk with long text
-  const streamResult = extractEventPreview("kernel/stream.chunk", {
+  const streamResult = extractEventPreview("kernel/v1/stream.chunk", {
     text: "This is a long enough text that should produce a preview for the Forge text surface display area.",
   });
   results.push(assert(streamResult.hasPreview, "TextPreview: stream chunk has preview", ""));
@@ -252,11 +252,11 @@ function testTextPreview(): SelfTestResult[] {
   results.push(assert(streamResult.lineEstimate >= 1, "TextPreview: lineEstimate >= 1", `got ${streamResult.lineEstimate}`));
 
   // 2. Stream chunk with short text — no preview
-  const shortResult = extractEventPreview("kernel/stream.chunk", { text: "hi" });
+  const shortResult = extractEventPreview("kernel/v1/stream.chunk", { text: "hi" });
   results.push(assertEqual(shortResult.hasPreview, false, "TextPreview: short text no preview"));
 
   // 3. Stream error
-  const errorResult = extractEventPreview("kernel/stream.error", { message: "Connection refused" });
+  const errorResult = extractEventPreview("kernel/v1/stream.error", { message: "Connection refused" });
   results.push(assert(errorResult.hasPreview, "TextPreview: stream error has preview", ""));
   results.push(assertEqual(errorResult.kind, "stream-error", "TextPreview: kind is stream-error"));
 

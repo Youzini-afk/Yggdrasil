@@ -3,7 +3,7 @@
 //! In addition to host-initiated `package.handshake` and
 //! `capability.invoke` calls, subprocess packages may initiate reverse
 //! public kernel calls by writing JSON-RPC requests whose method starts with
-//! `kernel.` to stdout.  The supervisor dispatches those requests with the
+//! `kernel.v1.` to stdout.  The supervisor dispatches those requests with the
 //! caller principal locked to the subprocess package id and writes responses
 //! back to the child's stdin.
 
@@ -16,6 +16,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::timeout;
+use schemars::JsonSchema;
 use ygg_core::{PackageEntry, PackageId, PackageManifest, SubprocessTransport};
 
 use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolError, Runtime};
@@ -36,7 +37,7 @@ pub struct SubprocessHandle {
     reverse_kernel_requests: Mutex<HashSet<String>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct SubprocessLogLine {
     pub package_id: PackageId,
     pub stream: String,
@@ -263,7 +264,7 @@ impl SubprocessHandle {
             let Some(method) = frame.get("method").and_then(Value::as_str) else {
                 continue;
             };
-            if !method.starts_with("kernel.") {
+            if !method.starts_with("kernel.v1.") {
                 continue;
             }
 
@@ -360,28 +361,28 @@ impl SubprocessHandle {
                 ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/outbound.websocket.opened",
+                    "kind": "kernel/v1/outbound.websocket.opened",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
                 ygg_core::EVENT_OUTBOUND_WEBSOCKET_FRAME => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/outbound.websocket.frame",
+                    "kind": "kernel/v1/outbound.websocket.frame",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
                 ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/outbound.websocket.error",
+                    "kind": "kernel/v1/outbound.websocket.error",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
                 ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/outbound.websocket.completed",
+                    "kind": "kernel/v1/outbound.websocket.completed",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
@@ -395,7 +396,7 @@ impl SubprocessHandle {
                     json!({
                         "jsonrpc": "2.0",
                         "id": id,
-                        "kind": "kernel/stream.chunk",
+                        "kind": "kernel/v1/stream.chunk",
                         "stream_id": stream_id,
                         "sequence": sequence,
                         "data": event.payload,
@@ -404,27 +405,27 @@ impl SubprocessHandle {
                 ygg_core::EVENT_STREAM_ENDED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/stream.ended",
+                    "kind": "kernel/v1/stream.ended",
                     "stream_id": stream_id,
                     "summary": event.payload,
                 }),
                 ygg_core::EVENT_STREAM_ERROR => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/stream.error",
+                    "kind": "kernel/v1/stream.error",
                     "stream_id": stream_id,
                     "error": event.payload.get("error").cloned().unwrap_or(event.payload),
                 }),
                 ygg_core::EVENT_STREAM_CANCELLED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/stream.cancelled",
+                    "kind": "kernel/v1/stream.cancelled",
                     "stream_id": stream_id,
                 }),
                 ygg_core::EVENT_STREAM_TIMEOUT => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/stream.timeout",
+                    "kind": "kernel/v1/stream.timeout",
                     "stream_id": stream_id,
                 }),
                 _ => continue,
@@ -432,7 +433,7 @@ impl SubprocessHandle {
 
             let terminal = matches!(
                 frame.get("kind").and_then(Value::as_str),
-                Some("kernel/stream.ended" | "kernel/stream.error" | "kernel/stream.cancelled" | "kernel/stream.timeout" | "kernel/outbound.websocket.completed")
+                Some("kernel/v1/stream.ended" | "kernel/v1/stream.error" | "kernel/v1/stream.cancelled" | "kernel/v1/stream.timeout" | "kernel/v1/outbound.websocket.completed")
             );
             if self.write_json_frame(frame).await.is_err() || terminal {
                 break;
@@ -457,7 +458,7 @@ pub(crate) fn id_to_key(id: &Value) -> String {
     }
 }
 
-/// Dispatch one reverse `kernel.*` JSON-RPC frame from a subprocess child.
+/// Dispatch one reverse `kernel.v1.*` JSON-RPC frame from a subprocess child.
 /// The caller principal is always locked to `package_id`; any package_id in
 /// params is treated as untrusted request data by downstream dispatch.
 pub async fn dispatch_reverse_kernel_frame<S>(
@@ -476,11 +477,11 @@ where
             "error": ProtocolError::invalid_request("reverse kernel frame missing method"),
         });
     };
-    if !method.starts_with("kernel.") {
+    if !method.starts_with("kernel.v1.") {
         return json!({
             "jsonrpc": "2.0",
             "id": id,
-            "error": ProtocolError::invalid_request("reverse subprocess request method must start with kernel."),
+            "error": ProtocolError::invalid_request("reverse subprocess request method must start with kernel.v1."),
         });
     }
     let context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");

@@ -3,8 +3,8 @@ import readline from "node:readline";
 /**
  * Thin helper for JSON-RPC-over-stdio subprocess capability packages.
  * Packages can handle host-initiated handshake/invoke requests and can also
- * initiate reverse public `kernel.*` requests (for example
- * `kernel.outbound.execute` and `kernel.outbound.stream`) over the same stdio
+ * initiate reverse public `kernel.v1.*` requests (for example
+ * `kernel.v1.outbound.execute` and `kernel.v1.outbound.stream`) over the same stdio
  * channel via `kernelClient`.
  */
 
@@ -161,11 +161,11 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 function isWebSocketEventKind(kind: unknown): kind is string {
-  return kind === "kernel/outbound.websocket.opened"
-    || kind === "kernel/outbound.websocket.frame"
-    || kind === "kernel/outbound.websocket.error"
-    || kind === "kernel/outbound.websocket.closed"
-    || kind === "kernel/outbound.websocket.completed";
+  return kind === "kernel/v1/outbound.websocket.opened"
+    || kind === "kernel/v1/outbound.websocket.frame"
+    || kind === "kernel/v1/outbound.websocket.error"
+    || kind === "kernel/v1/outbound.websocket.closed"
+    || kind === "kernel/v1/outbound.websocket.completed";
 }
 
 function getFramePayload(frame: JsonRpcRequest): Record<string, unknown> {
@@ -250,7 +250,7 @@ function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketH
       });
       try {
         const result = await Promise.race([
-          kernelClient.sendKernelRequest<{ status?: unknown }>("kernel.outbound.websocket.send", {
+          kernelClient.sendKernelRequest<{ status?: unknown }>("kernel.v1.outbound.websocket.send", {
             connection_id: session.connectionId,
             ...encodeWebSocketFrame(frame),
           }),
@@ -269,7 +269,7 @@ function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketH
     async close(code?: number, reason?: string): Promise<void> {
       if (session.closed) return;
       markWebSocketClosed(session, new Error(`WebSocket connection ${session.connectionId} is closed`));
-      await kernelClient.sendKernelRequest("kernel.outbound.websocket.close", {
+      await kernelClient.sendKernelRequest("kernel.v1.outbound.websocket.close", {
         connection_id: session.connectionId,
         code,
         reason,
@@ -286,13 +286,13 @@ function handleWebSocketEvent(session: ActiveKernelWebSocket, frame: JsonRpcRequ
   if (connectionId !== session.connectionId) return false;
 
   switch (kind) {
-    case "kernel/outbound.websocket.opened": {
+    case "kernel/v1/outbound.websocket.opened": {
       const subprotocol = typeof payload.subprotocol === "string" ? payload.subprotocol : session.subprotocol;
       if (typeof subprotocol === "string") session.subprotocol = subprotocol;
       session.callbacks.onOpen?.({ connectionId: session.connectionId, subprotocol });
       return true;
     }
-    case "kernel/outbound.websocket.frame": {
+    case "kernel/v1/outbound.websocket.frame": {
       const direction = typeof payload.direction === "string" ? payload.direction : "inbound";
       if (direction !== "inbound") return true;
       const decoded = decodeInboundWebSocketFrame(payload);
@@ -302,14 +302,14 @@ function handleWebSocketEvent(session: ActiveKernelWebSocket, frame: JsonRpcRequ
       }
       return true;
     }
-    case "kernel/outbound.websocket.error": {
+    case "kernel/v1/outbound.websocket.error": {
       const code = String(payload.error_code ?? payload.code ?? "websocket_error");
       const message = String(payload.message_redacted ?? payload.message ?? payload.error ?? "WebSocket error");
       session.callbacks.onError?.({ code, message });
       return true;
     }
-    case "kernel/outbound.websocket.closed":
-    case "kernel/outbound.websocket.completed": {
+    case "kernel/v1/outbound.websocket.closed":
+    case "kernel/v1/outbound.websocket.completed": {
       const code = typeof payload.code === "number" ? payload.code : Number(payload.code ?? 1000);
       const reason = typeof payload.reason === "string" ? payload.reason : "closed";
       markWebSocketClosed(session, new Error(`WebSocket connection ${session.connectionId} closed: ${code} ${reason}`));
@@ -325,7 +325,7 @@ function resolveWebSocketOpen(requestId: string, pending: PendingKernelWebSocket
   const record = asRecord(result) ?? {};
   const connectionId = record.connection_id;
   if (typeof connectionId !== "string") {
-    pending.reject(new Error("kernel.outbound.websocket.open response missing connection_id"));
+    pending.reject(new Error("kernel.v1.outbound.websocket.open response missing connection_id"));
     return;
   }
   const subprotocol = typeof record.subprotocol_negotiated === "string"
@@ -369,13 +369,13 @@ export const kernelClient: KernelClient = {
         cancelled = true;
         const streamId = pending.streamId;
         if (!streamId) return;
-        sendKernelFrame("kernel.capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` });
+        sendKernelFrame("kernel.v1.capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` });
       },
     };
   },
 
   openWebSocket(params: KernelWebSocketOpenParams, callbacks: KernelWebSocketCallbacks): Promise<KernelWebSocketHandle> {
-    const id = sendKernelFrame("kernel.outbound.websocket.open", params);
+    const id = sendKernelFrame("kernel.v1.outbound.websocket.open", params);
     return new Promise<KernelWebSocketHandle>((resolve, reject) => {
       pendingKernelWebSocketOpens.set(id, { callbacks, resolve, reject });
     });
@@ -424,29 +424,29 @@ function handleKernelInbound(frame: JsonRpcRequest): boolean {
     }
 
     switch (frame.kind) {
-      case "kernel/stream.chunk":
+      case "kernel/v1/stream.chunk":
       case "stream.chunk":
         pendingStream.callbacks.onChunk(frame.data);
         return true;
-      case "kernel/stream.ended":
+      case "kernel/v1/stream.ended":
       case "stream.ended":
         pendingKernelStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onEnd?.(frame.summary);
         return true;
-      case "kernel/stream.error":
+      case "kernel/v1/stream.error":
       case "stream.error":
         pendingKernelStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onError?.(frame.error);
         return true;
-      case "kernel/stream.cancelled":
+      case "kernel/v1/stream.cancelled":
       case "stream.cancelled":
         pendingKernelStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onCancelled?.();
         return true;
-      case "kernel/stream.timeout":
+      case "kernel/v1/stream.timeout":
       case "stream.timeout":
         pendingKernelStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);

@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "caller_package_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "input": {
+          "default": null
+        },
+        "provider_package_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "capability_id"
+      ],
+      "title": "CapabilityInvocationRequest",
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "capability_id": {
+          "type": "string"
+        },
+        "output": true,
+        "provider_package_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability_id",
+        "output",
+        "provider_package_id"
+      ],
+      "title": "CapabilityInvocationResult",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.capability.invoke.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.capability.invoke.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.capability.invoke"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.capability.invoke",
+  "type": "object"
+}

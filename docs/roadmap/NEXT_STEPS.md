@@ -32,7 +32,7 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- **git 安装能力包的自动 resolve / pin / apply。** 受控 git fetch、`kernel.outbound.git_fetch`、`official/package-installer-lab`、profile 级 lockfile 与手动 pin CLI 已落地；下一步是把 `ygg package install <github-url>` 接成自动解析 commit/content hash、审批后写 lockfile 并加载包。当前能力见 [`../guides/GIT_PACKAGE_INSTALLATION.md`](../guides/GIT_PACKAGE_INSTALLATION.md)。
+- **git 安装能力包的自动 resolve / pin / apply。** 受控 git fetch、`kernel.v1.outbound.git_fetch`、`official/package-installer-lab`、profile 级 lockfile 与手动 pin CLI 已落地；下一步是把 `ygg package install <github-url>` 接成自动解析 commit/content hash、审批后写 lockfile 并加载包。当前能力见 [`../guides/GIT_PACKAGE_INSTALLATION.md`](../guides/GIT_PACKAGE_INSTALLATION.md)。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
 - 钩子处理器的超时与错误审计。

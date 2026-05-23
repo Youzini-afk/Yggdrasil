@@ -8,7 +8,7 @@ This document describes the shareable, reproducible, importable composition and 
 
 - Share first, marketplace later: the current scope is local/file-level sharing proof. It covers composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans.
 - No marketplace: no package signing network, dependency resolver economy, or hosted billing. Distribution is local file exchange, not a commercial marketplace.
-- No `kernel.sharing.*`: sharing is package-owned behavior, not a kernel capability.
+- No `kernel.v1.sharing.*`: sharing is package-owned behavior, not a kernel capability.
 - No raw secrets: only `secret_ref` references are allowed in bundles; raw secrets are never stored.
 - No public network required: all sharing proofs are local files. No remote service or public network access is needed.
 
@@ -128,7 +128,7 @@ The following are explicitly forbidden in the sharing contract:
 - Billing fields (`billing_token`, `payment_method`, `subscription`)
 - Signing network fields (`signing_network`, `license_key`)
 - Raw secrets (`api_key`, `token`, `password` raw values; only `secret_ref` references allowed)
-- Kernel sharing namespaces (`kernel.sharing.*`, `kernel.marketplace.*`, `kernel.billing.*`)
+- Kernel sharing namespaces (`kernel.v1.sharing.*`, `kernel.v1.marketplace.*`, `kernel.v1.billing.*`)
 - Public network or remote service dependency
 
 ## Examples

@@ -53,7 +53,7 @@ pub(crate) async fn kernel_namespace_denied() -> anyhow::Result<()> {
         .append_event(AppendEventRequest {
             session_id: session.id,
             writer_package_id: "example/writer".to_string(),
-            kind: "kernel/forged".to_string(),
+            kind: "kernel/v1/forged".to_string(),
             payload: json!({}),
             metadata: json!({}),
         })
@@ -107,7 +107,7 @@ pub(crate) async fn event_range_replay() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.event.list",
+            "kernel.v1.event.list",
             json!({"session_id": session.id, "after_sequence": 1, "limit": 2, "kind_prefix": "example/range"}),
         )
         .await
@@ -246,7 +246,7 @@ pub(crate) async fn host_diagnostics() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(echo_package("example/diag", "example/diag/echo")).await?;
     let diagnostics = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.host.diagnostics", json!({}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.host.diagnostics", json!({}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(diagnostics["package_count"] == json!(1), "diagnostics package count mismatch");
@@ -273,19 +273,19 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
     let record_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.asset.put",
+            "kernel.v1.asset.put",
             json!({"mime": "application/json", "content": "{\"hello\":true}", "metadata": {"purpose": "conformance"}}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let asset_id = record_value["id"].as_str().ok_or_else(|| anyhow::anyhow!("asset put returned no id"))?;
     let get_value = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.asset.get", json!({"asset_id": asset_id}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.asset.get", json!({"asset_id": asset_id}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(get_value["content"] == json!("{\"hello\":true}"), "asset get content mismatch");
     let list_value = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.asset.list", json!({}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.asset.list", json!({}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(list_value.as_array().map(|items| items.len()).unwrap_or(0) == 1, "asset list missing record");
@@ -298,14 +298,14 @@ pub(crate) async fn session_fork_branch() -> anyhow::Result<()> {
     let branch_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.session.fork",
+            "kernel.v1.session.fork",
             json!({"parent_session_id": session.id, "forked_from_sequence": 0, "metadata": {"why": "try"}}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(branch_value["parent_session_id"] == json!(session.id), "branch parent mismatch");
     let branches = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.session.branch.list", json!({"session_id": session.id}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.session.branch.list", json!({"session_id": session.id}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(branches.as_array().map(|items| items.len()).unwrap_or(0) == 1, "branch list missing fork");
@@ -328,7 +328,7 @@ pub(crate) async fn projection_rebuild() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.projection.register",
+            "kernel.v1.projection.register",
             json!({"id": "example/projection/state", "session_id": session.id, "source_kind_prefix": "example/projection", "state": {}}),
         )
         .await
@@ -336,7 +336,7 @@ pub(crate) async fn projection_rebuild() -> anyhow::Result<()> {
     let rebuilt = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.projection.rebuild",
+            "kernel.v1.projection.rebuild",
             json!({"projection_id": "example/projection/state"}),
         )
         .await

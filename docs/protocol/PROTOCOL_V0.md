@@ -29,7 +29,7 @@
 ```json
 {
   "id": "request-1",
-  "method": "kernel.capability.invoke",
+  "method": "kernel.v1.capability.invoke",
   "params": {}
 }
 ```
@@ -51,7 +51,7 @@ host 附加身份和传输层上下文。调用者不能通过请求 JSON 自行
 {
   "id": "request-1",
   "error": {
-    "code": "kernel/error/permission_denied",
+    "code": "kernel/v1/error/permission_denied",
     "message": "...",
     "details": {}
   }
@@ -62,7 +62,7 @@ host 附加身份和传输层上下文。调用者不能通过请求 JSON 自行
 
 每个方法具有：
 
-- `id`：内核方法在 `kernel/...` 下命名，包方法在 package id 下命名。
+- `id`：内核方法在 `kernel/v1/...` 下命名，包方法在 package id 下命名。
 - `input`：根据已发布 schema 验证的 JSON 值。
 - `output`：JSON 值，可能是流。
 - `errors`：包含 `code`、`message`、`details` 的结构化错误模型。
@@ -74,12 +74,12 @@ host 附加身份和传输层上下文。调用者不能通过请求 JSON 自行
 ### Session
 
 ```text
-kernel.session.open      open a session with labels and a package set
-kernel.session.close     close a session
-kernel.session.fork      fork a session at an event sequence
-kernel.session.branch.list list branch lineage records
-kernel.session.get       get session metadata
-kernel.session.list      list sessions visible to the caller
+kernel.v1.session.open      open a session with labels and a package set
+kernel.v1.session.close     close a session
+kernel.v1.session.fork      fork a session at an event sequence
+kernel.v1.session.branch.list list branch lineage records
+kernel.v1.session.get       get session metadata
+kernel.v1.session.list      list sessions visible to the caller
 ```
 
 内核不存储任何内容层面的会话状态。标签和包集是仅有的主观判断。
@@ -87,29 +87,29 @@ kernel.session.list      list sessions visible to the caller
 ### 事件
 
 ```text
-kernel.event.append      append an event under the caller's namespace
-kernel.event.list        list events for a session by sequence range
-kernel.event.subscribe   stream events as they are appended (resumable)
+kernel.v1.event.append      append an event under the caller's namespace
+kernel.v1.event.list        list events for a session by sequence range
+kernel.v1.event.subscribe   stream events as they are appended (resumable)
 ```
 
 `event.append` 要求调用者清单中包含 `events.append`。`event.list` 和 `event.subscribe` 对 package 身份要求 `events.read`。当前 host 将 HTTP SSE 作为 host-dev 流暴露：
 
 ```text
-GET /kernel/event.subscribe/:session_id?after_sequence=42&kind_prefix=kernel/&writer_package_id=kernel
+GET /kernel/v1/event.subscribe/:session_id?after_sequence=42&kind_prefix=kernel/v1/&writer_package_id=kernel
 ```
 
-`kernel.event.list` 接受 `session_id`、`after_sequence`、`limit`、`kind_prefix` 和 `writer_package_id`。
+`kernel.v1.event.list` 接受 `session_id`、`after_sequence`、`limit`、`kind_prefix` 和 `writer_package_id`。
 
 ### 包
 
 ```text
-kernel.package.list      list packages visible in the host
-kernel.package.describe  fetch a manifest snapshot
-kernel.package.load      load a package from a manifest reference
-kernel.package.unload    stop and remove a package
-kernel.package.status    current state and health
-kernel.package.restart   restart a package when its entry form supports restart
-kernel.package.logs      read captured package logs
+kernel.v1.package.list      list packages visible in the host
+kernel.v1.package.describe  fetch a manifest snapshot
+kernel.v1.package.load      load a package from a manifest reference
+kernel.v1.package.unload    stop and remove a package
+kernel.v1.package.status    current state and health
+kernel.v1.package.restart   restart a package when its entry form supports restart
+kernel.v1.package.logs      read captured package logs
 ```
 
 加载包可能受 host 策略限制。
@@ -117,11 +117,11 @@ kernel.package.logs      read captured package logs
 ### Capability
 
 ```text
-kernel.capability.discover    enumerate capabilities, optionally filtered
-kernel.capability.describe    fetch input/output schemas and metadata
-kernel.capability.invoke      invoke a capability with input
-kernel.capability.stream      invoke a capability that streams
-kernel.capability.cancel      cancel an in-flight invocation
+kernel.v1.capability.discover    enumerate capabilities, optionally filtered
+kernel.v1.capability.describe    fetch input/output schemas and metadata
+kernel.v1.capability.invoke      invoke a capability with input
+kernel.v1.capability.stream      invoke a capability that streams
+kernel.v1.capability.cancel      cancel an in-flight invocation
 ```
 
 `invoke` 通过 id、可选的 `provider_package_id`、可选版本约束，以及最终的会话包集解析到 provider。如果多个 provider 匹配且调用者未指定 `provider_package_id`，内核返回 ambiguous-route 错误。当前 host 支持精确版本或同主版本 `^x.y` 约束。
@@ -129,9 +129,9 @@ kernel.capability.cancel      cancel an in-flight invocation
 ### 扩展点和钩子
 
 ```text
-kernel.extension_point.list        list live extension points
-kernel.extension_point.describe    fetch payload schema and timing
-kernel.hook.list                   list subscribers to a point
+kernel.v1.extension_point.list        list live extension points
+kernel.v1.extension_point.describe    fetch payload schema and timing
+kernel.v1.hook.list                   list subscribers to a point
 ```
 
 内核不暴露在运行时注入钩子的方法。订阅在清单中声明。运行时注册只允许通过包生命周期进行。
@@ -139,9 +139,9 @@ kernel.hook.list                   list subscribers to a point
 ### Asset
 
 ```text
-kernel.asset.put         store an asset blob under the caller's namespace
-kernel.asset.get         fetch an asset by id
-kernel.asset.list        list assets visible to the caller
+kernel.v1.asset.put         store an asset blob under the caller's namespace
+kernel.v1.asset.get         fetch an asset by id
+kernel.v1.asset.list        list assets visible to the caller
 ```
 
 内核记录 `mime`、`hash`、`size` 和 `origin_package`。它不解析或解释资产内容。
@@ -149,10 +149,10 @@ kernel.asset.list        list assets visible to the caller
 ### Projection
 
 ```text
-kernel.projection.register  register a generic projection definition
-kernel.projection.rebuild   rebuild projection state from event filters
-kernel.projection.get       fetch projection state
-kernel.projection.list      list projection records
+kernel.v1.projection.register  register a generic projection definition
+kernel.v1.projection.rebuild   rebuild projection state from event filters
+kernel.v1.projection.get       fetch projection state
+kernel.v1.projection.list      list projection records
 ```
 
 内核管理 projection 记录和 rebuild 生命周期，但不解释内容相关的状态语义。包拥有的 projection 执行归包所有。
@@ -160,55 +160,55 @@ kernel.projection.list      list projection records
 ### 健康与身份
 
 ```text
-kernel.host.info         host version, kernel ABI, transports
-kernel.host.principal    the calling principal (user, package, remote)
-kernel.host.ping         liveness
-kernel.host.diagnostics  local host diagnostics for package/capability/hook observability
+kernel.v1.host.info         host version, kernel ABI, transports
+kernel.v1.host.principal    the calling principal (user, package, remote)
+kernel.v1.host.ping         liveness
+kernel.v1.host.diagnostics  local host diagnostics for package/capability/hook observability
 ```
 
 ### Outbound
 
 ```text
-kernel.outbound.execute    unary HTTP-style outbound through the host executor
-kernel.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
-kernel.outbound.websocket.open   open an outbound WebSocket stream and return connection_id
-kernel.outbound.websocket.send   send one outbound WebSocket frame
-kernel.outbound.websocket.close  close an outbound WebSocket connection
-kernel.outbound.audit      list redacted outbound audit records for a package
-kernel.outbound.git_fetch  public HTTPS git fetch under host policy
+kernel.v1.outbound.execute    unary HTTP-style outbound through the host executor
+kernel.v1.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
+kernel.v1.outbound.websocket.open   open an outbound WebSocket stream and return connection_id
+kernel.v1.outbound.websocket.send   send one outbound WebSocket frame
+kernel.v1.outbound.websocket.close  close an outbound WebSocket connection
+kernel.v1.outbound.audit      list redacted outbound audit records for a package
+kernel.v1.outbound.git_fetch  public HTTPS git fetch under host policy
 ```
 
-出站协议提供三个出站原语：`execute` 是一元 HTTP-style 请求，`stream` 是 SSE / NDJSON / raw 单向流，`kernel.outbound.websocket.*` 是双向 WebSocket。`websocket.open` 是 streaming 方法，建立 WSS 连接并返回 `connection_id`；`websocket.send` 和 `websocket.close` 是 unary 方法。`connection_id` 也是 `stream_id`，调用 `kernel.capability.cancel` 并传入该 id 会走同一条取消/关闭路径。
+出站协议提供三个出站原语：`execute` 是一元 HTTP-style 请求，`stream` 是 SSE / NDJSON / raw 单向流，`kernel.v1.outbound.websocket.*` 是双向 WebSocket。`websocket.open` 是 streaming 方法，建立 WSS 连接并返回 `connection_id`；`websocket.send` 和 `websocket.close` 是 unary 方法。`connection_id` 也是 `stream_id`，调用 `kernel.v1.capability.cancel` 并传入该 id 会走同一条取消/关闭路径。
 
 请求/响应 shape 以运行时类型和协议分发解析为准，不在本文重复完整结构：HTTP/stream 类型见 `crates/ygg-runtime/src/runtime/outbound.rs`，WebSocket 类型见 `crates/ygg-runtime/src/runtime/outbound_websocket.rs`，协议解析见 `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限；`websocket.open` 接受目标 host/path、可选 subprotocol、headers、`secret_refs` 和连接/帧/字节上限。
 
 出站请求按两层 fail-closed 校验：能力包 manifest 必须声明匹配的 `permissions.network.declarations`（WebSocket 使用 `WEBSOCKET` method），并且所有 `secret_headers` / `secret_refs` 必须声明在 `permissions.secret_refs`。host profile 还必须显式启用对应的 outbound primitive，目标 host 必须精确匹配 allowlist（支持 `*.suffix`），HTTP/SSE 使用 HTTPS-only，WebSocket 默认强制 WSS-only，redirect 默认拒绝。`capability_id` 必须属于调用包 namespace；subprocess reverse kernel calls 也使用 host 绑定的 package principal，不能 spoof。
 
-WebSocket 专用事件使用 `kernel/outbound.websocket.*`：`opened` 记录握手成功和 connection/subprotocol 元数据；`frame` 记录 inbound/outbound、frame kind、字节数和序号，不记录 payload；`error` 记录脱敏错误；`completed` 记录关闭码、原因、帧/字节计数、耗时、executor kind、network_performed、redaction state 与 secret_ref 引用。
+WebSocket 专用事件使用 `kernel/v1/outbound.websocket.*`：`opened` 记录握手成功和 connection/subprotocol 元数据；`frame` 记录 inbound/outbound、frame kind、字节数和序号，不记录 payload；`error` 记录脱敏错误；`completed` 记录关闭码、原因、帧/字节计数、耗时、executor kind、network_performed、redaction state 与 secret_ref 引用。
 
-所有三种出站原语都有完成审计事件：`kernel/outbound.execute.completed`、`kernel/outbound.stream.completed`、`kernel/outbound.websocket.completed`。这些事件只记录状态、计数、耗时、执行器种类、network_performed、redaction state 和 `secret_ref` 引用；不会记录 raw header/body/secret/frame payload/response。
+所有三种出站原语都有完成审计事件：`kernel/v1/outbound.execute.completed`、`kernel/v1/outbound.stream.completed`、`kernel/v1/outbound.websocket.completed`。这些事件只记录状态、计数、耗时、执行器种类、network_performed、redaction state 和 `secret_ref` 引用；不会记录 raw header/body/secret/frame payload/response。
 
-`kernel.outbound.audit` 只返回脱敏审计记录：package、capability、destination host、method、purpose、使用的 `secret_ref` 与 redaction state。raw header/body/secret/response 不进入审计或协议响应。
+`kernel.v1.outbound.audit` 只返回脱敏审计记录：package、capability、destination host、method、purpose、使用的 `secret_ref` 与 redaction state。raw header/body/secret/response 不进入审计或协议响应。
 
 ## 包方法
 
-每个包通过能力注册和扩展点声明贡献自己的协议方法。它们的 schema 可以通过 `kernel.capability.describe` 和 `kernel.extension_point.describe` 发现。
+每个包通过能力注册和扩展点声明贡献自己的协议方法。它们的 schema 可以通过 `kernel.v1.capability.describe` 和 `kernel.v1.extension_point.describe` 发现。
 
 内核不预定义 `session.input`、`prompt_frame.get`、`model.call`、`memory.search` 等方法。如果它们存在，它们属于特定的包。
 
 ## 错误
 
 ```text
-kernel/error/transport
-kernel/error/schema_validation
-kernel/error/manifest
-kernel/error/permission_denied
-kernel/error/ambiguous_route
-kernel/error/not_found
-kernel/error/timeout
-kernel/error/cancelled
-kernel/error/capacity
-kernel/error/package_state
+kernel/v1/error/transport
+kernel/v1/error/schema_validation
+kernel/v1/error/manifest
+kernel/v1/error/permission_denied
+kernel/v1/error/ambiguous_route
+kernel/v1/error/not_found
+kernel/v1/error/timeout
+kernel/v1/error/cancelled
+kernel/v1/error/capacity
+kernel/v1/error/package_state
 ```
 
 包错误作为 `package_error` 携带 provider 定义的详情，在 `capability.invoke` 响应中传递。
@@ -241,10 +241,10 @@ anonymous
 Human 和 assistant 身份对敏感操作需要显式的有范围授权：
 
 ```text
-kernel.permission.grant
-kernel.permission.revoke
-kernel.permission.list
-kernel.permission.audit
+kernel.v1.permission.grant
+kernel.v1.permission.revoke
+kernel.v1.permission.list
+kernel.v1.permission.audit
 ```
 
 ## Surface 贡献
@@ -252,8 +252,8 @@ kernel.permission.audit
 包可以在其清单中声明 UI surface 描述符。内核不渲染或解释这些描述符的内容；它只将它们暴露给公开客户端：
 
 ```text
-kernel.surface.contribution.list
-kernel.surface.contribution.describe
+kernel.v1.surface.contribution.list
+kernel.v1.surface.contribution.describe
 ```
 
 初始 slot 为 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor` 和 `assistant_action`。
@@ -265,12 +265,12 @@ Surface 描述符可以包含版本、启动能力、会话模板、input schema
 Assistant 和包驱动的变更使用通用提案信封，而不是特权变更路径：
 
 ```text
-kernel.proposal.create
-kernel.proposal.get
-kernel.proposal.list
-kernel.proposal.approve
-kernel.proposal.reject
-kernel.proposal.apply
+kernel.v1.proposal.create
+kernel.v1.proposal.get
+kernel.v1.proposal.list
+kernel.v1.proposal.approve
+kernel.v1.proposal.reject
+kernel.v1.proposal.apply
 ```
 
 提案状态为 `created`、`approved`、`rejected`、`applied` 和 `failed`。初始操作支持刻意保持通用，例如 `asset.put` 和 `projection.rebuild`。它们必须产生内核审计/提案事件。

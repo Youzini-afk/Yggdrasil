@@ -162,9 +162,9 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     let sid: SessionId = "ses_prefix_parity".to_string();
 
     let kinds = [
-        "kernel/permission.granted",
-        "kernel/permission.denied",
-        "kernel/session.opened",
+        "kernel/v1/permission.granted",
+        "kernel/v1/permission.denied",
+        "kernel/v1/session.opened",
         "test/custom.event",
     ];
 
@@ -192,8 +192,8 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     }
 
     // Cross-session kind-prefix query
-    let mem_perm = mem.list_kind_prefix("kernel/permission").await?;
-    let sqlite_perm = sqlite.list_kind_prefix("kernel/permission").await?;
+    let mem_perm = mem.list_kind_prefix("kernel/v1/permission").await?;
+    let sqlite_perm = sqlite.list_kind_prefix("kernel/v1/permission").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_perm, &sqlite_perm),
         "kind_prefix mismatch: in-memory has {} events, sqlite has {}",
@@ -203,8 +203,8 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     anyhow::ensure!(mem_perm.len() == 2, "expected 2 permission events, got {}", mem_perm.len());
 
     // Session-scoped kind-prefix query
-    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/permission").await?;
-    let sqlite_session_perm = sqlite.list_session_kind_prefix(&sid, "kernel/permission").await?;
+    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
+    let sqlite_session_perm = sqlite.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_session_perm, &sqlite_session_perm),
         "session kind_prefix mismatch"
@@ -238,7 +238,7 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
             .append_with_sequence(
                 sid.clone(),
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/session.opened".to_string(),
+                "kernel/v1/session.opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -288,7 +288,7 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
             .append_with_sequence(
                 sid.clone(),
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/session.opened".to_string(),
+                "kernel/v1/session.opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -528,9 +528,9 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
     let sid: SessionId = format!("ses_pg_prefix_{}", ygg_core::new_id("pg"));
 
     let kinds = [
-        "kernel/permission.granted",
-        "kernel/permission.denied",
-        "kernel/session.opened",
+        "kernel/v1/permission.granted",
+        "kernel/v1/permission.denied",
+        "kernel/v1/session.opened",
         "test/custom.event",
     ];
 
@@ -555,8 +555,8 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
         .await?;
     }
 
-    let mem_perm = mem.list_kind_prefix("kernel/permission").await?;
-    let pg_perm = pg.list_kind_prefix("kernel/permission").await?;
+    let mem_perm = mem.list_kind_prefix("kernel/v1/permission").await?;
+    let pg_perm = pg.list_kind_prefix("kernel/v1/permission").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_perm, &pg_perm),
         "kind_prefix mismatch: in-memory has {} events, postgres has {}",
@@ -565,8 +565,8 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
     );
     anyhow::ensure!(pg_perm.len() == 2, "expected 2 permission events, got {}", pg_perm.len());
 
-    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/permission").await?;
-    let pg_session_perm = pg.list_session_kind_prefix(&sid, "kernel/permission").await?;
+    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
+    let pg_session_perm = pg.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_session_perm, &pg_session_perm),
         "session kind_prefix mismatch"
@@ -587,7 +587,7 @@ pub(crate) async fn postgres_backend_parity_concurrent_append() -> anyhow::Resul
     pg.append_with_sequence(
         sid.clone(),
         KERNEL_PACKAGE_ID.to_string(),
-        "kernel/session.opened".to_string(),
+        "kernel/v1/session.opened".to_string(),
         1,
         json!({}),
         json!({}),

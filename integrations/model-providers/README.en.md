@@ -32,8 +32,8 @@ This directory records the research boundary for Model Provider Integration Alph
 
 - No user balances, recharge, multipliers, channel admin, or admin UI.
 - No hosted platform master API key.
-- No `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, or `kernel.embedding.*`.
-- No provider profile, model catalog, prompt/messages schema in the kernel.
+- No `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.chat.*`, or `kernel.v1.embedding.*`.
+- No provider profile, model catalog, prompt/messages schema in the kernel.v1.
 - No implicit network, secret, routing, or UI privilege for official provider packages.
 
 ## Files

@@ -29,7 +29,7 @@ Yggdrasil is not:
 
 ### 1. The kernel knows nothing about content
 
-Characters, scenes, worlds, prompts, models, turns, chats, agents, memory, games, rules, dice, inventories, genres — none of these live in the kernel. They are package concerns. If a concept means something to a player or a creator, it doesn't belong in the kernel.
+Characters, scenes, worlds, prompts, models, turns, chats, agents, memory, games, rules, dice, inventories, genres — none of these live in the kernel.v1. They are package concerns. If a concept means something to a player or a creator, it doesn't belong in the kernel.v1.
 
 ### 2. Official packages have no privileges
 
@@ -85,7 +85,7 @@ The kernel will not ship:
 - a bridge to an external game engine;
 - a privileged UI.
 
-Each of these is welcome as a capability package. None of them belong in the kernel.
+Each of these is welcome as a capability package. None of them belong in the kernel.v1.
 
 ## Stance on existing code
 

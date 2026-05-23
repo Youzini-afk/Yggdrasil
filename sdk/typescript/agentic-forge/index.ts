@@ -4,8 +4,8 @@
  *
  * This module defines the **agentic forge contract** at the package/SDK layer.
  * It does NOT enter the kernel, does NOT add Rust protocol methods, and does
- * NOT add `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`,
- * `kernel.memory.*`, or `kernel.turn.*`.
+ * NOT add `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`,
+ * `kernel.v1.memory.*`, or `kernel.v1.turn.*`.
  *
  * ## Design principles
  *
@@ -13,8 +13,8 @@
  *   package artifacts, not kernel primitives.
  * - **Deterministic**: No network, no real model inference, no random.
  * - **Secret-safe**: Uses `secret_ref` identifiers; rejects raw secrets.
- * - **No kernel agent namespace**: Output never contains `kernel.agent.*`,
- *   `kernel.model.*`, `kernel.prompt.*`, `kernel.memory.*`, `kernel.turn.*`.
+ * - **No kernel agent namespace**: Output never contains `kernel.v1.agent.*`,
+ *   `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.memory.*`, `kernel.v1.turn.*`.
  *
  * ## API surface
  *
@@ -476,14 +476,14 @@ export function blockRawSecrets(value: unknown): boolean {
   return false;
 }
 
-/** Check that a JSON-serializable output contains no kernel.agent/model/prompt/memory/turn namespace. */
+/** Check that a JSON-serializable output contains no kernel.v1.agent/model/prompt/memory/turn namespace. */
 export function hasKernelAgentNamespace(value: unknown): boolean {
   const str = JSON.stringify(value);
-  return str.includes("kernel.agent") ||
-         str.includes("kernel.model") ||
-         str.includes("kernel.prompt") ||
-         str.includes("kernel.memory") ||
-         str.includes("kernel.turn");
+  return str.includes("kernel.v1.agent") ||
+         str.includes("kernel.v1.model") ||
+         str.includes("kernel.v1.prompt") ||
+         str.includes("kernel.v1.memory") ||
+         str.includes("kernel.v1.turn");
 }
 
 // ---------------------------------------------------------------------------
@@ -1038,8 +1038,8 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
 
   // No kernel agent namespace
   assert(!hasKernelAgentNamespace({ kind: "agentic_forge_run_started", run_id: "r1" }), "clean output has no kernel agent namespace");
-  assert(hasKernelAgentNamespace({ method: "kernel.agent.run" }), "kernel.agent detected");
-  assert(hasKernelAgentNamespace({ method: "kernel.model.infer" }), "kernel.model detected");
+  assert(hasKernelAgentNamespace({ method: "kernel.v1.agent.run" }), "kernel.v1.agent detected");
+  assert(hasKernelAgentNamespace({ method: "kernel.v1.model.infer" }), "kernel.v1.model detected");
 
   // isSecretFieldName
   assert(isSecretFieldName("api_key"), "api_key is secret field");

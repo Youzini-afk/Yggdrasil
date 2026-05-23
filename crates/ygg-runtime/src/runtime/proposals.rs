@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use schemars::JsonSchema;
 use ygg_core::{
     new_id, SessionId, KERNEL_PACKAGE_ID,
     EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED, EVENT_PROPOSAL_CREATED, EVENT_PROPOSAL_FAILED,
@@ -10,7 +11,7 @@ use ygg_core::{
 use super::Runtime;
 use crate::{EventStore, ProtocolContext, ProtocolPrincipal, redaction};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProposalStatus {
     Created,
@@ -30,7 +31,7 @@ fn anonymous_principal() -> ProtocolPrincipal {
     ProtocolPrincipal::Anonymous
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProposalRecord {
     #[serde(default)]
     pub id: String,
@@ -56,7 +57,7 @@ pub struct ProposalRecord {
     pub result: Option<Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProposalOperation {
     pub op: String,
     #[serde(default)]
@@ -65,7 +66,7 @@ pub struct ProposalOperation {
     pub payload: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProposalApproval {
     pub principal: ProtocolPrincipal,
     pub decided_at: chrono::DateTime<Utc>,

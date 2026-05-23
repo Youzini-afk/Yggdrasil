@@ -161,7 +161,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("demo"),
-            "kernel.permission.grant",
+            "kernel.v1.permission.grant",
             json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
         )
         .await
@@ -173,7 +173,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let proposal = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.capability.invoke",
+            "kernel.v1.capability.invoke",
             json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"seed": seed.output, "change": "try a first branch"}}),
         )
         .await
@@ -202,7 +202,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .projection_register(ygg_runtime::runtime::ProjectionDefinition {
             id: projection_id.clone(),
             session_id: session.id.clone(),
-            source_kind_prefix: Some("kernel/session".to_string()),
+            source_kind_prefix: Some("kernel/v1/session".to_string()),
             state: json!({}),
         })
         .await?;

@@ -1,12 +1,13 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use schemars::JsonSchema;
 use ygg_core::{new_id, EventSequence, SessionId, EVENT_SESSION_FORKED};
 
 use super::Runtime;
 use crate::EventStore;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BranchRecord {
     pub id: String,
     pub parent_session_id: SessionId,

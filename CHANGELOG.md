@@ -16,12 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This changelog
 
 ### Outbound (prior to S-track)
-- `kernel.outbound.execute` for unary HTTPS
-- `kernel.outbound.stream` for SSE/NDJSON streaming
-- `kernel.outbound.websocket.*` for bidirectional WebSocket
+- `kernel.v1.outbound.execute` for unary HTTPS
+- `kernel.v1.outbound.stream` for SSE/NDJSON streaming
+- `kernel.v1.outbound.websocket.*` for bidirectional WebSocket
 - Outbound completion audit events
 - Manifest `permissions.secret_refs` declarations
-- Subprocess SDK reverse `kernel.*` dispatch + `kernelClient.openWebSocket`
+- Subprocess SDK reverse `kernel.v1.*` dispatch + `kernelClient.openWebSocket`
 
 ## [0.1.0] — TBD (initial release)
 

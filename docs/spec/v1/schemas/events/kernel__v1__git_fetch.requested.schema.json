@@ -1,0 +1,166 @@
+{
+  "$defs": {
+    "Payload": {
+      "$defs": {
+        "GitFetchKind": {
+          "description": "The kind of git fetch a caller is asking the host to perform.\n\nThis is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.",
+          "oneOf": [
+            {
+              "description": "Fetch just enough metadata to resolve a ref / inspect a manifest.",
+              "enum": [
+                "refs_only"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Fetch a single tree snapshot without history where the executor can.",
+              "enum": [
+                "tree_only"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Shallow clone / checkout bounded by host policy.",
+              "enum": [
+                "shallow_clone"
+              ],
+              "type": "string"
+            }
+          ]
+        },
+        "RedactionState": {
+          "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+          "oneOf": [
+            {
+              "description": "Raw data was not captured (default).",
+              "enum": [
+                "not_captured"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Raw data was redacted before recording.",
+              "enum": [
+                "redacted"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Only a policy reference is stored; no data captured.",
+              "enum": [
+                "policy_ref"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Request was blocked as unsafe; no data recorded.",
+              "enum": [
+                "unsafe_blocked"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Explicit user/host approval to capture raw data (rare).",
+              "enum": [
+                "explicitly_approved"
+              ],
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Request sent to a git outbound executor.\n\nThe request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.",
+      "properties": {
+        "capability_id": {
+          "description": "Capability through which the request was made.",
+          "type": "string"
+        },
+        "destination_hint": {
+          "default": null,
+          "description": "Optional host-internal destination hint. The executor may ignore it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fetch_kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GitFetchKind"
+            }
+          ],
+          "description": "Fetch shape requested by the caller."
+        },
+        "metadata": {
+          "default": null,
+          "description": "Opaque package-owned metadata. Must not contain raw secrets."
+        },
+        "package_id": {
+          "description": "Package that initiated the git fetch request.",
+          "type": "string"
+        },
+        "redaction_state": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RedactionState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Redaction state carried forward from policy/audit."
+        },
+        "reference": {
+          "description": "Branch, tag, or commit SHA requested by the caller.",
+          "type": "string"
+        },
+        "remote_url": {
+          "description": "Public HTTPS git URL. Non-HTTPS transports are rejected by policy.",
+          "type": "string"
+        },
+        "secret_refs": {
+          "default": [],
+          "description": "Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "timeout_ms": {
+          "default": null,
+          "description": "Optional timeout in milliseconds.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "capability_id",
+        "fetch_kind",
+        "package_id",
+        "reference",
+        "remote_url"
+      ],
+      "title": "GitOutboundRequest",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__git_fetch.requested.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind kernel/v1/git_fetch.requested.",
+  "properties": {
+    "kind": {
+      "const": "kernel/v1/git_fetch.requested"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "kernel/v1/git_fetch.requested",
+  "type": "object"
+}

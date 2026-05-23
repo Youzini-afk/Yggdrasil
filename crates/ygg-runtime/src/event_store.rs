@@ -453,7 +453,7 @@ mod sqlite_tests {
                 session_id.clone(),
                 0,
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/session.opened",
+                "kernel/v1/session.opened",
                 json!({"ok": true}),
             ))
             .await?;
@@ -479,7 +479,7 @@ mod sqlite_tests {
             .append_with_sequence(
                 session_id.clone(),
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/session.opened".to_string(),
+                "kernel/v1/session.opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -495,7 +495,7 @@ mod sqlite_tests {
                 s.append_with_sequence(
                     sid,
                     KERNEL_PACKAGE_ID.to_string(),
-                    format!("kernel/test.concurrent.{}", i),
+                    format!("kernel/v1/test.concurrent.{}", i),
                     1,
                     json!({"i": i}),
                     json!({}),
@@ -533,7 +533,7 @@ mod sqlite_tests {
             .append_with_sequence(
                 session_id.clone(),
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/permission.granted".to_string(),
+                "kernel/v1/permission.granted".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -543,7 +543,7 @@ mod sqlite_tests {
             .append_with_sequence(
                 session_id.clone(),
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/permission.denied".to_string(),
+                "kernel/v1/permission.denied".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -553,17 +553,17 @@ mod sqlite_tests {
             .append_with_sequence(
                 session_id.clone(),
                 KERNEL_PACKAGE_ID.to_string(),
-                "kernel/session.opened".to_string(),
+                "kernel/v1/session.opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
             )
             .await?;
 
-        let perm_events = store.list_kind_prefix("kernel/permission").await?;
+        let perm_events = store.list_kind_prefix("kernel/v1/permission").await?;
         assert_eq!(perm_events.len(), 2);
 
-        let session_perm = store.list_session_kind_prefix(&session_id, "kernel/permission").await?;
+        let session_perm = store.list_session_kind_prefix(&session_id, "kernel/v1/permission").await?;
         assert_eq!(session_perm.len(), 2);
 
         let _ = std::fs::remove_file(path);
@@ -1046,7 +1046,7 @@ mod postgres_backend {
                 .append_with_sequence(
                     session_id.clone(),
                     KERNEL_PACKAGE_ID.to_string(),
-                    "kernel/session.opened".to_string(),
+                    "kernel/v1/session.opened".to_string(),
                     1,
                     json!({}),
                     json!({}),
@@ -1074,7 +1074,7 @@ mod postgres_backend {
                 .append_with_sequence(
                     session_id.clone(),
                     KERNEL_PACKAGE_ID.to_string(),
-                    "kernel/session.opened".to_string(),
+                    "kernel/v1/session.opened".to_string(),
                     1,
                     json!({}),
                     json!({}),

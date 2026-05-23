@@ -88,9 +88,9 @@ pub(crate) async fn agentic_forge_describe_contract() -> anyhow::Result<()> {
 
     // No kernel agent namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.agent"), "describe_contract must not contain kernel.agent");
-    anyhow::ensure!(!output_str.contains("kernel.model"), "describe_contract must not contain kernel.model");
-    anyhow::ensure!(!output_str.contains("kernel.prompt"), "describe_contract must not contain kernel.prompt");
+    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "describe_contract must not contain kernel.v1.agent");
+    anyhow::ensure!(!output_str.contains("kernel.v1.model"), "describe_contract must not contain kernel.v1.model");
+    anyhow::ensure!(!output_str.contains("kernel.v1.prompt"), "describe_contract must not contain kernel.v1.prompt");
 
     Ok(())
 }
@@ -359,7 +359,7 @@ pub(crate) async fn agentic_forge_raw_secret_blocked() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Phase A case 5: outputs contain no kernel.agent/model/prompt/memory/turn
+/// Phase A case 5: outputs contain no kernel.v1.agent/model/prompt/memory/turn
 /// namespace references.
 pub(crate) async fn agentic_forge_no_kernel_agent_namespace() -> anyhow::Result<()> {
     let runtime = load_forge_lab().await?;
@@ -403,24 +403,24 @@ pub(crate) async fn agentic_forge_no_kernel_agent_namespace() -> anyhow::Result<
     ] {
         let output_str = serde_json::to_string(output).unwrap();
         anyhow::ensure!(
-            !output_str.contains("kernel.agent"),
-            "{label} must not contain kernel.agent"
+            !output_str.contains("kernel.v1.agent"),
+            "{label} must not contain kernel.v1.agent"
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.model"),
-            "{label} must not contain kernel.model"
+            !output_str.contains("kernel.v1.model"),
+            "{label} must not contain kernel.v1.model"
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.prompt"),
-            "{label} must not contain kernel.prompt"
+            !output_str.contains("kernel.v1.prompt"),
+            "{label} must not contain kernel.v1.prompt"
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.memory"),
-            "{label} must not contain kernel.memory"
+            !output_str.contains("kernel.v1.memory"),
+            "{label} must not contain kernel.v1.memory"
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.turn"),
-            "{label} must not contain kernel.turn"
+            !output_str.contains("kernel.v1.turn"),
+            "{label} must not contain kernel.v1.turn"
         );
     }
 
@@ -478,8 +478,8 @@ pub(crate) async fn agentic_forge_create_candidate() -> anyhow::Result<()> {
 
     // No kernel namespace
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.agent"), "create_candidate must not contain kernel.agent");
-    anyhow::ensure!(!output_str.contains("kernel.proposal.create"), "create_candidate must not call kernel.proposal.create");
+    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "create_candidate must not contain kernel.v1.agent");
+    anyhow::ensure!(!output_str.contains("kernel.v1.proposal.create"), "create_candidate must not call kernel.v1.proposal.create");
 
     Ok(())
 }
@@ -545,7 +545,7 @@ pub(crate) async fn agentic_forge_compare_candidate() -> anyhow::Result<()> {
 }
 
 /// Phase B case 3: draft_promote_proposal creates proposal draft only,
-/// no direct mutation terms (no kernel.proposal.create).
+/// no direct mutation terms (no kernel.v1.proposal.create).
 pub(crate) async fn agentic_forge_draft_promote_proposal() -> anyhow::Result<()> {
     let runtime = load_forge_lab().await?;
 
@@ -598,8 +598,8 @@ pub(crate) async fn agentic_forge_draft_promote_proposal() -> anyhow::Result<()>
 
     // No kernel mutation namespace
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.proposal.create"), "must not reference kernel.proposal.create");
-    anyhow::ensure!(!output_str.contains("kernel.agent"), "must not contain kernel.agent");
+    anyhow::ensure!(!output_str.contains("kernel.v1.proposal.create"), "must not reference kernel.v1.proposal.create");
+    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "must not contain kernel.v1.agent");
 
     Ok(())
 }
@@ -690,7 +690,7 @@ pub(crate) async fn agentic_forge_archive_candidate() -> anyhow::Result<()> {
 
     // Verify no direct mutation terms
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.agent"), "archive output must not contain kernel.agent");
+    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "archive output must not contain kernel.v1.agent");
 
     Ok(())
 }
@@ -744,7 +744,7 @@ pub(crate) async fn agentic_forge_inference_node_deterministic() -> anyhow::Resu
 
     // No kernel namespace
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.agent"), "inference output must not contain kernel.agent");
+    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "inference output must not contain kernel.v1.agent");
     anyhow::ensure!(!output_str.contains("auto_promote"), "inference output must not contain auto_promote");
 
     Ok(())
@@ -908,7 +908,7 @@ pub(crate) async fn agentic_forge_cloud_adapter_no_network() -> anyhow::Result<(
 
     // No raw network or endpoint data in output
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.agent"), "cloud adapter output must not contain kernel.agent");
+    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "cloud adapter output must not contain kernel.v1.agent");
 
     Ok(())
 }
@@ -1411,12 +1411,12 @@ pub(crate) async fn agentic_forge_no_official_priority() -> anyhow::Result<()> {
 
     // Official package must not claim any kernel privilege
     let output_str = serde_json::to_string(&desc.output).unwrap_or_default();
-    let has_kernel_priv = output_str.contains("kernel.agent.")
-        || output_str.contains("kernel.model.")
-        || output_str.contains("kernel.prompt.")
-        || output_str.contains("kernel.memory.")
-        || output_str.contains("kernel.turn.");
-    anyhow::ensure!(!has_kernel_priv, "official agentic-forge must not contain kernel.agent/model/prompt/memory/turn namespace");
+    let has_kernel_priv = output_str.contains("kernel.v1.agent.")
+        || output_str.contains("kernel.v1.model.")
+        || output_str.contains("kernel.v1.prompt.")
+        || output_str.contains("kernel.v1.memory.")
+        || output_str.contains("kernel.v1.turn.");
+    anyhow::ensure!(!has_kernel_priv, "official agentic-forge must not contain kernel.v1.agent/model/prompt/memory/turn namespace");
 
     // Verify describe_contract says it's an ordinary package
     anyhow::ensure!(

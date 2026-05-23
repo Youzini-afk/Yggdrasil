@@ -64,7 +64,7 @@ export interface ProtocolResponse {
   capability_id: string;
   /** The provider package id that handled the call. */
   provider_package_id?: string;
-  /** Optional trace id assigned by the kernel. */
+  /** Optional trace id assigned by the kernel.v1. */
   trace_id?: string;
 }
 
@@ -646,10 +646,10 @@ export function createProposalDraft(
 /**
  * Diagnose permission requirements for a capability tool.
  *
- * This is a client-side check — it does not query the kernel. It
+ * This is a client-side check — it does not query the kernel.v1. It
  * reports which permissions a tool requires and marks them as
  * "missing" since the adapter has no access to the actual grant
- * state. Consumers should use `kernel.capability.describe` for
+ * state. Consumers should use `kernel.v1.capability.describe` for
  * authoritative permission checks.
  */
 export function diagnosePermissions(tool: CapabilityTool): PermissionDiagnostics {

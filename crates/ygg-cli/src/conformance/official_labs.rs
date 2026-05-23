@@ -14,7 +14,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.capability.invoke",
+            "kernel.v1.capability.invoke",
             json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"change": "try branch"}}),
         )
         .await;
@@ -22,7 +22,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.permission.grant",
+            "kernel.v1.permission.grant",
             json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
         )
         .await
@@ -30,14 +30,14 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let proposal = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.capability.invoke",
+            "kernel.v1.capability.invoke",
             json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"change": "try branch"}}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(proposal["output"]["requires_user_approval"] == json!(true), "assistant did not return an approval-gated proposal");
     let surfaces = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({"slot": "assistant_action"}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.surface.contribution.list", json!({"slot": "assistant_action"}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(surfaces.as_array().map(|items| items.len()).unwrap_or(0) == 1, "assistant surface contribution missing");
@@ -176,7 +176,7 @@ pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
         "package-installer-lab contract returned wrong kind"
     );
     anyhow::ensure!(
-        contract.output.to_string().contains("kernel.outbound.git_fetch"),
+        contract.output.to_string().contains("kernel.v1.outbound.git_fetch"),
         "contract should point at the public git outbound method"
     );
 
@@ -645,7 +645,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
         })
         .await?;
     anyhow::ensure!(invoke_explicit.output["status"] == json!("plan_ready"), "explicit third-party invoke should be plan_ready");
-    anyhow::ensure!(invoke_explicit.output["method"] == json!("kernel.capability.invoke"), "invoke_tool method should be kernel.capability.invoke");
+    anyhow::ensure!(invoke_explicit.output["method"] == json!("kernel.v1.capability.invoke"), "invoke_tool method should be kernel.v1.capability.invoke");
     anyhow::ensure!(invoke_explicit.output["requires_user_approval"] == json!(true), "invoke plan must require approval");
 
     // invoke_tool: explicit provider must match supplied candidates
@@ -731,7 +731,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
         .await?;
     anyhow::ensure!(stream_missing.output["kind"] == json!("tool_bridge_stream_plan"), "stream_tool wrong kind");
     anyhow::ensure!(stream_missing.output["status"] == json!("rejected"), "missing provider stream should be rejected");
-    anyhow::ensure!(stream_missing.output["method"] == json!("kernel.capability.stream"), "stream method should be kernel.capability.stream");
+    anyhow::ensure!(stream_missing.output["method"] == json!("kernel.v1.capability.stream"), "stream method should be kernel.v1.capability.stream");
 
     // stream_tool: explicit provider must match supplied candidates
     let stream_bad_provider = runtime
@@ -760,7 +760,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "thirdparty/my-tool",
-                "method": "kernel.capability.invoke"
+                "method": "kernel.v1.capability.invoke"
             }),
         })
         .await?;

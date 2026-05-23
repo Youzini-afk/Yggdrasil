@@ -32,7 +32,7 @@
 
 - 不做用户余额、充值、倍率、渠道后台或 admin UI。
 - 不托管统一平台代理 API key。
-- 不新增 `kernel.model.*`、`kernel.prompt.*`、`kernel.chat.*`、`kernel.embedding.*`。
+- 不新增 `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*`、`kernel.v1.embedding.*`。
 - 不把 provider profile、模型列表、prompt/messages schema 做进 kernel。
 - 不让官方 provider 包获得隐式 network、secret、routing 或 UI 特权。
 

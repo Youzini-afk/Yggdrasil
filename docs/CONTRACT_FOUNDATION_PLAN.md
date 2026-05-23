@@ -21,7 +21,7 @@ without locking ourselves into one IDL.
 ## Constraints (user feedback)
 
 - **No deprecation layer**: kernel hasn't shipped, so we rename freely. No
-  `kernel.session.open` AND `kernel.v1.session.open` coexisting. Clean break.
+  `kernel.v1.session.open` AND `kernel.v1.session.open` coexisting. Clean break.
 - **npm is one distribution path, not the only one**: SDK consumers can clone
   the repo and use a path reference, install the published npm package, or
   read the public schemas and generate their own bindings.
@@ -39,7 +39,7 @@ without locking ourselves into one IDL.
 
 ### C1 — Schema extraction + v1 namespace (clean break)
 
-Extract all kernel.* method shapes and event kinds from Rust source into
+Extract all kernel.v1.* method shapes and event kinds from Rust source into
 public JSON Schema 2020-12 files. Rename every method to `kernel.v1.*`.
 
 Outputs:
@@ -101,9 +101,9 @@ sessions, suggests least-authority manifests.
 Add `duration_ms` to `CapabilityInvocationResult`. Write the three event
 kinds that the spec already declared but no one writes:
 
-- `kernel/v1/capability.invoked`
-- `kernel/v1/capability.completed`
-- `kernel/v1/capability.failed`
+- `kernel/v1/v1/capability.invoked`
+- `kernel/v1/v1/capability.completed`
+- `kernel/v1/v1/capability.failed`
 
 Add `correlation_id` and `parent_invocation_id` fields to `ProtocolContext`
 for trace correlation. Outbound completion events (already have duration_ms
@@ -192,7 +192,7 @@ when a wave produces work in multiple phases.
   generated SDK from C10 should keep the same TS surface, so YdlTavern's
   call sites don't change much.
 - C9 conformance kit is run against YdlTavern's manifest at the end of C11.
-- C11 docs update YdlTavern's references to `kernel.v0.alpha` to `kernel.v1`.
+- C11 docs update YdlTavern's references to `kernel.v1.v0.alpha` to `kernel.v1.v1`.
 
 YdlTavern won't be massively rewritten; it's mostly method-name updates and
 manifest field additions.

@@ -2,7 +2,7 @@ schema_version: 1
 id: official/capability-tool-bridge-lab
 version: 0.1.0
 display_name: Official Capability Tool Bridge Lab
-description: Discover capabilities, preview permissions, resolve explicit provider selection, and draft invocation/streaming plans through kernel.capability.invoke/stream without privileged runtime access.
+description: Discover capabilities, preview permissions, resolve explicit provider selection, and draft invocation/streaming plans through kernel.v1.capability.invoke/stream without privileged runtime access.
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

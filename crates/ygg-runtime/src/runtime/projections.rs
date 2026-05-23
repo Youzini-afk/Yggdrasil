@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use schemars::JsonSchema;
 use ygg_core::{SessionId, EVENT_PROJECTION_UPDATED};
 
 use super::Runtime;
 use crate::EventStore;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProjectionDefinition {
     pub id: String,
     pub session_id: SessionId,

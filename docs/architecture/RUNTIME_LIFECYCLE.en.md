@@ -17,7 +17,7 @@ stopped     resources released
 unloaded    no longer active in the host
 ```
 
-Each transition emits a `kernel/package.*` event. Subscribers react through the public protocol, including observability tools and other packages. The kernel exposes no private hook for package state.
+Each transition emits a `kernel/v1/package.*` event. Subscribers react through the public protocol, including observability tools and other packages. The kernel exposes no private hook for package state.
 
 ## Session lifecycle
 
@@ -25,14 +25,14 @@ A session is a labeled event stream with an attached package set and a permissio
 
 ```text
 requested   open() received, principal and labels supplied
-opening     kernel/session.before_open dispatched (sync, vetoable)
-open        kernel/session.opened emitted
+opening     kernel/v1/session.before_open dispatched (sync, vetoable)
+open        kernel/v1/session.opened emitted
             event log accepting appends from authorized writers
             capability invocations dispatching against the active package set
 forking     fork() received with parent session and forked-from sequence
-forked      kernel/session.forked emitted; child session inherits parent up to the chosen sequence
-closing     kernel/session.before_close dispatched (sync, vetoable)
-closed      kernel/session.closed emitted; log frozen for further appends
+forked      kernel/v1/session.forked emitted; child session inherits parent up to the chosen sequence
+closing     kernel/v1/session.before_close dispatched (sync, vetoable)
+closed      kernel/v1/session.closed emitted; log frozen for further appends
 ```
 
 The kernel does not own a "current turn," "active actor," or any content-level state of the session. If a package needs such a concept, it derives it from events.
@@ -42,11 +42,11 @@ The kernel does not own a "current turn," "active actor," or any content-level s
 The kernel mediates generic approval-gated change proposals. The lifecycle is content-free. It only knows the operations it can apply, such as `asset.put` and `projection.rebuild`.
 
 ```text
-created     proposal recorded under requesting principal; kernel/proposal.created emitted
-approved    approver decision recorded; kernel/proposal.approved emitted
-rejected    approver decision recorded; kernel/proposal.rejected emitted
-applied     approved proposal executed against the kernel; kernel/proposal.applied emitted
-failed     application or validation failed; kernel/proposal.failed emitted
+created     proposal recorded under requesting principal; kernel/v1/proposal.created emitted
+approved    approver decision recorded; kernel/v1/proposal.approved emitted
+rejected    approver decision recorded; kernel/v1/proposal.rejected emitted
+applied     approved proposal executed against the kernel; kernel/v1/proposal.applied emitted
+failed     application or validation failed; kernel/v1/proposal.failed emitted
 ```
 
 A package or assistant principal cannot apply a proposal directly. It must reach `approved` first. The kernel does not invent domain-specific proposal semantics; richer operations such as multi-step transactions and package-side compensation belong to packages built on top.
@@ -55,21 +55,21 @@ A package or assistant principal cannot apply a proposal directly. It must reach
 
 ```text
 requested        invoke(id, version, input) received
-authorizing      kernel/capability.before_invoke dispatched (sync, vetoable)
+authorizing      kernel/v1/capability.before_invoke dispatched (sync, vetoable)
 routed           provider selected by id+version+session package set
 running          provider executing; streaming chunks may flow
-completed        kernel/capability.completed emitted with output (or stream end)
-failed           kernel/capability.failed emitted with structured error
+completed        kernel/v1/capability.completed emitted with output (or stream end)
+failed           kernel/v1/capability.failed emitted with structured error
 cancelled        cancellation acknowledged by provider; failed/completed event records the outcome
 ```
 
-The kernel records invocations as kernel events. The contents of `input` and `output` are opaque to the kernel. They are validated only against the provider's declared schemas.
+The kernel records invocations as kernel events. The contents of `input` and `output` are opaque to the kernel.v1. They are validated only against the provider's declared schemas.
 
 ## Cancellation and timeouts
 
 Every long-running operation has a deadline, including capability invocation, hook dispatch, and package start. The deadline is derived from manifest sandbox policy plus host policy. Exceeding it triggers cancellation, and the kernel records the outcome.
 
-The kernel does not invent its own cancellation semantics for content. There is no "regenerate" or "stop generating" in the kernel. Such operations are package capabilities.
+The kernel does not invent its own cancellation semantics for content. There is no "regenerate" or "stop generating" in the kernel.v1. Such operations are package capabilities.
 
 ## Replay and bootstrap
 
@@ -84,7 +84,7 @@ Packages that need to rebuild internal state from the event log do so via `event
 
 ## Errors
 
-The kernel classifies errors only at its own boundary: transport, manifest, schema, permission, capacity, lifecycle, ambiguous-route. Package errors flow through capability invocations as opaque structured failures and are recorded under `kernel/capability.failed`.
+The kernel classifies errors only at its own boundary: transport, manifest, schema, permission, capacity, lifecycle, ambiguous-route. Package errors flow through capability invocations as opaque structured failures and are recorded under `kernel/v1/capability.failed`.
 
 ## What this lifecycle does not describe
 

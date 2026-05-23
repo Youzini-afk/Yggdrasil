@@ -33,13 +33,13 @@ const AGENT_ID_HINTS = ["agent", "pi-agent", "tool-bridge", "trace", "run", "ass
 const TOOL_BRIDGE_KIND_HINTS = ["tool_bridge", "tool-bridge", "capability.invoke", "capability.stream"];
 const TRACE_KIND_HINTS = ["trace", "tool", "run", "proposal"];
 const STREAM_KINDS = [
-  "kernel/stream.chunk",
-  "kernel/stream.progress",
-  "kernel/stream.error",
-  "kernel/stream.cancelled",
-  "kernel/stream.timeout",
-  "kernel/stream.started",
-  "kernel/stream.ended",
+  "kernel/v1/stream.chunk",
+  "kernel/v1/stream.progress",
+  "kernel/v1/stream.error",
+  "kernel/v1/stream.cancelled",
+  "kernel/v1/stream.timeout",
+  "kernel/v1/stream.started",
+  "kernel/v1/stream.ended",
 ];
 
 function looksAgentLike(id: string): boolean {
@@ -64,7 +64,7 @@ function isToolBridgeEvent(event: KernelEvent): boolean {
   if (TOOL_BRIDGE_KIND_HINTS.some((h) => kind.includes(h))) return true;
   if (typeof event.payload === "object" && event.payload !== null) {
     const p = event.payload as Record<string, unknown>;
-    // kernel.capability.invoke/stream method in payload
+    // kernel.v1.capability.invoke/stream method in payload
     const method = typeof p.method === "string" ? p.method.toLowerCase() : "";
     if (method.includes("capability.invoke") || method.includes("capability.stream")) return true;
     // tool_calls in payload
@@ -786,7 +786,7 @@ function renderRunTimelineSection(runs: RunTimelineEntry[]): string {
         <details class="protocol-preview-details">
           <summary class="protocol-preview-summary">Public protocol shape (run lifecycle event)</summary>
           <pre class="protocol-preview-code">${formatJson({
-            kind: "kernel/event.append or package-owned run.*",
+            kind: "kernel/v1/event.append or package-owned run.*",
             payload: {
               run_id: "<package-owned-run-id>",
               lifecycle_state: "created | prepared | running | paused | waiting_for_approval | completed | failed | cancelled | archived",

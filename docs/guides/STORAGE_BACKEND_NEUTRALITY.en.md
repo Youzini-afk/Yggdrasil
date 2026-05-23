@@ -15,7 +15,7 @@ Yggdrasil currently has a SQLite-backed append-only event log, but the platform 
 
 ## Red lines
 
-- Do not add `kernel.sqlite.*`, `kernel.postgres.*`, `kernel.tdb.*`, `kernel.vector.*`, `kernel.embedding.*`, `kernel.collection.*`, `kernel.sql.*`, or `kernel.database.*`.
+- Do not add `kernel.v1.sqlite.*`, `kernel.v1.postgres.*`, `kernel.v1.tdb.*`, `kernel.v1.vector.*`, `kernel.v1.embedding.*`, `kernel.v1.collection.*`, `kernel.v1.sql.*`, or `kernel.v1.database.*`.
 - Do not turn `EventStore` into a generic `DatabaseBackend`.
 - Do not expose SQL, DSNs, connection strings, tables, transaction isolation, ANN indexes, vector dimensions, backend topology, or raw credentials to packages.
 - SQLite is an early/default/local backend, not the platform contract.
@@ -80,4 +80,4 @@ PostgreSQL + TDB integration has completed the first opt-in backend/provider pro
 - projection rebuild scheduling
 - retrieval provider permission/audit/redaction
 
-These should continue to use package/provider + host policy seams instead of putting database-product semantics into the kernel.
+These should continue to use package/provider + host policy seams instead of putting database-product semantics into the kernel.v1.

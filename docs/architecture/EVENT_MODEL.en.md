@@ -17,7 +17,7 @@ EventEnvelope
 - sequence            monotonic per session
 - timestamp           kernel-assigned
 - writer_package_id   the package that produced the event (or "kernel")
-- kind                namespaced string, e.g. "kernel/session.opened" or "org/name/event/foo"
+- kind                namespaced string, e.g. "kernel/v1/session.opened" or "org/name/event/foo"
 - schema_version      payload schema version, owned by the writer
 - payload             opaque JSON, validated only against the writer's declared schema
 - metadata            opaque JSON; causation_id, correlation_id, trace ids, etc.
@@ -26,7 +26,7 @@ EventEnvelope
 The kernel:
 
 - assigns `id`, `sequence`, `timestamp`, and `writer_package_id`,
-- enforces that `kind` is namespaced under the writer's id (or `kernel/...` for kernel events),
+- enforces that `kind` is namespaced under the writer's id (or `kernel/v1/...` for kernel events),
 - validates `payload` against the writer's declared schema when one is declared,
 - treats `metadata` as opaque.
 
@@ -41,62 +41,62 @@ The kernel itself produces a small fixed set. These kinds describe kernel operat
 Session:
 
 ```text
-kernel/session.opened
-kernel/session.closed
-kernel/session.forked
+kernel/v1/session.opened
+kernel/v1/session.closed
+kernel/v1/session.forked
 ```
 
 Package lifecycle:
 
 ```text
-kernel/package.loading
-kernel/package.starting
-kernel/package.ready
-kernel/package.stopping
-kernel/package.stopped
-kernel/package.loaded
-kernel/package.unloaded
-kernel/package.degraded
-kernel/package.log
+kernel/v1/package.loading
+kernel/v1/package.starting
+kernel/v1/package.ready
+kernel/v1/package.stopping
+kernel/v1/package.stopped
+kernel/v1/package.loaded
+kernel/v1/package.unloaded
+kernel/v1/package.degraded
+kernel/v1/package.log
 ```
 
 Capability invocation (planned audit shape):
 
 ```text
-kernel/capability.invoked
-kernel/capability.completed
-kernel/capability.failed
+kernel/v1/capability.invoked
+kernel/v1/capability.completed
+kernel/v1/capability.failed
 ```
 
 Permission audit:
 
 ```text
-kernel/permission.granted
-kernel/permission.revoked
-kernel/permission.denied
+kernel/v1/permission.granted
+kernel/v1/permission.revoked
+kernel/v1/permission.denied
 ```
 
 Generic substrate:
 
 ```text
-kernel/asset.put
-kernel/projection.updated
+kernel/v1/asset.put
+kernel/v1/projection.updated
 ```
 
 Proposal lifecycle:
 
 ```text
-kernel/proposal.created
-kernel/proposal.approved
-kernel/proposal.rejected
-kernel/proposal.applied
-kernel/proposal.failed
+kernel/v1/proposal.created
+kernel/v1/proposal.approved
+kernel/v1/proposal.rejected
+kernel/v1/proposal.applied
+kernel/v1/proposal.failed
 ```
 
 Transport / runtime errors (planned):
 
 ```text
-kernel/error
+kernel/v1/error
 ```
 
 These are the only event kinds the kernel knows about by name. Their payloads describe kernel operations, not content.
@@ -125,7 +125,7 @@ A package cannot append events under another package's namespace. Cross-package 
 
 - Append-only. The log is never edited.
 - Per-session ordering is monotonic. The kernel makes no cross-session ordering claim.
-- Durable. After `kernel/event.after_append` fires, the event is committed.
+- Durable. After `kernel/v1/event.after_append` fires, the event is committed.
 - Replayable. The kernel can stream events from `sequence` 0 forward.
 
 ## Replay
@@ -142,7 +142,7 @@ The kernel replays envelopes verbatim. Meaning, projection, and state reconstruc
 
 Each event kind carries a `schema_version`. The owning writer is responsible for migrations. The kernel does not migrate payloads; it persists what was written at the time.
 
-A package can publish a new `schema_version` for its kind without changing the kernel.
+A package can publish a new `schema_version` for its kind without changing the kernel.v1.
 
 ## Causation and correlation
 

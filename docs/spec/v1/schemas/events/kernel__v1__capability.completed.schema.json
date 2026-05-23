@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "capability_id": {
+          "type": "string"
+        },
+        "output": true,
+        "provider_package_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability_id",
+        "output",
+        "provider_package_id"
+      ],
+      "title": "CapabilityInvocationResult",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__capability.completed.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind kernel/v1/capability.completed.",
+  "properties": {
+    "kind": {
+      "const": "kernel/v1/capability.completed"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "kernel/v1/capability.completed",
+  "type": "object"
+}

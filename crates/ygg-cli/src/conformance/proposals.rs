@@ -10,14 +10,14 @@ pub(crate) async fn lifecycle_apply() -> anyhow::Result<()> {
         .projection_register(ygg_runtime::runtime::ProjectionDefinition {
             id: "proposal/test-projection".to_string(),
             session_id: session.id.clone(),
-            source_kind_prefix: Some("kernel/session".to_string()),
+            source_kind_prefix: Some("kernel/v1/session".to_string()),
             state: json!({}),
         })
         .await?;
     let created = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.create",
+            "kernel.v1.proposal.create",
             json!({
                 "target_session_id": session.id,
                 "required_permissions": ["assets.write", "projections.rebuild"],
@@ -32,15 +32,15 @@ pub(crate) async fn lifecycle_apply() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let proposal_id = created["id"].as_str().ok_or_else(|| anyhow::anyhow!("proposal missing id"))?.to_string();
     let denied = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.proposal.apply", json!({"proposal_id": proposal_id}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.proposal.apply", json!({"proposal_id": proposal_id}))
         .await;
     anyhow::ensure!(denied.is_err(), "unapproved proposal should not apply");
     runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.proposal.approve", json!({"proposal_id": proposal_id, "reason": "conformance"}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.proposal.approve", json!({"proposal_id": proposal_id, "reason": "conformance"}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let applied = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.proposal.apply", json!({"proposal_id": proposal_id}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.proposal.apply", json!({"proposal_id": proposal_id}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(applied["status"] == json!("applied"), "proposal did not reach applied status");
@@ -53,18 +53,18 @@ pub(crate) async fn reject_and_apply_denied() -> anyhow::Result<()> {
     let created = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.create",
+            "kernel.v1.proposal.create",
             json!({"operations": [{"op": "asset.put", "payload": {"content": "{}"}}]}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let proposal_id = created["id"].as_str().ok_or_else(|| anyhow::anyhow!("proposal missing id"))?.to_string();
     runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.proposal.reject", json!({"proposal_id": proposal_id, "reason": "conformance"}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.proposal.reject", json!({"proposal_id": proposal_id, "reason": "conformance"}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let denied = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.proposal.apply", json!({"proposal_id": proposal_id}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.proposal.apply", json!({"proposal_id": proposal_id}))
         .await;
     anyhow::ensure!(denied.is_err(), "rejected proposal should not apply");
     Ok(())

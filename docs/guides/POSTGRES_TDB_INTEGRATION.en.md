@@ -186,12 +186,12 @@ The Web shell does not read SQLite/PostgreSQL/TDB, local filesystems, or runtime
 Do not add:
 
 ```text
-kernel.postgres.*
-kernel.sql.*
-kernel.database.*
-kernel.tdb.*
-kernel.vector.*
-kernel.embedding.*
+kernel.v1.postgres.*
+kernel.v1.sql.*
+kernel.v1.database.*
+kernel.v1.tdb.*
+kernel.v1.vector.*
+kernel.v1.embedding.*
 ```
 
 Packages must not receive raw PostgreSQL pools, SQL, DSNs, TDB paths, backend topology, or raw backend errors.

@@ -121,7 +121,7 @@ fn forbidden_namespace_tokens() -> Vec<String> {
         "database",
     ]
     .into_iter()
-    .map(|segment| format!("kernel.{segment}."))
+    .map(|segment| format!("kernel.v1.{segment}."))
     .collect()
 }
 

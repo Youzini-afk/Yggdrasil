@@ -34,7 +34,7 @@ pub(crate) async fn package_lifecycle_timeline() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     let session_id = "kernel_package_example_echo-subprocess-python".to_string();
     let events = store.list_session(&session_id).await?;
-    for expected in ["kernel/package.loading", "kernel/package.starting", "kernel/package.ready", "kernel/package.loaded"] {
+    for expected in ["kernel/v1/package.loading", "kernel/v1/package.starting", "kernel/v1/package.ready", "kernel/v1/package.loaded"] {
         anyhow::ensure!(events.iter().any(|event| event.kind == expected), "missing lifecycle event {expected}");
     }
     Ok(())

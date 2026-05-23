@@ -38,7 +38,7 @@ impl StreamRegistry {
     /// Start a new streaming invocation.
     ///
     /// Returns the invocation record with state `Active`.
-    /// Emits a `kernel/stream.started` event.
+    /// Emits a `kernel/v1/stream.started` event.
     pub async fn start_invocation(
         &self,
         capability_id: CapabilityId,
@@ -311,7 +311,7 @@ where
     /// Start a streaming capability invocation.
     ///
     /// Validates that the capability has `streaming: true` in its descriptor,
-    /// creates a registry record, emits `kernel/stream.started`, and
+    /// creates a registry record, emits `kernel/v1/stream.started`, and
     /// returns the start frame plus the invocation record.
     pub async fn stream_capability_start(
         &self,
@@ -343,7 +343,7 @@ where
             )
             .await;
 
-        // Emit kernel/stream.started event
+        // Emit kernel/v1/stream.started event
         let event_payload = json!({
             "invocation_id": record.invocation_id,
             "stream_id": record.stream_id,
@@ -371,7 +371,7 @@ where
 
     /// Append a chunk frame to an active streaming invocation.
     ///
-    /// Emits `kernel/stream.chunk` and returns the frame envelope.
+    /// Emits `kernel/v1/stream.chunk` and returns the frame envelope.
     pub async fn stream_capability_chunk(
         &self,
         session_id: &SessionId,
@@ -396,7 +396,7 @@ where
 
     /// Append a progress frame to an active streaming invocation.
     ///
-    /// Emits `kernel/stream.progress` and returns the frame envelope.
+    /// Emits `kernel/v1/stream.progress` and returns the frame envelope.
     pub async fn stream_capability_progress(
         &self,
         session_id: &SessionId,
@@ -418,7 +418,7 @@ where
 
     /// End a streaming invocation normally.
     ///
-    /// Emits `kernel/stream.ended` and returns the terminal frame.
+    /// Emits `kernel/v1/stream.ended` and returns the terminal frame.
     pub async fn stream_capability_end(
         &self,
         session_id: &SessionId,
@@ -440,7 +440,7 @@ where
 
     /// Error-terminate a streaming invocation.
     ///
-    /// Emits `kernel/stream.error` and returns the terminal frame.
+    /// Emits `kernel/v1/stream.error` and returns the terminal frame.
     pub async fn stream_capability_error(
         &self,
         session_id: &SessionId,
@@ -463,7 +463,7 @@ where
 
     /// Cancel a streaming invocation.
     ///
-    /// Emits `kernel/stream.cancelled` and returns the terminal frame.
+    /// Emits `kernel/v1/stream.cancelled` and returns the terminal frame.
     pub async fn stream_capability_cancel(
         &self,
         session_id: &SessionId,
@@ -484,7 +484,7 @@ where
 
     /// Timeout a streaming invocation.
     ///
-    /// Emits `kernel/stream.timeout` and returns the terminal frame.
+    /// Emits `kernel/v1/stream.timeout` and returns the terminal frame.
     pub async fn stream_capability_timeout(
         &self,
         session_id: &SessionId,

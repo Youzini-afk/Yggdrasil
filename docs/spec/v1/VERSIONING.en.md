@@ -1,0 +1,21 @@
+# v1 Versioning Policy
+
+## Method namespace
+
+All v1 kernel methods use `kernel.v1.*`. `kernel.v1.*` and future `kernel.v2.*` are separate, incompatible namespaces. v1 method semantics are never changed in breaking ways, and the old `kernel.*` names have no compatibility shim.
+
+## Schema rule
+
+`docs/spec/v1/schemas/` is the public v1 contract artifact. v1 evolves additive-only:
+
+- Optional fields, event kinds, methods, or enum variants may be added when old implementations can safely ignore them.
+- Fields must not be removed, field types must not change, optional fields must not become required, published enums must not be narrowed, and existing event payload meaning must not change.
+- Schema changes must pass `scripts/validate-schemas.sh`; CI may set `BASE_SCHEMA_DIR` to detect file-level removals.
+
+## When v2 happens
+
+Use `kernel.v2.*` for breaking changes: required-field changes, existing field type changes, error-code semantic changes, incompatible permission model changes, or incompatible event payload reshaping. v2 does not overwrite v1; hosts may expose multiple versions side by side.
+
+## Negotiation
+
+Packages call `kernel.v1.host.info` to read `protocol_version`, methods, statuses, and transports. A package needing a v1 method should verify that the method exists and is not `planned`. Future v2 packages should call `kernel.v2.host.info` or inspect the host's explicitly advertised v2 method list.

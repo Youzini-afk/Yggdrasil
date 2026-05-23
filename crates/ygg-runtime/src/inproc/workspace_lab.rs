@@ -32,7 +32,7 @@
 //!
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
-//! - No kernel.project/workspace/git/npm/deploy namespace references in outputs
+//! - No kernel.v1.project/workspace/git/npm/deploy namespace references in outputs
 //! - No filesystem reads, no shell, no outbound, no execution
 //! - Deny-by-default: executor_invoked=false, execution_performed=false
 //! - Approval tokens are not honored in Alpha; proposal_required=true always
@@ -85,12 +85,12 @@ const VALID_ACTIONS: &[&str] = &[
 
 /// Kernel namespace tokens that must not appear in outputs.
 const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
-    "kernel.project.",
-    "kernel.workspace.",
-    "kernel.git.",
-    "kernel.npm.",
-    "kernel.deploy.",
-    "kernel.ide.",
+    "kernel.v1.project.",
+    "kernel.v1.workspace.",
+    "kernel.v1.git.",
+    "kernel.v1.npm.",
+    "kernel.v1.deploy.",
+    "kernel.v1.ide.",
 ];
 
 /// Check whether a string contains forbidden kernel namespace tokens.

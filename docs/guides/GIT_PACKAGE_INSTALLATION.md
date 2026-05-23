@@ -11,7 +11,7 @@ Yggdrasil host 可以从公开 HTTPS git 仓库安装能力包。它不是 marke
 
 ## 当前能做什么
 
-- 新协议方法：`kernel.outbound.git_fetch`。
+- 新协议方法：`kernel.v1.outbound.git_fetch`。
 - 新 manifest 权限：`permissions.git_fetch.hosts`。
 - 三类 git executor：
   - `DenyAllGitOutboundExecutor`：默认，全拒；
@@ -120,4 +120,4 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case git_fetc
 
 ## 后续
 
-接下来要补的是「自动 resolve/pin/apply」：CLI 和 `installer-lab` 在审批后调用 `kernel.outbound.git_fetch`，自动得到 `commit_sha` 与 `content_hash`，再写 lockfile 并加载包。当前底座已经把 executor、权限、审计、profile lockfile 与官方普通包边界打通。
+接下来要补的是「自动 resolve/pin/apply」：CLI 和 `installer-lab` 在审批后调用 `kernel.v1.outbound.git_fetch`，自动得到 `commit_sha` 与 `content_hash`，再写 lockfile 并加载包。当前底座已经把 executor、权限、审计、profile lockfile 与官方普通包边界打通。

@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use schemars::JsonSchema;
 use ygg_core::{new_id, AssetRecord, PackageId, KERNEL_PACKAGE_ID, EVENT_ASSET_PUT};
 
 use super::{Runtime, StoredAsset};
@@ -56,7 +57,7 @@ pub fn standard_asset_metadata(
     })
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AssetPutRequest {
     #[serde(default)]
     pub origin_package_id: Option<PackageId>,
@@ -66,7 +67,7 @@ pub struct AssetPutRequest {
     pub metadata: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AssetGetResponse {
     pub record: AssetRecord,
     pub content: String,

@@ -81,7 +81,7 @@ External Project Operating Plane 说明 Yggdrasil 不必只接入已经适配清
 
 ## 安全红线
 
-- 不新增 `kernel.project.*`、`kernel.workspace.*`、`kernel.git.*`、`kernel.npm.*`、`kernel.deploy.*`、`kernel.ide.*`。
+- 不新增 `kernel.v1.project.*`、`kernel.v1.workspace.*`、`kernel.v1.git.*`、`kernel.v1.npm.*`、`kernel.v1.deploy.*`、`kernel.v1.ide.*`。
 - External Project 不是包；Managed Workspace 不是内核对象；Adapter/Wrapper 才是包。
 - 未适配项目不得直接注册为 capability provider。
 - 危险动作必须先计划，再通过策略、提案、审批、审计和脱敏边界。

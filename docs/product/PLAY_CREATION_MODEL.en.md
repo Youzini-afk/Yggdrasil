@@ -46,7 +46,7 @@ Forge is where a play-creator becomes a creator-creator without leaving the plat
 
 ### Assist
 
-A cross-mode assistant drawer. In Play, it offers small live tweaks and proposals. In Forge, it does deeper work — proposing operations, drafting packages, explaining diffs, suggesting changes. In both modes, every change goes through `kernel.proposal.*` and is approved before it lands.
+A cross-mode assistant drawer. In Play, it offers small live tweaks and proposals. In Forge, it does deeper work — proposing operations, drafting packages, explaining diffs, suggesting changes. In both modes, every change goes through `kernel.v1.proposal.*` and is approved before it lands.
 
 Assist is a thin client of the proposal lifecycle. It is not a privileged path for changes. A third-party assistant package can replace `official/assistant-lab` and run the same way.
 
@@ -59,9 +59,9 @@ The play-creation loop runs on the existing substrate. End to end:
 3. The kernel opens a session bound to the package set that experience needs.
 4. The package writes its own events and drives its own `play_renderer`.
 5. The player asks Assist to change something.
-6. Assist (also a package) calls `kernel.proposal.create` with generic operations.
+6. Assist (also a package) calls `kernel.v1.proposal.create` with generic operations.
 7. The player reviews the proposal and approves it.
-8. The kernel applies the approved operations and writes `kernel/proposal.applied`.
+8. The kernel applies the approved operations and writes `kernel/v1/proposal.applied`.
 9. The player can fork the session at a sequence number to try another path.
 10. The player can open Forge to inspect events, assets, projections, branches.
 11. The player can edit a package or composition through a Forge editor.
@@ -92,7 +92,7 @@ The platform does not provide:
 - a favored visual editor or asset editor;
 - a marketplace.
 
-Each of these is welcome as a package. None is welcome as the kernel.
+Each of these is welcome as a package. None is welcome as the kernel.v1.
 
 ## Stance on Tavern, agents, and external engines
 

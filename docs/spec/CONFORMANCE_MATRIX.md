@@ -43,7 +43,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | events | 包在无 `events.append` 时被拒绝写入 | implemented in unit tests |
 | events | 包在无 `events.read` 时被拒绝读取 | implemented |
 | events | 包被拒绝写入他人 namespace | implemented in unit tests |
-| events | 包被拒绝写入 `kernel/...` | implemented in unit tests |
+| events | 包被拒绝写入 `kernel/v1/...` | implemented in unit tests |
 | events | 已关闭 session 拒绝追加 | implemented |
 | events | 带过滤条件的 sequence-range replay | implemented |
 | package | 有效 manifest 加载成功 | implemented |
@@ -128,7 +128,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | inference-playtest-lab inspect_proposal 返回 risk/operations/permissions/provenance summary，不 apply | implemented |
 | official packages | inference-playtest-lab 被拒绝的 proposal 不能 apply | implemented |
 | official packages | inference-playtest-lab approve/apply 成功，asset 被写入，branch_plan + fork 创建 branch，branch metadata 包含 proposal/source inference provenance | implemented |
-| official packages | inference-playtest-lab 输出不含 messages/prompt/chat/kernel.model 等术语 | implemented |
+| official packages | inference-playtest-lab 输出不含 messages/prompt/chat/kernel.v1.model 等术语 | implemented |
 | in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
@@ -141,11 +141,11 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | composition | 本地 composition 描述符验证包提供的 surface | implemented |
 | composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
 | official packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
-| replacement | 第三方 playable-seed surface 通过 kernel.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 playable-seed surface 通过 kernel.v1.surface.contribution.list 可发现 | implemented |
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
 | replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
 | replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
-| replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 kernel.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 kernel.v1.surface.contribution.list 可发现 | implemented |
 | replacement | 第三方 agent-runtime 能力调用产生 no-inference/no-network、approval-gated proposal、provenance 匹配 | implemented |
 | replacement | composition 描述符通过第三方 agent-runtime 替换，official 仅 replacement_candidate | implemented |
 | network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
@@ -174,24 +174,24 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | live HTTP executor 默认关闭；RuntimeConfig::default 仍 DenyAll | implemented |
 | outbound | live HTTP executor 拒绝非 HTTPS URL；无网络尝试 | implemented |
 | outbound | live HTTP executor response shape 不含 raw body/header/secret | implemented |
-| outbound | kernel.outbound.execute 公开协议：package principal 通过 context 确定 package_id 不能 spoof，FakeOutboundExecutor + allowed network declaration 成功且 audit 产生 | implemented |
-| outbound | kernel.outbound.execute spoofed package_id 被拒绝，不能代替其他 package | implemented |
-| outbound | kernel.outbound.execute 无 network permission denied，executor 不调用 | implemented |
-| outbound | kernel.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
-| outbound | kernel.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
+| outbound | kernel.v1.outbound.execute 公开协议：package principal 通过 context 确定 package_id 不能 spoof，FakeOutboundExecutor + allowed network declaration 成功且 audit 产生 | implemented |
+| outbound | kernel.v1.outbound.execute spoofed package_id 被拒绝，不能代替其他 package | implemented |
+| outbound | kernel.v1.outbound.execute 无 network permission denied，executor 不调用 | implemented |
+| outbound | kernel.v1.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
+| outbound | kernel.v1.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
 | outbound_execute | profile 默认 deny-all、fake/live executor 配置、包权限、capability namespace、无权限拒绝、secret_ref 声明、response 脱敏 | implemented |
-| outbound_stream | `kernel.outbound.stream` profile 默认拒绝、fake stream frame、secret_ref 声明、capability namespace、HTTPS-only 策略 | implemented |
-| outbound_websocket | `kernel.outbound.websocket.*` profile 默认 deny-all、fake executor open/send/close、live executor 未启用时拒绝 | implemented |
+| outbound_stream | `kernel.v1.outbound.stream` profile 默认拒绝、fake stream frame、secret_ref 声明、capability namespace、HTTPS-only 策略 | implemented |
+| outbound_websocket | `kernel.v1.outbound.websocket.*` profile 默认 deny-all、fake executor open/send/close、live executor 未启用时拒绝 | implemented |
 | outbound_websocket | secret_ref 未声明 fail-closed、capability namespace 校验、默认 WSS-only | implemented |
-| outbound_websocket | idle timeout 产生 error + completed、inbound max_total_bytes 终止、max_concurrent_connections 生效、可通过 `kernel.capability.cancel` 取消 | implemented |
-| outbound | `kernel/outbound.execute.completed` 完成审计事件发出 | implemented |
-| outbound | `kernel/outbound.stream.completed` 完成审计事件发出 | implemented |
-| outbound | `kernel/outbound.websocket.completed` 完成审计事件发出 | implemented |
+| outbound_websocket | idle timeout 产生 error + completed、inbound max_total_bytes 终止、max_concurrent_connections 生效、可通过 `kernel.v1.capability.cancel` 取消 | implemented |
+| outbound | `kernel/v1/outbound.execute.completed` 完成审计事件发出 | implemented |
+| outbound | `kernel/v1/outbound.stream.completed` 完成审计事件发出 | implemented |
+| outbound | `kernel/v1/outbound.websocket.completed` 完成审计事件发出 | implemented |
 | secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call：principal 绑定、execute 调度、stream chunks 回传 | implemented |
 | sse_parser | outbound stream SSE parser basic smoke 与 partial chunk 归并 | implemented |
 | live_model | live smoke 默认跳过；`YGG_LIVE_MODEL_TESTS=1` + provider env 才 opt-in 真实调用 | implemented |
-| git outbound | `kernel.outbound.git_fetch` 默认 deny-all、要求 HTTPS、要求 host allowlist、FakeGitOutboundExecutor fixture 成功、审计不含 raw secret、RealGitOutboundExecutor 真实联网 opt-in | implemented |
+| git outbound | `kernel.v1.outbound.git_fetch` 默认 deny-all、要求 HTTPS、要求 host allowlist、FakeGitOutboundExecutor fixture 成功、审计不含 raw secret、RealGitOutboundExecutor 真实联网 opt-in | implemented |
 | package install | profile 级 git install lockfile 支持 install/list/update/uninstall/inspect round-trip，并拒绝不安全 URL | implemented |
 | outbound | local loopback HTTP server secret injection：Authorization header 真实到达 server，raw secret 不在 protocol response/audit/log | implemented |
 | outbound | DeepSeek SSE stream normalize canary：delta_sse start→chunk→end lifecycle，terminal_frame_consistent，no raw secrets | implemented |
@@ -221,7 +221,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | experience-observability-lab summarize_cost_latency 从 outbound audit 引用返回 cost/latency summary，无 raw secret | implemented |
 | official packages | experience-observability-lab list_failure_breadcrumbs 从协议可见 event 引用返回 failure breadcrumbs | implemented |
 | official packages | experience-observability-lab summarize_guardrails 从协议可见 audit 引用返回 guardrail/audit summary | implemented |
-| official packages | experience-observability-lab 任何输出不含 kernel.observability.* / kernel.experience.* namespace | implemented |
+| official packages | experience-observability-lab 任何输出不含 kernel.v1.observability.* / kernel.v1.experience.* namespace | implemented |
 | official packages | experience-observability-lab 所有能力输入阻断 raw secret | implemented |
 | official packages | memory-lab describe_memory_contract 返回 9 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
 | official packages | memory-lab record_memory 产出 memory_record 含 content_address / branch_ref / knowledge_refs | implemented |
@@ -231,7 +231,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | memory-lab apply_memory_correction 产出 correction shape，proposal-gated | implemented |
 | official packages | memory-lab draft_forget_redaction 产出 redaction plan，不直接删除 | implemented |
 | official packages | memory-lab branch_memory_view 按 branch 过滤记忆记录 | implemented |
-| official packages | memory-lab 任何输出不含 kernel.memory.* / kernel.experience.* namespace | implemented |
+| official packages | memory-lab 任何输出不含 kernel.v1.memory.* / kernel.v1.experience.* namespace | implemented |
 | official packages | memory-lab 所有能力输入阻断 raw secret | implemented |
 | official packages | sharing-lab describe_sharing_contract 返回 9 项能力、3 个 surface、output shapes、red lines，无 forbidden namespace | implemented |
 | official packages | sharing-lab export_composition_bundle 产出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing fields | implemented |
@@ -242,14 +242,14 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | sharing-lab ai_disclosure_bundle 产出 AI disclosure metadata，标记内容来源 | implemented |
 | official packages | sharing-lab read_only_share_manifest 只读共享 session manifest，local_file proof，no remote service | implemented |
 | official packages | sharing-lab async_fork_share_plan 异步 fork 分享计划，draft/plan-only/requires_user_approval | implemented |
-| official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 kernel.sharing/marketplace/billing namespace | implemented |
+| official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 kernel.v1.sharing/marketplace/billing namespace | implemented |
 | storage backend | in-memory EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
 | storage backend | SQLite EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
 | storage backend | in-memory 与 SQLite kind-prefix 查询结果语义一致 | implemented |
 | storage backend | in-memory 与 SQLite 并发 append 无重复序号 | implemented |
 | storage backend | in-memory 与 SQLite append 后订阅广播行为一致 | implemented |
 | storage backend | in-memory 与 SQLite rehydrate 事件重放语义一致 | implemented |
-| storage lab | storage-lab 合约形状不含 kernel database 术语（kernel.sqlite/postgres/tdb/vector/embedding/collection/sql/database） | implemented |
+| storage lab | storage-lab 合约形状不含 kernel database 术语（kernel.v1.sqlite/postgres/tdb/vector/embedding/collection/sql/database） | implemented |
 | storage lab | storage-lab backend class 候选只含 capability flags，不含 secret-bearing backend config | implemented |
 | storage lab | package state plan namespace 属于 owning package，无 official 优先级 | implemented |
 | storage lab | put document preview 不执行真实写入（write_performed=false） | implemented |

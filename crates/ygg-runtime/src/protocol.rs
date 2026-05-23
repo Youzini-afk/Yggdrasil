@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use schemars::JsonSchema;
 
 // ---------------------------------------------------------------------------
 // KernelMethod — single source of truth for protocol method identity, status,
@@ -71,63 +72,63 @@ pub enum KernelMethod {
 }
 
 impl KernelMethod {
-    /// Canonical dotted method identifier (e.g. `"kernel.session.open"`).
+    /// Canonical dotted method identifier (e.g. `"kernel.v1.session.open"`).
     pub const fn id(&self) -> &'static str {
         match self {
-            Self::SessionOpen => "kernel.session.open",
-            Self::SessionClose => "kernel.session.close",
-            Self::SessionFork => "kernel.session.fork",
-            Self::SessionBranchList => "kernel.session.branch.list",
-            Self::SessionGet => "kernel.session.get",
-            Self::SessionList => "kernel.session.list",
-            Self::EventAppend => "kernel.event.append",
-            Self::EventList => "kernel.event.list",
-            Self::EventSubscribe => "kernel.event.subscribe",
-            Self::PackageLoad => "kernel.package.load",
-            Self::PackageUnload => "kernel.package.unload",
-            Self::PackageRestart => "kernel.package.restart",
-            Self::PackageLogs => "kernel.package.logs",
-            Self::PackageList => "kernel.package.list",
-            Self::PackageStatus => "kernel.package.status",
-            Self::PackageDescribe => "kernel.package.describe",
-            Self::CapabilityDiscover => "kernel.capability.discover",
-            Self::CapabilityDescribe => "kernel.capability.describe",
-            Self::CapabilityInvoke => "kernel.capability.invoke",
-            Self::CapabilityStream => "kernel.capability.stream",
-            Self::CapabilityCancel => "kernel.capability.cancel",
-            Self::ExtensionPointList => "kernel.extension_point.list",
-            Self::ExtensionPointDescribe => "kernel.extension_point.describe",
-            Self::HookList => "kernel.hook.list",
-            Self::AssetPut => "kernel.asset.put",
-            Self::AssetGet => "kernel.asset.get",
-            Self::AssetList => "kernel.asset.list",
-            Self::ProjectionRegister => "kernel.projection.register",
-            Self::ProjectionRebuild => "kernel.projection.rebuild",
-            Self::ProjectionGet => "kernel.projection.get",
-            Self::ProjectionList => "kernel.projection.list",
-            Self::HostInfo => "kernel.host.info",
-            Self::HostPing => "kernel.host.ping",
-            Self::HostDiagnostics => "kernel.host.diagnostics",
-            Self::HostPrincipal => "kernel.host.principal",
-            Self::PermissionGrant => "kernel.permission.grant",
-            Self::PermissionRevoke => "kernel.permission.revoke",
-            Self::PermissionList => "kernel.permission.list",
-            Self::PermissionAudit => "kernel.permission.audit",
-            Self::ProposalCreate => "kernel.proposal.create",
-            Self::ProposalGet => "kernel.proposal.get",
-            Self::ProposalList => "kernel.proposal.list",
-            Self::ProposalApprove => "kernel.proposal.approve",
-            Self::ProposalReject => "kernel.proposal.reject",
-            Self::ProposalApply => "kernel.proposal.apply",
-            Self::SurfaceContributionList => "kernel.surface.contribution.list",
-            Self::SurfaceContributionDescribe => "kernel.surface.contribution.describe",
-            Self::OutboundAudit => "kernel.outbound.audit",
-            Self::OutboundExecute => "kernel.outbound.execute",
-            Self::OutboundStream => "kernel.outbound.stream",
-            Self::OutboundWebSocketOpen => "kernel.outbound.websocket.open",
-            Self::OutboundWebSocketSend => "kernel.outbound.websocket.send",
-            Self::OutboundWebSocketClose => "kernel.outbound.websocket.close",
-            Self::OutboundGitFetch => "kernel.outbound.git_fetch",
+            Self::SessionOpen => "kernel.v1.session.open",
+            Self::SessionClose => "kernel.v1.session.close",
+            Self::SessionFork => "kernel.v1.session.fork",
+            Self::SessionBranchList => "kernel.v1.session.branch.list",
+            Self::SessionGet => "kernel.v1.session.get",
+            Self::SessionList => "kernel.v1.session.list",
+            Self::EventAppend => "kernel.v1.event.append",
+            Self::EventList => "kernel.v1.event.list",
+            Self::EventSubscribe => "kernel.v1.event.subscribe",
+            Self::PackageLoad => "kernel.v1.package.load",
+            Self::PackageUnload => "kernel.v1.package.unload",
+            Self::PackageRestart => "kernel.v1.package.restart",
+            Self::PackageLogs => "kernel.v1.package.logs",
+            Self::PackageList => "kernel.v1.package.list",
+            Self::PackageStatus => "kernel.v1.package.status",
+            Self::PackageDescribe => "kernel.v1.package.describe",
+            Self::CapabilityDiscover => "kernel.v1.capability.discover",
+            Self::CapabilityDescribe => "kernel.v1.capability.describe",
+            Self::CapabilityInvoke => "kernel.v1.capability.invoke",
+            Self::CapabilityStream => "kernel.v1.capability.stream",
+            Self::CapabilityCancel => "kernel.v1.capability.cancel",
+            Self::ExtensionPointList => "kernel.v1.extension_point.list",
+            Self::ExtensionPointDescribe => "kernel.v1.extension_point.describe",
+            Self::HookList => "kernel.v1.hook.list",
+            Self::AssetPut => "kernel.v1.asset.put",
+            Self::AssetGet => "kernel.v1.asset.get",
+            Self::AssetList => "kernel.v1.asset.list",
+            Self::ProjectionRegister => "kernel.v1.projection.register",
+            Self::ProjectionRebuild => "kernel.v1.projection.rebuild",
+            Self::ProjectionGet => "kernel.v1.projection.get",
+            Self::ProjectionList => "kernel.v1.projection.list",
+            Self::HostInfo => "kernel.v1.host.info",
+            Self::HostPing => "kernel.v1.host.ping",
+            Self::HostDiagnostics => "kernel.v1.host.diagnostics",
+            Self::HostPrincipal => "kernel.v1.host.principal",
+            Self::PermissionGrant => "kernel.v1.permission.grant",
+            Self::PermissionRevoke => "kernel.v1.permission.revoke",
+            Self::PermissionList => "kernel.v1.permission.list",
+            Self::PermissionAudit => "kernel.v1.permission.audit",
+            Self::ProposalCreate => "kernel.v1.proposal.create",
+            Self::ProposalGet => "kernel.v1.proposal.get",
+            Self::ProposalList => "kernel.v1.proposal.list",
+            Self::ProposalApprove => "kernel.v1.proposal.approve",
+            Self::ProposalReject => "kernel.v1.proposal.reject",
+            Self::ProposalApply => "kernel.v1.proposal.apply",
+            Self::SurfaceContributionList => "kernel.v1.surface.contribution.list",
+            Self::SurfaceContributionDescribe => "kernel.v1.surface.contribution.describe",
+            Self::OutboundAudit => "kernel.v1.outbound.audit",
+            Self::OutboundExecute => "kernel.v1.outbound.execute",
+            Self::OutboundStream => "kernel.v1.outbound.stream",
+            Self::OutboundWebSocketOpen => "kernel.v1.outbound.websocket.open",
+            Self::OutboundWebSocketSend => "kernel.v1.outbound.websocket.send",
+            Self::OutboundWebSocketClose => "kernel.v1.outbound.websocket.close",
+            Self::OutboundGitFetch => "kernel.v1.outbound.git_fetch",
         }
     }
 
@@ -343,60 +344,60 @@ impl FromStr for KernelMethod {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "kernel.session.open" => Ok(Self::SessionOpen),
-            "kernel.session.close" => Ok(Self::SessionClose),
-            "kernel.session.fork" => Ok(Self::SessionFork),
-            "kernel.session.branch.list" => Ok(Self::SessionBranchList),
-            "kernel.session.get" => Ok(Self::SessionGet),
-            "kernel.session.list" => Ok(Self::SessionList),
-            "kernel.event.append" => Ok(Self::EventAppend),
-            "kernel.event.list" => Ok(Self::EventList),
-            "kernel.event.subscribe" => Ok(Self::EventSubscribe),
-            "kernel.package.load" => Ok(Self::PackageLoad),
-            "kernel.package.unload" => Ok(Self::PackageUnload),
-            "kernel.package.restart" => Ok(Self::PackageRestart),
-            "kernel.package.logs" => Ok(Self::PackageLogs),
-            "kernel.package.list" => Ok(Self::PackageList),
-            "kernel.package.status" => Ok(Self::PackageStatus),
-            "kernel.package.describe" => Ok(Self::PackageDescribe),
-            "kernel.capability.discover" => Ok(Self::CapabilityDiscover),
-            "kernel.capability.describe" => Ok(Self::CapabilityDescribe),
-            "kernel.capability.invoke" => Ok(Self::CapabilityInvoke),
-            "kernel.capability.stream" => Ok(Self::CapabilityStream),
-            "kernel.capability.cancel" => Ok(Self::CapabilityCancel),
-            "kernel.extension_point.list" => Ok(Self::ExtensionPointList),
-            "kernel.extension_point.describe" => Ok(Self::ExtensionPointDescribe),
-            "kernel.hook.list" => Ok(Self::HookList),
-            "kernel.asset.put" => Ok(Self::AssetPut),
-            "kernel.asset.get" => Ok(Self::AssetGet),
-            "kernel.asset.list" => Ok(Self::AssetList),
-            "kernel.projection.register" => Ok(Self::ProjectionRegister),
-            "kernel.projection.rebuild" => Ok(Self::ProjectionRebuild),
-            "kernel.projection.get" => Ok(Self::ProjectionGet),
-            "kernel.projection.list" => Ok(Self::ProjectionList),
-            "kernel.host.info" => Ok(Self::HostInfo),
-            "kernel.host.ping" => Ok(Self::HostPing),
-            "kernel.host.diagnostics" => Ok(Self::HostDiagnostics),
-            "kernel.host.principal" => Ok(Self::HostPrincipal),
-            "kernel.permission.grant" => Ok(Self::PermissionGrant),
-            "kernel.permission.revoke" => Ok(Self::PermissionRevoke),
-            "kernel.permission.list" => Ok(Self::PermissionList),
-            "kernel.permission.audit" => Ok(Self::PermissionAudit),
-            "kernel.proposal.create" => Ok(Self::ProposalCreate),
-            "kernel.proposal.get" => Ok(Self::ProposalGet),
-            "kernel.proposal.list" => Ok(Self::ProposalList),
-            "kernel.proposal.approve" => Ok(Self::ProposalApprove),
-            "kernel.proposal.reject" => Ok(Self::ProposalReject),
-            "kernel.proposal.apply" => Ok(Self::ProposalApply),
-            "kernel.surface.contribution.list" => Ok(Self::SurfaceContributionList),
-            "kernel.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
-            "kernel.outbound.audit" => Ok(Self::OutboundAudit),
-            "kernel.outbound.execute" => Ok(Self::OutboundExecute),
-            "kernel.outbound.stream" => Ok(Self::OutboundStream),
-            "kernel.outbound.websocket.open" => Ok(Self::OutboundWebSocketOpen),
-            "kernel.outbound.websocket.send" => Ok(Self::OutboundWebSocketSend),
-            "kernel.outbound.websocket.close" => Ok(Self::OutboundWebSocketClose),
-            "kernel.outbound.git_fetch" => Ok(Self::OutboundGitFetch),
+            "kernel.v1.session.open" => Ok(Self::SessionOpen),
+            "kernel.v1.session.close" => Ok(Self::SessionClose),
+            "kernel.v1.session.fork" => Ok(Self::SessionFork),
+            "kernel.v1.session.branch.list" => Ok(Self::SessionBranchList),
+            "kernel.v1.session.get" => Ok(Self::SessionGet),
+            "kernel.v1.session.list" => Ok(Self::SessionList),
+            "kernel.v1.event.append" => Ok(Self::EventAppend),
+            "kernel.v1.event.list" => Ok(Self::EventList),
+            "kernel.v1.event.subscribe" => Ok(Self::EventSubscribe),
+            "kernel.v1.package.load" => Ok(Self::PackageLoad),
+            "kernel.v1.package.unload" => Ok(Self::PackageUnload),
+            "kernel.v1.package.restart" => Ok(Self::PackageRestart),
+            "kernel.v1.package.logs" => Ok(Self::PackageLogs),
+            "kernel.v1.package.list" => Ok(Self::PackageList),
+            "kernel.v1.package.status" => Ok(Self::PackageStatus),
+            "kernel.v1.package.describe" => Ok(Self::PackageDescribe),
+            "kernel.v1.capability.discover" => Ok(Self::CapabilityDiscover),
+            "kernel.v1.capability.describe" => Ok(Self::CapabilityDescribe),
+            "kernel.v1.capability.invoke" => Ok(Self::CapabilityInvoke),
+            "kernel.v1.capability.stream" => Ok(Self::CapabilityStream),
+            "kernel.v1.capability.cancel" => Ok(Self::CapabilityCancel),
+            "kernel.v1.extension_point.list" => Ok(Self::ExtensionPointList),
+            "kernel.v1.extension_point.describe" => Ok(Self::ExtensionPointDescribe),
+            "kernel.v1.hook.list" => Ok(Self::HookList),
+            "kernel.v1.asset.put" => Ok(Self::AssetPut),
+            "kernel.v1.asset.get" => Ok(Self::AssetGet),
+            "kernel.v1.asset.list" => Ok(Self::AssetList),
+            "kernel.v1.projection.register" => Ok(Self::ProjectionRegister),
+            "kernel.v1.projection.rebuild" => Ok(Self::ProjectionRebuild),
+            "kernel.v1.projection.get" => Ok(Self::ProjectionGet),
+            "kernel.v1.projection.list" => Ok(Self::ProjectionList),
+            "kernel.v1.host.info" => Ok(Self::HostInfo),
+            "kernel.v1.host.ping" => Ok(Self::HostPing),
+            "kernel.v1.host.diagnostics" => Ok(Self::HostDiagnostics),
+            "kernel.v1.host.principal" => Ok(Self::HostPrincipal),
+            "kernel.v1.permission.grant" => Ok(Self::PermissionGrant),
+            "kernel.v1.permission.revoke" => Ok(Self::PermissionRevoke),
+            "kernel.v1.permission.list" => Ok(Self::PermissionList),
+            "kernel.v1.permission.audit" => Ok(Self::PermissionAudit),
+            "kernel.v1.proposal.create" => Ok(Self::ProposalCreate),
+            "kernel.v1.proposal.get" => Ok(Self::ProposalGet),
+            "kernel.v1.proposal.list" => Ok(Self::ProposalList),
+            "kernel.v1.proposal.approve" => Ok(Self::ProposalApprove),
+            "kernel.v1.proposal.reject" => Ok(Self::ProposalReject),
+            "kernel.v1.proposal.apply" => Ok(Self::ProposalApply),
+            "kernel.v1.surface.contribution.list" => Ok(Self::SurfaceContributionList),
+            "kernel.v1.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
+            "kernel.v1.outbound.audit" => Ok(Self::OutboundAudit),
+            "kernel.v1.outbound.execute" => Ok(Self::OutboundExecute),
+            "kernel.v1.outbound.stream" => Ok(Self::OutboundStream),
+            "kernel.v1.outbound.websocket.open" => Ok(Self::OutboundWebSocketOpen),
+            "kernel.v1.outbound.websocket.send" => Ok(Self::OutboundWebSocketSend),
+            "kernel.v1.outbound.websocket.close" => Ok(Self::OutboundWebSocketClose),
+            "kernel.v1.outbound.git_fetch" => Ok(Self::OutboundGitFetch),
             other => Err(format!("unknown kernel method: {other}")),
         }
     }
@@ -406,14 +407,14 @@ impl FromStr for KernelMethod {
 // Public protocol types (API-compatible)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProtocolMethod {
     pub id: &'static str,
     pub streaming: bool,
     pub status: MethodStatus,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MethodStatus {
     Implemented,
@@ -421,7 +422,7 @@ pub enum MethodStatus {
     Planned,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProtocolPrincipal {
     HostAdmin,
@@ -432,7 +433,7 @@ pub enum ProtocolPrincipal {
     Anonymous,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProtocolContext {
     pub principal: ProtocolPrincipal,
     pub transport: String,
@@ -451,7 +452,7 @@ impl ProtocolContext {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ProtocolRequest {
     pub id: String,
     pub method: String,
@@ -459,7 +460,7 @@ pub struct ProtocolRequest {
     pub params: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ProtocolResponse {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -468,7 +469,7 @@ pub struct ProtocolResponse {
     pub error: Option<ProtocolError>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ProtocolError {
     pub code: String,
     pub message: String,
@@ -482,29 +483,29 @@ impl ProtocolError {
     }
 
     pub fn invalid_request(message: impl Into<String>) -> Self {
-        Self::new("kernel/error/invalid_request", message, Value::Null)
+        Self::new("kernel/v1/error/invalid_request", message, Value::Null)
     }
 
     pub fn from_anyhow(error: anyhow::Error) -> Self {
         let message = error.to_string();
         let code = if message.contains("not allowed") || message.contains("permission") {
-            "kernel/error/permission_denied"
+            "kernel/v1/error/permission_denied"
         } else if message.contains("ambiguous") {
-            "kernel/error/ambiguous_route"
+            "kernel/v1/error/ambiguous_route"
         } else if message.contains("schema") || message.contains("required") || message.contains("does not match") {
-            "kernel/error/schema_invalid"
+            "kernel/v1/error/schema_invalid"
         } else if message.contains("not loaded") || message.contains("not found") || message.contains("no provider") {
-            "kernel/error/not_found"
+            "kernel/v1/error/not_found"
         } else if message.contains("closed") || message.contains("not ready") || message.contains("cannot execute") {
-            "kernel/error/package_state"
+            "kernel/v1/error/package_state"
         } else {
-            "kernel/error/internal"
+            "kernel/v1/error/internal"
         };
         Self::new(code, message, Value::Null)
     }
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, JsonSchema, PartialEq)]
 pub struct HostInfo {
     pub protocol_version: &'static str,
     pub methods: &'static [ProtocolMethod],
@@ -517,60 +518,60 @@ pub const KERNEL_PROTOCOL_VERSION: &str = "0.1.0";
 // of truth. If a new method variant is added to KernelMethod, a corresponding
 // entry must appear here (tests enforce this).
 pub const KERNEL_METHODS: &[ProtocolMethod] = &[
-    ProtocolMethod { id: "kernel.session.open", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.session.close", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.session.fork", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.session.branch.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.session.get", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.session.list", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.event.append", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.event.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.event.subscribe", streaming: true, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.package.load", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.package.unload", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.package.restart", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.package.logs", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.package.list", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.package.status", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.package.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.capability.discover", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.capability.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.capability.invoke", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.capability.stream", streaming: true, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.capability.cancel", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.extension_point.list", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.extension_point.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.hook.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.asset.put", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.asset.get", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.asset.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.projection.register", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.projection.rebuild", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.projection.get", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.projection.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.host.info", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.host.ping", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.host.diagnostics", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.host.principal", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.permission.grant", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.permission.revoke", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.permission.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.permission.audit", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.proposal.create", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.proposal.get", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.proposal.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.proposal.approve", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.proposal.reject", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.proposal.apply", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.surface.contribution.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.surface.contribution.describe", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.audit", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.execute", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.stream", streaming: true, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.websocket.open", streaming: true, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.websocket.send", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.websocket.close", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.outbound.git_fetch", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.session.open", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.session.close", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.session.fork", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.session.branch.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.session.get", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.session.list", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.event.append", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.event.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.event.subscribe", streaming: true, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.package.load", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.package.unload", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.package.restart", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.package.logs", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.package.list", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.package.status", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.package.describe", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.capability.discover", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.capability.describe", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.capability.invoke", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.capability.stream", streaming: true, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.capability.cancel", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.extension_point.list", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.extension_point.describe", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.hook.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.asset.put", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.asset.get", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.asset.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.projection.register", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.projection.rebuild", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.projection.get", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.projection.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.host.info", streaming: false, status: MethodStatus::Implemented },
+    ProtocolMethod { id: "kernel.v1.host.ping", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.host.diagnostics", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.host.principal", streaming: false, status: MethodStatus::Planned },
+    ProtocolMethod { id: "kernel.v1.permission.grant", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.permission.revoke", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.permission.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.permission.audit", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.proposal.create", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.proposal.get", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.proposal.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.proposal.approve", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.proposal.reject", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.proposal.apply", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.surface.contribution.list", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.surface.contribution.describe", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.audit", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.execute", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.stream", streaming: true, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.websocket.open", streaming: true, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.websocket.send", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.websocket.close", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.outbound.git_fetch", streaming: false, status: MethodStatus::Partial },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {
@@ -603,13 +604,13 @@ mod tests {
     fn protocol_registry_matches_alpha_contract_core() {
         let ids = method_ids();
         for expected in [
-            "kernel.session.open",
-            "kernel.session.list",
-            "kernel.event.subscribe",
-            "kernel.package.describe",
-            "kernel.capability.cancel",
-            "kernel.asset.put",
-            "kernel.host.principal",
+            "kernel.v1.session.open",
+            "kernel.v1.session.list",
+            "kernel.v1.event.subscribe",
+            "kernel.v1.package.describe",
+            "kernel.v1.capability.cancel",
+            "kernel.v1.asset.put",
+            "kernel.v1.host.principal",
         ] {
             assert!(ids.contains(&expected), "missing {expected}");
         }
@@ -658,22 +659,22 @@ mod tests {
     #[test]
     fn session_close_is_implemented_and_dispatched() {
         let km = KernelMethod::SessionClose;
-        assert_eq!(km.id(), "kernel.session.close");
+        assert_eq!(km.id(), "kernel.v1.session.close");
         assert_eq!(km.status(), MethodStatus::Implemented);
-        assert!(km.is_dispatched(), "kernel.session.close must be dispatch-covered");
+        assert!(km.is_dispatched(), "kernel.v1.session.close must be dispatch-covered");
     }
 
     #[test]
     fn hook_list_status_matches_dispatch() {
         let km = KernelMethod::HookList;
-        assert_eq!(km.id(), "kernel.hook.list");
+        assert_eq!(km.id(), "kernel.v1.hook.list");
         // Was previously Planned, but dispatch exists → must be at least Partial
         assert!(
             matches!(km.status(), MethodStatus::Implemented | MethodStatus::Partial),
-            "kernel.hook.list status must be Implemented or Partial since dispatch exists, got {:?}",
+            "kernel.v1.hook.list status must be Implemented or Partial since dispatch exists, got {:?}",
             km.status()
         );
-        assert!(km.is_dispatched(), "kernel.hook.list must be dispatch-covered");
+        assert!(km.is_dispatched(), "kernel.v1.hook.list must be dispatch-covered");
     }
 
     #[test]

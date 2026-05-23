@@ -1200,7 +1200,7 @@ where
     let stream_id = response
         .get("stream_id")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream returned no stream_id"))?
+        .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream returned no stream_id"))?
         .to_string();
     let mut ttft_ms = None;
     let mut chunks = 0usize;
@@ -1255,7 +1255,7 @@ where
     runtime
         .call_protocol(
             &context,
-            "kernel.outbound.stream",
+            "kernel.v1.outbound.stream",
             json!({
                 "capability_id": PERF_OUTBOUND_CAPABILITY_ID,
                 "destination_host": PERF_OUTBOUND_HOST,

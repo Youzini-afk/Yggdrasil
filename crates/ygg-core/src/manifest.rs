@@ -1,9 +1,10 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+use schemars::JsonSchema;
 
 use crate::ids::{CapabilityId, ExtensionPointId, PackageId};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageManifest {
     pub schema_version: u16,
     pub id: PackageId,
@@ -29,7 +30,7 @@ pub struct PackageManifest {
     pub sandbox_policy: SandboxPolicy,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PackageEntry {
     RustInproc {
@@ -52,21 +53,21 @@ pub enum PackageEntry {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SubprocessTransport {
     JsonRpcStdio,
     JsonRpcTcp,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RemoteAuth {
     pub scheme: String,
     #[serde(default)]
     pub config: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDescriptor {
     pub id: CapabilityId,
     pub version: String,
@@ -82,13 +83,13 @@ pub struct CapabilityDescriptor {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityRequirement {
     pub id: CapabilityId,
     pub version: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct PackageContributions {
     #[serde(default)]
     pub schemas: Vec<SchemaContribution>,
@@ -100,7 +101,7 @@ pub struct PackageContributions {
     pub surfaces: Vec<SurfaceContribution>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SurfaceContribution {
     pub id: String,
     #[serde(default = "default_surface_version")]
@@ -121,7 +122,7 @@ pub struct SurfaceContribution {
     pub metadata: Value,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct SurfaceActivation {
     #[serde(default)]
     pub launch_capability_id: Option<CapabilityId>,
@@ -131,7 +132,7 @@ pub struct SurfaceActivation {
     pub input_schema: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SurfacePermissionRequirement {
     pub permission: String,
     #[serde(default)]
@@ -142,7 +143,7 @@ pub struct SurfacePermissionRequirement {
     pub risk: SurfaceRisk,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SurfaceRisk {
     #[default]
@@ -151,7 +152,7 @@ pub enum SurfaceRisk {
     High,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SurfaceApprovalPolicy {
     None,
@@ -159,7 +160,7 @@ pub enum SurfaceApprovalPolicy {
     ForkThenApprove,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SurfaceSlot {
     ExperienceEntry,
@@ -170,13 +171,13 @@ pub enum SurfaceSlot {
     AssistantAction,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SchemaContribution {
     pub id: String,
     pub schema: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionPointDescriptor {
     pub id: ExtensionPointId,
     pub version: String,
@@ -187,7 +188,7 @@ pub struct ExtensionPointDescriptor {
     pub short_circuit: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HookSubscription {
     pub extension_point: ExtensionPointId,
     pub handler: String,
@@ -196,14 +197,14 @@ pub struct HookSubscription {
     pub precedence: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum HookTiming {
     Sync,
     Async,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct PermissionSet {
     #[serde(default)]
     pub events: EventPermissions,
@@ -220,7 +221,7 @@ pub struct PermissionSet {
     #[serde(default)]
     pub filesystem: FilesystemPermissions,
     /// Declared secret references this package may use in
-    /// `kernel.outbound.execute` calls. Each entry must be a valid
+    /// `kernel.v1.outbound.execute` calls. Each entry must be a valid
     /// env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`,
     /// `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
     ///
@@ -233,7 +234,7 @@ pub struct PermissionSet {
     pub secret_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct EventPermissions {
     #[serde(default)]
     pub read: bool,
@@ -241,19 +242,19 @@ pub struct EventPermissions {
     pub append: bool,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityPermissions {
     #[serde(default)]
     pub invoke: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct PackagePermissions {
     #[serde(default)]
     pub call: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct AssetPermissions {
     #[serde(default)]
     pub read: bool,
@@ -268,7 +269,7 @@ pub struct AssetPermissions {
 /// / host policy checker matches outbound requests against declared
 /// entries. Packages with no `network` declarations must not make
 /// any outbound network requests.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct NetworkDeclaration {
     /// Destination host (e.g. `"api.openai.com"` or `"*.example.org"`).
     pub host: String,
@@ -280,7 +281,7 @@ pub struct NetworkDeclaration {
     pub purpose: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct NetworkPermissions {
     /// Flat host list for backward compatibility. Packages using the
     /// structured form should populate `declarations` instead.
@@ -291,15 +292,15 @@ pub struct NetworkPermissions {
     pub declarations: Vec<NetworkDeclaration>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct GitFetchPermissions {
-    /// HTTPS git hosts this package may fetch through `kernel.outbound.git_fetch`.
+    /// HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`.
     /// Host policy must still independently allow the same destination.
     #[serde(default)]
     pub hosts: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct FilesystemPermissions {
     #[serde(default)]
     pub read: Vec<String>,
@@ -307,7 +308,7 @@ pub struct FilesystemPermissions {
     pub write: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SandboxPolicy {
     #[serde(default = "default_cpu_quota_ms")]
     pub cpu_quota_ms_per_invoke: u64,

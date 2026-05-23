@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "Payload": {
+      "$defs": {
+        "ExecutorKind": {
+          "description": "The kind of outbound executor that produced a response.",
+          "oneOf": [
+            {
+              "description": "All outbound is denied; no network performed.",
+              "enum": [
+                "deny_all"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Fake/deterministic fixture executor; no real network.",
+              "enum": [
+                "fake"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Real network executor (future M4+).",
+              "enum": [
+                "real"
+              ],
+              "type": "string"
+            }
+          ]
+        },
+        "RedactionState": {
+          "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+          "oneOf": [
+            {
+              "description": "Raw data was not captured (default).",
+              "enum": [
+                "not_captured"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Raw data was redacted before recording.",
+              "enum": [
+                "redacted"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Only a policy reference is stored; no data captured.",
+              "enum": [
+                "policy_ref"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Request was blocked as unsafe; no data recorded.",
+              "enum": [
+                "unsafe_blocked"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Explicit user/host approval to capture raw data (rare).",
+              "enum": [
+                "explicitly_approved"
+              ],
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Response returned by a git outbound executor.",
+      "properties": {
+        "executor_kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ExecutorKind"
+            }
+          ],
+          "description": "What kind of executor produced this response."
+        },
+        "metadata": {
+          "default": null,
+          "description": "Opaque executor metadata, shape only."
+        },
+        "network_performed": {
+          "description": "Whether real network I/O was performed.",
+          "type": "boolean"
+        },
+        "redaction_state": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RedactionState"
+            }
+          ],
+          "default": "not_captured",
+          "description": "Redaction state applied to the response."
+        },
+        "resolved_commit_sha": {
+          "default": null,
+          "description": "Resolved commit SHA, when known. Empty for deny-all/default responses.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_content_hash": {
+          "default": null,
+          "description": "Full-tree content hash, when known. Empty for deny-all/default responses.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_path": {
+          "default": null,
+          "description": "Host-selected install root subdir / opaque ref. Must not expose raw secrets.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "description": "High-level status: \"ok\", \"denied\", \"error\", \"timeout\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "executor_kind",
+        "network_performed",
+        "status"
+      ],
+      "title": "GitOutboundResponse",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__git_fetch.completed.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind kernel/v1/git_fetch.completed.",
+  "properties": {
+    "kind": {
+      "const": "kernel/v1/git_fetch.completed"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "kernel/v1/git_fetch.completed",
+  "type": "object"
+}

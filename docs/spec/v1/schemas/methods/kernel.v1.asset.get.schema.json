@@ -1,0 +1,119 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "title": "AssetGetParams",
+      "type": "object"
+    },
+    "Result": {
+      "$defs": {
+        "AssetRecord": {
+          "properties": {
+            "created_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "hash": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "metadata": {
+              "default": null
+            },
+            "mime": {
+              "type": "string"
+            },
+            "origin_package_id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "created_at",
+            "hash",
+            "id",
+            "mime",
+            "origin_package_id",
+            "size_bytes"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "record": {
+          "$ref": "#/definitions/AssetRecord"
+        }
+      },
+      "required": [
+        "content",
+        "record"
+      ],
+      "title": "AssetGetResponse",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.asset.get.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.asset.get.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.asset.get"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.asset.get",
+  "type": "object"
+}

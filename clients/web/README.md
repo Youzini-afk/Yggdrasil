@@ -17,7 +17,7 @@ This client is a plain TypeScript SPA built by Vite. It does not use React or an
 This client uses only public host APIs:
 
 - `POST /rpc`
-- `GET /kernel/event.subscribe/:session_id`
+- `GET /kernel/v1/event.subscribe/:session_id`
 
 Run the host first:
 
@@ -155,7 +155,7 @@ Phase T4 adds optional text previews to the Forge Events and Proposals sections.
 
 Extracts safe plain-text previews from:
 
-- **Stream events**: `kernel/stream.chunk`, `kernel/stream.progress`, `kernel/stream.error`, `kernel/stream.cancelled`, `kernel/stream.timeout` — extracts `text`, `message`, `summary`, `reason`, or `content` fields depending on event kind.
+- **Stream events**: `kernel/v1/stream.chunk`, `kernel/v1/stream.progress`, `kernel/v1/stream.error`, `kernel/v1/stream.cancelled`, `kernel/v1/stream.timeout` — extracts `text`, `message`, `summary`, `reason`, or `content` fields depending on event kind.
 - **Arbitrary payloads**: any event payload with common text fields (`text`, `message`, `summary`, `reason`, `content`) — shown when text is ≥ 40 characters.
 - **Proposal fields**: `expected_effects` and `operations` — extracts long string fields (≥ 60 characters) from proposal data.
 
@@ -239,7 +239,7 @@ Lightweight test harness that exercises the fallback engine, registry, stream ad
 
 ## Agent Observability (Phase J5)
 
-Phase J5 adds a purely client-side observability layer for agent-like packages, surfaces, events, and proposals. No kernel/protocol changes; no real model or network calls.
+Phase J5 adds a purely client-side observability layer for agent-like packages, surfaces, events, and proposals. No kernel/v1/protocol changes; no real model or network calls.
 
 ### Agent observability helper (`src/agent/observability.ts`)
 
@@ -249,8 +249,8 @@ Extracts agent-like observability using generic string heuristics (no hardcoded 
 - **Surface detection**: surface ids/slots/titles containing the same hints
 - **Signal detection**:
   - `runSignals`: trace-like events (kind/payload containing `trace`, `tool`, `run`, `proposal`, or payload fields `trace_events`, `tool_calls`, `stream_frames`, `proposal_draft`)
-  - `toolSignals`: tool bridge events (kind containing `tool_bridge`, `tool-bridge`, or payload method `kernel.capability.invoke/stream`, or payload fields `tool_calls` / `tool_bridge_plan`)
-  - `streamSignals`: stream lifecycle events (`kernel/stream.*`)
+  - `toolSignals`: tool bridge events (kind containing `tool_bridge`, `tool-bridge`, or payload method `kernel.v1.capability.invoke/stream`, or payload fields `tool_calls` / `tool_bridge_plan`)
+  - `streamSignals`: stream lifecycle events (`kernel/v1/stream.*`)
   - `proposalSignals`: proposals from agent-like packages or with trace-like `expected_effects`
 - **Safety badges**: inferred from payloads — `ambiguous provider`, `rejected`, `missing provider`, `permission denied`, `audit/redaction`
 

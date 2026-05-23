@@ -546,7 +546,7 @@ function buildFixtureControls(
       disabled: false,
       disabledReason: "",
       payloadPreview: JSON.stringify({
-        method: "kernel.package.check",
+        method: "kernel.v1.package.check",
         params: { package_id: pkg.id },
         expected_response: { valid: true, errors: [], warnings: [] },
       }, null, 2),
@@ -562,7 +562,7 @@ function buildFixtureControls(
       disabled: false,
       disabledReason: "",
       payloadPreview: JSON.stringify({
-        method: "kernel.package.conformance",
+        method: "kernel.v1.package.conformance",
         params: { package_id: pkg.id },
         expected_response: { conformance: "pass|fail|warn", details: [] },
       }, null, 2),
@@ -579,7 +579,7 @@ function buildFixtureControls(
         disabled: false,
         disabledReason: "",
         payloadPreview: JSON.stringify({
-          method: "kernel.package.run_fixture",
+          method: "kernel.v1.package.run_fixture",
           params: { package_id: pkg.id },
           expected_response: { fixture_result: "pass|fail", events: [] },
         }, null, 2),
@@ -596,7 +596,7 @@ function buildFixtureControls(
       disabled: false,
       disabledReason: "",
       payloadPreview: JSON.stringify({
-        method: "kernel.package.reload",
+        method: "kernel.v1.package.reload",
         params: { package_id: pkg.id },
         expected_response: { state: "loaded|activated|error", error: null },
       }, null, 2),
@@ -614,7 +614,7 @@ function buildFixtureControls(
       disabled: true,
       disabledReason: "No packages loaded. Initialize a package first.",
       payloadPreview: JSON.stringify({
-        method: "kernel.package.check",
+        method: "kernel.v1.package.check",
         params: { package_id: "<package-id>" },
         expected_response: { valid: true, errors: [], warnings: [] },
       }, null, 2),
@@ -628,7 +628,7 @@ function buildFixtureControls(
       disabled: true,
       disabledReason: "No packages to reload. Load a package first.",
       payloadPreview: JSON.stringify({
-        method: "kernel.package.reload",
+        method: "kernel.v1.package.reload",
         params: { package_id: "<package-id>" },
         expected_response: { state: "loaded|activated|error", error: null },
       }, null, 2),

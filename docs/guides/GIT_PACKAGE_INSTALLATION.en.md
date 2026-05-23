@@ -2,7 +2,7 @@
 
 > [English](./GIT_PACKAGE_INSTALLATION.en.md) · [中文](./GIT_PACKAGE_INSTALLATION.md)
 
-A Yggdrasil host can install capability packages from public HTTPS git repositories. This is not a marketplace, not a package-signing network, and not a package manager baked into the kernel.
+A Yggdrasil host can install capability packages from public HTTPS git repositories. This is not a marketplace, not a package-signing network, and not a package manager baked into the kernel.v1.
 
 The design has two layers:
 
@@ -11,7 +11,7 @@ The design has two layers:
 
 ## What works now
 
-- New protocol method: `kernel.outbound.git_fetch`.
+- New protocol method: `kernel.v1.outbound.git_fetch`.
 - New manifest permission: `permissions.git_fetch.hosts`.
 - Three git executors:
   - `DenyAllGitOutboundExecutor`: default, rejects everything;
@@ -120,4 +120,4 @@ Default CI never performs network fetches.
 
 ## Next
 
-The remaining integration is automatic resolve/pin/apply: after approval, CLI and `installer-lab` call `kernel.outbound.git_fetch`, get `commit_sha` and `content_hash`, write the lockfile, and load the package. The substrate now has the executor, permissions, audit, profile lockfile, and ordinary official package boundary in place.
+The remaining integration is automatic resolve/pin/apply: after approval, CLI and `installer-lab` call `kernel.v1.outbound.git_fetch`, get `commit_sha` and `content_hash`, write the lockfile, and load the package. The substrate now has the executor, permissions, audit, profile lockfile, and ordinary official package boundary in place.

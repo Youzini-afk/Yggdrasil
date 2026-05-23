@@ -43,7 +43,7 @@ where
         }
         let before = self
             .dispatch_extension_handlers(
-                "kernel/capability.before_invoke",
+                "kernel/v1/capability.before_invoke",
                 json!({
                     "capability_id": request.capability_id,
                     "caller_package_id": request.caller_package_id,
@@ -71,7 +71,7 @@ where
             output,
         };
         let _ = self
-            .dispatch_extension_handlers("kernel/capability.after_invoke", serde_json::to_value(&result).unwrap_or_else(|_| json!({})))
+            .dispatch_extension_handlers("kernel/v1/capability.after_invoke", serde_json::to_value(&result).unwrap_or_else(|_| json!({})))
             .await;
         Ok(result)
     }

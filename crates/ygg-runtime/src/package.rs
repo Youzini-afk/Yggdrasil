@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use ygg_core::{PackageEntry, PackageId, PackageManifest};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PackageState {
     Discovered,
@@ -18,7 +19,7 @@ pub enum PackageState {
     Unloaded,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageRecord {
     pub id: PackageId,
     pub version: String,
@@ -52,7 +53,7 @@ impl PackageRecord {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TrustLevel {
     TrustedInproc,
@@ -61,7 +62,7 @@ pub enum TrustLevel {
     RemoteBoundary,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HostPolicy {
     pub allowed_entry_kinds: Vec<String>,
     pub max_memory_mb: u64,

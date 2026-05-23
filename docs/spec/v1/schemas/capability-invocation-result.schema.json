@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "capability_id": {
+      "type": "string"
+    },
+    "output": true,
+    "provider_package_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "capability_id",
+    "output",
+    "provider_package_id"
+  ],
+  "title": "CapabilityInvocationResult",
+  "type": "object"
+}

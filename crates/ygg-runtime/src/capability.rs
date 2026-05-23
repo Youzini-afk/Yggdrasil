@@ -3,15 +3,16 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::RwLock;
+use schemars::JsonSchema;
 use ygg_core::{CapabilityDescriptor, CapabilityId, HookSubscription, PackageId};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RegisteredCapability {
     pub descriptor: CapabilityDescriptor,
     pub provider_package_id: PackageId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityInvocationRequest {
     pub capability_id: CapabilityId,
     #[serde(default)]
@@ -24,7 +25,7 @@ pub struct CapabilityInvocationRequest {
     pub input: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityInvocationResult {
     pub capability_id: CapabilityId,
     pub provider_package_id: PackageId,
@@ -103,13 +104,13 @@ fn version_matches(requirement: &str, provided: &str) -> bool {
     false
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RegisteredHook {
     pub subscriber_package_id: PackageId,
     pub subscription: HookSubscription,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionDispatchResult {
     pub extension_point: String,
     pub invoked: Vec<RegisteredHook>,
@@ -234,14 +235,14 @@ mod tests {
             .register_package(
                 &"example/veto".to_string(),
                 &[HookSubscription {
-                    extension_point: "kernel/session.before_open".to_string(),
+                    extension_point: "kernel/v1/session.before_open".to_string(),
                     handler: "veto".to_string(),
                     timing: HookTiming::Sync,
                     precedence: 0,
                 }],
             )
             .await;
-        let result = registry.dispatch("kernel/session.before_open", json!({})).await;
+        let result = registry.dispatch("kernel/v1/session.before_open", json!({})).await;
         assert_eq!(result.vetoed_by, Some("example/veto".to_string()));
     }
 }

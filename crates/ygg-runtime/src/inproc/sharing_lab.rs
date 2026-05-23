@@ -10,13 +10,13 @@
 //! Deterministic, no-network, no marketplace, no signing network, no billing.
 //! All outputs are local/file-level proofs.
 //!
-//! No `kernel.sharing.*`, `kernel.marketplace.*`, `kernel.billing.*`,
-//! `kernel.distribution.*` namespace references.
+//! No `kernel.v1.sharing.*`, `kernel.v1.marketplace.*`, `kernel.v1.billing.*`,
+//! `kernel.v1.distribution.*` namespace references.
 //!
 //! Red lines:
 //! - No marketplace, package signing network, dependency resolver economy,
 //!   hosted billing.
-//! - No `kernel.sharing.*` / `kernel.marketplace.*`.
+//! - No `kernel.v1.sharing.*` / `kernel.v1.marketplace.*`.
 //! - No raw secrets; `secret_ref` is reference-only, never resolved.
 //! - No public network or remote service required.
 
@@ -1041,14 +1041,14 @@ mod tests {
         ];
 
         let forbidden = [
-            "kernel.sharing.",
-            "kernel.marketplace.",
-            "kernel.billing.",
-            "kernel.distribution.",
-            "kernel.experience.",
-            "kernel.world.",
-            "kernel.agent.",
-            "kernel.model.",
+            "kernel.v1.sharing.",
+            "kernel.v1.marketplace.",
+            "kernel.v1.billing.",
+            "kernel.v1.distribution.",
+            "kernel.v1.experience.",
+            "kernel.v1.world.",
+            "kernel.v1.agent.",
+            "kernel.v1.model.",
         ];
 
         for cap in &caps {

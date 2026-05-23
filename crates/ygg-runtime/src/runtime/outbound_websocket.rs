@@ -16,11 +16,13 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::{HeaderName, HeaderValue};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
+use schemars::JsonSchema;
 
 use super::outbound::ExecutorKind;
 use ygg_core::RedactionState;
 
 /// Request to open a WebSocket connection.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OutboundWebSocketOpenRequest {
     pub capability_id: String,
     pub package_id: String,
@@ -59,11 +61,11 @@ pub enum WebSocketEvent {
     Closed { connection_id: String, code: u16, reason: String, total_frames_in: u64, total_frames_out: u64, total_bytes_in: u64, total_bytes_out: u64, duration_ms: u64 },
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum FrameDirection { Inbound, Outbound }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum FrameKind { Text, Binary }
 
@@ -102,7 +104,7 @@ impl OutboundWebSocketFrame {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SendStatus {
     Ok,

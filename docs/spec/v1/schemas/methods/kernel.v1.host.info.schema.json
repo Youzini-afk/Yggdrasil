@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EmptyParams",
+      "type": "object"
+    },
+    "Result": {
+      "$defs": {
+        "MethodStatus": {
+          "enum": [
+            "implemented",
+            "partial",
+            "planned"
+          ],
+          "type": "string"
+        },
+        "ProtocolMethod": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/definitions/MethodStatus"
+            },
+            "streaming": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "status",
+            "streaming"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "methods": {
+          "items": {
+            "$ref": "#/definitions/ProtocolMethod"
+          },
+          "type": "array"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "supported_transports": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "methods",
+        "protocol_version",
+        "supported_transports"
+      ],
+      "title": "HostInfo",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.host.info.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.host.info.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.host.info"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.host.info",
+  "type": "object"
+}

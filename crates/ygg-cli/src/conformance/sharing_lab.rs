@@ -54,7 +54,7 @@ async fn invoke(
 }
 
 /// Case 1: Sharing contract — 9 capabilities, 3 surfaces, ordinary package,
-/// red lines (no marketplace, no billing, no signing network, no kernel.sharing).
+/// red lines (no marketplace, no billing, no signing network, no kernel.v1.sharing).
 pub(crate) async fn sharing_contract() -> anyhow::Result<()> {
     let rt = load_sharing_lab().await?;
 
@@ -427,14 +427,14 @@ pub(crate) async fn sharing_no_marketplace_no_raw_secrets() -> anyhow::Result<()
     .await?;
     anyhow::ensure!(import_billing.output["kind"] == json!("sharing_lab_rejected"));
 
-    // Contract output must not contain kernel.sharing/marketplace/billing namespace
+    // Contract output must not contain kernel.v1.sharing/marketplace/billing namespace
     let contract = invoke(&rt, "describe_sharing_contract", json!({})).await?;
     let output_str = serde_json::to_string(&contract.output).unwrap();
     for token in &[
-        "kernel.sharing.",
-        "kernel.marketplace.",
-        "kernel.billing.",
-        "kernel.distribution.",
+        "kernel.v1.sharing.",
+        "kernel.v1.marketplace.",
+        "kernel.v1.billing.",
+        "kernel.v1.distribution.",
     ] {
         anyhow::ensure!(
             !output_str.contains(token),

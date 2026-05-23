@@ -20,6 +20,7 @@ tokio-stream.workspace = true
 uuid.workspace = true
 ygg-core.workspace = true
 reqwest.workspace = true
+schemars.workspace = true
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 
 [features]

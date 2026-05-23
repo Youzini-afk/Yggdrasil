@@ -81,7 +81,7 @@ Capability boundaries:
 
 ## Security red lines
 
-- Do not add `kernel.project.*`, `kernel.workspace.*`, `kernel.git.*`, `kernel.npm.*`, `kernel.deploy.*`, or `kernel.ide.*`.
+- Do not add `kernel.v1.project.*`, `kernel.v1.workspace.*`, `kernel.v1.git.*`, `kernel.v1.npm.*`, `kernel.v1.deploy.*`, or `kernel.v1.ide.*`.
 - External Project is not a package; Managed Workspace is not a kernel object; Adapter/Wrapper is the package path.
 - Unadapted projects do not directly register as capability providers.
 - Dangerous actions must be plan-first, policy-checked, proposal/approval-gated, audited, and redacted.

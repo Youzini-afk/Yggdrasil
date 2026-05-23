@@ -262,7 +262,7 @@ fn draft_branch_change(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "assistant_proposal",
         "requires_user_approval": true,
-        "recommended_operation": "kernel.session.fork",
+        "recommended_operation": "kernel.v1.session.fork",
         "proposal": request.input,
     }))
 }

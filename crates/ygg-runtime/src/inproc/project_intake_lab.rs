@@ -789,12 +789,12 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
 // ---------------------------------------------------------------------------
 
 const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
-    "kernel.project.",
-    "kernel.workspace.",
-    "kernel.git.",
-    "kernel.npm.",
-    "kernel.deploy.",
-    "kernel.ide.",
+    "kernel.v1.project.",
+    "kernel.v1.workspace.",
+    "kernel.v1.git.",
+    "kernel.v1.npm.",
+    "kernel.v1.deploy.",
+    "kernel.v1.ide.",
 ];
 
 fn contains_forbidden_namespace(value: &Value) -> bool {
@@ -1616,12 +1616,12 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in &[
-            "kernel.project.",
-            "kernel.workspace.",
-            "kernel.git.",
-            "kernel.npm.",
-            "kernel.deploy.",
-            "kernel.ide.",
+            "kernel.v1.project.",
+            "kernel.v1.workspace.",
+            "kernel.v1.git.",
+            "kernel.v1.npm.",
+            "kernel.v1.deploy.",
+            "kernel.v1.ide.",
         ] {
             assert!(!output_str.contains(token), "must not contain {}", token);
         }

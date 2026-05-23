@@ -9,7 +9,7 @@
 1. 先测量，再优化。使用 `ygg perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试证明热点。不要凭感觉替换架构。
 2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
 3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case official packages。
-4. 不要用性能名义引入内容本体。不要新增 `kernel.agent.*`、`kernel.model.*`、`kernel.memory.*`、`kernel.experience.*`、`kernel.sharing.*` 等内容或产品命名空间。
+4. 不要用性能名义引入内容本体。不要新增 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.memory.*`、`kernel.v1.experience.*`、`kernel.v1.sharing.*` 等内容或产品命名空间。
 5. 高级优化必须有证据。能力或 surface cache、RawValue、registry helper/codegen、per-domain crates 等，都必须由基线或 profiling 证明必要。
 
 ## 常用命令

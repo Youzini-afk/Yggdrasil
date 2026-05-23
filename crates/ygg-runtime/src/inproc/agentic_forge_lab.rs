@@ -602,7 +602,7 @@ fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    // Produce a proposal draft — package-owned ops, not kernel.proposal.create call
+    // Produce a proposal draft — package-owned ops, not kernel.v1.proposal.create call
     let changed_assets = request.input
         .get("changed_asset_refs")
         .cloned()
@@ -1125,11 +1125,11 @@ mod tests {
         let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "test"}));
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
-        assert!(!output_str.contains("kernel.agent"));
-        assert!(!output_str.contains("kernel.model"));
-        assert!(!output_str.contains("kernel.prompt"));
-        assert!(!output_str.contains("kernel.memory"));
-        assert!(!output_str.contains("kernel.turn"));
+        assert!(!output_str.contains("kernel.v1.agent"));
+        assert!(!output_str.contains("kernel.v1.model"));
+        assert!(!output_str.contains("kernel.v1.prompt"));
+        assert!(!output_str.contains("kernel.v1.memory"));
+        assert!(!output_str.contains("kernel.v1.turn"));
     }
 
     #[test]
@@ -1309,11 +1309,11 @@ mod tests {
             let req = make_request(cap, json!({"run_id": "run_ns", "candidate_id": "cand_ns", "target_revision": 1, "current_target_revision": 1}));
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
-            assert!(!output_str.contains("kernel.agent"), "{cap} must not contain kernel.agent");
-            assert!(!output_str.contains("kernel.model"), "{cap} must not contain kernel.model");
-            assert!(!output_str.contains("kernel.prompt"), "{cap} must not contain kernel.prompt");
-            assert!(!output_str.contains("kernel.memory"), "{cap} must not contain kernel.memory");
-            assert!(!output_str.contains("kernel.turn"), "{cap} must not contain kernel.turn");
+            assert!(!output_str.contains("kernel.v1.agent"), "{cap} must not contain kernel.v1.agent");
+            assert!(!output_str.contains("kernel.v1.model"), "{cap} must not contain kernel.v1.model");
+            assert!(!output_str.contains("kernel.v1.prompt"), "{cap} must not contain kernel.v1.prompt");
+            assert!(!output_str.contains("kernel.v1.memory"), "{cap} must not contain kernel.v1.memory");
+            assert!(!output_str.contains("kernel.v1.turn"), "{cap} must not contain kernel.v1.turn");
         }
     }
 
@@ -1484,11 +1484,11 @@ mod tests {
             let req = make_request(cap, json!({"run_id": "run_ns", "node_id": "n1", "provider_kind": "deterministic", "failure_kind": "timeout", "action": "candidate_seed", "expected_fingerprint": "fp_test"}));
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
-            assert!(!output_str.contains("kernel.agent"), "{cap} must not contain kernel.agent");
-            assert!(!output_str.contains("kernel.model"), "{cap} must not contain kernel.model");
-            assert!(!output_str.contains("kernel.prompt"), "{cap} must not contain kernel.prompt");
-            assert!(!output_str.contains("kernel.memory"), "{cap} must not contain kernel.memory");
-            assert!(!output_str.contains("kernel.turn"), "{cap} must not contain kernel.turn");
+            assert!(!output_str.contains("kernel.v1.agent"), "{cap} must not contain kernel.v1.agent");
+            assert!(!output_str.contains("kernel.v1.model"), "{cap} must not contain kernel.v1.model");
+            assert!(!output_str.contains("kernel.v1.prompt"), "{cap} must not contain kernel.v1.prompt");
+            assert!(!output_str.contains("kernel.v1.memory"), "{cap} must not contain kernel.v1.memory");
+            assert!(!output_str.contains("kernel.v1.turn"), "{cap} must not contain kernel.v1.turn");
         }
     }
 

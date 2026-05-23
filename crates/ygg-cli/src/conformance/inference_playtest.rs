@@ -146,7 +146,7 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
     let proposal = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.create",
+            "kernel.v1.proposal.create",
             json!({
                 "target_session_id": session_id,
                 "operations": draft.output["operations"],
@@ -217,7 +217,7 @@ pub(crate) async fn inference_playtest_reject_apply_denied() -> anyhow::Result<(
     let created = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.create",
+            "kernel.v1.proposal.create",
             json!({
                 "target_session_id": session_id,
                 "operations": draft.output["operations"],
@@ -237,7 +237,7 @@ pub(crate) async fn inference_playtest_reject_apply_denied() -> anyhow::Result<(
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.reject",
+            "kernel.v1.proposal.reject",
             json!({"proposal_id": proposal_id, "reason": "conformance reject test"}),
         )
         .await
@@ -247,7 +247,7 @@ pub(crate) async fn inference_playtest_reject_apply_denied() -> anyhow::Result<(
     let denied = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.apply",
+            "kernel.v1.proposal.apply",
             json!({"proposal_id": proposal_id}),
         )
         .await;
@@ -280,7 +280,7 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     let created = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.create",
+            "kernel.v1.proposal.create",
             json!({
                 "target_session_id": session_id,
                 "operations": draft.output["operations"],
@@ -300,7 +300,7 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.approve",
+            "kernel.v1.proposal.approve",
             json!({"proposal_id": proposal_id, "reason": "conformance approve test"}),
         )
         .await
@@ -310,7 +310,7 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     let applied = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.proposal.apply",
+            "kernel.v1.proposal.apply",
             json!({"proposal_id": proposal_id}),
         )
         .await
@@ -356,11 +356,11 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
         "branch_plan must reference the proposal"
     );
 
-    // Actually fork the session using kernel.session.fork with the metadata from branch_plan
+    // Actually fork the session using kernel.v1.session.fork with the metadata from branch_plan
     let branch = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.session.fork",
+            "kernel.v1.session.fork",
             json!({
                 "parent_session_id": session_id,
                 "forked_from_sequence": 0,
@@ -442,16 +442,16 @@ pub(crate) async fn inference_playtest_no_chat_kernel_terms() -> anyhow::Result<
 
     let flow_str = serde_json::to_string(&flow.output).unwrap();
     anyhow::ensure!(
-        !flow_str.contains("kernel.model"),
-        "explain_flow must not reference kernel.model"
+        !flow_str.contains("kernel.v1.model"),
+        "explain_flow must not reference kernel.v1.model"
     );
     anyhow::ensure!(
-        !flow_str.contains("kernel.prompt"),
-        "explain_flow must not reference kernel.prompt"
+        !flow_str.contains("kernel.v1.prompt"),
+        "explain_flow must not reference kernel.v1.prompt"
     );
     anyhow::ensure!(
-        !flow_str.contains("kernel.chat"),
-        "explain_flow must not reference kernel.chat"
+        !flow_str.contains("kernel.v1.chat"),
+        "explain_flow must not reference kernel.v1.chat"
     );
 
     Ok(())

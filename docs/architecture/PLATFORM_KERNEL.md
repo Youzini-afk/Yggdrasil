@@ -56,7 +56,7 @@
 - 读取每个能力包清单里声明的权限。
 - 跟踪 human 和 assistant 身份的作用域授权（`events.read`、`capabilities.invoke` 等）。
 - 在事件写入、能力调用、跨包调用、网络 / 文件系统访问上执行以上全部。
-- 拒绝未声明的副作用，并写入 `kernel/permission.denied` 审计事件。
+- 拒绝未声明的副作用，并写入 `kernel/v1/permission.denied` 审计事件。
 
 ### 8. Surface 贡献
 
@@ -68,7 +68,7 @@
 
 - 调度通用的、需审批的变更提案（`create`、`get`、`list`、`approve`、`reject`、`apply`）。
 - 仅 apply 内核已理解的通用操作（`asset.put`、`projection.rebuild`）。
-- 每次状态转换都发出 `kernel/proposal.*` 审计事件。
+- 每次状态转换都发出 `kernel/v1/proposal.*` 审计事件。
 - 拒绝 apply 未审批的提案，或操作内核不认识的提案。内核绝不发明领域相关的提案语义。
 
 ### 10. 资产、分支、projection

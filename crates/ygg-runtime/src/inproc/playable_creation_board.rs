@@ -8,10 +8,10 @@
 //!
 //! Deterministic, no-network, no real model inference.
 //!
-//! No `kernel.experience.*`, `kernel.world.*`, `kernel.scene.*`,
-//! `kernel.character.*`, `kernel.turn.*`, `kernel.chat.*`,
-//! `kernel.memory.*`, `kernel.agent.*`, `kernel.model.*`,
-//! `kernel.prompt.*`, or `kernel.director.*` namespace references.
+//! No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.scene.*`,
+//! `kernel.v1.character.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`,
+//! `kernel.v1.memory.*`, `kernel.v1.agent.*`, `kernel.v1.model.*`,
+//! `kernel.v1.prompt.*`, or `kernel.v1.director.*` namespace references.
 //!
 //! State terminology: board, module, constraint, marker — not
 //! world/scene/character/chat/message/turn/memory/prompt/director.
@@ -1490,17 +1490,17 @@ mod tests {
             "official/playable-creation-board/explain_provenance",
         ];
         let forbidden = [
-            "kernel.experience.",
-            "kernel.world.",
-            "kernel.scene.",
-            "kernel.character.",
-            "kernel.turn.",
-            "kernel.chat.",
-            "kernel.memory.",
-            "kernel.agent.",
-            "kernel.model.",
-            "kernel.prompt.",
-            "kernel.director.",
+            "kernel.v1.experience.",
+            "kernel.v1.world.",
+            "kernel.v1.scene.",
+            "kernel.v1.character.",
+            "kernel.v1.turn.",
+            "kernel.v1.chat.",
+            "kernel.v1.memory.",
+            "kernel.v1.agent.",
+            "kernel.v1.model.",
+            "kernel.v1.prompt.",
+            "kernel.v1.director.",
         ];
         for cap in &caps {
             let req = make_request(cap, json!({"board_id": "test"}));
@@ -1700,18 +1700,18 @@ mod tests {
             "official/playable-creation-board/describe_asset_provenance",
         ];
         let forbidden = [
-            "kernel.experience.",
-            "kernel.world.",
-            "kernel.scene.",
-            "kernel.character.",
-            "kernel.turn.",
-            "kernel.chat.",
-            "kernel.memory.",
-            "kernel.agent.",
-            "kernel.model.",
-            "kernel.prompt.",
-            "kernel.director.",
-            "kernel.state.",
+            "kernel.v1.experience.",
+            "kernel.v1.world.",
+            "kernel.v1.scene.",
+            "kernel.v1.character.",
+            "kernel.v1.turn.",
+            "kernel.v1.chat.",
+            "kernel.v1.memory.",
+            "kernel.v1.agent.",
+            "kernel.v1.model.",
+            "kernel.v1.prompt.",
+            "kernel.v1.director.",
+            "kernel.v1.state.",
         ];
         for cap in &beta2_caps {
             let req = make_request(cap, json!({"board_id": "test"}));

@@ -14,10 +14,10 @@
 //! proposal/update draft; it does not directly modify persistent state.
 //! Forget/redaction produces a redaction plan, not a direct deletion.
 //!
-//! No `kernel.memory.*`, `kernel.experience.*`, `kernel.world.*`,
-//! `kernel.scene.*`, `kernel.turn.*`, `kernel.chat.*`,
-//! `kernel.agent.*`, `kernel.model.*`, `kernel.prompt.*`,
-//! or `kernel.director.*` namespace references.
+//! No `kernel.v1.memory.*`, `kernel.v1.experience.*`, `kernel.v1.world.*`,
+//! `kernel.v1.scene.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`,
+//! `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`,
+//! or `kernel.v1.director.*` namespace references.
 //!
 //! State terminology: memory_record, retrieval_trace, branch_view,
 //! correction, redaction_plan, provenance — not
@@ -848,16 +848,16 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in &[
-            "kernel.memory.",
-            "kernel.experience.",
-            "kernel.world.",
-            "kernel.scene.",
-            "kernel.turn.",
-            "kernel.chat.",
-            "kernel.agent.",
-            "kernel.model.",
-            "kernel.prompt.",
-            "kernel.director.",
+            "kernel.v1.memory.",
+            "kernel.v1.experience.",
+            "kernel.v1.world.",
+            "kernel.v1.scene.",
+            "kernel.v1.turn.",
+            "kernel.v1.chat.",
+            "kernel.v1.agent.",
+            "kernel.v1.model.",
+            "kernel.v1.prompt.",
+            "kernel.v1.director.",
         ] {
             assert!(
                 !output_str.contains(token),

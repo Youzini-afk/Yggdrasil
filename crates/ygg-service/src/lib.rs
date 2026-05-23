@@ -80,17 +80,17 @@ where
 {
     Router::new()
         .route("/health", get(health))
-        .route("/kernel/session.open", post(open_session::<S>))
-        .route("/kernel/event.append/:session_id", post(append_event::<S>))
-        .route("/kernel/event.list/:session_id", get(list_events::<S>))
-        .route("/kernel/event.subscribe/:session_id", get(subscribe_events::<S>))
-        .route("/kernel/package.load", post(load_package::<S>))
-        .route("/kernel/package.list", get(list_packages::<S>))
-        .route("/kernel/package.status/:namespace/:name", get(package_status::<S>))
-        .route("/kernel/package.unload/:namespace/:name", post(unload_package::<S>))
-        .route("/kernel/capability.discover", get(discover_capabilities::<S>))
-        .route("/kernel/capability.invoke", post(invoke_capability::<S>))
-        .route("/kernel/host.info", get(host_info))
+        .route("/kernel/v1/session.open", post(open_session::<S>))
+        .route("/kernel/v1/event.append/:session_id", post(append_event::<S>))
+        .route("/kernel/v1/event.list/:session_id", get(list_events::<S>))
+        .route("/kernel/v1/event.subscribe/:session_id", get(subscribe_events::<S>))
+        .route("/kernel/v1/package.load", post(load_package::<S>))
+        .route("/kernel/v1/package.list", get(list_packages::<S>))
+        .route("/kernel/v1/package.status/:namespace/:name", get(package_status::<S>))
+        .route("/kernel/v1/package.unload/:namespace/:name", post(unload_package::<S>))
+        .route("/kernel/v1/capability.discover", get(discover_capabilities::<S>))
+        .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
+        .route("/kernel/v1/host.info", get(host_info))
         .route("/rpc", post(rpc::<S>))
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -187,13 +187,13 @@ where
     let rx = state.runtime.subscribe_events();
     let stream = futures::stream::unfold((replay, rx, session_id, query), |(mut replay, mut rx, session_id, query)| async move {
         if let Some(event) = replay.pop_front() {
-            let sse = SseEvent::default().event("kernel.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.error"));
+            let sse = SseEvent::default().event("kernel.v1.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
             return Some((Ok(sse), (replay, rx, session_id, query)));
         }
         loop {
             match rx.recv().await {
                 Ok(event) if event_matches_query(&event, &session_id, &query) => {
-                    let sse = SseEvent::default().event("kernel.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.error"));
+                    let sse = SseEvent::default().event("kernel.v1.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
                     return Some((Ok(sse), (replay, rx, session_id, query)));
                 }
                 Ok(_) => continue,
@@ -325,10 +325,10 @@ impl axum::response::IntoResponse for ServiceError {
     fn into_response(self) -> axum::response::Response {
         let error = ProtocolError::from_anyhow(self.0);
         let status = match error.code.as_str() {
-            "kernel/error/permission_denied" => StatusCode::FORBIDDEN,
-            "kernel/error/not_found" => StatusCode::NOT_FOUND,
-            "kernel/error/schema_invalid" | "kernel/error/invalid_request" => StatusCode::BAD_REQUEST,
-            "kernel/error/ambiguous_route" | "kernel/error/package_state" => StatusCode::CONFLICT,
+            "kernel/v1/error/permission_denied" => StatusCode::FORBIDDEN,
+            "kernel/v1/error/not_found" => StatusCode::NOT_FOUND,
+            "kernel/v1/error/schema_invalid" | "kernel/v1/error/invalid_request" => StatusCode::BAD_REQUEST,
+            "kernel/v1/error/ambiguous_route" | "kernel/v1/error/package_state" => StatusCode::CONFLICT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (status, Json(serde_json::json!({ "error": error }))).into_response()
@@ -353,7 +353,7 @@ mod tests {
                     .uri("/rpc")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        json!({"id": "1", "method": "kernel.host.info", "params": {}}).to_string(),
+                        json!({"id": "1", "method": "kernel.v1.host.info", "params": {}}).to_string(),
                     ))?,
             )
             .await?;
@@ -374,14 +374,14 @@ mod tests {
                     .uri("/rpc")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        json!({"id": "1", "method": "kernel.event.list", "params": {}}).to_string(),
+                        json!({"id": "1", "method": "kernel.v1.event.list", "params": {}}).to_string(),
                     ))?,
             )
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-        assert_eq!(value["error"]["code"], "kernel/error/internal");
+        assert_eq!(value["error"]["code"], "kernel/v1/error/internal");
         Ok(())
     }
 }

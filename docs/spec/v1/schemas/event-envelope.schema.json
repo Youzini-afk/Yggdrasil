@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "metadata": {
+      "default": null
+    },
+    "payload": true,
+    "schema_version": {
+      "format": "uint16",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "sequence": {
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "writer_package_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "payload",
+    "schema_version",
+    "sequence",
+    "session_id",
+    "timestamp",
+    "writer_package_id"
+  ],
+  "title": "EventEnvelope",
+  "type": "object"
+}

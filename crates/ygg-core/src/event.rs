@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use schemars::JsonSchema;
 
 use crate::ids::{CapabilityId, EventId, PackageId, SessionId};
 
@@ -9,51 +10,51 @@ pub type EventKind = String;
 pub type EventSequence = u64;
 
 pub const KERNEL_PACKAGE_ID: &str = "kernel";
-pub const EVENT_SESSION_OPENED: &str = "kernel/session.opened";
-pub const EVENT_SESSION_CLOSED: &str = "kernel/session.closed";
-pub const EVENT_SESSION_FORKED: &str = "kernel/session.forked";
-pub const EVENT_PACKAGE_LOADED: &str = "kernel/package.loaded";
-pub const EVENT_PACKAGE_LOADING: &str = "kernel/package.loading";
-pub const EVENT_PACKAGE_STARTING: &str = "kernel/package.starting";
-pub const EVENT_PACKAGE_READY: &str = "kernel/package.ready";
-pub const EVENT_PACKAGE_STOPPING: &str = "kernel/package.stopping";
-pub const EVENT_PACKAGE_STOPPED: &str = "kernel/package.stopped";
-pub const EVENT_PACKAGE_UNLOADED: &str = "kernel/package.unloaded";
-pub const EVENT_PACKAGE_DEGRADED: &str = "kernel/package.degraded";
-pub const EVENT_PACKAGE_LOG: &str = "kernel/package.log";
-pub const EVENT_ASSET_PUT: &str = "kernel/asset.put";
-pub const EVENT_PROJECTION_UPDATED: &str = "kernel/projection.updated";
-pub const EVENT_PROPOSAL_CREATED: &str = "kernel/proposal.created";
-pub const EVENT_PROPOSAL_APPROVED: &str = "kernel/proposal.approved";
-pub const EVENT_PROPOSAL_REJECTED: &str = "kernel/proposal.rejected";
-pub const EVENT_PROPOSAL_APPLIED: &str = "kernel/proposal.applied";
-pub const EVENT_PROPOSAL_FAILED: &str = "kernel/proposal.failed";
-pub const EVENT_CAPABILITY_INVOKED: &str = "kernel/capability.invoked";
-pub const EVENT_CAPABILITY_COMPLETED: &str = "kernel/capability.completed";
-pub const EVENT_CAPABILITY_FAILED: &str = "kernel/capability.failed";
-pub const EVENT_PERMISSION_DENIED: &str = "kernel/permission.denied";
-pub const EVENT_PERMISSION_GRANTED: &str = "kernel/permission.granted";
-pub const EVENT_PERMISSION_REVOKED: &str = "kernel/permission.revoked";
-pub const EVENT_ERROR: &str = "kernel/error";
-pub const EVENT_OUTBOUND_REQUEST: &str = "kernel/outbound.request";
-pub const EVENT_OUTBOUND_DENIED: &str = "kernel/outbound.denied";
-pub const EVENT_OUTBOUND_EXECUTE_COMPLETED: &str = "kernel/outbound.execute.completed";
-pub const EVENT_OUTBOUND_STREAM_COMPLETED: &str = "kernel/outbound.stream.completed";
-pub const EVENT_GIT_FETCH_REQUESTED: &str = "kernel/git_fetch.requested";
-pub const EVENT_GIT_FETCH_DENIED: &str = "kernel/git_fetch.denied";
-pub const EVENT_GIT_FETCH_COMPLETED: &str = "kernel/git_fetch.completed";
-pub const EVENT_GIT_FETCH_FAILED: &str = "kernel/git_fetch.failed";
-pub const EVENT_STREAM_STARTED: &str = "kernel/stream.started";
-pub const EVENT_STREAM_CHUNK: &str = "kernel/stream.chunk";
-pub const EVENT_STREAM_PROGRESS: &str = "kernel/stream.progress";
-pub const EVENT_STREAM_ENDED: &str = "kernel/stream.ended";
-pub const EVENT_STREAM_ERROR: &str = "kernel/stream.error";
-pub const EVENT_STREAM_CANCELLED: &str = "kernel/stream.cancelled";
-pub const EVENT_STREAM_TIMEOUT: &str = "kernel/stream.timeout";
-pub const EVENT_OUTBOUND_WEBSOCKET_OPENED: &str = "kernel/outbound.websocket.opened";
-pub const EVENT_OUTBOUND_WEBSOCKET_FRAME: &str = "kernel/outbound.websocket.frame";
-pub const EVENT_OUTBOUND_WEBSOCKET_ERROR: &str = "kernel/outbound.websocket.error";
-pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "kernel/outbound.websocket.completed";
+pub const EVENT_SESSION_OPENED: &str = "kernel/v1/session.opened";
+pub const EVENT_SESSION_CLOSED: &str = "kernel/v1/session.closed";
+pub const EVENT_SESSION_FORKED: &str = "kernel/v1/session.forked";
+pub const EVENT_PACKAGE_LOADED: &str = "kernel/v1/package.loaded";
+pub const EVENT_PACKAGE_LOADING: &str = "kernel/v1/package.loading";
+pub const EVENT_PACKAGE_STARTING: &str = "kernel/v1/package.starting";
+pub const EVENT_PACKAGE_READY: &str = "kernel/v1/package.ready";
+pub const EVENT_PACKAGE_STOPPING: &str = "kernel/v1/package.stopping";
+pub const EVENT_PACKAGE_STOPPED: &str = "kernel/v1/package.stopped";
+pub const EVENT_PACKAGE_UNLOADED: &str = "kernel/v1/package.unloaded";
+pub const EVENT_PACKAGE_DEGRADED: &str = "kernel/v1/package.degraded";
+pub const EVENT_PACKAGE_LOG: &str = "kernel/v1/package.log";
+pub const EVENT_ASSET_PUT: &str = "kernel/v1/asset.put";
+pub const EVENT_PROJECTION_UPDATED: &str = "kernel/v1/projection.updated";
+pub const EVENT_PROPOSAL_CREATED: &str = "kernel/v1/proposal.created";
+pub const EVENT_PROPOSAL_APPROVED: &str = "kernel/v1/proposal.approved";
+pub const EVENT_PROPOSAL_REJECTED: &str = "kernel/v1/proposal.rejected";
+pub const EVENT_PROPOSAL_APPLIED: &str = "kernel/v1/proposal.applied";
+pub const EVENT_PROPOSAL_FAILED: &str = "kernel/v1/proposal.failed";
+pub const EVENT_CAPABILITY_INVOKED: &str = "kernel/v1/capability.invoked";
+pub const EVENT_CAPABILITY_COMPLETED: &str = "kernel/v1/capability.completed";
+pub const EVENT_CAPABILITY_FAILED: &str = "kernel/v1/capability.failed";
+pub const EVENT_PERMISSION_DENIED: &str = "kernel/v1/permission.denied";
+pub const EVENT_PERMISSION_GRANTED: &str = "kernel/v1/permission.granted";
+pub const EVENT_PERMISSION_REVOKED: &str = "kernel/v1/permission.revoked";
+pub const EVENT_ERROR: &str = "kernel/v1/error";
+pub const EVENT_OUTBOUND_REQUEST: &str = "kernel/v1/outbound.request";
+pub const EVENT_OUTBOUND_DENIED: &str = "kernel/v1/outbound.denied";
+pub const EVENT_OUTBOUND_EXECUTE_COMPLETED: &str = "kernel/v1/outbound.execute.completed";
+pub const EVENT_OUTBOUND_STREAM_COMPLETED: &str = "kernel/v1/outbound.stream.completed";
+pub const EVENT_GIT_FETCH_REQUESTED: &str = "kernel/v1/git_fetch.requested";
+pub const EVENT_GIT_FETCH_DENIED: &str = "kernel/v1/git_fetch.denied";
+pub const EVENT_GIT_FETCH_COMPLETED: &str = "kernel/v1/git_fetch.completed";
+pub const EVENT_GIT_FETCH_FAILED: &str = "kernel/v1/git_fetch.failed";
+pub const EVENT_STREAM_STARTED: &str = "kernel/v1/stream.started";
+pub const EVENT_STREAM_CHUNK: &str = "kernel/v1/stream.chunk";
+pub const EVENT_STREAM_PROGRESS: &str = "kernel/v1/stream.progress";
+pub const EVENT_STREAM_ENDED: &str = "kernel/v1/stream.ended";
+pub const EVENT_STREAM_ERROR: &str = "kernel/v1/stream.error";
+pub const EVENT_STREAM_CANCELLED: &str = "kernel/v1/stream.cancelled";
+pub const EVENT_STREAM_TIMEOUT: &str = "kernel/v1/stream.timeout";
+pub const EVENT_OUTBOUND_WEBSOCKET_OPENED: &str = "kernel/v1/outbound.websocket.opened";
+pub const EVENT_OUTBOUND_WEBSOCKET_FRAME: &str = "kernel/v1/outbound.websocket.frame";
+pub const EVENT_OUTBOUND_WEBSOCKET_ERROR: &str = "kernel/v1/outbound.websocket.error";
+pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "kernel/v1/outbound.websocket.completed";
 
 // ---------------------------------------------------------------------------
 // Outbound audit / redaction types (Phase S2)
@@ -65,7 +66,7 @@ pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "kernel/outbound.websocket.
 /// whether raw body/header/prompt/response data was preserved.
 /// The default is `NotCaptured` — raw data is never saved unless
 /// explicitly approved.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RedactionState {
     /// Raw data was not captured (default).
@@ -93,7 +94,7 @@ impl Default for RedactionState {
 /// payload — it does NOT contain raw secrets, bodies, headers,
 /// prompts, or responses. Only `secret_ref` identifiers and the
 /// `redaction_state` are recorded.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OutboundAuditRecord {
     /// Unique record id.
     pub id: String,
@@ -133,7 +134,7 @@ pub struct OutboundAuditRecord {
 // Type aliases and EventEnvelope
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct EventEnvelope {
     pub id: EventId,
     pub session_id: SessionId,
@@ -152,7 +153,7 @@ pub struct EventEnvelope {
 // ---------------------------------------------------------------------------
 
 /// The type of a stream frame — content-free, no model/prompt semantics.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamFrameType {
     /// First frame of a streaming invocation.
@@ -177,7 +178,7 @@ pub enum StreamFrameType {
 /// identifiers, sequencing, and redaction state, but no model, prompt,
 /// agent, or message semantics. The `payload` field is opaque JSON
 /// controlled by the capability provider.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StreamFrameEnvelope {
     /// The invocation this frame belongs to.
     pub invocation_id: crate::ids::InvocationId,
@@ -212,7 +213,7 @@ fn default_timestamp() -> DateTime<Utc> {
 // ---------------------------------------------------------------------------
 
 /// The terminal state of a streaming invocation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamInvocationState {
     /// Streaming is actively producing frames.
@@ -232,7 +233,7 @@ pub enum StreamInvocationState {
 /// This tracks the lifecycle of a streaming capability invocation.
 /// It is content-free — it records state, identifiers, and audit
 /// metadata, but no model/prompt/message semantics.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StreamInvocationRecord {
     /// Unique invocation id.
     pub invocation_id: crate::ids::InvocationId,
@@ -289,11 +290,11 @@ impl EventEnvelope {
     }
 
     pub fn is_kernel_event(&self) -> bool {
-        self.writer_package_id == KERNEL_PACKAGE_ID && self.kind.starts_with("kernel/")
+        self.writer_package_id == KERNEL_PACKAGE_ID && self.kind.starts_with("kernel/v1/")
     }
 
     pub fn writer_owns_kind(&self) -> bool {
-        if self.kind.starts_with("kernel/") {
+        if self.kind.starts_with("kernel/v1/") {
             return self.writer_package_id == KERNEL_PACKAGE_ID;
         }
         self.kind

@@ -28,7 +28,7 @@ fn describe_install_contract() -> anyhow::Result<Value> {
         "kind": "git_package_installer_contract",
         "stage": "profile_lockfile_loop",
         "transport": {
-            "method": "kernel.outbound.git_fetch",
+            "method": "kernel.v1.outbound.git_fetch",
             "first_round": "public_https_git_only",
             "private_repos": "deferred",
             "ssh": "deferred"
@@ -43,8 +43,8 @@ fn describe_install_contract() -> anyhow::Result<Value> {
             "inspect_lockfile"
         ],
         "red_lines": [
-            "no kernel.git namespace",
-            "no kernel.package.install namespace",
+            "no kernel.v1.git namespace",
+            "no kernel.v1.package.install namespace",
             "no post-install scripts",
             "approval required before apply",
             "profile-scoped lockfile",
@@ -99,11 +99,11 @@ fn plan_install(input: &Value) -> anyhow::Result<Value> {
             "requires_user_approval": true
         }],
         "expected_effects": [
-            "resolve ref through kernel.outbound.git_fetch",
+            "resolve ref through kernel.v1.outbound.git_fetch",
             "pin commit_sha and content_hash before apply",
             "validate package manifest",
             "write profile-scoped lockfile entry",
-            "load package through the ordinary kernel.package.load path"
+            "load package through the ordinary kernel.v1.package.load path"
         ],
         "requested_host_policy": {
             "outbound_git_enabled": true,
@@ -154,7 +154,7 @@ fn apply_install(input: &Value) -> anyhow::Result<Value> {
         "host_actions": [
             "write profile-scoped lockfile entry",
             "copy fetched tree into install_root_subdir",
-            "load package through kernel.package.load"
+            "load package through kernel.v1.package.load"
         ]
     }))
 }
@@ -181,7 +181,7 @@ fn uninstall(input: &Value) -> anyhow::Result<Value> {
         "kind": "package_uninstall_plan",
         "package_id": package_id,
         "requires_user_approval": true,
-        "host_actions": ["kernel.package.unload", "remove lockfile entry", "remove install_root_subdir"]
+        "host_actions": ["kernel.v1.package.unload", "remove lockfile entry", "remove install_root_subdir"]
     }))
 }
 

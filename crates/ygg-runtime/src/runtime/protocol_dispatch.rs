@@ -130,12 +130,12 @@ where
 
             // Extension / hook domain
             KernelMethod::ExtensionPointList => Ok(json!([
-                "kernel/event.before_append",
-                "kernel/event.after_append",
-                "kernel/capability.before_invoke",
-                "kernel/capability.after_invoke",
-                "kernel/package.loaded",
-                "kernel/package.unloaded"
+                "kernel/v1/event.before_append",
+                "kernel/v1/event.after_append",
+                "kernel/v1/capability.before_invoke",
+                "kernel/v1/capability.after_invoke",
+                "kernel/v1/package.loaded",
+                "kernel/v1/package.unloaded"
             ])),
             KernelMethod::HookList => Ok(serde_json::to_value(self.extensions.list_all_hooks().await)?),
 
@@ -183,7 +183,7 @@ where
         let surface_id = params
             .get("surface_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.surface.contribution.describe requires surface_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.surface.contribution.describe requires surface_id"))?;
         self.describe_surface_contribution(surface_id).await
     }
 
@@ -193,7 +193,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.audit requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.audit requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(self.list_outbound_audit(&package_id).await?)?)
     }
@@ -214,7 +214,7 @@ where
             }
             other => {
                 anyhow::bail!(
-                    "kernel.outbound.execute requires package or host principal, got {:?}",
+                    "kernel.v1.outbound.execute requires package or host principal, got {:?}",
                     other
                 )
             }
@@ -223,22 +223,22 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute requires capability_id"))?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
-                "kernel.outbound.execute capability_id must belong to the caller package namespace"
+                "kernel.v1.outbound.execute capability_id must belong to the caller package namespace"
             );
         }
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute requires destination_host"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute requires destination_host"))?
             .to_string();
         let method = params
             .get("method")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute requires method"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute requires method"))?
             .to_string();
         let path: Option<String> = params
             .get("path")
@@ -287,7 +287,7 @@ where
         if !all_secret_refs.is_empty() {
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.outbound.execute package '{}' is not loaded",
+                    "kernel.v1.outbound.execute package '{}' is not loaded",
                     package_id
                 )
             })?;
@@ -321,10 +321,10 @@ where
         let mut resolved_secret_headers = Vec::new();
         for spec in &secret_headers_spec {
             HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.execute secret header name is invalid")
+                anyhow::anyhow!("kernel.v1.outbound.execute secret header name is invalid")
             })?;
             let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.execute secret header is unavailable")
+                anyhow::anyhow!("kernel.v1.outbound.execute secret header is unavailable")
             })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
@@ -333,7 +333,7 @@ where
                 other => format!("{} {}", other, raw_value),
             };
             HeaderValue::from_str(&header_value).map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.execute secret header value is invalid")
+                anyhow::anyhow!("kernel.v1.outbound.execute secret header value is invalid")
             })?;
             resolved_secret_headers.push(super::outbound::ResolvedSecretHeader {
                 header_name: spec.header_name.clone(),
@@ -372,9 +372,9 @@ where
         Ok(response_value)
     }
 
-    /// Y3: Dispatch `kernel.outbound.stream`.
+    /// Y3: Dispatch `kernel.v1.outbound.stream`.
     ///
-    /// Performs the same permission checks as `kernel.outbound.execute`,
+    /// Performs the same permission checks as `kernel.v1.outbound.execute`,
     /// then starts a kernel stream and spawns the executor's `stream`
     /// method to emit frames asynchronously. Returns a stream_id
     /// that the caller subscribes to via the existing event stream.
@@ -391,7 +391,7 @@ where
             }
             other => {
                 anyhow::bail!(
-                    "kernel.outbound.stream requires package or host principal, got {:?}",
+                    "kernel.v1.outbound.stream requires package or host principal, got {:?}",
                     other
                 )
             }
@@ -400,22 +400,22 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream requires capability_id"))?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
-                "kernel.outbound.stream capability_id must belong to the caller package namespace"
+                "kernel.v1.outbound.stream capability_id must belong to the caller package namespace"
             );
         }
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream requires destination_host"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream requires destination_host"))?
             .to_string();
         let method = params
             .get("method")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream requires method"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream requires method"))?
             .to_string();
         let path: Option<String> = params
             .get("path")
@@ -491,7 +491,7 @@ where
         if !all_secret_refs.is_empty() {
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.outbound.stream package '{}' is not loaded",
+                    "kernel.v1.outbound.stream package '{}' is not loaded",
                     package_id
                 )
             })?;
@@ -520,7 +520,7 @@ where
             "sse" => super::outbound::StreamFormat::Sse,
             "ndjson" => super::outbound::StreamFormat::Ndjson,
             "raw" => super::outbound::StreamFormat::Raw,
-            other => anyhow::bail!("kernel.outbound.stream unknown stream_format '{other}'"),
+            other => anyhow::bail!("kernel.v1.outbound.stream unknown stream_format '{other}'"),
         };
         let max_frame_bytes = params
             .get("max_frame_bytes")
@@ -549,10 +549,10 @@ where
         let mut resolved_secret_headers = Vec::new();
         for spec in &secret_headers_spec {
             reqwest::header::HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.stream secret header name is invalid")
+                anyhow::anyhow!("kernel.v1.outbound.stream secret header name is invalid")
             })?;
             let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.stream secret header is unavailable")
+                anyhow::anyhow!("kernel.v1.outbound.stream secret header is unavailable")
             })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
@@ -561,7 +561,7 @@ where
                 other => format!("{} {}", other, raw_value),
             };
             reqwest::header::HeaderValue::from_str(&header_value).map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.stream secret header value is invalid")
+                anyhow::anyhow!("kernel.v1.outbound.stream secret header value is invalid")
             })?;
             resolved_secret_headers.push(super::outbound::ResolvedSecretHeader {
                 header_name: spec.header_name.clone(),
@@ -607,7 +607,7 @@ where
             }),
         ).await;
 
-        // Emit kernel/stream.started event
+        // Emit kernel/v1/stream.started event
         let event_payload = json!({
             "invocation_id": stream_record.invocation_id,
             "stream_id": stream_record.stream_id,
@@ -621,7 +621,7 @@ where
         // Create cancel signal
         let (cancel_tx, cancel_rx) = super::outbound::CancelSignal::new();
 
-        // Store the cancel sender so that kernel.capability.cancel can set it
+        // Store the cancel sender so that kernel.v1.capability.cancel can set it
         let invocation_id = stream_record.invocation_id.clone();
         let stream_id = stream_record.stream_id.clone();
 
@@ -702,7 +702,7 @@ where
                     // End the invocation in the registry
                     let _ = streams_for_end.end_invocation(&invocation_id_for_end).await;
 
-                    // Emit kernel/stream.ended event
+                    // Emit kernel/v1/stream.ended event
                     append_event(ygg_core::EVENT_STREAM_ENDED, json!({
                         "invocation_id": invocation_id_for_end,
                         "stream_id": stream_id_for_end,
@@ -756,7 +756,7 @@ where
                     // Error the invocation in the registry
                     let _ = streams_for_end.error_invocation(&invocation_id_for_end, &e.to_string()).await;
 
-                    // Emit kernel/stream.error event
+                    // Emit kernel/v1/stream.error event
                     append_event(ygg_core::EVENT_STREAM_ERROR, json!({
                         "invocation_id": invocation_id_for_end,
                         "stream_id": stream_id_for_end,
@@ -806,7 +806,7 @@ where
                 .map(str::to_string)
                 .unwrap_or_else(|| "host/test".to_string()),
             other => anyhow::bail!(
-                "kernel.outbound.websocket.open requires package or host principal, got {:?}",
+                "kernel.v1.outbound.websocket.open requires package or host principal, got {:?}",
                 other
             ),
         };
@@ -814,17 +814,17 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.open requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.open requires capability_id"))?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
-                "kernel.outbound.websocket.open capability_id must belong to the caller package namespace"
+                "kernel.v1.outbound.websocket.open capability_id must belong to the caller package namespace"
             );
         }
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.open requires destination_host"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.open requires destination_host"))?
             .to_string();
         let path = params.get("path").and_then(Value::as_str).map(str::to_string);
         let purpose = params.get("purpose").and_then(Value::as_str).map(str::to_string);
@@ -851,7 +851,7 @@ where
         if !all_secret_refs.is_empty() {
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.outbound.websocket.open package '{}' is not loaded",
+                    "kernel.v1.outbound.websocket.open package '{}' is not loaded",
                     package_id
                 )
             })?;
@@ -885,10 +885,10 @@ where
         let mut secret_headers = HashMap::new();
         for spec in &secret_headers_spec {
             HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.websocket.open secret header name is invalid")
+                anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header name is invalid")
             })?;
             let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.websocket.open secret header is unavailable")
+                anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header is unavailable")
             })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
@@ -897,7 +897,7 @@ where
                 other => format!("{} {}", other, raw_value),
             };
             HeaderValue::from_str(&header_value).map_err(|_| {
-                anyhow::anyhow!("kernel.outbound.websocket.open secret header value is invalid")
+                anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header value is invalid")
             })?;
             secret_headers.insert(spec.header_name.clone(), header_value);
         }
@@ -1027,7 +1027,7 @@ where
         let connection_id = params
             .get("connection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.send requires connection_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.send requires connection_id"))?;
         let frame = parse_websocket_frame(params)?;
         let status = self.outbound_websocket_executor().send(connection_id, frame).await?;
         Ok(json!({"status": status}))
@@ -1037,7 +1037,7 @@ where
         let connection_id = params
             .get("connection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.close requires connection_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.close requires connection_id"))?;
         let code = params.get("code").and_then(Value::as_u64).unwrap_or(1000) as u16;
         let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
         self.outbound_websocket_executor().close(connection_id, code, reason).await?;
@@ -1053,7 +1053,7 @@ where
                 .map(str::to_string)
                 .unwrap_or_else(|| "host/test".to_string()),
             other => anyhow::bail!(
-                "kernel.outbound.git_fetch requires package or host principal, got {:?}",
+                "kernel.v1.outbound.git_fetch requires package or host principal, got {:?}",
                 other
             ),
         };
@@ -1061,12 +1061,12 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.git_fetch requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.git_fetch requires capability_id"))?
             .to_string();
         let remote_url = params
             .get("remote_url")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.git_fetch requires remote_url"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.git_fetch requires remote_url"))?
             .to_string();
         let reference = params
             .get("ref")
@@ -1078,7 +1078,7 @@ where
             "refs_only" => super::GitFetchKind::RefsOnly,
             "tree_only" => super::GitFetchKind::TreeOnly,
             "shallow_clone" => super::GitFetchKind::ShallowClone,
-            other => anyhow::bail!("kernel.outbound.git_fetch unknown fetch_kind '{other}'"),
+            other => anyhow::bail!("kernel.v1.outbound.git_fetch unknown fetch_kind '{other}'"),
         };
         let secret_refs: Vec<String> = params
             .get("secret_refs")
@@ -1110,12 +1110,12 @@ where
         let principal = params
             .get("principal")
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("kernel.permission.grant requires principal"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.grant requires principal"))?;
         let principal: crate::ProtocolPrincipal = serde_json::from_value(principal)?;
         let permission = params
             .get("permission")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.permission.grant requires permission"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.grant requires permission"))?
             .to_string();
         let scope = params.get("scope").and_then(Value::as_str).map(str::to_string);
         let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
@@ -1126,7 +1126,7 @@ where
         let grant_id = params
             .get("grant_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.permission.revoke requires grant_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.revoke requires grant_id"))?;
         Ok(serde_json::to_value(self.revoke_permission(grant_id).await?)?)
     }
 
@@ -1141,7 +1141,7 @@ where
     async fn dispatch_permission_audit(&self) -> anyhow::Result<Value> {
         let events = self
             .store
-            .list_kind_prefix("kernel/permission")
+            .list_kind_prefix("kernel/v1/permission")
             .await?;
         Ok(serde_json::to_value(events)?)
     }
@@ -1157,7 +1157,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.proposal.get requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.get requires proposal_id"))?;
         Ok(serde_json::to_value(self.get_proposal(proposal_id).await?)?)
     }
 
@@ -1169,7 +1169,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.proposal.approve requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.approve requires proposal_id"))?;
         let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
         Ok(serde_json::to_value(self.approve_proposal(context, proposal_id, reason).await?)?)
     }
@@ -1178,7 +1178,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.proposal.reject requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.reject requires proposal_id"))?;
         let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
         Ok(serde_json::to_value(self.reject_proposal(context, proposal_id, reason).await?)?)
     }
@@ -1187,7 +1187,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.proposal.apply requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.apply requires proposal_id"))?;
         Ok(serde_json::to_value(self.apply_proposal(proposal_id).await?)?)
     }
 
@@ -1197,7 +1197,7 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.session.close requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.close requires session_id"))?
             .to_string();
         Ok(serde_json::to_value(self.close_session(session_id).await?)?)
     }
@@ -1206,12 +1206,12 @@ where
         let parent_session_id = params
             .get("parent_session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.session.fork requires parent_session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.fork requires parent_session_id"))?
             .to_string();
         let forked_from_sequence = params
             .get("forked_from_sequence")
             .and_then(Value::as_u64)
-            .ok_or_else(|| anyhow::anyhow!("kernel.session.fork requires forked_from_sequence"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.fork requires forked_from_sequence"))?;
         let metadata = params.get("metadata").cloned().unwrap_or_else(|| json!({}));
         Ok(serde_json::to_value(self.fork_session(parent_session_id, forked_from_sequence, metadata).await?)?)
     }
@@ -1220,7 +1220,7 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.session.branch.list requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.branch.list requires session_id"))?
             .to_string();
         Ok(serde_json::to_value(self.list_branches(&session_id).await)?)
     }
@@ -1238,7 +1238,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.package.status requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.status requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(
             self.package_status(&package_id)
@@ -1251,7 +1251,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.package.unload requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.unload requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(self.unload_package(&package_id).await?)?)
     }
@@ -1260,7 +1260,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.package.restart requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.restart requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(self.restart_package(&package_id).await?)?)
     }
@@ -1269,7 +1269,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.package.logs requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.logs requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(self.package_logs(&package_id).await)?)
     }
@@ -1280,12 +1280,12 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.capability.stream requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.stream requires capability_id"))?
             .to_string();
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.capability.stream requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.stream requires session_id"))?
             .to_string();
         let provider_package_id: Option<String> = params.get("provider_package_id").and_then(Value::as_str).map(String::from);
         let version: Option<String> = params.get("version").and_then(Value::as_str).map(String::from);
@@ -1312,18 +1312,18 @@ where
                 let stream_id = params
                     .get("stream_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires invocation_id or stream_id"))?;
+                    .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel requires invocation_id or stream_id"))?;
                 self.streams
                     .get_invocation_by_stream_id(stream_id)
                     .await
-                    .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel stream_id '{}' not found", stream_id))?
+                    .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel stream_id '{}' not found", stream_id))?
                     .invocation_id
             }
         };
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.capability.cancel requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel requires session_id"))?
             .to_string();
         let frame = self.stream_capability_cancel(&session_id, &invocation_id).await?;
         if session_id.starts_with("kernel_outbound_websocket_") {
@@ -1340,7 +1340,7 @@ where
         let asset_id = params
             .get("asset_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.asset.get requires asset_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.asset.get requires asset_id"))?;
         Ok(serde_json::to_value(self.get_asset(asset_id).await?)?)
     }
 
@@ -1350,7 +1350,7 @@ where
         let projection_id = params
             .get("projection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.projection.rebuild requires projection_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.projection.rebuild requires projection_id"))?;
         Ok(serde_json::to_value(self.projection_rebuild(projection_id).await?)?)
     }
 
@@ -1358,7 +1358,7 @@ where
         let projection_id = params
             .get("projection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.projection.get requires projection_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.projection.get requires projection_id"))?;
         Ok(serde_json::to_value(self.projection_get(projection_id).await?)?)
     }
 }
@@ -1371,7 +1371,7 @@ where
 /// the kernel stream registry.
 ///
 /// Each emitted `OutboundStreamFrame` is converted to a chunk in
-/// the `StreamRegistry` and records `kernel/stream.chunk` events.
+/// the `StreamRegistry` and records `kernel/v1/stream.chunk` events.
 /// The spawned task's completion handler emits terminal events.
 struct StreamEmitterAdapter<S: EventStore> {
     streams: Arc<StreamRegistry>,
@@ -1544,7 +1544,7 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
                 .get("text")
                 .or_else(|| params.get("data"))
                 .and_then(Value::as_str)
-                .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.send requires text data"))?
+                .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.send requires text data"))?
                 .to_string(),
         )),
         "binary" => {
@@ -1552,20 +1552,20 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
                 .get("bytes")
                 .or_else(|| params.get("data"))
                 .and_then(Value::as_array)
-                .ok_or_else(|| anyhow::anyhow!("kernel.outbound.websocket.send requires binary bytes array"))?;
+                .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.send requires binary bytes array"))?;
             let mut bytes = Vec::with_capacity(arr.len());
             for value in arr {
                 let byte = value.as_u64().ok_or_else(|| {
-                    anyhow::anyhow!("kernel.outbound.websocket.send binary bytes must be integers")
+                    anyhow::anyhow!("kernel.v1.outbound.websocket.send binary bytes must be integers")
                 })?;
                 if byte > u8::MAX as u64 {
-                    anyhow::bail!("kernel.outbound.websocket.send binary byte out of range");
+                    anyhow::bail!("kernel.v1.outbound.websocket.send binary byte out of range");
                 }
                 bytes.push(byte as u8);
             }
             Ok(OutboundWebSocketFrame::Binary(Bytes::from(bytes)))
         }
-        other => anyhow::bail!("kernel.outbound.websocket.send unknown frame kind '{other}'"),
+        other => anyhow::bail!("kernel.v1.outbound.websocket.send unknown frame kind '{other}'"),
     }
 }
 
@@ -1616,7 +1616,7 @@ fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Valu
     }
 }
 
-/// L4: Parse `secret_headers` from `kernel.outbound.execute` params.
+/// L4: Parse `secret_headers` from `kernel.v1.outbound.execute` params.
 ///
 /// Expected format:
 /// ```json
@@ -1638,18 +1638,18 @@ fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
 
     let headers_obj = secret_headers_value
         .as_object()
-        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute secret_headers must be an object"))?;
+        .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute secret_headers must be an object"))?;
 
     let mut specs = Vec::new();
     for (header_name, header_spec) in headers_obj {
         let secret_ref = header_spec
             .get("secret_ref")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute secret header requires secret_ref"))?
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute secret header requires secret_ref"))?
             .to_string();
 
         if !ygg_core::SecretRef::is_valid_ref(&secret_ref) {
-            anyhow::bail!("kernel.outbound.execute secret header secret_ref is invalid");
+            anyhow::bail!("kernel.v1.outbound.execute secret header secret_ref is invalid");
         }
 
         let scheme = header_spec
@@ -1668,7 +1668,7 @@ fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
     Ok(specs)
 }
 
-/// L5: Parse `static_headers` from `kernel.outbound.execute` params.
+/// L5: Parse `static_headers` from `kernel.v1.outbound.execute` params.
 ///
 /// Expected format:
 /// ```json
@@ -1695,14 +1695,14 @@ fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
 
     let headers_obj = static_headers_value
         .as_object()
-        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.execute static_headers must be an object"))?;
+        .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute static_headers must be an object"))?;
 
     let mut headers = Vec::new();
     for (header_name, header_value) in headers_obj {
         // Defense-in-depth: reject known secret-bearing header names
         if super::outbound::is_secret_header_name(header_name) {
             anyhow::bail!(
-                "kernel.outbound.execute static_headers rejected: '{}' is a secret-bearing header; use secret_headers with secret_ref instead",
+                "kernel.v1.outbound.execute static_headers rejected: '{}' is a secret-bearing header; use secret_headers with secret_ref instead",
                 header_name
             );
         }
@@ -1710,7 +1710,7 @@ fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
         // Only allowlisted header names are permitted
         if !super::outbound::is_static_header_allowed(header_name) {
             anyhow::bail!(
-                "kernel.outbound.execute static_headers rejected: '{}' is not on the safe header allowlist",
+                "kernel.v1.outbound.execute static_headers rejected: '{}' is not on the safe header allowlist",
                 header_name
             );
         }
@@ -1718,7 +1718,7 @@ fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
         let value = header_value
             .as_str()
             .ok_or_else(|| anyhow::anyhow!(
-                "kernel.outbound.execute static_headers value for '{}' must be a string",
+                "kernel.v1.outbound.execute static_headers value for '{}' must be a string",
                 header_name
             ))?
             .to_string();
@@ -1726,7 +1726,7 @@ fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
         // Reject values that look like raw secrets
         if looks_like_raw_secret_value(&value) {
             anyhow::bail!(
-                "kernel.outbound.execute static_headers rejected: value for '{}' looks like a raw secret; use secret_headers with secret_ref instead",
+                "kernel.v1.outbound.execute static_headers rejected: value for '{}' looks like a raw secret; use secret_headers with secret_ref instead",
                 header_name
             );
         }
@@ -1858,7 +1858,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.outbound.execute",
+                "kernel.v1.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-undeclared/fetch",
                     "destination_host": "api.openai.com",
@@ -1905,7 +1905,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.outbound.execute",
+                "kernel.v1.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-declared/fetch",
                     "destination_host": "api.openai.com",
@@ -1948,7 +1948,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.outbound.execute",
+                "kernel.v1.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-no-secret/fetch",
                     "destination_host": "api.openai.com",
@@ -1979,7 +1979,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.outbound.execute",
+                "kernel.v1.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-multi/fetch",
                     "destination_host": "api.openai.com",
@@ -2014,7 +2014,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.outbound.execute",
+                "kernel.v1.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-toplevel/fetch",
                     "destination_host": "api.openai.com",
@@ -2105,7 +2105,7 @@ mod z_websocket_tests {
         let (_store, runtime, _fake) = runtime_with_fake_ws();
         runtime.load_package(package_ws("example/ws-ns", vec![])).await.expect("load package");
         let context = ProtocolContext::package("example/ws-ns", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
             "capability_id": "other/pkg/ws",
             "destination_host": "api.example.com"
         })).await;
@@ -2118,7 +2118,7 @@ mod z_websocket_tests {
         let (_store, runtime, _fake) = runtime_with_fake_ws();
         runtime.load_package(package_ws("example/ws-secret", vec![])).await.expect("load package");
         let context = ProtocolContext::package("example/ws-secret", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
             "capability_id": "example/ws-secret/ws",
             "destination_host": "api.example.com",
             "secret_refs": ["secret_ref:env:MISSING"]
@@ -2132,7 +2132,7 @@ mod z_websocket_tests {
         let (store, runtime, _fake) = runtime_with_fake_ws();
         runtime.load_package(package_ws("example/ws-ok", vec![])).await.expect("load package");
         let context = ProtocolContext::package("example/ws-ok", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
             "capability_id": "example/ws-ok/ws",
             "destination_host": "api.example.com",
             "subprotocols": ["json"]
@@ -2177,7 +2177,7 @@ mod z_websocket_tests {
         let (store, runtime) = runtime_with_fake_execute(fake);
         runtime.load_package(package_ws("example/z6-exec-ok", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-exec-ok", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
             "capability_id": "example/z6-exec-ok/ws",
             "destination_host": "api.example.com",
             "method": "WEBSOCKET"
@@ -2209,7 +2209,7 @@ mod z_websocket_tests {
         let (store, runtime) = runtime_with_fake_execute(fake);
         runtime.load_package(package_ws("example/z6-exec-error", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-exec-error", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
             "capability_id": "example/z6-exec-error/ws",
             "destination_host": "api.example.com",
             "method": "WEBSOCKET"
@@ -2224,7 +2224,7 @@ mod z_websocket_tests {
         let (store, runtime) = runtime_with_fake_execute(fake);
         runtime.load_package(package_ws("example/z6-exec-denied", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-exec-denied", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+        let result = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
             "capability_id": "example/z6-exec-denied/ws",
             "destination_host": "denied.example.com",
             "method": "WEBSOCKET"
@@ -2240,7 +2240,7 @@ mod z_websocket_tests {
         let (store, runtime) = runtime_with_fake_execute(fake);
         runtime.load_package(package_ws("example/z6-stream-ended", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-stream-ended", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.outbound.stream", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.stream", serde_json::json!({
             "capability_id": "example/z6-stream-ended/ws",
             "destination_host": "api.example.com",
             "method": "WEBSOCKET",
@@ -2257,14 +2257,14 @@ mod z_websocket_tests {
         let (store, runtime) = runtime_with_fake_execute(fake);
         runtime.load_package(package_ws("example/z6-stream-cancel", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-stream-cancel", "in_process");
-        let response = runtime.call_protocol(&context, "kernel.outbound.stream", serde_json::json!({
+        let response = runtime.call_protocol(&context, "kernel.v1.outbound.stream", serde_json::json!({
             "capability_id": "example/z6-stream-cancel/ws",
             "destination_host": "api.example.com",
             "method": "WEBSOCKET",
             "stream_format": "sse"
         })).await.unwrap();
         let stream_id = response["stream_id"].as_str().unwrap();
-        runtime.call_protocol(&context, "kernel.capability.cancel", serde_json::json!({
+        runtime.call_protocol(&context, "kernel.v1.capability.cancel", serde_json::json!({
             "stream_id": stream_id,
             "session_id": "kernel_outbound_stream_example_z6-stream-cancel"
         })).await.unwrap();
@@ -2280,7 +2280,7 @@ mod z_websocket_tests {
         let runtime = Runtime::new(store.clone(), RuntimeConfig { outbound_websocket_executor: fake, ..RuntimeConfig::default() });
         runtime.load_package(package_ws("example/z6-ws-close", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-ws-close", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
             "capability_id": "example/z6-ws-close/ws",
             "destination_host": "api.example.com"
         })).await.unwrap();
@@ -2307,7 +2307,7 @@ mod z_websocket_tests {
         let secret_ref = format!("secret_ref:env:{env_name}");
         runtime.load_package(package_ws("example/z6-secret", vec![secret_ref.clone()])).await.unwrap();
         let context = ProtocolContext::package("example/z6-secret", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.outbound.execute", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
             "capability_id": "example/z6-secret/ws",
             "destination_host": "api.example.com",
             "method": "WEBSOCKET",
@@ -2327,7 +2327,7 @@ mod z_websocket_tests {
         let runtime = Runtime::new(store.clone(), RuntimeConfig { outbound_websocket_executor: fake, ..RuntimeConfig::default() });
         runtime.load_package(package_ws("example/z6-ws-scrub", vec![])).await.unwrap();
         let context = ProtocolContext::package("example/z6-ws-scrub", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.outbound.websocket.open", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
             "capability_id": "example/z6-ws-scrub/ws",
             "destination_host": "api.example.com"
         })).await.unwrap();

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ygg_core::{CapabilityId, PackageId};
@@ -34,7 +35,7 @@ mod text_transform_lab;
 mod thirdparty_agent_runtime;
 mod workspace_lab;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InprocInvocation {
     pub capability_id: CapabilityId,
     pub provider_package_id: PackageId,

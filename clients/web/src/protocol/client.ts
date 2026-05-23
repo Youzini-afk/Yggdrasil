@@ -112,51 +112,51 @@ export class YggProtocolClient {
   }
 
   packages() {
-    return this.call<PackageRecord[]>("kernel.package.list");
+    return this.call<PackageRecord[]>("kernel.v1.package.list");
   }
 
   capabilities() {
-    return this.call<RegisteredCapability[]>("kernel.capability.discover");
+    return this.call<RegisteredCapability[]>("kernel.v1.capability.discover");
   }
 
   diagnostics() {
-    return this.call<Record<string, unknown>>("kernel.host.diagnostics");
+    return this.call<Record<string, unknown>>("kernel.v1.host.diagnostics");
   }
 
   assets() {
-    return this.call<AssetRecord[]>("kernel.asset.list");
+    return this.call<AssetRecord[]>("kernel.v1.asset.list");
   }
 
   projections() {
-    return this.call<ProjectionRecord[]>("kernel.projection.list");
+    return this.call<ProjectionRecord[]>("kernel.v1.projection.list");
   }
 
   proposals() {
-    return this.call<ProposalRecord[]>("kernel.proposal.list");
+    return this.call<ProposalRecord[]>("kernel.v1.proposal.list");
   }
 
   approveProposal(proposalId: string) {
-    return this.call<ProposalRecord>("kernel.proposal.approve", { proposal_id: proposalId, reason: "web-forge" });
+    return this.call<ProposalRecord>("kernel.v1.proposal.approve", { proposal_id: proposalId, reason: "web-forge" });
   }
 
   applyProposal(proposalId: string) {
-    return this.call<ProposalRecord>("kernel.proposal.apply", { proposal_id: proposalId });
+    return this.call<ProposalRecord>("kernel.v1.proposal.apply", { proposal_id: proposalId });
   }
 
   surfaceContributions(slot?: string) {
-    return this.call<SurfaceContributionRecord[]>("kernel.surface.contribution.list", slot ? { slot } : {});
+    return this.call<SurfaceContributionRecord[]>("kernel.v1.surface.contribution.list", slot ? { slot } : {});
   }
 
   describeSurface(surfaceId: string) {
-    return this.call<SurfaceContributionRecord>("kernel.surface.contribution.describe", { surface_id: surfaceId });
+    return this.call<SurfaceContributionRecord>("kernel.v1.surface.contribution.describe", { surface_id: surfaceId });
   }
 
   openSession(labels: string[] = [], metadata: Record<string, unknown> = {}) {
-    return this.call<{ id: string }>("kernel.session.open", { labels, metadata });
+    return this.call<{ id: string }>("kernel.v1.session.open", { labels, metadata });
   }
 
   forkSession(parentSessionId: string, forkedFromSequence: number, metadata: Record<string, unknown> = {}) {
-    return this.call<{ id: string }>("kernel.session.fork", {
+    return this.call<{ id: string }>("kernel.v1.session.fork", {
       parent_session_id: parentSessionId,
       forked_from_sequence: forkedFromSequence,
       metadata,
@@ -164,7 +164,7 @@ export class YggProtocolClient {
   }
 
   invokeCapability(capabilityId: string, input: unknown, providerPackageId?: string) {
-    return this.call("kernel.capability.invoke", {
+    return this.call("kernel.v1.capability.invoke", {
       capability_id: capabilityId,
       input,
       ...(providerPackageId ? { provider_package_id: providerPackageId } : {}),
@@ -172,12 +172,12 @@ export class YggProtocolClient {
   }
 
   listEvents(sessionId: string) {
-    return this.call<KernelEvent[]>("kernel.event.list", { session_id: sessionId, limit: 50 });
+    return this.call<KernelEvent[]>("kernel.v1.event.list", { session_id: sessionId, limit: 50 });
   }
 
   subscribeEvents(sessionId: string, onEvent: (event: KernelEvent) => void) {
-    const source = new EventSource(`${this.baseUrl}/kernel/event.subscribe/${encodeURIComponent(sessionId)}`);
-    source.addEventListener("kernel.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
+    const source = new EventSource(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(sessionId)}`);
+    source.addEventListener("kernel.v1.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
     return () => source.close();
   }
 }

@@ -17,7 +17,7 @@ EventEnvelope
 - sequence            monotonic per session
 - timestamp           kernel-assigned
 - writer_package_id   the package that produced the event (or "kernel")
-- kind                namespaced string, e.g. "kernel/session.opened" or "org/name/event/foo"
+- kind                namespaced string, e.g. "kernel/v1/session.opened" or "org/name/event/foo"
 - schema_version      payload schema version, owned by the writer
 - payload             opaque JSON, validated only against the writer's declared schema
 - metadata            opaque JSON; causation_id, correlation_id, trace ids, etc.
@@ -26,7 +26,7 @@ EventEnvelope
 内核：
 
 - 分配 `id`、`sequence`、`timestamp` 和 `writer_package_id`，
-- 要求 `kind` 命名空间在写入方的 id 之下（内核事件使用 `kernel/...`），
+- 要求 `kind` 命名空间在写入方的 id 之下（内核事件使用 `kernel/v1/...`），
 - 如果写入方声明了 schema，就用该 schema 验证 `payload`，
 - 将 `metadata` 视为不透明。
 
@@ -41,62 +41,62 @@ EventEnvelope
 Session：
 
 ```text
-kernel/session.opened
-kernel/session.closed
-kernel/session.forked
+kernel/v1/session.opened
+kernel/v1/session.closed
+kernel/v1/session.forked
 ```
 
 能力包生命周期：
 
 ```text
-kernel/package.loading
-kernel/package.starting
-kernel/package.ready
-kernel/package.stopping
-kernel/package.stopped
-kernel/package.loaded
-kernel/package.unloaded
-kernel/package.degraded
-kernel/package.log
+kernel/v1/package.loading
+kernel/v1/package.starting
+kernel/v1/package.ready
+kernel/v1/package.stopping
+kernel/v1/package.stopped
+kernel/v1/package.loaded
+kernel/v1/package.unloaded
+kernel/v1/package.degraded
+kernel/v1/package.log
 ```
 
 能力调用（计划中的审计形式）：
 
 ```text
-kernel/capability.invoked
-kernel/capability.completed
-kernel/capability.failed
+kernel/v1/capability.invoked
+kernel/v1/capability.completed
+kernel/v1/capability.failed
 ```
 
 权限审计：
 
 ```text
-kernel/permission.granted
-kernel/permission.revoked
-kernel/permission.denied
+kernel/v1/permission.granted
+kernel/v1/permission.revoked
+kernel/v1/permission.denied
 ```
 
 通用底座：
 
 ```text
-kernel/asset.put
-kernel/projection.updated
+kernel/v1/asset.put
+kernel/v1/projection.updated
 ```
 
 提案生命周期：
 
 ```text
-kernel/proposal.created
-kernel/proposal.approved
-kernel/proposal.rejected
-kernel/proposal.applied
-kernel/proposal.failed
+kernel/v1/proposal.created
+kernel/v1/proposal.approved
+kernel/v1/proposal.rejected
+kernel/v1/proposal.applied
+kernel/v1/proposal.failed
 ```
 
 传输层 / runtime 错误（计划中）：
 
 ```text
-kernel/error
+kernel/v1/error
 ```
 
 这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，不描述内容。
@@ -125,7 +125,7 @@ someorg/memory-pack/proposal.created
 
 - 只追加。日志从不被编辑。
 - 会话内排序是单调的。内核不承诺跨会话排序。
-- 持久化。`kernel/event.after_append` 触发后，事件即已提交。
+- 持久化。`kernel/v1/event.after_append` 触发后，事件即已提交。
 - 可 replay。内核可以从 `sequence` 0 开始向前流式输出事件。
 
 ## Replay

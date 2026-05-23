@@ -46,7 +46,7 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
         .await?;
     anyhow::ensure!(events.output["event_count"] == json!(2), "event-tools summarize failed");
     let surfaces = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.surface.contribution.list", json!({"slot": "forge_panel"}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.surface.contribution.list", json!({"slot": "forge_panel"}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(surfaces.as_array().map(|items| items.len()).unwrap_or(0) >= 2, "official package surfaces missing");

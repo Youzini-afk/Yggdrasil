@@ -56,7 +56,7 @@ These aren't preferences; they're invariants.
 
 ### 1. The kernel knows nothing about content
 
-Characters, scenes, worlds, prompts, models, turns, chats, agents, memory, games, rules, dice, inventories, genres — none of these live in the kernel. If a concept means something to a player or a creator, it belongs in a package.
+Characters, scenes, worlds, prompts, models, turns, chats, agents, memory, games, rules, dice, inventories, genres — none of these live in the kernel.v1. If a concept means something to a player or a creator, it belongs in a package.
 
 ### 2. Official packages have no privileges
 

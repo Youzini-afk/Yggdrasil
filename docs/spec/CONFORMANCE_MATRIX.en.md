@@ -43,7 +43,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | events | package denied when writing without `events.append` | implemented in unit tests |
 | events | package denied when reading without `events.read` | implemented |
 | events | package denied when writing another namespace | implemented in unit tests |
-| events | package denied when writing `kernel/...` | implemented in unit tests |
+| events | package denied when writing `kernel/v1/...` | implemented in unit tests |
 | events | closed session rejects append | implemented |
 | events | sequence-range replay with filters | implemented |
 | package | valid manifest loads | implemented |
@@ -128,7 +128,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | inference-playtest-lab inspect_proposal returns risk/operations/permissions/provenance summary without applying | implemented |
 | official packages | inference-playtest-lab rejected proposal cannot apply | implemented |
 | official packages | inference-playtest-lab approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance | implemented |
-| official packages | inference-playtest-lab output contains no messages/prompt/chat/kernel.model terms | implemented |
+| official packages | inference-playtest-lab output contains no messages/prompt/chat/kernel.v1.model terms | implemented |
 | in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
@@ -141,11 +141,11 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | composition | local composition descriptor validates package-provided surfaces | implemented |
 | composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
 | official packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
-| replacement | third-party playable-seed surfaces discoverable through kernel.surface.contribution.list | implemented |
+| replacement | third-party playable-seed surfaces discoverable through kernel.v1.surface.contribution.list | implemented |
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
 | replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
 | replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
-| replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through kernel.surface.contribution.list | implemented |
+| replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through kernel.v1.surface.contribution.list | implemented |
 | replacement | third-party agent-runtime capability invocation produces no-inference/no-network, approval-gated proposal, provenance match | implemented |
 | replacement | composition descriptor passes with third-party agent-runtime replacement, official is replacement_candidate only | implemented |
 | network | package without network permission denied outbound, produces outbound.denied audit | implemented |
@@ -174,24 +174,24 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | outbound | live HTTP executor disabled by default; RuntimeConfig::default remains DenyAll | implemented |
 | outbound | live HTTP executor rejects non-HTTPS URLs; no network attempted | implemented |
 | outbound | live HTTP executor response shape contains no raw body/header/secret | implemented |
-| outbound | kernel.outbound.execute public protocol: package principal determined from context (no spoofing), FakeOutboundExecutor + allowed network declaration succeeds with audit | implemented |
-| outbound | kernel.outbound.execute spoofed package_id rejected, cannot act as another package | implemented |
-| outbound | kernel.outbound.execute no network permission denied, executor not called | implemented |
-| outbound | kernel.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
-| outbound | kernel.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
+| outbound | kernel.v1.outbound.execute public protocol: package principal determined from context (no spoofing), FakeOutboundExecutor + allowed network declaration succeeds with audit | implemented |
+| outbound | kernel.v1.outbound.execute spoofed package_id rejected, cannot act as another package | implemented |
+| outbound | kernel.v1.outbound.execute no network permission denied, executor not called | implemented |
+| outbound | kernel.v1.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
+| outbound | kernel.v1.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
 | outbound_execute | profile default deny-all, fake/live executor config, package permission, capability namespace, no-permission denial, secret_ref declarations, response redaction | implemented |
-| outbound_stream | `kernel.outbound.stream` profile default denial, fake stream frames, secret_ref declarations, capability namespace, HTTPS-only policy | implemented |
-| outbound_websocket | `kernel.outbound.websocket.*` profile default deny-all, fake executor open/send/close, live executor denial when disabled | implemented |
+| outbound_stream | `kernel.v1.outbound.stream` profile default denial, fake stream frames, secret_ref declarations, capability namespace, HTTPS-only policy | implemented |
+| outbound_websocket | `kernel.v1.outbound.websocket.*` profile default deny-all, fake executor open/send/close, live executor denial when disabled | implemented |
 | outbound_websocket | undeclared secret_ref fails closed, capability namespace enforcement, default WSS-only | implemented |
-| outbound_websocket | idle timeout emits error + completed, inbound max_total_bytes terminates, max_concurrent_connections enforced, cancel via `kernel.capability.cancel` | implemented |
-| outbound | `kernel/outbound.execute.completed` completion audit event emitted | implemented |
-| outbound | `kernel/outbound.stream.completed` completion audit event emitted | implemented |
-| outbound | `kernel/outbound.websocket.completed` completion audit event emitted | implemented |
+| outbound_websocket | idle timeout emits error + completed, inbound max_total_bytes terminates, max_concurrent_connections enforced, cancel via `kernel.v1.capability.cancel` | implemented |
+| outbound | `kernel/v1/outbound.execute.completed` completion audit event emitted | implemented |
+| outbound | `kernel/v1/outbound.stream.completed` completion audit event emitted | implemented |
+| outbound | `kernel/v1/outbound.websocket.completed` completion audit event emitted | implemented |
 | secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call: principal binding, execute dispatch, stream chunks piped back | implemented |
 | sse_parser | outbound stream SSE parser basic smoke and partial chunk coalescing | implemented |
 | live_model | live smoke is skipped by default; real calls require `YGG_LIVE_MODEL_TESTS=1` plus provider env vars | implemented |
-| git outbound | `kernel.outbound.git_fetch` denies by default, requires HTTPS, requires host allowlist, succeeds with FakeGitOutboundExecutor fixtures, audits without raw secrets, and supports opt-in RealGitOutboundExecutor coverage | implemented |
+| git outbound | `kernel.v1.outbound.git_fetch` denies by default, requires HTTPS, requires host allowlist, succeeds with FakeGitOutboundExecutor fixtures, audits without raw secrets, and supports opt-in RealGitOutboundExecutor coverage | implemented |
 | package install | profile-scoped git install lockfile supports install/list/update/uninstall/inspect round-trip and rejects unsafe URLs | implemented |
 | outbound | local loopback HTTP server secret injection: Authorization header actually arrives at server, raw secret not in protocol response/audit/log | implemented |
 | outbound | DeepSeek SSE stream normalize canary: delta_sse start→chunk→end lifecycle, terminal_frame_consistent, no raw secrets | implemented |
@@ -221,7 +221,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | experience-observability-lab summarize_cost_latency returns cost/latency summary from outbound audit refs, no raw secrets | implemented |
 | official packages | experience-observability-lab list_failure_breadcrumbs returns breadcrumbs from protocol-visible event refs | implemented |
 | official packages | experience-observability-lab summarize_guardrails returns guardrail/audit summary from protocol-visible audit refs | implemented |
-| official packages | experience-observability-lab no kernel.observability.* / kernel.experience.* namespace in any output | implemented |
+| official packages | experience-observability-lab no kernel.v1.observability.* / kernel.v1.experience.* namespace in any output | implemented |
 | official packages | experience-observability-lab raw secret blocked in all capability inputs | implemented |
 | official packages | memory-lab describe_memory_contract returns 9 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
 | official packages | memory-lab record_memory produces memory_record with content_address / branch_ref / knowledge_refs | implemented |
@@ -231,7 +231,7 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | memory-lab apply_memory_correction produces correction shape, proposal-gated | implemented |
 | official packages | memory-lab draft_forget_redaction produces redaction plan, not deletion | implemented |
 | official packages | memory-lab branch_memory_view filters memory records by branch | implemented |
-| official packages | memory-lab no output contains kernel.memory.* / kernel.experience.* namespace | implemented |
+| official packages | memory-lab no output contains kernel.v1.memory.* / kernel.v1.experience.* namespace | implemented |
 | official packages | memory-lab raw secret blocked in all capability inputs | implemented |
 | official packages | sharing-lab describe_sharing_contract returns 9 capabilities, 3 surfaces, output shapes, red lines, no forbidden namespace | implemented |
 | official packages | sharing-lab export_composition_bundle produces self-contained bundle with manifest/lockfile/disclosure, no marketplace/billing fields | implemented |
@@ -242,14 +242,14 @@ cargo run -p ygg-cli -- conformance --slowest 3
 | official packages | sharing-lab ai_disclosure_bundle produces AI disclosure metadata marking content provenance | implemented |
 | official packages | sharing-lab read_only_share_manifest read-only shared session manifest, local_file proof, no remote service | implemented |
 | official packages | sharing-lab async_fork_share_plan async fork sharing plan, draft/plan-only/requires_user_approval | implemented |
-| official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no kernel.sharing/marketplace/billing namespace | implemented |
+| official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no kernel.v1.sharing/marketplace/billing namespace | implemented |
 | storage backend | in-memory EventStore satisfies append/list/range/next_sequence basic contract | implemented |
 | storage backend | SQLite EventStore satisfies append/list/range/next_sequence basic contract | implemented |
 | storage backend | in-memory and SQLite kind-prefix query results are semantically identical | implemented |
 | storage backend | in-memory and SQLite concurrent append produces no duplicate sequences | implemented |
 | storage backend | in-memory and SQLite subscription broadcast behavior matches after append | implemented |
 | storage backend | in-memory and SQLite rehydrate event replay semantics are identical | implemented |
-| storage lab | storage-lab contract shape contains no kernel database terms (kernel.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
+| storage lab | storage-lab contract shape contains no kernel database terms (kernel.v1.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
 | storage lab | storage-lab backend class candidates contain capability flags only, no secret-bearing backend config | implemented |
 | storage lab | package state plan namespace belongs to owning package, no official priority | implemented |
 | storage lab | put document preview does not perform real write (write_performed=false) | implemented |

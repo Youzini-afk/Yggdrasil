@@ -48,17 +48,17 @@ for line in sys.stdin:
                 "result": {
                     "output": {
                         "plan_type": "agent_proposal",
-                        "proposal_pattern": "kernel.proposal.create",
+                        "proposal_pattern": "kernel.v1.proposal.create",
                         "trace": [
                             {
                                 "step": "receive_task",
                                 "description": "Agent receives a task from the caller",
-                                "protocol_method": "kernel.capability.invoke",
+                                "protocol_method": "kernel.v1.capability.invoke",
                             },
                             {
                                 "step": "plan_actions",
                                 "description": "Agent plans which capabilities to invoke",
-                                "protocol_method": "kernel.proposal.create",
+                                "protocol_method": "kernel.v1.proposal.create",
                                 "secret_ref": "secret_ref:env:AGENT_CREDENTIAL",
                                 "redaction_state": "redacted",
                             },

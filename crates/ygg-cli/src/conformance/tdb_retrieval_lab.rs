@@ -16,7 +16,7 @@ const PACKAGE_ID: &str = "official/tdb-retrieval-lab";
 fn forbidden_kernel_namespace_tokens() -> Vec<String> {
     ["tdb", "vector", "embedding", "collection", "sql", "database"]
         .into_iter()
-        .map(|segment| format!("kernel.{segment}."))
+        .map(|segment| format!("kernel.v1.{segment}."))
         .collect()
 }
 

@@ -385,7 +385,7 @@ where
     println!("Yggdrasil host serving http://{http}");
     println!("  event store: {backend_kind} (config redacted)");
     println!("  RPC: POST http://{http}/rpc");
-    println!("  SSE: GET  http://{http}/kernel/event.subscribe/:session_id");
+    println!("  SSE: GET  http://{http}/kernel/v1/event.subscribe/:session_id");
     let app = ygg_service::app_with_state(ygg_service::AppState { runtime });
     axum::serve(listener, app).await?;
     Ok(())

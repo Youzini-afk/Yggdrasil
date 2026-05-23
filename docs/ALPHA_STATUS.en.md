@@ -20,7 +20,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - A SQLite event log with monotonic per-session sequence numbers and a rehydratable substrate.
 - A JSON Schema subset validates capability I/O and package-declared event payloads.
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Human and assistant principals get scoped grants.
-- Audit events: `kernel/permission.granted|revoked|denied`, `kernel/package.*` lifecycle, `kernel/proposal.*` lifecycle.
+- Audit events: `kernel/v1/permission.granted|revoked|denied`, `kernel/v1/package.*` lifecycle, `kernel/v1/proposal.*` lifecycle.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
 
 ## Secure execution
@@ -31,9 +31,9 @@ The platform foundation is in place. From here, real AI-native playable experien
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
 - **Outbound executor boundary:** content-free HTTP and WebSocket executor traits. Default is deny-all (fail closed). They can switch to fake executors (with fixtures, used by conformance) or live executors (HTTP uses reqwest + rustls; WebSocket uses tokio-tungstenite + rustls; both off by default; HTTP is HTTPS-only; WebSocket is WSS-only; redirect fail closed). Secret headers are injected at execution time only — never into audit, response, or `Debug`. Real live model / WebSocket outbound requires explicit opt-in through profile and environment variables; default conformance does not use the network, and real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
-- **Protocol methods:** `kernel.outbound.audit` lists outbound audit events for a package; `kernel.outbound.execute` lets ordinary packages issue unary outbound requests through the host executor; `kernel.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.outbound.websocket.open|send|close` provides bidirectional WebSocket outbound; `kernel.outbound.git_fetch` lets packages request public HTTPS git fetches under host policy.
-- **Completion audit events:** `kernel/outbound.execute.completed`, `kernel/outbound.stream.completed`, and `kernel/outbound.websocket.completed` cover all three outbound primitives; events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references.
-- **Streaming lifecycle:** the stream registry tracks in-flight streaming invocations and emits `kernel/stream.started|chunk|progress|ended|error|cancelled|timeout` in order. Cancel and timeout block further chunks. Non-streaming capabilities are rejected.
+- **Protocol methods:** `kernel.v1.outbound.audit` lists outbound audit events for a package; `kernel.v1.outbound.execute` lets ordinary packages issue unary outbound requests through the host executor; `kernel.v1.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.v1.outbound.websocket.open|send|close` provides bidirectional WebSocket outbound; `kernel.v1.outbound.git_fetch` lets packages request public HTTPS git fetches under host policy.
+- **Completion audit events:** `kernel/v1/outbound.execute.completed`, `kernel/v1/outbound.stream.completed`, and `kernel/v1/outbound.websocket.completed` cover all three outbound primitives; events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references.
+- **Streaming lifecycle:** the stream registry tracks in-flight streaming invocations and emits `kernel/v1/stream.started|chunk|progress|ended|error|cancelled|timeout` in order. Cancel and timeout block further chunks. Non-streaming capabilities are rejected.
 
 ## Public protocol and transport
 
@@ -49,15 +49,15 @@ The platform foundation is in place. From here, real AI-native playable experien
 - `subprocess` packages run over JSON-RPC on stdio: handshake, invoke, timeouts, degraded state, restart, kill-on-unload, stderr capture.
 - `wasm` and `remote` entries: manifests support them; execution is deferred.
 - Capability routing supports explicit provider selection and simple exact / `^x.y` version constraints. Ambiguous routes are rejected unless the caller supplies `provider_package_id`.
-- Hook fabric: deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup. Covers `kernel/event.before_append|after_append` and `kernel/capability.before_invoke|after_invoke`.
+- Hook fabric: deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup. Covers `kernel/v1/event.before_append|after_append` and `kernel/v1/capability.before_invoke|after_invoke`.
 
 ## Substrate
 
 - Asset registry: opaque `id`, `mime`, `hash`, `size`, `origin_package_id`, `metadata`. Rehydrates from SQLite. Permission enforcement and content-addressed blob storage are next.
 - Session fork / branch lineage rehydrates from the event log.
-- Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/projection.updated`. Package-owned projection execution is next.
-- Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.surface.contribution.list` and `.describe`.
-- Proposal lifecycle: `kernel.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
+- Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
+- Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
+- Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
 ## Official capability packages
 
@@ -181,7 +181,7 @@ Plus crate and service unit tests via `cargo test --workspace`, and `npm run che
 
 ## Partial (started, not finished)
 
-- Capability invocation lifecycle events (`kernel/capability.invoked|completed|failed`): contract reserved, not yet emitted.
+- Capability invocation lifecycle events (`kernel/v1/capability.invoked|completed|failed`): contract reserved, not yet emitted.
 - `event.subscribe` permission for package principals.
 - Timeout / error audit for package-owned hook handlers.
 - Persistent capability-provider selection policy beyond explicit per-call selection.
@@ -193,7 +193,7 @@ Plus crate and service unit tests via `cargo test --workspace`, and `npm run che
 - Heavier TypeScript SDK packaging.
 - Desktop release code signing / notarization, auto-updater, real app icons, and desktop-wrapper management of the host subprocess.
 - Surface lifecycle callbacks such as `onClose` and `onProposalDraft`, plus a cross-origin surface-bundle allowlist.
-- Full surfacing of `kernel.session.get|list`, `kernel.package.describe`, `kernel.capability.describe`, `kernel.extension_point.describe`, `kernel.host.principal`, `kernel.host.ping`.
+- Full surfacing of `kernel.v1.session.get|list`, `kernel.v1.package.describe`, `kernel.v1.capability.describe`, `kernel.v1.extension_point.describe`, `kernel.v1.host.principal`, `kernel.v1.host.ping`.
 
 ## Deferred (explicitly out of kernel scope)
 

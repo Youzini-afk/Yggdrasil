@@ -47,7 +47,7 @@ pub use self::outbound::{
     OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
     OutboundFrameKind, OutboundStreamFrame, OutboundStreamSummary, RealGitOutboundExecutor,
     RealGitOutboundExecutorConfig, RedactedHeaderValue, ResolvedSecretHeader,
-    SecretHeaderSpec, StaticHeader, StreamFormat, StreamStartStatus,
+    OutboundSecretHeaderSpec, OutboundStaticHeader, SecretHeaderSpec, StaticHeader, StreamFormat, StreamStartStatus,
     KernelOutboundStreamResponse, CancelSignal, StreamEmitter,
     STATIC_HEADER_ALLOWLIST,
 };

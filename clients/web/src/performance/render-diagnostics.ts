@@ -19,7 +19,7 @@ export function buildMockKernelEvents(count: number): KernelEvent[] {
     session_id: "ses_render_diagnostics",
     sequence: index,
     writer_package_id: index % 3 === 0 ? "kernel" : "official/playable-creation-board",
-    kind: index % 3 === 0 ? "kernel/event.mock" : "official/playable-creation-board/state.delta",
+    kind: index % 3 === 0 ? "kernel/v1/event.mock" : "official/playable-creation-board/state.delta",
     payload: {
       index,
       summary: `Mock event ${index}`,

@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "AssetPermissions": {
+      "properties": {
+        "read": {
+          "default": false,
+          "type": "boolean"
+        },
+        "write": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "CapabilityPermissions": {
+      "properties": {
+        "invoke": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "EventPermissions": {
+      "properties": {
+        "append": {
+          "default": false,
+          "type": "boolean"
+        },
+        "read": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "FilesystemPermissions": {
+      "properties": {
+        "read": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "write": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "GitFetchPermissions": {
+      "properties": {
+        "hosts": {
+          "default": [],
+          "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "NetworkDeclaration": {
+      "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
+      "properties": {
+        "host": {
+          "description": "Destination host (e.g. `\"api.openai.com\"` or `\"*.example.org\"`).",
+          "type": "string"
+        },
+        "methods": {
+          "default": [],
+          "description": "Permitted HTTP/WebSocket methods (e.g. `[\"GET\", \"POST\", \"WEBSOCKET\"]`). Empty means all.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "purpose": {
+          "default": null,
+          "description": "Human-readable purpose for this network access.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "type": "object"
+    },
+    "NetworkPermissions": {
+      "properties": {
+        "declarations": {
+          "default": [],
+          "description": "Structured network declarations (host, methods, purpose).",
+          "items": {
+            "$ref": "#/definitions/NetworkDeclaration"
+          },
+          "type": "array"
+        },
+        "hosts": {
+          "default": [],
+          "description": "Flat host list for backward compatibility. Packages using the structured form should populate `declarations` instead.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PackagePermissions": {
+      "properties": {
+        "call": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "assets": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AssetPermissions"
+        }
+      ],
+      "default": {
+        "read": false,
+        "write": false
+      }
+    },
+    "capabilities": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/CapabilityPermissions"
+        }
+      ],
+      "default": {
+        "invoke": []
+      }
+    },
+    "events": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/EventPermissions"
+        }
+      ],
+      "default": {
+        "append": false,
+        "read": false
+      }
+    },
+    "filesystem": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/FilesystemPermissions"
+        }
+      ],
+      "default": {
+        "read": [],
+        "write": []
+      }
+    },
+    "git_fetch": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/GitFetchPermissions"
+        }
+      ],
+      "default": {
+        "hosts": []
+      }
+    },
+    "network": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/NetworkPermissions"
+        }
+      ],
+      "default": {
+        "declarations": [],
+        "hosts": []
+      }
+    },
+    "packages": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PackagePermissions"
+        }
+      ],
+      "default": {
+        "call": []
+      }
+    },
+    "secret_refs": {
+      "default": [],
+      "description": "Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "title": "PermissionSet",
+  "type": "object"
+}

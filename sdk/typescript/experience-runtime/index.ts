@@ -5,8 +5,8 @@
  *
  * This module defines the **experience runtime contract** at the package/SDK
  * layer. It does NOT enter the kernel, does NOT add Rust protocol methods, and
- * does NOT add `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`,
- * `kernel.chat.*`, or `kernel.memory.*`.
+ * does NOT add `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`,
+ * `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
  *
  * ## Design principles
  *
@@ -15,8 +15,8 @@
  * - **Deterministic**: No network, no real model inference, no random.
  * - **Secret-safe**: Uses `secret_ref` identifiers; rejects raw secrets.
  * - **No kernel experience namespace**: Output never contains
- *   `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`,
- *   `kernel.chat.*`, or `kernel.memory.*`.
+ *   `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`,
+ *   `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
  * - **Surface-bound**: Experiences declare experience_entry, play_renderer,
  *   forge_panel, and assistant_action surfaces. The kernel never interprets
  *   experience semantics.
@@ -235,7 +235,7 @@ export function validateExperienceDescriptor(d: unknown): string[] {
 
   // Check for forbidden kernel namespace
   const str = JSON.stringify(d);
-  for (const ns of ["kernel.experience.", "kernel.world.", "kernel.turn.", "kernel.chat.", "kernel.memory."]) {
+  for (const ns of ["kernel.v1.experience.", "kernel.v1.world.", "kernel.v1.turn.", "kernel.v1.chat.", "kernel.v1.memory."]) {
     if (str.includes(ns)) errors.push(`must not contain ${ns}`);
   }
 
@@ -743,11 +743,11 @@ export function blockRawSecrets(input: unknown): {
 // ---------------------------------------------------------------------------
 
 const FORBIDDEN_NAMESPACES = [
-  "kernel.experience.",
-  "kernel.world.",
-  "kernel.turn.",
-  "kernel.chat.",
-  "kernel.memory.",
+  "kernel.v1.experience.",
+  "kernel.v1.world.",
+  "kernel.v1.turn.",
+  "kernel.v1.chat.",
+  "kernel.v1.memory.",
 ];
 
 export function hasKernelExperienceNamespace(value: unknown): boolean {
@@ -913,8 +913,8 @@ export function runExperienceRuntimeSelfTest(): {
   const safeOutput = hasKernelExperienceNamespace(desc);
   assert("descriptor no kernel namespace", !safeOutput);
 
-  const badOutput = hasKernelExperienceNamespace({ ref: "kernel.experience.run" });
-  assert("detects kernel.experience namespace", badOutput);
+  const badOutput = hasKernelExperienceNamespace({ ref: "kernel.v1.experience.run" });
+  assert("detects kernel.v1.experience namespace", badOutput);
 
   // 13. Lifecycle states
   assert("9 lifecycle states", EXPERIENCE_LIFECYCLE_STATES.length === 9);

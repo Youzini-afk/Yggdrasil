@@ -6,7 +6,7 @@ This guide documents how to author inference capability packages for Yggdrasil. 
 
 ## Core position
 
-1. Inference is an ordinary capability, not a kernel primitive. There are no `kernel.model.*`, `kernel.prompt.*`, `kernel.chat.*`, or `kernel.embedding.*`.
+1. Inference is an ordinary capability, not a kernel primitive. There are no `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.chat.*`, or `kernel.v1.embedding.*`.
 2. The request envelope is transport-neutral. It does not contain URL, HTTP header, status code, or OpenAI messages fields.
 3. Cloud adapters are one class of provider, not the platform model abstraction. `official/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Ygg's model worldview.
 4. `local_process`, `in_memory`, `ipc`, `websocket`, and `http` have equal standing.

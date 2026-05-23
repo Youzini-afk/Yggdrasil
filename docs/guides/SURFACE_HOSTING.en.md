@@ -205,7 +205,7 @@ surfaces:
       wrapper_class: ydltavern-extensions-surface
 ```
 
-The web shell reads descriptors and metadata through `kernel.surface.contribution.list` / `.describe`, chooses the surface for the target slot, resolves `bundle_url`, `export_name`, and `wrapper_class`, then calls `mountSurface`. The host can pass the session id, descriptor, and read-only configuration in `initialProps`, and can decide whether to wire `hostBridge.callRpc` based on permissions.
+The web shell reads descriptors and metadata through `kernel.v1.surface.contribution.list` / `.describe`, chooses the surface for the target slot, resolves `bundle_url`, `export_name`, and `wrapper_class`, then calls `mountSurface`. The host can pass the session id, descriptor, and read-only configuration in `initialProps`, and can decide whether to wire `hostBridge.callRpc` based on permissions.
 
 ## v0 limitations
 

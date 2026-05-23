@@ -186,12 +186,12 @@ Web shell 不读 SQLite/PostgreSQL/TDB、本地文件系统或 runtime internals
 不得新增：
 
 ```text
-kernel.postgres.*
-kernel.sql.*
-kernel.database.*
-kernel.tdb.*
-kernel.vector.*
-kernel.embedding.*
+kernel.v1.postgres.*
+kernel.v1.sql.*
+kernel.v1.database.*
+kernel.v1.tdb.*
+kernel.v1.vector.*
+kernel.v1.embedding.*
 ```
 
 不得让包获得 raw PostgreSQL pool、SQL、DSN、TDB path、backend topology 或 raw backend error。

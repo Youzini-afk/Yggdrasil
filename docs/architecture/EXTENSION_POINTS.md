@@ -26,7 +26,7 @@
 ```yaml
 contributes:
   hooks:
-    - extension_point: kernel/event.before_append
+    - extension_point: kernel/v1/event.before_append
       handler: my_handler
       timing: sync
       precedence: 100
@@ -42,7 +42,7 @@ contributes:
 
 ## 实现状态
 
-内核发出的扩展点集合在设计上是固定的。当前实现已覆盖事件追加和能力调用的核心路径：稳定排序、包内处理器、payload 元数据修改、否决和卸载清理。会话和包生命周期钩子已在契约中预留。今天它们通过 `kernel/session.*` 和 `kernel/package.*` 事件传递，后续会补齐同步/异步钩子处理。新的扩展点应由能力包贡献，而不是扩展内核。
+内核发出的扩展点集合在设计上是固定的。当前实现已覆盖事件追加和能力调用的核心路径：稳定排序、包内处理器、payload 元数据修改、否决和卸载清理。会话和包生命周期钩子已在契约中预留。今天它们通过 `kernel/v1/session.*` 和 `kernel/v1/package.*` 事件传递，后续会补齐同步/异步钩子处理。新的扩展点应由能力包贡献，而不是扩展内核。
 
 ## 内核发出的扩展点
 
@@ -50,45 +50,45 @@ contributes:
 
 ### 会话生命周期
 
-- `kernel/session.before_open` — sync，modifiable false，short_circuit true。
+- `kernel/v1/session.before_open` — sync，modifiable false，short_circuit true。
   打开权限在此执行。订阅方可以否决。
-- `kernel/session.after_open` — async。
-- `kernel/session.before_close` — sync，modifiable false，short_circuit true。
-- `kernel/session.after_close` — async。
+- `kernel/v1/session.after_open` — async。
+- `kernel/v1/session.before_close` — sync，modifiable false，short_circuit true。
+- `kernel/v1/session.after_close` — async。
 
 Payload：会话 id、请求的 labels、包集、发起请求的身份。
 
 ### 事件日志
 
-- `kernel/event.before_append` — sync，modifiable true，short_circuit true。
+- `kernel/v1/event.before_append` — sync，modifiable true，short_circuit true。
   权限和 schema 校验在此执行。订阅方可以修改 metadata 或否决。
-- `kernel/event.after_append` — async。
+- `kernel/v1/event.after_append` — async。
   订阅方收到已持久化的信封。
 
 Payload：事件信封。内核不解释 payload 字段。只有写入者清单为该事件 kind 引用了 payload schema 时，内核才检查声明的 schema。
 
 ### 能力调用
 
-- `kernel/capability.before_invoke` — sync，modifiable true，short_circuit true。
+- `kernel/v1/capability.before_invoke` — sync，modifiable true，short_circuit true。
   权限、路由解析和配额执行在此发生。
-- `kernel/capability.after_invoke` — async。
+- `kernel/v1/capability.after_invoke` — async。
   订阅方收到 input、output（或 error）、延迟和 provider id。
-- `kernel/capability.error` — async。
+- `kernel/v1/capability.error` — async。
   订阅方收到结构化失败信息。
 
 Payload：invocation envelope。
 
 ### 包生命周期
 
-- `kernel/package.loaded` — async。
-- `kernel/package.unloaded` — async。
-- `kernel/package.degraded` — async。
-- `kernel/package.heartbeat_lost` — async。
+- `kernel/v1/package.loaded` — async。
+- `kernel/v1/package.unloaded` — async。
+- `kernel/v1/package.degraded` — async。
+- `kernel/v1/package.heartbeat_lost` — async。
 
 ### 钩子注册表
 
-- `kernel/hook.registered` — async。
-- `kernel/hook.unregistered` — async。
+- `kernel/v1/hook.registered` — async。
+- `kernel/v1/hook.unregistered` — async。
 
 这些事件让可观测性能力包发现当前活跃的扩展拓扑。
 
@@ -96,7 +96,7 @@ Payload：invocation envelope。
 
 能力包可以在 `contributes.extension_points` 下列出自己的扩展点。该能力包就是 schema 的拥有者。
 
-内核路由调用，但不验证语义。如果拥有者能力包被卸载，内核拒绝分发该扩展点，并为所有孤立订阅方发出 `kernel/hook.unregistered`。
+内核路由调用，但不验证语义。如果拥有者能力包被卸载，内核拒绝分发该扩展点，并为所有孤立订阅方发出 `kernel/v1/hook.unregistered`。
 
 示例（仅作示意；不属于内核）：
 

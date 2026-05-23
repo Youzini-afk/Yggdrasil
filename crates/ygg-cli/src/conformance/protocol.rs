@@ -6,7 +6,7 @@ use super::fixtures::*;
 pub(crate) async fn call_host_info() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let value = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.host.info", json!({}))
+        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.host.info", json!({}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(value.get("supported_transports").is_some(), "host.info missing transports");
@@ -19,7 +19,7 @@ pub(crate) async fn call_capability_in_process() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.capability.invoke",
+            "kernel.v1.capability.invoke",
             json!({"capability_id": "example/protocol/echo", "input": {"via": "protocol"}}),
         )
         .await

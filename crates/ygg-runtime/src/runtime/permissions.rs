@@ -1,12 +1,13 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use schemars::JsonSchema;
 use ygg_core::{new_id, EventEnvelope, PackageId, SessionId, EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED};
 
 use super::Runtime;
 use crate::{EventStore, ProtocolPrincipal};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct PermissionGrantRecord {
     pub id: String,
     pub principal: ProtocolPrincipal,

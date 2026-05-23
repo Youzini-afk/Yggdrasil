@@ -56,7 +56,7 @@ This document defines what the kernel does and what it doesn't. Anything not lis
 - Reads each package's manifest-declared permissions.
 - Tracks scoped grants for human and assistant principals (`events.read`, `capabilities.invoke`, etc.).
 - Enforces all of the above on event writes, capability invocations, cross-package calls, and network / filesystem access.
-- Rejects undeclared side effects and writes a `kernel/permission.denied` audit event.
+- Rejects undeclared side effects and writes a `kernel/v1/permission.denied` audit event.
 
 ### 8. Surface contributions
 
@@ -68,7 +68,7 @@ This document defines what the kernel does and what it doesn't. Anything not lis
 
 - Schedules generic, approval-gated change proposals (`create`, `get`, `list`, `approve`, `reject`, `apply`).
 - Only applies operations the kernel itself understands (`asset.put`, `projection.rebuild`).
-- Emits `kernel/proposal.*` audit events on every state transition.
+- Emits `kernel/v1/proposal.*` audit events on every state transition.
 - Rejects applying unapproved proposals or proposals whose operations the kernel doesn't recognize. The kernel never invents domain-specific proposal semantics.
 
 ### 10. Assets, branches, projections
@@ -157,4 +157,4 @@ The kernel ships no default packages. A distribution can bundle official package
 
 ## Stability promise
 
-This document changes by explicit revision. New responsibilities have to argue why they can't live in a package. The default answer is "package, not kernel."
+This document changes by explicit revision. New responsibilities have to argue why they can't live in a package. The default answer is "package, not kernel.v1."

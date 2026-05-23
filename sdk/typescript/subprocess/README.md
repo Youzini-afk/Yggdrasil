@@ -1,6 +1,6 @@
 # Yggdrasil TypeScript subprocess SDK
 
-Thin helper for JSON-RPC-over-stdio capability packages. It wraps the public subprocess protocol: handshake, `capability.invoke`, and reverse public `kernel.*` calls such as `kernel.outbound.execute` / `kernel.outbound.stream`.
+Thin helper for JSON-RPC-over-stdio capability packages. It wraps the public subprocess protocol: handshake, `capability.invoke`, and reverse public `kernel.v1.*` calls such as `kernel.v1.outbound.execute` / `kernel.v1.outbound.stream`.
 
 ```ts
 import { serveSubprocessPackage } from "./index";

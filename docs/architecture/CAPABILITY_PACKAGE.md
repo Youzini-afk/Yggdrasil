@@ -66,7 +66,7 @@ contributes:
     - id: org/name/event/foo
       schema: <jsonschema>
   hooks:
-    - extension_point: kernel/event.after_append
+    - extension_point: kernel/v1/event.after_append
       handler: handle_event
       timing: async
   assets:

@@ -208,7 +208,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("outbound.live_http_default_disabled", ["outbound", "network", "live"], network::outbound_live_http_default_disabled),
         c!("outbound.live_http_rejects_insecure_url", ["outbound", "network", "live"], network::outbound_live_http_rejects_insecure_url),
         c!("outbound.live_http_redacted_shape", ["outbound", "network", "live"], network::outbound_live_http_redacted_shape),
-        // --- kernel.outbound.execute ---
+        // --- kernel.v1.outbound.execute ---
         c!("outbound.execute_package_allowed", ["outbound", "network"], network::outbound_execute_package_allowed),
         c!("outbound.execute_spoofed_package_id_rejected", ["outbound", "network"], network::outbound_execute_spoofed_package_id_rejected),
         c!("outbound.execute_no_permission_denied", ["outbound", "network"], network::outbound_execute_no_permission_denied),
@@ -233,7 +233,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         // --- Y2: manifest permissions.secret_refs conformance ---
         c!("outbound_execute.secret_ref_undeclared_fails", ["outbound", "network", "secret", "manifest"], network::outbound_execute_secret_ref_undeclared_fails),
         c!("outbound_execute.secret_ref_declared_resolves", ["outbound", "network", "secret", "manifest"], network::outbound_execute_secret_ref_declared_resolves),
-        // --- Y3: kernel.outbound.stream conformance ---
+        // --- Y3: kernel.v1.outbound.stream conformance ---
         c!("outbound_stream.profile_default_deny_all", ["outbound", "network", "stream", "profile"], network::outbound_stream_profile_default_deny_all),
         c!("outbound_stream.fake_executor_emits_canned_frames", ["outbound", "network", "stream"], network::outbound_stream_fake_executor_emits_canned_frames),
         c!("outbound_stream.secret_ref_undeclared_fails", ["outbound", "network", "stream", "secret", "manifest"], network::outbound_stream_secret_ref_undeclared_fails),

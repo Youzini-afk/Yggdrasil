@@ -4,7 +4,7 @@
 
 **An extensible creation platform for AI-native worlds, games, stories, and play.**
 
-It has two parts: a small, restrained, opinion-free kernel, and an open ecosystem of capability packages. Every meaningful concept on the platform — characters, prompts, models, agents, worlds, rules, memory — comes from a package, not the kernel.
+It has two parts: a small, restrained, opinion-free kernel, and an open ecosystem of capability packages. Every meaningful concept on the platform — characters, prompts, models, agents, worlds, rules, memory — comes from a package, not the kernel.v1.
 
 ```text
 ┌──────────────────────────────────────────────┐
@@ -80,10 +80,10 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 **Secure execution**
 
 - `secret_ref` references, manifest `permissions.secret_refs` declarations, and a host-owned environment-variable resolver with an allowlist.
-- Network permission declarations, audit and redaction for outbound requests, and the public-protocol outbound trio: unary `kernel.outbound.execute`, SSE/NDJSON/raw `kernel.outbound.stream`, and bidirectional `kernel.outbound.websocket.*`.
+- Network permission declarations, audit and redaction for outbound requests, and the public-protocol outbound trio: unary `kernel.v1.outbound.execute`, SSE/NDJSON/raw `kernel.v1.outbound.stream`, and bidirectional `kernel.v1.outbound.websocket.*`.
 - Real live HTTP / WebSocket outbound executors (off by default; require an opt-in profile plus provider env vars; HTTP is HTTPS-only, WebSocket is WSS-only, redirect fail-closed). Real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
 - The subprocess TypeScript SDK `kernelClient` lets subprocess packages issue permission-scoped reverse kernel calls, including `kernelClient.openWebSocket`.
-- Public HTTPS git install path: `kernel.outbound.git_fetch`, profile-scoped lockfiles, and `official/package-installer-lab`.
+- Public HTTPS git install path: `kernel.v1.outbound.git_fetch`, profile-scoped lockfiles, and `official/package-installer-lab`.
 - A generic streaming and cancel lifecycle.
 
 **Official capability packages** (all ordinary packages, no kernel privilege)

@@ -8,7 +8,7 @@
 
 - 先分享，后市场：当前只做本地文件级分享 proof，包括 composition bundle、branch/session bundle manifest、package-set lockfile、兼容性/迁移报告、AI 披露元数据、只读共享 session manifest 和 async fork sharing plan。
 - 不做 marketplace：不引入包签名网络、依赖解析器经济或托管计费。分发是本地文件交换，不是商业市场。
-- 不做 `kernel.sharing.*`：分享是包拥有的行为，不是内核能力。
+- 不做 `kernel.v1.sharing.*`：分享是包拥有的行为，不是内核能力。
 - 不做 raw secrets：所有 bundle 中只允许 `secret_ref` 引用，不存储原始密钥。
 - 不要求公网：所有分享 proof 是本地文件，不依赖远端服务或公网访问。
 
@@ -128,7 +128,7 @@
 - 计费字段（`billing_token`、`payment_method`、`subscription`）
 - 签名网络字段（`signing_network`、`license_key`）
 - Raw secrets（`api_key`、`token`、`password` 原文值；只允许 `secret_ref` 引用）
-- 内核分享命名空间（`kernel.sharing.*`、`kernel.marketplace.*`、`kernel.billing.*`）
+- 内核分享命名空间（`kernel.v1.sharing.*`、`kernel.v1.marketplace.*`、`kernel.v1.billing.*`）
 - 公网或远端服务依赖
 
 ## 示例

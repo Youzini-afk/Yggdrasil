@@ -1,4 +1,5 @@
 use chrono::Utc;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ygg_core::{new_id, KernelSession, SessionId, SessionStatus, EVENT_SESSION_OPENED, EVENT_SESSION_CLOSED};
@@ -6,7 +7,7 @@ use ygg_core::{new_id, KernelSession, SessionId, SessionStatus, EVENT_SESSION_OP
 use super::Runtime;
 use crate::EventStore;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct OpenSessionRequest {
     pub labels: Vec<String>,
     pub active_package_set: Vec<ygg_core::PackageId>,

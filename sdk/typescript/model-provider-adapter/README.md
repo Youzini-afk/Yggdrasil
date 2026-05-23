@@ -1,8 +1,8 @@
 # Yggdrasil Model Provider Adapter SDK
 
-纯 TypeScript 的 model provider adapter，让能力包能描述、验证、归一化 OpenAI / Anthropic / Gemini / OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks 的 API 差异，而不依赖私有 runtime、不做真实 HTTP 调用、不做计费/中转、不新增 `kernel.model.*`。
+纯 TypeScript 的 model provider adapter，让能力包能描述、验证、归一化 OpenAI / Anthropic / Gemini / OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks 的 API 差异，而不依赖私有 runtime、不做真实 HTTP 调用、不做计费/中转、不新增 `kernel.v1.model.*`。
 
-**这是 SDK adapter，不是 provider package。** 它不出网、不做计费或中转站、不新增 kernel.model 语义；只负责 provider profile 描述、请求归一化、错误分类、流事件解析。
+**这是 SDK adapter，不是 provider package。** 它不出网、不做计费或中转站、不新增 kernel.v1.model 语义；只负责 provider profile 描述、请求归一化、错误分类、流事件解析。
 
 ## 参考
 
@@ -285,7 +285,7 @@ if (!result.ok) {
 - **无外部依赖**，纯 TypeScript
 - **不出网**，不做真实 HTTP 调用
 - **不做计费**，不做中转站
-- **不新增** `kernel.model.*`、`kernel.prompt.*`、`kernel.chat.*`
+- **不新增** `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*`
 - **不使用** `any` 类型，尽量 `unknown` + type guards
 - **不硬编码** secrets，只接受 `secret_ref:*` 或 `host:*` 引用
 - Raw API key 被 `validateProviderProfile` 拒绝

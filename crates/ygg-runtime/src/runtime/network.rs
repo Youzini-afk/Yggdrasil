@@ -365,7 +365,7 @@ where
         // Use session+kind-prefix pushdown instead of list_session + full filter.
         let request_events = self
             .store
-            .list_session_kind_prefix(&session_id, "kernel/outbound")
+            .list_session_kind_prefix(&session_id, "kernel/v1/outbound")
             .await?;
         Ok(request_events)
     }

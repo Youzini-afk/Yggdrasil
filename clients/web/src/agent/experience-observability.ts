@@ -145,7 +145,7 @@ export interface GuardrailEntry {
 // ========================================================================
 
 const FAILURE_KIND_HINTS = [
-  "kernel/stream.error", "stream.error", "stream.cancelled", "stream.timeout",
+  "kernel/v1/stream.error", "stream.error", "stream.cancelled", "stream.timeout",
   "run.failed", "run.cancelled", "failed", "cancelled", "error",
   "rejected", "denied", "unsafe_blocked", "provider_missing",
 ];
@@ -565,7 +565,7 @@ function buildCostLatencySummary(
     TOOL_CALL_KIND_HINTS.some((h) => e.kind.toLowerCase().includes(h))
   ).length;
 
-  const streamEventCount = events.filter((e) => e.kind.startsWith("kernel/stream.")).length;
+  const streamEventCount = events.filter((e) => e.kind.startsWith("kernel/v1/stream.")).length;
 
   // Accumulate cost hints from event payloads
   let totalCostUnits = 0;
@@ -1365,7 +1365,7 @@ function renderGuardrailAuditPanel(guardrail: GuardrailAuditSummary): string {
           <summary class="protocol-preview-summary">Public protocol shape (guardrail/audit)</summary>
           <pre class="protocol-preview-code">${formatJson({
             guardrail_event: {
-              kind: "kernel/event.append (permission_denied|rejected|redacted)",
+              kind: "kernel/v1/event.append (permission_denied|rejected|redacted)",
               payload: {
                 denied_reason: "...",
                 redaction_state: "safe|unsafe_blocked",

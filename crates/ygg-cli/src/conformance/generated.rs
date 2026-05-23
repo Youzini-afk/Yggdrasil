@@ -272,7 +272,7 @@ pub(crate) async fn generated_streaming_template() -> anyhow::Result<()> {
 /// Test that the agent-runtime template generates a 4-capability agent package
 /// with streaming run, proposal, trace, echo capabilities and passes check/conformance.
 /// Verifies: 4 capabilities, run is streaming, assistant_action + forge_panel surfaces,
-/// permissions.network.declarations empty, no raw secrets, no kernel.agent/model/prompt/memory/turn text.
+/// permissions.network.declarations empty, no raw secrets, no kernel.v1.agent/model/prompt/memory/turn text.
 pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
     let path = std::env::temp_dir().join(format!("ygg-generated-agent-runtime-{}", std::process::id()));
     if path.exists() {
@@ -334,8 +334,8 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
         "agent-runtime manifest must not contain raw secrets"
     );
 
-    // No kernel.agent/model/prompt/memory/turn text in manifest or package.ts
-    let forbidden = ["kernel.agent", "kernel.model", "kernel.prompt", "kernel.memory", "kernel.turn"];
+    // No kernel.v1.agent/model/prompt/memory/turn text in manifest or package.ts
+    let forbidden = ["kernel.v1.agent", "kernel.v1.model", "kernel.v1.prompt", "kernel.v1.memory", "kernel.v1.turn"];
     for token in &forbidden {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -360,7 +360,7 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
 /// with contract/checkpoint/recovery capabilities and 4 experience surfaces,
 /// and passes check/conformance. Verifies: 4 surfaces (experience_entry,
 /// play_renderer, forge_panel, assistant_action), 6 capabilities, no network
-/// declarations, no kernel.experience/world/turn/chat/memory text.
+/// declarations, no kernel.v1.experience/world/turn/chat/memory text.
 pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()> {
     let path = std::env::temp_dir().join(format!("ygg-generated-experience-runtime-{}", std::process::id()));
     if path.exists() {
@@ -413,7 +413,7 @@ pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()
     // No kernel experience namespace
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
-    let forbidden = ["kernel.experience", "kernel.world", "kernel.turn", "kernel.chat", "kernel.memory"];
+    let forbidden = ["kernel.v1.experience", "kernel.v1.world", "kernel.v1.turn", "kernel.v1.chat", "kernel.v1.memory"];
     for token in &forbidden {
         anyhow::ensure!(
             !manifest_str.contains(token),

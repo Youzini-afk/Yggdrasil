@@ -66,7 +66,7 @@ contributes:
     - id: org/name/event/foo
       schema: <jsonschema>
   hooks:
-    - extension_point: kernel/event.after_append
+    - extension_point: kernel/v1/event.after_append
       handler: handle_event
       timing: async
   assets:
@@ -199,7 +199,7 @@ A package distribution includes the manifest and the entry artifact:
 - For `wasm`: a `.wasm` module plus the manifest.
 - For `remote`: just the manifest with the endpoint.
 
-A package registry is out of scope for the kernel. Hosts and tools may build registries on top.
+A package registry is out of scope for the kernel.v1. Hosts and tools may build registries on top.
 
 ## Versioning
 

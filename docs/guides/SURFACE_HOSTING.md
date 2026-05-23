@@ -205,7 +205,7 @@ surfaces:
       wrapper_class: ydltavern-extensions-surface
 ```
 
-Web shell 通过 `kernel.surface.contribution.list` / `.describe` 读取描述符和 metadata，选择目标 slot 的 surface，解析 `bundle_url`、`export_name`、`wrapper_class`，然后调用 `mountSurface`。宿主可以把 session id、surface descriptor、只读配置等放入 `initialProps`，并按权限决定是否接线 `hostBridge.callRpc`。
+Web shell 通过 `kernel.v1.surface.contribution.list` / `.describe` 读取描述符和 metadata，选择目标 slot 的 surface，解析 `bundle_url`、`export_name`、`wrapper_class`，然后调用 `mountSurface`。宿主可以把 session id、surface descriptor、只读配置等放入 `initialProps`，并按权限决定是否接线 `hostBridge.callRpc`。
 
 ## v0 限制
 

@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "ProtocolPrincipal": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "principal": {
+      "$ref": "#/definitions/ProtocolPrincipal"
+    },
+    "transport": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "principal",
+    "transport"
+  ],
+  "title": "ProtocolContext",
+  "type": "object"
+}

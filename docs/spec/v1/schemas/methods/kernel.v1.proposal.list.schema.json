@@ -1,0 +1,299 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EmptyParams",
+      "type": "object"
+    },
+    "Result": {
+      "items": {
+        "$defs": {
+          "ProposalApproval": {
+            "properties": {
+              "decided_at": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "principal": {
+                "$ref": "#/definitions/ProtocolPrincipal"
+              },
+              "reason": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "decided_at",
+              "principal"
+            ],
+            "type": "object"
+          },
+          "ProposalOperation": {
+            "properties": {
+              "op": {
+                "type": "string"
+              },
+              "payload": {
+                "default": null
+              },
+              "target": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "type": "object"
+          },
+          "ProposalStatus": {
+            "enum": [
+              "created",
+              "approved",
+              "rejected",
+              "applied",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "ProtocolPrincipal": {
+            "oneOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "host_admin"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "host_dev"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "package"
+                    ],
+                    "type": "string"
+                  },
+                  "package_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "package_id"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "human"
+                    ],
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "user_id"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "assistant_id": {
+                    "type": "string"
+                  },
+                  "delegated_user_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "kind": {
+                    "enum": [
+                      "assistant"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assistant_id",
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "anonymous"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ProposalApproval"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "created_at": {
+            "default": "2026-05-23T07:22:32.983443308Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_by": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ProtocolPrincipal"
+              }
+            ],
+            "default": {
+              "kind": "anonymous"
+            }
+          },
+          "expected_effects": {
+            "default": null
+          },
+          "id": {
+            "default": "",
+            "type": "string"
+          },
+          "operations": {
+            "default": [],
+            "items": {
+              "$ref": "#/definitions/ProposalOperation"
+            },
+            "type": "array"
+          },
+          "required_permissions": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "result": {
+            "default": null
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ProposalStatus"
+              }
+            ],
+            "default": "created"
+          },
+          "target_branch_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_session_id": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "title": "ProposalRecord",
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.proposal.list.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.proposal.list.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.proposal.list"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.proposal.list",
+  "type": "object"
+}

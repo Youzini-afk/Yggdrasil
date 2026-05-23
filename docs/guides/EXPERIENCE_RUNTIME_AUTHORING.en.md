@@ -6,10 +6,10 @@ This guide explains how to create, inspect, checkpoint, recover, and replace exp
 
 ## Overview
 
-Experience runtime defines how ordinary package-owned experiences run continuously, pause, recover, checkpoint, and fork. Agentic Forge can change them through proposals. All experience semantics live at the package layer; nothing enters the kernel.
+Experience runtime defines how ordinary package-owned experiences run continuously, pause, recover, checkpoint, and fork. Agentic Forge can change them through proposals. All experience semantics live at the package layer; nothing enters the kernel.v1.
 
 Key constraints:
-- No `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`, `kernel.chat.*`, or `kernel.memory.*`.
+- No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
 - Experience packages are ordinary packages with no kernel privilege.
 - Experience descriptors, state projections, checkpoints, and recovery plans are package-owned artifacts, not kernel primitives.
 - All behavior goes through the public protocol.
@@ -195,7 +195,7 @@ Experience-runtime packages are ordinary packages. Any third-party package that 
 
 The following are strictly prohibited:
 
-1. Kernel experience namespace: events, proposals, checkpoints, or any output must never contain `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`, `kernel.chat.*`, or `kernel.memory.*`.
+1. Kernel experience namespace: events, proposals, checkpoints, or any output must never contain `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
 2. Raw secrets: all secrets must use `secret_ref` references. Checkpoints, recovery plans, and state projections must not contain raw secrets.
 3. Direct target branch mutation: agent changes to experiences must go through the proposal lifecycle. They must not directly modify the target branch.
 4. Network access: experience-runtime packages do not use the network by default. If network is needed, `permissions.network.declarations` must be declared.

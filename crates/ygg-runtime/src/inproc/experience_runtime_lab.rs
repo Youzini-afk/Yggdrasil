@@ -6,8 +6,8 @@
 //! recovery, and Play/Forge/Assist surface bindings. Deterministic,
 //! no-network, no real model inference.
 //!
-//! No `kernel.experience.*`, `kernel.world.*`, `kernel.turn.*`,
-//! `kernel.chat.*`, or `kernel.memory.*` namespace references.
+//! No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`,
+//! `kernel.v1.chat.*`, or `kernel.v1.memory.*` namespace references.
 
 use serde_json::Value;
 
@@ -651,28 +651,28 @@ mod tests {
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
             assert!(
-                !output_str.contains("kernel.experience."),
-                "{} must not contain kernel.experience.",
+                !output_str.contains("kernel.v1.experience."),
+                "{} must not contain kernel.v1.experience.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.world."),
-                "{} must not contain kernel.world.",
+                !output_str.contains("kernel.v1.world."),
+                "{} must not contain kernel.v1.world.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.turn."),
-                "{} must not contain kernel.turn.",
+                !output_str.contains("kernel.v1.turn."),
+                "{} must not contain kernel.v1.turn.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.chat."),
-                "{} must not contain kernel.chat.",
+                !output_str.contains("kernel.v1.chat."),
+                "{} must not contain kernel.v1.chat.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.memory."),
-                "{} must not contain kernel.memory.",
+                !output_str.contains("kernel.v1.memory."),
+                "{} must not contain kernel.v1.memory.",
                 cap
             );
         }

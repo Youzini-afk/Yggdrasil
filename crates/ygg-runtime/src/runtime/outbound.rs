@@ -36,6 +36,7 @@ use serde_json::Value;
 use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::time::timeout;
+use schemars::JsonSchema;
 use ygg_core::{new_id, RedactionState};
 
 use super::Runtime;
@@ -46,11 +47,18 @@ use crate::EventStore;
 // ---------------------------------------------------------------------------
 
 /// Specification for a secret-derived HTTP header to be injected by the host
-/// during outbound execution. Packages declare these in `kernel.outbound.execute`
+/// during outbound execution. Packages declare these in `kernel.v1.outbound.execute`
 /// params as `secret_headers`; the host resolves the `secret_ref` at execution
 /// time and injects the resulting header value into the live HTTP request.
 ///
 /// Raw secret values never appear in audit, response, or Debug output.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct OutboundSecretHeaderSpec {
+    pub header_name: String,
+    pub secret_ref: String,
+    pub scheme: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct SecretHeaderSpec {
     /// HTTP header name (e.g. `Authorization`, `x-api-key`).
@@ -99,7 +107,7 @@ impl std::fmt::Debug for ResolvedSecretHeader {
 // ---------------------------------------------------------------------------
 
 /// The kind of outbound executor that produced a response.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutorKind {
     /// All outbound is denied; no network performed.
@@ -178,6 +186,12 @@ pub struct OutboundExecutorRequest {
 /// Secret-bearing header names (Authorization, x-api-key, Cookie, etc.)
 /// are rejected at parse time. Values must be plain strings that do not
 /// look like raw secrets.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct OutboundStaticHeader {
+    pub name: String,
+    pub value: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct StaticHeader {
     /// HTTP header name (must be on the allowlist).
@@ -259,7 +273,7 @@ impl OutboundExecutorRequest {
 /// Like the request, this is content-free. It carries status, the
 /// *shape* of headers/body, usage/cost placeholders, and metadata
 /// identifying what kind of executor produced the response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OutboundExecutorResponse {
     /// High-level status: "ok", "error", "denied", "timeout".
     pub status: String,
@@ -295,8 +309,8 @@ pub struct OutboundExecutorResponse {
 // Y3: Outbound streaming types
 // ---------------------------------------------------------------------------
 
-/// The format of a streaming response for `kernel.outbound.stream`.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// The format of a streaming response for `kernel.v1.outbound.stream`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamFormat {
     /// Server-Sent Events (`text/event-stream`). Parses `data: ...\n\n` events.
@@ -318,7 +332,7 @@ impl std::fmt::Display for StreamFormat {
 }
 
 /// Status returned when a streaming outbound request starts.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamStartStatus {
     /// Stream started successfully.
@@ -329,11 +343,11 @@ pub enum StreamStartStatus {
     Error,
 }
 
-/// Response returned by `kernel.outbound.stream` on the initial call.
+/// Response returned by `kernel.v1.outbound.stream` on the initial call.
 ///
 /// Contains the stream_id for subscribing to events, the start status,
 /// and metadata about the executor that will handle the stream.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct KernelOutboundStreamResponse {
     /// The stream_id to subscribe to for stream frames.
     pub stream_id: String,
@@ -349,7 +363,7 @@ pub struct KernelOutboundStreamResponse {
 }
 
 /// The kind of a stream frame payload for outbound streaming.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum OutboundFrameKind {
     /// A parsed SSE event or NDJSON line.
@@ -363,7 +377,7 @@ pub enum OutboundFrameKind {
 }
 
 /// A frame emitted during outbound streaming.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OutboundStreamFrame {
     /// Sequence number, monotonically increasing from 1.
     pub seq: u64,
@@ -377,7 +391,7 @@ pub struct OutboundStreamFrame {
 }
 
 /// Summary of a completed outbound stream, returned by the executor.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OutboundStreamSummary {
     /// Final status: "ok", "error", "timeout", "cancelled".
     pub status: String,
@@ -423,7 +437,7 @@ pub trait StreamEmitter: Send + Sync {
 
 /// Signal for cancelling an outbound stream.
 ///
-/// When the caller invokes `kernel.capability.cancel`, the cancel signal
+/// When the caller invokes `kernel.v1.capability.cancel`, the cancel signal
 /// is set, and the executor's stream loop checks it before each iteration.
 #[derive(Clone)]
 pub struct CancelSignal {
@@ -451,7 +465,7 @@ impl CancelSignal {
 ///
 /// This is deliberately small and transport-neutral. The kernel does not expose
 /// git library concepts such as refspecs, packfiles, trees, or indexes.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum GitFetchKind {
     /// Fetch just enough metadata to resolve a ref / inspect a manifest.
@@ -466,7 +480,7 @@ pub enum GitFetchKind {
 ///
 /// The request carries refs and policy shape only. Authentication is expressed
 /// as secret refs; raw tokens must never appear here.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GitOutboundRequest {
     /// Package that initiated the git fetch request.
     pub package_id: String,
@@ -497,7 +511,7 @@ pub struct GitOutboundRequest {
 }
 
 /// Response returned by a git outbound executor.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GitOutboundResponse {
     /// High-level status: "ok", "denied", "error", "timeout".
     pub status: String,
@@ -562,7 +576,7 @@ impl Default for GitOutboundPolicyConfig {
 /// Host policy for outbound HTTP execute (Y1).
 ///
 /// This is the execute-side analogue of `GitOutboundPolicyConfig`.
-/// It governs host-level policy for `kernel.outbound.execute` calls:
+/// It governs host-level policy for `kernel.v1.outbound.execute` calls:
 /// whether execute is enabled at all, which destination hosts are
 /// allowed, whether HTTPS is required, timeouts, redirect policy, and
 /// a test-only loopback escape hatch.
@@ -2206,25 +2220,25 @@ fn validate_git_outbound_request_shape(request: &GitOutboundRequest) -> anyhow::
         .starts_with(&format!("{}/", request.package_id))
     {
         anyhow::bail!(
-            "kernel.outbound.git_fetch capability_id must belong to caller package namespace"
+            "kernel.v1.outbound.git_fetch capability_id must belong to caller package namespace"
         );
     }
     if request.reference.trim().is_empty() {
-        anyhow::bail!("kernel.outbound.git_fetch requires non-empty ref");
+        anyhow::bail!("kernel.v1.outbound.git_fetch requires non-empty ref");
     }
     let url = reqwest::Url::parse(&request.remote_url)
-        .map_err(|_| anyhow::anyhow!("kernel.outbound.git_fetch remote_url is invalid"))?;
+        .map_err(|_| anyhow::anyhow!("kernel.v1.outbound.git_fetch remote_url is invalid"))?;
     if url.scheme() != "https" {
-        anyhow::bail!("kernel.outbound.git_fetch requires an HTTPS git URL");
+        anyhow::bail!("kernel.v1.outbound.git_fetch requires an HTTPS git URL");
     }
     if !url.username().is_empty() || url.password().is_some() || url.query().is_some() {
         anyhow::bail!(
-            "kernel.outbound.git_fetch remote_url must not contain credentials or query strings"
+            "kernel.v1.outbound.git_fetch remote_url must not contain credentials or query strings"
         );
     }
     let host = url
         .host_str()
-        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.git_fetch remote_url requires host"))?;
+        .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.git_fetch remote_url requires host"))?;
     Ok(host.to_string())
 }
 

@@ -32,7 +32,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- **Automatic resolve / pin / apply for git package installation.** Controlled git fetch, `kernel.outbound.git_fetch`, `official/package-installer-lab`, the profile-scoped lockfile, and manual-pin CLI are in place; next is wiring `ygg package install <github-url>` into automatic commit/content-hash resolution, approval, lockfile write, and package load. Current capability: [`../guides/GIT_PACKAGE_INSTALLATION.md`](../guides/GIT_PACKAGE_INSTALLATION.en.md).
+- **Automatic resolve / pin / apply for git package installation.** Controlled git fetch, `kernel.v1.outbound.git_fetch`, `official/package-installer-lab`, the profile-scoped lockfile, and manual-pin CLI are in place; next is wiring `ygg package install <github-url>` into automatic commit/content-hash resolution, approval, lockfile write, and package load. Current capability: [`../guides/GIT_PACKAGE_INSTALLATION.md`](../guides/GIT_PACKAGE_INSTALLATION.en.md).
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.
@@ -61,11 +61,11 @@ These run on top of Yggdrasil and consume the platform through the public protoc
 
 ## Indefinitely deferred at the kernel level
 
-These don't belong in the kernel. They'll arrive as ordinary capability packages or future work.
+These don't belong in the kernel.v1. They'll arrive as ordinary capability packages or future work.
 - pi as a wholesale product shell embedding — see [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.en.md). Agent infrastructure can only move forward as ordinary packages and SDKs.
 - External game-engine bridges (UE5, Godot, Unity, web clients).
 - A privileged built-in Studio, a UI that bypasses the public protocol, or a kernel-owned official inspector. Public-protocol clients and package-contributed surfaces can keep evolving.
-- Memory models, world simulation, directors, prompt rendering, and model-provider abstractions in the kernel. Agent loops and production-grade model-provider capabilities stay in ordinary packages.
+- Memory models, world simulation, directors, prompt rendering, and model-provider abstractions in the kernel.v1. Agent loops and production-grade model-provider capabilities stay in ordinary packages.
 - Marketplace, package signing networks, dependency-resolver economy. The local sharing proof is done — see [`../guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.en.md).
 
 ## Scoring

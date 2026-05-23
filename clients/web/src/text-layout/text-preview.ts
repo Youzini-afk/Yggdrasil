@@ -6,8 +6,8 @@
  * pure extraction + layout-estimation layer for the Forge surface.
  *
  * Supported sources:
- *   - kernel/stream.chunk, kernel/stream.progress, kernel/stream.error,
- *     kernel/stream.cancelled, kernel/stream.timeout event payloads
+ *   - kernel/v1/stream.chunk, kernel/v1/stream.progress, kernel/v1/stream.error,
+ *     kernel/v1/stream.cancelled, kernel/v1/stream.timeout event payloads
  *   - Common payload fields: text, message, summary, reason, content
  *   - Proposal expected_effects / operations (long string fields)
  */
@@ -54,20 +54,20 @@ const PREVIEW_MIN_LENGTH = 40;
 // --- Stream event kind detection ---
 
 const STREAM_KINDS = new Set([
-  "kernel/stream.chunk",
-  "kernel/stream.progress",
-  "kernel/stream.error",
-  "kernel/stream.cancelled",
-  "kernel/stream.timeout",
+  "kernel/v1/stream.chunk",
+  "kernel/v1/stream.progress",
+  "kernel/v1/stream.error",
+  "kernel/v1/stream.cancelled",
+  "kernel/v1/stream.timeout",
 ]);
 
 function mapStreamKind(eventKind: string): TextPreviewKind {
   switch (eventKind) {
-    case "kernel/stream.chunk": return "stream-chunk";
-    case "kernel/stream.progress": return "stream-progress";
-    case "kernel/stream.error": return "stream-error";
-    case "kernel/stream.cancelled": return "stream-cancelled";
-    case "kernel/stream.timeout": return "stream-timeout";
+    case "kernel/v1/stream.chunk": return "stream-chunk";
+    case "kernel/v1/stream.progress": return "stream-progress";
+    case "kernel/v1/stream.error": return "stream-error";
+    case "kernel/v1/stream.cancelled": return "stream-cancelled";
+    case "kernel/v1/stream.timeout": return "stream-timeout";
     default: return "none";
   }
 }
@@ -223,7 +223,7 @@ function estimateLayout(text: string): { lineCount: number; height: number; engi
  * text suitable for display in the Forge Events section. It supports stream
  * events and payloads with common text fields.
  *
- * @param eventKind - The event kind string (e.g. "kernel/stream.chunk")
+ * @param eventKind - The event kind string (e.g. "kernel/v1/stream.chunk")
  * @param payload   - The event payload (unknown, will be inspected safely)
  * @returns A TextPreviewResult with extracted text and layout estimates
  */

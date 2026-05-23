@@ -58,7 +58,7 @@ All four use the same contract.
 
 ## Deferred capability families
 
-These are valuable directions, but they belong in capability packages, not the kernel. They wait until the kernel and package layers are stable.
+These are valuable directions, but they belong in capability packages, not the kernel.v1. They wait until the kernel and package layers are stable.
 
 - YdlTavern — an independent integration project on Yggdrasil that's compatible with SillyTavern's resources and extensions. See [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
 - An agent integration package family (pi or otherwise).
@@ -72,7 +72,7 @@ Each will be built and judged as an ordinary capability package. None will get k
 
 The kernel will not ship a chat experience, a world simulator, a director, a memory model, a SillyTavern compatibility layer, an external engine bridge, or an official UI.
 
-Each of those is fine as a capability package; none of them belong in the kernel.
+Each of those is fine as a capability package; none of them belong in the kernel.v1.
 
 ## Stance on the current code
 

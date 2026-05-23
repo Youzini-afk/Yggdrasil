@@ -26,7 +26,7 @@ A subscriber is declared in a manifest:
 ```yaml
 contributes:
   hooks:
-    - extension_point: kernel/event.before_append
+    - extension_point: kernel/v1/event.before_append
       handler: my_handler
       timing: sync
       precedence: 100
@@ -42,7 +42,7 @@ Synchronous handlers run within the operation's deadline. Asynchronous handlers 
 
 ## Implementation status
 
-The kernel-emitted point set is fixed by design. The current implementation covers the core paths for event append and capability invoke: stable ordering, package-owned handlers, payload metadata mutation, veto, and unload cleanup. Session and package lifecycle hooks are reserved in the contract. Today they are delivered through `kernel/session.*` and `kernel/package.*` events; later they will gain synchronous and asynchronous hook handling. New points should come from package contributions, not from growing the kernel.
+The kernel-emitted point set is fixed by design. The current implementation covers the core paths for event append and capability invoke: stable ordering, package-owned handlers, payload metadata mutation, veto, and unload cleanup. Session and package lifecycle hooks are reserved in the contract. Today they are delivered through `kernel/v1/session.*` and `kernel/v1/package.*` events; later they will gain synchronous and asynchronous hook handling. New points should come from package contributions, not from growing the kernel.v1.
 
 ## Kernel-emitted points
 
@@ -50,45 +50,45 @@ The kernel emits a small fixed set of points. New points come from package contr
 
 ### Session lifecycle
 
-- `kernel/session.before_open` — sync, modifiable false, short_circuit true.
+- `kernel/v1/session.before_open` — sync, modifiable false, short_circuit true.
   Permission to open is enforced here. Subscribers may veto.
-- `kernel/session.after_open` — async.
-- `kernel/session.before_close` — sync, modifiable false, short_circuit true.
-- `kernel/session.after_close` — async.
+- `kernel/v1/session.after_open` — async.
+- `kernel/v1/session.before_close` — sync, modifiable false, short_circuit true.
+- `kernel/v1/session.after_close` — async.
 
 Payload: session id, requested labels, package set, requesting principal.
 
 ### Event log
 
-- `kernel/event.before_append` — sync, modifiable true, short_circuit true.
+- `kernel/v1/event.before_append` — sync, modifiable true, short_circuit true.
   Permission and schema enforcement happen here. Subscribers may amend metadata or veto.
-- `kernel/event.after_append` — async.
+- `kernel/v1/event.after_append` — async.
   Subscribers receive the persisted envelope.
 
 Payload: event envelope. The kernel does not interpret the payload field. It only checks declared schemas when the writer's manifest references a payload schema for that event kind.
 
 ### Capability invocation
 
-- `kernel/capability.before_invoke` — sync, modifiable true, short_circuit true.
+- `kernel/v1/capability.before_invoke` — sync, modifiable true, short_circuit true.
   Permission, route resolution, and quota enforcement happen here.
-- `kernel/capability.after_invoke` — async.
+- `kernel/v1/capability.after_invoke` — async.
   Subscribers receive input, output (or error), latency, and provider id.
-- `kernel/capability.error` — async.
+- `kernel/v1/capability.error` — async.
   Subscribers receive the structured failure.
 
 Payload: invocation envelope.
 
 ### Package lifecycle
 
-- `kernel/package.loaded` — async.
-- `kernel/package.unloaded` — async.
-- `kernel/package.degraded` — async.
-- `kernel/package.heartbeat_lost` — async.
+- `kernel/v1/package.loaded` — async.
+- `kernel/v1/package.unloaded` — async.
+- `kernel/v1/package.degraded` — async.
+- `kernel/v1/package.heartbeat_lost` — async.
 
 ### Hook registry
 
-- `kernel/hook.registered` — async.
-- `kernel/hook.unregistered` — async.
+- `kernel/v1/hook.registered` — async.
+- `kernel/v1/hook.unregistered` — async.
 
 These let observability packages discover the live extension topology.
 
@@ -96,7 +96,7 @@ These let observability packages discover the live extension topology.
 
 A package may publish its own extension points by listing them under `contributes.extension_points`. The package becomes the owner of the schema.
 
-The kernel routes calls but does not validate semantics. If the owning package is unloaded, the kernel refuses to dispatch the point and emits `kernel/hook.unregistered` for any orphaned subscribers.
+The kernel routes calls but does not validate semantics. If the owning package is unloaded, the kernel refuses to dispatch the point and emits `kernel/v1/hook.unregistered` for any orphaned subscribers.
 
 Example (illustrative; not part of the kernel):
 

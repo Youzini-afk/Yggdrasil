@@ -234,7 +234,7 @@ pub(crate) async fn git_fetch_audit_no_raw_secrets() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &ProtocolContext::package("example/git-secret", "conformance"),
-            "kernel.outbound.git_fetch",
+            "kernel.v1.outbound.git_fetch",
             json!({
                 "capability_id": "example/git-secret/install",
                 "remote_url": "https://github.com/example/pkg?token=raw-secret-placeholder",

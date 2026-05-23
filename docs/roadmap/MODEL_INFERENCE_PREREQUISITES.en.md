@@ -17,20 +17,20 @@ Model Connectivity Kit deliberately stopped before real model execution. Follow-
     - Packages need explicit network permissions by destination, method, and purpose.
     - No package should infer network permission from being official.
     - Manifest `permissions.network` supports structured `declarations` (host, methods, purpose) and flat `hosts` for backward compatibility. Runtime `check_network_policy` and `check_and_audit_outbound` enforce allowlists.
-    - Official packages have no bypass. Denied requests write `kernel/outbound.denied`; allowed requests write `kernel/outbound.request` with redacted audit.
+    - Official packages have no bypass. Denied requests write `kernel/v1/outbound.denied`; allowed requests write `kernel/v1/outbound.request` with redacted audit.
     - TypeScript `NetworkDeclaration` class and `OutboundAuditHelper` live in `sdk/typescript/secure-execution`. `--template networked` generates a package skeleton with network declarations and audit helper usage. `examples/packages/faux-model-readiness/` declares network permissions and returns discovery plans.
 
 3. **Request/response audit**
     - Every outbound request needs principal, package id, capability id, provider family, route id, redaction state, and cost/usage placeholders.
     - Raw prompts/responses require redaction policy before audit persistence.
     - `OutboundAuditRecord` captures principal, package_id, capability_id, destination_host, method, purpose, redaction_state, secret_refs_used, usage/cost placeholders, status/error.
-    - `RedactionState` includes `not_captured`, `redacted`, `policy_ref`, `unsafe_blocked`, and `explicitly_approved`. Default is `redacted`, so raw body/header/prompt/response is never saved. Inspect it via `kernel.outbound.audit`.
+    - `RedactionState` includes `not_captured`, `redacted`, `policy_ref`, `unsafe_blocked`, and `explicitly_approved`. Default is `redacted`, so raw body/header/prompt/response is never saved. Inspect it via `kernel.v1.outbound.audit`.
 
 4. **Streaming and cancellation**
    - Streaming chunks need a public protocol shape.
    - Cancellation and timeout behavior must be stable and tested.
    - `StreamFrameEnvelope` defines generic content-free frame types (start/chunk/progress/end/error/cancelled/timeout) with invocation_id, stream_id, sequence, redaction_state, and timestamp/metadata.
-   - `StreamRegistry` tracks in-flight invocations with start/append/end/cancel/timeout lifecycle. `kernel.capability.stream` and `kernel.capability.cancel` are partially dispatched. Kernel events are emitted in order. Cancel/timeout block later chunks. Non-streaming capabilities (streaming=false) are rejected. No model/agent methods are added.
+   - `StreamRegistry` tracks in-flight invocations with start/append/end/cancel/timeout lifecycle. `kernel.v1.capability.stream` and `kernel.v1.capability.cancel` are partially dispatched. Kernel events are emitted in order. Cancel/timeout block later chunks. Non-streaming capabilities (streaming=false) are rejected. No model/agent methods are added.
    - TypeScript `StreamFrameClient` helper in `sdk/typescript/secure-execution` provides client-side faux frame construction with full lifecycle. `--template streaming` generates a package skeleton demonstrating `StreamFrameClient` usage. `examples/packages/faux-model-readiness/` and `examples/packages/faux-agent-readiness/` prove the streaming substrate shape with faux frames, without real model inference.
 
 5. **Usage accounting**

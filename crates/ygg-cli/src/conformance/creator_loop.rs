@@ -86,7 +86,7 @@ pub(crate) async fn creator_loop_playable_board_template() -> anyhow::Result<()>
     // No kernel namespace in manifest
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
-    let forbidden = ["kernel.experience", "kernel.world", "kernel.turn", "kernel.chat", "kernel.memory"];
+    let forbidden = ["kernel.v1.experience", "kernel.v1.world", "kernel.v1.turn", "kernel.v1.chat", "kernel.v1.memory"];
     for token in &forbidden {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -439,8 +439,8 @@ pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()>
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
     anyhow::ensure!(
-        !manifest_str.contains("kernel.experience."),
-        "thirdparty/playable-seed must not contain kernel.experience."
+        !manifest_str.contains("kernel.v1.experience."),
+        "thirdparty/playable-seed must not contain kernel.v1.experience."
     );
 
     // Verify composition with third-party playable-seed passes
