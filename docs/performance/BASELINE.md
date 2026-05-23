@@ -2,7 +2,9 @@
 
 > [English](./BASELINE.en.md) · [中文](./BASELINE.md)
 
-本文档记录 `ygg perf baseline` 的用法、测量场景、样本限制和指标定义。当前基线只作为开发机参考，不是 CI 预算。
+本文档记录 `ygg perf baseline` 的用法、测量场景、样本限制、指标定义和比较模式。当前基线只作为开发机参考，不是 CI 预算。
+
+仓库已提交参考基线：[`perf/baseline.json`](../../perf/baseline.json)。它来自一台 Linux 开发机，可作为 Phase B 优化的前后对比起点；不要把它当成 CI 合规预算。
 
 性能与代码健康指南见 [`PERFORMANCE_AND_CODE_HEALTH.md`](./PERFORMANCE_AND_CODE_HEALTH.md)。
 
@@ -15,9 +17,26 @@ cargo run -p ygg-cli -- perf baseline
 # 自定义迭代次数
 cargo run -p ygg-cli -- perf baseline --iterations 20
 
+# 30 次迭代 + 3 次预热，并写入 JSON baseline 文件
+cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+
+# 和已提交基线比较；超过 10% wall-clock 回归时退出 2
+cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
+
 # JSON 输出（stdout 仅 JSON，可程序化处理）
 cargo run -p ygg-cli -- perf baseline --format json
 ```
+
+可用 flags：
+
+- `--iterations <N>`：每个场景记录的迭代次数，必须大于 0。
+- `--warmup <N>`：每个场景未记录的预热次数，默认 1。
+- `--format text|json`：文本或 JSON 输出。
+- `--baseline-out <PATH>`：把完整 JSON envelope 写到指定路径。
+- `--compare <PATH>`：读取历史 `perf/baseline.json`，按 `avg_ms` 逐场景比较。
+- `--threshold-pct <N>`：比较模式的回归阈值百分比，默认 10.0。
+
+阈值建议：普通 wall-clock 场景先用 10%；端到端或波动较大的场景可用 20%。当前比较结果只作 advisory，不作为 CI gate。
 
 ## 测量场景
 
@@ -34,9 +53,30 @@ cargo run -p ygg-cli -- perf baseline --format json
 | `composition_check` | Composition descriptor 验证与包加载。使用 `examples/compositions/playable-seed-replacement/`。 |
 | `profile_load` | Profile YAML 解析。使用 `profiles/forge-alpha.yaml`。 |
 | `subprocess_echo_invoke` | Subprocess echo 能力调用（需要 Python；不可用时 status=skipped）。 |
-| `forge_render_diagnostics_50/500` | Web Forge pure TS render diagnostics helper。使用 mock public-protocol events，不读 runtime internals；P4 新增。 |
+| `subprocess_cold_start_ms` | 每次迭代新建 subprocess 包，测量 `load_package` handshake + 首次 invoke。B2 新增。 |
+| `subprocess_handshake_ms` | 测量 subprocess spawn + handshake；当前没有单独 spawn-only API。B2 新增。 |
+| `subprocess_invoke_steady_1kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 1 KiB。B2 新增。 |
+| `subprocess_invoke_steady_10kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 10 KiB。B2 新增。 |
+| `subprocess_invoke_steady_100kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 100 KiB。B2 新增。 |
+| `outbound_execute_fake_throughput_req_s` | `FakeOutboundExecutor` 上的 1,000 次 `execute_outbound_with_policy` 调用吞吐。B2 新增。 |
+| `outbound_stream_fake_ttft_ms` | fake SSE stream 首事件延迟；drain 到完成。B2 新增。 |
+| `outbound_stream_fake_steady_events_s` | 计划测量 100 events steady stream；当前 fake executor 缺少 N-frame fixture API，已记录为 `skipped`。B2 新增。 |
 
 ## 输出字段
+
+JSON 输出使用 envelope：
+
+| 顶层字段 | 说明 |
+|---|---|
+| `schema` | JSON schema 标识；当前为 `yggdrasil.bench.v1`。 |
+| `created_at` | 生成时间，Unix 秒。 |
+| `git` | 生成时的 commit、branch 和 dirty 状态。 |
+| `env` | 生成环境：OS、target triple、CPU 数、rustc / CPU brand（可用时）。 |
+| `baseline` | `ScenarioResult[]`。 |
+| `comparisons` | 比较模式下的 `ComparisonResult[]`，仅在有比较结果时输出。 |
+| `meta` | 迭代、预热、工具版本、ok/skipped/error 计数与说明。 |
+
+`ScenarioResult` 字段：
 
 | 字段 | 说明 |
 |---|---|
@@ -45,21 +85,35 @@ cargo run -p ygg-cli -- perf baseline --format json
 | `total_ms` | 总耗时（毫秒） |
 | `avg_ms` | 平均耗时 |
 | `min_ms` | 最小耗时 |
+| `p50_ms` | 50 分位耗时 |
+| `p95_ms` | 95 分位耗时 |
+| `p99_ms` | 99 分位耗时 |
 | `max_ms` | 最大耗时 |
+| `memory_rss_mb_delta` | 场景运行前后 RSS 变化（MiB）；不可用时省略 |
+| `iterations_capped` | 场景为了避免过慢而自动降低迭代次数时为 `true` |
 | `status` | `ok` / `skipped` / `error` |
 | `notes` | 附加说明 |
+
+`ComparisonResult` 字段：
+
+| 字段 | 说明 |
+|---|---|
+| `scenario_id` | 场景标识符 |
+| `baseline_avg_ms` | 历史 baseline 的 `avg_ms` |
+| `current_avg_ms` | 当前运行的 `avg_ms` |
+| `delta_pct` | `(current - baseline) / baseline * 100` |
+| `regression` | `delta_pct > --threshold-pct` |
 
 ## 样本限制
 
 - 默认 10 次迭代。可通过 `--iterations` 调整。
 - `--iterations 0` 会被拒绝；所有场景必须至少运行一次。
-- 每次迭代独立计时；不做跨迭代预热或冷却。
+- 每次迭代独立计时；预热由 `--warmup` 控制，不计入样本。
 - 测量使用 `std::time::Instant`，精度取决于 OS（通常 1 µs 或更优）。
 - 内存事件存储场景每次迭代追加 100 个事件。扩展规模场景覆盖 1k/10k/100k 原子追加。每次迭代使用独立 store 和会话，避免累计事件影响固定规模指标。
-- `event_store_append_list_range_100k` 当 `--iterations > 1` 时自动限制为 1 次迭代以避免过慢。
+- `event_store_append_list_range_100k` 当 `--iterations > 1` 时自动限制为 1 次迭代以避免过慢，并设置 `iterations_capped=true`。
 - `EventStore::append_with_sequence` 提供原子追加，保证同一会话并发时不会产生重复 sequence。
 - `EventStore::list_kind_prefix` 和 `list_session_kind_prefix` 提供查询下推。审计和范围查询不再常规执行 `list_all()` 后全量过滤。
-- `clients/web/src/performance/render-diagnostics.ts` 用于前端侧 50/500 个事件的 Forge 渲染诊断。该 helper 是纯 TypeScript，不连接 host，不读取 SQLite 或 runtime internals。
 - 不使用 criterion 或统计框架；当前目标是建立开发机参考，不是 CI 合规预算。
 
 ## 红线
@@ -79,21 +133,21 @@ cargo run -p ygg-cli -- perf baseline --format json
 4. composition check 延迟 — 诊断扫描改用 set/index 后应有改善。
 5. profile load 延迟 — 作为 YAML 解析基线；profile 变大后应重新测量。
 6. 子进程调用延迟 — 需要稳定的子进程环境再做比较。
-7. Forge 渲染诊断 — 后续 UI 优化应比较 HTML bytes 和 elapsed_ms。
+7. 出站 fake executor 与 fake stream — 作为出站审计/策略路径的无网络参考。
+8. 后续 UI 优化应另用前端诊断比较 HTML bytes 和 elapsed_ms。
 
 ## 样本参考输出
 
 ```
-scenario                       iterations   total_ms     avg_ms     min_ms   max_ms  status
-------------------------------------------------------------------------------------------
-inproc_echo_invoke                     10       0.17      0.017      0.009    0.074  ok
-official_capability_invoke             10       0.19      0.019      0.012    0.056  ok [official/composition-lab/describe]
-event_store_append_list_range          10      24.85      2.485      1.920    3.092  ok [100 events per iteration]
-composition_check                      10       4.18      0.418      0.388    0.565  ok [playable-seed-replacement]
-profile_load                           10       1.25      0.125      0.118    0.135  ok [forge-alpha.yaml parse]
-subprocess_echo_invoke                 10       0.73      0.073      0.054    0.184  ok
+scenario                           iters     total       avg       min       p50       p95       p99      max     rssΔ  status
+----------------------------------------------------------------------------------------------------------------------------------
+inproc_echo_invoke                    30      0.31     0.010     0.009     0.010     0.014     0.021    0.021     0.19  ok
+event_store_append_list_range_10k     30   1270.76    42.359    38.292    40.491    52.422    54.724   54.724     0.01  ok [10000 events per iteration]
+event_store_append_list_range_100k     1    416.26   416.265   416.265   416.265   416.265   416.265  416.265   -25.70  ok capped [100000 events per iteration (capped to 1 iteration from 30)]
+subprocess_invoke_steady_100kb        30     97.21     3.240     2.919     3.202     3.765     3.945    3.945     0.00  ok [echo payload data field is 102400 bytes]
+outbound_stream_fake_steady_events_s  30     -0.00     0.000     0.000     0.000     0.000     0.000    0.000      n/a  skipped [FakeOutboundExecutor currently emits a fixed 3-event stream]
 
-baseline: 6 ok, 0 skipped, 0 error (6 scenarios)
+baseline: 16 ok, 1 skipped, 0 error (17 scenarios)
 ```
 
 以上数值来自特定开发机，仅作参考。不作为 CI 合规预算。

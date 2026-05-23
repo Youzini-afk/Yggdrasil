@@ -30,6 +30,8 @@ cargo run -p ygg-cli -- conformance --fail-fast --slowest 5
 # performance baseline without real network
 cargo run -p ygg-cli -- perf baseline
 cargo run -p ygg-cli -- perf baseline --format json
+cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
 
 # web correctness
 tsc -p clients/web/tsconfig.json --noEmit
@@ -46,8 +48,11 @@ tsc -p clients/web/tsconfig.json --noEmit
 - P3 scale scenarios: 1k / 10k / 100k events.
 - Composition check.
 - Profile YAML load.
+- B2 subprocess / outbound scenarios: cold start, handshake, 1/10/100 KiB steady invoke, fake outbound execute throughput, fake stream TTFT, and a steady-stream slot documented as skipped.
 
-The frontend side provides a pure TypeScript Forge render diagnostics helper at `clients/web/src/performance/render-diagnostics.ts`. It uses mock public-protocol events to record HTML bytes and elapsed_ms for 50/500 events. It does not connect to a host and does not read SQLite or runtime internals.
+The output envelope now includes `schema`, `created_at`, `git`, and `env`; each scenario includes p50/p95/p99, RSS delta, and `iterations_capped` when applicable. The committed [`../../perf/baseline.json`](../../perf/baseline.json) is a Linux developer-machine reference, not a CI budget; Phase B optimizations should use it as the regression reference.
+
+The frontend side provides a pure TypeScript Forge render diagnostics helper at `clients/web/src/performance/render-diagnostics.ts`. It uses mock public-protocol events to record HTML bytes and elapsed_ms for 50/500 events. It does not connect to a host and does not read SQLite or runtime internals. The independent YdlTavern repository's benchmark convention is documented in [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.en.md).
 
 See [`BASELINE.en.md`](./BASELINE.en.md) for fields and limitations.
 

@@ -49,6 +49,7 @@
 - Surface lifecycle hooks（`onClose`、`onProposalDraft` 等）。
 - Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
 - Desktop wrapper 以受控 managed subprocess 启动 / 停止 `host serve`。
+- Phase B 优化（next）：使用 [`../../perf/baseline.json`](../../perf/baseline.json) 作为 regression reference，先测量再改动。
 
 这些项目解除某些场景的阻塞，但都不应该成为下一阶段的中心。
 

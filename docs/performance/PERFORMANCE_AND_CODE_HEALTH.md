@@ -30,6 +30,8 @@ cargo run -p ygg-cli -- conformance --fail-fast --slowest 5
 # performance baseline without real network
 cargo run -p ygg-cli -- perf baseline
 cargo run -p ygg-cli -- perf baseline --format json
+cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
 
 # web correctness
 tsc -p clients/web/tsconfig.json --noEmit
@@ -46,8 +48,11 @@ tsc -p clients/web/tsconfig.json --noEmit
 - P3 scale scenarios：1k / 10k / 100k events。
 - composition check。
 - profile YAML load。
+- B2 subprocess / outbound scenarios：cold start、handshake、1/10/100 KiB steady invoke、fake outbound execute throughput、fake stream TTFT，以及一个记录为 skipped 的 steady-stream slot。
 
-前端侧由 `clients/web/src/performance/render-diagnostics.ts` 提供纯 TypeScript Forge 渲染诊断 helper。它使用 mock public-protocol events 记录 50/500 个事件的 HTML bytes 与 elapsed_ms。它不连接 host，也不读取 SQLite 或 runtime internals。
+输出 envelope 现在包含 `schema`、`created_at`、`git`、`env`；每个场景包含 p50/p95/p99、RSS delta 和必要时的 `iterations_capped`。已提交 [`../../perf/baseline.json`](../../perf/baseline.json) 作为 Linux 开发机参考，不是 CI 预算；Phase B 优化应把它作为 regression reference。
+
+前端侧由 `clients/web/src/performance/render-diagnostics.ts` 提供纯 TypeScript Forge 渲染诊断 helper。它使用 mock public-protocol events 记录 50/500 个事件的 HTML bytes 与 elapsed_ms。它不连接 host，也不读取 SQLite 或 runtime internals。YdlTavern 独立仓库的 benchmark 约定见 [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.md)。
 
 详细字段见 [`BASELINE.md`](./BASELINE.md)。
 

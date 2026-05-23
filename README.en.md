@@ -43,6 +43,7 @@ The platform substrate is in place. The next stage isn't more substrate sprawl â
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, streaming lifecycle, model integration, and agent infrastructure are all in.
 - The web shell now uses Vite for dev/build; `clients/desktop/` provides a Tauri 2.x desktop wrapper, and `v*` tags build cross-platform installers through GitHub Actions.
+- The perf baseline now records p50/p95/p99 + memory + env/git, supports `--compare` + `--threshold-pct`, and commits `perf/baseline.json`.
 
 For details, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 

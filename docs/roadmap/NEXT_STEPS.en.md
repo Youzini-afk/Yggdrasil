@@ -49,6 +49,7 @@ Not new phases, but known to-dos that will get done:
 - Surface lifecycle hooks (`onClose`, `onProposalDraft`, and related callbacks).
 - Cross-origin surface-bundle allowlist, including CSP and origin checks.
 - Desktop wrapper starts / stops `host serve` as a controlled managed subprocess.
+- Phase B optimizations (next): use [`../../perf/baseline.json`](../../perf/baseline.json) as the regression reference and measure before changing behavior.
 
 These unblock specific scenarios, but none should be the center of the next stage.
 

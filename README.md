@@ -43,6 +43,7 @@
 - 内核内容无关，官方包无特权，公开协议唯一入口。
 - 安全执行、提案审批、流式生命周期、模型接入、agent 基础设施都已落地。
 - Web shell 已切到 Vite dev/build；`clients/desktop/` 提供 Tauri 2.x 桌面 wrapper，`v*` tag 通过 GitHub Actions 构建跨平台安装包。
+- perf baseline 现在记录 p50/p95/p99 + memory + env/git，支持 `--compare` + `--threshold-pct`，并已提交 `perf/baseline.json`。
 
 详细情况见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)；下一步方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
