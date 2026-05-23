@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Hero } from "@/components/home/hero";
 import { UtilityStrip, type FilterChip } from "@/components/home/utility-strip";
 import { ProjectCard } from "@/components/home/project-card";
@@ -16,6 +16,8 @@ import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime } from "@/lib/format";
 import { MOCK_PROJECTS, MOCK_TIMELINE } from "@/lib/home-data";
+import { InstallModal } from "@/components/install/install-modal";
+import { FailureModal } from "@/components/install/failure-modal";
 import type { StatusTone } from "@/components/ui/status-pill";
 import type { ProjectRecord } from "@/protocol/client";
 
@@ -41,6 +43,20 @@ export function HomePage() {
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [showInstall, setShowInstall] = useState(false);
+  const [failureProjectId, setFailureProjectId] = useState<string | null>(null);
+
+  // Cmd/Ctrl + N opens the install modal.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        setShowInstall(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const projectList = projects.data ?? MOCK_PROJECTS;
   const counts = useMemo(() => {
@@ -125,16 +141,20 @@ export function HomePage() {
     toast.push({
       variant: "info",
       title: `Uninstall ${title}`,
-      body: "Confirmation modal arrives in Phase 5.",
+      body: "Use yg uninstall on the CLI for now. Confirmation modal lands in Phase 7.",
     });
   };
 
-  const onInstallClick = () => {
-    toast.push({
-      variant: "info",
-      title: "Install flow",
-      body: "Install modal arrives in Phase 5. Use yg install <url> on the CLI for now.",
-    });
+  const onInstallClick = () => setShowInstall(true);
+
+  const onShowFailure = (projectId: string) => setFailureProjectId(projectId);
+
+  const onCardLaunch = (project: ProjectRecord) => {
+    if (project.state === "failed") {
+      onShowFailure(project.id);
+      return;
+    }
+    onLaunch(project.id);
   };
 
   return (
@@ -187,11 +207,13 @@ export function HomePage() {
                     project.state === "failed" ? (project as { metrics?: string }).metrics : undefined,
                 }}
                 actions={{
-                  onLaunch: () => onLaunch(project.id),
+                  onLaunch: () => onCardLaunch(project),
                   onStop: () => onStop(project.id, project.title),
-                  onRestart: () => onLaunch(project.id),
+                  onRestart: () => onCardLaunch(project),
                   onUninstall: () => onUninstall(project.title),
                   onConfigure: () => navigate({ kind: "settings", tab: "installed-packages" }),
+                  onViewLogs:
+                    project.state === "failed" ? () => onShowFailure(project.id) : undefined,
                 }}
               />
             ))}
@@ -259,6 +281,26 @@ export function HomePage() {
           />
         </div>
       </div>
+
+      <InstallModal open={showInstall} onClose={() => setShowInstall(false)} />
+      <FailureModal
+        open={failureProjectId !== null}
+        onClose={() => setFailureProjectId(null)}
+        onRestart={() => {
+          if (failureProjectId) navigate({ kind: "project", projectId: failureProjectId });
+        }}
+        onUninstall={() => {
+          if (failureProjectId) onUninstall(failureProjectId);
+        }}
+        detail={
+          failureProjectId
+            ? {
+                projectName:
+                  projectList.find((p) => p.id === failureProjectId)?.title ?? failureProjectId,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

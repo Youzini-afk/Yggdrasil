@@ -83,7 +83,7 @@ export const ModalHeader = ({
 }: {
   eyebrow?: string;
   title: string;
-  description?: string;
+  description?: ReactNode;
   className?: string;
 }) => (
   <header className={cn("mb-6 flex flex-col gap-2 pr-12", className)}>
