@@ -58,10 +58,13 @@ async fn main() -> anyhow::Result<()> {
                 )
                 .await
             }
-            PackageCommand::ListInstalled { profile } => package::package_list_installed(profile).await,
-            PackageCommand::Uninstall { package_id, profile } => {
-                package::package_uninstall_git(profile, package_id).await
+            PackageCommand::ListInstalled { profile } => {
+                package::package_list_installed(profile).await
             }
+            PackageCommand::Uninstall {
+                package_id,
+                profile,
+            } => package::package_uninstall_git(profile, package_id).await,
             PackageCommand::Update {
                 package_id,
                 profile,
@@ -82,7 +85,9 @@ async fn main() -> anyhow::Result<()> {
                 )
                 .await
             }
-            PackageCommand::InspectLockfile { profile } => package::package_inspect_lockfile(profile).await,
+            PackageCommand::InspectLockfile { profile } => {
+                package::package_inspect_lockfile(profile).await
+            }
         },
         Command::Capability { command } => match command {
             CapabilityCommand::Invoke {
@@ -108,19 +113,36 @@ async fn main() -> anyhow::Result<()> {
             tag,
             fail_fast,
             slowest,
-        } => conformance::run(conformance::ConformanceOptions {
-            list,
-            case,
-            tag,
-            fail_fast,
-            slowest,
-        })
-        .await,
+        } => {
+            conformance::run(conformance::ConformanceOptions {
+                list,
+                case,
+                tag,
+                fail_fast,
+                slowest,
+            })
+            .await
+        }
         Command::PlayCreateDemo => demo::play_create_demo().await,
         Command::PlayableBoardDemo => demo::playable_board_demo().await,
         Command::Perf { command } => match command {
-            PerfCommand::Baseline { iterations, format } => {
-                perf::perf_baseline(iterations, format).await
+            PerfCommand::Baseline {
+                iterations,
+                warmup,
+                format,
+                baseline_out,
+                compare,
+                threshold_pct,
+            } => {
+                perf::perf_baseline(perf::BaselineOptions {
+                    iterations,
+                    warmup,
+                    format,
+                    baseline_out,
+                    compare,
+                    threshold_pct,
+                })
+                .await
             }
         },
     }

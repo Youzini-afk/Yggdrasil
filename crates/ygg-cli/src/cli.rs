@@ -58,9 +58,21 @@ pub(crate) enum PerfCommand {
         /// Number of iterations per scenario (default 10).
         #[arg(long, default_value = "10")]
         iterations: u32,
+        /// Number of unrecorded warmup iterations per scenario.
+        #[arg(long, default_value = "1")]
+        warmup: u32,
         /// Output format: text or json.
         #[arg(long, value_enum, default_value = "text")]
         format: BaselineFormat,
+        /// Write JSON baseline output to a file.
+        #[arg(long)]
+        baseline_out: Option<PathBuf>,
+        /// Compare this run against a previous baseline JSON file.
+        #[arg(long)]
+        compare: Option<PathBuf>,
+        /// Regression threshold percentage for compare mode.
+        #[arg(long, default_value = "10.0")]
+        threshold_pct: f64,
     },
 }
 
@@ -832,9 +844,16 @@ outbound:
             profile.outbound.websocket.max_concurrent_connections,
             profile.outbound.websocket.allow_insecure_ws_for_tests
         );
-        let reparsed: HostProfile = serde_yaml::from_str(&rendered).expect("reparse websocket profile");
-        assert_eq!(reparsed.outbound.websocket.executor, HostWebSocketOutboundExecutorKind::Live);
-        assert_eq!(reparsed.outbound.websocket.allowed_hosts, profile.outbound.websocket.allowed_hosts);
+        let reparsed: HostProfile =
+            serde_yaml::from_str(&rendered).expect("reparse websocket profile");
+        assert_eq!(
+            reparsed.outbound.websocket.executor,
+            HostWebSocketOutboundExecutorKind::Live
+        );
+        assert_eq!(
+            reparsed.outbound.websocket.allowed_hosts,
+            profile.outbound.websocket.allowed_hosts
+        );
         assert_eq!(reparsed.outbound.websocket.max_frame_bytes, 65_536);
     }
 
@@ -858,7 +877,10 @@ outbound:
             "forge-alpha executor should default to DenyAll"
         );
         let ws = &profile.outbound.websocket;
-        assert!(!ws.enabled, "forge-alpha websocket should default to disabled");
+        assert!(
+            !ws.enabled,
+            "forge-alpha websocket should default to disabled"
+        );
         assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
     }
 
@@ -868,8 +890,8 @@ outbound:
         let profile_path = base.join("../../profiles/forge-with-live-models.example.yaml");
         let raw = std::fs::read_to_string(&profile_path)
             .unwrap_or_else(|_| panic!("read {:?}", profile_path));
-        let profile: HostProfile = serde_yaml::from_str(&raw)
-            .expect("forge-with-live-models.example.yaml should parse");
+        let profile: HostProfile =
+            serde_yaml::from_str(&raw).expect("forge-with-live-models.example.yaml should parse");
         let exec = &profile.outbound.execute;
         assert!(exec.enabled, "execute should be enabled");
         assert_eq!(exec.executor, HostExecuteOutboundExecutorKind::Live);
@@ -879,7 +901,10 @@ outbound:
         assert!(!exec.allow_insecure_loopback_for_tests);
         assert_eq!(exec.allowed_hosts.len(), 7);
         let ws = &profile.outbound.websocket;
-        assert!(!ws.enabled, "example websocket section should stay disabled by default");
+        assert!(
+            !ws.enabled,
+            "example websocket section should stay disabled by default"
+        );
         assert_eq!(ws.executor, HostWebSocketOutboundExecutorKind::DenyAll);
     }
 
