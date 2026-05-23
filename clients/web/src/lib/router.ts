@@ -49,7 +49,12 @@ function parseHash(hash: string): Route {
     return { kind: "settings", tab: "api-connections" };
   }
   if (head === "project" && rest[0]) {
-    return { kind: "project", projectId: decodeURIComponent(rest[0]) };
+    // Malformed escapes (e.g., "%") would throw — fall back to Home.
+    try {
+      return { kind: "project", projectId: decodeURIComponent(rest[0]) };
+    } catch {
+      return { kind: "home" };
+    }
   }
   return { kind: "home" };
 }

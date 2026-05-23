@@ -13,7 +13,8 @@ export function PageTitle({ children, className }: { children: ReactNode; classN
   return (
     <h1
       className={cn(
-        "font-display text-[28px] font-bold leading-[1.1] tracking-[-0.02em] text-charcoal-ink",
+        "font-display font-bold leading-[1.1] tracking-[-0.02em] text-charcoal-ink",
+        "text-[clamp(1.875rem,3vw,2.5rem)]",
         className,
       )}
     >
@@ -26,7 +27,8 @@ export function HeroTitle({ children, className }: { children: ReactNode; classN
   return (
     <h1
       className={cn(
-        "font-display text-[36px] font-bold leading-[1.1] tracking-[-0.02em] text-charcoal-ink",
+        "font-display font-bold leading-[1.05] tracking-[-0.025em] text-charcoal-ink",
+        "text-[clamp(2.5rem,5vw,4rem)]",
         className,
       )}
     >

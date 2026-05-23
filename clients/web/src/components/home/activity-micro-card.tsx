@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 import { EyebrowSm } from "@/components/ui/typography";
-import type { StatusTone } from "@/components/ui/status-pill";
+import { STATUS_DOT_CLASS, type StatusTone } from "@/components/ui/status-pill";
 
 export interface ActivityRow {
   id: string;
@@ -10,14 +10,12 @@ export interface ActivityRow {
   action: { label: string; onClick: () => void };
 }
 
+// Local override: running tones in this micro-card should pulse to draw the eye
+// to the running project. The shared map is the same color but without the
+// animation, so we extend it for this specific surface.
 const dotClass: Record<StatusTone, string> = {
+  ...STATUS_DOT_CLASS,
   running: "bg-aged-brass animate-[pulse-dot_2.4s_ease-in-out_infinite]",
-  stopped: "bg-steel-secondary",
-  starting: "bg-muted-tone",
-  failed: "bg-deep-rust",
-  update: "bg-aged-brass",
-  neutral: "bg-steel-secondary",
-  accent: "bg-aged-brass",
 };
 
 export function ActivityMicroCard({ rows }: { rows: ActivityRow[] }) {

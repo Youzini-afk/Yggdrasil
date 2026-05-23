@@ -10,7 +10,7 @@ export interface HeroProps {
 
 export function Hero({ greeting, summary, meta, recentActivity }: HeroProps) {
   return (
-    <section className="grid grid-cols-1 gap-8 lg:grid-cols-[55fr_45fr] lg:gap-12">
+    <section className="grid grid-cols-1 gap-8 lg:grid-cols-[60fr_40fr] lg:gap-12">
       <div className="flex flex-col gap-3">
         <Eyebrow>{meta}</Eyebrow>
         <HeroTitle>{greeting}</HeroTitle>

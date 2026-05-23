@@ -101,7 +101,13 @@ export function Checkbox({ checked, onCheckedChange, label, className }: Checkbo
         )}
       >
         {checked ? (
-          <svg viewBox="0 0 16 16" className="size-3 text-white" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 16 16"
+            className="size-3"
+            fill="none"
+            stroke="var(--color-accent-foreground)"
+            strokeWidth="2"
+          >
             <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         ) : null}

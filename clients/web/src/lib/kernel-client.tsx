@@ -48,27 +48,31 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []): AsyncRe
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
-  const cancelled = useRef(false);
+  // Monotonic request id avoids the stale-shared-ref race where a refresh
+  // resets `cancelled.current = false` mid-flight and lets an older promise
+  // overwrite newer data.
+  const reqIdRef = useRef(0);
 
   useEffect(() => {
-    cancelled.current = false;
+    const myReqId = ++reqIdRef.current;
     setLoading(true);
     setError(undefined);
     fn()
       .then((value) => {
-        if (!cancelled.current) {
+        if (reqIdRef.current === myReqId) {
           setData(value);
           setLoading(false);
         }
       })
       .catch((err: unknown) => {
-        if (!cancelled.current) {
+        if (reqIdRef.current === myReqId) {
           setError(err instanceof Error ? err : new Error(String(err)));
           setLoading(false);
         }
       });
     return () => {
-      cancelled.current = true;
+      // Bumping the id invalidates any in-flight promise from this effect.
+      reqIdRef.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick]);

@@ -49,8 +49,8 @@ export function Modal({ open, onOpenChange, children, accent = null, size = "md"
                   "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
                   sizeWidths[size],
                   "max-h-[calc(100dvh-48px)] overflow-hidden rounded-[24px] bg-pure-surface shadow-modal border border-whisper-border",
-                  accent === "rust" && "border-l-[3px] border-l-deep-rust",
-                  accent === "brass" && "border-l-[3px] border-l-aged-brass",
+                  accent === "rust" && "border-l-[4px] border-l-deep-rust",
+                  accent === "brass" && "border-l-[4px] border-l-aged-brass",
                   className,
                 )}
               >

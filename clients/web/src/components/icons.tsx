@@ -22,6 +22,7 @@ export {
   BookOpenTextIcon as BookOpenText,
   BugBeetleIcon as Bug,
   CameraIcon as Camera,
+  CaretDownIcon as CaretDown,
   ChatCircleIcon as ChatCircle,
   CheckCircleIcon as CheckCircle,
   CircleIcon as Circle,

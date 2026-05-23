@@ -1,6 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, CheckCircle, Cloud, Download, GithubLogo, LinkSimple } from "@/components/icons";
+import {
+  ArrowRight,
+  CheckCircle,
+  Cloud,
+  Download,
+  GithubLogo,
+  Lightning,
+  LinkSimple,
+  Question,
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Field, InputGroup, Checkbox } from "@/components/ui/input";
 import { Modal, ModalHeader, ModalFooter } from "@/components/ui/modal";
@@ -29,21 +38,46 @@ const RECENT: Array<{ url: string; tag: string }> = [
   { url: "~/projects/scratch", tag: "local" },
 ];
 
+/**
+ * The install flow is a UX prototype on top of the eventual install protocol.
+ * The host does not yet expose `kernel.v1.install.*` plan / dependency / progress
+ * methods, so the wizard runs against deterministic mock data and a simulated
+ * progress interval. The plan step shows a `PROTOTYPE` chip so users know to
+ * use `yg install` on the CLI for real installs until the protocol lands.
+ */
 export function InstallModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const toast = useToast();
   const [step, setStep] = useState<InstallStep>("url");
-  const [url, setUrl] = useState("github.com/Youzini-afk/Yggdrasil-Tavern");
+  const [url, setUrl] = useState("");
   const [trustPublisher, setTrustPublisher] = useState(false);
   const [progressFraction, setProgressFraction] = useState(0);
+  // Stable ref so cancel/unmount can clear the simulation interval and a stale
+  // tick can't fire `Installation complete` after the user dismisses.
+  const intervalRef = useRef<number | null>(null);
+
+  const clearInterval = () => {
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  // Always clear any in-flight interval when the modal closes / unmounts.
+  useEffect(() => clearInterval, []);
+  useEffect(() => {
+    if (!open) clearInterval();
+  }, [open]);
 
   const reset = () => {
+    clearInterval();
     setStep("url");
-    setUrl("github.com/Youzini-afk/Yggdrasil-Tavern");
+    setUrl("");
     setTrustPublisher(false);
     setProgressFraction(0);
   };
 
   const handleClose = () => {
+    clearInterval();
     onClose();
     setTimeout(reset, 250);
   };
@@ -64,20 +98,19 @@ export function InstallModal({ open, onClose }: { open: boolean; onClose: () => 
 
   const onConfirmPlan = () => {
     setStep("progress");
-    // simulate progress
+    // Simulated progress until the install protocol is wired.
     let frac = 0;
-    const interval = window.setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       frac = Math.min(frac + 0.18, 1);
       setProgressFraction(frac);
       if (frac >= 1) {
-        window.clearInterval(interval);
+        clearInterval();
         window.setTimeout(() => {
           handleClose();
           toast.push({
             variant: "success",
-            title: "Installation complete",
-            body: "YdlTavern v0.1.0 is ready on Home.",
-            action: { label: "Open project", onClick: () => {} },
+            title: "Install simulated",
+            body: "When the install protocol lands, this completes the real install.",
           });
         }, 600);
       }
@@ -253,7 +286,7 @@ function UrlStep({
 
       <ModalFooter className="justify-between">
         <p className="flex items-center gap-1.5 text-[11px] text-muted-tone">
-          <span aria-hidden>⚡</span>
+          <Lightning size={11} className="text-muted-tone" />
           Press ⌘V to paste · ↵ to install · Esc to cancel
         </p>
         <div className="flex items-center gap-3">
@@ -633,7 +666,7 @@ function ExternalWizardStep({
         type="button"
         className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
       >
-        <span aria-hidden>?</span>
+        <Question size={12} />
         What happens if I change my mind?
       </button>
 

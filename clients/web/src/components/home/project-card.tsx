@@ -74,7 +74,7 @@ export function ProjectCard({
     <motion.article
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index, 11) * 0.04, type: "spring", stiffness: 320, damping: 32 }}
+      transition={{ delay: Math.min(index, 11) * 0.06, type: "spring", stiffness: 320, damping: 32 }}
       whileHover={{ y: -2 }}
       className={cn(
         "group flex flex-col rounded-[20px] border border-whisper-border bg-pure-surface p-5 shadow-card transition-shadow hover:shadow-card-hover",
@@ -105,21 +105,21 @@ export function ProjectCard({
         ) : null}
       </dl>
 
-      <div className="my-4 h-px bg-whisper-border" />
-
-      <footer className="mt-auto flex items-center justify-between gap-2">
+      <footer className="mt-auto pt-4 flex items-center justify-between gap-2">
         <Button tone="primary" size="sm" onClick={onPrimary}>
           <PrimaryIcon size={14} weight="fill" />
           {primaryLabel}
         </Button>
         <Dropdown>
-          <DropdownTrigger asChild>
-            <Tooltip label="More">
+          {/* Tooltip wraps DropdownTrigger (not the other way around) so Radix
+              gets a real button child for asChild forwarding. */}
+          <Tooltip label="More">
+            <DropdownTrigger asChild>
               <Button tone="icon" size="icon-sm" aria-label={`${data.title} actions`}>
                 <DotsThree size={16} />
               </Button>
-            </Tooltip>
-          </DropdownTrigger>
+            </DropdownTrigger>
+          </Tooltip>
           <DropdownMenu>
             {isRunning ? (
               <DropdownItem onSelect={actions.onStop ?? (() => {})}>Stop</DropdownItem>

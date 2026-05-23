@@ -44,6 +44,14 @@
   /* ---- Always-dark overlay (backdrops, scrim) — does NOT flip with theme ---- */
   --color-overlay: rgba(20, 16, 12, 0.55);
 
+  /* ---- Foreground used on top of accent fills (e.g., primary button label).
+         Constant warm-bone so it stays legible whether the accent is brass or
+         dark-mode brass-glow. Never bind to charcoal/ivory tokens. ---- */
+  --color-accent-foreground: #faf8f3;
+
+  /* ---- Inset surface — slightly recessed code/log panels. Mirrored in dark. ---- */
+  --color-inset-surface: rgba(40, 30, 20, 0.04);
+
   /* ---- Animation timings ---- */
   --motion-fast: 160ms;
   --motion-natural: 240ms;
@@ -96,13 +104,16 @@ html[data-theme="dark"] {
   --color-whisper-border-strong: var(--color-whisper-border-strong-dark);
   --color-diffused-shadow: var(--color-diffused-shadow-dark);
   --color-aged-brass: var(--color-aged-brass-glow);
-  --color-aged-brass-deep: #d9b78c;
+  /* Hover should darken back toward base brass — keeps the press direction
+     consistent with light mode rather than brightening further. */
+  --color-aged-brass-deep: #b8956a;
   --color-aged-brass-surface: rgba(201, 168, 122, 0.16);
   --color-aged-brass-surface-soft: rgba(201, 168, 122, 0.08);
   --color-aged-brass-border: rgba(201, 168, 122, 0.4);
   --color-deep-rust: #c47254;
   --color-deep-rust-surface: rgba(196, 114, 84, 0.18);
   --color-deep-rust-surface-soft: rgba(196, 114, 84, 0.08);
+  --color-inset-surface: rgba(245, 242, 236, 0.04);
   --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.45);
   --shadow-card-hover: 0 24px 48px -15px rgba(0, 0, 0, 0.55);
   --shadow-modal: 0 32px 64px -20px rgba(0, 0, 0, 0.6);

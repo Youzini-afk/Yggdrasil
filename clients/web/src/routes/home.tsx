@@ -11,15 +11,18 @@ import {
 } from "@/components/home/workshop-utilities";
 import type { ActivityRow } from "@/components/home/activity-micro-card";
 import { Eyebrow } from "@/components/ui/typography";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Plus, Warning } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { useAsync, useKernel } from "@/lib/kernel-client";
 import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
-import { formatGreetingTime } from "@/lib/format";
-import { MOCK_PROJECTS, MOCK_TIMELINE } from "@/lib/home-data";
+import { formatGreetingTime, formatRelativeAge } from "@/lib/format";
 import { InstallModal } from "@/components/install/install-modal";
 import { FailureModal } from "@/components/install/failure-modal";
-import type { StatusTone } from "@/components/ui/status-pill";
-import type { ProjectRecord } from "@/protocol/client";
+import { projectStateTone, type StatusTone } from "@/components/ui/status-pill";
+import type { KernelEvent, PackageRecord, ProjectRecord } from "@/protocol/client";
 
 const FILTER_OPTIONS: FilterChip[] = [
   { id: "all", label: "All", count: 0 },
@@ -34,12 +37,34 @@ const TONE_TO_DISK_CLASS: Record<string, string> = {
   failed: "bg-deep-rust",
 };
 
+const TIMELINE_SESSION = "kernel_project_lifecycle";
+
+/**
+ * Map an event payload's structural hints to a timeline icon. Heuristic only —
+ * we deliberately do not parse package-internal payloads.
+ */
+function iconKindFor(event: KernelEvent): TimelineRow["iconKind"] {
+  const kind = event.kind.toLowerCase();
+  if (kind.includes("crash") || kind.includes("fail")) return "crash";
+  if (kind.includes("install")) return "package";
+  if (kind.includes("checkpoint")) return "checkpoint";
+  if (kind.includes("retry")) return "retry";
+  if (kind.includes("outbound")) return "outbound";
+  if (kind.includes("secret")) return "secret";
+  return "default";
+}
+
 export function HomePage() {
   const client = useKernel();
   const toast = useToast();
   const [, navigate] = useRoute();
 
-  const projects = useAsync(() => client.listProjects().catch(() => MOCK_PROJECTS as ProjectRecord[]), [client]);
+  const projects = useAsync(() => client.listProjects(), [client]);
+  const packages = useAsync(() => client.packages().catch<PackageRecord[]>(() => []), [client]);
+  const lifecycleEvents = useAsync(
+    () => client.listEvents(TIMELINE_SESSION).catch<KernelEvent[]>(() => []),
+    [client],
+  );
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -58,7 +83,7 @@ export function HomePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const projectList = projects.data ?? MOCK_PROJECTS;
+  const projectList = projects.data ?? [];
   const counts = useMemo(() => {
     const running = projectList.filter((p) => p.state === "running").length;
     const stopped = projectList.filter((p) => p.state === "stopped" || p.state === "installed").length;
@@ -85,39 +110,61 @@ export function HomePage() {
     });
   }, [projectList, activeFilter, search]);
 
-  const totalSize = projectList.reduce((sum, p) => sum + ((p as { size_mb?: number }).size_mb ?? 0), 0);
-  const diskSegments: DiskSegment[] = projectList
-    .filter((p) => (p as { size_mb?: number }).size_mb)
-    .map((p) => ({
-      id: p.id,
-      label: p.title,
-      bytes: ((p as { size_mb?: number }).size_mb ?? 0) * 1_048_576,
-      toneClass: TONE_TO_DISK_CLASS[p.state] ?? "bg-steel-secondary",
-    }));
+  // Disk usage from real package metadata (no mock byte counts).
+  const diskSegments: DiskSegment[] = useMemo(() => {
+    const projectIds = new Set(projectList.map((p) => p.id));
+    return (packages.data ?? [])
+      .filter((p) => projectIds.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        label: projectList.find((proj) => proj.id === p.id)?.title ?? p.id,
+        // Per-package size_bytes is not currently exposed; default 0 so the bar
+        // shows zero rather than a fabricated number. Future: wire a real disk
+        // capability once the host exposes it.
+        bytes: 0,
+        toneClass:
+          TONE_TO_DISK_CLASS[projectList.find((proj) => proj.id === p.id)?.state ?? ""] ??
+          "bg-steel-secondary",
+      }));
+  }, [packages.data, projectList]);
 
-  const recentActivity: ActivityRow[] = projectList
-    .filter((p) => p.state === "running" || p.state === "stopped")
-    .slice(0, 2)
-    .map((project, idx) => ({
-      id: project.id,
-      projectName: project.title,
-      toneDot: project.state === "running" ? "running" : "stopped",
-      age: idx === 0 ? "2h ago" : "yesterday",
-      action: {
-        label: project.state === "running" ? "Resume" : "Open",
-        onClick: () => onLaunch(project.id),
-      },
-    }));
+  const recentActivity: ActivityRow[] = useMemo(
+    () =>
+      projectList
+        .filter((p) => p.state === "running" || p.state === "stopped")
+        .slice(0, 2)
+        .map((project) => ({
+          id: project.id,
+          projectName: project.title,
+          toneDot: projectStateTone(project.state),
+          age: project.state === "running" ? "now" : "—",
+          action: {
+            label: project.state === "running" ? "Resume" : "Open",
+            onClick: () => onLaunch(project.id),
+          },
+        })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectList],
+  );
 
-  const timelineRows: TimelineRow[] = MOCK_TIMELINE.map((row) => ({
-    id: row.id,
-    projectName: row.projectName,
-    toneDot: row.tone as StatusTone,
-    age: row.age,
-    message: row.message,
-    iconKind: row.iconKind,
-    action: row.action ? { ...row.action, onClick: () => {} } : undefined,
-  }));
+  // Build timeline from real lifecycle events. Empty when there are none.
+  const timelineRows: TimelineRow[] = useMemo(() => {
+    const events = lifecycleEvents.data ?? [];
+    return events
+      .slice(-8)
+      .reverse()
+      .map((event) => {
+        const project = projectList.find((p) => p.id === (event.metadata as { project_id?: string })?.project_id);
+        return {
+          id: event.id,
+          projectName: project?.title ?? event.writer_package_id ?? "kernel",
+          toneDot: project ? projectStateTone(project.state) : ("neutral" as StatusTone),
+          age: formatRelativeAge(event.created_at),
+          message: event.kind.replace(/^kernel\/v1\//, ""),
+          iconKind: iconKindFor(event),
+        } satisfies TimelineRow;
+      });
+  }, [lifecycleEvents.data, projectList]);
 
   const onLaunch = (projectId: string) => {
     navigate({ kind: "project", projectId });
@@ -141,7 +188,7 @@ export function HomePage() {
     toast.push({
       variant: "info",
       title: `Uninstall ${title}`,
-      body: "Use yg uninstall on the CLI for now. Confirmation modal lands in Phase 7.",
+      body: `Confirm in CLI: yg uninstall ${title}`,
     });
   };
 
@@ -163,11 +210,13 @@ export function HomePage() {
         meta={formatGreetingTime()}
         greeting="Welcome back"
         summary={
-          counts.all > 0
-            ? `${counts.all} projects on the shelf. ${counts.running} running, ${counts.stopped} idle. ${
-                counts.failed > 0 ? `${counts.failed} need attention.` : "No pending updates."
-              }`
-            : "Your workshop is empty. Install a project to begin."
+          projects.loading
+            ? "Reading your workshop…"
+            : counts.all > 0
+              ? `${counts.all} projects on the shelf. ${counts.running} running, ${counts.stopped} idle. ${
+                  counts.failed > 0 ? `${counts.failed} need attention.` : "No pending updates."
+                }`
+              : "Your workshop is empty. Install a project to begin."
         }
         recentActivity={recentActivity}
       />
@@ -183,70 +232,75 @@ export function HomePage() {
           />
 
           <div className="flex items-center justify-between">
-            <Eyebrow>
-              Projects — {counts.all.toString().padStart(2, "0")} installed
-            </Eyebrow>
+            <Eyebrow>Projects — {counts.all.toString().padStart(2, "0")} installed</Eyebrow>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {filtered.map((project, idx) => (
-              <ProjectCard
-                key={project.id}
-                index={idx}
-                data={{
-                  id: project.id,
-                  title: project.title,
-                  description: project.description,
-                  state: project.state,
-                  type: project.type,
-                  version: (project as { size_mb?: number }).size_mb ? "v0.1.0" : undefined,
-                  source: project.type === "yggdrasil_native" ? "github" : "local",
-                  sizeMB: (project as { size_mb?: number }).size_mb,
-                  metricsLine: (project as { metrics?: string }).metrics,
-                  failureLine:
-                    project.state === "failed" ? (project as { metrics?: string }).metrics : undefined,
-                }}
-                actions={{
-                  onLaunch: () => onCardLaunch(project),
-                  onStop: () => onStop(project.id, project.title),
-                  onRestart: () => onCardLaunch(project),
-                  onUninstall: () => onUninstall(project.title),
-                  onConfigure: () => navigate({ kind: "settings", tab: "installed-packages" }),
-                  onViewLogs:
-                    project.state === "failed" ? () => onShowFailure(project.id) : undefined,
-                }}
-              />
-            ))}
-            <InstallCard onClick={onInstallClick} index={filtered.length} />
-          </div>
+          {projects.error ? (
+            <EmptyState
+              icon={<Warning />}
+              title="Couldn't reach the host"
+              body={projects.error.message}
+              action={{ label: "Retry", onClick: () => projects.refresh() }}
+            />
+          ) : projects.loading ? (
+            <div
+              className="grid gap-5"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+            >
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <Skeleton key={idx} className="h-[220px] rounded-[20px]" />
+              ))}
+            </div>
+          ) : projectList.length === 0 ? (
+            <EmptyState
+              icon={<Plus />}
+              title="No projects installed yet"
+              body="Yggdrasil is your workshop. Install a project to begin — projects can be a Yggdrasil-native source like YdlTavern, or any external git/local repo."
+              action={{ label: "Install a project", onClick: onInstallClick }}
+            />
+          ) : (
+            <div
+              className="grid gap-5"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+            >
+              {filtered.map((project, idx) => (
+                <ProjectCard
+                  key={project.id}
+                  index={idx}
+                  data={{
+                    id: project.id,
+                    title: project.title,
+                    description: project.description,
+                    state: project.state,
+                    type: project.type,
+                    source: project.type === "yggdrasil_native" ? "github" : "local",
+                  }}
+                  actions={{
+                    onLaunch: () => onCardLaunch(project),
+                    onStop: () => onStop(project.id, project.title),
+                    onRestart: () => onCardLaunch(project),
+                    onUninstall: () => onUninstall(project.title),
+                    onConfigure: () => navigate({ kind: "settings", tab: "installed-packages" }),
+                    onViewLogs:
+                      project.state === "failed" ? () => onShowFailure(project.id) : undefined,
+                  }}
+                />
+              ))}
+              <InstallCard onClick={onInstallClick} index={filtered.length} />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-6">
           <ActivityTimeline
             rows={timelineRows.slice(0, 6)}
+            loading={lifecycleEvents.loading && timelineRows.length === 0}
             onViewAll={() => navigate({ kind: "settings", tab: "installed-packages" })}
           />
           <WorkshopUtilities
-            updates={[
-              {
-                id: "u1",
-                packageId: "official/model-provider-lab",
-                fromVersion: "v0.4.1",
-                toVersion: "v0.5.0",
-                onUpdate: () =>
-                  toast.push({ variant: "info", title: "Update queued (mock)" }),
-              },
-              {
-                id: "u2",
-                packageId: "official/storage-lab",
-                fromVersion: "v0.2.2",
-                toVersion: "v0.2.4",
-                onUpdate: () =>
-                  toast.push({ variant: "info", title: "Update queued (mock)" }),
-              },
-            ]}
-            totalDisk={totalSize * 1_048_576}
-            diskCapacity={1024 * 1_048_576}
+            updates={[]}
+            totalDisk={0}
+            diskCapacity={0}
             diskSegments={diskSegments}
             quickActions={[
               {

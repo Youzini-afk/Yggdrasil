@@ -27,13 +27,23 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       try {
         const detail = await client.getProject(projectId);
         if (cancelled) return;
-        setProject(detail);
 
-        if (!detail.running_session_id) {
-          await client.startProject(projectId);
+        // Capture the session id from start_project — the project record from
+        // get_project is a stale snapshot, and ignoring the new id would mount
+        // the surface with sessionId=undefined.
+        let sessionId = detail.running_session_id;
+        let runtimeState = detail.state;
+        if (!sessionId) {
+          const started = await client.startProject(projectId);
+          if (cancelled) return;
+          sessionId = started.session_id;
+          runtimeState = (started.new_state as typeof runtimeState) ?? "running";
         }
-        if (!detail.entry_surface_id) return;
 
+        // Reflect the live state in the project frame topbar.
+        setProject({ ...detail, state: runtimeState, running_session_id: sessionId });
+
+        if (!detail.entry_surface_id) return;
         const bundle = await resolveSurfaceBundle(client, detail.entry_surface_id);
         if (cancelled) return;
         const handle = await mountSurface({
@@ -43,11 +53,11 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           exportName: bundle.exportName,
           stylesheets: bundle.stylesheets,
           wrapperClass: bundle.wrapperClass,
-          initialProps: { sessionId: detail.running_session_id, projectId },
+          initialProps: { sessionId, projectId },
           hostBridge: {
             callRpc: (method, params) => client.invoke(method, params),
-            subscribeEvents: (sessionId, cb) =>
-              client.subscribeEvents(sessionId, (event) => cb(event)),
+            subscribeEvents: (subSessionId, cb) =>
+              client.subscribeEvents(subSessionId, (event) => cb(event)),
           },
         });
         if (cancelled) {
@@ -128,12 +138,13 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {/* Iframe surface */}
+      {/* Iframe surface — neutral platform-bone background until the project
+          paints. The project owns its territory once mounted. */}
       <div
         ref={containerRef}
         id={FRAME_CONTAINER_ID}
         className="flex-1"
-        style={{ background: "var(--color-warm-ivory, #f5f2ec)" }}
+        style={{ background: "var(--color-warm-bone)" }}
       />
     </div>
   );

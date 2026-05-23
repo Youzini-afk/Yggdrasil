@@ -7,8 +7,10 @@ const buttonVariants = cva(
   {
     variants: {
       tone: {
+        // text uses --color-accent-foreground (warm bone, never flips) so
+        // contrast on the brass fill stays consistent across light/dark.
         primary:
-          "bg-aged-brass text-white hover:bg-aged-brass-deep",
+          "bg-aged-brass text-[color:var(--color-accent-foreground)] hover:bg-aged-brass-deep",
         secondary:
           "bg-transparent text-charcoal-ink border border-whisper-border hover:bg-whisper-border-strong/30",
         tertiary:

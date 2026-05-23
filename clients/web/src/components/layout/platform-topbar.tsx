@@ -17,8 +17,16 @@ const breadcrumbForRoute = (route: Route): string => {
 };
 
 export function PlatformTopbar({ route }: { route: Route }) {
-  const { theme, toggle } = useTheme();
+  const { theme, preference, setPreference } = useTheme();
   const [, navigate] = useRoute();
+
+  // Cycle: system → light → dark → system. Preserves the user's choice to
+  // follow the OS instead of forcing it off after the first toggle.
+  const cycleTheme = () => {
+    const next =
+      preference === "system" ? "light" : preference === "light" ? "dark" : "system";
+    setPreference(next);
+  };
 
   return (
     <header
@@ -44,14 +52,33 @@ export function PlatformTopbar({ route }: { route: Route }) {
 
       <div className="flex items-center gap-1">
         <Tooltip label="Notifications">
-          <Button tone="icon" size="icon" aria-label="Notifications">
+          <Button tone="icon" size="icon" aria-label="Notifications" className="relative">
             <Bell size={18} />
-            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-aged-brass" aria-hidden />
           </Button>
         </Tooltip>
-        <Tooltip label={theme === "dark" ? "Light mode" : "Dark mode"}>
-          <Button tone="icon" size="icon" onClick={toggle} aria-label="Toggle theme">
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        <Tooltip
+          label={
+            preference === "system"
+              ? `System (${theme === "dark" ? "Dark" : "Light"})`
+              : preference === "light"
+                ? "Light mode"
+                : "Dark mode"
+          }
+        >
+          <Button
+            tone="icon"
+            size="icon"
+            onClick={cycleTheme}
+            aria-label="Toggle theme"
+          >
+            {/* Cycle indicator: filled icon for explicit choice, outline for system. */}
+            {preference === "system" ? (
+              theme === "dark" ? <Moon size={18} /> : <Sun size={18} />
+            ) : preference === "dark" ? (
+              <Moon size={18} weight="fill" />
+            ) : (
+              <Sun size={18} weight="fill" />
+            )}
           </Button>
         </Tooltip>
         <Tooltip label="Settings">

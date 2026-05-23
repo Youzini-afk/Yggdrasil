@@ -1,8 +1,8 @@
-import { MagnifyingGlass } from "@/components/icons";
+import { CaretDown, MagnifyingGlass } from "@/components/icons";
 import { InputGroup } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import type { StatusTone } from "@/components/ui/status-pill";
+import { STATUS_DOT_CLASS, type StatusTone } from "@/components/ui/status-pill";
 
 export interface FilterChip {
   id: string;
@@ -10,16 +10,6 @@ export interface FilterChip {
   count: number;
   toneDot?: StatusTone;
 }
-
-const dotClass: Record<StatusTone, string> = {
-  running: "bg-aged-brass",
-  stopped: "bg-steel-secondary",
-  starting: "bg-muted-tone",
-  failed: "bg-deep-rust",
-  update: "bg-aged-brass",
-  neutral: "bg-steel-secondary",
-  accent: "bg-aged-brass",
-};
 
 export interface UtilityStripProps {
   search: string;
@@ -46,7 +36,7 @@ export function UtilityStrip({
         <InputGroup
           leftIcon={<MagnifyingGlass size={16} />}
           rightSlot={
-            <span className="rounded-[4px] border border-whisper-border bg-warm-bone px-1.5 py-0.5 font-mono text-[10px] text-muted-tone">
+            <span className="rounded-[4px] border border-whisper-border bg-pure-surface px-1.5 py-0.5 font-mono text-[10px] text-muted-tone">
               ⌘K
             </span>
           }
@@ -71,7 +61,7 @@ export function UtilityStrip({
               )}
             >
               {filter.toneDot ? (
-                <span className={cn("size-1.5 rounded-full", dotClass[filter.toneDot])} aria-hidden />
+                <span className={cn("size-1.5 rounded-full", STATUS_DOT_CLASS[filter.toneDot])} aria-hidden />
               ) : null}
               <span>{filter.label}</span>
               <span className="font-mono text-[10px] text-muted-tone">·{String(filter.count).padStart(2, "0")}</span>
@@ -82,9 +72,7 @@ export function UtilityStrip({
       <div className="ml-auto">
         <Button tone="secondary" size="sm" onClick={onSortClick}>
           Sort: {sortLabel}
-          <span className="text-muted-tone" aria-hidden>
-            ▾
-          </span>
+          <CaretDown size={12} className="text-muted-tone" />
         </Button>
       </div>
     </div>

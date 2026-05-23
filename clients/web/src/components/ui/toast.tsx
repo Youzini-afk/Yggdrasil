@@ -71,7 +71,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = input.id ?? crypto.randomUUID();
       const variant = input.variant ?? "info";
       const toast: ToastInternal = { ...input, id, variant };
-      setToasts((current) => [...current.slice(-4), toast]);
+      // Keep at most 3 toasts visible per spec; drop oldest.
+      setToasts((current) => [...current.slice(-2), toast]);
       const duration = input.duration ?? (variant === "error" || variant === "progress" ? 0 : 4400);
       if (duration > 0) {
         const timer = window.setTimeout(() => dismiss(id), duration);
@@ -109,7 +110,7 @@ function ToastViewport({
     <ol
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-6 right-6 z-50 flex w-[360px] flex-col gap-3"
+      className="pointer-events-none fixed bottom-6 right-6 z-50 flex w-[360px] flex-col gap-2"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => {
@@ -120,7 +121,7 @@ function ToastViewport({
               layout
               initial={{ opacity: 0, y: 16, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ type: "spring", stiffness: 520, damping: 38 }}
               className="pointer-events-auto relative overflow-hidden rounded-[16px] border border-whisper-border bg-pure-surface shadow-toast"
             >

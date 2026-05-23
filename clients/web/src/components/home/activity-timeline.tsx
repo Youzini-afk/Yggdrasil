@@ -10,18 +10,9 @@ import {
 } from "@/components/icons";
 import { Card } from "@/components/ui/card";
 import { Eyebrow } from "@/components/ui/typography";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
-import type { StatusTone } from "@/components/ui/status-pill";
-
-const dotClass: Record<StatusTone, string> = {
-  running: "bg-aged-brass",
-  stopped: "bg-steel-secondary",
-  starting: "bg-muted-tone",
-  failed: "bg-deep-rust",
-  update: "bg-aged-brass",
-  neutral: "bg-steel-secondary",
-  accent: "bg-aged-brass",
-};
+import { STATUS_DOT_CLASS, type StatusTone } from "@/components/ui/status-pill";
 
 const eventIconMap: Record<string, typeof Globe> = {
   default: Stack,
@@ -46,18 +37,33 @@ export interface TimelineRow {
 
 export function ActivityTimeline({
   rows,
+  loading = false,
   onViewAll,
 }: {
   rows: TimelineRow[];
+  loading?: boolean;
   onViewAll?: () => void;
 }) {
   return (
     <section className="flex flex-col gap-3">
       <Eyebrow>Activity — last 24h</Eyebrow>
       <Card>
-        {rows.length === 0 ? (
-          <div className="px-6 py-12 text-center text-[13px] text-muted-tone">
-            No activity in the last 24 hours.
+        {loading ? (
+          <ul className="divide-y divide-whisper-border">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <li key={idx} className="flex gap-3 px-5 py-3">
+                <Skeleton className="size-1.5 mt-1 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-2.5 w-64" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+            <Stack size={20} className="text-muted-tone" />
+            <p className="text-[13px] text-muted-tone">No activity in the last 24 hours.</p>
           </div>
         ) : (
           <ul className="divide-y divide-whisper-border">
@@ -66,7 +72,10 @@ export function ActivityTimeline({
               return (
                 <li key={row.id} className="flex gap-3 px-5 py-3">
                   <div className="flex flex-col items-center pt-0.5">
-                    <span className={cn("size-1.5 rounded-full", dotClass[row.toneDot])} aria-hidden />
+                    <span
+                      className={cn("size-1.5 rounded-full", STATUS_DOT_CLASS[row.toneDot])}
+                      aria-hidden
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">

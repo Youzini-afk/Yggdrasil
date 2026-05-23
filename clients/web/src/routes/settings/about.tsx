@@ -1,16 +1,14 @@
 import { Bug, ChatCircle, GithubLogo, BookOpen, Newspaper } from "@/components/icons";
 import { Card, CardSection } from "@/components/ui/card";
-import { Eyebrow, EyebrowSm } from "@/components/ui/typography";
+import { Eyebrow, EyebrowSm, PageTitle } from "@/components/ui/typography";
 
 export function AboutPanel() {
   return (
     <>
       <header className="mb-8">
         <Eyebrow>About</Eyebrow>
-        <h1 className="mt-3 font-display text-[56px] font-extrabold leading-[1.0] tracking-[-0.03em] text-charcoal-ink">
-          Yggdrasil
-        </h1>
-        <p className="mt-3 text-[17px] text-steel-secondary">Open platform for play and creation.</p>
+        <PageTitle className="mt-3">Yggdrasil</PageTitle>
+        <p className="mt-3 text-[15px] text-steel-secondary">Open platform for play and creation.</p>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">

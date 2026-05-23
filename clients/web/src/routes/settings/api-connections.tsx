@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Copy, DotsThree, Eye, EyeSlash, Key, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -334,11 +334,24 @@ function AddSecretModal({
   const [provider, setProvider] = useState("OpenAI");
   const [scope, setScope] = useState<string>("platform");
 
+  // Always wipe the raw secret from React memory when the modal closes —
+  // success path, cancel path, esc path, anywhere. The host has the
+  // encrypted copy; the UI must never retain raw values past submission.
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setValue("");
+      setProvider("OpenAI");
+      setScope("platform");
+    }
+  }, [open]);
+
   const handleSave = () => {
     if (!name || !value) return;
     onSave({ name, value, scope, provider });
-    setName("");
+    // Wipe immediately on submit; do not wait for the close effect.
     setValue("");
+    setName("");
   };
 
   return (
