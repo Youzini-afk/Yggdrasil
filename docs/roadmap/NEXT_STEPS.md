@@ -33,7 +33,9 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；Round 10A.3 已打通 YdlTavern Send → engine `model.live_call` → live outbound → provider response 的真实路径；Round 10A.4 已补齐 surface streaming response UX；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
+- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；Round 10A.3 已打通 YdlTavern Send → engine `model.live_call` → live outbound → provider response 的真实路径；Round 10A.4 已补齐 surface streaming response UX。
+- 平台 UI 已升级：`clients/web` 切到 React 19 + Tailwind v4 + Motion + Radix + Phosphor，所有屏（Home/Settings 五个面板/Install 三步流程/External wizard/Failure modal/Project frame/Toast 系统）已实现并接真实公开协议数据，含暗色模式、响应式、a11y。视觉规则与组件目录见 [`../design/PLATFORM_UI_DESIGN.md`](../design/PLATFORM_UI_DESIGN.md) 与 [`../../clients/web/README.md`](../../clients/web/README.md)。
+- 后续 distribution polish：Sigstore、Tauri UI 安装路径、`yg gc`、自动更新守护、code signing / notarization、真实应用图标。
 - OS keyring 集成延后，等 CI / 跨平台构建环境具备稳定系统依赖时再恢复。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。

@@ -43,7 +43,10 @@ being mechanical. Designed without being decorative.
 ### Light mode (primary)
 
 - **Warm Bone** (#FAFAF7) — Primary background. Slightly off-white with paper
-  warmth. Never clinical blue-white, never pure #FFFFFF for backgrounds.
+  warmth. Never clinical blue-white, never pure #FFFFFF for backgrounds. The
+  background is a solid flat color — NO gradient shapes, NO colored blobs,
+  NO decorative blurs, NO ambient lighting effects, NO mesh gradients, NO
+  noise/grain textures. Just one solid Warm Bone fill behind everything.
 - **Pure Surface** (#FFFFFF) — Card and elevated container fill, used with
   whisper shadow.
 - **Charcoal Ink** (#1B1A18) — Primary text. Warm-shifted near-black, never
@@ -120,10 +123,11 @@ with the projects it hosts.
 
 ### Scale
 
-- Display title (Home eyebrow + section openers): `clamp(2.5rem, 5vw, 4rem)`,
-  weight 800, tracking `-0.03em`
-- Page title (Settings sections): `clamp(1.875rem, 3vw, 2.5rem)`, weight 700
-- Card title: `1.25rem`, weight 700, tracking `-0.015em`
+- Display title (Home eyebrow + section openers): `clamp(2rem, 3vw, 2.5rem)`
+  (≈32-40px), weight **700**, tracking `-0.02em`. Resist headline-poster
+  scale — this is a workshop app, not a magazine cover.
+- Page title (Settings sections): `clamp(1.5rem, 2.5vw, 2rem)`, weight 700
+- Card title: `1.125rem` (18px), weight 700, tracking `-0.015em`
 - Body: `1rem` / `1.0625rem`, weight 400
 - Body small (metadata, timestamps): `0.8125rem`, weight 400, color Steel
   Secondary
@@ -169,9 +173,14 @@ urge to make every heading bigger.
 
 ### Cards
 
-- **Project card** — Pure Surface fill, `1.5rem` (24px) border-radius, 1px
-  Whisper Border, Diffused Shadow. Internal padding `1.5rem`. Width target
+- **Project card** — Pure Surface fill, `1.25rem` (20px) border-radius, 1px
+  Whisper Border, Diffused Shadow. Internal padding `1.25rem`. Width target
   `280-340px` per card. Hover: `translateY(-2px)` + shadow deepens slightly.
+  Cards must feel **dense**, not airy: each card carries an icon, title,
+  description, status pill, version metadata, last-active timestamp, and a
+  bottom action bar with two buttons (primary + secondary like ⋯ menu). Avoid
+  big empty zones inside the card — every region earns its space. The shelf
+  reads like a craftsman's tool rack, not a gallery wall.
 - **Settings panel card** — Same shape but larger, used for grouping form
   rows. Internal padding `2rem`. Internal sections divided by `1px Whisper
   Border` horizontal lines, not nested cards.
@@ -275,25 +284,40 @@ above the iframe:
 ## 5. Hero Section (Home as Hero)
 
 The Home is the platform's first impression — it must establish the editorial
-workshop atmosphere immediately, without marketing chrome.
+workshop atmosphere immediately, without marketing chrome. **The hero must NOT
+read as a magazine cover or poster** — it is a workshop entrance, not an
+editorial spread. Headline scale is restrained; surrounding UI density grounds
+the type.
 
-- **Asymmetric layout** — split 60/40 desktop. Left zone holds the eyebrow
-  ("Yggdrasil" small caps), the title in Cabinet Grotesk 800 (e.g., "Your
-  workshop"), and a single line of body text. Right zone holds an ambient
-  detail: a quiet quote, the count of installed projects in mono, a faint
-  decorative element. The right zone is mostly negative space.
+- **Restrained scale** — title at `clamp(2rem, 3vw, 2.5rem)` (≈32-40px), weight
+  700, NOT 800. Tracking `-0.02em`. The title sits among utility chrome, not
+  alone on a page.
+- **Asymmetric layout** — split 55/45 desktop. Left zone holds the eyebrow
+  ("WORKSHOP" small caps in mono), the title (e.g., "Welcome back, Hana"),
+  and a single line of context. Right zone holds an **activity micro-card**
+  with concrete utility: a recent activity log line ("Last active YdlTavern
+  · 2h ago"), an inline action button ("Resume"), and metadata in mono.
+  The right zone is NOT empty negative space — it is a small functional panel.
+- **Hero chrome row** — directly below the hero, before the project shelf,
+  insert a horizontal **utility strip** with: a search input ("Search projects,
+  packages, settings…" placeholder, 320px wide), a row of filter chips ("All
+  10 · Running 1 · Stopped 8 · Failed 1"), and a small "Sort by" dropdown.
+  This strip transforms the screen from "magazine page" to "workshop control
+  bench" — it is essential, not optional.
 - **No filler chrome** — banned: "Scroll to explore", "Get started", scroll
-  arrows, animated chevrons, "Welcome to your platform" copy, hero search bars
-  spanning full width, gradient backdrops.
+  arrows, animated chevrons, "Welcome to your platform" marketing copy,
+  hero search bars spanning full width, gradient backdrops.
 - **One primary action** — the "+ Install project" entry sits inline as one of
   the project cards (always last, dashed border style), not as a separate
-  giant CTA in the hero. The hero does not have a CTA button.
-- **Project shelf is the substance** — the hero should occupy roughly 30vh of
-  the initial viewport, then immediately give way to the project shelf grid.
-  The shelf is the actual content; the hero is just acknowledgment that the
-  user has arrived at their workshop.
+  giant CTA in the hero.
+- **Hero is contextual, not decorative** — the right ambient zone always shows
+  *something the user can act on or learn from*: recent activity, inline
+  resume, package update count, system status. Never just a quote sitting in
+  empty space.
+- **Project shelf is the substance** — hero + utility strip should occupy
+  roughly 35vh, then immediately give way to the project shelf grid.
 - **No centered hero layout** — variance level 8 forbids it. Force the
-  asymmetric 60/40 or fully-left-aligned arrangement.
+  asymmetric 55/45 or fully-left-aligned arrangement.
 
 ---
 

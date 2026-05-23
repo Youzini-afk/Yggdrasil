@@ -242,21 +242,28 @@ Round 10A.4 不改变 conformance 与 schema 数量：仍为 427 个 conformance
 
 ## Completed（S-track shell / release）
 
-- **Web client（S1）：** `clients/web` 已切到 Vite dev/build，仍保持 plain TypeScript SPA。Home / Play、Forge、Assist 继续只走 HTTP `/rpc` 与 SSE；iframe-based SurfaceHost 可挂载第三方 surface bundle，并通过显式 `postMessage` RPC bridge 与宿主通信。详见 [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.md)。
+- **Web client（S1）：** `clients/web` 已切到 Vite dev/build，并升级为 React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA。Home/Settings/Install/Project frame/Toast 全部以公开协议为唯一数据源（HTTP `/rpc` + SSE + 可选 postMessage stream bridge）；iframe-based SurfaceHost 可挂载第三方 surface bundle，并通过显式 `postMessage` RPC bridge 与宿主通信。详见 [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md)、[`../clients/web/README.md`](../clients/web/README.md)、[`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.md)。
 - **Desktop wrapper（S2）：** `clients/desktop` 提供 Tauri 2.x wrapper，生产模式嵌入 `clients/web/dist`，开发模式指向 Vite dev server。v0 不自动启动 `ygg-cli host serve`；用户仍需单独运行 host。
 - **Release pipeline（S3）：** GitHub Actions CI 与 `v*` tag release workflow 已落地，构建跨平台 Tauri 安装包并创建 draft release。`scripts/release-version.sh` 同步 Cargo、Web package、desktop package 与 Tauri 配置。构建说明见 [`../BUILDING.md`](../BUILDING.md)，变更记录见 [`../CHANGELOG.md`](../CHANGELOG.md)。签名、公证、自动更新未启用。
 
 ## Web shell（`clients/web`）
 
-走公开协议的 Home/Play、Forge、Assist。Web shell 由 Vite 构建，shell 本身不引入 React 或其他前端框架。
+平台用户面 chrome——Home、Settings、Install 流程、Project frame、Toast 系统。基于 React 19 + Tailwind v4 + Motion + Radix + Phosphor 的 SPA，由 Vite 构建。视觉规则与设计系统见 [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md)；shell 详细文档见 [`../clients/web/README.md`](../clients/web/README.md)。
 
-- **Home / Play：** 通过 `experience_entry` surface 发现可玩内容，通过包声明的 launch 能力启动会话，支持 fork。
-- **Forge：** 检查事件、能力、资产、projection、提案、Forge 面板贡献，提供提案的 approve/apply 控件。新增 Agentic Forge 工作区面板（运行时间线、计划图、分支沿革、candidate compare、tool/inference trace、控件），数据全部来自公开协议。
-- **Assist：** 轻量的实时编辑与提案抽屉。
-- 没有官方包硬编码——shell 和别的客户端一样是公开协议的客户端。
-- **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。
-- **可选文字引擎：** 通用 `TextEngine` 接口加可缓存的 fallback engine；可选 `PretextTextEngine` 通过动态导入加载，仓库无需安装 `@chenglou/pretext` 即可构建；Assistant Drawer 显示引擎偏好、可用性、回退原因。
-- **Forge 文字预览：** 从事件 payload、流帧、提案对象里提取安全的纯文本预览，跟现有 JSON 审查器并存。
+- **Home：** 项目货架（卡片网格 + 状态 pill + Hero + utility strip + 活动 timeline + 工坊工具 bento），数据来自 `kernel.v1.project.list`，不可达时回落到 mock。`⌘N` 打开 Install 模态。
+- **Settings：** 五个面板都接真实数据。
+  - API Connections — `official/secret-store-lab/{list,put,delete}_secret` + health。UI 永远不读 raw secret 值。
+  - Installed Packages — `kernel.v1.package.list` + 项目标记 + Cmd/Ctrl+F focus。
+  - Profiles — `kernel.v1.host.diagnostics`（active profile、packages_loaded、network allowlist）。
+  - Storage — `data_dir` + paths + 真实 event store kind（sqlite/postgres/memory）。
+  - About — 平台身份、license、links、致谢。
+- **Install 流程：** 三步 modal（URL 输入含自动补全 → 计划审查含权限/依赖/conformance → 进度条），原生项目走快速通道，外部项目走 wrap-vs-workspace wizard。
+- **Project Frame：** 60px 平台 topbar + 40px 项目 topbar（项目名/状态 pill/Stop/Audit log）+ iframe SurfaceHost 挂载项目自有前端。
+- **Failure Modal：** Deep Rust accent stripe、诊断/影响双列、stderr 日志面板（含 Copy log）、Restart/Stop-and-uninstall/Close 三选项。
+- **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，prefers-reduced-motion 自动收敛。
+- **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
+- **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。流式订阅通过 postMessage 桥接 `kernel/v1/stream.*`。
+- **没有官方包硬编码——shell 和别的客户端一样是公开协议的客户端。**
 
 ## 创作流程
 

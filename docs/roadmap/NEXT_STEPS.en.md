@@ -33,7 +33,9 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store; Round 10A.2 completed the Home project shelf, project lifecycle, project-level secret fallback, and YdlTavern project.yaml. Round 10A.3 completed the real path from YdlTavern Send → engine `model.live_call` → live outbound → provider response. Round 10A.4 completed surface streaming response UX. Only distribution polish remains, such as Sigstore, Tauri UI, `yg gc`, and an auto-update daemon.
+- The package-installation foundation is complete; Round 10A.1 also completed default simplification and the local encrypted secret store; Round 10A.2 completed the Home project shelf, project lifecycle, project-level secret fallback, and YdlTavern project.yaml. Round 10A.3 completed the real path from YdlTavern Send → engine `model.live_call` → live outbound → provider response. Round 10A.4 completed surface streaming response UX.
+- The platform UI has been rebuilt: `clients/web` moved to React 19 + Tailwind v4 + Motion + Radix + Phosphor. Every screen (Home, the five Settings panels, the three-step Install flow, External wizard, Failure modal, Project frame, toast system) is implemented and wired to real public-protocol data, with dark mode, responsive breakpoints, and a11y baked in. Visual rules and the component map are in [`../design/PLATFORM_UI_DESIGN.md`](../design/PLATFORM_UI_DESIGN.en.md) and [`../../clients/web/README.md`](../../clients/web/README.md).
+- Distribution polish that remains: Sigstore, Tauri UI install path, `yg gc`, an auto-update daemon, code signing / notarization, and real application icons.
 - OS keyring integration is deferred until CI / cross-platform builds have stable system dependencies.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.

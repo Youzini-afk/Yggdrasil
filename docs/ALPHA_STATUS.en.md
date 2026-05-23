@@ -242,21 +242,28 @@ Round 10A.4 does not change conformance or schema counts: 427 conformance cases 
 
 ## Completed (S-track shell / release)
 
-- **Web client (S1):** `clients/web` now uses Vite for dev/build while remaining a plain TypeScript SPA. Home / Play, Forge, and Assist still use only HTTP `/rpc` and SSE; the iframe-based SurfaceHost can mount third-party surface bundles and communicate with the host through an explicit `postMessage` RPC bridge. See [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
+- **Web client (S1):** `clients/web` is a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA built by Vite. Home, Settings, Install flow, Project frame, and the toast system all consume the public protocol exclusively (HTTP `/rpc`, SSE, plus an optional `postMessage` stream bridge for surfaces). The iframe-based SurfaceHost mounts third-party surface bundles and communicates with the host through an explicit `postMessage` RPC bridge. See [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md), [`../clients/web/README.md`](../clients/web/README.md), and [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
 - **Desktop wrapper (S2):** `clients/desktop` provides a Tauri 2.x wrapper. Production embeds `clients/web/dist`; development points at the Vite dev server. v0 does not start `ygg-cli host serve`; users still run the host separately.
 - **Release pipeline (S3):** GitHub Actions CI and the `v*` tag release workflow are in place, building cross-platform Tauri installers and creating a draft release. `scripts/release-version.sh` synchronizes Cargo, the web package, the desktop package, and Tauri config. Build notes are in [`../BUILDING.md`](../BUILDING.md); changes are in [`../CHANGELOG.md`](../CHANGELOG.md). Signing, notarization, and auto-update are not enabled.
 
 ## Web shell (`clients/web`)
 
-Home / Play, Forge, and Assist over the public protocol. The web shell is built with Vite, and the shell itself does not use React or another frontend framework.
+The platform user-facing chrome — Home, Settings, Install flow, Project frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
 
-- **Home / Play:** discovers `experience_entry` surfaces, launches sessions through package-declared launch capabilities, supports fork.
-- **Forge:** inspects events, capabilities, assets, projections, proposals, and forge-panel contributions; offers approve / apply controls. Adds Agentic Forge workspace panels (run timeline, plan graph, branch lineage, candidate compare, tool / inference trace, controls), all driven by public protocol data.
-- **Assist:** a lightweight live-edit and proposal drawer.
-- No hardcoded official packages — the shell is just a public-protocol client like any other.
-- **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes. There is no kernel access by default; only host-configured bridge methods can call the public protocol.
-- **Optional text engine:** a generic `TextEngine` interface plus a cached fallback engine, with an optional `PretextTextEngine` loaded by dynamic import. The repo builds without `@chenglou/pretext` installed; the Assistant Drawer shows engine preference, availability, and fallback reason.
-- **Forge text preview:** safe plain-text previews extracted from event payloads, stream frames, and proposal objects, sitting alongside the existing JSON inspectors.
+- **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `kernel.v1.project.list` and falling back to mocks when the host is unreachable. `⌘N` opens the Install modal.
+- **Settings:** five panels, all wired to real data.
+  - API Connections — `official/secret-store-lab/{list,put,delete}_secret` plus health. The UI never reads raw secret values.
+  - Installed Packages — `kernel.v1.package.list` plus the project flag, with Cmd/Ctrl+F focus.
+  - Profiles — `kernel.v1.host.diagnostics` (active profile, packages_loaded, network allowlist).
+  - Storage — `data_dir`, paths, and the live event-store kind (sqlite / postgres / memory).
+  - About — platform identity, license, links, gratitude.
+- **Install flow:** three-step modal (URL input with autocomplete → plan review with permissions / dependencies / conformance → progress bar). Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard.
+- **Project Frame:** 60px platform topbar plus 40px project topbar (project name / status pill / Stop / Audit log) plus the iframe SurfaceHost that mounts the project's own UI.
+- **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, stderr log panel (with Copy log), and Restart / Stop-and-uninstall / Close actions.
+- **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
+- **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
+- **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes; no kernel access by default; only host-configured bridge methods reach the public protocol. Streaming subscription bridges `kernel/v1/stream.*` through postMessage.
+- **No hardcoded official packages — the shell is a public-protocol client like any other.**
 
 ## Authoring flow
 
