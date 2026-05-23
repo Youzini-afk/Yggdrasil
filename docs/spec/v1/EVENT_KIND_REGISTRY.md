@@ -16,6 +16,10 @@
 | `kernel/v1/package.unloaded` | [`./schemas/events/kernel__v1__package.unloaded.schema.json`](./schemas/events/kernel__v1__package.unloaded.schema.json) | kernel | 包从注册表移除 | implemented |
 | `kernel/v1/package.degraded` | [`./schemas/events/kernel__v1__package.degraded.schema.json`](./schemas/events/kernel__v1__package.degraded.schema.json) | kernel | 执行失败或健康状态降级 | implemented |
 | `kernel/v1/package.log` | [`./schemas/events/kernel__v1__package.log.schema.json`](./schemas/events/kernel__v1__package.log.schema.json) | kernel | 捕获 subprocess stderr 日志行 | implemented |
+| `kernel/v1/project.installed` | [`./schemas/events/kernel__v1__project.installed.schema.json`](./schemas/events/kernel__v1__project.installed.schema.json) | kernel | Project 已安装/注册 | implemented |
+| `kernel/v1/project.started` | [`./schemas/events/kernel__v1__project.started.schema.json`](./schemas/events/kernel__v1__project.started.schema.json) | kernel | Project 状态转换为 running | implemented |
+| `kernel/v1/project.stopped` | [`./schemas/events/kernel__v1__project.stopped.schema.json`](./schemas/events/kernel__v1__project.stopped.schema.json) | kernel | Project 状态转换为 stopped | implemented |
+| `kernel/v1/project.uninstalled` | [`./schemas/events/kernel__v1__project.uninstalled.schema.json`](./schemas/events/kernel__v1__project.uninstalled.schema.json) | kernel | Project 已卸载/归档 | implemented |
 | `kernel/v1/asset.put` | [`./schemas/events/kernel__v1__asset.put.schema.json`](./schemas/events/kernel__v1__asset.put.schema.json) | kernel | 不透明 asset 已存储 | implemented |
 | `kernel/v1/projection.updated` | [`./schemas/events/kernel__v1__projection.updated.schema.json`](./schemas/events/kernel__v1__projection.updated.schema.json) | kernel | projection 状态已重建/更新 | implemented |
 | `kernel/v1/proposal.created` | [`./schemas/events/kernel__v1__proposal.created.schema.json`](./schemas/events/kernel__v1__proposal.created.schema.json) | kernel | proposal 已创建 | partial |

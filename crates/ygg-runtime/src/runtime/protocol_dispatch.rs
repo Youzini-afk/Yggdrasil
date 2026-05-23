@@ -2,9 +2,10 @@ use bytes::Bytes;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fs;
 use std::sync::Arc;
 use std::time::Instant;
-use ygg_core::{CapHandleId, PackageId, RedactionState};
+use ygg_core::{project::{ProjectId, ProjectState}, CapHandleId, PackageId, RedactionState};
 
 use super::Runtime;
 use crate::{
@@ -156,6 +157,13 @@ where
             KernelMethod::PackageRestart => self.dispatch_package_restart(&params).await,
             KernelMethod::PackageLogs => self.dispatch_package_logs(&params).await,
 
+            // Project domain
+            KernelMethod::ProjectList => self.dispatch_project_list(context, &params).await,
+            KernelMethod::ProjectGet => self.dispatch_project_get(context, &params).await,
+            KernelMethod::ProjectStart => self.dispatch_project_start(context, &params).await,
+            KernelMethod::ProjectStop => self.dispatch_project_stop(context, &params).await,
+            KernelMethod::ProjectStatus => self.dispatch_project_status(context, &params).await,
+
             // Capability domain
             KernelMethod::CapabilityDiscover => {
                 Ok(serde_json::to_value(self.discover_capabilities().await)?)
@@ -239,6 +247,237 @@ where
                 anyhow::anyhow!("kernel.v1.surface.contribution.describe requires surface_id")
             })?;
         self.describe_surface_contribution(surface_id).await
+    }
+
+    // --- Project ---
+
+    fn ensure_project_admin(context: &ProtocolContext, method: &str) -> anyhow::Result<()> {
+        if !matches!(
+            context.principal,
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
+        ) {
+            anyhow::bail!("{method} permission denied: requires host admin/dev principal");
+        }
+        Ok(())
+    }
+
+    fn project_id_param(params: &Value, method: &str) -> anyhow::Result<ProjectId> {
+        let id = params
+            .get("project_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("{method} requires project_id"))?;
+        ProjectId::new(id)
+    }
+
+    fn project_summary(entry: &crate::ProjectEntry) -> anyhow::Result<Value> {
+        Ok(json!({
+            "id": entry.descriptor.project.id.as_str(),
+            "title": entry.descriptor.project.title,
+            "description": entry.descriptor.project.description,
+            "type": serde_json::to_value(&entry.descriptor.project.project_type)?,
+            "state": serde_json::to_value(entry.state)?,
+            "icon": entry.descriptor.project.icon,
+            "entry_surface_id": entry.descriptor.project.entry_surface_id,
+        }))
+    }
+
+    fn count_dir_entries(path: &std::path::Path) -> usize {
+        fs::read_dir(path)
+            .map(|entries| entries.filter_map(Result::ok).count())
+            .unwrap_or(0)
+    }
+
+    fn project_paths_and_counts(id: &ProjectId) -> Value {
+        let project_dir = ygg_core::paths::project_dir(id).ok();
+        let sessions_count = project_dir
+            .as_ref()
+            .map(|dir| Self::count_dir_entries(&dir.join("sessions")))
+            .unwrap_or(0);
+        let secrets_path = ygg_core::paths::project_secret_store_path(id).ok();
+        let secrets_exists = secrets_path.as_ref().is_some_and(|path| path.is_file());
+        let secrets_count = if secrets_exists { 1 } else { 0 };
+        json!({
+            "project_dir": project_dir.map(|path| path.display().to_string()),
+            "secrets_exists": secrets_exists,
+            "sessions_count": sessions_count,
+            "secrets_count": secrets_count,
+        })
+    }
+
+    async fn emit_project_event(
+        &self,
+        context: &ProtocolContext,
+        kind: &'static str,
+        entry: &crate::ProjectEntry,
+        previous_state: Option<ProjectState>,
+        new_state: ProjectState,
+    ) -> anyhow::Result<()> {
+        let session_id = context
+            .session_id
+            .clone()
+            .unwrap_or_else(|| "kernel_project_lifecycle".to_string());
+        self.append_kernel_event(
+            &session_id,
+            kind,
+            json!({
+                "project_id": entry.descriptor.project.id.as_str(),
+                "title": entry.descriptor.project.title,
+                "type": serde_json::to_value(&entry.descriptor.project.project_type)?,
+                "previous_state": previous_state.map(serde_json::to_value).transpose()?,
+                "new_state": serde_json::to_value(new_state)?,
+            }),
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn dispatch_project_list(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        Self::ensure_project_admin(context, "kernel.v1.project.list")?;
+        let filter_state = params
+            .get("filter_state")
+            .map(|value| serde_json::from_value::<ProjectState>(value.clone()))
+            .transpose()?;
+        let projects = self
+            .config
+            .project_registry
+            .list()
+            .into_iter()
+            .filter(|entry| filter_state.map_or(true, |state| entry.state == state))
+            .map(|entry| Self::project_summary(&entry))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        Ok(json!({ "projects": projects }))
+    }
+
+    async fn dispatch_project_get(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        Self::ensure_project_admin(context, "kernel.v1.project.get")?;
+        let id = Self::project_id_param(params, "kernel.v1.project.get")?;
+        let entry = self
+            .config
+            .project_registry
+            .get(&id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        let mut value = serde_json::to_value(&entry.descriptor)?;
+        if let Value::Object(map) = &mut value {
+            map.insert("state".to_string(), serde_json::to_value(entry.state)?);
+            map.insert("paths".to_string(), Self::project_paths_and_counts(&id));
+        }
+        Ok(value)
+    }
+
+    async fn dispatch_project_status(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        Self::ensure_project_admin(context, "kernel.v1.project.status")?;
+        let id = Self::project_id_param(params, "kernel.v1.project.status")?;
+        let entry = self
+            .config
+            .project_registry
+            .get(&id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        let details = Self::project_paths_and_counts(&id);
+        Ok(json!({
+            "project_id": id.as_str(),
+            "state": serde_json::to_value(entry.state)?,
+            "sessions_count": details.get("sessions_count").and_then(Value::as_u64).unwrap_or(0),
+            "secrets_count": details.get("secrets_count").and_then(Value::as_u64).unwrap_or(0),
+        }))
+    }
+
+    async fn dispatch_project_start(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        Self::ensure_project_admin(context, "kernel.v1.project.start")?;
+        let id = Self::project_id_param(params, "kernel.v1.project.start")?;
+        let entry = self
+            .config
+            .project_registry
+            .get(&id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        if !matches!(
+            entry.state,
+            ProjectState::Installed | ProjectState::Stopped | ProjectState::Failed
+        ) {
+            anyhow::bail!("project '{}' cannot start from state {:?}", id, entry.state);
+        }
+        let previous_state = entry.state;
+        self.config
+            .project_registry
+            .set_state(&id, ProjectState::Starting)?;
+        self.config
+            .project_registry
+            .set_state(&id, ProjectState::Running)?;
+        let running_entry = self
+            .config
+            .project_registry
+            .get(&id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        self.emit_project_event(
+            context,
+            ygg_core::PROJECT_STARTED,
+            &running_entry,
+            Some(previous_state),
+            ProjectState::Running,
+        )
+        .await?;
+        Ok(json!({
+            "project_id": id.as_str(),
+            "previous_state": serde_json::to_value(previous_state)?,
+            "new_state": serde_json::to_value(ProjectState::Running)?,
+        }))
+    }
+
+    async fn dispatch_project_stop(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        Self::ensure_project_admin(context, "kernel.v1.project.stop")?;
+        let id = Self::project_id_param(params, "kernel.v1.project.stop")?;
+        let entry = self
+            .config
+            .project_registry
+            .get(&id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        if !matches!(entry.state, ProjectState::Running | ProjectState::Starting) {
+            anyhow::bail!("project '{}' cannot stop from state {:?}", id, entry.state);
+        }
+        let previous_state = entry.state;
+        self.config
+            .project_registry
+            .set_state(&id, ProjectState::Stopping)?;
+        self.config
+            .project_registry
+            .set_state(&id, ProjectState::Stopped)?;
+        let stopped_entry = self
+            .config
+            .project_registry
+            .get(&id)
+            .ok_or_else(|| anyhow::anyhow!("project '{}' not found", id))?;
+        self.emit_project_event(
+            context,
+            ygg_core::PROJECT_STOPPED,
+            &stopped_entry,
+            Some(previous_state),
+            ProjectState::Stopped,
+        )
+        .await?;
+        Ok(json!({
+            "project_id": id.as_str(),
+            "previous_state": serde_json::to_value(previous_state)?,
+            "new_state": serde_json::to_value(ProjectState::Stopped)?,
+        }))
     }
 
     // --- Outbound ---

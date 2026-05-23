@@ -13,6 +13,8 @@ async fn install_local_fixture() {
         strict: false,
         yes: true,
         format: OutputFormat::Human,
+        wrap_as_adapter: false,
+        workspace_only: false,
     })
     .await
     .unwrap();
@@ -35,6 +37,8 @@ async fn list_lockfile_and_uninstall_local_fixture() {
         strict: false,
         yes: true,
         format: OutputFormat::Human,
+        wrap_as_adapter: false,
+        workspace_only: false,
     })
     .await
     .unwrap();
@@ -59,6 +63,8 @@ async fn list_lockfile_and_uninstall_local_fixture() {
         package_id: "fixture/pkg-local".to_string(),
         profile: "test".to_string(),
         data_dir: Some(data_dir.clone()),
+        keep_data: false,
+        delete_data: false,
     })
     .await
     .unwrap();

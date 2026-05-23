@@ -11,9 +11,10 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProjectDescriptor {
     /// Schema version. Currently always 1.
     pub schema_version: u32,
@@ -22,7 +23,7 @@ pub struct ProjectDescriptor {
     pub project: ProjectInner,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProjectInner {
     /// Project id. Format: <safe_slug>__<short_hash>.
     /// Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.
@@ -81,7 +82,7 @@ pub struct ProjectInner {
 }
 
 /// Newtype for project id with format validation.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(transparent)]
 pub struct ProjectId(String);
 
@@ -132,7 +133,7 @@ impl std::fmt::Display for ProjectId {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectType {
     /// Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
@@ -143,7 +144,7 @@ pub enum ProjectType {
     ExternalWorkspace,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct SecretPolicy {
     /// If true, secret_ref:project:NAME falls back to platform store when not found in project.
     /// If false, fail-closed.
@@ -170,7 +171,7 @@ impl Default for SecretPolicy {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ExternalProjectData {
     /// Source URL or path the external project was installed from.
     pub source: String,
@@ -189,7 +190,7 @@ pub struct ExternalProjectData {
 }
 
 /// Runtime project state. Not serialized to project.yaml; tracked by registry.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectState {
     /// Installed but not running.

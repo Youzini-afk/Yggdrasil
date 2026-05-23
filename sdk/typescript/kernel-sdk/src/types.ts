@@ -960,6 +960,57 @@ export interface PermissionSet2 {
   "secret_refs"?: Array<string>;
 }
 
+export type ProjectGetResult = {
+  /**
+   * The actual project content.
+   */
+  "project": ProjectInner;
+  /**
+   * Schema version. Currently always 1.
+   */
+  "schema_version": number;
+};
+
+export interface ProjectIdParams {
+  "project_id": string;
+}
+
+export interface ProjectLifecyclePayloadSchema {
+  "new_state": ProjectState;
+  "previous_state"?: ProjectState | null;
+  "project_id": string;
+  "title": string;
+  "type": ProjectType;
+}
+
+export interface ProjectListParams {
+  "filter_state"?: ProjectState | null;
+}
+
+export interface ProjectListResult {
+  "projects": Array<Record<string, unknown>>;
+}
+
+/**
+ * Runtime project state. Not serialized to project.yaml; tracked by registry.
+ */
+export type ProjectState = "archived" | "failed" | "installed" | "running" | "starting" | "stopped" | "stopping";
+
+export interface ProjectStatusResult {
+  "project_id": string;
+  "secrets_count": number;
+  "sessions_count": number;
+  "state": ProjectState;
+}
+
+export interface ProjectTransitionResult {
+  "new_state": ProjectState;
+  "previous_state": ProjectState;
+  "project_id": string;
+}
+
+export type ProjectType = "external_workspace" | "external_wrapped" | "yggdrasil_native";
+
 export interface ProjectionDefinition {
   "id": string;
   "session_id": string;

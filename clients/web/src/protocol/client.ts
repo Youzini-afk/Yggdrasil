@@ -91,6 +91,16 @@ export interface ProposalRecord {
   result?: unknown;
 }
 
+export interface ProjectRecord {
+  id: string;
+  title: string;
+  description?: string;
+  type: "yggdrasil_native" | "external_wrapped" | "external_workspace";
+  state: "installed" | "stopped" | "starting" | "running" | "stopping" | "failed" | "archived";
+  icon?: string;
+  entry_surface_id?: string;
+}
+
 export class YggProtocolClient {
   constructor(private readonly baseUrl = "http://127.0.0.1:8787") {}
 
@@ -151,6 +161,47 @@ export class YggProtocolClient {
     return this.call<SurfaceContributionRecord>("kernel.v1.surface.contribution.describe", { surface_id: surfaceId });
   }
 
+  async listProjects(): Promise<ProjectRecord[]> {
+    const result = await this.invoke("kernel.v1.project.list", {});
+    return (result as { projects: ProjectRecord[] }).projects;
+  }
+
+  async getProject(projectId: string): Promise<ProjectRecord & { state_details?: Record<string, unknown>; paths?: Record<string, unknown> }> {
+    const result = await this.invoke("kernel.v1.project.get", { project_id: projectId });
+    const descriptor = result as {
+      project?: Omit<ProjectRecord, "type" | "state"> & { type?: ProjectRecord["type"] };
+      state?: ProjectRecord["state"];
+      paths?: Record<string, unknown>;
+    };
+    return {
+      ...(descriptor.project as ProjectRecord),
+      state: descriptor.state ?? "installed",
+      paths: descriptor.paths,
+    };
+  }
+
+  async startProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string }> {
+    return await this.invoke("kernel.v1.project.start", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string };
+  }
+
+  async stopProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string }> {
+    return await this.invoke("kernel.v1.project.stop", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string };
+  }
+
+  async getProjectStatus(projectId: string): Promise<{
+    project_id: string;
+    state: string;
+    sessions_count: number;
+    secrets_count: number;
+  }> {
+    return await this.invoke("kernel.v1.project.status", { project_id: projectId }) as {
+      project_id: string;
+      state: string;
+      sessions_count: number;
+      secrets_count: number;
+    };
+  }
+
   openSession(labels: string[] = [], metadata: Record<string, unknown> = {}) {
     return this.call<{ id: string }>("kernel.v1.session.open", { labels, metadata });
   }
@@ -175,8 +226,9 @@ export class YggProtocolClient {
     return this.call<KernelEvent[]>("kernel.v1.event.list", { session_id: sessionId, limit: 50 });
   }
 
-  subscribeEvents(sessionId: string, onEvent: (event: KernelEvent) => void) {
-    const source = new EventSource(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(sessionId)}`);
+  subscribeEvents(sessionId: string | undefined, onEvent: (event: KernelEvent) => void) {
+    const targetSession = sessionId ?? "kernel_project_lifecycle";
+    const source = new EventSource(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(targetSession)}`);
     source.addEventListener("kernel.v1.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
     return () => source.close();
   }

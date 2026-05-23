@@ -24,6 +24,7 @@ mod permissions;
 mod playable_creation_board;
 mod project_intake_lab;
 mod project_lifecycle;
+mod protocol_project;
 mod project_secret;
 mod proposals;
 mod protocol;
@@ -345,6 +346,31 @@ fn build_cases() -> Vec<ConformanceCase> {
             "protocol.call_capability_in_process",
             ["protocol"],
             protocol::call_capability_in_process
+        ),
+        c!(
+            "protocol.project_list_returns_registered_projects",
+            ["protocol", "project"],
+            protocol_project::project_list_returns_registered_projects
+        ),
+        c!(
+            "protocol.project_get_returns_full_descriptor",
+            ["protocol", "project"],
+            protocol_project::project_get_returns_full_descriptor
+        ),
+        c!(
+            "protocol.project_start_transitions_state",
+            ["protocol", "project"],
+            protocol_project::project_start_transitions_state
+        ),
+        c!(
+            "protocol.project_methods_require_admin_principal",
+            ["protocol", "project", "permission"],
+            protocol_project::project_methods_require_admin_principal
+        ),
+        c!(
+            "protocol.project_lifecycle_event_emitted_on_start",
+            ["protocol", "project", "event"],
+            protocol_project::project_lifecycle_event_emitted_on_start
         ),
         // --- package check / reload ---
         c!(

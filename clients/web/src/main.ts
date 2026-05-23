@@ -1,9 +1,10 @@
 import { renderAssistantDrawer, type TextProofView } from "./drawer/assistant";
-import { YggProtocolClient, type KernelEvent, type PackageRecord, type ProposalRecord, type RegisteredCapability, type SurfaceContributionRecord } from "./protocol/client";
+import { YggProtocolClient, type AssetRecord, type KernelEvent, type PackageRecord, type ProjectRecord, type ProjectionRecord, type ProposalRecord, type RegisteredCapability, type SurfaceContributionRecord } from "./protocol/client";
 import { renderShell, type RouteName } from "./shell/shell";
 import { renderForgeSurface } from "./surfaces/forge";
 import { resolveSurfaceBundle } from "./surfaces/bundle-resolver";
 import { mountSurface, type SurfaceHostHandle } from "./surfaces/surface-host";
+import { renderHomeSurface } from "./surfaces/home";
 import { renderPlaySurface } from "./surfaces/play";
 import { buildAgentObservability, filterAgentLikeCapabilities, renderAgentReadinessPanel } from "./agent/observability.js";
 import { buildExternalProjectAggregation, renderAssistantExternalProjectHints, type ExternalProjectAggregation } from "./projects/external-projects.js";
@@ -14,10 +15,14 @@ import { escapeHtml } from "./utils/html";
 const app = document.querySelector<HTMLDivElement>("#app");
 const client = new YggProtocolClient(location.origin === "null" ? "http://127.0.0.1:8787" : location.origin);
 
-let route: RouteName = "play";
+let route: RouteName = "home";
 let sessionId: string | undefined;
 let events: KernelEvent[] = [];
 let surfaceEntries: SurfaceContributionRecord[] = [];
+let projects: ProjectRecord[] = [];
+let homeError: string | undefined;
+let homeLoading = true;
+let closeProjectEvents: (() => void) | undefined;
 let latestSequence = 0;
 let closeEvents: (() => void) | undefined;
 let assistOpen = false;
@@ -115,6 +120,21 @@ function updateTextProofDOM() {
   if (resetBtn) resetBtn.disabled = textProofView.state === "idle";
 }
 
+async function loadProjects() {
+  try {
+    homeLoading = true;
+    homeError = undefined;
+    scheduleRender();
+    projects = await client.listProjects();
+    homeLoading = false;
+    scheduleRender();
+  } catch (caught) {
+    homeError = caught instanceof Error ? caught.message : String(caught);
+    homeLoading = false;
+    scheduleRender();
+  }
+}
+
 function stopStreamProof() {
   if (streamTimer) {
     clearInterval(streamTimer);
@@ -207,14 +227,16 @@ async function render(error?: string) {
     proposals = props;
     surfaceEntries = entries;
     diagnostics = hostDiagnostics;
-    body = route === "play"
-      ? renderPlaySurface(surfaceEntries, sessionId, externalProjects)
-      : renderForgeSurface({ capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, sessionId, externalProjects, storageInspector });
+    body = renderRoute({ capabilities, events, assets, projections, proposals, forgeSurfaces, packages, allSurfaces, externalProjects, storageInspector });
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
-    body = route === "play"
-      ? renderPlaySurface([], sessionId, externalProjects)
-      : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], packages: [], allSurfaces: [], sessionId, externalProjects, storageInspector });
+    body = route === "home"
+      ? renderHomeSurface({ projects, loading: homeLoading, error: homeError })
+      : route === "play"
+        ? renderPlaySurface([], sessionId, externalProjects)
+        : route === "project"
+          ? renderProjectPlaceholder()
+          : renderForgeSurface({ capabilities: [], events, assets: [], projections: [], proposals: [], forgeSurfaces: [], packages: [], allSurfaces: [], sessionId, externalProjects, storageInspector });
   }
   // Build agent readiness panel for Assistant Drawer (lightweight, no real model/network)
   const observability = buildAgentObservability(
@@ -232,6 +254,54 @@ async function render(error?: string) {
   const storageHtml = renderAssistantStorageHints(storageInspector);
   app.innerHTML = renderShell(route, body, renderAssistantDrawer(diagnostics, assistOpen, textProofView, agentReadinessHtml, `${externalProjectHtml}${storageHtml}`), error);
   wireEvents();
+}
+
+interface RenderRouteData {
+  capabilities: RegisteredCapability[];
+  events: KernelEvent[];
+  assets: AssetRecord[];
+  projections: ProjectionRecord[];
+  proposals: ProposalRecord[];
+  forgeSurfaces: SurfaceContributionRecord[];
+  packages: PackageRecord[];
+  allSurfaces: SurfaceContributionRecord[];
+  externalProjects?: ExternalProjectAggregation;
+  storageInspector?: StorageInspectorModel;
+}
+
+function renderRoute(data: RenderRouteData): string {
+  switch (route) {
+    case "home":
+      return renderHomeSurface({ projects, loading: homeLoading, error: homeError });
+    case "play":
+      return renderPlaySurface(surfaceEntries, sessionId, data.externalProjects);
+    case "project":
+      return renderProjectPlaceholder();
+    case "forge":
+      return renderForgeSurface({
+        capabilities: data.capabilities,
+        events: data.events,
+        assets: data.assets,
+        projections: data.projections,
+        proposals: data.proposals,
+        forgeSurfaces: data.forgeSurfaces,
+        packages: data.packages,
+        allSurfaces: data.allSurfaces,
+        sessionId,
+        externalProjects: data.externalProjects,
+        storageInspector: data.storageInspector,
+      });
+  }
+}
+
+function renderProjectPlaceholder(): string {
+  return `
+    <section class="surface project-mounted-surface">
+      <div id="project-surface-container" class="project-surface-container">
+        <div class="project-placeholder">Project started. Native surface mounting is available when its bundle mapping exists; external workspace mounting is a placeholder for Wave 4.</div>
+      </div>
+    </section>
+  `;
 }
 
 function scheduleRender(error?: string) {
@@ -304,12 +374,66 @@ async function handleUnmountSurfaceClick() {
   document.getElementById("surface-list-area")?.classList.remove("hidden");
 }
 
+async function mountProjectSurface(projectId: string) {
+  const project = await client.getProject(projectId);
+  route = "project";
+  scheduleRender();
+  setTimeout(async () => {
+    const container = document.getElementById("project-surface-container");
+    if (!container) return;
+    if (!project.entry_surface_id || project.type === "external_workspace") {
+      container.innerHTML = `<div class="project-placeholder">${escapeHtml(project.title)} is running. Workspace/native surface mounting is a Wave 4 placeholder until bundle metadata is available.</div>`;
+      return;
+    }
+    const record = surfaceEntries.find((entry) => entry.surface.id === project.entry_surface_id);
+    const resolved = record ? resolveSurfaceBundle(record.package_id, project.entry_surface_id, record.surface.metadata) : null;
+    if (!resolved || !record) {
+      container.innerHTML = `<div class="project-placeholder">${escapeHtml(project.title)} is running. No bundle mapping found for ${escapeHtml(project.entry_surface_id)}.</div>`;
+      return;
+    }
+    if (activeMountedSurface) await activeMountedSurface.unmount();
+    container.innerHTML = "";
+    activeMountedSurface = await mountSurface({
+      containerId: "project-surface-container",
+      surfaceId: project.entry_surface_id,
+      bundleUrl: resolved.bundleUrl,
+      exportName: resolved.exportName,
+      wrapperClass: resolved.wrapperClass,
+      stylesheets: resolved.stylesheets,
+      hostBridge: { callRpc: (method, params) => client.invoke(method, params) },
+      initialProps: { projectId },
+    });
+  }, 0);
+}
+
+async function handleProjectAction(action: string, projectId?: string) {
+  try {
+    if (action === "play" && projectId) {
+      await client.startProject(projectId);
+      await loadProjects();
+      await mountProjectSurface(projectId);
+    } else if (action === "stop" && projectId) {
+      await client.stopProject(projectId);
+      await loadProjects();
+    } else if (action === "install") {
+      scheduleRender("Install project wizard is available from the install-lab CLI/capability; web dialog is pending.");
+    }
+  } catch (caught) {
+    scheduleRender(caught instanceof Error ? caught.message : String(caught));
+  }
+}
+
 function wireEvents() {
   document.querySelectorAll<HTMLButtonElement>("[data-route]").forEach((button) => {
     button.addEventListener("click", async () => {
       await handleUnmountSurfaceClick();
       route = button.dataset.route as RouteName;
       scheduleRender();
+    });
+  });
+  document.querySelectorAll<HTMLElement>("[data-action='play'], [data-action='stop'], [data-action='install']").forEach((element) => {
+    element.addEventListener("click", () => {
+      void handleProjectAction(element.dataset.action ?? "", element.dataset.projectId);
     });
   });
   document.querySelector<HTMLButtonElement>("[data-action='toggle-assist']")?.addEventListener("click", () => {
@@ -430,4 +554,15 @@ function wireEvents() {
 // T3: Initialize engine preference on startup, then render.
 // The fallback engine is available synchronously; the async init
 // may switch to Pretext if available.
+void loadProjects();
+closeProjectEvents = client.subscribeEvents(undefined, (event) => {
+  if (event.kind?.startsWith("kernel/v1/project.")) {
+    void loadProjects();
+  }
+});
+window.addEventListener("beforeunload", () => {
+  closeEvents?.();
+  closeProjectEvents?.();
+});
+
 initEnginePreference().then(() => render());

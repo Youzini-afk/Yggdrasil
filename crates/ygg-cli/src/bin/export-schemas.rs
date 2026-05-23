@@ -41,6 +41,36 @@ struct PackageIdParams {
     package_id: String,
 }
 #[derive(JsonSchema)]
+struct ProjectIdParams {
+    project_id: ygg_core::project::ProjectId,
+}
+#[derive(JsonSchema)]
+struct ProjectListParams {
+    filter_state: Option<ygg_core::project::ProjectState>,
+}
+#[derive(JsonSchema)]
+struct ProjectTransitionResult {
+    project_id: ygg_core::project::ProjectId,
+    previous_state: ygg_core::project::ProjectState,
+    new_state: ygg_core::project::ProjectState,
+}
+#[derive(JsonSchema)]
+struct ProjectStatusResult {
+    project_id: ygg_core::project::ProjectId,
+    state: ygg_core::project::ProjectState,
+    sessions_count: usize,
+    secrets_count: usize,
+}
+#[derive(JsonSchema)]
+struct ProjectLifecyclePayloadSchema {
+    project_id: ygg_core::project::ProjectId,
+    title: String,
+    #[serde(rename = "type")]
+    project_type: ygg_core::project::ProjectType,
+    previous_state: Option<ygg_core::project::ProjectState>,
+    new_state: ygg_core::project::ProjectState,
+}
+#[derive(JsonSchema)]
 struct AssetGetParams {
     asset_id: String,
 }
@@ -357,6 +387,22 @@ fn main() -> anyhow::Result<()> {
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<PackageRecord>()}),
             ),
+            KernelMethod::ProjectList => (
+                schema_value::<ProjectListParams>(),
+                json!({"type":"object","required":["projects"],"properties":{"projects":{"type":"array","items":{"type":"object"}}}}),
+            ),
+            KernelMethod::ProjectGet => (
+                schema_value::<ProjectIdParams>(),
+                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"paths":{"type":"object"}}}),
+            ),
+            KernelMethod::ProjectStart | KernelMethod::ProjectStop => (
+                schema_value::<ProjectIdParams>(),
+                schema_value::<ProjectTransitionResult>(),
+            ),
+            KernelMethod::ProjectStatus => (
+                schema_value::<ProjectIdParams>(),
+                schema_value::<ProjectStatusResult>(),
+            ),
             KernelMethod::CapabilityDiscover => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<RegisteredCapability>()}),
@@ -528,6 +574,13 @@ fn main() -> anyhow::Result<()> {
             schema_value::<PackageLifecyclePayload>(),
         ),
         (EVENT_PACKAGE_LOG, schema_value::<SubprocessLogLine>()),
+        (PROJECT_INSTALLED, schema_value::<ProjectLifecyclePayloadSchema>()),
+        (PROJECT_STARTED, schema_value::<ProjectLifecyclePayloadSchema>()),
+        (PROJECT_STOPPED, schema_value::<ProjectLifecyclePayloadSchema>()),
+        (
+            PROJECT_UNINSTALLED,
+            schema_value::<ProjectLifecyclePayloadSchema>(),
+        ),
         (EVENT_ASSET_PUT, schema_value::<AssetRecord>()),
         (
             EVENT_PROJECTION_UPDATED,

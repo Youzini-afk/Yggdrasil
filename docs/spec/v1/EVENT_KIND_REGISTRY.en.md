@@ -16,6 +16,10 @@ This table lists kernel-reserved `kernel/v1/*` event kinds. Non-kernel packages 
 | `kernel/v1/package.unloaded` | [`./schemas/events/kernel__v1__package.unloaded.schema.json`](./schemas/events/kernel__v1__package.unloaded.schema.json) | kernel | Package removed from registry | implemented |
 | `kernel/v1/package.degraded` | [`./schemas/events/kernel__v1__package.degraded.schema.json`](./schemas/events/kernel__v1__package.degraded.schema.json) | kernel | Execution failure or health loss | implemented |
 | `kernel/v1/package.log` | [`./schemas/events/kernel__v1__package.log.schema.json`](./schemas/events/kernel__v1__package.log.schema.json) | kernel | Captured subprocess stderr line | implemented |
+| `kernel/v1/project.installed` | [`./schemas/events/kernel__v1__project.installed.schema.json`](./schemas/events/kernel__v1__project.installed.schema.json) | kernel | Project installed/registered | implemented |
+| `kernel/v1/project.started` | [`./schemas/events/kernel__v1__project.started.schema.json`](./schemas/events/kernel__v1__project.started.schema.json) | kernel | Project transitioned to running | implemented |
+| `kernel/v1/project.stopped` | [`./schemas/events/kernel__v1__project.stopped.schema.json`](./schemas/events/kernel__v1__project.stopped.schema.json) | kernel | Project transitioned to stopped | implemented |
+| `kernel/v1/project.uninstalled` | [`./schemas/events/kernel__v1__project.uninstalled.schema.json`](./schemas/events/kernel__v1__project.uninstalled.schema.json) | kernel | Project uninstalled/archived | implemented |
 | `kernel/v1/asset.put` | [`./schemas/events/kernel__v1__asset.put.schema.json`](./schemas/events/kernel__v1__asset.put.schema.json) | kernel | Opaque asset stored | implemented |
 | `kernel/v1/projection.updated` | [`./schemas/events/kernel__v1__projection.updated.schema.json`](./schemas/events/kernel__v1__projection.updated.schema.json) | kernel | Projection state rebuilt/updated | implemented |
 | `kernel/v1/proposal.created` | [`./schemas/events/kernel__v1__proposal.created.schema.json`](./schemas/events/kernel__v1__proposal.created.schema.json) | kernel | Proposal created | partial |

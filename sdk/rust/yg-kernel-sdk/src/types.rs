@@ -8739,6 +8739,61 @@ for ExtensionPointListResult {
         Self(value)
     }
 }
+///`ExternalProjectData`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "source"
+///  ],
+///  "properties": {
+///    "adapter_manifest": {
+///      "description": "For external_wrapped: the path to the adapter package's manifest.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "source": {
+///      "description": "Source URL or path the external project was installed from.",
+///      "type": "string"
+///    },
+///    "source_ref": {
+///      "description": "Resolved commit SHA or version (for git sources).",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "workspace_root": {
+///      "description": "For external_workspace: path to the fetched project tree under the workspace.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExternalProjectData {
+    ///For external_wrapped: the path to the adapter package's manifest.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub adapter_manifest: ::std::option::Option<::std::string::String>,
+    ///Source URL or path the external project was installed from.
+    pub source: ::std::string::String,
+    ///Resolved commit SHA or version (for git sources).
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub source_ref: ::std::option::Option<::std::string::String>,
+    ///For external_workspace: path to the fetched project tree under the workspace.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub workspace_root: ::std::option::Option<::std::string::String>,
+}
 ///`FilesystemPermissions`
 ///
 /// <details><summary>JSON schema</summary>
@@ -21082,6 +21137,2806 @@ impl ::std::default::Default for PermissionSet {
         }
     }
 }
+///`ProjectGetResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectGetResult",
+///  "allOf": [
+///    {
+///      "title": "ProjectDescriptor",
+///      "type": "object",
+///      "required": [
+///        "project",
+///        "schema_version"
+///      ],
+///      "properties": {
+///        "project": {
+///          "description": "The actual project content.",
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/ProjectInner"
+///            }
+///          ]
+///        },
+///        "schema_version": {
+///          "description": "Schema version. Currently always 1.",
+///          "type": "integer",
+///          "format": "uint32",
+///          "minimum": 0.0
+///        }
+///      },
+///      "$schema": "https://json-schema.org/draft/2020-12/schema",
+///      "definitions": {
+///        "ExternalProjectData": {
+///          "properties": {
+///            "adapter_manifest": {
+///              "description": "For external_wrapped: the path to the adapter package's manifest.",
+///              "type": [
+///                "string",
+///                "null"
+///              ]
+///            },
+///            "source": {
+///              "description": "Source URL or path the external project was installed from.",
+///              "type": "string"
+///            },
+///            "source_ref": {
+///              "description": "Resolved commit SHA or version (for git sources).",
+///              "type": [
+///                "string",
+///                "null"
+///              ]
+///            },
+///            "workspace_root": {
+///              "description": "For external_workspace: path to the fetched project tree under the workspace.",
+///              "type": [
+///                "string",
+///                "null"
+///              ]
+///            }
+///          },
+///          "required": [
+///            "source"
+///          ],
+///          "type": "object"
+///        },
+///        "ProjectInner": {
+///          "properties": {
+///            "description": {
+///              "default": "",
+///              "description": "Description for tooltip / detail view.",
+///              "type": "string"
+///            },
+///            "entry_surface_id": {
+///              "description": "Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.",
+///              "type": [
+///                "string",
+///                "null"
+///              ]
+///            },
+///            "external": {
+///              "anyOf": [
+///                {
+///                  "$ref": "#/definitions/ExternalProjectData"
+///                },
+///                {
+///                  "type": "null"
+///                }
+///              ],
+///              "description": "Project type-specific data."
+///            },
+///            "icon": {
+///              "description": "Optional icon path (relative to project root for native, optional for external).",
+///              "type": [
+///                "string",
+///                "null"
+///              ]
+///            },
+///            "id": {
+///              "description": "Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.",
+///              "type": "string"
+///            },
+///            "metadata": {
+///              "additionalProperties": true,
+///              "default": {},
+///              "description": "Free-form metadata for forward compat.",
+///              "type": "object"
+///            },
+///            "optional_packages": {
+///              "default": [],
+///              "description": "Optional packages that may be loaded if available.",
+///              "items": {
+///                "type": "string"
+///              },
+///              "type": "array"
+///            },
+///            "packages": {
+///              "default": [],
+///              "description": "Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
+///              "items": {
+///                "type": "string"
+///              },
+///              "type": "array"
+///            },
+///            "required_capabilities": {
+///              "default": [],
+///              "description": "Required capabilities (composition-style validation).",
+///              "items": {
+///                "type": "string"
+///              },
+///              "type": "array"
+///            },
+///            "required_surfaces": {
+///              "default": [],
+///              "description": "Required surface ids (composition-style validation).",
+///              "items": {
+///                "type": "string"
+///              },
+///              "type": "array"
+///            },
+///            "secret_policy": {
+///              "allOf": [
+///                {
+///                  "$ref": "#/definitions/SecretPolicy"
+///                }
+///              ],
+///              "default": {
+///                "fallback_to_platform": true,
+///                "require_per_project": []
+///              },
+///              "description": "Secret policy for this project."
+///            },
+///            "title": {
+///              "description": "Display title for Home card.",
+///              "type": "string"
+///            },
+///            "type": {
+///              "allOf": [
+///                {
+///                  "$ref": "#/definitions/ProjectType"
+///                }
+///              ],
+///              "description": "Project type discriminator."
+///            }
+///          },
+///          "required": [
+///            "id",
+///            "title",
+///            "type"
+///          ],
+///          "type": "object"
+///        },
+///        "ProjectType": {
+///          "oneOf": [
+///            {
+///              "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///              "enum": [
+///                "yggdrasil_native"
+///              ],
+///              "type": "string"
+///            },
+///            {
+///              "description": "External project wrapped by an adapter package.",
+///              "enum": [
+///                "external_wrapped"
+///              ],
+///              "type": "string"
+///            },
+///            {
+///              "description": "External project running in an agent workspace (no wrapping).",
+///              "enum": [
+///                "external_workspace"
+///              ],
+///              "type": "string"
+///            }
+///          ]
+///        },
+///        "SecretPolicy": {
+///          "properties": {
+///            "fallback_to_platform": {
+///              "default": true,
+///              "description": "If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).",
+///              "type": "boolean"
+///            },
+///            "require_per_project": {
+///              "default": [],
+///              "description": "Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.",
+///              "items": {
+///                "type": "string"
+///              },
+///              "type": "array"
+///            }
+///          },
+///          "type": "object"
+///        }
+///      }
+///    }
+///  ],
+///  "properties": {
+///    "paths": {
+///      "type": "object"
+///    },
+///    "state": {
+///      "title": "ProjectState",
+///      "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///      "oneOf": [
+///        {
+///          "description": "Installed but not running.",
+///          "type": "string",
+///          "enum": [
+///            "installed"
+///          ]
+///        },
+///        {
+///          "description": "Stopped after running.",
+///          "type": "string",
+///          "enum": [
+///            "stopped"
+///          ]
+///        },
+///        {
+///          "description": "Currently transitioning to running.",
+///          "type": "string",
+///          "enum": [
+///            "starting"
+///          ]
+///        },
+///        {
+///          "description": "Currently running and serving.",
+///          "type": "string",
+///          "enum": [
+///            "running"
+///          ]
+///        },
+///        {
+///          "description": "Currently transitioning to stopped.",
+///          "type": "string",
+///          "enum": [
+///            "stopping"
+///          ]
+///        },
+///        {
+///          "description": "Failed to start or crashed.",
+///          "type": "string",
+///          "enum": [
+///            "failed"
+///          ]
+///        },
+///        {
+///          "description": "Soft-deleted, awaiting cleanup.",
+///          "type": "string",
+///          "enum": [
+///            "archived"
+///          ]
+///        }
+///      ],
+///      "$schema": "https://json-schema.org/draft/2020-12/schema"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectGetResult {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub paths: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ///The actual project content.
+    pub project: ProjectInner,
+    ///Schema version. Currently always 1.
+    pub schema_version: u32,
+    ///Runtime project state. Not serialized to project.yaml; tracked by registry.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub state: ::std::option::Option<ProjectState>,
+}
+///`ProjectIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectIdParams",
+///  "type": "object",
+///  "required": [
+///    "project_id"
+///  ],
+///  "properties": {
+///    "project_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectIdParams {
+    pub project_id: ::std::string::String,
+}
+///`ProjectIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectIdParams",
+///  "type": "object",
+///  "required": [
+///    "project_id"
+///  ],
+///  "properties": {
+///    "project_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectIdParams {
+    pub project_id: ::std::string::String,
+}
+///`ProjectIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectIdParams",
+///  "type": "object",
+///  "required": [
+///    "project_id"
+///  ],
+///  "properties": {
+///    "project_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectIdParams {
+    pub project_id: ::std::string::String,
+}
+///`ProjectIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectIdParams",
+///  "type": "object",
+///  "required": [
+///    "project_id"
+///  ],
+///  "properties": {
+///    "project_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectIdParams {
+    pub project_id: ::std::string::String,
+}
+///`ProjectInner`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "title",
+///    "type"
+///  ],
+///  "properties": {
+///    "description": {
+///      "description": "Description for tooltip / detail view.",
+///      "default": "",
+///      "type": "string"
+///    },
+///    "entry_surface_id": {
+///      "description": "Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "external": {
+///      "description": "Project type-specific data.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ExternalProjectData"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "icon": {
+///      "description": "Optional icon path (relative to project root for native, optional for external).",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "id": {
+///      "description": "Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.",
+///      "type": "string"
+///    },
+///    "metadata": {
+///      "description": "Free-form metadata for forward compat.",
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "optional_packages": {
+///      "description": "Optional packages that may be loaded if available.",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "packages": {
+///      "description": "Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "required_capabilities": {
+///      "description": "Required capabilities (composition-style validation).",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "required_surfaces": {
+///      "description": "Required surface ids (composition-style validation).",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "secret_policy": {
+///      "description": "Secret policy for this project.",
+///      "default": {
+///        "fallback_to_platform": true,
+///        "require_per_project": []
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/SecretPolicy"
+///        }
+///      ]
+///    },
+///    "title": {
+///      "description": "Display title for Home card.",
+///      "type": "string"
+///    },
+///    "type": {
+///      "description": "Project type discriminator.",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProjectType"
+///        }
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectInner {
+    ///Description for tooltip / detail view.
+    #[serde(default)]
+    pub description: ::std::string::String,
+    ///Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub entry_surface_id: ::std::option::Option<::std::string::String>,
+    ///Project type-specific data.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub external: ::std::option::Option<ExternalProjectData>,
+    ///Optional icon path (relative to project root for native, optional for external).
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub icon: ::std::option::Option<::std::string::String>,
+    ///Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.
+    pub id: ::std::string::String,
+    ///Free-form metadata for forward compat.
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub metadata: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ///Optional packages that may be loaded if available.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub optional_packages: ::std::vec::Vec<::std::string::String>,
+    ///Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub packages: ::std::vec::Vec<::std::string::String>,
+    ///Required capabilities (composition-style validation).
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub required_capabilities: ::std::vec::Vec<::std::string::String>,
+    ///Required surface ids (composition-style validation).
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub required_surfaces: ::std::vec::Vec<::std::string::String>,
+    ///Secret policy for this project.
+    #[serde(default = "defaults::project_inner_secret_policy")]
+    pub secret_policy: SecretPolicy,
+    ///Display title for Home card.
+    pub title: ::std::string::String,
+    ///Project type discriminator.
+    #[serde(rename = "type")]
+    pub type_: ProjectType,
+}
+///`ProjectLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "new_state",
+///    "project_id",
+///    "title",
+///    "type"
+///  ],
+///  "properties": {
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectState"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "project_id": {
+///      "type": "string"
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "type": {
+///      "$ref": "#/definitions/ProjectType"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectLifecyclePayloadSchema {
+    pub new_state: ProjectState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub previous_state: ::std::option::Option<ProjectState>,
+    pub project_id: ::std::string::String,
+    pub title: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ProjectType,
+}
+///`ProjectLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "new_state",
+///    "project_id",
+///    "title",
+///    "type"
+///  ],
+///  "properties": {
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectState"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "project_id": {
+///      "type": "string"
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "type": {
+///      "$ref": "#/definitions/ProjectType"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectLifecyclePayloadSchema {
+    pub new_state: ProjectState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub previous_state: ::std::option::Option<ProjectState>,
+    pub project_id: ::std::string::String,
+    pub title: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ProjectType,
+}
+///`ProjectLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "new_state",
+///    "project_id",
+///    "title",
+///    "type"
+///  ],
+///  "properties": {
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectState"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "project_id": {
+///      "type": "string"
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "type": {
+///      "$ref": "#/definitions/ProjectType"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectLifecyclePayloadSchema {
+    pub new_state: ProjectState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub previous_state: ::std::option::Option<ProjectState>,
+    pub project_id: ::std::string::String,
+    pub title: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ProjectType,
+}
+///`ProjectLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "new_state",
+///    "project_id",
+///    "title",
+///    "type"
+///  ],
+///  "properties": {
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectState"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "project_id": {
+///      "type": "string"
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "type": {
+///      "$ref": "#/definitions/ProjectType"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectLifecyclePayloadSchema {
+    pub new_state: ProjectState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub previous_state: ::std::option::Option<ProjectState>,
+    pub project_id: ::std::string::String,
+    pub title: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ProjectType,
+}
+///`ProjectListParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectListParams",
+///  "type": "object",
+///  "properties": {
+///    "filter_state": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectState"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectListParams {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub filter_state: ::std::option::Option<ProjectState>,
+}
+impl ::std::default::Default for ProjectListParams {
+    fn default() -> Self {
+        Self {
+            filter_state: Default::default(),
+        }
+    }
+}
+///`ProjectListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectListResult",
+///  "type": "object",
+///  "required": [
+///    "projects"
+///  ],
+///  "properties": {
+///    "projects": {
+///      "type": "array",
+///      "items": {
+///        "type": "object"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectListResult {
+    pub projects: ::std::vec::Vec<
+        ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    >,
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectState",
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ],
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProjectStatusResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectStatusResult",
+///  "type": "object",
+///  "required": [
+///    "project_id",
+///    "secrets_count",
+///    "sessions_count",
+///    "state"
+///  ],
+///  "properties": {
+///    "project_id": {
+///      "type": "string"
+///    },
+///    "secrets_count": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "sessions_count": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "state": {
+///      "$ref": "#/definitions/ProjectState"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectStatusResult {
+    pub project_id: ::std::string::String,
+    pub secrets_count: u32,
+    pub sessions_count: u32,
+    pub state: ProjectState,
+}
+///`ProjectTransitionResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectTransitionResult",
+///  "type": "object",
+///  "required": [
+///    "new_state",
+///    "previous_state",
+///    "project_id"
+///  ],
+///  "properties": {
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "project_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectTransitionResult {
+    pub new_state: ProjectState,
+    pub previous_state: ProjectState,
+    pub project_id: ::std::string::String,
+}
+///`ProjectTransitionResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectTransitionResult",
+///  "type": "object",
+///  "required": [
+///    "new_state",
+///    "previous_state",
+///    "project_id"
+///  ],
+///  "properties": {
+///    "new_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "previous_state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "project_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectTransitionResult {
+    pub new_state: ProjectState,
+    pub previous_state: ProjectState,
+    pub project_id: ::std::string::String,
+}
+///`ProjectType`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///      "type": "string",
+///      "enum": [
+///        "yggdrasil_native"
+///      ]
+///    },
+///    {
+///      "description": "External project wrapped by an adapter package.",
+///      "type": "string",
+///      "enum": [
+///        "external_wrapped"
+///      ]
+///    },
+///    {
+///      "description": "External project running in an agent workspace (no wrapping).",
+///      "type": "string",
+///      "enum": [
+///        "external_workspace"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectType {
+    ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
+    #[serde(rename = "yggdrasil_native")]
+    YggdrasilNative,
+    ///External project wrapped by an adapter package.
+    #[serde(rename = "external_wrapped")]
+    ExternalWrapped,
+    ///External project running in an agent workspace (no wrapping).
+    #[serde(rename = "external_workspace")]
+    ExternalWorkspace,
+}
+impl ::std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::YggdrasilNative => f.write_str("yggdrasil_native"),
+            Self::ExternalWrapped => f.write_str("external_wrapped"),
+            Self::ExternalWorkspace => f.write_str("external_workspace"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectType {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "yggdrasil_native" => Ok(Self::YggdrasilNative),
+            "external_wrapped" => Ok(Self::ExternalWrapped),
+            "external_workspace" => Ok(Self::ExternalWorkspace),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProjectType`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///      "type": "string",
+///      "enum": [
+///        "yggdrasil_native"
+///      ]
+///    },
+///    {
+///      "description": "External project wrapped by an adapter package.",
+///      "type": "string",
+///      "enum": [
+///        "external_wrapped"
+///      ]
+///    },
+///    {
+///      "description": "External project running in an agent workspace (no wrapping).",
+///      "type": "string",
+///      "enum": [
+///        "external_workspace"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectType {
+    ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
+    #[serde(rename = "yggdrasil_native")]
+    YggdrasilNative,
+    ///External project wrapped by an adapter package.
+    #[serde(rename = "external_wrapped")]
+    ExternalWrapped,
+    ///External project running in an agent workspace (no wrapping).
+    #[serde(rename = "external_workspace")]
+    ExternalWorkspace,
+}
+impl ::std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::YggdrasilNative => f.write_str("yggdrasil_native"),
+            Self::ExternalWrapped => f.write_str("external_wrapped"),
+            Self::ExternalWorkspace => f.write_str("external_workspace"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectType {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "yggdrasil_native" => Ok(Self::YggdrasilNative),
+            "external_wrapped" => Ok(Self::ExternalWrapped),
+            "external_workspace" => Ok(Self::ExternalWorkspace),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProjectType`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///      "type": "string",
+///      "enum": [
+///        "yggdrasil_native"
+///      ]
+///    },
+///    {
+///      "description": "External project wrapped by an adapter package.",
+///      "type": "string",
+///      "enum": [
+///        "external_wrapped"
+///      ]
+///    },
+///    {
+///      "description": "External project running in an agent workspace (no wrapping).",
+///      "type": "string",
+///      "enum": [
+///        "external_workspace"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectType {
+    ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
+    #[serde(rename = "yggdrasil_native")]
+    YggdrasilNative,
+    ///External project wrapped by an adapter package.
+    #[serde(rename = "external_wrapped")]
+    ExternalWrapped,
+    ///External project running in an agent workspace (no wrapping).
+    #[serde(rename = "external_workspace")]
+    ExternalWorkspace,
+}
+impl ::std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::YggdrasilNative => f.write_str("yggdrasil_native"),
+            Self::ExternalWrapped => f.write_str("external_wrapped"),
+            Self::ExternalWorkspace => f.write_str("external_workspace"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectType {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "yggdrasil_native" => Ok(Self::YggdrasilNative),
+            "external_wrapped" => Ok(Self::ExternalWrapped),
+            "external_workspace" => Ok(Self::ExternalWorkspace),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProjectType`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///      "type": "string",
+///      "enum": [
+///        "yggdrasil_native"
+///      ]
+///    },
+///    {
+///      "description": "External project wrapped by an adapter package.",
+///      "type": "string",
+///      "enum": [
+///        "external_wrapped"
+///      ]
+///    },
+///    {
+///      "description": "External project running in an agent workspace (no wrapping).",
+///      "type": "string",
+///      "enum": [
+///        "external_workspace"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectType {
+    ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
+    #[serde(rename = "yggdrasil_native")]
+    YggdrasilNative,
+    ///External project wrapped by an adapter package.
+    #[serde(rename = "external_wrapped")]
+    ExternalWrapped,
+    ///External project running in an agent workspace (no wrapping).
+    #[serde(rename = "external_workspace")]
+    ExternalWorkspace,
+}
+impl ::std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::YggdrasilNative => f.write_str("yggdrasil_native"),
+            Self::ExternalWrapped => f.write_str("external_wrapped"),
+            Self::ExternalWorkspace => f.write_str("external_workspace"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectType {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "yggdrasil_native" => Ok(Self::YggdrasilNative),
+            "external_wrapped" => Ok(Self::ExternalWrapped),
+            "external_workspace" => Ok(Self::ExternalWorkspace),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProjectType`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///      "type": "string",
+///      "enum": [
+///        "yggdrasil_native"
+///      ]
+///    },
+///    {
+///      "description": "External project wrapped by an adapter package.",
+///      "type": "string",
+///      "enum": [
+///        "external_wrapped"
+///      ]
+///    },
+///    {
+///      "description": "External project running in an agent workspace (no wrapping).",
+///      "type": "string",
+///      "enum": [
+///        "external_workspace"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectType {
+    ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
+    #[serde(rename = "yggdrasil_native")]
+    YggdrasilNative,
+    ///External project wrapped by an adapter package.
+    #[serde(rename = "external_wrapped")]
+    ExternalWrapped,
+    ///External project running in an agent workspace (no wrapping).
+    #[serde(rename = "external_workspace")]
+    ExternalWorkspace,
+}
+impl ::std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::YggdrasilNative => f.write_str("yggdrasil_native"),
+            Self::ExternalWrapped => f.write_str("external_wrapped"),
+            Self::ExternalWorkspace => f.write_str("external_workspace"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectType {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "yggdrasil_native" => Ok(Self::YggdrasilNative),
+            "external_wrapped" => Ok(Self::ExternalWrapped),
+            "external_workspace" => Ok(Self::ExternalWorkspace),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`ProjectionDefinition`
 ///
 /// <details><summary>JSON schema</summary>
@@ -21997,7 +24852,7 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T14:32:45.038886097Z",
+///        "default": "2026-05-23T15:13:17.383290292Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -22710,7 +25565,7 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.040915521Z",
+///      "default": "2026-05-23T15:13:17.386345877Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22838,7 +25693,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.039592769Z",
+///      "default": "2026-05-23T15:13:17.384273385Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22966,7 +25821,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.037068482Z",
+///      "default": "2026-05-23T15:13:17.380683728Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23094,7 +25949,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.037285992Z",
+///      "default": "2026-05-23T15:13:17.381027634Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23222,7 +26077,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.038214129Z",
+///      "default": "2026-05-23T15:13:17.382254617Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23350,7 +26205,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.040250214Z",
+///      "default": "2026-05-23T15:13:17.385270900Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23478,7 +26333,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.046115950Z",
+///      "default": "2026-05-23T15:13:17.393073096Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23606,7 +26461,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.045834601Z",
+///      "default": "2026-05-23T15:13:17.392659742Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23734,7 +26589,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.045656574Z",
+///      "default": "2026-05-23T15:13:17.392409761Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23862,7 +26717,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.046301078Z",
+///      "default": "2026-05-23T15:13:17.393217071Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23990,7 +26845,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T14:32:45.045972377Z",
+///      "default": "2026-05-23T15:13:17.392891753Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -30505,6 +33360,49 @@ pub struct SchemaContribution {
     pub id: ::std::string::String,
     pub schema: ::serde_json::Value,
 }
+///`SecretPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "fallback_to_platform": {
+///      "description": "If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).",
+///      "default": true,
+///      "type": "boolean"
+///    },
+///    "require_per_project": {
+///      "description": "Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SecretPolicy {
+    ///If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).
+    #[serde(default = "defaults::default_bool::<true>")]
+    pub fallback_to_platform: bool,
+    ///Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub require_per_project: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for SecretPolicy {
+    fn default() -> Self {
+        Self {
+            fallback_to_platform: defaults::default_bool::<true>(),
+            require_per_project: Default::default(),
+        }
+    }
+}
 ///`SessionBranchListParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -31028,7 +33926,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.030471075Z",
+///      "default": "2026-05-23T15:13:17.371661950Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31119,7 +34017,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.047184767Z",
+///      "default": "2026-05-23T15:13:17.394393005Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31210,7 +34108,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.046878700Z",
+///      "default": "2026-05-23T15:13:17.394054567Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31301,7 +34199,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.047018828Z",
+///      "default": "2026-05-23T15:13:17.394210199Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31392,7 +34290,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.047114037Z",
+///      "default": "2026-05-23T15:13:17.394311718Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31483,7 +34381,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.046952545Z",
+///      "default": "2026-05-23T15:13:17.394143475Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31574,7 +34472,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T14:32:45.047257201Z",
+///      "default": "2026-05-23T15:13:17.394458206Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -37301,6 +40199,9 @@ pub struct UsedAuthority {
 }
 /// Generation of default values for serde.
 pub mod defaults {
+    pub(super) fn default_bool<const V: bool>() -> bool {
+        V
+    }
     pub(super) fn default_u64<T, const V: u64>() -> T
     where
         T: ::std::convert::TryFrom<u64>,
@@ -38147,8 +41048,11 @@ pub mod defaults {
             call: vec![],
         }
     }
-    pub(super) fn projection_definition_state() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    pub(super) fn project_inner_secret_policy() -> super::SecretPolicy {
+        super::SecretPolicy {
+            fallback_to_platform: true,
+            require_per_project: vec![],
+        }
     }
     pub(super) fn projection_definition_state() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
@@ -38162,6 +41066,9 @@ pub mod defaults {
     pub(super) fn projection_definition_state() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
+    pub(super) fn projection_definition_state() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
     pub(super) fn proposal_operation_payload() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -38203,7 +41110,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.040915521Z\"")
+        >("\"2026-05-23T15:13:17.386345877Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38223,7 +41130,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.039592769Z\"")
+        >("\"2026-05-23T15:13:17.384273385Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38243,7 +41150,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.037068482Z\"")
+        >("\"2026-05-23T15:13:17.380683728Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38263,7 +41170,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.037285992Z\"")
+        >("\"2026-05-23T15:13:17.381027634Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38283,7 +41190,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.038214129Z\"")
+        >("\"2026-05-23T15:13:17.382254617Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38303,7 +41210,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.040250214Z\"")
+        >("\"2026-05-23T15:13:17.385270900Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38323,7 +41230,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.046115950Z\"")
+        >("\"2026-05-23T15:13:17.393073096Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38343,7 +41250,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.045834601Z\"")
+        >("\"2026-05-23T15:13:17.392659742Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38363,7 +41270,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.045656574Z\"")
+        >("\"2026-05-23T15:13:17.392409761Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38383,7 +41290,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.046301078Z\"")
+        >("\"2026-05-23T15:13:17.393217071Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38403,7 +41310,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.045972377Z\"")
+        >("\"2026-05-23T15:13:17.392891753Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38453,7 +41360,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.030471075Z\"")
+        >("\"2026-05-23T15:13:17.371661950Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38470,7 +41377,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.047184767Z\"")
+        >("\"2026-05-23T15:13:17.394393005Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38487,7 +41394,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.046878700Z\"")
+        >("\"2026-05-23T15:13:17.394054567Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38504,7 +41411,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.047018828Z\"")
+        >("\"2026-05-23T15:13:17.394210199Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38521,7 +41428,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.047114037Z\"")
+        >("\"2026-05-23T15:13:17.394311718Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38538,7 +41445,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.046952545Z\"")
+        >("\"2026-05-23T15:13:17.394143475Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -38555,7 +41462,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T14:32:45.047257201Z\"")
+        >("\"2026-05-23T15:13:17.394458206Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

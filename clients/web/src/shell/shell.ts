@@ -1,7 +1,7 @@
-export type RouteName = "play" | "forge";
+export type RouteName = "home" | "play" | "forge" | "project";
 
 export function renderShell(route: RouteName, body: string, assistant: string, error?: string) {
-  const title = route === "play" ? "Home / Play" : "Forge";
+  const title = route === "home" ? "Home" : route === "play" ? "Play" : route === "project" ? "Project" : "Forge";
   return `
     <div class="app-shell" data-route="${route}">
       <nav class="topbar" aria-label="Primary">
@@ -10,7 +10,8 @@ export function renderShell(route: RouteName, body: string, assistant: string, e
           <strong>${title}</strong>
         </div>
         <div class="nav-actions">
-          <button type="button" data-route="play" class="${route === "play" ? "active" : ""}">Home</button>
+          <button type="button" data-route="home" class="${route === "home" ? "active" : ""}">Home</button>
+          <button type="button" data-route="play" class="${route === "play" ? "active" : ""}">Play</button>
           <button type="button" data-route="forge" class="${route === "forge" ? "active" : ""}">Forge</button>
         </div>
       </nav>

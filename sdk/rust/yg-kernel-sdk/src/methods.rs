@@ -364,6 +364,56 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn project_get(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectGetResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.project.get", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn project_list(
+        &self,
+        params: ProjectListParams,
+    ) -> Result<ProjectListResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.project.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn project_start(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectTransitionResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.project.start", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn project_status(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectStatusResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.project.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn project_stop(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectTransitionResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.project.stop", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn projection_get(
         &self,
         params: ProjectionIdParams,

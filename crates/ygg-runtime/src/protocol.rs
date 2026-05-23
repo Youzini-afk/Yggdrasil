@@ -36,6 +36,11 @@ pub enum KernelMethod {
     PackageList,
     PackageStatus,
     PackageDescribe,
+    ProjectList,
+    ProjectGet,
+    ProjectStart,
+    ProjectStop,
+    ProjectStatus,
     CapabilityDiscover,
     CapabilityDescribe,
     CapabilityInvoke,
@@ -99,6 +104,11 @@ impl KernelMethod {
             Self::PackageList => "kernel.v1.package.list",
             Self::PackageStatus => "kernel.v1.package.status",
             Self::PackageDescribe => "kernel.v1.package.describe",
+            Self::ProjectList => "kernel.v1.project.list",
+            Self::ProjectGet => "kernel.v1.project.get",
+            Self::ProjectStart => "kernel.v1.project.start",
+            Self::ProjectStop => "kernel.v1.project.stop",
+            Self::ProjectStatus => "kernel.v1.project.status",
             Self::CapabilityDiscover => "kernel.v1.capability.discover",
             Self::CapabilityDescribe => "kernel.v1.capability.describe",
             Self::CapabilityInvoke => "kernel.v1.capability.invoke",
@@ -162,6 +172,11 @@ impl KernelMethod {
             Self::PackageList => MethodStatus::Implemented,
             Self::PackageStatus => MethodStatus::Implemented,
             Self::PackageDescribe => MethodStatus::Planned,
+            Self::ProjectList => MethodStatus::Implemented,
+            Self::ProjectGet => MethodStatus::Implemented,
+            Self::ProjectStart => MethodStatus::Implemented,
+            Self::ProjectStop => MethodStatus::Implemented,
+            Self::ProjectStatus => MethodStatus::Implemented,
             Self::CapabilityDiscover => MethodStatus::Implemented,
             Self::CapabilityDescribe => MethodStatus::Planned,
             Self::CapabilityInvoke => MethodStatus::Partial,
@@ -236,6 +251,11 @@ impl KernelMethod {
             Self::PackageList,
             Self::PackageStatus,
             Self::PackageDescribe,
+            Self::ProjectList,
+            Self::ProjectGet,
+            Self::ProjectStart,
+            Self::ProjectStop,
+            Self::ProjectStatus,
             Self::CapabilityDiscover,
             Self::CapabilityDescribe,
             Self::CapabilityInvoke,
@@ -307,6 +327,11 @@ impl KernelMethod {
             | Self::PackageLogs
             | Self::PackageList
             | Self::PackageStatus
+            | Self::ProjectList
+            | Self::ProjectGet
+            | Self::ProjectStart
+            | Self::ProjectStop
+            | Self::ProjectStatus
             | Self::CapabilityDiscover
             | Self::CapabilityInvoke
             | Self::CapabilityHandleAttenuate
@@ -384,6 +409,11 @@ impl FromStr for KernelMethod {
             "kernel.v1.package.list" => Ok(Self::PackageList),
             "kernel.v1.package.status" => Ok(Self::PackageStatus),
             "kernel.v1.package.describe" => Ok(Self::PackageDescribe),
+            "kernel.v1.project.list" => Ok(Self::ProjectList),
+            "kernel.v1.project.get" => Ok(Self::ProjectGet),
+            "kernel.v1.project.start" => Ok(Self::ProjectStart),
+            "kernel.v1.project.stop" => Ok(Self::ProjectStop),
+            "kernel.v1.project.status" => Ok(Self::ProjectStatus),
             "kernel.v1.capability.discover" => Ok(Self::CapabilityDiscover),
             "kernel.v1.capability.describe" => Ok(Self::CapabilityDescribe),
             "kernel.v1.capability.invoke" => Ok(Self::CapabilityInvoke),
@@ -688,6 +718,31 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
         id: "kernel.v1.package.describe",
         streaming: false,
         status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.project.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.project.get",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.project.start",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.project.stop",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.project.status",
+        streaming: false,
+        status: MethodStatus::Implemented,
     },
     ProtocolMethod {
         id: "kernel.v1.capability.discover",
