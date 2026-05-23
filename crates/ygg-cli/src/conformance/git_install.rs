@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_core::{
-    CapabilityDescriptor, GitFetchPermissions, PackageContributions, PackageEntry, PackageManifest,
+    CapabilityDescriptor, EntryDescriptor, GitFetchPermissions, PackageContributions, PackageEntry, PackageManifest,
     PermissionSet, SandboxPolicy, EVENT_GIT_FETCH_COMPLETED, EVENT_GIT_FETCH_DENIED,
 };
 use ygg_runtime::{
@@ -23,11 +23,11 @@ fn git_package(id: &str, hosts: Vec<String>) -> PackageManifest {
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: format!("{id}/install"),
             version: "0.1.0".to_string(),
@@ -78,6 +78,7 @@ fn request(package_id: &str, remote_url: &str) -> GitOutboundRequest {
         redaction_state: None,
         timeout_ms: None,
         metadata: serde_json::Value::Null,
+        correlation_id: None,
     }
 }
 

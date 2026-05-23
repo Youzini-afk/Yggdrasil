@@ -49,7 +49,8 @@ pub(crate) async fn agentic_forge_describe_contract() -> anyhow::Result<()> {
 
     let contract = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/describe_contract"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/describe_contract")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -103,7 +104,8 @@ pub(crate) async fn agentic_forge_start_run() -> anyhow::Result<()> {
 
     let started = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -171,7 +173,8 @@ pub(crate) async fn agentic_forge_inspect_cancel_summarize() -> anyhow::Result<(
     // Inspect
     let inspection = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/inspect_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/inspect_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -206,7 +209,8 @@ pub(crate) async fn agentic_forge_inspect_cancel_summarize() -> anyhow::Result<(
     // Cancel
     let cancelled = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/cancel_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/cancel_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -233,7 +237,8 @@ pub(crate) async fn agentic_forge_inspect_cancel_summarize() -> anyhow::Result<(
     // Summarize
     let summary = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/summarize_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/summarize_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -273,7 +278,8 @@ pub(crate) async fn agentic_forge_raw_secret_blocked() -> anyhow::Result<()> {
     // Try start_run with a raw credential-looking value
     let blocked = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -303,7 +309,8 @@ pub(crate) async fn agentic_forge_raw_secret_blocked() -> anyhow::Result<()> {
     // Also test Bearer token
     let bearer_blocked = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -322,7 +329,8 @@ pub(crate) async fn agentic_forge_raw_secret_blocked() -> anyhow::Result<()> {
     // secret_ref should be accepted
     let allowed = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -340,7 +348,8 @@ pub(crate) async fn agentic_forge_raw_secret_blocked() -> anyhow::Result<()> {
 
     let allowed_host_ref = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -367,7 +376,8 @@ pub(crate) async fn agentic_forge_no_kernel_agent_namespace() -> anyhow::Result<
     // Collect outputs from all capabilities
     let contract = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/describe_contract"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/describe_contract")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -377,7 +387,8 @@ pub(crate) async fn agentic_forge_no_kernel_agent_namespace() -> anyhow::Result<
 
     let started = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -387,7 +398,8 @@ pub(crate) async fn agentic_forge_no_kernel_agent_namespace() -> anyhow::Result<
 
     let exported = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/export_plan_graph"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/export_plan_graph")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -438,7 +450,8 @@ pub(crate) async fn agentic_forge_create_candidate() -> anyhow::Result<()> {
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/create_candidate"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/create_candidate")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -492,7 +505,8 @@ pub(crate) async fn agentic_forge_compare_candidate() -> anyhow::Result<()> {
     // Matching revisions → stale=false
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/compare_candidate"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/compare_candidate")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -551,7 +565,8 @@ pub(crate) async fn agentic_forge_draft_promote_proposal() -> anyhow::Result<()>
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/draft_promote_proposal"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/draft_promote_proposal")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -610,7 +625,8 @@ pub(crate) async fn agentic_forge_stale_promote_blocked() -> anyhow::Result<()> 
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/draft_promote_proposal"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/draft_promote_proposal")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -656,7 +672,8 @@ pub(crate) async fn agentic_forge_archive_candidate() -> anyhow::Result<()> {
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/archive_candidate"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/archive_candidate")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -706,7 +723,8 @@ pub(crate) async fn agentic_forge_inference_node_deterministic() -> anyhow::Resu
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/run_inference_node"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/run_inference_node")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -757,7 +775,8 @@ pub(crate) async fn agentic_forge_replay_match_mismatch() -> anyhow::Result<()> 
     // Mismatch → flagged
     let mismatch = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/replay_inference_node"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/replay_inference_node")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -792,7 +811,8 @@ pub(crate) async fn agentic_forge_replay_match_mismatch() -> anyhow::Result<()> 
 
     let matched = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/replay_inference_node"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/replay_inference_node")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -824,7 +844,8 @@ pub(crate) async fn agentic_forge_inference_output_validation() -> anyhow::Resul
     for forbidden in &["privilege_escalation", "auto_promote", "secret_request", "target_branch_write"] {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: format!("{PACKAGE_ID}/validate_inference_output"),
+                handle: None,
+                capability_id: Some(format!("{PACKAGE_ID}/validate_inference_output")),
                 caller_package_id: None,
                 provider_package_id: Some(PACKAGE_ID.to_string()),
                 version: None,
@@ -848,7 +869,8 @@ pub(crate) async fn agentic_forge_inference_output_validation() -> anyhow::Resul
     for allowed in &["candidate_seed", "proposal_seed", "observation", "needs_repair"] {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: format!("{PACKAGE_ID}/validate_inference_output"),
+                handle: None,
+                capability_id: Some(format!("{PACKAGE_ID}/validate_inference_output")),
                 caller_package_id: None,
                 provider_package_id: Some(PACKAGE_ID.to_string()),
                 version: None,
@@ -877,7 +899,8 @@ pub(crate) async fn agentic_forge_cloud_adapter_no_network() -> anyhow::Result<(
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/run_inference_node"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/run_inference_node")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -921,7 +944,8 @@ pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result
     for kind in &["rate_limit", "quota", "timeout", "auth", "network_denied", "invalid_output", "malformed_output", "replay_mismatch", "policy_reject"] {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: format!("{PACKAGE_ID}/explain_inference_failure"),
+                handle: None,
+                capability_id: Some(format!("{PACKAGE_ID}/explain_inference_failure")),
                 caller_package_id: None,
                 provider_package_id: Some(PACKAGE_ID.to_string()),
                 version: None,
@@ -952,7 +976,8 @@ pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result
     // Unknown kind
     let unknown = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/explain_inference_failure"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/explain_inference_failure")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -994,7 +1019,8 @@ pub(crate) async fn agentic_forge_explain_tool_call_scoped() -> anyhow::Result<(
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/explain_tool_call"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/explain_tool_call")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1052,7 +1078,8 @@ pub(crate) async fn agentic_forge_record_observation_untrusted() -> anyhow::Resu
     // Normal observation: untrusted=true, inline
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/record_tool_observation"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/record_tool_observation")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1085,7 +1112,8 @@ pub(crate) async fn agentic_forge_record_observation_untrusted() -> anyhow::Resu
     // Raw secret in tool output: blocked
     let blocked = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/record_tool_observation"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/record_tool_observation")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1117,7 +1145,8 @@ pub(crate) async fn agentic_forge_tool_risk_categories() -> anyhow::Result<()> {
     // prompt_injection detection
     let inj = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/summarize_tool_risk"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/summarize_tool_risk")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1145,7 +1174,8 @@ pub(crate) async fn agentic_forge_tool_risk_categories() -> anyhow::Result<()> {
     // secret_exfiltration detection
     let sec = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/summarize_tool_risk"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/summarize_tool_risk")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1165,7 +1195,8 @@ pub(crate) async fn agentic_forge_tool_risk_categories() -> anyhow::Result<()> {
     // outbound_expansion detection
     let outb = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/summarize_tool_risk"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/summarize_tool_risk")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1192,7 +1223,8 @@ pub(crate) async fn agentic_forge_replay_tool_mismatch() -> anyhow::Result<()> {
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/replay_tool_plan"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/replay_tool_plan")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1226,7 +1258,8 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
     // Missing provider → blocked
     let no_provider = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/plan_toolchain"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/plan_toolchain")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1250,7 +1283,8 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
     // Nested delegation without explicit → blocked
     let nested = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/plan_toolchain"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/plan_toolchain")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1279,7 +1313,8 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
     // Valid toolchain with explicit provider and no nested delegation → plan_ready
     let valid = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/plan_toolchain"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/plan_toolchain")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1312,7 +1347,8 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
     // Target branch write without promote grant → blocked
     let branch_write = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{TOOL_BRIDGE_ID}/plan_toolchain"),
+            handle: None,
+            capability_id: Some(format!("{TOOL_BRIDGE_ID}/plan_toolchain")),
             caller_package_id: None,
             provider_package_id: Some(TOOL_BRIDGE_ID.to_string()),
             version: None,
@@ -1401,7 +1437,8 @@ pub(crate) async fn agentic_forge_no_official_priority() -> anyhow::Result<()> {
 
     let desc = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/describe_contract".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/describe_contract".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1460,7 +1497,8 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     // Agentic forge: raw secret in start_run blocked
     let secret_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/start_run".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1478,7 +1516,8 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     // Tool bridge: record_tool_observation with secret in tool_output blocked
     let secret_obs = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/record_tool_observation".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/record_tool_observation".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -1497,7 +1536,8 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     // Tool bridge: summarize_tool_risk catches prompt injection
     let inj_risk = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/summarize_tool_risk".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/summarize_tool_risk".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -1514,7 +1554,8 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     // Agentic forge: inference output privilege escalation rejected
     let priv_escalation = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/validate_inference_output".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/validate_inference_output".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1545,7 +1586,8 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     // describe_contract must include budget/deadline fields
     let desc = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/describe_contract".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/describe_contract".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1561,7 +1603,8 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     // start_run with explicit budget produces plan graph with node budget
     let with_budget = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/start_run".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1581,7 +1624,8 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     // Cancellation produces consistent state
     let cancel = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/cancel_run".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/cancel_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1631,7 +1675,8 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     // Agentic forge: replay mismatch flagged
     let af_replay = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/replay_inference_node".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/replay_inference_node".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -1655,7 +1700,8 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     // Tool bridge: replay mismatch flagged
     let tb_replay = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/replay_tool_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/replay_tool_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,

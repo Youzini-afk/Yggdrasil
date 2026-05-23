@@ -42,7 +42,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_core::{
-    NetworkDeclaration, NetworkPermissions, PackageContributions, PackageEntry,
+    EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions, PackageEntry,
     PackageManifest, PermissionSet, SandboxPolicy,
     CapabilityDescriptor,
 };
@@ -70,11 +70,11 @@ fn networked_package(id: &str, host: &str) -> PackageManifest {
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: format!("{id}/fetch"),
             version: "0.1.0".to_string(),
@@ -389,7 +389,8 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
     // Invoke normalize_stream for DeepSeek with sample provider events
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -664,7 +665,8 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
     // Invoke normalize_request for DeepSeek profile
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -739,11 +741,11 @@ fn multi_host_networked_package(id: &str, hosts: Vec<(&str, &str)>) -> PackageMa
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: format!("{id}/fetch"),
             version: "0.1.0".to_string(),
@@ -1515,7 +1517,8 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     // --- OpenAI Chat Completions ---
     let openai_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1557,7 +1560,8 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     // --- OpenAI Responses ---
     let openai_resp_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1589,7 +1593,8 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     // --- Anthropic Messages ---
     let anthropic_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1639,7 +1644,8 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     // --- Gemini ---
     let gemini_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1751,6 +1757,7 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -1795,6 +1802,7 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -1842,6 +1850,7 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -2454,7 +2463,8 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
     // Invoke normalize_stream for DeepSeek with reasoning, keep-alive, and mid-stream error
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -2586,7 +2596,8 @@ pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,

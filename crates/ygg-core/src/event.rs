@@ -4,6 +4,7 @@ use serde_json::{Map, Value};
 use schemars::JsonSchema;
 
 use crate::ids::{CapabilityId, EventId, PackageId, SessionId};
+use crate::manifest::ContractMode;
 
 pub type SchemaVersion = u16;
 pub type EventKind = String;
@@ -146,6 +147,22 @@ pub struct EventEnvelope {
     pub payload: Value,
     #[serde(default)]
     pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PackageLifecyclePayload {
+    pub package_id: PackageId,
+    pub version: String,
+    pub state: String,
+    pub entry_kind: String,
+    /// Contract mode selected by the package entry. `none` marks Path B: a
+    /// self-contained app hosted without contract enforcement.
+    pub contract_mode: ContractMode,
+    pub capability_count: usize,
+    pub hook_count: usize,
+    pub extension_point_count: usize,
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

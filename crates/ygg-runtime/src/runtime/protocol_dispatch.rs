@@ -4,7 +4,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
-use ygg_core::RedactionState;
+use ygg_core::{CapHandleId, PackageId, RedactionState};
 
 use super::Runtime;
 use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal, EventListRequest,
@@ -51,6 +51,13 @@ where
             KernelMethod::HostPing => Ok(json!({"ok": true})),
             KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
             KernelMethod::CapabilityDiscover => serde_json::to_value(self.discover_capabilities().await).map_err(anyhow::Error::from),
+            KernelMethod::CapabilityInvoke => match serde_json::from_value(params) {
+                Ok(request) => self
+                    .invoke_capability_with_context(context, request)
+                    .await
+                    .and_then(|result| serde_json::to_value(result).map_err(anyhow::Error::from)),
+                Err(error) => Err(anyhow::Error::from(error)),
+            },
             other => Err(anyhow::anyhow!(
                 "protocol method '{}' is not available over subprocess reverse stdio yet",
                 other
@@ -125,6 +132,9 @@ where
             KernelMethod::CapabilityInvoke => Ok(serde_json::to_value(
                 self.invoke_capability_with_context(context, serde_json::from_value(params)?).await?,
             )?),
+            KernelMethod::CapabilityHandleAttenuate => self.dispatch_cap_attenuate(&params).await,
+            KernelMethod::CapabilityHandleRevoke => self.dispatch_cap_revoke(&params).await,
+            KernelMethod::CapabilityHandleListFor => self.dispatch_cap_list_for(&params).await,
             KernelMethod::CapabilityStream => self.dispatch_capability_stream(&params).await,
             KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
 
@@ -284,7 +294,7 @@ where
         // Any secret_ref used in top-level `secret_refs` or in
         // `secret_headers` must be declared in the caller package's
         // `permissions.secret_refs`. Undeclared refs → fail-closed.
-        if !all_secret_refs.is_empty() {
+        if !all_secret_refs.is_empty() && !self.is_contract_none_package(&package_id).await {
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
                     "kernel.v1.outbound.execute package '{}' is not loaded",
@@ -315,6 +325,7 @@ where
             method: method.clone(),
             purpose: purpose.clone(),
             secret_refs_used: all_secret_refs.clone(),
+            correlation_id: context.correlation_id,
         };
 
         // L4: Resolve secret_headers into resolved_secret_headers
@@ -488,7 +499,7 @@ where
         }
 
         // Y2: enforce manifest declarations for secret refs
-        if !all_secret_refs.is_empty() {
+        if !all_secret_refs.is_empty() && !self.is_contract_none_package(&package_id).await {
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
                     "kernel.v1.outbound.stream package '{}' is not loaded",
@@ -543,6 +554,7 @@ where
             method: method.clone(),
             purpose: purpose.clone(),
             secret_refs_used: all_secret_refs.clone(),
+            correlation_id: context.correlation_id,
         };
 
         // Resolve secret headers
@@ -658,6 +670,7 @@ where
         let method_for_end = method.clone();
         let format_str_for_end = stream_format_str.to_string();
         let secret_refs_for_end = all_secret_refs.clone();
+        let correlation_id_for_end = context.correlation_id;
         let completion_id_for_end = ygg_core::new_id("obc");
         let started_for_end = Instant::now();
         let executor_kind_for_error = executor_kind;
@@ -750,6 +763,7 @@ where
                         "network_performed": summary.network_performed,
                         "redaction_state": summary.redaction_state,
                         "secret_refs_used": secret_refs_for_end,
+                        "correlation_id": correlation_id_for_end,
                     })).await;
                 }
                 Err(e) => {
@@ -778,6 +792,7 @@ where
                         "network_performed": network_performed_for_error,
                         "redaction_state": ygg_core::RedactionState::Redacted,
                         "secret_refs_used": secret_refs_for_end,
+                        "correlation_id": correlation_id_for_end,
                     })).await;
                 }
             }
@@ -848,7 +863,7 @@ where
             }
         }
 
-        if !all_secret_refs.is_empty() {
+        if !all_secret_refs.is_empty() && !self.is_contract_none_package(&package_id).await {
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
                     "kernel.v1.outbound.websocket.open package '{}' is not loaded",
@@ -879,6 +894,7 @@ where
             method: WEBSOCKET_METHOD.to_string(),
             purpose: purpose.clone(),
             secret_refs_used: all_secret_refs.clone(),
+            correlation_id: context.correlation_id,
         };
         let _audit_record = self.check_and_audit_outbound(policy_request).await?;
 
@@ -964,6 +980,7 @@ where
         let invocation_id_for_task = stream_record.invocation_id.clone();
         let stream_id_for_task = stream_record.stream_id.clone();
         let completion_id_for_task = ygg_core::new_id("obc");
+        let correlation_id_for_task = context.correlation_id;
         let pkg_id_for_task = package_id.clone();
         let cap_id_for_task = capability_id.clone();
         let host_for_task = destination_host.clone();
@@ -985,6 +1002,7 @@ where
                         map.insert("network_performed".to_string(), Value::Bool(network_performed_for_task));
                         map.insert("redaction_state".to_string(), json!(redaction_state_for_task));
                         map.insert("secret_refs_used".to_string(), json!(secret_refs_for_task));
+                        map.insert("correlation_id".to_string(), json!(correlation_id_for_task));
                     }
                 }
                 use ygg_core::{EventEnvelope, KERNEL_PACKAGE_ID, new_id};
@@ -1096,6 +1114,7 @@ where
             redaction_state: None,
             timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
             metadata: params.get("metadata").cloned().unwrap_or(Value::Null),
+            correlation_id: context.correlation_id,
         };
 
         let response = self.execute_git_outbound_with_policy(context.principal.clone(), request).await?;
@@ -1275,6 +1294,43 @@ where
     }
 
     // --- Capability ---
+
+    async fn dispatch_cap_attenuate(&self, params: &Value) -> anyhow::Result<Value> {
+        let parent_handle: CapHandleId = serde_json::from_value(
+            params
+                .get("parent_handle")
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("kernel.v1.cap.attenuate requires parent_handle"))?,
+        )?;
+        let constraints = params.get("constraints").cloned().unwrap_or(Value::Null);
+        let handle_id = self.handles.attenuate(parent_handle, constraints).await?;
+        let handle = self
+            .handles
+            .lookup(handle_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("attenuated capability handle not found"))?;
+        Ok(json!({ "handle": handle }))
+    }
+
+    async fn dispatch_cap_revoke(&self, params: &Value) -> anyhow::Result<Value> {
+        let handle: CapHandleId = serde_json::from_value(
+            params
+                .get("handle")
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("kernel.v1.cap.revoke requires handle"))?,
+        )?;
+        self.handles.revoke(handle).await?;
+        Ok(json!({}))
+    }
+
+    async fn dispatch_cap_list_for(&self, params: &Value) -> anyhow::Result<Value> {
+        let package_id: PackageId = params
+            .get("package_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("kernel.v1.cap.list_for requires package_id"))?
+            .to_string();
+        Ok(json!({ "handles": self.handles.list_for(&package_id).await }))
+    }
 
     async fn dispatch_capability_stream(&self, params: &Value) -> anyhow::Result<Value> {
         let capability_id = params
@@ -1776,7 +1832,7 @@ mod y2_tests {
     use std::sync::Arc;
 
     use ygg_core::{
-        CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
+        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
         PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
     };
     use crate::{
@@ -1809,11 +1865,11 @@ mod y2_tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "example-echo-rust-inproc".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: vec![CapabilityDescriptor {
                 id: format!("{id}/fetch"),
                 version: "0.1.0".to_string(),
@@ -2039,7 +2095,7 @@ mod z_websocket_tests {
     use std::sync::Arc;
 
     use ygg_core::{
-        CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
+        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
         PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
     };
     use crate::{
@@ -2068,11 +2124,11 @@ mod z_websocket_tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "example-echo-rust-inproc".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: vec![CapabilityDescriptor {
                 id: format!("{id}/ws"),
                 version: "0.1.0".to_string(),

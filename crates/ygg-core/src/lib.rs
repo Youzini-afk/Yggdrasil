@@ -1,4 +1,5 @@
 pub mod asset;
+pub mod capability_handle;
 pub mod event;
 pub mod ids;
 pub mod manifest;
@@ -6,8 +7,11 @@ pub mod secret_ref;
 pub mod session;
 
 pub use asset::AssetRecord;
+pub use capability_handle::{
+    CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope,
+};
 pub use event::{
-    EventEnvelope, EventKind, EventSequence, OutboundAuditRecord, RedactionState, SchemaVersion,
+    EventEnvelope, EventKind, EventSequence, OutboundAuditRecord, PackageLifecyclePayload, RedactionState, SchemaVersion,
     StreamFrameEnvelope, StreamFrameType, StreamInvocationRecord, StreamInvocationState,
     EVENT_ASSET_PUT, EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
     EVENT_ERROR, EVENT_GIT_FETCH_COMPLETED, EVENT_GIT_FETCH_DENIED, EVENT_GIT_FETCH_FAILED,
@@ -30,7 +34,7 @@ pub use ids::{
 };
 pub use manifest::{
     AssetPermissions, CapabilityDescriptor, CapabilityPermissions, CapabilityRequirement,
-    EventPermissions, ExtensionPointDescriptor, FilesystemPermissions, GitFetchPermissions,
+    ContractMode, EntryDescriptor, EventPermissions, ExtensionPointDescriptor, FilesystemPermissions, GitFetchPermissions,
     HookSubscription, HookTiming, ManifestError, NetworkDeclaration, NetworkPermissions,
     PackageContributions, PackageEntry, PackageManifest, PackagePermissions, PermissionSet,
     RemoteAuth, SandboxPolicy, SchemaContribution, SubprocessTransport, SurfaceActivation,

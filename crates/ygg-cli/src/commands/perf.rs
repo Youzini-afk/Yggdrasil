@@ -380,7 +380,8 @@ where
         let start = Instant::now();
         runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: "example/echo-rust-inproc/echo".to_string(),
+                handle: None,
+                capability_id: Some("example/echo-rust-inproc/echo".to_string()),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
@@ -437,7 +438,8 @@ where
         let start = Instant::now();
         runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: "official/composition-lab/describe".to_string(),
+                handle: None,
+                capability_id: Some("official/composition-lab/describe".to_string()),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
@@ -800,7 +802,8 @@ where
         let start = Instant::now();
         runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: SUBPROCESS_ECHO_CAPABILITY_ID.to_string(),
+                handle: None,
+                capability_id: Some(SUBPROCESS_ECHO_CAPABILITY_ID.to_string()),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
@@ -856,7 +859,8 @@ async fn scenario_subprocess_cold_start_sample() -> Result<f64> {
     runtime.load_package(manifest).await?;
     runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: SUBPROCESS_ECHO_CAPABILITY_ID.to_string(),
+            handle: None,
+            capability_id: Some(SUBPROCESS_ECHO_CAPABILITY_ID.to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -984,7 +988,8 @@ where
     let start = Instant::now();
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: SUBPROCESS_ECHO_CAPABILITY_ID.to_string(),
+            handle: None,
+            capability_id: Some(SUBPROCESS_ECHO_CAPABILITY_ID.to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -1013,11 +1018,11 @@ fn perf_outbound_manifest() -> ygg_core::PackageManifest {
         description: None,
         author: None,
         license: None,
-        entry: ygg_core::PackageEntry::RustInproc {
+        entry: ygg_core::EntryDescriptor::v1(ygg_core::PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![ygg_core::CapabilityDescriptor {
             id: PERF_OUTBOUND_CAPABILITY_ID.to_string(),
             version: "0.1.0".to_string(),
@@ -1073,6 +1078,7 @@ fn outbound_policy_request() -> OutboundRequest {
         method: "POST".to_string(),
         purpose: Some("perf fake outbound".to_string()),
         secret_refs_used: Vec::new(),
+        correlation_id: None,
     }
 }
 

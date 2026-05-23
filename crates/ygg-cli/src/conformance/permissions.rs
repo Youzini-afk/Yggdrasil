@@ -23,7 +23,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
         })
         .await?;
     let human = json!({"kind": "human", "user_id": "user/conformance"});
-    let human_context = ProtocolContext { principal: serde_json::from_value(human.clone())?, transport: "conformance".to_string() };
+    let human_context = ProtocolContext { principal: serde_json::from_value(human.clone())?, transport: "conformance".to_string(), correlation_id: None, parent_invocation_id: None };
     let denied = runtime
         .call_protocol(&human_context, "kernel.v1.event.list", json!({"session_id": session.id}))
         .await;
@@ -58,7 +58,7 @@ pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(echo_package("example/assistant-target", "example/assistant-target/echo")).await?;
     let assistant = json!({"kind": "assistant", "assistant_id": "assistant/conformance", "delegated_user_id": "user/conformance"});
-    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string() };
+    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string(), correlation_id: None, parent_invocation_id: None };
     let denied = runtime
         .call_protocol(
             &assistant_context,
@@ -115,7 +115,8 @@ pub(crate) async fn principal_cannot_self_assert_capability_caller() -> anyhow::
         .invoke_capability_with_context(
             &ProtocolContext::package("example/actual", "conformance"),
             CapabilityInvocationRequest {
-                capability_id: "example/echo/echo".to_string(),
+                handle: None,
+                capability_id: Some("example/echo/echo".to_string()),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,

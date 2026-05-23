@@ -3,7 +3,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use schemars::JsonSchema;
+use schemars::{gen::SchemaGenerator, schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec}, JsonSchema};
+use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
 // KernelMethod — single source of truth for protocol method identity, status,
@@ -34,6 +35,9 @@ pub enum KernelMethod {
     CapabilityDiscover,
     CapabilityDescribe,
     CapabilityInvoke,
+    CapabilityHandleAttenuate,
+    CapabilityHandleRevoke,
+    CapabilityHandleListFor,
     CapabilityStream,
     CapabilityCancel,
     ExtensionPointList,
@@ -94,6 +98,9 @@ impl KernelMethod {
             Self::CapabilityDiscover => "kernel.v1.capability.discover",
             Self::CapabilityDescribe => "kernel.v1.capability.describe",
             Self::CapabilityInvoke => "kernel.v1.capability.invoke",
+            Self::CapabilityHandleAttenuate => "kernel.v1.cap.attenuate",
+            Self::CapabilityHandleRevoke => "kernel.v1.cap.revoke",
+            Self::CapabilityHandleListFor => "kernel.v1.cap.list_for",
             Self::CapabilityStream => "kernel.v1.capability.stream",
             Self::CapabilityCancel => "kernel.v1.capability.cancel",
             Self::ExtensionPointList => "kernel.v1.extension_point.list",
@@ -154,6 +161,9 @@ impl KernelMethod {
             Self::CapabilityDiscover => MethodStatus::Implemented,
             Self::CapabilityDescribe => MethodStatus::Planned,
             Self::CapabilityInvoke => MethodStatus::Partial,
+            Self::CapabilityHandleAttenuate => MethodStatus::Partial,
+            Self::CapabilityHandleRevoke => MethodStatus::Partial,
+            Self::CapabilityHandleListFor => MethodStatus::Partial,
             Self::CapabilityStream => MethodStatus::Partial,
             Self::CapabilityCancel => MethodStatus::Partial,
             Self::ExtensionPointList => MethodStatus::Implemented,
@@ -225,6 +235,9 @@ impl KernelMethod {
             Self::CapabilityDiscover,
             Self::CapabilityDescribe,
             Self::CapabilityInvoke,
+            Self::CapabilityHandleAttenuate,
+            Self::CapabilityHandleRevoke,
+            Self::CapabilityHandleListFor,
             Self::CapabilityStream,
             Self::CapabilityCancel,
             Self::ExtensionPointList,
@@ -288,6 +301,9 @@ impl KernelMethod {
             | Self::PackageStatus
             |             Self::CapabilityDiscover
             | Self::CapabilityInvoke
+            | Self::CapabilityHandleAttenuate
+            | Self::CapabilityHandleRevoke
+            | Self::CapabilityHandleListFor
             | Self::CapabilityStream
             | Self::CapabilityCancel
             | Self::ExtensionPointList
@@ -363,6 +379,9 @@ impl FromStr for KernelMethod {
             "kernel.v1.capability.discover" => Ok(Self::CapabilityDiscover),
             "kernel.v1.capability.describe" => Ok(Self::CapabilityDescribe),
             "kernel.v1.capability.invoke" => Ok(Self::CapabilityInvoke),
+            "kernel.v1.cap.attenuate" => Ok(Self::CapabilityHandleAttenuate),
+            "kernel.v1.cap.revoke" => Ok(Self::CapabilityHandleRevoke),
+            "kernel.v1.cap.list_for" => Ok(Self::CapabilityHandleListFor),
             "kernel.v1.capability.stream" => Ok(Self::CapabilityStream),
             "kernel.v1.capability.cancel" => Ok(Self::CapabilityCancel),
             "kernel.v1.extension_point.list" => Ok(Self::ExtensionPointList),
@@ -437,19 +456,49 @@ pub enum ProtocolPrincipal {
 pub struct ProtocolContext {
     pub principal: ProtocolPrincipal,
     pub transport: String,
+    #[serde(default)]
+    #[schemars(schema_with = "optional_uuid_schema")]
+    pub correlation_id: Option<Uuid>,
+    #[serde(default)]
+    #[schemars(schema_with = "optional_uuid_schema")]
+    pub parent_invocation_id: Option<Uuid>,
 }
 
 impl ProtocolContext {
     pub fn host_dev(transport: impl Into<String>) -> Self {
-        Self { principal: ProtocolPrincipal::HostDev, transport: transport.into() }
+        Self {
+            principal: ProtocolPrincipal::HostDev,
+            transport: transport.into(),
+            correlation_id: Some(Uuid::new_v4()),
+            parent_invocation_id: None,
+        }
     }
 
     pub fn package(package_id: impl Into<String>, transport: impl Into<String>) -> Self {
         Self {
             principal: ProtocolPrincipal::Package { package_id: package_id.into() },
             transport: transport.into(),
+            correlation_id: Some(Uuid::new_v4()),
+            parent_invocation_id: None,
         }
     }
+
+    pub fn with_correlation_id(mut self, correlation_id: Uuid) -> Self {
+        self.correlation_id = Some(correlation_id);
+        self
+    }
+
+    pub fn effective_correlation_id(&self) -> Uuid {
+        self.correlation_id.unwrap_or_else(Uuid::new_v4)
+    }
+}
+
+fn optional_uuid_schema(_gen: &mut SchemaGenerator) -> Schema {
+    let mut schema = SchemaObject::default();
+    schema.instance_type = Some(SingleOrVec::Vec(vec![InstanceType::String, InstanceType::Null]));
+    schema.format = Some("uuid".to_string());
+    schema.metadata = Some(Box::new(Metadata::default()));
+    Schema::Object(schema)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -537,6 +586,9 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     ProtocolMethod { id: "kernel.v1.capability.discover", streaming: false, status: MethodStatus::Implemented },
     ProtocolMethod { id: "kernel.v1.capability.describe", streaming: false, status: MethodStatus::Planned },
     ProtocolMethod { id: "kernel.v1.capability.invoke", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.cap.attenuate", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.cap.revoke", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod { id: "kernel.v1.cap.list_for", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.v1.capability.stream", streaming: true, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.v1.capability.cancel", streaming: false, status: MethodStatus::Partial },
     ProtocolMethod { id: "kernel.v1.extension_point.list", streaming: false, status: MethodStatus::Implemented },

@@ -22,7 +22,8 @@ pub(crate) async fn inference_local_lab_describe_capabilities() -> anyhow::Resul
 
     let caps = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/describe_capabilities".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/describe_capabilities".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -90,7 +91,8 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     // invoke non-HTTP succeeds with no URL/header/status/messages fields, network_performed=false
     let inv = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -140,7 +142,8 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     // invoke classify
     let inv_classify = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -163,7 +166,8 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     // invoke transform
     let inv_transform = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -198,7 +202,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects http transport
     let inv_http = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -220,7 +225,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects HTTP-shaped fields: url
     let inv_url = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -238,7 +244,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects HTTP-shaped fields: headers
     let inv_headers = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -256,7 +263,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects HTTP-shaped fields: status_code
     let inv_status = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -274,7 +282,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects messages-shaped fields: messages
     let inv_messages = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -292,7 +301,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects messages-shaped fields: system
     let inv_system = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -310,7 +320,8 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     // invoke rejects raw secret-looking fields
     let inv_secret = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -339,7 +350,8 @@ pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
 
     let stream_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/stream".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -455,7 +467,8 @@ pub(crate) async fn inference_local_lab_explain_error() -> anyhow::Result<()> {
     for error_kind in &local_errors {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: "official/inference-local-lab/explain_error".to_string(),
+                handle: None,
+                capability_id: Some("official/inference-local-lab/explain_error".to_string()),
                 caller_package_id: None,
                 provider_package_id: Some("official/inference-local-lab".to_string()),
                 version: None,

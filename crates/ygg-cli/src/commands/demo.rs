@@ -44,7 +44,7 @@ pub(crate) async fn demo() -> Result<()> {
 
 pub(crate) fn demo_event_writer_manifest() -> ygg_core::PackageManifest {
     use ygg_core::{
-        EventPermissions, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
+        EntryDescriptor, EventPermissions, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
         SandboxPolicy,
     };
 
@@ -56,11 +56,11 @@ pub(crate) fn demo_event_writer_manifest() -> ygg_core::PackageManifest {
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: Vec::new(),
         consumes: Vec::new(),
         contributes: PackageContributions::default(),
@@ -150,7 +150,8 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .await?;
     let seed = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/blank-experience/create_seed".to_string(),
+            handle: None,
+            capability_id: Some("official/blank-experience/create_seed".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -169,6 +170,8 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant)?,
         transport: "demo".to_string(),
+    correlation_id: None,
+    parent_invocation_id: None,
     };
     let proposal = runtime
         .call_protocol(
@@ -247,7 +250,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     // 1. Launch
     let launch = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/launch"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/launch")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -264,7 +268,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     for seq in 1..=3 {
         let action = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: format!("{pkg}/record_player_action"),
+                handle: None,
+                capability_id: Some(format!("{pkg}/record_player_action")),
                 caller_package_id: None,
                 provider_package_id: Some(pkg.to_string()),
                 version: None,
@@ -290,7 +295,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     // 3. project_state and render_payload
     let state = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/project_state"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/project_state")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -301,7 +307,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let render = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/render_payload"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/render_payload")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -313,7 +320,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     // 4. Checkpoint + recovery
     let checkpoint = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/create_checkpoint"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/create_checkpoint")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -332,7 +340,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let inspect = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/inspect_checkpoint"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/inspect_checkpoint")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -353,7 +362,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let recovery = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/draft_recovery"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/draft_recovery")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -372,7 +382,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     // 5. request_change + bind_agent_run
     let change_req = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/request_change"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/request_change")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -395,7 +406,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let binding = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/bind_agent_run"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/bind_agent_run")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,
@@ -418,7 +430,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     let forge_pkg = "official/agentic-forge-lab";
     let start_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{forge_pkg}/start_run"),
+            handle: None,
+            capability_id: Some(format!("{forge_pkg}/start_run")),
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
@@ -430,7 +443,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let export_plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{forge_pkg}/export_plan_graph"),
+            handle: None,
+            capability_id: Some(format!("{forge_pkg}/export_plan_graph")),
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
@@ -447,7 +461,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let create_cand = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{forge_pkg}/create_candidate"),
+            handle: None,
+            capability_id: Some(format!("{forge_pkg}/create_candidate")),
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
@@ -471,7 +486,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let compare = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{forge_pkg}/compare_candidate"),
+            handle: None,
+            capability_id: Some(format!("{forge_pkg}/compare_candidate")),
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
@@ -486,7 +502,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     let promote = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{forge_pkg}/draft_promote_proposal"),
+            handle: None,
+            capability_id: Some(format!("{forge_pkg}/draft_promote_proposal")),
             caller_package_id: None,
             provider_package_id: Some(forge_pkg.to_string()),
             version: None,
@@ -512,7 +529,8 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     // 7. Provenance
     let provenance = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{pkg}/explain_provenance"),
+            handle: None,
+            capability_id: Some(format!("{pkg}/explain_provenance")),
             caller_package_id: None,
             provider_package_id: Some(pkg.to_string()),
             version: None,

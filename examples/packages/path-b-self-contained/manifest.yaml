@@ -1,0 +1,11 @@
+schema_version: 1
+id: "examples/path-b-app"
+version: "0.1.0"
+display_name: "Self-Contained App Example"
+description: "Demonstrates Path B — opts out of contract enforcement; kernel hosts the process only"
+license: "MIT"
+entry:
+  kind: subprocess
+  contract: none
+  command: ["node", "examples/packages/path-b-self-contained/index.mjs"]
+# No provides:, no consumes:, no permissions: — Path B doesn't need them

@@ -4,6 +4,15 @@
     "capability_id": {
       "type": "string"
     },
+    "correlation_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "duration_ms": {
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": "integer"
+    },
     "output": true,
     "provider_package_id": {
       "type": "string"
@@ -11,6 +20,8 @@
   },
   "required": [
     "capability_id",
+    "correlation_id",
+    "duration_ms",
     "output",
     "provider_package_id"
   ],

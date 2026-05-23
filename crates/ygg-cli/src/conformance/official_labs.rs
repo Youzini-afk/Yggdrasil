@@ -10,7 +10,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/assistant-lab/manifest.yaml")).await?).await?;
     let assistant = json!({"kind": "assistant", "assistant_id": "assistant/lab", "delegated_user_id": "user/conformance"});
-    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string() };
+    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string(), correlation_id: None, parent_invocation_id: None };
     let denied = runtime
         .call_protocol(
             &assistant_context,
@@ -49,7 +49,8 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/composition-lab/manifest.yaml")).await?).await?;
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/composition-lab/launch_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/composition-lab/launch_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
@@ -63,7 +64,8 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
     anyhow::ensure!(plan.output["kind"] == json!("composition_launch_plan"), "composition lab launch_plan returned wrong kind");
     let graph = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/composition-lab/surface_graph".to_string(),
+            handle: None,
+            capability_id: Some("official/composition-lab/surface_graph".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
@@ -82,7 +84,8 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
     // launch_plan with v2 fields
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/composition-lab/launch_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/composition-lab/launch_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
@@ -108,7 +111,8 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
     // surface_graph with v2 fields
     let graph = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/composition-lab/surface_graph".to_string(),
+            handle: None,
+            capability_id: Some("official/composition-lab/surface_graph".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
@@ -131,7 +135,8 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
     // compat_report capability
     let report = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/composition-lab/compat_report".to_string(),
+            handle: None,
+            capability_id: Some("official/composition-lab/compat_report".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/composition-lab".to_string()),
             version: None,
@@ -164,7 +169,8 @@ pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
         .await?;
     let contract = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/package-installer-lab/describe_install_contract".to_string(),
+            handle: None,
+            capability_id: Some("official/package-installer-lab/describe_install_contract".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/package-installer-lab".to_string()),
             version: None,
@@ -182,7 +188,8 @@ pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
 
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/package-installer-lab/plan_install".to_string(),
+            handle: None,
+            capability_id: Some("official/package-installer-lab/plan_install".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/package-installer-lab".to_string()),
             version: None,
@@ -208,7 +215,8 @@ pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
 
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/package-installer-lab/plan_install".to_string(),
+            handle: None,
+            capability_id: Some("official/package-installer-lab/plan_install".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/package-installer-lab".to_string()),
             version: None,
@@ -219,7 +227,8 @@ pub(crate) async fn package_installer_lab() -> anyhow::Result<()> {
 
     let apply = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/package-installer-lab/apply_install".to_string(),
+            handle: None,
+            capability_id: Some("official/package-installer-lab/apply_install".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/package-installer-lab".to_string()),
             version: None,
@@ -250,7 +259,8 @@ pub(crate) async fn asset_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/asset-lab/manifest.yaml")).await?).await?;
     let preview = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/asset-lab/preview".to_string(),
+            handle: None,
+            capability_id: Some("official/asset-lab/preview".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
@@ -260,7 +270,8 @@ pub(crate) async fn asset_lab() -> anyhow::Result<()> {
     anyhow::ensure!(preview.output["kind"] == json!("asset_preview"), "asset lab preview returned wrong kind");
     let import_plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/asset-lab/import_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/asset-lab/import_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
@@ -276,7 +287,8 @@ pub(crate) async fn projection_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/projection-lab/manifest.yaml")).await?).await?;
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/projection-lab/rebuild_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/projection-lab/rebuild_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/projection-lab".to_string()),
             version: None,
@@ -286,7 +298,8 @@ pub(crate) async fn projection_lab() -> anyhow::Result<()> {
     anyhow::ensure!(plan.output["kind"] == json!("projection_rebuild_plan"), "projection lab rebuild_plan returned wrong kind");
     let source = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/projection-lab/explain_source_events".to_string(),
+            handle: None,
+            capability_id: Some("official/projection-lab/explain_source_events".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/projection-lab".to_string()),
             version: None,
@@ -302,7 +315,8 @@ pub(crate) async fn playable_seed() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/playable-seed/manifest.yaml")).await?).await?;
     let launch = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/playable-seed/launch".to_string(),
+            handle: None,
+            capability_id: Some("official/playable-seed/launch".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/playable-seed".to_string()),
             version: None,
@@ -312,7 +326,8 @@ pub(crate) async fn playable_seed() -> anyhow::Result<()> {
     anyhow::ensure!(launch.output["kind"] == json!("playable_seed_launch"), "playable seed launch returned wrong kind");
     let render = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/playable-seed/render_payload".to_string(),
+            handle: None,
+            capability_id: Some("official/playable-seed/render_payload".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/playable-seed".to_string()),
             version: None,
@@ -322,7 +337,8 @@ pub(crate) async fn playable_seed() -> anyhow::Result<()> {
     anyhow::ensure!(render.output["kind"] == json!("playable_seed_render_payload"), "playable seed render returned wrong kind");
     let proposal = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/playable-seed/propose_change".to_string(),
+            handle: None,
+            capability_id: Some("official/playable-seed/propose_change".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/playable-seed".to_string()),
             version: None,
@@ -344,7 +360,8 @@ pub(crate) async fn persona_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/persona-lab/manifest.yaml")).await?).await?;
     let imported = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/persona-lab/import_profile".to_string(),
+            handle: None,
+            capability_id: Some("official/persona-lab/import_profile".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/persona-lab".to_string()),
             version: None,
@@ -355,7 +372,8 @@ pub(crate) async fn persona_lab() -> anyhow::Result<()> {
     anyhow::ensure!(imported.output["core"]["name"] == json!("Mira"), "persona import lost name");
     let fragment = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/persona-lab/render_fragment".to_string(),
+            handle: None,
+            capability_id: Some("official/persona-lab/render_fragment".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/persona-lab".to_string()),
             version: None,
@@ -372,7 +390,8 @@ pub(crate) async fn knowledge_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/knowledge-lab/manifest.yaml")).await?).await?;
     let imported = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/knowledge-lab/import_collection".to_string(),
+            handle: None,
+            capability_id: Some("official/knowledge-lab/import_collection".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/knowledge-lab".to_string()),
             version: None,
@@ -382,7 +401,8 @@ pub(crate) async fn knowledge_lab() -> anyhow::Result<()> {
     anyhow::ensure!(imported.output["kind"] == json!("knowledge_collection"), "knowledge import returned wrong kind");
     let matched = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/knowledge-lab/match_entries".to_string(),
+            handle: None,
+            capability_id: Some("official/knowledge-lab/match_entries".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/knowledge-lab".to_string()),
             version: None,
@@ -393,7 +413,8 @@ pub(crate) async fn knowledge_lab() -> anyhow::Result<()> {
     anyhow::ensure!(matched.output["matches"].as_array().map(|m| !m.is_empty()).unwrap_or(false), "knowledge match missed keyword");
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/knowledge-lab/injection_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/knowledge-lab/injection_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/knowledge-lab".to_string()),
             version: None,
@@ -410,7 +431,8 @@ pub(crate) async fn context_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/context-lab/manifest.yaml")).await?).await?;
     let preview = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/context-lab/assemble_preview".to_string(),
+            handle: None,
+            capability_id: Some("official/context-lab/assemble_preview".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/context-lab".to_string()),
             version: None,
@@ -421,7 +443,8 @@ pub(crate) async fn context_lab() -> anyhow::Result<()> {
     anyhow::ensure!(preview.output["omitted"].as_array().map(|o| !o.is_empty()).unwrap_or(false), "context preview should report omitted sources");
     let rendered = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/context-lab/render_template".to_string(),
+            handle: None,
+            capability_id: Some("official/context-lab/render_template".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/context-lab".to_string()),
             version: None,
@@ -437,7 +460,8 @@ pub(crate) async fn text_transform_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/text-transform-lab/manifest.yaml")).await?).await?;
     let preview = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/text-transform-lab/apply_preview".to_string(),
+            handle: None,
+            capability_id: Some("official/text-transform-lab/apply_preview".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/text-transform-lab".to_string()),
             version: None,
@@ -449,7 +473,8 @@ pub(crate) async fn text_transform_lab() -> anyhow::Result<()> {
     anyhow::ensure!(preview.output["trace"].as_array().map(|t| !t.is_empty()).unwrap_or(false), "text transform missing trace");
     let validation = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/text-transform-lab/validate_rules".to_string(),
+            handle: None,
+            capability_id: Some("official/text-transform-lab/validate_rules".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/text-transform-lab".to_string()),
             version: None,
@@ -465,7 +490,8 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("packages/official/model-connector-lab/manifest.yaml")).await?).await?;
     let families = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-connector-lab/describe_families".to_string(),
+            handle: None,
+            capability_id: Some("official/model-connector-lab/describe_families".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
@@ -476,7 +502,8 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
     anyhow::ensure!(families.output["families"].as_array().map(|f| f.len() >= 6).unwrap_or(false), "expected declared provider families");
     let valid = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-connector-lab/validate_profile".to_string(),
+            handle: None,
+            capability_id: Some("official/model-connector-lab/validate_profile".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
@@ -487,7 +514,8 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
     anyhow::ensure!(valid.output["verification_level"] == json!("not_verified"), "connector Alpha must not claim live verification");
     let raw_secret = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-connector-lab/validate_profile".to_string(),
+            handle: None,
+            capability_id: Some("official/model-connector-lab/validate_profile".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
@@ -497,7 +525,8 @@ pub(crate) async fn model_connector_lab() -> anyhow::Result<()> {
     anyhow::ensure!(raw_secret.output["valid"] == json!(false), "raw secret profile should be invalid");
     let plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-connector-lab/discovery_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/model-connector-lab/discovery_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-connector-lab".to_string()),
             version: None,
@@ -517,7 +546,8 @@ pub(crate) async fn model_routing_lab() -> anyhow::Result<()> {
     ]);
     let resolved = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-routing-lab/resolve_binding".to_string(),
+            handle: None,
+            capability_id: Some("official/model-routing-lab/resolve_binding".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-routing-lab".to_string()),
             version: None,
@@ -529,7 +559,8 @@ pub(crate) async fn model_routing_lab() -> anyhow::Result<()> {
     anyhow::ensure!(resolved.output["inference_performed"] == json!(false), "model routing must not invoke inference");
     let params = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-routing-lab/params_normalize".to_string(),
+            handle: None,
+            capability_id: Some("official/model-routing-lab/params_normalize".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-routing-lab".to_string()),
             version: None,
@@ -549,7 +580,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // discover_tools: ambiguous providers marked rejected
     let discovery = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/discover_tools".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -574,7 +606,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // discover_tools: explicit third-party provider works as plan
     let discovery_explicit = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/discover_tools".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -596,7 +629,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // discover_tools: explicit provider must be in candidate providers when candidates are supplied
     let discovery_bad_provider = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/discover_tools".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/discover_tools".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -618,7 +652,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // invoke_tool: missing provider rejected
     let invoke_missing = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/invoke_tool".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -634,7 +669,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // invoke_tool: explicit third-party provider produces plan
     let invoke_explicit = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/invoke_tool".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -651,7 +687,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // invoke_tool: explicit provider must match supplied candidates
     let invoke_bad_provider = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/invoke_tool".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -668,7 +705,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // preview_tool_permissions: denied reports missing permission
     let preview_denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/preview_tool_permissions".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/preview_tool_permissions".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -687,7 +725,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // preview_tool_permissions: granted with wildcard
     let preview_granted = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/preview_tool_permissions".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/preview_tool_permissions".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -703,7 +742,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // raw secret payload: unsafe_blocked
     let raw_secret = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/invoke_tool".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/invoke_tool".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -720,7 +760,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // stream_tool: missing provider rejected
     let stream_missing = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/stream_tool".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/stream_tool".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -736,7 +777,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // stream_tool: explicit provider must match supplied candidates
     let stream_bad_provider = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/stream_tool".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/stream_tool".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -753,7 +795,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
     // explain_tool_call: audit-safe summary
     let explain = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/capability-tool-bridge-lab/explain_tool_call".to_string(),
+            handle: None,
+            capability_id: Some("official/capability-tool-bridge-lab/explain_tool_call".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -799,7 +842,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // list_supported_families: returns all eight families
     let families = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/list_supported_families".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/list_supported_families".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -823,7 +867,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // validate_profile: raw secret rejected
     let raw_secret = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/validate_profile".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/validate_profile".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -839,7 +884,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // validate_profile: openai_compatible with http base_url rejected
     let http_invalid = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/validate_profile".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/validate_profile".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -856,7 +902,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // validate_profile: openai_compatible with https base_url accepted
     let https_valid = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/validate_profile".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/validate_profile".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -873,7 +920,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // normalize_request: anthropic
     let norm_anthropic = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -899,7 +947,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // normalize_request: gemini
     let norm_gemini = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -920,7 +969,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // normalize_request: openrouter
     let norm_openrouter = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -945,7 +995,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // normalize_request: deepseek
     let norm_deepseek = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -966,7 +1017,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // normalize_request: xai
     let norm_xai = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -991,7 +1043,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // normalize_request: fireworks
     let norm_fireworks = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_request".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1016,7 +1069,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // explain_error: 401 -> authentication
     let err_401 = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/explain_error".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/explain_error".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1033,7 +1087,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // explain_error: 429 -> rate_limit
     let err_429 = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/explain_error".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/explain_error".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1050,7 +1105,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // explain_error: 529 -> overloaded
     let err_529 = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/explain_error".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/explain_error".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1069,7 +1125,8 @@ pub(crate) async fn model_provider_lab() -> anyhow::Result<()> {
     // echo: returns input
     let echo = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/echo".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/echo".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1088,7 +1145,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openai (chat dialect)
     let inv_openai = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1125,7 +1183,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openai with preferResponses (responses dialect)
     let inv_openai_resp = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1148,7 +1207,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke anthropic
     let inv_anthropic = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1176,7 +1236,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke gemini
     let inv_gemini = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1200,7 +1261,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke with raw credential rejected
     let inv_raw = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1224,7 +1286,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke with raw-looking header rejected
     let inv_raw_header = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1246,7 +1309,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke with non-HTTPS base_url rejected before producing outbound_request_shape
     let inv_http_base = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1268,7 +1332,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openai_compatible (requires explicit HTTPS base_url)
     let inv_compat = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1297,7 +1362,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openai_compatible missing base_url → bad_request
     let inv_compat_no_base = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1318,7 +1384,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openai_compatible http base_url → network_denied
     let inv_compat_http = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1339,7 +1406,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openrouter (chat dialect)
     let inv_or = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1363,7 +1431,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke openrouter with preferResponses
     let inv_or_resp = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1386,7 +1455,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke deepseek
     let inv_ds = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1411,7 +1481,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke xai (chat dialect)
     let inv_xai = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1435,7 +1506,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke xai with preferResponses
     let inv_xai_resp = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1457,7 +1529,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke fireworks (chat dialect)
     let inv_fw = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1481,7 +1554,8 @@ pub(crate) async fn model_provider_lab_invoke_core() -> anyhow::Result<()> {
     // invoke fireworks with preferResponses
     let inv_fw_resp = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1523,7 +1597,8 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
     for (family, expected_sf) in &families_and_stream_families {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+                handle: None,
+                capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
                 caller_package_id: None,
                 provider_package_id: Some("official/model-provider-lab".to_string()),
                 version: None,
@@ -1570,7 +1645,8 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
     ]);
     let openai_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1604,7 +1680,8 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
     ]);
     let anthropic_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1631,7 +1708,8 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
     ]);
     let gemini_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1655,7 +1733,8 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
     ]);
     let or_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1673,7 +1752,8 @@ pub(crate) async fn model_provider_lab_normalize_stream() -> anyhow::Result<()> 
     // --- Unsupported family ---
     let bad_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/model-provider-lab/normalize_stream".to_string(),
+            handle: None,
+            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/model-provider-lab".to_string()),
             version: None,
@@ -1696,7 +1776,8 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     // run: deterministic no-inference no-network plan
     let run_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/pi-agent-runtime-lab/run".to_string(),
+            handle: None,
+            capability_id: Some("official/pi-agent-runtime-lab/run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
@@ -1714,7 +1795,8 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     // explain_run: no-inference explanation
     let explain = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/pi-agent-runtime-lab/explain_run".to_string(),
+            handle: None,
+            capability_id: Some("official/pi-agent-runtime-lab/explain_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
@@ -1729,7 +1811,8 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     // draft_proposal: approval-gated
     let proposal = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/pi-agent-runtime-lab/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/pi-agent-runtime-lab/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
@@ -1743,7 +1826,8 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     // summarize_trace: no-inference summary
     let trace = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/pi-agent-runtime-lab/summarize_trace".to_string(),
+            handle: None,
+            capability_id: Some("official/pi-agent-runtime-lab/summarize_trace".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
@@ -1758,7 +1842,8 @@ pub(crate) async fn pi_agent_runtime_lab() -> anyhow::Result<()> {
     // echo: passthrough
     let echo = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/pi-agent-runtime-lab/echo".to_string(),
+            handle: None,
+            capability_id: Some("official/pi-agent-runtime-lab/echo".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/pi-agent-runtime-lab".to_string()),
             version: None,
@@ -1805,7 +1890,8 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
     // content_address: deterministic for same content
     let ca1 = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/asset-lab/content_address".to_string(),
+            handle: None,
+            capability_id: Some("official/asset-lab/content_address".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
@@ -1828,7 +1914,8 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
     // Deterministic: same content → same address
     let ca2 = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/asset-lab/content_address".to_string(),
+            handle: None,
+            capability_id: Some("official/asset-lab/content_address".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
@@ -1843,7 +1930,8 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
     // Different content → different address
     let ca3 = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/asset-lab/content_address".to_string(),
+            handle: None,
+            capability_id: Some("official/asset-lab/content_address".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
@@ -1865,7 +1953,8 @@ pub(crate) async fn asset_lab_provenance_graph() -> anyhow::Result<()> {
 
     let pg = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/asset-lab/provenance_graph".to_string(),
+            handle: None,
+            capability_id: Some("official/asset-lab/provenance_graph".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/asset-lab".to_string()),
             version: None,
@@ -1899,7 +1988,8 @@ pub(crate) async fn projection_lab_state_snapshot() -> anyhow::Result<()> {
 
     let ss = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/projection-lab/state_snapshot".to_string(),
+            handle: None,
+            capability_id: Some("official/projection-lab/state_snapshot".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/projection-lab".to_string()),
             version: None,

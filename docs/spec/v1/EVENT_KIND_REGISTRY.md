@@ -7,7 +7,7 @@
 | `kernel/v1/session.opened` | [`./schemas/events/kernel__v1__session.opened.schema.json`](./schemas/events/kernel__v1__session.opened.schema.json) | kernel | Session 开启 | implemented |
 | `kernel/v1/session.closed` | [`./schemas/events/kernel__v1__session.closed.schema.json`](./schemas/events/kernel__v1__session.closed.schema.json) | kernel | Session 关闭 | implemented |
 | `kernel/v1/session.forked` | [`./schemas/events/kernel__v1__session.forked.schema.json`](./schemas/events/kernel__v1__session.forked.schema.json) | kernel | Session fork 创建分支谱系 | implemented |
-| `kernel/v1/package.loaded` | [`./schemas/events/kernel__v1__package.loaded.schema.json`](./schemas/events/kernel__v1__package.loaded.schema.json) | kernel | 包已接受并注册 | implemented |
+| `kernel/v1/package.loaded` | [`./schemas/events/kernel__v1__package.loaded.schema.json`](./schemas/events/kernel__v1__package.loaded.schema.json) | kernel | 包已接受并注册；载荷包含 `contract_mode`（`v1` 或 `none`） | implemented |
 | `kernel/v1/package.loading` | [`./schemas/events/kernel__v1__package.loading.schema.json`](./schemas/events/kernel__v1__package.loading.schema.json) | kernel | 包进入加载中 | implemented |
 | `kernel/v1/package.starting` | [`./schemas/events/kernel__v1__package.starting.schema.json`](./schemas/events/kernel__v1__package.starting.schema.json) | kernel | 包执行入口启动中 | implemented |
 | `kernel/v1/package.ready` | [`./schemas/events/kernel__v1__package.ready.schema.json`](./schemas/events/kernel__v1__package.ready.schema.json) | kernel | 包启动后就绪 | implemented |

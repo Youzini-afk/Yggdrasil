@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_core::{
-    CapabilityDescriptor, CapabilityPermissions, EventPermissions, HookSubscription,
+    CapabilityDescriptor, CapabilityPermissions, EntryDescriptor, EventPermissions, HookSubscription,
     HookTiming, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
     SandboxPolicy,
 };
@@ -49,11 +49,11 @@ pub(crate) fn hook_handler_package(id: &str, extension_point: &str, handler: &st
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-hook-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: handler.to_string(),
             version: "0.1.0".to_string(),
@@ -96,11 +96,11 @@ pub(crate) fn schema_echo_package(
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: capability_id.to_string(),
             version: "0.1.0".to_string(),

@@ -1,4 +1,10 @@
 {
+  "$defs": {
+    "CapHandleId": {
+      "format": "uint128",
+      "type": "string"
+    }
+  },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "caller_package_id": {
@@ -9,7 +15,24 @@
       ]
     },
     "capability_id": {
-      "type": "string"
+      "default": null,
+      "description": "Legacy path. Runtime auto-mints a one-use transient handle when no handle is supplied.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "handle": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CapHandleId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "New preferred path: invoke by kernel-minted handle."
     },
     "input": {
       "default": null
@@ -29,9 +52,6 @@
       ]
     }
   },
-  "required": [
-    "capability_id"
-  ],
   "title": "CapabilityInvocationRequest",
   "type": "object"
 }

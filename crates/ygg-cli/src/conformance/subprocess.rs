@@ -18,7 +18,8 @@ pub(crate) async fn subprocess_invoke_echo() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/echo-subprocess-python/manifest.yaml")).await?).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/echo-subprocess-python/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/echo-subprocess-python/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -40,12 +41,45 @@ pub(crate) async fn package_lifecycle_timeline() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    let manifest = manifest::read_manifest(PathBuf::from("examples/packages/path-b-self-contained/manifest.yaml")).await?;
+    let record = runtime.load_package(manifest).await?;
+    anyhow::ensure!(record.id == "examples/path-b-app", "wrong Path B package loaded");
+
+    let session_id = "kernel_package_examples_path-b-app".to_string();
+    let events = store.list_session(&session_id).await?;
+    for expected in ["kernel/v1/package.loading", "kernel/v1/package.starting", "kernel/v1/package.ready", "kernel/v1/package.loaded"] {
+        anyhow::ensure!(events.iter().any(|event| event.kind == expected), "missing Path B lifecycle event {expected}");
+    }
+    let loaded = events
+        .iter()
+        .find(|event| event.kind == "kernel/v1/package.loaded")
+        .ok_or_else(|| anyhow::anyhow!("missing Path B package.loaded event"))?;
+    anyhow::ensure!(loaded.payload["contract_mode"] == json!("none"), "Path B audit payload must show contract_mode none");
+
+    runtime.load_package(echo_package("examples/path-b-provider", "examples/path-b-provider/echo")).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("examples/path-b-provider/echo".to_string()),
+            caller_package_id: Some("examples/path-b-app".to_string()),
+            provider_package_id: None,
+            version: None,
+            input: json!({"path_b": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"path_b": true}), "Path B caller should invoke without manifest permission denial");
+    Ok(())
+}
+
 pub(crate) async fn package_logs_capture() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/logging-subprocess-python/manifest.yaml")).await?).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/logging-subprocess-python/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/logging-subprocess-python/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -80,7 +114,8 @@ pub(crate) async fn subprocess_timeout() -> anyhow::Result<()> {
     runtime.load_package(manifest::read_manifest(PathBuf::from("examples/packages/slow-subprocess-python/manifest.yaml")).await?).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/slow-subprocess-python/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/slow-subprocess-python/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -100,7 +135,8 @@ pub(crate) async fn subprocess_invalid_output_schema() -> anyhow::Result<()> {
         .await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/invalid-output-subprocess-python/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/invalid-output-subprocess-python/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -117,7 +153,8 @@ pub(crate) async fn subprocess_unload_removes_capability() -> anyhow::Result<()>
     runtime.unload_package(&"example/echo-subprocess-python".to_string()).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/echo-subprocess-python/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/echo-subprocess-python/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -138,7 +175,7 @@ pub(crate) async fn package_check_diagnostics() -> anyhow::Result<()> {
     anyhow::ensure!(m.provides.len() == 1, "echo subprocess should have 1 capability");
     anyhow::ensure!(m.contributes.surfaces.is_empty(), "echo subprocess should have 0 surfaces (triggers warning)");
     // Verify entry kind and trust level are accessible from manifest
-    let entry_kind = match &m.entry {
+    let entry_kind = match &m.entry.kind {
         ygg_core::PackageEntry::Subprocess { .. } => "subprocess",
         _ => anyhow::bail!("expected subprocess entry kind"),
     };

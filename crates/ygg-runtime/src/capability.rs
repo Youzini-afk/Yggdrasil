@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::RwLock;
-use schemars::JsonSchema;
-use ygg_core::{CapabilityDescriptor, CapabilityId, HookSubscription, PackageId};
+use schemars::{gen::SchemaGenerator, schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec}, JsonSchema};
+use uuid::Uuid;
+use ygg_core::{CapHandleId, CapabilityDescriptor, CapabilityId, HookSubscription, PackageId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RegisteredCapability {
@@ -14,7 +15,13 @@ pub struct RegisteredCapability {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityInvocationRequest {
-    pub capability_id: CapabilityId,
+    /// New preferred path: invoke by kernel-minted handle.
+    #[serde(default)]
+    pub handle: Option<CapHandleId>,
+    /// Legacy path. Runtime auto-mints a one-use transient handle when no
+    /// handle is supplied.
+    #[serde(default)]
+    pub capability_id: Option<CapabilityId>,
     #[serde(default)]
     pub caller_package_id: Option<PackageId>,
     #[serde(default)]
@@ -30,6 +37,17 @@ pub struct CapabilityInvocationResult {
     pub capability_id: CapabilityId,
     pub provider_package_id: PackageId,
     pub output: Value,
+    pub duration_ms: u64,
+    #[schemars(schema_with = "uuid_schema")]
+    pub correlation_id: Uuid,
+}
+
+fn uuid_schema(_gen: &mut SchemaGenerator) -> Schema {
+    let mut schema = SchemaObject::default();
+    schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::String)));
+    schema.format = Some("uuid".to_string());
+    schema.metadata = Some(Box::new(Metadata::default()));
+    Schema::Object(schema)
 }
 
 #[derive(Default)]

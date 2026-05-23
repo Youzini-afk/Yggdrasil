@@ -50,7 +50,8 @@ async fn invoke(
 ) -> anyhow::Result<ygg_runtime::CapabilityInvocationResult> {
     runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/{cap}"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/{cap}")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,

@@ -17,7 +17,7 @@ pub struct PackageManifest {
     pub author: Option<String>,
     #[serde(default)]
     pub license: Option<String>,
-    pub entry: PackageEntry,
+    pub entry: EntryDescriptor,
     #[serde(default)]
     pub provides: Vec<CapabilityDescriptor>,
     #[serde(default)]
@@ -31,6 +31,65 @@ pub struct PackageManifest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct EntryDescriptor {
+    #[serde(flatten)]
+    pub kind: PackageEntry,
+    /// Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`)
+    /// is a self-contained app hosted by the kernel without manifest contract
+    /// enforcement.
+    #[serde(default)]
+    pub contract: ContractMode,
+}
+
+impl std::ops::Deref for EntryDescriptor {
+    type Target = PackageEntry;
+
+    fn deref(&self) -> &Self::Target {
+        &self.kind
+    }
+}
+
+impl std::ops::DerefMut for EntryDescriptor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.kind
+    }
+}
+
+impl EntryDescriptor {
+    pub fn v1(kind: PackageEntry) -> Self {
+        Self { kind, contract: ContractMode::V1 }
+    }
+
+    pub fn contract_none(kind: PackageEntry) -> Self {
+        Self { kind, contract: ContractMode::None }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ContractMode {
+    /// Path A: full v1 contract enforcement (default).
+    V1,
+    /// Path B: self-contained app — kernel hosts process, no contract enforcement.
+    None,
+}
+
+impl std::fmt::Display for ContractMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::V1 => f.write_str("v1"),
+            Self::None => f.write_str("none"),
+        }
+    }
+}
+
+impl Default for ContractMode {
+    fn default() -> Self {
+        Self::V1
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PackageEntry {
     RustInproc {
@@ -40,6 +99,7 @@ pub enum PackageEntry {
     },
     Subprocess {
         command: Vec<String>,
+        #[serde(default)]
         transport: SubprocessTransport,
     },
     Wasm {
@@ -58,6 +118,12 @@ pub enum PackageEntry {
 pub enum SubprocessTransport {
     JsonRpcStdio,
     JsonRpcTcp,
+}
+
+impl Default for SubprocessTransport {
+    fn default() -> Self {
+        Self::JsonRpcStdio
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -393,7 +459,27 @@ impl PackageManifest {
                 validate_network_method(method)?;
             }
         }
+        if self.entry.contract == ContractMode::None {
+            match self.entry.kind {
+                PackageEntry::Wasm { .. } | PackageEntry::Remote { .. } => {
+                    return Err(ManifestError::InvalidContractMode {
+                        kind: self.entry_kind().to_string(),
+                        contract: self.entry.contract.clone(),
+                    });
+                }
+                PackageEntry::RustInproc { .. } | PackageEntry::Subprocess { .. } => {}
+            }
+        }
         Ok(())
+    }
+
+    pub fn entry_kind(&self) -> &'static str {
+        match &self.entry.kind {
+            PackageEntry::RustInproc { .. } => "rust_inproc",
+            PackageEntry::Subprocess { .. } => "subprocess",
+            PackageEntry::Wasm { .. } => "wasm",
+            PackageEntry::Remote { .. } => "remote",
+        }
     }
 }
 
@@ -439,6 +525,8 @@ pub enum ManifestError {
     InvalidSecretRef(String),
     #[error("invalid network method in permissions.network.declarations: {0}")]
     InvalidNetworkMethod(String),
+    #[error("contract mode '{contract:?}' is not valid for entry kind '{kind}'")]
+    InvalidContractMode { kind: String, contract: ContractMode },
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -493,11 +581,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-test".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),
@@ -526,11 +614,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-example".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: vec![CapabilityDescriptor {
                 id: "org/example/echo".to_string(),
                 version: "0.1.0".to_string(),
@@ -567,11 +655,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-test".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),
@@ -592,11 +680,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-test".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),
@@ -620,11 +708,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-test".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),
@@ -659,11 +747,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-test".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),
@@ -687,11 +775,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "org-test".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),
@@ -721,6 +809,40 @@ mod tests {
     fn manifest_network_method_websocket_parses() {
         let manifest = base_manifest_with_network_methods(vec!["WEBSOCKET".to_string()]);
         assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn contract_mode_defaults_to_v1_and_serializes_lowercase() {
+        let raw = serde_yaml::from_str::<PackageManifest>(r#"
+schema_version: 1
+id: org/test
+version: 0.1.0
+entry:
+  kind: subprocess
+  command: ["node", "index.mjs"]
+"#).expect("manifest parses");
+        assert_eq!(raw.entry.contract, ContractMode::V1);
+
+        let none = EntryDescriptor::contract_none(PackageEntry::Subprocess {
+            command: vec!["node".to_string(), "index.mjs".to_string()],
+            transport: SubprocessTransport::JsonRpcStdio,
+        });
+        let yaml = serde_yaml::to_string(&none).expect("entry serializes");
+        assert!(yaml.contains("contract: none"), "contract none should serialize as lowercase string: {yaml}");
+    }
+
+    #[test]
+    fn contract_none_rejected_for_wasm_and_remote() {
+        let mut wasm = base_manifest_with_network_methods(vec![]);
+        wasm.entry = EntryDescriptor::contract_none(PackageEntry::Wasm { module: "pkg.wasm".to_string(), abi_version: 1, memory_limit_mb: 64 });
+        assert!(matches!(wasm.validate_basic(), Err(ManifestError::InvalidContractMode { .. })));
+
+        let mut remote = base_manifest_with_network_methods(vec![]);
+        remote.entry = EntryDescriptor::contract_none(PackageEntry::Remote {
+            endpoint: "https://example.com/rpc".to_string(),
+            auth: RemoteAuth { scheme: "none".to_string(), config: Value::Null },
+        });
+        assert!(matches!(remote.validate_basic(), Err(ManifestError::InvalidContractMode { .. })));
     }
 
     #[test]

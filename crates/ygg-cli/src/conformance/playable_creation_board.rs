@@ -49,7 +49,8 @@ async fn invoke(
 ) -> anyhow::Result<ygg_runtime::CapabilityInvocationResult> {
     runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/{cap}"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/{cap}")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -316,7 +317,8 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     // Start run
     let start_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/start_run".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -328,7 +330,8 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     // Create candidate
     let cand = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/create_candidate".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/create_candidate".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -348,7 +351,8 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     // Draft promote proposal
     let promote = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/draft_promote_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/draft_promote_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -390,7 +394,8 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     // Start run + create candidate + draft promote
     let start_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/start_run".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -401,7 +406,8 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
 
     let cand = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/create_candidate".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/create_candidate".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -415,7 +421,8 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
 
     let promote = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/draft_promote_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/draft_promote_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,
@@ -437,7 +444,8 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     // Archive candidate = reject proof (target unchanged)
     let archive = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/agentic-forge-lab/archive_candidate".to_string(),
+            handle: None,
+            capability_id: Some("official/agentic-forge-lab/archive_candidate".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/agentic-forge-lab".to_string()),
             version: None,

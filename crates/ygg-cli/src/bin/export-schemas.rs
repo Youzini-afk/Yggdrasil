@@ -50,6 +50,16 @@ struct PermissionListParams { principal: Option<ProtocolPrincipal> }
 #[derive(JsonSchema)]
 struct OutboundAuditParams { package_id: String }
 #[derive(JsonSchema)]
+struct CapAttenuateParams { parent_handle: CapHandleId, #[schemars(schema_with = "json_value_schema")] constraints: Value }
+#[derive(JsonSchema)]
+struct CapRevokeParams { handle: CapHandleId }
+#[derive(JsonSchema)]
+struct CapListForParams { package_id: PackageId }
+#[derive(JsonSchema)]
+struct CapHandleResult { handle: CapHandle }
+#[derive(JsonSchema)]
+struct CapHandlesResult { handles: Vec<CapHandle> }
+#[derive(JsonSchema)]
 struct CapabilityStreamParams { capability_id: String, provider_package_id: Option<String>, #[schemars(schema_with = "json_value_schema")] input: Value }
 #[derive(JsonSchema)]
 struct CapabilityCancelParams { stream_id: Option<String>, invocation_id: Option<String>, session_id: Option<String> }
@@ -193,6 +203,9 @@ fn main() -> anyhow::Result<()> {
             KernelMethod::PackageList => (schema_value::<EmptyParams>(), json!({"type":"array","items":schema_value::<PackageRecord>()})),
             KernelMethod::CapabilityDiscover => (schema_value::<EmptyParams>(), json!({"type":"array","items":schema_value::<RegisteredCapability>()})),
             KernelMethod::CapabilityInvoke => (schema_value::<CapabilityInvocationRequest>(), schema_value::<CapabilityInvocationResult>()),
+            KernelMethod::CapabilityHandleAttenuate => (schema_value::<CapAttenuateParams>(), schema_value::<CapHandleResult>()),
+            KernelMethod::CapabilityHandleRevoke => (schema_value::<CapRevokeParams>(), json!({"type":"object"})),
+            KernelMethod::CapabilityHandleListFor => (schema_value::<CapListForParams>(), schema_value::<CapHandlesResult>()),
             KernelMethod::CapabilityStream => (schema_value::<CapabilityStreamParams>(), json!({"type":"object"})),
             KernelMethod::CapabilityCancel => (schema_value::<CapabilityCancelParams>(), schema_value::<StreamFrameEnvelope>()),
             KernelMethod::ExtensionPointList => (schema_value::<EmptyParams>(), json!({"type":"array","items":{"type":"string"}})),
@@ -228,7 +241,7 @@ fn main() -> anyhow::Result<()> {
 
     let events: Vec<(&str, Value)> = vec![
         (EVENT_SESSION_OPENED, json!({"type":"object"})), (EVENT_SESSION_CLOSED, json!({"type":"object"})), (EVENT_SESSION_FORKED, schema_value::<BranchRecord>()),
-        (EVENT_PACKAGE_LOADED, schema_value::<PackageRecord>()), (EVENT_PACKAGE_LOADING, json!({"type":"object"})), (EVENT_PACKAGE_STARTING, json!({"type":"object"})), (EVENT_PACKAGE_READY, json!({"type":"object"})), (EVENT_PACKAGE_STOPPING, json!({"type":"object"})), (EVENT_PACKAGE_STOPPED, json!({"type":"object"})), (EVENT_PACKAGE_UNLOADED, schema_value::<PackageRecord>()), (EVENT_PACKAGE_DEGRADED, json!({"type":"object"})), (EVENT_PACKAGE_LOG, schema_value::<SubprocessLogLine>()),
+        (EVENT_PACKAGE_LOADED, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_LOADING, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_STARTING, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_READY, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_STOPPING, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_STOPPED, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_UNLOADED, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_DEGRADED, schema_value::<PackageLifecyclePayload>()), (EVENT_PACKAGE_LOG, schema_value::<SubprocessLogLine>()),
         (EVENT_ASSET_PUT, schema_value::<AssetRecord>()), (EVENT_PROJECTION_UPDATED, schema_value::<ProjectionDefinition>()),
         (EVENT_PROPOSAL_CREATED, schema_value::<ProposalRecord>()), (EVENT_PROPOSAL_APPROVED, schema_value::<ProposalRecord>()), (EVENT_PROPOSAL_REJECTED, schema_value::<ProposalRecord>()), (EVENT_PROPOSAL_APPLIED, schema_value::<ProposalRecord>()), (EVENT_PROPOSAL_FAILED, schema_value::<ProposalRecord>()),
         (EVENT_CAPABILITY_INVOKED, json!({"type":"object"})), (EVENT_CAPABILITY_COMPLETED, schema_value::<CapabilityInvocationResult>()), (EVENT_CAPABILITY_FAILED, json!({"type":"object"})),

@@ -41,8 +41,9 @@ where
         }
 
         if request.writer_package_id != KERNEL_PACKAGE_ID {
-            match self.packages.permissions(&request.writer_package_id).await {
-                Some(permissions) if permissions.events.append => {}
+            match (self.is_contract_none_package(&request.writer_package_id).await, self.packages.permissions(&request.writer_package_id).await) {
+                (true, _) => {}
+                (_, Some(permissions)) if permissions.events.append => {}
                 _ => {
                     self.audit_permission_denied(
                         &request.session_id,
@@ -174,8 +175,9 @@ where
         caller_package_id: Option<&PackageId>,
     ) -> anyhow::Result<Vec<EventEnvelope>> {
         if let Some(caller) = caller_package_id {
-            match self.packages.permissions(caller).await {
-                Some(permissions) if permissions.events.read => {}
+            match (self.is_contract_none_package(caller).await, self.packages.permissions(caller).await) {
+                (true, _) => {}
+                (_, Some(permissions)) if permissions.events.read => {}
                 _ => {
                     self.audit_permission_denied(session_id, caller, "events.read").await?;
                     anyhow::bail!("package '{caller}' is not allowed to read events");
@@ -191,8 +193,9 @@ where
         caller_package_id: Option<&PackageId>,
     ) -> anyhow::Result<Vec<EventEnvelope>> {
         if let Some(caller) = caller_package_id {
-            match self.packages.permissions(caller).await {
-                Some(permissions) if permissions.events.read => {}
+            match (self.is_contract_none_package(caller).await, self.packages.permissions(caller).await) {
+                (true, _) => {}
+                (_, Some(permissions)) if permissions.events.read => {}
                 _ => {
                     self.audit_permission_denied(&request.session_id, caller, "events.read").await?;
                     anyhow::bail!("package '{caller}' is not allowed to read events");
@@ -248,7 +251,7 @@ mod tests {
     use std::sync::Arc;
 
     use serde_json::json;
-    use ygg_core::{PackageContributions, PackageEntry, PermissionSet, SandboxPolicy, EVENT_PERMISSION_DENIED};
+    use ygg_core::{EntryDescriptor, PackageContributions, PackageEntry, PermissionSet, SandboxPolicy, EVENT_PERMISSION_DENIED};
 
     use super::*;
     use crate::{InMemoryEventStore, RuntimeConfig};
@@ -287,11 +290,11 @@ mod tests {
                 description: None,
                 author: None,
                 license: None,
-                entry: PackageEntry::RustInproc {
+                entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                     crate_ref: "org-a".to_string(),
                     symbol: "register".to_string(),
                     abi_version: 1,
-                },
+                }),
                 provides: Vec::new(),
                 consumes: Vec::new(),
                 contributes: PackageContributions::default(),
@@ -355,11 +358,11 @@ mod tests {
                 description: None,
                 author: None,
                 license: None,
-                entry: PackageEntry::RustInproc {
+                entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                     crate_ref: "example-caller".to_string(),
                     symbol: "register".to_string(),
                     abi_version: 1,
-                },
+                }),
                 provides: Vec::new(),
                 consumes: Vec::new(),
                 contributes: PackageContributions::default(),

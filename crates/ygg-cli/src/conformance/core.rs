@@ -1,4 +1,8 @@
 use serde_json::json;
+use ygg_core::{
+    CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope,
+    EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
+};
 use ygg_runtime::{AppendEventRequest, CapabilityInvocationRequest, EventStore, OpenSessionRequest, ProtocolContext, RuntimeConfig};
 
 use super::fixtures::*;
@@ -123,7 +127,8 @@ pub(crate) async fn capability_invoke() -> anyhow::Result<()> {
     runtime.load_package(echo_package("example/echo-rust-inproc", "example/echo-rust-inproc/echo")).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/echo-rust-inproc/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/echo-rust-inproc/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -134,13 +139,169 @@ pub(crate) async fn capability_invoke() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn capability_handle_invoke() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/handle", "example/handle/echo")).await?;
+    let handle = mint_test_handle(&runtime, "example/handle", "example/handle/echo", None).await;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: Some(handle),
+            capability_id: None,
+            caller_package_id: Some("example/handle".to_string()),
+            provider_package_id: None,
+            version: None,
+            input: json!({"via": "handle"}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"via": "handle"}), "handle invoke mismatch");
+    Ok(())
+}
+
+pub(crate) async fn capability_handle_attenuate_invoke() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/attenuate", "example/attenuate/echo")).await?;
+    let parent = mint_test_handle(&runtime, "example/attenuate", "example/attenuate/echo", None).await;
+    let response = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.cap.attenuate",
+            json!({"parent_handle": parent, "constraints": {"max_bytes": 1024}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let child: CapHandle = serde_json::from_value(response["handle"].clone())?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: Some(child.id),
+            capability_id: None,
+            caller_package_id: Some("example/attenuate".to_string()),
+            provider_package_id: None,
+            version: None,
+            input: json!({"via": "attenuated"}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"via": "attenuated"}), "attenuated invoke mismatch");
+    Ok(())
+}
+
+pub(crate) async fn capability_handle_revoke_blocks_invoke() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/revoke", "example/revoke/echo")).await?;
+    let handle = mint_test_handle(&runtime, "example/revoke", "example/revoke/echo", None).await;
+    runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.cap.revoke",
+            json!({"handle": handle}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: Some(handle),
+            capability_id: None,
+            caller_package_id: Some("example/revoke".to_string()),
+            provider_package_id: None,
+            version: None,
+            input: json!({"blocked": true}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "revoked handle should fail");
+    Ok(())
+}
+
+pub(crate) async fn capability_auto_mint_legacy_invoke() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime.load_package(echo_package("example/legacy", "example/legacy/echo")).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("example/legacy/echo".to_string()),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"legacy": true}),
+        })
+        .await?;
+    anyhow::ensure!(result.output == json!({"legacy": true}), "legacy auto-mint invoke mismatch");
+    Ok(())
+}
+
+pub(crate) async fn capability_invoke_events_completed() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    runtime.load_package(echo_package("example/events", "example/events/echo")).await?;
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("example/events/echo".to_string()),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"events": true}),
+        })
+        .await?;
+    let invoked = store.list_kind_prefix(EVENT_CAPABILITY_INVOKED).await?;
+    let completed = store.list_kind_prefix(EVENT_CAPABILITY_COMPLETED).await?;
+    anyhow::ensure!(!invoked.is_empty() && !completed.is_empty(), "missing capability lifecycle events");
+    anyhow::ensure!(invoked[0].payload["correlation_id"] == completed[0].payload["correlation_id"], "correlation_id mismatch");
+    let duration_ms = completed[0].payload["duration_ms"].as_u64().ok_or_else(|| anyhow::anyhow!("duration missing"))?;
+    anyhow::ensure!((1..60_000).contains(&duration_ms), "duration should be non-zero and reasonable");
+    anyhow::ensure!(result.correlation_id.to_string() == completed[0].payload["correlation_id"].as_str().unwrap_or_default(), "result correlation mismatch");
+    Ok(())
+}
+
+pub(crate) async fn capability_invoke_events_failed() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    let denied = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("example/missing/echo".to_string()),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({}),
+        })
+        .await;
+    anyhow::ensure!(denied.is_err(), "missing capability should fail");
+    let failed = store.list_kind_prefix(EVENT_CAPABILITY_FAILED).await?;
+    anyhow::ensure!(!failed.is_empty(), "missing capability failed event");
+    let duration_ms = failed[0].payload["duration_ms"].as_u64().ok_or_else(|| anyhow::anyhow!("failed duration missing"))?;
+    anyhow::ensure!((1..60_000).contains(&duration_ms), "failed duration should be non-zero and reasonable");
+    Ok(())
+}
+
+async fn mint_test_handle(
+    runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>,
+    holder: &str,
+    capability_id: &str,
+    max_invocations: Option<u32>,
+) -> CapHandleId {
+    let handle = CapHandle {
+        id: CapHandleId::new(),
+        cap_type: capability_id.to_string(),
+        cap_version: "0.1.0".to_string(),
+        scope: HandleScope { holder_package_id: holder.to_string(), session_id: None },
+        constraints: json!({}),
+        lease: HandleLease { expires_at: None, max_invocations, invocations_used: 0 },
+        provenance: HandleProvenance {
+            granted_at: chrono::Utc::now(),
+            granted_by_package_id: "kernel".to_string(),
+            via_method: "package_load".to_string(),
+        },
+        parent: None,
+        revoked: false,
+    };
+    runtime.handles().mint(handle).await
+}
+
 pub(crate) async fn ambiguous_provider_denied() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(echo_package("example/provider-a", "example/shared/echo")).await?;
     runtime.load_package(echo_package("example/provider-b", "example/shared/echo")).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/shared/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/shared/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -157,7 +318,8 @@ pub(crate) async fn explicit_provider_selected() -> anyhow::Result<()> {
     runtime.load_package(echo_package("example/provider-b", "example/shared/selected")).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/shared/selected".to_string(),
+            handle: None,
+            capability_id: Some("example/shared/selected".to_string()),
             caller_package_id: None,
             provider_package_id: Some("example/provider-b".to_string()),
             version: Some("^0.1".to_string()),
@@ -174,7 +336,8 @@ pub(crate) async fn unload_removes_capability() -> anyhow::Result<()> {
     runtime.unload_package(&"example/temp".to_string()).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/temp/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/temp/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -191,7 +354,8 @@ pub(crate) async fn official_no_privilege() -> anyhow::Result<()> {
     runtime.load_package(echo_package("thirdparty/echo", "example/shared/echo")).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/shared/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/shared/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -214,7 +378,8 @@ pub(crate) async fn capability_schema_rejects_invalid() -> anyhow::Result<()> {
         .await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "example/schema-echo/echo".to_string(),
+            handle: None,
+            capability_id: Some("example/schema-echo/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,

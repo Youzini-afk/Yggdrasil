@@ -1,7 +1,7 @@
 use serde_json::json;
 use serde_json::Value;
 use ygg_core::{
-    CapabilityDescriptor, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
+    CapabilityDescriptor, EntryDescriptor, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
     RedactionState, SandboxPolicy, StreamFrameType, StreamInvocationState,
     EVENT_STREAM_CANCELLED, EVENT_STREAM_CHUNK, EVENT_STREAM_ENDED, EVENT_STREAM_ERROR,
     EVENT_STREAM_STARTED, EVENT_STREAM_TIMEOUT,
@@ -20,11 +20,11 @@ fn streaming_echo_package(id: &str, capability_id: &str, streaming: bool) -> Pac
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: capability_id.to_string(),
             version: "0.1.0".to_string(),

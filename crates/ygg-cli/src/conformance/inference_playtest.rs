@@ -34,7 +34,8 @@ async fn setup_both_labs() -> anyhow::Result<(ygg_runtime::Runtime<ygg_runtime::
 async fn invoke_inference_local(runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>) -> anyhow::Result<serde_json::Value> {
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-local-lab/invoke".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-local-lab".to_string()),
             version: None,
@@ -56,7 +57,8 @@ pub(crate) async fn inference_playtest_draft() -> anyhow::Result<()> {
 
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -130,7 +132,8 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
     // Draft a proposal
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -160,7 +163,8 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
     // Inspect the proposal
     let inspection = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/inspect_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/inspect_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -201,7 +205,8 @@ pub(crate) async fn inference_playtest_reject_apply_denied() -> anyhow::Result<(
 
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -264,7 +269,8 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
 
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -335,7 +341,8 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     // Get branch_plan from inference-playtest-lab
     let branch_plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/branch_plan".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/branch_plan".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -391,7 +398,8 @@ pub(crate) async fn inference_playtest_no_chat_kernel_terms() -> anyhow::Result<
     // Check draft_proposal
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,
@@ -432,7 +440,8 @@ pub(crate) async fn inference_playtest_no_chat_kernel_terms() -> anyhow::Result<
     // Check explain_flow
     let flow = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/inference-playtest-lab/explain_flow".to_string(),
+            handle: None,
+            capability_id: Some("official/inference-playtest-lab/explain_flow".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/inference-playtest-lab".to_string()),
             version: None,

@@ -1,5 +1,5 @@
 use serde_json::{json, Value};
-use ygg_core::{PackageEntry, PackageId, PackageManifest, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG, EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING, EVENT_PACKAGE_UNLOADED};
+use ygg_core::{ContractMode, PackageEntry, PackageId, PackageManifest, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED, EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG, EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING, EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING, EVENT_PACKAGE_UNLOADED};
 
 use super::Runtime;
 use crate::{EventStore, PackageRecord, PackageState};
@@ -8,8 +8,16 @@ impl<S> Runtime<S>
 where
     S: EventStore,
 {
+    pub(crate) async fn is_contract_none_package(&self, package_id: &PackageId) -> bool {
+        self.packages
+            .manifest(package_id)
+            .await
+            .map(|manifest| manifest.entry.contract == ContractMode::None)
+            .unwrap_or(false)
+    }
+
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
-        if let PackageEntry::RustInproc { crate_ref, symbol, .. } = &manifest.entry {
+        if let PackageEntry::RustInproc { crate_ref, symbol, .. } = &manifest.entry.kind {
             if !manifest.provides.is_empty() && self.config.inproc_packages.lookup(crate_ref, symbol).is_none() {
                 anyhow::bail!(
                     "rust_inproc entry '{}::{}' is not available in this host",
@@ -21,7 +29,7 @@ where
         let mut record = self.packages.load(manifest, &self.config.host_policy).await?;
         record = self.packages.set_state(&record.id, PackageState::Loading).await.unwrap_or(record);
         self.append_package_lifecycle_event(&record, EVENT_PACKAGE_LOADING, None).await?;
-        if matches!(record.manifest.entry, PackageEntry::Subprocess { .. }) {
+        if matches!(record.manifest.entry.kind, PackageEntry::Subprocess { .. }) {
             record = self
                 .packages
                 .set_state(&record.id, PackageState::Starting)
@@ -73,7 +81,7 @@ where
             .package_status(package_id)
             .await
             .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?;
-        if !matches!(record.manifest.entry, PackageEntry::Subprocess { .. }) {
+        if !matches!(record.manifest.entry.kind, PackageEntry::Subprocess { .. }) {
             anyhow::bail!("package '{package_id}' entry kind '{}' cannot restart yet", record.entry_kind);
         }
         if let Some(stopping) = self.packages.set_state(package_id, PackageState::Stopping).await {
@@ -176,6 +184,10 @@ where
             "version": record.version,
             "state": record.state,
             "entry_kind": record.entry_kind,
+            "contract_mode": match record.manifest.entry.contract {
+                ContractMode::V1 => "v1",
+                ContractMode::None => "none",
+            },
             "capability_count": record.capability_count,
             "hook_count": record.hook_count,
             "extension_point_count": record.extension_point_count,
@@ -207,7 +219,7 @@ mod tests {
     use std::sync::Arc;
 
     use serde_json::Value;
-    use ygg_core::{PackageContributions, PackageEntry, PermissionSet, SandboxPolicy,
+    use ygg_core::{EntryDescriptor, PackageContributions, PackageEntry, PermissionSet, SandboxPolicy,
         EVENT_PACKAGE_LOADING, EVENT_PACKAGE_READY, EVENT_PACKAGE_LOADED};
 
     use super::*;
@@ -227,11 +239,11 @@ mod tests {
                 description: None,
                 author: None,
                 license: None,
-                entry: PackageEntry::RustInproc {
+                entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                     crate_ref: "org-pkg".to_string(),
                     symbol: "register".to_string(),
                     abi_version: 1,
-                },
+                }),
                 provides: Vec::new(),
                 consumes: Vec::new(),
                 contributes: PackageContributions::default(),
@@ -262,11 +274,11 @@ mod tests {
                 description: None,
                 author: None,
                 license: None,
-                entry: PackageEntry::RustInproc {
+                entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                     crate_ref: "missing-crate".to_string(),
                     symbol: "register".to_string(),
                     abi_version: 1,
-                },
+                }),
                 provides: vec![ygg_core::CapabilityDescriptor {
                     id: "example/missing/echo".to_string(),
                     version: "0.1.0".to_string(),

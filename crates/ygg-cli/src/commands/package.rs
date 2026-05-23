@@ -30,13 +30,13 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     manifest.validate_basic()?;
 
     // Structured diagnostics
-    let entry_kind = match &manifest.entry {
+    let entry_kind = match &manifest.entry.kind {
         PackageEntry::RustInproc { .. } => "rust_inproc",
         PackageEntry::Subprocess { .. } => "subprocess",
         PackageEntry::Wasm { .. } => "wasm",
         PackageEntry::Remote { .. } => "remote",
     };
-    let trust_level = match &manifest.entry {
+    let trust_level = match &manifest.entry.kind {
         PackageEntry::RustInproc { .. } => "trusted_inproc",
         PackageEntry::Subprocess { .. } => "process_isolated",
         PackageEntry::Wasm { .. } => "wasm_sandbox",
@@ -489,7 +489,8 @@ pub(crate) async fn package_run_fixture(path: PathBuf) -> Result<()> {
                 let input = json!({"fixture": true});
                 let result = runtime
                     .invoke_capability(CapabilityInvocationRequest {
-                        capability_id: cap.id.clone(),
+                        handle: None,
+                        capability_id: Some(cap.id.clone()),
                         caller_package_id: None,
                         provider_package_id: None,
                         version: None,
@@ -571,7 +572,7 @@ pub(crate) async fn package_invoke_local(path: PathBuf, capability_id: String, i
     let runtime = Runtime::new(store, RuntimeConfig::default());
     runtime.load_package(manifest).await?;
     let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { capability_id, caller_package_id: None, provider_package_id: None, version: None, input: payload })
+        .invoke_capability(CapabilityInvocationRequest { handle: None, capability_id: Some(capability_id), caller_package_id: None, provider_package_id: None, version: None, input: payload })
         .await?;
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
@@ -591,7 +592,8 @@ pub(crate) async fn package_conformance(path: PathBuf) -> Result<()> {
     runtime.load_package(manifest).await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: capability,
+            handle: None,
+            capability_id: Some(capability),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -609,13 +611,13 @@ pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
     let manifest = read_manifest(path.clone()).await?;
     manifest.validate_basic()?;
 
-    let entry_kind = match &manifest.entry {
+    let entry_kind = match &manifest.entry.kind {
         PackageEntry::RustInproc { .. } => "rust_inproc",
         PackageEntry::Subprocess { .. } => "subprocess",
         PackageEntry::Wasm { .. } => "wasm",
         PackageEntry::Remote { .. } => "remote",
     };
-    let can_restart = matches!(manifest.entry, PackageEntry::Subprocess { .. });
+    let can_restart = matches!(manifest.entry.kind, PackageEntry::Subprocess { .. });
     let package_id = manifest.id.clone();
 
     let store = Arc::new(InMemoryEventStore::default());

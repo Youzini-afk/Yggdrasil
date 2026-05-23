@@ -17,7 +17,8 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
     }
     let echo = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/package-lab/echo".to_string(),
+            handle: None,
+            capability_id: Some("official/package-lab/echo".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -27,7 +28,8 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
     anyhow::ensure!(echo.output == json!({"official": "ordinary"}), "package-lab echo failed");
     let schema = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/schema-tools/validate".to_string(),
+            handle: None,
+            capability_id: Some("official/schema-tools/validate".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -37,7 +39,8 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
     anyhow::ensure!(schema.output["valid"] == json!(true), "schema-tools validate failed");
     let events = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/event-tools/summarize".to_string(),
+            handle: None,
+            capability_id: Some("official/event-tools/summarize".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,

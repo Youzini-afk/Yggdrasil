@@ -38,7 +38,8 @@ pub(crate) async fn experience_runtime_describe_contract() -> anyhow::Result<()>
 
     let contract = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/describe_contract"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/describe_contract")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -148,7 +149,8 @@ pub(crate) async fn experience_runtime_checkpoint_shape() -> anyhow::Result<()> 
 
     let checkpoint = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/create_checkpoint"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/create_checkpoint")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -190,7 +192,8 @@ pub(crate) async fn experience_runtime_checkpoint_shape() -> anyhow::Result<()> 
     // Inspect checkpoint
     let inspection = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/inspect_checkpoint"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/inspect_checkpoint")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -224,7 +227,8 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
     // With checkpoint available
     let recovery_with_cp = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/draft_recovery"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/draft_recovery")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -264,7 +268,8 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
     // Without checkpoint
     let recovery_no_cp = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/draft_recovery"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/draft_recovery")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,
@@ -314,7 +319,8 @@ pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<(
     for cap in &caps {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: cap.clone(),
+                handle: None,
+                capability_id: Some(cap.clone()),
                 caller_package_id: None,
                 provider_package_id: Some(PACKAGE_ID.to_string()),
                 version: None,
@@ -467,7 +473,8 @@ pub(crate) async fn experience_runtime_bind_agent_run() -> anyhow::Result<()> {
 
     let binding = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: format!("{PACKAGE_ID}/bind_agent_run"),
+            handle: None,
+            capability_id: Some(format!("{PACKAGE_ID}/bind_agent_run")),
             caller_package_id: None,
             provider_package_id: Some(PACKAGE_ID.to_string()),
             version: None,

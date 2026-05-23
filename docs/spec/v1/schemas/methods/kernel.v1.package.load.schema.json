@@ -103,6 +103,149 @@
           ],
           "type": "object"
         },
+        "ContractMode": {
+          "oneOf": [
+            {
+              "description": "Path A: full v1 contract enforcement (default).",
+              "enum": [
+                "v1"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Path B: self-contained app — kernel hosts process, no contract enforcement.",
+              "enum": [
+                "none"
+              ],
+              "type": "string"
+            }
+          ]
+        },
+        "EntryDescriptor": {
+          "oneOf": [
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "crate_ref": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "rust_inproc"
+                  ],
+                  "type": "string"
+                },
+                "symbol": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "crate_ref",
+                "kind",
+                "symbol"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "command": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "kind": {
+                  "enum": [
+                    "subprocess"
+                  ],
+                  "type": "string"
+                },
+                "transport": {
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/SubprocessTransport"
+                    }
+                  ],
+                  "default": "json_rpc_stdio"
+                }
+              },
+              "required": [
+                "command",
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "wasm"
+                  ],
+                  "type": "string"
+                },
+                "memory_limit_mb": {
+                  "format": "uint64",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "module": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "kind",
+                "memory_limit_mb",
+                "module"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "auth": {
+                  "$ref": "#/definitions/RemoteAuth"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "remote"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "auth",
+                "endpoint",
+                "kind"
+              ],
+              "type": "object"
+            }
+          ],
+          "properties": {
+            "contract": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ContractMode"
+                }
+              ],
+              "default": "v1",
+              "description": "Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement."
+            }
+          },
+          "type": "object"
+        },
         "EventPermissions": {
           "properties": {
             "append": {
@@ -291,115 +434,6 @@
             }
           },
           "type": "object"
-        },
-        "PackageEntry": {
-          "oneOf": [
-            {
-              "properties": {
-                "abi_version": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "crate_ref": {
-                  "type": "string"
-                },
-                "kind": {
-                  "enum": [
-                    "rust_inproc"
-                  ],
-                  "type": "string"
-                },
-                "symbol": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "abi_version",
-                "crate_ref",
-                "kind",
-                "symbol"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "command": {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "kind": {
-                  "enum": [
-                    "subprocess"
-                  ],
-                  "type": "string"
-                },
-                "transport": {
-                  "$ref": "#/definitions/SubprocessTransport"
-                }
-              },
-              "required": [
-                "command",
-                "kind",
-                "transport"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "abi_version": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "kind": {
-                  "enum": [
-                    "wasm"
-                  ],
-                  "type": "string"
-                },
-                "memory_limit_mb": {
-                  "format": "uint64",
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "module": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "abi_version",
-                "kind",
-                "memory_limit_mb",
-                "module"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "auth": {
-                  "$ref": "#/definitions/RemoteAuth"
-                },
-                "endpoint": {
-                  "type": "string"
-                },
-                "kind": {
-                  "enum": [
-                    "remote"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "auth",
-                "endpoint",
-                "kind"
-              ],
-              "type": "object"
-            }
-          ]
         },
         "PackagePermissions": {
           "properties": {
@@ -750,7 +784,7 @@
           ]
         },
         "entry": {
-          "$ref": "#/definitions/PackageEntry"
+          "$ref": "#/definitions/EntryDescriptor"
         },
         "id": {
           "type": "string"
@@ -913,6 +947,149 @@
             "id",
             "version"
           ],
+          "type": "object"
+        },
+        "ContractMode": {
+          "oneOf": [
+            {
+              "description": "Path A: full v1 contract enforcement (default).",
+              "enum": [
+                "v1"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Path B: self-contained app — kernel hosts process, no contract enforcement.",
+              "enum": [
+                "none"
+              ],
+              "type": "string"
+            }
+          ]
+        },
+        "EntryDescriptor": {
+          "oneOf": [
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "crate_ref": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "rust_inproc"
+                  ],
+                  "type": "string"
+                },
+                "symbol": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "crate_ref",
+                "kind",
+                "symbol"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "command": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "kind": {
+                  "enum": [
+                    "subprocess"
+                  ],
+                  "type": "string"
+                },
+                "transport": {
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/SubprocessTransport"
+                    }
+                  ],
+                  "default": "json_rpc_stdio"
+                }
+              },
+              "required": [
+                "command",
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "abi_version": {
+                  "format": "uint16",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "wasm"
+                  ],
+                  "type": "string"
+                },
+                "memory_limit_mb": {
+                  "format": "uint64",
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "module": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "abi_version",
+                "kind",
+                "memory_limit_mb",
+                "module"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "auth": {
+                  "$ref": "#/definitions/RemoteAuth"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "remote"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "auth",
+                "endpoint",
+                "kind"
+              ],
+              "type": "object"
+            }
+          ],
+          "properties": {
+            "contract": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ContractMode"
+                }
+              ],
+              "default": "v1",
+              "description": "Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement."
+            }
+          },
           "type": "object"
         },
         "EventPermissions": {
@@ -1104,115 +1281,6 @@
           },
           "type": "object"
         },
-        "PackageEntry": {
-          "oneOf": [
-            {
-              "properties": {
-                "abi_version": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "crate_ref": {
-                  "type": "string"
-                },
-                "kind": {
-                  "enum": [
-                    "rust_inproc"
-                  ],
-                  "type": "string"
-                },
-                "symbol": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "abi_version",
-                "crate_ref",
-                "kind",
-                "symbol"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "command": {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "kind": {
-                  "enum": [
-                    "subprocess"
-                  ],
-                  "type": "string"
-                },
-                "transport": {
-                  "$ref": "#/definitions/SubprocessTransport"
-                }
-              },
-              "required": [
-                "command",
-                "kind",
-                "transport"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "abi_version": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "kind": {
-                  "enum": [
-                    "wasm"
-                  ],
-                  "type": "string"
-                },
-                "memory_limit_mb": {
-                  "format": "uint64",
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "module": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "abi_version",
-                "kind",
-                "memory_limit_mb",
-                "module"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "auth": {
-                  "$ref": "#/definitions/RemoteAuth"
-                },
-                "endpoint": {
-                  "type": "string"
-                },
-                "kind": {
-                  "enum": [
-                    "remote"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "auth",
-                "endpoint",
-                "kind"
-              ],
-              "type": "object"
-            }
-          ]
-        },
         "PackageManifest": {
           "properties": {
             "author": {
@@ -1257,7 +1325,7 @@
               ]
             },
             "entry": {
-              "$ref": "#/definitions/PackageEntry"
+              "$ref": "#/definitions/EntryDescriptor"
             },
             "id": {
               "type": "string"

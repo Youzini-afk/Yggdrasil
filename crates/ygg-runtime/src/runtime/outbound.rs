@@ -508,6 +508,9 @@ pub struct GitOutboundRequest {
     /// Opaque package-owned metadata. Must not contain raw secrets.
     #[serde(default)]
     pub metadata: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(skip)]
+    pub correlation_id: Option<uuid::Uuid>,
 }
 
 /// Response returned by a git outbound executor.
@@ -1965,6 +1968,7 @@ where
         let destination_host = policy_request.destination_host.clone();
         let method = policy_request.method.clone();
         let secret_refs_used = policy_request.secret_refs_used.clone();
+        let correlation_id = policy_request.correlation_id;
 
         // Step 1: Policy check + audit. If denied, this returns an
         // error and the executor is never called.
@@ -1984,6 +1988,7 @@ where
                 network_performed: false,
                 redaction_state: RedactionState::NotCaptured,
                 secret_refs_used: &secret_refs_used,
+                correlation_id,
             })
             .await?;
             return Err(err);
@@ -2009,6 +2014,7 @@ where
                     network_performed: false,
                     redaction_state: RedactionState::Redacted,
                     secret_refs_used: &secret_refs_used,
+                    correlation_id,
                 })
                 .await?;
                 return Err(err);
@@ -2030,6 +2036,7 @@ where
             network_performed: response.network_performed,
             redaction_state: response.redaction_state,
             secret_refs_used: &secret_refs_used,
+            correlation_id,
         })
         .await?;
 
@@ -2137,7 +2144,7 @@ where
             .permissions(&request.package_id)
             .await
             .unwrap_or_default();
-        if !permissions
+        if !self.is_contract_none_package(&request.package_id).await && !permissions
             .git_fetch
             .hosts
             .iter()
@@ -2280,6 +2287,7 @@ fn git_audit_payload(
         "secret_refs_used": request.secret_refs,
         "network_performed": response.map(|r| r.network_performed).unwrap_or(false),
         "executor_kind": response.map(|r| r.executor_kind),
+        "correlation_id": request.correlation_id,
     })
 }
 
@@ -2537,6 +2545,7 @@ mod tests {
             redaction_state: None,
             timeout_ms: None,
             metadata: Value::Null,
+        correlation_id: None,
         };
         let response = executor.fetch(request).await.unwrap();
         assert_eq!(response.status, "denied");
@@ -2685,6 +2694,7 @@ mod tests {
             method: "POST".to_string(),
             purpose: None,
             secret_refs_used: vec!["secret_ref:env:KEY".to_string()],
+        correlation_id: None,
         };
         let executor = OutboundExecutorRequest {
             package_id: "test/pkg".to_string(),

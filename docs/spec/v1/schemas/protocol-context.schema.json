@@ -109,6 +109,22 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "correlation_id": {
+      "default": null,
+      "format": "uuid",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "parent_invocation_id": {
+      "default": null,
+      "format": "uuid",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "principal": {
       "$ref": "#/definitions/ProtocolPrincipal"
     },

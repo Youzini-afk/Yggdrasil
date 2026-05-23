@@ -12,3 +12,6 @@ serde_json.workspace = true
 schemars.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+serde_yaml.workspace = true

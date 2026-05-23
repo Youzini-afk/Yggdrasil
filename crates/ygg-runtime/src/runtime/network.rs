@@ -9,6 +9,7 @@
 //! audit event and before the request is forwarded.
 
 use serde_json::{json, Value};
+use uuid::Uuid;
 use ygg_core::{
     new_id, CapabilityId, NetworkDeclaration, NetworkPermissions, OutboundAuditRecord, PackageId,
     RedactionState, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED,
@@ -139,6 +140,8 @@ pub struct OutboundRequest {
     pub purpose: Option<String>,
     /// Secret references used (not raw secrets).
     pub secret_refs_used: Vec<String>,
+    #[allow(dead_code)]
+    pub correlation_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,6 +160,7 @@ pub struct OutboundExecuteCompletion<'a> {
     pub network_performed: bool,
     pub redaction_state: RedactionState,
     pub secret_refs_used: &'a [String],
+    pub correlation_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
@@ -176,6 +180,7 @@ pub struct OutboundStreamCompletion<'a> {
     pub network_performed: bool,
     pub redaction_state: RedactionState,
     pub secret_refs_used: &'a [String],
+    pub correlation_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
@@ -196,6 +201,7 @@ pub struct OutboundWebSocketCompletion<'a> {
     pub network_performed: bool,
     pub redaction_state: RedactionState,
     pub secret_refs_used: &'a [String],
+    pub correlation_id: Option<Uuid>,
 }
 
 impl<S> Runtime<S>
@@ -211,14 +217,23 @@ where
         &self,
         request: OutboundRequest,
     ) -> anyhow::Result<OutboundAuditRecord> {
+        let contract_none = self.is_contract_none_package(&request.package_id).await;
         let permissions = self.packages.permissions(&request.package_id).await;
         let permissions = permissions.unwrap_or_default();
 
-        let decision = check_network_policy(
-            &permissions.network,
-            &request.destination_host,
-            &request.method,
-        );
+        let decision = if contract_none {
+            NetworkPolicyDecision {
+                allowed: true,
+                denial_reason: None,
+                matched_declaration: None,
+            }
+        } else {
+            check_network_policy(
+                &permissions.network,
+                &request.destination_host,
+                &request.method,
+            )
+        };
 
         let principal_str = serde_json::to_string(&request.principal)
             .unwrap_or_else(|_| "\"unknown\"".to_string());
@@ -306,6 +321,7 @@ where
                 "network_performed": completion.network_performed,
                 "redaction_state": completion.redaction_state,
                 "secret_refs_used": completion.secret_refs_used,
+                "correlation_id": completion.correlation_id,
             }),
         )
         .await?;
@@ -337,6 +353,7 @@ where
                 "network_performed": completion.network_performed,
                 "redaction_state": completion.redaction_state,
                 "secret_refs_used": completion.secret_refs_used,
+                "correlation_id": completion.correlation_id,
             }),
         )
         .await
@@ -389,6 +406,7 @@ pub(crate) fn websocket_completed_payload(completion: &OutboundWebSocketCompleti
         "network_performed": completion.network_performed,
         "redaction_state": completion.redaction_state,
         "secret_refs_used": completion.secret_refs_used,
+        "correlation_id": completion.correlation_id,
     })
 }
 

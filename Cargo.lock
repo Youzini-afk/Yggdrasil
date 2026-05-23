@@ -6182,6 +6182,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "clap",
  "jsonschema",
  "schemars 0.8.22",
@@ -6204,6 +6205,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror 1.0.69",
  "uuid",
 ]

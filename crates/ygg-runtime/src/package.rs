@@ -41,8 +41,8 @@ impl PackageRecord {
             id: manifest.id.clone(),
             version: manifest.version.clone(),
             state: PackageState::Ready,
-            entry_kind: entry_kind(&manifest.entry).to_string(),
-            trust_level: trust_level(&manifest.entry),
+            entry_kind: entry_kind(&manifest.entry.kind).to_string(),
+            trust_level: trust_level(&manifest.entry.kind),
             capability_count: manifest.provides.len(),
             hook_count: manifest.contributes.hooks.len(),
             extension_point_count: manifest.contributes.extension_points.len(),
@@ -84,7 +84,7 @@ impl Default for HostPolicy {
 
 impl HostPolicy {
     pub fn validate(&self, manifest: &PackageManifest) -> anyhow::Result<()> {
-        let kind = entry_kind(&manifest.entry);
+        let kind = entry_kind(&manifest.entry.kind);
         if !self.allowed_entry_kinds.iter().any(|allowed| allowed == kind) {
             anyhow::bail!("entry kind '{kind}' is not allowed by host policy");
         }
@@ -177,7 +177,7 @@ pub fn trust_level(entry: &PackageEntry) -> TrustLevel {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
-    use ygg_core::{PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy};
+    use ygg_core::{EntryDescriptor, PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy};
 
     use super::*;
 
@@ -190,11 +190,11 @@ mod tests {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "example".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: Vec::new(),
             consumes: Vec::new(),
             contributes: PackageContributions::default(),

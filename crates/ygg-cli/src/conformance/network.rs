@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 use ygg_core::{
-    CapabilityDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
+    CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
     PackageEntry, PackageManifest, PermissionSet, RedactionState, SandboxPolicy,
     EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED, EVENT_OUTBOUND_REQUEST,
     EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED, EVENT_STREAM_CHUNK,
@@ -54,11 +54,11 @@ fn network_package_with_secret_refs(
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: format!("{id}/fetch"),
             version: "0.1.0".to_string(),
@@ -95,6 +95,7 @@ pub(crate) async fn no_network_permission_denied() -> anyhow::Result<()> {
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
+        correlation_id: None,
         })
         .await;
 
@@ -145,6 +146,7 @@ pub(crate) async fn allowlisted_host_method_allowed() -> anyhow::Result<()> {
             method: "POST".to_string(),
             purpose: None,
             secret_refs_used: vec!["secret_ref:env:MY_KEY".to_string()],
+        correlation_id: None,
         })
         .await?;
 
@@ -202,6 +204,7 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
             method: "DELETE".to_string(),
             purpose: None,
             secret_refs_used: vec![],
+        correlation_id: None,
         })
         .await;
     anyhow::ensure!(result.is_err(), "wrong method should be denied");
@@ -218,6 +221,7 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
+        correlation_id: None,
         })
         .await;
     anyhow::ensure!(result2.is_err(), "wrong host should be denied");
@@ -249,6 +253,7 @@ pub(crate) async fn official_no_network_bypass() -> anyhow::Result<()> {
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
+        correlation_id: None,
         })
         .await;
 
@@ -285,6 +290,7 @@ pub(crate) async fn audit_no_raw_secrets() -> anyhow::Result<()> {
                 "secret_ref:env:MY_API_KEY".to_string(),
                 "host:internal_key".to_string(),
             ],
+        correlation_id: None,
         })
         .await?;
 
@@ -433,6 +439,7 @@ pub(crate) async fn outbound_no_permission_executor_not_called() -> anyhow::Resu
                 method: "GET".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-no-net".to_string(),
@@ -491,6 +498,7 @@ pub(crate) async fn outbound_policy_executor_mismatch_denied() -> anyhow::Result
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec!["secret_ref:env:KEY".to_string()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-mismatch".to_string(),
@@ -544,6 +552,7 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec!["secret_ref:env:OPENAI_KEY".to_string()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-allowlisted".to_string(),
@@ -628,6 +637,7 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-raw-body".to_string(),
@@ -715,6 +725,7 @@ pub(crate) async fn outbound_secret_refs_only() -> anyhow::Result<()> {
                     "secret_ref:env:MY_API_KEY".to_string(),
                     "host:internal_token".to_string(),
                 ],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-secret-refs".to_string(),
@@ -803,6 +814,7 @@ pub(crate) async fn outbound_host_mismatch_redirect_denied() -> anyhow::Result<(
                 method: "GET".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-redirect".to_string(),
@@ -883,6 +895,7 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -917,6 +930,7 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -950,6 +964,7 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -1017,6 +1032,7 @@ pub(crate) async fn outbound_live_http_default_disabled() -> anyhow::Result<()> 
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
+        correlation_id: None,
         })
         .await;
 
@@ -1489,6 +1505,7 @@ pub(crate) async fn outbound_execute_profile_fake_executor_works() -> anyhow::Re
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
+            correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/y1-fake".to_string(),
@@ -1788,6 +1805,16 @@ pub(crate) async fn outbound_execute_completed_audit_emitted() -> anyhow::Result
     Ok(())
 }
 
+pub(crate) async fn outbound_execute_correlation_id_propagates() -> anyhow::Result<()> {
+    let (store, runtime, _fake) = runtime_with_fake_executor();
+    runtime.load_package(network_package("example/z7-exec-correlation", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
+    let context = ygg_runtime::ProtocolContext::package("example/z7-exec-correlation", "in_process");
+    runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-correlation/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
+    anyhow::ensure!(events[0].payload.get("correlation_id").and_then(|v| v.as_str()) == context.correlation_id.as_ref().map(|id| id.to_string()).as_deref(), "outbound completion correlation_id should match context");
+    Ok(())
+}
+
 pub(crate) async fn outbound_stream_completed_audit_emitted() -> anyhow::Result<()> {
     let (store, runtime, _fake) = runtime_with_fake_stream_executor();
     runtime.load_package(network_package("example/z7-stream-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
@@ -1827,11 +1854,11 @@ fn package_with_secret_refs(
         description: None,
         author: None,
         license: None,
-        entry: PackageEntry::RustInproc {
+        entry: EntryDescriptor::v1(PackageEntry::RustInproc {
             crate_ref: "example-echo-rust-inproc".to_string(),
             symbol: "register".to_string(),
             abi_version: 1,
-        },
+        }),
         provides: vec![CapabilityDescriptor {
             id: format!("{id}/fetch"),
             version: "0.1.0".to_string(),

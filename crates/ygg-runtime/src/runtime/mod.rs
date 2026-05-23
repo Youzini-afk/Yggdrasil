@@ -15,6 +15,7 @@ mod assets;
 mod branches;
 mod capabilities;
 mod events;
+mod handles;
 mod hooks;
 mod network;
 mod outbound;
@@ -34,6 +35,7 @@ pub use self::assets::{
 };
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
+pub use self::handles::HandleTable;
 pub use self::network::{
     check_network_policy, NetworkPolicyDecision, OutboundExecuteCompletion, OutboundRequest,
     OutboundStreamCompletion, OutboundWebSocketCompletion,
@@ -123,6 +125,7 @@ where
     pub(crate) store: Arc<S>,
     pub(crate) packages: Arc<crate::PackageRegistry>,
     pub(crate) capabilities: Arc<crate::CapabilityFabric>,
+    pub(crate) handles: Arc<HandleTable>,
     pub(crate) extensions: Arc<crate::ExtensionRegistry>,
     pub(crate) subprocesses: Arc<crate::SubprocessSupervisor>,
     pub(crate) sessions: Arc<RwLock<HashMap<SessionId, KernelSession>>>,
@@ -144,6 +147,7 @@ where
             store: self.store.clone(),
             packages: self.packages.clone(),
             capabilities: self.capabilities.clone(),
+            handles: self.handles.clone(),
             extensions: self.extensions.clone(),
             subprocesses: self.subprocesses.clone(),
             sessions: self.sessions.clone(),
@@ -167,6 +171,7 @@ where
             store,
             packages: Arc::new(crate::PackageRegistry::default()),
             capabilities: Arc::new(crate::CapabilityFabric::default()),
+            handles: Arc::new(HandleTable::default()),
             extensions: Arc::new(crate::ExtensionRegistry::default()),
             subprocesses: Arc::new(crate::SubprocessSupervisor::default()),
             sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -194,6 +199,10 @@ where
 
     pub fn capabilities(&self) -> Arc<crate::CapabilityFabric> {
         self.capabilities.clone()
+    }
+
+    pub fn handles(&self) -> Arc<HandleTable> {
+        self.handles.clone()
     }
 
     pub fn extensions(&self) -> Arc<crate::ExtensionRegistry> {

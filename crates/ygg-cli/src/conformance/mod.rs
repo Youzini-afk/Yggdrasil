@@ -79,6 +79,12 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("event.closed_session_rejects_append", ["runtime", "event"], core::closed_session_rejects_append),
         c!("event.range_replay", ["runtime", "event"], core::event_range_replay),
         c!("capability.invoke_rust_inproc", ["runtime", "capability"], core::capability_invoke),
+        c!("capability.handle_invoke", ["runtime", "capability", "handle"], core::capability_handle_invoke),
+        c!("capability.handle_attenuate_invoke", ["runtime", "capability", "handle"], core::capability_handle_attenuate_invoke),
+        c!("capability.handle_revoke_blocks_invoke", ["runtime", "capability", "handle"], core::capability_handle_revoke_blocks_invoke),
+        c!("capability.auto_mint_legacy_invoke", ["runtime", "capability", "handle"], core::capability_auto_mint_legacy_invoke),
+        c!("capability.invoke_events_completed", ["runtime", "capability", "audit"], core::capability_invoke_events_completed),
+        c!("capability.invoke_events_failed", ["runtime", "capability", "audit"], core::capability_invoke_events_failed),
         c!("capability.ambiguous_provider_denied", ["runtime", "capability"], core::ambiguous_provider_denied),
         c!("capability.explicit_provider_selected", ["runtime", "capability"], core::explicit_provider_selected),
         c!("package.unload_removes_capability", ["runtime", "package"], core::unload_removes_capability),
@@ -95,6 +101,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("subprocess.load_ready", ["subprocess", "slow"], subprocess::subprocess_load_ready),
         c!("subprocess.invoke_echo", ["subprocess", "slow"], subprocess::subprocess_invoke_echo),
         c!("package.lifecycle_timeline", ["subprocess", "package", "slow"], subprocess::package_lifecycle_timeline),
+        c!("package.path_b_self_contained", ["subprocess", "package", "path_b", "slow"], subprocess::path_b_self_contained_contract_none),
         c!("package.logs_capture", ["subprocess", "package", "slow"], subprocess::package_logs_capture),
         c!("package.restart_subprocess", ["subprocess", "package", "slow"], subprocess::package_restart_subprocess),
         // --- host ---
@@ -228,6 +235,7 @@ fn build_cases() -> Vec<ConformanceCase> {
         c!("outbound_websocket.max_concurrent_connections_enforced", ["outbound", "network", "websocket"], network::outbound_websocket_max_concurrent_connections_enforced),
         c!("outbound_websocket.cancel_via_capability_cancel", ["outbound", "network", "websocket"], network::outbound_websocket_cancel_via_capability_cancel),
         c!("outbound.execute_completed_audit_emitted", ["outbound", "network", "audit"], network::outbound_execute_completed_audit_emitted),
+        c!("outbound.execute_correlation_id_propagates", ["outbound", "network", "audit"], network::outbound_execute_correlation_id_propagates),
         c!("outbound.stream_completed_audit_emitted", ["outbound", "network", "stream", "audit"], network::outbound_stream_completed_audit_emitted),
         c!("outbound.websocket_completed_audit_emitted", ["outbound", "network", "websocket", "audit"], network::outbound_websocket_completed_audit_emitted),
         // --- Y2: manifest permissions.secret_refs conformance ---

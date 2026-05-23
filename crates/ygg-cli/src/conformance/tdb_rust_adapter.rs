@@ -18,7 +18,8 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
 
     let described = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/tdb-rust-adapter/describe_real_tdb_adapter".to_string(),
+            handle: None,
+            capability_id: Some("official/tdb-rust-adapter/describe_real_tdb_adapter".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/tdb-rust-adapter".to_string()),
             version: None,
@@ -31,7 +32,8 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
 
     let smoke = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/tdb-rust-adapter/run_real_tdb_smoke".to_string(),
+            handle: None,
+            capability_id: Some("official/tdb-rust-adapter/run_real_tdb_smoke".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/tdb-rust-adapter".to_string()),
             version: None,
@@ -51,7 +53,8 @@ pub(crate) async fn subprocess_adapter_rejects_secret_and_raw_path() -> anyhow::
     for input in [json!({"payload":"sk-test-value"}), json!({"store_path":"/tmp/private.tdb"})] {
         let denied = runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: "official/tdb-rust-adapter/run_real_tdb_smoke".to_string(),
+                handle: None,
+                capability_id: Some("official/tdb-rust-adapter/run_real_tdb_smoke".to_string()),
                 caller_package_id: None,
                 provider_package_id: Some("official/tdb-rust-adapter".to_string()),
                 version: None,

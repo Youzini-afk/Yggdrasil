@@ -1,5 +1,5 @@
 use serde_json::json;
-use ygg_core::{PackageContributions, PackageEntry, PermissionSet, SandboxPolicy};
+use ygg_core::{EntryDescriptor, PackageContributions, PackageEntry, PermissionSet, SandboxPolicy};
 use ygg_runtime::CapabilityInvocationRequest;
 
 use super::fixtures::*;
@@ -24,11 +24,11 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "official-foundation".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: vec![ygg_core::CapabilityDescriptor {
                 id: "thirdparty/asset-hijack/preview".to_string(),
                 version: "0.1.0".to_string(),
@@ -46,7 +46,8 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
         .await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/asset-hijack/preview".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/asset-hijack/preview".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/asset-hijack".to_string()),
             version: None,
@@ -75,11 +76,11 @@ pub(crate) async fn unknown_inproc_capability_errors() -> anyhow::Result<()> {
             description: None,
             author: None,
             license: None,
-            entry: PackageEntry::RustInproc {
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
                 crate_ref: "official-foundation".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
-            },
+            }),
             provides: vec![ygg_core::CapabilityDescriptor {
                 id: "official/test-unknown-cap/nonexistent_action".to_string(),
                 version: "0.1.0".to_string(),
@@ -97,7 +98,8 @@ pub(crate) async fn unknown_inproc_capability_errors() -> anyhow::Result<()> {
         .await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "official/test-unknown-cap/nonexistent_action".to_string(),
+            handle: None,
+            capability_id: Some("official/test-unknown-cap/nonexistent_action".to_string()),
             caller_package_id: None,
             provider_package_id: Some("official/test-unknown-cap".to_string()),
             version: None,

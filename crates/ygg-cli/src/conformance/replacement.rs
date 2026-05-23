@@ -120,7 +120,8 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
     // Invoke the launch capability through normal routing (echo inproc echoes input)
     let launch = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/playable-seed/launch".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/playable-seed/launch".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/playable-seed".to_string()),
             version: None,
@@ -133,7 +134,8 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
     // Invoke render_payload capability
     let render = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/playable-seed/render_payload".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/playable-seed/render_payload".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/playable-seed".to_string()),
             version: None,
@@ -164,7 +166,8 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
     // Without explicit provider, the route should be ambiguous — NOT preferred to official
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "shared/playable-seed/launch".to_string(),
+            handle: None,
+            capability_id: Some("shared/playable-seed/launch".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -176,7 +179,8 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
     // With explicit third-party provider, it should work — proving no official priority
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "shared/playable-seed/launch".to_string(),
+            handle: None,
+            capability_id: Some("shared/playable-seed/launch".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/replacement-fixture".to_string()),
             version: None,
@@ -271,7 +275,8 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
     // run: deterministic no-inference no-network plan
     let run_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/agent-runtime/run".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/agent-runtime/run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
@@ -289,7 +294,8 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
     // draft_proposal: approval-gated
     let proposal = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/agent-runtime/draft_proposal".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/agent-runtime/draft_proposal".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
@@ -303,7 +309,8 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
     // explain_run: no-inference explanation
     let explain = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/agent-runtime/explain_run".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/agent-runtime/explain_run".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
@@ -318,7 +325,8 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
     // summarize_trace: no-inference summary
     let trace = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/agent-runtime/summarize_trace".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/agent-runtime/summarize_trace".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,
@@ -333,7 +341,8 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
     // echo: passthrough
     let echo = runtime
         .invoke_capability(CapabilityInvocationRequest {
-            capability_id: "thirdparty/agent-runtime/echo".to_string(),
+            handle: None,
+            capability_id: Some("thirdparty/agent-runtime/echo".to_string()),
             caller_package_id: None,
             provider_package_id: Some("thirdparty/agent-runtime".to_string()),
             version: None,

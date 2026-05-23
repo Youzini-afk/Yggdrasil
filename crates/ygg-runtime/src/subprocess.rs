@@ -49,7 +49,7 @@ impl SubprocessSupervisor {
     where
         S: EventStore,
     {
-        let PackageEntry::Subprocess { command, transport } = &manifest.entry else {
+        let PackageEntry::Subprocess { command, transport } = &manifest.entry.kind else {
             return Ok(());
         };
         if transport != &SubprocessTransport::JsonRpcStdio {
