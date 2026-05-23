@@ -1,6 +1,7 @@
 pub(crate) mod audit;
 pub(crate) mod capability;
 pub(crate) mod composition;
+pub(crate) mod conformance_package;
 pub(crate) mod demo;
 pub(crate) mod host;
 pub(crate) mod manifest;

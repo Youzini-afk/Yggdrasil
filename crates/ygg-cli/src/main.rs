@@ -6,11 +6,11 @@ mod templates;
 use clap::Parser;
 
 use cli::{
-    CapabilityCommand, Cli, Command, CompositionCommand, HostCommand, ManifestCommand,
-    PackageCommand, PerfCommand,
+    CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, HostCommand,
+    ManifestCommand, PackageCommand, PerfCommand,
 };
 use commands::audit;
-use commands::{capability, composition, demo, host, manifest, package, perf};
+use commands::{capability, composition, conformance_package, demo, host, manifest, package, perf};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -109,22 +109,21 @@ async fn main() -> anyhow::Result<()> {
         Command::Composition { command } => match command {
             CompositionCommand::Check { path } => composition::composition_check(path).await,
         },
-        Command::Conformance {
-            list,
-            case,
-            tag,
-            fail_fast,
-            slowest,
-        } => {
-            conformance::run(conformance::ConformanceOptions {
-                list,
-                case,
-                tag,
-                fail_fast,
-                slowest,
-            })
-            .await
-        }
+        Command::Conformance(args) => match args.command {
+            Some(ConformanceCommand::Package(package_args)) => {
+                conformance_package::run(package_args).await
+            }
+            None => {
+                conformance::run(conformance::ConformanceOptions {
+                    list: args.list,
+                    case: args.case,
+                    tag: args.tag,
+                    fail_fast: args.fail_fast,
+                    slowest: args.slowest,
+                })
+                .await
+            }
+        },
         Command::PlayCreateDemo => demo::play_create_demo().await,
         Command::PlayableBoardDemo => demo::playable_board_demo().await,
         Command::Perf { command } => match command {
