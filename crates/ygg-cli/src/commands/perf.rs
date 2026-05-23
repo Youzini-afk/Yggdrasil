@@ -9,12 +9,21 @@ use anyhow::Result;
 use serde::Serialize;
 use serde_json::json;
 use ygg_runtime::{
-    AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
-    OpenSessionRequest, Runtime, RuntimeConfig,
+    AppendEventRequest, CapabilityInvocationRequest, EventStore, FakeOutboundExecutor,
+    InMemoryEventStore, OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutorConfig,
+    OutboundExecutorRequest, OutboundRequest, ProtocolContext, ProtocolPrincipal, Runtime,
+    RuntimeConfig,
 };
 
 use crate::cli::BaselineFormat;
 use crate::commands::manifest::read_manifest;
+
+const SUBPROCESS_ECHO_MANIFEST: &str = "examples/packages/echo-subprocess-python/manifest.yaml";
+const SUBPROCESS_ECHO_PACKAGE_ID: &str = "example/echo-subprocess-python";
+const SUBPROCESS_ECHO_CAPABILITY_ID: &str = "example/echo-subprocess-python/echo";
+const PERF_OUTBOUND_PACKAGE_ID: &str = "example/perf-outbound";
+const PERF_OUTBOUND_CAPABILITY_ID: &str = "example/perf-outbound/fetch";
+const PERF_OUTBOUND_HOST: &str = "api.example.com";
 
 #[derive(Debug, Clone)]
 pub(crate) struct BaselineOptions {
@@ -731,7 +740,7 @@ async fn scenario_subprocess_echo_invoke(iterations: u32, warmup: u32) -> Scenar
     // Subprocess packages require Python which may not be available in CI.
     // Mark as skipped; subprocess echo will be measured in P1/P3 with
     // explicit environment checks.
-    let manifest_path = manifest_path("examples/packages/echo-subprocess-python/manifest.yaml");
+    let manifest_path = manifest_path(SUBPROCESS_ECHO_MANIFEST);
     let manifest = match read_manifest(manifest_path).await {
         Ok(m) => m,
         Err(e) => {
@@ -791,7 +800,7 @@ where
         let start = Instant::now();
         runtime
             .invoke_capability(CapabilityInvocationRequest {
-                capability_id: "example/echo-subprocess-python/echo".to_string(),
+                capability_id: SUBPROCESS_ECHO_CAPABILITY_ID.to_string(),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
@@ -800,6 +809,489 @@ where
             .await?;
         Ok(start.elapsed().as_secs_f64() * 1000.0)
     })
+}
+
+async fn scenario_subprocess_cold_start_ms(iterations: u32, warmup: u32) -> ScenarioResult {
+    for _ in 0..warmup {
+        if let Err(e) = scenario_subprocess_cold_start_sample().await {
+            return skipped_result(
+                "subprocess_cold_start_ms",
+                iterations,
+                &format!("subprocess cold-start unavailable: {e}"),
+            );
+        }
+    }
+
+    let before_rss = read_rss_mb();
+    let mut durations = Vec::with_capacity(iterations as usize);
+    for _ in 0..iterations {
+        match scenario_subprocess_cold_start_sample().await {
+            Ok(ms) => durations.push(ms),
+            Err(e) => {
+                return skipped_result(
+                    "subprocess_cold_start_ms",
+                    iterations,
+                    &format!("subprocess cold-start unavailable: {e}"),
+                );
+            }
+        }
+    }
+    let memory_delta = rss_delta(before_rss, read_rss_mb());
+    build_result(
+        "subprocess_cold_start_ms",
+        iterations,
+        &durations,
+        "ok",
+        vec!["fresh subprocess per iteration: load_package handshake + first invoke".to_string()],
+        memory_delta,
+        false,
+    )
+}
+
+async fn scenario_subprocess_cold_start_sample() -> Result<f64> {
+    let manifest = read_manifest(manifest_path(SUBPROCESS_ECHO_MANIFEST)).await?;
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let start = Instant::now();
+    runtime.load_package(manifest).await?;
+    runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: SUBPROCESS_ECHO_CAPABILITY_ID.to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: json!({"baseline": true}),
+        })
+        .await?;
+    let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+    Ok(elapsed_ms)
+}
+
+async fn scenario_subprocess_handshake_ms(iterations: u32, warmup: u32) -> ScenarioResult {
+    for _ in 0..warmup {
+        if let Err(e) = scenario_subprocess_handshake_sample().await {
+            return skipped_result(
+                "subprocess_handshake_ms",
+                iterations,
+                &format!("subprocess handshake measurement unavailable: {e}"),
+            );
+        }
+    }
+
+    let before_rss = read_rss_mb();
+    let mut durations = Vec::with_capacity(iterations as usize);
+    for _ in 0..iterations {
+        match scenario_subprocess_handshake_sample().await {
+            Ok(ms) => durations.push(ms),
+            Err(e) => {
+                return skipped_result(
+                    "subprocess_handshake_ms",
+                    iterations,
+                    &format!("subprocess handshake measurement unavailable: {e}"),
+                );
+            }
+        }
+    }
+    let memory_delta = rss_delta(before_rss, read_rss_mb());
+    build_result(
+        "subprocess_handshake_ms",
+        iterations,
+        &durations,
+        "ok",
+        vec!["Runtime::load_package includes subprocess spawn + handshake; no separate spawn-only API".to_string()],
+        memory_delta,
+        false,
+    )
+}
+
+async fn scenario_subprocess_handshake_sample() -> Result<f64> {
+    let manifest = read_manifest(manifest_path(SUBPROCESS_ECHO_MANIFEST)).await?;
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let start = Instant::now();
+    runtime.load_package(manifest).await?;
+    let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+    Ok(elapsed_ms)
+}
+
+async fn scenario_subprocess_invoke_steady(
+    payload_bytes: usize,
+    iterations: u32,
+    warmup: u32,
+    scenario_id: &'static str,
+) -> ScenarioResult {
+    let manifest = match read_manifest(manifest_path(SUBPROCESS_ECHO_MANIFEST)).await {
+        Ok(m) => m,
+        Err(e) => {
+            return skipped_result(
+                scenario_id,
+                iterations,
+                &format!("manifest load failed: {e}"),
+            );
+        }
+    };
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store, RuntimeConfig::default());
+    if let Err(e) = runtime.load_package(manifest).await {
+        return skipped_result(
+            scenario_id,
+            iterations,
+            &format!("subprocess start failed: {e}"),
+        );
+    }
+
+    for _ in 0..warmup {
+        if let Err(e) = scenario_subprocess_invoke_steady_sample(&runtime, payload_bytes).await {
+            let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+            return error_result(scenario_id, iterations, e);
+        }
+    }
+
+    let before_rss = read_rss_mb();
+    let mut durations = Vec::with_capacity(iterations as usize);
+    for _ in 0..iterations {
+        match scenario_subprocess_invoke_steady_sample(&runtime, payload_bytes).await {
+            Ok(ms) => durations.push(ms),
+            Err(e) => {
+                let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+                return error_result(scenario_id, iterations, e);
+            }
+        }
+    }
+    let memory_delta = rss_delta(before_rss, read_rss_mb());
+    let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+    build_result(
+        scenario_id,
+        iterations,
+        &durations,
+        "ok",
+        vec![format!("echo payload data field is {payload_bytes} bytes")],
+        memory_delta,
+        false,
+    )
+}
+
+async fn scenario_subprocess_invoke_steady_sample<S>(
+    runtime: &Runtime<S>,
+    payload_bytes: usize,
+) -> Result<f64>
+where
+    S: EventStore,
+{
+    let input = json!({"data": "x".repeat(payload_bytes)});
+    let start = Instant::now();
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            capability_id: SUBPROCESS_ECHO_CAPABILITY_ID.to_string(),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input,
+        })
+        .await?;
+    let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let echoed_len = result
+        .output
+        .get("data")
+        .and_then(|v| v.as_str())
+        .map(str::len)
+        .unwrap_or(0);
+    if echoed_len != payload_bytes {
+        anyhow::bail!("subprocess echo returned {echoed_len} bytes, expected {payload_bytes}");
+    }
+    Ok(elapsed_ms)
+}
+
+fn perf_outbound_manifest() -> ygg_core::PackageManifest {
+    ygg_core::PackageManifest {
+        schema_version: 1,
+        id: PERF_OUTBOUND_PACKAGE_ID.to_string(),
+        version: "0.1.0".to_string(),
+        display_name: None,
+        description: None,
+        author: None,
+        license: None,
+        entry: ygg_core::PackageEntry::RustInproc {
+            crate_ref: "example-echo-rust-inproc".to_string(),
+            symbol: "register".to_string(),
+            abi_version: 1,
+        },
+        provides: vec![ygg_core::CapabilityDescriptor {
+            id: PERF_OUTBOUND_CAPABILITY_ID.to_string(),
+            version: "0.1.0".to_string(),
+            input_schema: serde_json::Value::Null,
+            output_schema: serde_json::Value::Null,
+            streaming: false,
+            side_effects: vec!["network".to_string()],
+            description: None,
+        }],
+        consumes: Vec::new(),
+        contributes: ygg_core::PackageContributions::default(),
+        permissions: ygg_core::PermissionSet {
+            network: ygg_core::NetworkPermissions {
+                declarations: vec![ygg_core::NetworkDeclaration {
+                    host: PERF_OUTBOUND_HOST.to_string(),
+                    methods: vec!["POST".to_string()],
+                    purpose: Some("perf fake outbound".to_string()),
+                }],
+                hosts: Vec::new(),
+            },
+            ..ygg_core::PermissionSet::default()
+        },
+        sandbox_policy: ygg_core::SandboxPolicy::default(),
+    }
+}
+
+fn runtime_with_fake_outbound() -> Runtime<InMemoryEventStore> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let fake = Arc::new(FakeOutboundExecutor::new());
+    let config = RuntimeConfig {
+        outbound_executor: OutboundExecutorConfig::Custom(fake),
+        outbound_execute_policy: OutboundExecutePolicyConfig {
+            enabled: true,
+            allowed_hosts: vec![PERF_OUTBOUND_HOST.to_string()],
+            https_only: true,
+            timeout_ms: 30_000,
+            allow_redirects: false,
+            allow_insecure_loopback_for_tests: false,
+        },
+        ..RuntimeConfig::default()
+    };
+    Runtime::new(store, config)
+}
+
+fn outbound_policy_request() -> OutboundRequest {
+    OutboundRequest {
+        principal: ProtocolPrincipal::Package {
+            package_id: PERF_OUTBOUND_PACKAGE_ID.to_string(),
+        },
+        package_id: PERF_OUTBOUND_PACKAGE_ID.to_string(),
+        capability_id: PERF_OUTBOUND_CAPABILITY_ID.to_string(),
+        destination_host: PERF_OUTBOUND_HOST.to_string(),
+        method: "POST".to_string(),
+        purpose: Some("perf fake outbound".to_string()),
+        secret_refs_used: Vec::new(),
+    }
+}
+
+fn outbound_executor_request() -> OutboundExecutorRequest {
+    OutboundExecutorRequest {
+        package_id: PERF_OUTBOUND_PACKAGE_ID.to_string(),
+        capability_id: PERF_OUTBOUND_CAPABILITY_ID.to_string(),
+        destination_host: PERF_OUTBOUND_HOST.to_string(),
+        method: "POST".to_string(),
+        path: Some("/v1/perf".to_string()),
+        purpose: Some("perf fake outbound".to_string()),
+        secret_refs: Vec::new(),
+        redaction_state: None,
+        timeout_ms: Some(30_000),
+        metadata: json!({"provider": "perf_fake"}),
+        body_shape: Some(json!({"model": "perf", "messages": []})),
+        secret_headers: Vec::new(),
+        resolved_secret_headers: Vec::new(),
+        static_headers: Vec::new(),
+    }
+}
+
+async fn setup_fake_outbound_runtime() -> Result<Runtime<InMemoryEventStore>> {
+    let runtime = runtime_with_fake_outbound();
+    runtime.load_package(perf_outbound_manifest()).await?;
+    Ok(runtime)
+}
+
+async fn scenario_outbound_execute_fake_throughput_req_s(
+    iterations: u32,
+    warmup: u32,
+) -> ScenarioResult {
+    let runtime = match setup_fake_outbound_runtime().await {
+        Ok(r) => r,
+        Err(e) => return error_result("outbound_execute_fake_throughput_req_s", iterations, e),
+    };
+    let batch_size = 1_000u32;
+
+    for _ in 0..warmup {
+        if let Err(e) = scenario_outbound_execute_fake_batch(&runtime, batch_size).await {
+            return error_result("outbound_execute_fake_throughput_req_s", iterations, e);
+        }
+    }
+
+    let before_rss = read_rss_mb();
+    let mut durations = Vec::with_capacity(iterations as usize);
+    for _ in 0..iterations {
+        match scenario_outbound_execute_fake_batch(&runtime, batch_size).await {
+            Ok(ms) => durations.push(ms),
+            Err(e) => return error_result("outbound_execute_fake_throughput_req_s", iterations, e),
+        }
+    }
+    let memory_delta = rss_delta(before_rss, read_rss_mb());
+    let total_requests = batch_size as f64 * durations.len() as f64;
+    let total_seconds = durations.iter().sum::<f64>() / 1000.0;
+    let req_s = if total_seconds > 0.0 {
+        total_requests / total_seconds
+    } else {
+        0.0
+    };
+    build_result(
+        "outbound_execute_fake_throughput_req_s",
+        iterations,
+        &durations,
+        "ok",
+        vec![format!("{batch_size} execute_outbound_with_policy calls per iteration; {req_s:.2} req/s")],
+        memory_delta,
+        false,
+    )
+}
+
+async fn scenario_outbound_execute_fake_batch<S>(runtime: &Runtime<S>, batch_size: u32) -> Result<f64>
+where
+    S: EventStore,
+{
+    let start = Instant::now();
+    for _ in 0..batch_size {
+        runtime
+            .execute_outbound_with_policy(outbound_policy_request(), outbound_executor_request())
+            .await?;
+    }
+    Ok(start.elapsed().as_secs_f64() * 1000.0)
+}
+
+async fn scenario_outbound_stream_fake_ttft_ms(iterations: u32, warmup: u32) -> ScenarioResult {
+    let runtime = match setup_fake_outbound_runtime().await {
+        Ok(r) => r,
+        Err(e) => return error_result("outbound_stream_fake_ttft_ms", iterations, e),
+    };
+
+    for _ in 0..warmup {
+        if let Err(e) = scenario_outbound_stream_ttft_sample(&runtime).await {
+            return error_result("outbound_stream_fake_ttft_ms", iterations, e);
+        }
+    }
+
+    let before_rss = read_rss_mb();
+    let mut durations = Vec::with_capacity(iterations as usize);
+    for _ in 0..iterations {
+        match scenario_outbound_stream_ttft_sample(&runtime).await {
+            Ok(ms) => durations.push(ms),
+            Err(e) => return error_result("outbound_stream_fake_ttft_ms", iterations, e),
+        }
+    }
+    let memory_delta = rss_delta(before_rss, read_rss_mb());
+    build_result(
+        "outbound_stream_fake_ttft_ms",
+        iterations,
+        &durations,
+        "ok",
+        vec!["FakeOutboundExecutor emits 3 canned SSE events; drained to completion".to_string()],
+        memory_delta,
+        false,
+    )
+}
+
+async fn scenario_outbound_stream_ttft_sample<S>(runtime: &Runtime<S>) -> Result<f64>
+where
+    S: EventStore,
+{
+    let session_id = format!("kernel_outbound_stream_{}", PERF_OUTBOUND_PACKAGE_ID.replace('/', "_"));
+    let mut rx = runtime.subscribe_events();
+    let start = Instant::now();
+    let response = start_fake_outbound_stream(runtime).await?;
+    let stream_id = response
+        .get("stream_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("kernel.outbound.stream returned no stream_id"))?
+        .to_string();
+    let mut ttft_ms = None;
+    let mut chunks = 0usize;
+    let deadline = std::time::Duration::from_secs(2);
+    loop {
+        let event = tokio::time::timeout(deadline, rx.recv()).await??;
+        if event.session_id != session_id || event.kind != ygg_core::EVENT_STREAM_CHUNK {
+            continue;
+        }
+        let event_stream_id = event
+            .payload
+            .get("stream_id")
+            .and_then(|v| v.as_str())
+            .or_else(|| {
+                event.payload
+                    .get("data")
+                    .and_then(|d| d.get("stream_id"))
+                    .and_then(|v| v.as_str())
+            });
+        if event_stream_id != Some(stream_id.as_str()) {
+            continue;
+        }
+        chunks += 1;
+        if ttft_ms.is_none() {
+            ttft_ms = Some(start.elapsed().as_secs_f64() * 1000.0);
+        }
+        if chunks >= 3 {
+            break;
+        }
+    }
+    wait_for_outbound_stream_completion(runtime, &session_id, &stream_id).await?;
+    Ok(ttft_ms.unwrap_or(0.0))
+}
+
+async fn scenario_outbound_stream_fake_steady_events_s(
+    iterations: u32,
+    warmup: u32,
+) -> ScenarioResult {
+    let _ = warmup;
+    skipped_result(
+        "outbound_stream_fake_steady_events_s",
+        iterations,
+        "FakeOutboundExecutor currently emits a fixed 3-event stream and exposes no public N-frame fixture API; needs runtime support to measure 100 steady events",
+    )
+}
+
+async fn start_fake_outbound_stream<S>(runtime: &Runtime<S>) -> Result<serde_json::Value>
+where
+    S: EventStore,
+{
+    let context = ProtocolContext::package(PERF_OUTBOUND_PACKAGE_ID, "perf_baseline");
+    runtime
+        .call_protocol(
+            &context,
+            "kernel.outbound.stream",
+            json!({
+                "capability_id": PERF_OUTBOUND_CAPABILITY_ID,
+                "destination_host": PERF_OUTBOUND_HOST,
+                "method": "POST",
+                "path": "/v1/perf/stream",
+                "stream_format": "sse",
+                "body_shape": {"model": "perf", "stream": true},
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{e:?}"))
+}
+
+async fn wait_for_outbound_stream_completion<S>(
+    runtime: &Runtime<S>,
+    session_id: &str,
+    stream_id: &str,
+) -> Result<()>
+where
+    S: EventStore,
+{
+    let deadline = std::time::Duration::from_secs(2);
+    let started = Instant::now();
+    loop {
+        let events = runtime.store().list_session(&session_id.to_string()).await?;
+        if events.iter().any(|event| {
+            event.kind == ygg_core::EVENT_STREAM_ENDED
+                && event.payload.get("stream_id").and_then(|v| v.as_str()) == Some(stream_id)
+        }) {
+            return Ok(());
+        }
+        if started.elapsed() > deadline {
+            anyhow::bail!("timed out waiting for outbound stream completion");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
 }
 
 // ── Entry point ────────────────────────────────────────────────────────
@@ -864,6 +1356,50 @@ async fn run_scenarios(iterations: u32, warmup: u32) -> Vec<ScenarioResult> {
 
     // 9. Subprocess echo (may skip)
     results.push(scenario_subprocess_echo_invoke(iterations, warmup).await);
+
+    // 10. Subprocess cold start (fresh subprocess each iteration)
+    results.push(scenario_subprocess_cold_start_ms(iterations, warmup).await);
+
+    // 11. Subprocess handshake / manifest exchange
+    results.push(scenario_subprocess_handshake_ms(iterations, warmup).await);
+
+    // 12-14. Subprocess steady-state invoke payload sizes
+    results.push(
+        scenario_subprocess_invoke_steady(
+            1_024,
+            iterations,
+            warmup,
+            "subprocess_invoke_steady_1kb",
+        )
+        .await,
+    );
+    results.push(
+        scenario_subprocess_invoke_steady(
+            10_240,
+            iterations,
+            warmup,
+            "subprocess_invoke_steady_10kb",
+        )
+        .await,
+    );
+    results.push(
+        scenario_subprocess_invoke_steady(
+            102_400,
+            iterations,
+            warmup,
+            "subprocess_invoke_steady_100kb",
+        )
+        .await,
+    );
+
+    // 15. Fake outbound execute throughput
+    results.push(scenario_outbound_execute_fake_throughput_req_s(iterations, warmup).await);
+
+    // 16. Fake outbound stream time-to-first-frame
+    results.push(scenario_outbound_stream_fake_ttft_ms(iterations, warmup).await);
+
+    // 17. Fake outbound stream steady event rate
+    results.push(scenario_outbound_stream_fake_steady_events_s(iterations, warmup).await);
 
     results
 }
