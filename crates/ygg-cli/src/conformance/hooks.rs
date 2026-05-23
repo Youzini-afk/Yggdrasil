@@ -5,19 +5,51 @@ use super::fixtures::*;
 
 pub(crate) async fn ordering_stable() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(hook_package("example/hook-b", "kernel/v1/event.before_append", "observe", 0)).await?;
-    runtime.load_package(hook_package("example/hook-a", "kernel/v1/event.before_append", "observe", 0)).await?;
-    let result = runtime.dispatch_extension("kernel/v1/event.before_append", json!({})).await;
-    let invoked: Vec<_> = result.invoked.iter().map(|hook| hook.subscriber_package_id.as_str()).collect();
-    anyhow::ensure!(invoked == vec!["example/hook-a", "example/hook-b"], "hook order not stable: {invoked:?}");
+    runtime
+        .load_package(hook_package(
+            "example/hook-b",
+            "kernel/v1/event.before_append",
+            "observe",
+            0,
+        ))
+        .await?;
+    runtime
+        .load_package(hook_package(
+            "example/hook-a",
+            "kernel/v1/event.before_append",
+            "observe",
+            0,
+        ))
+        .await?;
+    let result = runtime
+        .dispatch_extension("kernel/v1/event.before_append", json!({}))
+        .await;
+    let invoked: Vec<_> = result
+        .invoked
+        .iter()
+        .map(|hook| hook.subscriber_package_id.as_str())
+        .collect();
+    anyhow::ensure!(
+        invoked == vec!["example/hook-a", "example/hook-b"],
+        "hook order not stable: {invoked:?}"
+    );
     Ok(())
 }
 
 pub(crate) async fn veto_blocks_event_append() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/writer", true, true)).await?;
-    runtime.load_package(hook_package("example/veto", "kernel/v1/event.before_append", "veto", 0)).await?;
+    runtime
+        .load_package(event_package("example/writer", true, true))
+        .await?;
+    runtime
+        .load_package(hook_package(
+            "example/veto",
+            "kernel/v1/event.before_append",
+            "veto",
+            0,
+        ))
+        .await?;
     let denied = runtime
         .append_event(AppendEventRequest {
             session_id: session.id,
@@ -34,7 +66,9 @@ pub(crate) async fn veto_blocks_event_append() -> anyhow::Result<()> {
 pub(crate) async fn metadata_mutation_allowed() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime
+        .load_package(event_package("example/writer", true, true))
+        .await?;
     runtime
         .load_package(hook_package(
             "example/tracer",
@@ -52,15 +86,26 @@ pub(crate) async fn metadata_mutation_allowed() -> anyhow::Result<()> {
             metadata: json!({}),
         })
         .await?;
-    anyhow::ensure!(event.metadata["hook_trace"] == "example/tracer", "metadata trace missing");
+    anyhow::ensure!(
+        event.metadata["hook_trace"] == "example/tracer",
+        "metadata trace missing"
+    );
     Ok(())
 }
 
 pub(crate) async fn package_owned_handler() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/writer", true, true)).await?;
-    runtime.load_package(hook_handler_package("example/hook-owner", "kernel/v1/event.before_append", "example/hook-owner/trace")).await?;
+    runtime
+        .load_package(event_package("example/writer", true, true))
+        .await?;
+    runtime
+        .load_package(hook_handler_package(
+            "example/hook-owner",
+            "kernel/v1/event.before_append",
+            "example/hook-owner/trace",
+        ))
+        .await?;
     let event = runtime
         .append_event(AppendEventRequest {
             session_id: session.id,
@@ -70,15 +115,27 @@ pub(crate) async fn package_owned_handler() -> anyhow::Result<()> {
             metadata: json!({}),
         })
         .await?;
-    anyhow::ensure!(event.metadata.get("hook_trace") == Some(&json!("example/hook-owner")), "package-owned hook handler did not patch metadata");
+    anyhow::ensure!(
+        event.metadata.get("hook_trace") == Some(&json!("example/hook-owner")),
+        "package-owned hook handler did not patch metadata"
+    );
     Ok(())
 }
 
 pub(crate) async fn unload_removes_subscription() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/writer", true, true)).await?;
-    runtime.load_package(hook_package("example/veto", "kernel/v1/event.before_append", "veto", 0)).await?;
+    runtime
+        .load_package(event_package("example/writer", true, true))
+        .await?;
+    runtime
+        .load_package(hook_package(
+            "example/veto",
+            "kernel/v1/event.before_append",
+            "veto",
+            0,
+        ))
+        .await?;
     runtime.unload_package(&"example/veto".to_string()).await?;
     runtime
         .append_event(AppendEventRequest {

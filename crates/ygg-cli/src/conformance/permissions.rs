@@ -1,18 +1,29 @@
 use serde_json::json;
-use ygg_runtime::{AppendEventRequest, CapabilityInvocationRequest, OpenSessionRequest, ProtocolContext, ProtocolError};
+use ygg_runtime::{
+    AppendEventRequest, CapabilityInvocationRequest, OpenSessionRequest, ProtocolContext,
+    ProtocolError,
+};
 
 use super::fixtures::*;
 
 pub(crate) async fn structured_permission_error() -> anyhow::Result<()> {
-    let error = ProtocolError::from_anyhow(anyhow::anyhow!("package 'example/nope' is not allowed to read events"));
-    anyhow::ensure!(error.code == "kernel/v1/error/permission_denied", "wrong error code: {}", error.code);
+    let error = ProtocolError::from_anyhow(anyhow::anyhow!(
+        "package 'example/nope' is not allowed to read events"
+    ));
+    anyhow::ensure!(
+        error.code == "kernel/v1/error/permission_denied",
+        "wrong error code: {}",
+        error.code
+    );
     Ok(())
 }
 
 pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/grant-reader", true, true)).await?;
+    runtime
+        .load_package(event_package("example/grant-reader", true, true))
+        .await?;
     runtime
         .append_event(AppendEventRequest {
             session_id: session.id.clone(),
@@ -23,9 +34,18 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
         })
         .await?;
     let human = json!({"kind": "human", "user_id": "user/conformance"});
-    let human_context = ProtocolContext { principal: serde_json::from_value(human.clone())?, transport: "conformance".to_string(), correlation_id: None, parent_invocation_id: None };
+    let human_context = ProtocolContext {
+        principal: serde_json::from_value(human.clone())?,
+        transport: "conformance".to_string(),
+        correlation_id: None,
+        parent_invocation_id: None,
+    };
     let denied = runtime
-        .call_protocol(&human_context, "kernel.v1.event.list", json!({"session_id": session.id}))
+        .call_protocol(
+            &human_context,
+            "kernel.v1.event.list",
+            json!({"session_id": session.id}),
+        )
         .await;
     anyhow::ensure!(denied.is_err(), "human read should require grant");
     let grant = runtime
@@ -36,29 +56,63 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let grant_id = grant["id"].as_str().ok_or_else(|| anyhow::anyhow!("grant missing id"))?.to_string();
+    let grant_id = grant["id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("grant missing id"))?
+        .to_string();
     let allowed = runtime
-        .call_protocol(&human_context, "kernel.v1.event.list", json!({"session_id": session.id}))
+        .call_protocol(
+            &human_context,
+            "kernel.v1.event.list",
+            json!({"session_id": session.id}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(allowed.as_array().map(|items| !items.is_empty()).unwrap_or(false), "grant did not allow event read");
+    anyhow::ensure!(
+        allowed
+            .as_array()
+            .map(|items| !items.is_empty())
+            .unwrap_or(false),
+        "grant did not allow event read"
+    );
     runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.permission.revoke", json!({"grant_id": grant_id}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.permission.revoke",
+            json!({"grant_id": grant_id}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let audit = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.permission.audit", json!({}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.permission.audit",
+            json!({}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(audit.as_array().map(|items| items.len()).unwrap_or(0) >= 2, "permission audit missing grant/revoke events");
+    anyhow::ensure!(
+        audit.as_array().map(|items| items.len()).unwrap_or(0) >= 2,
+        "permission audit missing grant/revoke events"
+    );
     Ok(())
 }
 
 pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/assistant-target", "example/assistant-target/echo")).await?;
+    runtime
+        .load_package(echo_package(
+            "example/assistant-target",
+            "example/assistant-target/echo",
+        ))
+        .await?;
     let assistant = json!({"kind": "assistant", "assistant_id": "assistant/conformance", "delegated_user_id": "user/conformance"});
-    let assistant_context = ProtocolContext { principal: serde_json::from_value(assistant.clone())?, transport: "conformance".to_string(), correlation_id: None, parent_invocation_id: None };
+    let assistant_context = ProtocolContext {
+        principal: serde_json::from_value(assistant.clone())?,
+        transport: "conformance".to_string(),
+        correlation_id: None,
+        parent_invocation_id: None,
+    };
     let denied = runtime
         .call_protocol(
             &assistant_context,
@@ -83,14 +137,19 @@ pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(result["output"] == json!({"ok": true}), "assistant grant did not permit invoke");
+    anyhow::ensure!(
+        result["output"] == json!({"ok": true}),
+        "assistant grant did not permit invoke"
+    );
     Ok(())
 }
 
 pub(crate) async fn principal_cannot_self_assert_writer() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/actual", true, true)).await?;
+    runtime
+        .load_package(event_package("example/actual", true, true))
+        .await?;
     let event = runtime
         .append_event_with_context(
             &ProtocolContext::package("example/actual", "conformance"),
@@ -103,14 +162,21 @@ pub(crate) async fn principal_cannot_self_assert_writer() -> anyhow::Result<()> 
             },
         )
         .await?;
-    anyhow::ensure!(event.writer_package_id == "example/actual", "writer spoof was accepted");
+    anyhow::ensure!(
+        event.writer_package_id == "example/actual",
+        "writer spoof was accepted"
+    );
     Ok(())
 }
 
 pub(crate) async fn principal_cannot_self_assert_capability_caller() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/echo", "example/echo/echo")).await?;
-    runtime.load_package(event_package("example/actual", false, false)).await?;
+    runtime
+        .load_package(echo_package("example/echo", "example/echo/echo"))
+        .await?;
+    runtime
+        .load_package(event_package("example/actual", false, false))
+        .await?;
     let denied = runtime
         .invoke_capability_with_context(
             &ProtocolContext::package("example/actual", "conformance"),
@@ -124,6 +190,9 @@ pub(crate) async fn principal_cannot_self_assert_capability_caller() -> anyhow::
             },
         )
         .await;
-    anyhow::ensure!(denied.is_err(), "caller self-assertion bypassed invoke permission");
+    anyhow::ensure!(
+        denied.is_err(),
+        "caller self-assertion bypassed invoke permission"
+    );
     Ok(())
 }

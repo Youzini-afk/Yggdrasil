@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use ygg_core::{CapabilityId, PackageId};
+use ygg_core::{CapHandleId, CapabilityId, PackageId};
+
+use crate::runtime::HandleTable;
 
 mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
@@ -25,8 +27,8 @@ mod persona_lab;
 mod pi_agent_runtime_lab;
 mod playable_creation_board;
 mod playable_seed;
-mod projection_lab;
 mod project_intake_lab;
+mod projection_lab;
 pub mod safety;
 mod sharing_lab;
 mod storage_lab;
@@ -43,8 +45,17 @@ pub struct InprocInvocation {
     pub input: Value,
 }
 
+#[derive(Clone)]
+pub struct KernelEnv {
+    pub package_id: PackageId,
+    pub bindings: HashMap<String, CapHandleId>,
+    pub handles: Arc<HandleTable>,
+}
+
 #[async_trait]
 pub trait InprocPackage: Send + Sync {
+    fn init(&self, _env: &KernelEnv) {}
+
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value>;
 }
 
@@ -63,6 +74,10 @@ impl InprocPackageCatalog {
         entries.insert(
             entry_key("example-hook-inproc", "register"),
             Arc::new(HookInprocPackage),
+        );
+        entries.insert(
+            entry_key("example-bindings-inproc", "register"),
+            Arc::new(BindingsInprocPackage::default()),
         );
         entries.insert(
             entry_key("official-foundation", "register"),
@@ -96,6 +111,27 @@ impl InprocPackage for EchoInprocPackage {
 }
 
 struct HookInprocPackage;
+
+#[derive(Default)]
+struct BindingsInprocPackage {
+    bindings: std::sync::Mutex<HashMap<String, CapHandleId>>,
+}
+
+#[async_trait]
+impl InprocPackage for BindingsInprocPackage {
+    fn init(&self, env: &KernelEnv) {
+        *self.bindings.lock().expect("bindings mutex poisoned") = env.bindings.clone();
+    }
+
+    async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
+        if request.capability_id.ends_with("/bindings") {
+            let bindings = self.bindings.lock().expect("bindings mutex poisoned");
+            Ok(serde_json::to_value(&*bindings)?)
+        } else {
+            Ok(request.input)
+        }
+    }
+}
 
 #[async_trait]
 impl InprocPackage for HookInprocPackage {
@@ -143,7 +179,9 @@ fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
         "official/experience-runtime-lab" => experience_runtime_lab::try_handle(request),
         "official/playable-creation-board" => playable_creation_board::try_handle(request),
         "official/memory-lab" => memory_lab::try_handle(request),
-        "official/experience-observability-lab" => experience_observability_lab::try_handle(request),
+        "official/experience-observability-lab" => {
+            experience_observability_lab::try_handle(request)
+        }
         "official/sharing-lab" => sharing_lab::try_handle(request),
         "official/storage-lab" => storage_lab::try_handle(request),
         "official/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(request),

@@ -9,6 +9,7 @@ import readline from "node:readline";
  */
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type CapHandleId = string;
 
 export interface JsonRpcRequest {
   [key: string]: unknown;
@@ -35,6 +36,7 @@ export interface HandshakeParams {
   manifest_version?: string;
   permissions?: JsonValue;
   capabilities?: JsonValue;
+  bindings?: Record<string, CapHandleId>;
 }
 
 export type CapabilityHandler = (params: CapabilityInvokeParams) => JsonValue | Promise<JsonValue>;
@@ -98,8 +100,11 @@ export interface KernelWebSocketOpenParams {
 }
 
 export interface KernelClient {
+  bindings: Record<string, CapHandleId>;
   sendKernelRequest<T = unknown>(method: string, params: unknown): Promise<T>;
   streamKernelRequest(method: string, params: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle;
+  invokeBinding<T = unknown>(name: string, input: unknown): Promise<T>;
+  invokeBindingStream(name: string, input: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle;
   openWebSocket(
     params: KernelWebSocketOpenParams,
     callbacks: KernelWebSocketCallbacks,
@@ -346,7 +351,14 @@ function resolveWebSocketOpen(requestId: string, pending: PendingKernelWebSocket
   pending.resolve(createWebSocketHandle(session));
 }
 
+function getBindingHandle(name: string): CapHandleId {
+  const handle = kernelClient.bindings[name];
+  if (!handle) throw new Error(`unknown kernel binding: ${name}`);
+  return handle;
+}
+
 export const kernelClient: KernelClient = {
+  bindings: {},
   sendKernelRequest<T = unknown>(method: string, params: unknown): Promise<T> {
     const id = sendKernelFrame(method, params);
     return new Promise<T>((resolve, reject) => {
@@ -372,6 +384,22 @@ export const kernelClient: KernelClient = {
         sendKernelFrame("kernel.v1.capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` });
       },
     };
+  },
+
+  async invokeBinding<T = unknown>(name: string, input: unknown): Promise<T> {
+    const result = await this.sendKernelRequest<{ output?: T } & Record<string, unknown>>("kernel.v1.capability.invoke", {
+      handle: getBindingHandle(name),
+      input,
+    });
+    return (result && typeof result === "object" && "output" in result) ? (result.output as T) : (result as T);
+  },
+
+  invokeBindingStream(name: string, input: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle {
+    return this.streamKernelRequest("kernel.v1.capability.stream", {
+      handle: getBindingHandle(name),
+      input,
+      session_id: `subprocess_binding_${name}`,
+    }, callbacks);
   },
 
   openWebSocket(params: KernelWebSocketOpenParams, callbacks: KernelWebSocketCallbacks): Promise<KernelWebSocketHandle> {
@@ -482,8 +510,10 @@ export function serveSubprocessPackage(options: SubprocessPackageOptions) {
 
     try {
       if (request.method === "package.handshake") {
+        const params = (request.params ?? {}) as HandshakeParams;
+        kernelClient.bindings = { ...(params.bindings ?? {}) };
         const result = options.onHandshake
-          ? await options.onHandshake((request.params ?? {}) as HandshakeParams)
+          ? await options.onHandshake(params)
           : { ready: true, package_protocol_version: "0.1.0" };
         respond(request.id, { result: result as JsonValue });
       } else if (request.method === "capability.invoke") {

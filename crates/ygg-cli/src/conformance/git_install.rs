@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_core::{
-    CapabilityDescriptor, EntryDescriptor, GitFetchPermissions, PackageContributions, PackageEntry, PackageManifest,
-    PermissionSet, SandboxPolicy, EVENT_GIT_FETCH_COMPLETED, EVENT_GIT_FETCH_DENIED,
+    CapabilityDescriptor, EntryDescriptor, GitFetchPermissions, PackageContributions, PackageEntry,
+    PackageManifest, PermissionSet, SandboxPolicy, EVENT_GIT_FETCH_COMPLETED,
+    EVENT_GIT_FETCH_DENIED,
 };
 use ygg_runtime::{
     EventStore, ExecutorKind, FakeGitOutboundExecutor, GitFetchKind, GitOutboundExecutorConfig,
@@ -277,7 +278,10 @@ pub(crate) async fn installer_lockfile_round_trip() -> anyhow::Result<()> {
 
     let lock_path = dir.path().join("fixture-profile.lock.yaml");
     let raw = std::fs::read_to_string(&lock_path)?;
-    anyhow::ensure!(raw.contains("thirdparty/pkg"), "lockfile missing package id");
+    anyhow::ensure!(
+        raw.contains("thirdparty/pkg"),
+        "lockfile missing package id"
+    );
     anyhow::ensure!(raw.contains(&commit_a), "lockfile missing pinned commit");
 
     package::package_update_git(
@@ -291,12 +295,21 @@ pub(crate) async fn installer_lockfile_round_trip() -> anyhow::Result<()> {
     )
     .await?;
     let updated = std::fs::read_to_string(&lock_path)?;
-    anyhow::ensure!(updated.contains(&commit_b), "lockfile missing updated commit");
-    anyhow::ensure!(!updated.contains(&commit_a), "lockfile retained old commit after update");
+    anyhow::ensure!(
+        updated.contains(&commit_b),
+        "lockfile missing updated commit"
+    );
+    anyhow::ensure!(
+        !updated.contains(&commit_a),
+        "lockfile retained old commit after update"
+    );
 
     package::package_uninstall_git(profile.clone(), "thirdparty/pkg".to_string()).await?;
     let removed = std::fs::read_to_string(&lock_path)?;
-    anyhow::ensure!(!removed.contains("thirdparty/pkg"), "lockfile retained package after uninstall");
+    anyhow::ensure!(
+        !removed.contains("thirdparty/pkg"),
+        "lockfile retained package after uninstall"
+    );
     Ok(())
 }
 
@@ -314,7 +327,10 @@ pub(crate) async fn installer_lockfile_rejects_unsafe_inputs() -> anyhow::Result
         "manifest.yaml".to_string(),
     )
     .await;
-    anyhow::ensure!(result.is_err(), "git install lockfile command must reject query tokens");
+    anyhow::ensure!(
+        result.is_err(),
+        "git install lockfile command must reject query tokens"
+    );
     Ok(())
 }
 
@@ -335,14 +351,20 @@ pub(crate) async fn git_fetch_real_opt_in() -> anyhow::Result<()> {
         GitOutboundExecutorConfig::Custom(Arc::new(executor)),
     );
     runtime
-        .load_package(git_package("example/git-real", vec!["github.com".to_string()]))
+        .load_package(git_package(
+            "example/git-real",
+            vec!["github.com".to_string()],
+        ))
         .await?;
     let response = runtime
         .execute_git_outbound_with_policy(
             ProtocolPrincipal::Package {
                 package_id: "example/git-real".to_string(),
             },
-            request("example/git-real", "https://github.com/Youzini-afk/Yggdrasil.git"),
+            request(
+                "example/git-real",
+                "https://github.com/Youzini-afk/Yggdrasil.git",
+            ),
         )
         .await?;
     anyhow::ensure!(response.status == "ok", "real git fetch should resolve ok");
@@ -350,6 +372,9 @@ pub(crate) async fn git_fetch_real_opt_in() -> anyhow::Result<()> {
         response.resolved_commit_sha.as_deref().map(|sha| sha.len()) == Some(40),
         "real git fetch should resolve a commit sha"
     );
-    anyhow::ensure!(response.network_performed, "real git fetch must mark network_performed");
+    anyhow::ensure!(
+        response.network_performed,
+        "real git fetch must mark network_performed"
+    );
     Ok(())
 }

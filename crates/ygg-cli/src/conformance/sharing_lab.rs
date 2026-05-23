@@ -22,15 +22,13 @@ use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "official/sharing-lab";
 
-async fn load_sharing_lab(
-) -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
+async fn load_sharing_lab() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>>
+{
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from(
-                "packages/official/sharing-lab/manifest.yaml",
-            ))
-            .await?,
+            manifest::read_manifest(PathBuf::from("packages/official/sharing-lab/manifest.yaml"))
+                .await?,
         )
         .await?;
     Ok(runtime)
@@ -72,8 +70,14 @@ pub(crate) async fn sharing_contract() -> anyhow::Result<()> {
 
     // 3 surfaces
     let surfaces = contract.output["surfaces"].as_object().unwrap();
-    anyhow::ensure!(surfaces.contains_key("forge_panel"), "must have forge_panel");
-    anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action");
+    anyhow::ensure!(
+        surfaces.contains_key("forge_panel"),
+        "must have forge_panel"
+    );
+    anyhow::ensure!(
+        surfaces.contains_key("assistant_action"),
+        "must have assistant_action"
+    );
     anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
     // 9 capabilities
@@ -184,7 +188,9 @@ pub(crate) async fn sharing_import_bundle() -> anyhow::Result<()> {
     )
     .await?;
 
-    anyhow::ensure!(import_missing.output["compatibility_status"] == json!("minor_incompatibility"));
+    anyhow::ensure!(
+        import_missing.output["compatibility_status"] == json!("minor_incompatibility")
+    );
 
     // Format mismatch (migration required)
     let import_migrate = invoke(
@@ -253,9 +259,15 @@ pub(crate) async fn sharing_package_set_lockfile() -> anyhow::Result<()> {
     let packages = lockfile.output["packages"].as_array().unwrap();
     anyhow::ensure!(packages.len() == 3, "must pin 3 packages");
     for p in packages {
-        anyhow::ensure!(p["package_id"].is_string(), "each package must have package_id");
+        anyhow::ensure!(
+            p["package_id"].is_string(),
+            "each package must have package_id"
+        );
         anyhow::ensure!(p["version"].is_string(), "each package must have version");
-        anyhow::ensure!(p["content_address"].is_string(), "each package must have content_address");
+        anyhow::ensure!(
+            p["content_address"].is_string(),
+            "each package must have content_address"
+        );
     }
     anyhow::ensure!(lockfile.output["content_address"].is_string());
     anyhow::ensure!(lockfile.output["inference_performed"] == json!(false));

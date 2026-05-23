@@ -1,15 +1,14 @@
 use chrono::Utc;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use schemars::JsonSchema;
 use ygg_core::{
-    new_id, SessionId, KERNEL_PACKAGE_ID,
-    EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED, EVENT_PROPOSAL_CREATED, EVENT_PROPOSAL_FAILED,
-    EVENT_PROPOSAL_REJECTED,
+    new_id, SessionId, EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED, EVENT_PROPOSAL_CREATED,
+    EVENT_PROPOSAL_FAILED, EVENT_PROPOSAL_REJECTED, KERNEL_PACKAGE_ID,
 };
 
 use super::Runtime;
-use crate::{EventStore, ProtocolContext, ProtocolPrincipal, redaction};
+use crate::{redaction, EventStore, ProtocolContext, ProtocolPrincipal};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -78,12 +77,18 @@ impl<S> Runtime<S>
 where
     S: EventStore,
 {
-    pub async fn create_proposal(&self, context: &ProtocolContext, mut proposal: ProposalRecord) -> anyhow::Result<ProposalRecord> {
+    pub async fn create_proposal(
+        &self,
+        context: &ProtocolContext,
+        mut proposal: ProposalRecord,
+    ) -> anyhow::Result<ProposalRecord> {
         // Scan for raw secrets in proposal operations and expected_effects
         let proposal_value = serde_json::to_value(&proposal)?;
         let scan = redaction::scan_value_for_raw_secrets(&proposal_value, "");
         if scan.has_findings() {
-            let findings: Vec<String> = scan.findings.iter()
+            let findings: Vec<String> = scan
+                .findings
+                .iter()
                 .map(|f| format!("{} ({:?})", f.path, f.detection))
                 .collect();
             anyhow::bail!(
@@ -92,17 +97,34 @@ where
             );
         }
 
-        proposal.id = if proposal.id.trim().is_empty() { new_id("prp") } else { proposal.id };
+        proposal.id = if proposal.id.trim().is_empty() {
+            new_id("prp")
+        } else {
+            proposal.id
+        };
         proposal.status = ProposalStatus::Created;
         proposal.created_by = context.principal.clone();
         proposal.created_at = Utc::now();
-        self.proposals.write().await.insert(proposal.id.clone(), proposal.clone());
-        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_CREATED, serde_json::to_value(&proposal)?).await?;
+        self.proposals
+            .write()
+            .await
+            .insert(proposal.id.clone(), proposal.clone());
+        self.append_kernel_event(
+            &format!("kernel_proposal_{}", proposal.id),
+            EVENT_PROPOSAL_CREATED,
+            serde_json::to_value(&proposal)?,
+        )
+        .await?;
         Ok(proposal)
     }
 
     pub async fn get_proposal(&self, proposal_id: &str) -> anyhow::Result<ProposalRecord> {
-        self.proposals.read().await.get(proposal_id).cloned().ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))
+        self.proposals
+            .read()
+            .await
+            .get(proposal_id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))
     }
 
     pub async fn list_proposals(&self) -> Vec<ProposalRecord> {
@@ -111,31 +133,63 @@ where
         proposals
     }
 
-    pub async fn approve_proposal(&self, context: &ProtocolContext, proposal_id: &str, reason: Option<String>) -> anyhow::Result<ProposalRecord> {
+    pub async fn approve_proposal(
+        &self,
+        context: &ProtocolContext,
+        proposal_id: &str,
+        reason: Option<String>,
+    ) -> anyhow::Result<ProposalRecord> {
         let mut proposals = self.proposals.write().await;
-        let proposal = proposals.get_mut(proposal_id).ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
+        let proposal = proposals
+            .get_mut(proposal_id)
+            .ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
         if proposal.status != ProposalStatus::Created {
             anyhow::bail!("proposal '{proposal_id}' is not awaiting approval");
         }
         proposal.status = ProposalStatus::Approved;
-        proposal.approval = Some(ProposalApproval { principal: context.principal.clone(), decided_at: Utc::now(), reason });
+        proposal.approval = Some(ProposalApproval {
+            principal: context.principal.clone(),
+            decided_at: Utc::now(),
+            reason,
+        });
         let proposal = proposal.clone();
         drop(proposals);
-        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_APPROVED, serde_json::to_value(&proposal)?).await?;
+        self.append_kernel_event(
+            &format!("kernel_proposal_{}", proposal.id),
+            EVENT_PROPOSAL_APPROVED,
+            serde_json::to_value(&proposal)?,
+        )
+        .await?;
         Ok(proposal)
     }
 
-    pub async fn reject_proposal(&self, context: &ProtocolContext, proposal_id: &str, reason: Option<String>) -> anyhow::Result<ProposalRecord> {
+    pub async fn reject_proposal(
+        &self,
+        context: &ProtocolContext,
+        proposal_id: &str,
+        reason: Option<String>,
+    ) -> anyhow::Result<ProposalRecord> {
         let mut proposals = self.proposals.write().await;
-        let proposal = proposals.get_mut(proposal_id).ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
+        let proposal = proposals
+            .get_mut(proposal_id)
+            .ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
         if proposal.status != ProposalStatus::Created {
             anyhow::bail!("proposal '{proposal_id}' is not awaiting review");
         }
         proposal.status = ProposalStatus::Rejected;
-        proposal.approval = Some(ProposalApproval { principal: context.principal.clone(), decided_at: Utc::now(), reason });
+        proposal.approval = Some(ProposalApproval {
+            principal: context.principal.clone(),
+            decided_at: Utc::now(),
+            reason,
+        });
         let proposal = proposal.clone();
         drop(proposals);
-        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_REJECTED, serde_json::to_value(&proposal)?).await?;
+        self.append_kernel_event(
+            &format!("kernel_proposal_{}", proposal.id),
+            EVENT_PROPOSAL_REJECTED,
+            serde_json::to_value(&proposal)?,
+        )
+        .await?;
         Ok(proposal)
     }
 
@@ -148,13 +202,32 @@ where
         for operation in &proposal.operations {
             match operation.op.as_str() {
                 "asset.put" => {
-                    let content = operation.payload.get("content").and_then(Value::as_str).unwrap_or("{}").to_string();
-                    let mime = operation.payload.get("mime").and_then(Value::as_str).unwrap_or("application/json").to_string();
-                    let asset = self.put_asset(super::AssetPutRequest { origin_package_id: Some(KERNEL_PACKAGE_ID.to_string()), mime, content, metadata: json!({"proposal_id": proposal.id}) }).await?;
+                    let content = operation
+                        .payload
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .unwrap_or("{}")
+                        .to_string();
+                    let mime = operation
+                        .payload
+                        .get("mime")
+                        .and_then(Value::as_str)
+                        .unwrap_or("application/json")
+                        .to_string();
+                    let asset = self
+                        .put_asset(super::AssetPutRequest {
+                            origin_package_id: Some(KERNEL_PACKAGE_ID.to_string()),
+                            mime,
+                            content,
+                            metadata: json!({"proposal_id": proposal.id}),
+                        })
+                        .await?;
                     results.push(json!({"op": operation.op, "asset_id": asset.id}));
                 }
                 "projection.rebuild" => {
-                    let projection_id = operation.target.as_deref().ok_or_else(|| anyhow::anyhow!("projection.rebuild operation requires target"))?;
+                    let projection_id = operation.target.as_deref().ok_or_else(|| {
+                        anyhow::anyhow!("projection.rebuild operation requires target")
+                    })?;
                     let projection = self.projection_rebuild(projection_id).await?;
                     results.push(json!({"op": operation.op, "projection_id": projection.id}));
                 }
@@ -163,19 +236,38 @@ where
         }
         proposal.status = ProposalStatus::Applied;
         proposal.result = Some(json!({"operations": results}));
-        self.proposals.write().await.insert(proposal.id.clone(), proposal.clone());
-        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_APPLIED, serde_json::to_value(&proposal)?).await?;
+        self.proposals
+            .write()
+            .await
+            .insert(proposal.id.clone(), proposal.clone());
+        self.append_kernel_event(
+            &format!("kernel_proposal_{}", proposal.id),
+            EVENT_PROPOSAL_APPLIED,
+            serde_json::to_value(&proposal)?,
+        )
+        .await?;
         Ok(proposal)
     }
 
-    pub async fn fail_proposal(&self, proposal_id: &str, error: String) -> anyhow::Result<ProposalRecord> {
+    pub async fn fail_proposal(
+        &self,
+        proposal_id: &str,
+        error: String,
+    ) -> anyhow::Result<ProposalRecord> {
         let mut proposals = self.proposals.write().await;
-        let proposal = proposals.get_mut(proposal_id).ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
+        let proposal = proposals
+            .get_mut(proposal_id)
+            .ok_or_else(|| anyhow::anyhow!("proposal '{proposal_id}' not found"))?;
         proposal.status = ProposalStatus::Failed;
         proposal.result = Some(json!({"error": error}));
         let proposal = proposal.clone();
         drop(proposals);
-        self.append_kernel_event(&format!("kernel_proposal_{}", proposal.id), EVENT_PROPOSAL_FAILED, serde_json::to_value(&proposal)?).await?;
+        self.append_kernel_event(
+            &format!("kernel_proposal_{}", proposal.id),
+            EVENT_PROPOSAL_FAILED,
+            serde_json::to_value(&proposal)?,
+        )
+        .await?;
         Ok(proposal)
     }
 }

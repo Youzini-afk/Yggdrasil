@@ -1,7 +1,7 @@
 use chrono::Utc;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use schemars::JsonSchema;
 use ygg_core::{new_id, EventSequence, SessionId, EVENT_SESSION_FORKED};
 
 use super::Runtime;
@@ -50,8 +50,16 @@ where
             created_at: Utc::now(),
             metadata,
         };
-        self.branches.write().await.insert(branch.id.clone(), branch.clone());
-        self.append_kernel_event(&parent_session_id, EVENT_SESSION_FORKED, serde_json::to_value(&branch)?).await?;
+        self.branches
+            .write()
+            .await
+            .insert(branch.id.clone(), branch.clone());
+        self.append_kernel_event(
+            &parent_session_id,
+            EVENT_SESSION_FORKED,
+            serde_json::to_value(&branch)?,
+        )
+        .await?;
         Ok(branch)
     }
 
@@ -61,7 +69,9 @@ where
             .read()
             .await
             .values()
-            .filter(|branch| &branch.parent_session_id == session_id || &branch.child_session_id == session_id)
+            .filter(|branch| {
+                &branch.parent_session_id == session_id || &branch.child_session_id == session_id
+            })
             .cloned()
             .collect();
         branches.sort_by(|a, b| a.created_at.cmp(&b.created_at));

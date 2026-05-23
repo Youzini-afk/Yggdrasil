@@ -1,9 +1,12 @@
 use serde_json::json;
 use ygg_core::{
-    CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope,
-    EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
+    CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope, EVENT_CAPABILITY_COMPLETED,
+    EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
 };
-use ygg_runtime::{AppendEventRequest, CapabilityInvocationRequest, EventStore, OpenSessionRequest, ProtocolContext, RuntimeConfig};
+use ygg_runtime::{
+    AppendEventRequest, CapabilityInvocationRequest, EventStore, OpenSessionRequest,
+    ProtocolContext, RuntimeConfig,
+};
 
 use super::fixtures::*;
 
@@ -18,7 +21,9 @@ pub(crate) async fn session_open() -> anyhow::Result<()> {
 pub(crate) async fn event_append_authorized() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/echo", true, true)).await?;
+    runtime
+        .load_package(event_package("example/echo", true, true))
+        .await?;
     runtime
         .append_event(AppendEventRequest {
             session_id: session.id.clone(),
@@ -28,14 +33,19 @@ pub(crate) async fn event_append_authorized() -> anyhow::Result<()> {
             metadata: json!({}),
         })
         .await?;
-    anyhow::ensure!(store.list_session(&session.id).await?.len() == 2, "expected append event");
+    anyhow::ensure!(
+        store.list_session(&session.id).await?.len() == 2,
+        "expected append event"
+    );
     Ok(())
 }
 
 pub(crate) async fn event_append_without_permission_denied() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/noappend", true, false)).await?;
+    runtime
+        .load_package(event_package("example/noappend", true, false))
+        .await?;
     let denied = runtime
         .append_event(AppendEventRequest {
             session_id: session.id,
@@ -45,14 +55,19 @@ pub(crate) async fn event_append_without_permission_denied() -> anyhow::Result<(
             metadata: json!({}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "append without permission unexpectedly succeeded");
+    anyhow::ensure!(
+        denied.is_err(),
+        "append without permission unexpectedly succeeded"
+    );
     Ok(())
 }
 
 pub(crate) async fn kernel_namespace_denied() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime
+        .load_package(event_package("example/writer", true, true))
+        .await?;
     let denied = runtime
         .append_event(AppendEventRequest {
             session_id: session.id,
@@ -69,16 +84,25 @@ pub(crate) async fn kernel_namespace_denied() -> anyhow::Result<()> {
 pub(crate) async fn event_read_without_permission_denied() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/noread", false, false)).await?;
-    let denied = runtime.list_events_for(&session.id, Some(&"example/noread".to_string())).await;
-    anyhow::ensure!(denied.is_err(), "event read without permission unexpectedly succeeded");
+    runtime
+        .load_package(event_package("example/noread", false, false))
+        .await?;
+    let denied = runtime
+        .list_events_for(&session.id, Some(&"example/noread".to_string()))
+        .await;
+    anyhow::ensure!(
+        denied.is_err(),
+        "event read without permission unexpectedly succeeded"
+    );
     Ok(())
 }
 
 pub(crate) async fn closed_session_rejects_append() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/writer", true, true)).await?;
+    runtime
+        .load_package(event_package("example/writer", true, true))
+        .await?;
     runtime.close_session(session.id.clone()).await?;
     let denied = runtime
         .append_event(AppendEventRequest {
@@ -89,14 +113,19 @@ pub(crate) async fn closed_session_rejects_append() -> anyhow::Result<()> {
             metadata: json!({}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "append to closed session unexpectedly succeeded");
+    anyhow::ensure!(
+        denied.is_err(),
+        "append to closed session unexpectedly succeeded"
+    );
     Ok(())
 }
 
 pub(crate) async fn event_range_replay() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/range", true, true)).await?;
+    runtime
+        .load_package(event_package("example/range", true, true))
+        .await?;
     for idx in 0..3 {
         runtime
             .append_event(AppendEventRequest {
@@ -116,15 +145,29 @@ pub(crate) async fn event_range_replay() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let events = value.as_array().ok_or_else(|| anyhow::anyhow!("event list did not return array"))?;
-    anyhow::ensure!(events.len() == 2, "expected two ranged events, got {}", events.len());
-    anyhow::ensure!(events[0]["sequence"] == json!(2), "range did not resume after sequence");
+    let events = value
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("event list did not return array"))?;
+    anyhow::ensure!(
+        events.len() == 2,
+        "expected two ranged events, got {}",
+        events.len()
+    );
+    anyhow::ensure!(
+        events[0]["sequence"] == json!(2),
+        "range did not resume after sequence"
+    );
     Ok(())
 }
 
 pub(crate) async fn capability_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/echo-rust-inproc", "example/echo-rust-inproc/echo")).await?;
+    runtime
+        .load_package(echo_package(
+            "example/echo-rust-inproc",
+            "example/echo-rust-inproc/echo",
+        ))
+        .await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -141,7 +184,9 @@ pub(crate) async fn capability_invoke() -> anyhow::Result<()> {
 
 pub(crate) async fn capability_handle_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/handle", "example/handle/echo")).await?;
+    runtime
+        .load_package(echo_package("example/handle", "example/handle/echo"))
+        .await?;
     let handle = mint_test_handle(&runtime, "example/handle", "example/handle/echo", None).await;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -153,14 +198,25 @@ pub(crate) async fn capability_handle_invoke() -> anyhow::Result<()> {
             input: json!({"via": "handle"}),
         })
         .await?;
-    anyhow::ensure!(result.output == json!({"via": "handle"}), "handle invoke mismatch");
+    anyhow::ensure!(
+        result.output == json!({"via": "handle"}),
+        "handle invoke mismatch"
+    );
     Ok(())
 }
 
 pub(crate) async fn capability_handle_attenuate_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/attenuate", "example/attenuate/echo")).await?;
-    let parent = mint_test_handle(&runtime, "example/attenuate", "example/attenuate/echo", None).await;
+    runtime
+        .load_package(echo_package("example/attenuate", "example/attenuate/echo"))
+        .await?;
+    let parent = mint_test_handle(
+        &runtime,
+        "example/attenuate",
+        "example/attenuate/echo",
+        None,
+    )
+    .await;
     let response = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
@@ -180,13 +236,18 @@ pub(crate) async fn capability_handle_attenuate_invoke() -> anyhow::Result<()> {
             input: json!({"via": "attenuated"}),
         })
         .await?;
-    anyhow::ensure!(result.output == json!({"via": "attenuated"}), "attenuated invoke mismatch");
+    anyhow::ensure!(
+        result.output == json!({"via": "attenuated"}),
+        "attenuated invoke mismatch"
+    );
     Ok(())
 }
 
 pub(crate) async fn capability_handle_revoke_blocks_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/revoke", "example/revoke/echo")).await?;
+    runtime
+        .load_package(echo_package("example/revoke", "example/revoke/echo"))
+        .await?;
     let handle = mint_test_handle(&runtime, "example/revoke", "example/revoke/echo", None).await;
     runtime
         .call_protocol(
@@ -212,7 +273,9 @@ pub(crate) async fn capability_handle_revoke_blocks_invoke() -> anyhow::Result<(
 
 pub(crate) async fn capability_auto_mint_legacy_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/legacy", "example/legacy/echo")).await?;
+    runtime
+        .load_package(echo_package("example/legacy", "example/legacy/echo"))
+        .await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -223,13 +286,18 @@ pub(crate) async fn capability_auto_mint_legacy_invoke() -> anyhow::Result<()> {
             input: json!({"legacy": true}),
         })
         .await?;
-    anyhow::ensure!(result.output == json!({"legacy": true}), "legacy auto-mint invoke mismatch");
+    anyhow::ensure!(
+        result.output == json!({"legacy": true}),
+        "legacy auto-mint invoke mismatch"
+    );
     Ok(())
 }
 
 pub(crate) async fn capability_invoke_events_completed() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
-    runtime.load_package(echo_package("example/events", "example/events/echo")).await?;
+    runtime
+        .load_package(echo_package("example/events", "example/events/echo"))
+        .await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -242,11 +310,28 @@ pub(crate) async fn capability_invoke_events_completed() -> anyhow::Result<()> {
         .await?;
     let invoked = store.list_kind_prefix(EVENT_CAPABILITY_INVOKED).await?;
     let completed = store.list_kind_prefix(EVENT_CAPABILITY_COMPLETED).await?;
-    anyhow::ensure!(!invoked.is_empty() && !completed.is_empty(), "missing capability lifecycle events");
-    anyhow::ensure!(invoked[0].payload["correlation_id"] == completed[0].payload["correlation_id"], "correlation_id mismatch");
-    let duration_ms = completed[0].payload["duration_ms"].as_u64().ok_or_else(|| anyhow::anyhow!("duration missing"))?;
-    anyhow::ensure!((1..60_000).contains(&duration_ms), "duration should be non-zero and reasonable");
-    anyhow::ensure!(result.correlation_id.to_string() == completed[0].payload["correlation_id"].as_str().unwrap_or_default(), "result correlation mismatch");
+    anyhow::ensure!(
+        !invoked.is_empty() && !completed.is_empty(),
+        "missing capability lifecycle events"
+    );
+    anyhow::ensure!(
+        invoked[0].payload["correlation_id"] == completed[0].payload["correlation_id"],
+        "correlation_id mismatch"
+    );
+    let duration_ms = completed[0].payload["duration_ms"]
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("duration missing"))?;
+    anyhow::ensure!(
+        (1..60_000).contains(&duration_ms),
+        "duration should be non-zero and reasonable"
+    );
+    anyhow::ensure!(
+        result.correlation_id.to_string()
+            == completed[0].payload["correlation_id"]
+                .as_str()
+                .unwrap_or_default(),
+        "result correlation mismatch"
+    );
     Ok(())
 }
 
@@ -265,8 +350,13 @@ pub(crate) async fn capability_invoke_events_failed() -> anyhow::Result<()> {
     anyhow::ensure!(denied.is_err(), "missing capability should fail");
     let failed = store.list_kind_prefix(EVENT_CAPABILITY_FAILED).await?;
     anyhow::ensure!(!failed.is_empty(), "missing capability failed event");
-    let duration_ms = failed[0].payload["duration_ms"].as_u64().ok_or_else(|| anyhow::anyhow!("failed duration missing"))?;
-    anyhow::ensure!((1..60_000).contains(&duration_ms), "failed duration should be non-zero and reasonable");
+    let duration_ms = failed[0].payload["duration_ms"]
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("failed duration missing"))?;
+    anyhow::ensure!(
+        (1..60_000).contains(&duration_ms),
+        "failed duration should be non-zero and reasonable"
+    );
     Ok(())
 }
 
@@ -280,9 +370,16 @@ async fn mint_test_handle(
         id: CapHandleId::new(),
         cap_type: capability_id.to_string(),
         cap_version: "0.1.0".to_string(),
-        scope: HandleScope { holder_package_id: holder.to_string(), session_id: None },
+        scope: HandleScope {
+            holder_package_id: holder.to_string(),
+            session_id: None,
+        },
         constraints: json!({}),
-        lease: HandleLease { expires_at: None, max_invocations, invocations_used: 0 },
+        lease: HandleLease {
+            expires_at: None,
+            max_invocations,
+            invocations_used: 0,
+        },
         provenance: HandleProvenance {
             granted_at: chrono::Utc::now(),
             granted_by_package_id: "kernel".to_string(),
@@ -296,8 +393,12 @@ async fn mint_test_handle(
 
 pub(crate) async fn ambiguous_provider_denied() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/provider-a", "example/shared/echo")).await?;
-    runtime.load_package(echo_package("example/provider-b", "example/shared/echo")).await?;
+    runtime
+        .load_package(echo_package("example/provider-a", "example/shared/echo"))
+        .await?;
+    runtime
+        .load_package(echo_package("example/provider-b", "example/shared/echo"))
+        .await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -314,8 +415,18 @@ pub(crate) async fn ambiguous_provider_denied() -> anyhow::Result<()> {
 
 pub(crate) async fn explicit_provider_selected() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/provider-a", "example/shared/selected")).await?;
-    runtime.load_package(echo_package("example/provider-b", "example/shared/selected")).await?;
+    runtime
+        .load_package(echo_package(
+            "example/provider-a",
+            "example/shared/selected",
+        ))
+        .await?;
+    runtime
+        .load_package(echo_package(
+            "example/provider-b",
+            "example/shared/selected",
+        ))
+        .await?;
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -326,13 +437,18 @@ pub(crate) async fn explicit_provider_selected() -> anyhow::Result<()> {
             input: json!({"selected": true}),
         })
         .await?;
-    anyhow::ensure!(result.provider_package_id == "example/provider-b", "explicit provider was ignored");
+    anyhow::ensure!(
+        result.provider_package_id == "example/provider-b",
+        "explicit provider was ignored"
+    );
     Ok(())
 }
 
 pub(crate) async fn unload_removes_capability() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/temp", "example/temp/echo")).await?;
+    runtime
+        .load_package(echo_package("example/temp", "example/temp/echo"))
+        .await?;
     runtime.unload_package(&"example/temp".to_string()).await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -350,8 +466,12 @@ pub(crate) async fn unload_removes_capability() -> anyhow::Result<()> {
 
 pub(crate) async fn official_no_privilege() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("official/echo", "example/shared/echo")).await?;
-    runtime.load_package(echo_package("thirdparty/echo", "example/shared/echo")).await?;
+    runtime
+        .load_package(echo_package("official/echo", "example/shared/echo"))
+        .await?;
+    runtime
+        .load_package(echo_package("thirdparty/echo", "example/shared/echo"))
+        .await?;
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -362,7 +482,10 @@ pub(crate) async fn official_no_privilege() -> anyhow::Result<()> {
             input: json!({}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "official-looking package won ambiguous route");
+    anyhow::ensure!(
+        denied.is_err(),
+        "official-looking package won ambiguous route"
+    );
     Ok(())
 }
 
@@ -386,7 +509,10 @@ pub(crate) async fn capability_schema_rejects_invalid() -> anyhow::Result<()> {
             input: json!({}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "invalid capability input unexpectedly passed");
+    anyhow::ensure!(
+        denied.is_err(),
+        "invalid capability input unexpectedly passed"
+    );
     Ok(())
 }
 
@@ -409,27 +535,46 @@ pub(crate) async fn event_schema_rejects_invalid() -> anyhow::Result<()> {
 
 pub(crate) async fn host_diagnostics() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    runtime.load_package(echo_package("example/diag", "example/diag/echo")).await?;
+    runtime
+        .load_package(echo_package("example/diag", "example/diag/echo"))
+        .await?;
     let diagnostics = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.host.diagnostics", json!({}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.host.diagnostics",
+            json!({}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(diagnostics["package_count"] == json!(1), "diagnostics package count mismatch");
+    anyhow::ensure!(
+        diagnostics["package_count"] == json!(1),
+        "diagnostics package count mismatch"
+    );
     Ok(())
 }
 
 pub(crate) async fn host_profile_autoload() -> anyhow::Result<()> {
+    use crate::commands::host;
     use std::path::PathBuf;
     use std::sync::Arc;
     use ygg_runtime::{InMemoryEventStore, Runtime};
-    use crate::commands::host;
 
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
     host::load_host_profile(runtime.clone(), PathBuf::from("profiles/forge-alpha.yaml")).await?;
     let packages = runtime.list_packages().await;
-    anyhow::ensure!(packages.iter().any(|package| package.id == "example/echo-rust-inproc"), "profile did not autoload rust package");
-    anyhow::ensure!(packages.iter().any(|package| package.id == "example/echo-subprocess-python"), "profile did not autoload subprocess package");
+    anyhow::ensure!(
+        packages
+            .iter()
+            .any(|package| package.id == "example/echo-rust-inproc"),
+        "profile did not autoload rust package"
+    );
+    anyhow::ensure!(
+        packages
+            .iter()
+            .any(|package| package.id == "example/echo-subprocess-python"),
+        "profile did not autoload subprocess package"
+    );
     Ok(())
 }
 
@@ -443,17 +588,33 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let asset_id = record_value["id"].as_str().ok_or_else(|| anyhow::anyhow!("asset put returned no id"))?;
+    let asset_id = record_value["id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("asset put returned no id"))?;
     let get_value = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.asset.get", json!({"asset_id": asset_id}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.asset.get",
+            json!({"asset_id": asset_id}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(get_value["content"] == json!("{\"hello\":true}"), "asset get content mismatch");
+    anyhow::ensure!(
+        get_value["content"] == json!("{\"hello\":true}"),
+        "asset get content mismatch"
+    );
     let list_value = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.asset.list", json!({}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.asset.list",
+            json!({}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(list_value.as_array().map(|items| items.len()).unwrap_or(0) == 1, "asset list missing record");
+    anyhow::ensure!(
+        list_value.as_array().map(|items| items.len()).unwrap_or(0) == 1,
+        "asset list missing record"
+    );
     Ok(())
 }
 
@@ -468,19 +629,31 @@ pub(crate) async fn session_fork_branch() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(branch_value["parent_session_id"] == json!(session.id), "branch parent mismatch");
+    anyhow::ensure!(
+        branch_value["parent_session_id"] == json!(session.id),
+        "branch parent mismatch"
+    );
     let branches = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.session.branch.list", json!({"session_id": session.id}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.session.branch.list",
+            json!({"session_id": session.id}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(branches.as_array().map(|items| items.len()).unwrap_or(0) == 1, "branch list missing fork");
+    anyhow::ensure!(
+        branches.as_array().map(|items| items.len()).unwrap_or(0) == 1,
+        "branch list missing fork"
+    );
     Ok(())
 }
 
 pub(crate) async fn projection_rebuild() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
-    runtime.load_package(event_package("example/projection", true, true)).await?;
+    runtime
+        .load_package(event_package("example/projection", true, true))
+        .await?;
     runtime
         .append_event(AppendEventRequest {
             session_id: session.id.clone(),
@@ -506,6 +679,9 @@ pub(crate) async fn projection_rebuild() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(rebuilt["state"]["event_count"] == json!(1), "projection event count mismatch");
+    anyhow::ensure!(
+        rebuilt["state"]["event_count"] == json!(1),
+        "projection event count mismatch"
+    );
     Ok(())
 }

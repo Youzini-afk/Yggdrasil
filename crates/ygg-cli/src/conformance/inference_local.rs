@@ -14,10 +14,12 @@ use crate::commands::manifest;
 pub(crate) async fn inference_local_lab_describe_capabilities() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-local-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-local-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     let caps = runtime
@@ -82,10 +84,12 @@ pub(crate) async fn inference_local_lab_describe_capabilities() -> anyhow::Resul
 pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-local-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-local-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // invoke non-HTTP succeeds with no URL/header/status/messages fields, network_performed=false
@@ -193,10 +197,12 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
 pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-local-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-local-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // invoke rejects http transport
@@ -342,10 +348,12 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
 pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-local-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-local-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     let stream_result = runtime
@@ -383,22 +391,10 @@ pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
         .iter()
         .map(|f| f["kind"].as_str().unwrap_or_default())
         .collect();
-    anyhow::ensure!(
-        kinds.first() == Some(&"start"),
-        "first frame must be start"
-    );
-    anyhow::ensure!(
-        kinds.last() == Some(&"end"),
-        "last frame must be end"
-    );
-    anyhow::ensure!(
-        kinds.contains(&"chunk"),
-        "must have chunk frames"
-    );
-    anyhow::ensure!(
-        kinds.contains(&"progress"),
-        "must have progress frame"
-    );
+    anyhow::ensure!(kinds.first() == Some(&"start"), "first frame must be start");
+    anyhow::ensure!(kinds.last() == Some(&"end"), "last frame must be end");
+    anyhow::ensure!(kinds.contains(&"chunk"), "must have chunk frames");
+    anyhow::ensure!(kinds.contains(&"progress"), "must have progress frame");
     anyhow::ensure!(
         stream_result.output["terminal_frame_consistent"] == json!(true),
         "terminal_frame_consistent must be true"
@@ -449,10 +445,12 @@ pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
 pub(crate) async fn inference_local_lab_explain_error() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-local-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-local-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // Cover local/resource error classes
@@ -485,9 +483,7 @@ pub(crate) async fn inference_local_lab_explain_error() -> anyhow::Result<()> {
             "explain_error missing explanation for {}",
             error_kind
         );
-        let error_class = result.output["error_class"]
-            .as_str()
-            .unwrap_or_default();
+        let error_class = result.output["error_class"].as_str().unwrap_or_default();
         anyhow::ensure!(
             error_class == "local" || error_class == "resource",
             "explain_error error_class must be local or resource for {}, got {}",

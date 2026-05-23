@@ -14,7 +14,9 @@ const REAL_ADAPTER_MANIFEST: &str = "integrations/tdb/rust-adapter-real-crate/Ca
 pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow::Result<()> {
     build_default_adapter()?;
     let (_store, runtime) = runtime();
-    runtime.load_package(manifest::read_manifest(PathBuf::from(MANIFEST)).await?).await?;
+    runtime
+        .load_package(manifest::read_manifest(PathBuf::from(MANIFEST)).await?)
+        .await?;
 
     let described = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -49,8 +51,13 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
 pub(crate) async fn subprocess_adapter_rejects_secret_and_raw_path() -> anyhow::Result<()> {
     build_default_adapter()?;
     let (_store, runtime) = runtime();
-    runtime.load_package(manifest::read_manifest(PathBuf::from(MANIFEST)).await?).await?;
-    for input in [json!({"payload":"sk-test-value"}), json!({"store_path":"/tmp/private.tdb"})] {
+    runtime
+        .load_package(manifest::read_manifest(PathBuf::from(MANIFEST)).await?)
+        .await?;
+    for input in [
+        json!({"payload":"sk-test-value"}),
+        json!({"store_path":"/tmp/private.tdb"}),
+    ] {
         let denied = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
@@ -71,14 +78,22 @@ pub(crate) async fn real_crate_smoke_opt_in() -> anyhow::Result<()> {
         return Ok(());
     }
     let status = Command::new("cargo")
-        .args(["test", "--manifest-path", REAL_ADAPTER_MANIFEST, "--features", "real-tdb"])
+        .args([
+            "test",
+            "--manifest-path",
+            REAL_ADAPTER_MANIFEST,
+            "--features",
+            "real-tdb",
+        ])
         .status()?;
     anyhow::ensure!(status.success(), "real crate TDB smoke test failed");
     Ok(())
 }
 
 fn build_default_adapter() -> anyhow::Result<()> {
-    let status = Command::new("cargo").args(["build", "--manifest-path", ADAPTER_MANIFEST]).status()?;
+    let status = Command::new("cargo")
+        .args(["build", "--manifest-path", ADAPTER_MANIFEST])
+        .status()?;
     anyhow::ensure!(status.success(), "default TDB adapter build failed");
     Ok(())
 }

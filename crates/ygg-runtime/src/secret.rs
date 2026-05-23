@@ -234,7 +234,10 @@ mod tests {
         let resolver = DenyAllSecretResolver;
         let result = resolver.resolve("secret_ref:env:MY_KEY").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no secret resolver configured"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("no secret resolver configured"));
     }
 
     // --- EnvSecretResolver tests ---
@@ -314,8 +317,14 @@ mod tests {
         let result = resolver.resolve(&format!("secret_ref:env:{}", name)).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("not in allowlist"), "error should mention allowlist: {err_msg}");
-        assert!(!err_msg.contains("should-not-be-returned"), "error must not leak raw value: {err_msg}");
+        assert!(
+            err_msg.contains("not in allowlist"),
+            "error should mention allowlist: {err_msg}"
+        );
+        assert!(
+            !err_msg.contains("should-not-be-returned"),
+            "error must not leak raw value: {err_msg}"
+        );
     }
 
     #[tokio::test]
@@ -328,9 +337,15 @@ mod tests {
         let result = resolver.resolve(&format!("secret_ref:env:{}", name)).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("not set"), "error should mention not set: {err_msg}");
+        assert!(
+            err_msg.contains("not set"),
+            "error should mention not set: {err_msg}"
+        );
         // Error must not contain raw value (there is none, but verify structure)
-        assert!(err_msg.contains(&name), "error should contain env name for debugging: {err_msg}");
+        assert!(
+            err_msg.contains(&name),
+            "error should contain env name for debugging: {err_msg}"
+        );
     }
 
     #[tokio::test]
@@ -339,7 +354,10 @@ mod tests {
         let result = resolver.resolve("secret_ref:vault:prod/openai").await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("not an env-backed reference"), "error should mention non-env: {err_msg}");
+        assert!(
+            err_msg.contains("not an env-backed reference"),
+            "error should mention non-env: {err_msg}"
+        );
     }
 
     #[tokio::test]
@@ -349,7 +367,10 @@ mod tests {
         let result = resolver.resolve("host:my_secret").await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("not an env-backed reference"), "host:my_secret should not be treated as env: {err_msg}");
+        assert!(
+            err_msg.contains("not an env-backed reference"),
+            "host:my_secret should not be treated as env: {err_msg}"
+        );
     }
 
     #[tokio::test]
@@ -362,7 +383,10 @@ mod tests {
         let result = resolver.resolve(&format!("secret_ref:env:{}", name)).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(!err_msg.contains("super-secret-value-xyz"), "error must not leak raw value: {err_msg}");
+        assert!(
+            !err_msg.contains("super-secret-value-xyz"),
+            "error must not leak raw value: {err_msg}"
+        );
     }
 
     #[tokio::test]
@@ -379,8 +403,14 @@ mod tests {
     async fn env_resolver_debug_does_not_leak_values() {
         let resolver = EnvSecretResolver::new(HashSet::from(["MY_KEY".to_string()]));
         let debug_str = format!("{:?}", resolver);
-        assert!(!debug_str.contains("MY_KEY"), "Debug should not contain env names: {debug_str}");
-        assert!(debug_str.contains("allowed_count"), "Debug should show count: {debug_str}");
+        assert!(
+            !debug_str.contains("MY_KEY"),
+            "Debug should not contain env names: {debug_str}"
+        );
+        assert!(
+            debug_str.contains("allowed_count"),
+            "Debug should show count: {debug_str}"
+        );
     }
 
     // --- extract_env_name tests ---

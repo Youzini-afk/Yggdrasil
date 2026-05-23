@@ -28,7 +28,10 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
 
 fn import_collection(request: &InprocInvocation) -> anyhow::Result<Value> {
     let data = request.input.get("data").unwrap_or(&request.input);
-    let entries_value = data.get("entries").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let entries_value = data
+        .get("entries")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
     let entries: Vec<Value> = if let Some(array) = entries_value.as_array() {
         array.clone()
     } else if let Some(object) = entries_value.as_object() {
@@ -56,14 +59,40 @@ fn normalize_entries(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn match_entries(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let query = request.input.get("query").and_then(Value::as_str).unwrap_or_default().to_lowercase();
-    let entries = request.input.get("entries").and_then(Value::as_array).cloned().unwrap_or_default();
+    let query = request
+        .input
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_lowercase();
+    let entries = request
+        .input
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut matches = Vec::new();
     for entry in entries {
-        let keys = entry.get("key").or_else(|| entry.get("keys")).and_then(Value::as_array).cloned().unwrap_or_default();
-        let hit = keys.iter().any(|key| key.as_str().map(|key| query.contains(&key.to_lowercase())).unwrap_or(false));
-        if hit || entry.get("constant").and_then(Value::as_bool).unwrap_or(false) {
-            matches.push(serde_json::json!({"entry": entry, "reason": if hit {"keyword"} else {"constant"}}));
+        let keys = entry
+            .get("key")
+            .or_else(|| entry.get("keys"))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let hit = keys.iter().any(|key| {
+            key.as_str()
+                .map(|key| query.contains(&key.to_lowercase()))
+                .unwrap_or(false)
+        });
+        if hit
+            || entry
+                .get("constant")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        {
+            matches.push(
+                serde_json::json!({"entry": entry, "reason": if hit {"keyword"} else {"constant"}}),
+            );
         }
     }
     Ok(serde_json::json!({

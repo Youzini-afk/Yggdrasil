@@ -11,11 +11,10 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
-    new_id, CapabilityId, InvocationId, PackageId, SessionId,
-    RedactionState, StreamFrameEnvelope, StreamFrameType, StreamInvocationRecord,
-    StreamInvocationState,
-    EVENT_STREAM_CANCELLED, EVENT_STREAM_CHUNK, EVENT_STREAM_ENDED, EVENT_STREAM_ERROR,
-    EVENT_STREAM_PROGRESS, EVENT_STREAM_STARTED, EVENT_STREAM_TIMEOUT,
+    new_id, CapabilityId, InvocationId, PackageId, RedactionState, SessionId, StreamFrameEnvelope,
+    StreamFrameType, StreamInvocationRecord, StreamInvocationState, EVENT_STREAM_CANCELLED,
+    EVENT_STREAM_CHUNK, EVENT_STREAM_ENDED, EVENT_STREAM_ERROR, EVENT_STREAM_PROGRESS,
+    EVENT_STREAM_STARTED, EVENT_STREAM_TIMEOUT,
 };
 
 use super::Runtime;
@@ -61,17 +60,26 @@ impl StreamRegistry {
             ended_at: None,
             metadata,
         };
-        self.invocations.write().await.insert(invocation_id, record.clone());
+        self.invocations
+            .write()
+            .await
+            .insert(invocation_id, record.clone());
         record
     }
 
     /// Get a streaming invocation record by id.
-    pub async fn get_invocation(&self, invocation_id: &InvocationId) -> Option<StreamInvocationRecord> {
+    pub async fn get_invocation(
+        &self,
+        invocation_id: &InvocationId,
+    ) -> Option<StreamInvocationRecord> {
         self.invocations.read().await.get(invocation_id).cloned()
     }
 
     /// Get a streaming invocation record by stream id.
-    pub async fn get_invocation_by_stream_id(&self, stream_id: &str) -> Option<StreamInvocationRecord> {
+    pub async fn get_invocation_by_stream_id(
+        &self,
+        stream_id: &str,
+    ) -> Option<StreamInvocationRecord> {
         self.invocations
             .read()
             .await
@@ -323,7 +331,11 @@ where
     ) -> anyhow::Result<(StreamFrameEnvelope, StreamInvocationRecord)> {
         let provider = self
             .capabilities
-            .resolve(capability_id, provider_package_id.map(|s| s.to_string()).as_ref(), version)
+            .resolve(
+                capability_id,
+                provider_package_id.map(|s| s.to_string()).as_ref(),
+                version,
+            )
             .await?;
 
         if !provider.descriptor.streaming {
@@ -379,7 +391,10 @@ where
         payload: Value,
         redaction_state: RedactionState,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self.streams.append_chunk(invocation_id, payload.clone(), redaction_state).await?;
+        let frame = self
+            .streams
+            .append_chunk(invocation_id, payload.clone(), redaction_state)
+            .await?;
 
         let event_payload = json!({
             "invocation_id": invocation_id,
@@ -403,7 +418,10 @@ where
         invocation_id: &InvocationId,
         metadata: Value,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self.streams.append_progress(invocation_id, metadata.clone()).await?;
+        let frame = self
+            .streams
+            .append_progress(invocation_id, metadata.clone())
+            .await?;
 
         let event_payload = json!({
             "invocation_id": invocation_id,
@@ -447,7 +465,10 @@ where
         invocation_id: &InvocationId,
         error_message: &str,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self.streams.error_invocation(invocation_id, error_message).await?;
+        let frame = self
+            .streams
+            .error_invocation(invocation_id, error_message)
+            .await?;
 
         let event_payload = json!({
             "invocation_id": invocation_id,
@@ -542,25 +563,40 @@ mod tests {
             .await;
 
         let chunk1 = registry
-            .append_chunk(&record.invocation_id, json!({"n": 1}), RedactionState::NotCaptured)
+            .append_chunk(
+                &record.invocation_id,
+                json!({"n": 1}),
+                RedactionState::NotCaptured,
+            )
             .await
             .unwrap();
         assert_eq!(chunk1.frame_type, StreamFrameType::Chunk);
         assert_eq!(chunk1.sequence, 1);
 
         let chunk2 = registry
-            .append_chunk(&record.invocation_id, json!({"n": 2}), RedactionState::NotCaptured)
+            .append_chunk(
+                &record.invocation_id,
+                json!({"n": 2}),
+                RedactionState::NotCaptured,
+            )
             .await
             .unwrap();
         assert_eq!(chunk2.sequence, 2);
 
-        let end = registry.end_invocation(&record.invocation_id).await.unwrap();
+        let end = registry
+            .end_invocation(&record.invocation_id)
+            .await
+            .unwrap();
         assert_eq!(end.frame_type, StreamFrameType::End);
         assert_eq!(end.sequence, 3);
 
         // After end, no more chunks
         let result = registry
-            .append_chunk(&record.invocation_id, json!({}), RedactionState::NotCaptured)
+            .append_chunk(
+                &record.invocation_id,
+                json!({}),
+                RedactionState::NotCaptured,
+            )
             .await;
         assert!(result.is_err());
     }
@@ -577,15 +613,25 @@ mod tests {
             )
             .await;
 
-        let cancel = registry.cancel_invocation(&record.invocation_id).await.unwrap();
+        let cancel = registry
+            .cancel_invocation(&record.invocation_id)
+            .await
+            .unwrap();
         assert_eq!(cancel.frame_type, StreamFrameType::Cancelled);
 
         let result = registry
-            .append_chunk(&record.invocation_id, json!({}), RedactionState::NotCaptured)
+            .append_chunk(
+                &record.invocation_id,
+                json!({}),
+                RedactionState::NotCaptured,
+            )
             .await;
         assert!(result.is_err());
 
-        let updated = registry.get_invocation(&record.invocation_id).await.unwrap();
+        let updated = registry
+            .get_invocation(&record.invocation_id)
+            .await
+            .unwrap();
         assert_eq!(updated.state, StreamInvocationState::Cancelled);
     }
 
@@ -601,15 +647,25 @@ mod tests {
             )
             .await;
 
-        let timeout = registry.timeout_invocation(&record.invocation_id).await.unwrap();
+        let timeout = registry
+            .timeout_invocation(&record.invocation_id)
+            .await
+            .unwrap();
         assert_eq!(timeout.frame_type, StreamFrameType::Timeout);
 
         let result = registry
-            .append_chunk(&record.invocation_id, json!({}), RedactionState::NotCaptured)
+            .append_chunk(
+                &record.invocation_id,
+                json!({}),
+                RedactionState::NotCaptured,
+            )
             .await;
         assert!(result.is_err());
 
-        let updated = registry.get_invocation(&record.invocation_id).await.unwrap();
+        let updated = registry
+            .get_invocation(&record.invocation_id)
+            .await
+            .unwrap();
         assert_eq!(updated.state, StreamInvocationState::Timeout);
     }
 
@@ -633,7 +689,11 @@ mod tests {
         assert_eq!(error.payload["error"], "something broke");
 
         let result = registry
-            .append_chunk(&record.invocation_id, json!({}), RedactionState::NotCaptured)
+            .append_chunk(
+                &record.invocation_id,
+                json!({}),
+                RedactionState::NotCaptured,
+            )
             .await;
         assert!(result.is_err());
     }
@@ -650,7 +710,10 @@ mod tests {
             )
             .await;
 
-        let _ = registry.end_invocation(&record.invocation_id).await.unwrap();
+        let _ = registry
+            .end_invocation(&record.invocation_id)
+            .await
+            .unwrap();
         let result = registry.end_invocation(&record.invocation_id).await;
         assert!(result.is_err());
     }

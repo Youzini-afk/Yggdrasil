@@ -1,8 +1,11 @@
 use chrono::Utc;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use schemars::JsonSchema;
-use ygg_core::{new_id, EventEnvelope, PackageId, SessionId, EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED};
+use ygg_core::{
+    new_id, EventEnvelope, PackageId, SessionId, EVENT_PERMISSION_DENIED, EVENT_PERMISSION_GRANTED,
+    EVENT_PERMISSION_REVOKED,
+};
 
 use super::Runtime;
 use crate::{EventStore, ProtocolPrincipal};
@@ -41,7 +44,10 @@ where
             revoked_at: None,
             reason,
         };
-        self.grants.write().await.insert(record.id.clone(), record.clone());
+        self.grants
+            .write()
+            .await
+            .insert(record.id.clone(), record.clone());
         self.append_kernel_event(
             &format!("kernel_permission_{}", record.id),
             EVENT_PERMISSION_GRANTED,
@@ -68,28 +74,52 @@ where
         Ok(record)
     }
 
-    pub async fn list_permission_grants(&self, principal: Option<ProtocolPrincipal>) -> Vec<PermissionGrantRecord> {
+    pub async fn list_permission_grants(
+        &self,
+        principal: Option<ProtocolPrincipal>,
+    ) -> Vec<PermissionGrantRecord> {
         let mut grants: Vec<_> = self
             .grants
             .read()
             .await
             .values()
-            .filter(|grant| principal.as_ref().map(|principal| &grant.principal == principal).unwrap_or(true))
+            .filter(|grant| {
+                principal
+                    .as_ref()
+                    .map(|principal| &grant.principal == principal)
+                    .unwrap_or(true)
+            })
             .cloned()
             .collect();
         grants.sort_by(|a, b| a.granted_at.cmp(&b.granted_at));
         grants
     }
 
-    pub async fn principal_has_grant(&self, principal: &ProtocolPrincipal, permission: &str, scope: Option<&str>) -> bool {
-        if matches!(principal, ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev) {
+    pub async fn principal_has_grant(
+        &self,
+        principal: &ProtocolPrincipal,
+        permission: &str,
+        scope: Option<&str>,
+    ) -> bool {
+        if matches!(
+            principal,
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
+        ) {
             return true;
         }
         self.grants.read().await.values().any(|grant| {
             grant.revoked_at.is_none()
                 && &grant.principal == principal
                 && grant.permission == permission
-                && grant.scope.as_deref().map(|grant_scope| scope.map(|scope| scope.starts_with(grant_scope)).unwrap_or(false)).unwrap_or(true)
+                && grant
+                    .scope
+                    .as_deref()
+                    .map(|grant_scope| {
+                        scope
+                            .map(|scope| scope.starts_with(grant_scope))
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(true)
         })
     }
 

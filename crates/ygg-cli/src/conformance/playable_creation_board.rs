@@ -705,9 +705,7 @@ pub(crate) async fn playable_board_provenance_graph() -> anyhow::Result<()> {
     )
     .await?;
 
-    anyhow::ensure!(
-        provenance.output["kind"] == json!("playable_creation_board_provenance_chain")
-    );
+    anyhow::ensure!(provenance.output["kind"] == json!("playable_creation_board_provenance_chain"));
 
     // Every chain step must have content_address
     let chain = provenance.output["chain"].as_array().unwrap();
@@ -758,9 +756,7 @@ pub(crate) async fn playable_board_state_diff_preview() -> anyhow::Result<()> {
     )
     .await?;
 
-    anyhow::ensure!(
-        diff.output["kind"] == json!("playable_creation_board_state_diff_preview")
-    );
+    anyhow::ensure!(diff.output["kind"] == json!("playable_creation_board_state_diff_preview"));
     anyhow::ensure!(diff.output["branch_aware"] == json!(true));
     anyhow::ensure!(
         diff.output["before_content_address"].is_string(),
@@ -792,9 +788,7 @@ pub(crate) async fn playable_board_describe_asset_provenance() -> anyhow::Result
     )
     .await?;
 
-    anyhow::ensure!(
-        desc.output["kind"] == json!("playable_creation_board_asset_provenance")
-    );
+    anyhow::ensure!(desc.output["kind"] == json!("playable_creation_board_asset_provenance"));
     anyhow::ensure!(
         desc.output["content_address"].is_string(),
         "must have content_address"
@@ -826,9 +820,7 @@ pub(crate) async fn playable_board_beta2_no_raw_secrets() -> anyhow::Result<()> 
         }),
     )
     .await?;
-    anyhow::ensure!(
-        diff.output["kind"] == json!("playable_creation_board_state_diff_rejected")
-    );
+    anyhow::ensure!(diff.output["kind"] == json!("playable_creation_board_state_diff_rejected"));
 
     // describe_asset_provenance blocks raw secret
     let desc = invoke(

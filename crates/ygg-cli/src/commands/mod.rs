@@ -1,3 +1,4 @@
+pub(crate) mod audit;
 pub(crate) mod capability;
 pub(crate) mod composition;
 pub(crate) mod demo;

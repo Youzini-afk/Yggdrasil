@@ -252,7 +252,8 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     }
 
-    if !base_url.is_empty() && !base_url.starts_with("https://") && !base_url.starts_with("http://") {
+    if !base_url.is_empty() && !base_url.starts_with("https://") && !base_url.starts_with("http://")
+    {
         diagnostics.push(serde_json::json!({
             "severity": "error",
             "field": "base_url",
@@ -261,7 +262,9 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     if family == "openrouter" {
-        let has_referer = headers_value(headers, "HTTP-Referer").or_else(|| headers_value(headers, "http-referer")).is_some();
+        let has_referer = headers_value(headers, "HTTP-Referer")
+            .or_else(|| headers_value(headers, "http-referer"))
+            .is_some();
         if !has_referer {
             diagnostics.push(serde_json::json!({
                 "severity": "warning",
@@ -269,7 +272,9 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
                 "message": "OpenRouter recommends setting HTTP-Referer header for attribution"
             }));
         }
-        let has_title = headers_value(headers, "X-OpenRouter-Title").or_else(|| headers_value(headers, "x-openrouter-title")).is_some();
+        let has_title = headers_value(headers, "X-OpenRouter-Title")
+            .or_else(|| headers_value(headers, "x-openrouter-title"))
+            .is_some();
         if !has_title {
             diagnostics.push(serde_json::json!({
                 "severity": "info",
@@ -291,7 +296,9 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     if family == "gemini" {
-        let has_api_key_header = headers_value(headers, "x-goog-api-key").or_else(|| headers_value(headers, "X-Goog-Api-Key")).is_some();
+        let has_api_key_header = headers_value(headers, "x-goog-api-key")
+            .or_else(|| headers_value(headers, "X-Goog-Api-Key"))
+            .is_some();
         if !has_api_key_header {
             diagnostics.push(serde_json::json!({
                 "severity": "info",
@@ -378,7 +385,11 @@ fn invoke(request: &InprocInvocation) -> anyhow::Result<Value> {
     if looks_like_raw_secret(&params.credential)
         || request.input.get("api_key").is_some()
         || request.input.get("secret").is_some()
-        || headers_contain_raw_secret(profile.and_then(|p| p.get("headers")).or_else(|| request.input.get("headers")))
+        || headers_contain_raw_secret(
+            profile
+                .and_then(|p| p.get("headers"))
+                .or_else(|| request.input.get("headers")),
+        )
     {
         return Ok(serde_json::json!({
             "kind": "model_provider_invoke_result",
@@ -785,7 +796,8 @@ fn build_fireworks_fake_response(params: &ProfileParams, shape: &NormalizedShape
 // ---------------------------------------------------------------------------
 
 fn normalize_stream(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let family = request.input
+    let family = request
+        .input
         .get("family")
         .and_then(Value::as_str)
         .unwrap_or_default()
@@ -806,7 +818,8 @@ fn normalize_stream(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     let stream_family = default_stream_family_for_family(&family);
-    let invocation_id = request.input
+    let invocation_id = request
+        .input
         .get("invocation_id")
         .and_then(Value::as_str)
         .unwrap_or("inv_stream_001")
@@ -824,14 +837,18 @@ fn normalize_stream(request: &InprocInvocation) -> anyhow::Result<Value> {
     // terminal frame (end/error/cancelled/timeout), with start first.
     let has_start = frames.iter().any(|f| f["kind"] == "start");
     let terminal_kinds = ["end", "error", "cancelled", "timeout"];
-    let has_terminal = frames.iter().any(|f| {
-        terminal_kinds.contains(&f["kind"].as_str().unwrap_or_default())
-    });
+    let has_terminal = frames
+        .iter()
+        .any(|f| terminal_kinds.contains(&f["kind"].as_str().unwrap_or_default()));
     let terminal_frame_consistent = has_start && has_terminal;
 
     // Check for raw secrets in input (diagnostics only, not rejection)
     let mut diagnostics = Vec::new();
-    let credential = request.input.get("credential").and_then(Value::as_str).unwrap_or_default();
+    let credential = request
+        .input
+        .get("credential")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if looks_like_raw_secret(credential) {
         diagnostics.push(serde_json::json!({
             "severity": "warning",
@@ -907,9 +924,13 @@ fn normalize_provider_events(
         // L6: Handle mid-stream error events (OpenRouter, DeepSeek).
         // Some providers return error objects after HTTP 200 in the SSE stream.
         if let Some(error_obj) = event.get("error") {
-            let error_message = error_obj.get("message").and_then(Value::as_str)
+            let error_message = error_obj
+                .get("message")
+                .and_then(Value::as_str)
                 .unwrap_or("provider mid-stream error");
-            let error_code = error_obj.get("code").and_then(Value::as_str)
+            let error_code = error_obj
+                .get("code")
+                .and_then(Value::as_str)
                 .unwrap_or("unknown");
             frames.push(serde_json::json!({
                 "kind": "error",
@@ -928,9 +949,7 @@ fn normalize_provider_events(
 
         // Try to extract text content and event type from provider-specific shapes
         let (frame_kind, payload) = match family {
-            "openai" | "openai_compatible" => {
-                normalize_delta_sse_event(event, &mut seq)
-            }
+            "openai" | "openai_compatible" => normalize_delta_sse_event(event, &mut seq),
             "deepseek" => normalize_deepseek_event(event, &mut seq),
             "fireworks" => normalize_fireworks_event(event, &mut seq),
             "anthropic" => normalize_semantic_sse_event(event, &mut seq),
@@ -945,7 +964,10 @@ fn normalize_provider_events(
                     normalize_typed_chunk_event(event, &mut seq)
                 } else if event.get("error").is_some() {
                     // Already handled above, but as fallback
-                    ("error".to_string(), serde_json::json!({"provider_event": "mid_stream_error"}))
+                    (
+                        "error".to_string(),
+                        serde_json::json!({"provider_event": "mid_stream_error"}),
+                    )
                 } else {
                     ("chunk".to_string(), event.clone())
                 }
@@ -975,7 +997,10 @@ fn normalize_provider_events(
     }
 
     // Ensure there is a terminal frame if the last provider event didn't produce one
-    let last_kind = frames.last().and_then(|f| f["kind"].as_str()).unwrap_or_default();
+    let last_kind = frames
+        .last()
+        .and_then(|f| f["kind"].as_str())
+        .unwrap_or_default();
     let terminal_kinds = ["end", "error", "cancelled", "timeout"];
     if !terminal_kinds.contains(&last_kind) {
         seq += 1;
@@ -996,7 +1021,10 @@ fn normalize_provider_events(
 fn normalize_delta_sse_event(event: &Value, seq: &mut u64) -> (String, Value) {
     // Check for [DONE] marker
     if event.as_str() == Some("[DONE]") {
-        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+        return (
+            "end".to_string(),
+            serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}),
+        );
     }
 
     // Check for finish_reason in choices
@@ -1011,7 +1039,10 @@ fn normalize_delta_sse_event(event: &Value, seq: &mut u64) -> (String, Value) {
             if let Some(delta) = choice.get("delta") {
                 if let Some(content) = delta.get("content").and_then(Value::as_str) {
                     if !content.is_empty() {
-                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                        return (
+                            "chunk".to_string(),
+                            serde_json::json!({"text_delta": content}),
+                        );
                     }
                 }
             }
@@ -1021,17 +1052,30 @@ fn normalize_delta_sse_event(event: &Value, seq: &mut u64) -> (String, Value) {
     // Check for Responses API event field
     if let Some(evt_type) = event.get("event").and_then(Value::as_str) {
         if evt_type.contains("completed") || evt_type.contains("done") {
-            return ("end".to_string(), serde_json::json!({"finish_reason": "complete", "event": evt_type}));
+            return (
+                "end".to_string(),
+                serde_json::json!({"finish_reason": "complete", "event": evt_type}),
+            );
         }
-        if let Some(delta) = event.get("data").and_then(|d| d.get("delta")).and_then(Value::as_str) {
-            return ("chunk".to_string(), serde_json::json!({"text_delta": delta, "event": evt_type}));
+        if let Some(delta) = event
+            .get("data")
+            .and_then(|d| d.get("delta"))
+            .and_then(Value::as_str)
+        {
+            return (
+                "chunk".to_string(),
+                serde_json::json!({"text_delta": delta, "event": evt_type}),
+            );
         }
     }
 
     // Usage in final chunk
     if event.get("usage").is_some() {
         *seq += 1;
-        return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+        return (
+            "progress".to_string(),
+            serde_json::json!({"usage_present": true}),
+        );
     }
 
     ("chunk".to_string(), event.clone())
@@ -1049,7 +1093,10 @@ fn normalize_delta_sse_event(event: &Value, seq: &mut u64) -> (String, Value) {
 fn normalize_deepseek_event(event: &Value, seq: &mut u64) -> (String, Value) {
     // Check for [DONE] marker
     if event.as_str() == Some("[DONE]") {
-        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+        return (
+            "end".to_string(),
+            serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}),
+        );
     }
 
     // L6: DeepSeek final usage chunk (often after [DONE] or as a standalone chunk)
@@ -1077,19 +1124,25 @@ fn normalize_deepseek_event(event: &Value, seq: &mut u64) -> (String, Value) {
                         // terminal check can be adjusted.
                         // Simplest fix: return "progress" for the usage, and
                         // let the auto-terminal append handle the end.
-                        return ("progress".to_string(), serde_json::json!({
-                            "usage_present": true,
-                            "finish_reason": fr,
-                            "provider_quirk": if has_cache { Some("deepseek_cache_usage") } else { None },
-                        }));
+                        return (
+                            "progress".to_string(),
+                            serde_json::json!({
+                                "usage_present": true,
+                                "finish_reason": fr,
+                                "provider_quirk": if has_cache { Some("deepseek_cache_usage") } else { None },
+                            }),
+                        );
                     }
                 }
             }
         }
-        return ("progress".to_string(), serde_json::json!({
-            "usage_present": true,
-            "provider_quirk": if has_cache { Some("deepseek_cache_usage") } else { None },
-        }));
+        return (
+            "progress".to_string(),
+            serde_json::json!({
+                "usage_present": true,
+                "provider_quirk": if has_cache { Some("deepseek_cache_usage") } else { None },
+            }),
+        );
     }
 
     // Check for finish_reason in choices (without usage)
@@ -1104,16 +1157,22 @@ fn normalize_deepseek_event(event: &Value, seq: &mut u64) -> (String, Value) {
             if let Some(delta) = choice.get("delta") {
                 if let Some(reasoning) = delta.get("reasoning_content").and_then(Value::as_str) {
                     if !reasoning.is_empty() {
-                        return ("chunk".to_string(), serde_json::json!({
-                            "reasoning_delta": reasoning,
-                            "provider_quirk": "deepseek_reasoning_content",
-                        }));
+                        return (
+                            "chunk".to_string(),
+                            serde_json::json!({
+                                "reasoning_delta": reasoning,
+                                "provider_quirk": "deepseek_reasoning_content",
+                            }),
+                        );
                     }
                 }
                 // Regular content delta
                 if let Some(content) = delta.get("content").and_then(Value::as_str) {
                     if !content.is_empty() {
-                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                        return (
+                            "chunk".to_string(),
+                            serde_json::json!({"text_delta": content}),
+                        );
                     }
                 }
             }
@@ -1130,16 +1189,29 @@ fn normalize_deepseek_event(event: &Value, seq: &mut u64) -> (String, Value) {
 fn normalize_xai_event(event: &Value, seq: &mut u64) -> (String, Value) {
     // Check for [DONE] marker
     if event.as_str() == Some("[DONE]") {
-        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+        return (
+            "end".to_string(),
+            serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}),
+        );
     }
 
     // Check for Responses API event field (xAI uses same shape)
     if let Some(evt_type) = event.get("event").and_then(Value::as_str) {
         if evt_type.contains("completed") || evt_type.contains("done") {
-            return ("end".to_string(), serde_json::json!({"finish_reason": "complete", "event": evt_type}));
+            return (
+                "end".to_string(),
+                serde_json::json!({"finish_reason": "complete", "event": evt_type}),
+            );
         }
-        if let Some(delta) = event.get("data").and_then(|d| d.get("delta")).and_then(Value::as_str) {
-            return ("chunk".to_string(), serde_json::json!({"text_delta": delta, "event": evt_type}));
+        if let Some(delta) = event
+            .get("data")
+            .and_then(|d| d.get("delta"))
+            .and_then(Value::as_str)
+        {
+            return (
+                "chunk".to_string(),
+                serde_json::json!({"text_delta": delta, "event": evt_type}),
+            );
         }
     }
 
@@ -1155,16 +1227,22 @@ fn normalize_xai_event(event: &Value, seq: &mut u64) -> (String, Value) {
                 // L6: xAI reasoning content
                 if let Some(reasoning) = delta.get("reasoning_content").and_then(Value::as_str) {
                     if !reasoning.is_empty() {
-                        return ("chunk".to_string(), serde_json::json!({
-                            "reasoning_delta": reasoning,
-                            "provider_quirk": "xai_reasoning_content",
-                        }));
+                        return (
+                            "chunk".to_string(),
+                            serde_json::json!({
+                                "reasoning_delta": reasoning,
+                                "provider_quirk": "xai_reasoning_content",
+                            }),
+                        );
                     }
                 }
                 // Regular content delta
                 if let Some(content) = delta.get("content").and_then(Value::as_str) {
                     if !content.is_empty() {
-                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                        return (
+                            "chunk".to_string(),
+                            serde_json::json!({"text_delta": content}),
+                        );
                     }
                 }
             }
@@ -1175,12 +1253,15 @@ fn normalize_xai_event(event: &Value, seq: &mut u64) -> (String, Value) {
     if event.get("usage").is_some() {
         *seq += 1;
         let usage = &event["usage"];
-        let has_reasoning = usage.get("reasoning_tokens").is_some()
-            || usage.get("prompt_tokens_details").is_some();
-        return ("progress".to_string(), serde_json::json!({
-            "usage_present": true,
-            "provider_quirk": if has_reasoning { Some("xai_reasoning_usage") } else { None },
-        }));
+        let has_reasoning =
+            usage.get("reasoning_tokens").is_some() || usage.get("prompt_tokens_details").is_some();
+        return (
+            "progress".to_string(),
+            serde_json::json!({
+                "usage_present": true,
+                "provider_quirk": if has_reasoning { Some("xai_reasoning_usage") } else { None },
+            }),
+        );
     }
 
     ("chunk".to_string(), event.clone())
@@ -1193,7 +1274,10 @@ fn normalize_xai_event(event: &Value, seq: &mut u64) -> (String, Value) {
 fn normalize_fireworks_event(event: &Value, seq: &mut u64) -> (String, Value) {
     // Check for [DONE] marker
     if event.as_str() == Some("[DONE]") {
-        return ("end".to_string(), serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}));
+        return (
+            "end".to_string(),
+            serde_json::json!({"finish_reason": "stop", "marker": "[DONE]"}),
+        );
     }
 
     // Check for finish_reason in choices
@@ -1207,7 +1291,10 @@ fn normalize_fireworks_event(event: &Value, seq: &mut u64) -> (String, Value) {
             if let Some(delta) = choice.get("delta") {
                 if let Some(content) = delta.get("content").and_then(Value::as_str) {
                     if !content.is_empty() {
-                        return ("chunk".to_string(), serde_json::json!({"text_delta": content}));
+                        return (
+                            "chunk".to_string(),
+                            serde_json::json!({"text_delta": content}),
+                        );
                     }
                 }
             }
@@ -1220,19 +1307,25 @@ fn normalize_fireworks_event(event: &Value, seq: &mut u64) -> (String, Value) {
         let usage = &event["usage"];
         let has_perf = usage.get("prompt_tokens_details").is_some()
             || usage.get("completion_tokens_details").is_some();
-        return ("progress".to_string(), serde_json::json!({
-            "usage_present": true,
-            "provider_quirk": if has_perf { Some("fireworks_perf_usage") } else { None },
-        }));
+        return (
+            "progress".to_string(),
+            serde_json::json!({
+                "usage_present": true,
+                "provider_quirk": if has_perf { Some("fireworks_perf_usage") } else { None },
+            }),
+        );
     }
 
     // L6: Fireworks may include timing/latency metadata at top level
     if event.get("timing").is_some() || event.get("latency_ms").is_some() {
         *seq += 1;
-        return ("progress".to_string(), serde_json::json!({
-            "usage_present": false,
-            "provider_quirk": "fireworks_latency_metadata",
-        }));
+        return (
+            "progress".to_string(),
+            serde_json::json!({
+                "usage_present": false,
+                "provider_quirk": "fireworks_latency_metadata",
+            }),
+        );
     }
 
     ("chunk".to_string(), event.clone())
@@ -1240,16 +1333,23 @@ fn normalize_fireworks_event(event: &Value, seq: &mut u64) -> (String, Value) {
 
 /// Normalize an Anthropic-style semantic SSE event.
 fn normalize_semantic_sse_event(event: &Value, _seq: &mut u64) -> (String, Value) {
-    let event_type = event.get("type").and_then(Value::as_str).unwrap_or_default();
+    let event_type = event
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
 
     match event_type {
         "message_start" => {
             // Canonical start is already injected; this becomes a progress heartbeat
-            ("progress".to_string(), serde_json::json!({"provider_event": "message_start"}))
+            (
+                "progress".to_string(),
+                serde_json::json!({"provider_event": "message_start"}),
+            )
         }
-        "content_block_start" => {
-            ("chunk".to_string(), serde_json::json!({"provider_event": "content_block_start"}))
-        }
+        "content_block_start" => (
+            "chunk".to_string(),
+            serde_json::json!({"provider_event": "content_block_start"}),
+        ),
         "content_block_delta" => {
             if let Some(delta) = event.get("delta") {
                 if let Some(text) = delta.get("text").and_then(Value::as_str) {
@@ -1258,23 +1358,39 @@ fn normalize_semantic_sse_event(event: &Value, _seq: &mut u64) -> (String, Value
             }
             ("chunk".to_string(), event.clone())
         }
-        "content_block_stop" => {
-            ("progress".to_string(), serde_json::json!({"provider_event": "content_block_stop"}))
-        }
+        "content_block_stop" => (
+            "progress".to_string(),
+            serde_json::json!({"provider_event": "content_block_stop"}),
+        ),
         "message_delta" => {
             if let Some(delta) = event.get("delta") {
                 if let Some(stop_reason) = delta.get("stop_reason").and_then(Value::as_str) {
-                    return ("end".to_string(), serde_json::json!({"finish_reason": stop_reason}));
+                    return (
+                        "end".to_string(),
+                        serde_json::json!({"finish_reason": stop_reason}),
+                    );
                 }
             }
             if event.get("usage").is_some() {
-                return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+                return (
+                    "progress".to_string(),
+                    serde_json::json!({"usage_present": true}),
+                );
             }
             ("progress".to_string(), event.clone())
         }
-        "message_stop" => ("end".to_string(), serde_json::json!({"provider_event": "message_stop"})),
-        "ping" => ("progress".to_string(), serde_json::json!({"provider_event": "ping"})),
-        "error" => ("error".to_string(), serde_json::json!({"provider_event": "error"})),
+        "message_stop" => (
+            "end".to_string(),
+            serde_json::json!({"provider_event": "message_stop"}),
+        ),
+        "ping" => (
+            "progress".to_string(),
+            serde_json::json!({"provider_event": "ping"}),
+        ),
+        "error" => (
+            "error".to_string(),
+            serde_json::json!({"provider_event": "error"}),
+        ),
         _ => ("chunk".to_string(), event.clone()),
     }
 }
@@ -1289,7 +1405,10 @@ fn normalize_typed_chunk_event(event: &Value, _seq: &mut u64) -> (String, Value)
                     for part in parts {
                         if let Some(text) = part.get("text").and_then(Value::as_str) {
                             if !text.is_empty() {
-                                return ("chunk".to_string(), serde_json::json!({"text_delta": text}));
+                                return (
+                                    "chunk".to_string(),
+                                    serde_json::json!({"text_delta": text}),
+                                );
                             }
                         }
                     }
@@ -1297,14 +1416,20 @@ fn normalize_typed_chunk_event(event: &Value, _seq: &mut u64) -> (String, Value)
             }
             // Check finish reason
             if let Some(finish_reason) = candidate.get("finishReason").and_then(Value::as_str) {
-                return ("end".to_string(), serde_json::json!({"finish_reason": finish_reason}));
+                return (
+                    "end".to_string(),
+                    serde_json::json!({"finish_reason": finish_reason}),
+                );
             }
         }
     }
 
     // Usage metadata
     if event.get("usageMetadata").is_some() {
-        return ("progress".to_string(), serde_json::json!({"usage_present": true}));
+        return (
+            "progress".to_string(),
+            serde_json::json!({"usage_present": true}),
+        );
     }
 
     ("chunk".to_string(), event.clone())
@@ -1476,13 +1601,13 @@ fn build_fake_stream_frames(family: &str, stream_family: &str, invocation_id: &s
 
 fn default_stream_family_for_family(family: &str) -> &'static str {
     match family {
-        "openai" => "semantic_sse",  // default (responses) dialect uses semantic_sse
+        "openai" => "semantic_sse", // default (responses) dialect uses semantic_sse
         "anthropic" => "semantic_sse",
         "gemini" => "typed_chunk_stream",
         "openai_compatible" => "delta_sse",
-        "openrouter" => "semantic_sse",  // default (responses) dialect
+        "openrouter" => "semantic_sse", // default (responses) dialect
         "deepseek" => "delta_sse",
-        "xai" => "semantic_sse",        // default (responses) dialect
+        "xai" => "semantic_sse", // default (responses) dialect
         "fireworks" => "delta_sse",
         _ => "unknown",
     }
@@ -1494,9 +1619,21 @@ fn default_stream_family_for_family(family: &str) -> &'static str {
 
 fn explain_error(request: &InprocInvocation) -> anyhow::Result<Value> {
     let status = request.input.get("status").and_then(Value::as_i64);
-    let code = request.input.get("code").and_then(Value::as_str).unwrap_or_default();
-    let family = request.input.get("family").and_then(Value::as_str).unwrap_or_default();
-    let stage = request.input.get("stage").and_then(Value::as_str).unwrap_or("request");
+    let code = request
+        .input
+        .get("code")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let family = request
+        .input
+        .get("family")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let stage = request
+        .input
+        .get("stage")
+        .and_then(Value::as_str)
+        .unwrap_or("request");
 
     let code_lower = code.to_lowercase();
 
@@ -1566,13 +1703,20 @@ fn extract_profile_params(request: &InprocInvocation) -> ProfileParams {
         .or_else(|| default_base_url_for_family(&family).map(|s| s.to_string()))
         .unwrap_or_default();
 
-    let extra = request.input.get("extra").or_else(|| profile.and_then(|p| p.get("extra")));
+    let extra = request
+        .input
+        .get("extra")
+        .or_else(|| profile.and_then(|p| p.get("extra")));
     let prefer_responses = extra
         .and_then(|e| e.get("preferResponses"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
 
-    let stream = request.input.get("stream").and_then(Value::as_bool).unwrap_or(false);
+    let stream = request
+        .input
+        .get("stream")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     ProfileParams {
         family,
@@ -1584,213 +1728,279 @@ fn extract_profile_params(request: &InprocInvocation) -> ProfileParams {
     }
 }
 
-fn build_normalized_shape(request: &InprocInvocation, params: &ProfileParams) -> anyhow::Result<NormalizedShape> {
+fn build_normalized_shape(
+    request: &InprocInvocation,
+    params: &ProfileParams,
+) -> anyhow::Result<NormalizedShape> {
     let profile = request.input.get("profile");
-    let extra = request.input.get("extra").or_else(|| profile.and_then(|p| p.get("extra")));
+    let extra = request
+        .input
+        .get("extra")
+        .or_else(|| profile.and_then(|p| p.get("extra")));
 
-    let (endpoint, request_dialect, stream_family, headers, body_shape) = match params.family.as_str() {
-        "openai" => {
-            let is_responses = params.prefer_responses;
-            let dialect = if is_responses { "openai_responses".to_string() } else { "openai_chat".to_string() };
-            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
-            let ep = if is_responses {
-                format!("{}/v1/responses", params.base_url)
-            } else {
-                format!("{}/v1/chat/completions", params.base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": params.model,
-                    "input": request.input.get("messages"),
-                    "stream": params.stream,
-                    "max_output_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            } else {
-                serde_json::json!({
-                    "model": params.model,
-                    "messages": request.input.get("messages"),
-                    "stream": params.stream,
-                    "max_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        "anthropic" => {
-            let ep = format!("{}/v1/messages", params.base_url);
-            let mut hdrs = serde_json::json!({
-                "x-api-key": credential_ref_placeholder(&params.credential),
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            });
-            if let Some(ph) = profile.and_then(|p| p.get("headers")).and_then(Value::as_object) {
-                for (k, v) in ph {
-                    if k != "anthropic-version" && v.is_string() {
-                        hdrs[k] = v.clone();
+    let (endpoint, request_dialect, stream_family, headers, body_shape) =
+        match params.family.as_str() {
+            "openai" => {
+                let is_responses = params.prefer_responses;
+                let dialect = if is_responses {
+                    "openai_responses".to_string()
+                } else {
+                    "openai_chat".to_string()
+                };
+                let sf = if is_responses {
+                    "semantic_sse".to_string()
+                } else {
+                    "delta_sse".to_string()
+                };
+                let ep = if is_responses {
+                    format!("{}/v1/responses", params.base_url)
+                } else {
+                    format!("{}/v1/chat/completions", params.base_url)
+                };
+                let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+                let body = if is_responses {
+                    serde_json::json!({
+                        "model": params.model,
+                        "input": request.input.get("messages"),
+                        "stream": params.stream,
+                        "max_output_tokens": request.input.get("max_tokens"),
+                        "temperature": request.input.get("temperature"),
+                        "tools": request.input.get("tools"),
+                    })
+                } else {
+                    serde_json::json!({
+                        "model": params.model,
+                        "messages": request.input.get("messages"),
+                        "stream": params.stream,
+                        "max_tokens": request.input.get("max_tokens"),
+                        "temperature": request.input.get("temperature"),
+                        "tools": request.input.get("tools"),
+                    })
+                };
+                (ep, dialect, sf, hdrs, body)
+            }
+            "anthropic" => {
+                let ep = format!("{}/v1/messages", params.base_url);
+                let mut hdrs = serde_json::json!({
+                    "x-api-key": credential_ref_placeholder(&params.credential),
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                });
+                if let Some(ph) = profile
+                    .and_then(|p| p.get("headers"))
+                    .and_then(Value::as_object)
+                {
+                    for (k, v) in ph {
+                        if k != "anthropic-version" && v.is_string() {
+                            hdrs[k] = v.clone();
+                        }
                     }
                 }
-            }
-            let body = serde_json::json!({
-                "model": params.model,
-                "messages": request.input.get("messages"),
-                "system": request.input.get("system"),
-                "stream": params.stream,
-                "max_tokens": request.input.get("max_tokens"),
-                "temperature": request.input.get("temperature"),
-                "tools": request.input.get("tools"),
-            });
-            (ep, "anthropic_messages".to_string(), "semantic_sse".to_string(), hdrs, body)
-        }
-        "gemini" => {
-            let stream_suffix = if params.stream { "?alt=sse" } else { "" };
-            let ep = format!(
-                "{}/v1beta/models/{}:generateContent{}",
-                params.base_url, params.model, stream_suffix
-            );
-            let hdrs = serde_json::json!({
-                "x-goog-api-key": credential_ref_placeholder(&params.credential),
-                "Content-Type": "application/json",
-            });
-            let body = serde_json::json!({
-                "contents": request.input.get("messages"),
-                "systemInstruction": request.input.get("systemInstruction"),
-                "generationConfig": {
-                    "maxOutputTokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                },
-            });
-            (ep, "gemini_generate_content".to_string(), "typed_chunk_stream".to_string(), hdrs, body)
-        }
-        "openai_compatible" => {
-            let ep = format!("{}/chat/completions", params.base_url);
-            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
-            let body = serde_json::json!({
-                "model": params.model,
-                "messages": request.input.get("messages"),
-                "stream": params.stream,
-                "max_tokens": request.input.get("max_tokens"),
-                "temperature": request.input.get("temperature"),
-                "tools": request.input.get("tools"),
-            });
-            (ep, "openai_chat".to_string(), "delta_sse".to_string(), hdrs, body)
-        }
-        "openrouter" => {
-            let is_responses = params.prefer_responses;
-            let dialect = if is_responses { "stateless_responses".to_string() } else { "openai_chat".to_string() };
-            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
-            let ep = if is_responses {
-                format!("{}/responses", params.base_url)
-            } else {
-                format!("{}/chat/completions", params.base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
-            let body = if is_responses {
-                serde_json::json!({
+                let body = serde_json::json!({
                     "model": params.model,
-                    "input": request.input.get("messages"),
+                    "messages": request.input.get("messages"),
+                    "system": request.input.get("system"),
                     "stream": params.stream,
-                })
-            } else {
-                serde_json::json!({
+                    "max_tokens": request.input.get("max_tokens"),
+                    "temperature": request.input.get("temperature"),
+                    "tools": request.input.get("tools"),
+                });
+                (
+                    ep,
+                    "anthropic_messages".to_string(),
+                    "semantic_sse".to_string(),
+                    hdrs,
+                    body,
+                )
+            }
+            "gemini" => {
+                let stream_suffix = if params.stream { "?alt=sse" } else { "" };
+                let ep = format!(
+                    "{}/v1beta/models/{}:generateContent{}",
+                    params.base_url, params.model, stream_suffix
+                );
+                let hdrs = serde_json::json!({
+                    "x-goog-api-key": credential_ref_placeholder(&params.credential),
+                    "Content-Type": "application/json",
+                });
+                let body = serde_json::json!({
+                    "contents": request.input.get("messages"),
+                    "systemInstruction": request.input.get("systemInstruction"),
+                    "generationConfig": {
+                        "maxOutputTokens": request.input.get("max_tokens"),
+                        "temperature": request.input.get("temperature"),
+                    },
+                });
+                (
+                    ep,
+                    "gemini_generate_content".to_string(),
+                    "typed_chunk_stream".to_string(),
+                    hdrs,
+                    body,
+                )
+            }
+            "openai_compatible" => {
+                let ep = format!("{}/chat/completions", params.base_url);
+                let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+                let body = serde_json::json!({
                     "model": params.model,
                     "messages": request.input.get("messages"),
                     "stream": params.stream,
                     "max_tokens": request.input.get("max_tokens"),
                     "temperature": request.input.get("temperature"),
                     "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        "deepseek" => {
-            let ep = format!("{}/chat/completions", params.base_url);
-            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
-            let mut body = serde_json::json!({
-                "model": params.model,
-                "messages": request.input.get("messages"),
-                "stream": params.stream,
-                "max_tokens": request.input.get("max_tokens"),
-                "temperature": request.input.get("temperature"),
-                "tools": request.input.get("tools"),
-            });
-            if let Some(effort) = extra.and_then(|e| e.get("reasoning_effort")) {
-                body["reasoning_effort"] = effort.clone();
+                });
+                (
+                    ep,
+                    "openai_chat".to_string(),
+                    "delta_sse".to_string(),
+                    hdrs,
+                    body,
+                )
             }
-            (ep, "openai_chat".to_string(), "delta_sse".to_string(), hdrs, body)
-        }
-        "xai" => {
-            let is_responses = params.prefer_responses;
-            let dialect = if is_responses { "openai_responses".to_string() } else { "openai_chat".to_string() };
-            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
-            let ep = if is_responses {
-                format!("{}/v1/responses", params.base_url)
-            } else {
-                format!("{}/v1/chat/completions", params.base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": params.model,
-                    "input": request.input.get("messages"),
-                    "stream": params.stream,
-                    "max_output_tokens": request.input.get("max_tokens"),
-                })
-            } else {
-                serde_json::json!({
-                    "model": params.model,
-                    "messages": request.input.get("messages"),
-                    "stream": params.stream,
-                    "max_completion_tokens": request.input.get("max_tokens"),
-                    "temperature": request.input.get("temperature"),
-                    "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        "fireworks" => {
-            let is_responses = params.prefer_responses;
-            let dialect = if is_responses { "fireworks_responses".to_string() } else { "openai_chat".to_string() };
-            let sf = if is_responses { "semantic_sse".to_string() } else { "delta_sse".to_string() };
-            let ep = if is_responses {
-                format!("{}/responses", params.base_url)
-            } else {
-                format!("{}/chat/completions", params.base_url)
-            };
-            let hdrs = credential_header("Authorization", "Bearer", &params.credential);
-            let body = if is_responses {
-                serde_json::json!({
-                    "model": params.model,
-                    "input": request.input.get("messages"),
-                    "stream": params.stream,
-                })
-            } else {
-                serde_json::json!({
+            "openrouter" => {
+                let is_responses = params.prefer_responses;
+                let dialect = if is_responses {
+                    "stateless_responses".to_string()
+                } else {
+                    "openai_chat".to_string()
+                };
+                let sf = if is_responses {
+                    "semantic_sse".to_string()
+                } else {
+                    "delta_sse".to_string()
+                };
+                let ep = if is_responses {
+                    format!("{}/responses", params.base_url)
+                } else {
+                    format!("{}/chat/completions", params.base_url)
+                };
+                let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+                let body = if is_responses {
+                    serde_json::json!({
+                        "model": params.model,
+                        "input": request.input.get("messages"),
+                        "stream": params.stream,
+                    })
+                } else {
+                    serde_json::json!({
+                        "model": params.model,
+                        "messages": request.input.get("messages"),
+                        "stream": params.stream,
+                        "max_tokens": request.input.get("max_tokens"),
+                        "temperature": request.input.get("temperature"),
+                        "tools": request.input.get("tools"),
+                    })
+                };
+                (ep, dialect, sf, hdrs, body)
+            }
+            "deepseek" => {
+                let ep = format!("{}/chat/completions", params.base_url);
+                let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+                let mut body = serde_json::json!({
                     "model": params.model,
                     "messages": request.input.get("messages"),
                     "stream": params.stream,
                     "max_tokens": request.input.get("max_tokens"),
                     "temperature": request.input.get("temperature"),
                     "tools": request.input.get("tools"),
-                })
-            };
-            (ep, dialect, sf, hdrs, body)
-        }
-        _ => {
-            // Return an empty shape for unsupported families;
-            // callers (normalize_request, invoke) handle the error case.
-            (
-                String::new(),
-                "unknown".to_string(),
-                "unknown".to_string(),
-                serde_json::json!({}),
-                serde_json::json!({}),
-            )
-        }
-    };
+                });
+                if let Some(effort) = extra.and_then(|e| e.get("reasoning_effort")) {
+                    body["reasoning_effort"] = effort.clone();
+                }
+                (
+                    ep,
+                    "openai_chat".to_string(),
+                    "delta_sse".to_string(),
+                    hdrs,
+                    body,
+                )
+            }
+            "xai" => {
+                let is_responses = params.prefer_responses;
+                let dialect = if is_responses {
+                    "openai_responses".to_string()
+                } else {
+                    "openai_chat".to_string()
+                };
+                let sf = if is_responses {
+                    "semantic_sse".to_string()
+                } else {
+                    "delta_sse".to_string()
+                };
+                let ep = if is_responses {
+                    format!("{}/v1/responses", params.base_url)
+                } else {
+                    format!("{}/v1/chat/completions", params.base_url)
+                };
+                let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+                let body = if is_responses {
+                    serde_json::json!({
+                        "model": params.model,
+                        "input": request.input.get("messages"),
+                        "stream": params.stream,
+                        "max_output_tokens": request.input.get("max_tokens"),
+                    })
+                } else {
+                    serde_json::json!({
+                        "model": params.model,
+                        "messages": request.input.get("messages"),
+                        "stream": params.stream,
+                        "max_completion_tokens": request.input.get("max_tokens"),
+                        "temperature": request.input.get("temperature"),
+                        "tools": request.input.get("tools"),
+                    })
+                };
+                (ep, dialect, sf, hdrs, body)
+            }
+            "fireworks" => {
+                let is_responses = params.prefer_responses;
+                let dialect = if is_responses {
+                    "fireworks_responses".to_string()
+                } else {
+                    "openai_chat".to_string()
+                };
+                let sf = if is_responses {
+                    "semantic_sse".to_string()
+                } else {
+                    "delta_sse".to_string()
+                };
+                let ep = if is_responses {
+                    format!("{}/responses", params.base_url)
+                } else {
+                    format!("{}/chat/completions", params.base_url)
+                };
+                let hdrs = credential_header("Authorization", "Bearer", &params.credential);
+                let body = if is_responses {
+                    serde_json::json!({
+                        "model": params.model,
+                        "input": request.input.get("messages"),
+                        "stream": params.stream,
+                    })
+                } else {
+                    serde_json::json!({
+                        "model": params.model,
+                        "messages": request.input.get("messages"),
+                        "stream": params.stream,
+                        "max_tokens": request.input.get("max_tokens"),
+                        "temperature": request.input.get("temperature"),
+                        "tools": request.input.get("tools"),
+                    })
+                };
+                (ep, dialect, sf, hdrs, body)
+            }
+            _ => {
+                // Return an empty shape for unsupported families;
+                // callers (normalize_request, invoke) handle the error case.
+                (
+                    String::new(),
+                    "unknown".to_string(),
+                    "unknown".to_string(),
+                    serde_json::json!({}),
+                    serde_json::json!({}),
+                )
+            }
+        };
 
     Ok(NormalizedShape {
         endpoint,
@@ -1835,7 +2045,9 @@ fn looks_like_raw_secret(value: &str) -> bool {
         return true;
     }
     if value.len() >= 32 {
-        let alphanum: bool = value.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_');
+        let alphanum: bool = value
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_');
         if alphanum {
             let has_upper = value.chars().any(|c| c.is_uppercase());
             let has_lower = value.chars().any(|c| c.is_lowercase());
@@ -1877,7 +2089,10 @@ fn headers_value<'a>(headers: Option<&'a Value>, key: &str) -> Option<&'a str> {
 fn headers_contain_raw_secret(headers: Option<&Value>) -> bool {
     headers
         .and_then(Value::as_object)
-        .map(|obj| obj.values().any(|value| value.as_str().map(looks_like_raw_secret).unwrap_or(false)))
+        .map(|obj| {
+            obj.values()
+                .any(|value| value.as_str().map(looks_like_raw_secret).unwrap_or(false))
+        })
         .unwrap_or(false)
 }
 
@@ -1895,7 +2110,9 @@ fn default_base_url_for_family(family: &str) -> Option<&'static str> {
 }
 
 fn extract_host(url: &str) -> Option<String> {
-    let stripped = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
+    let stripped = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))?;
     let host_part = stripped.split('/').next()?;
     let host = host_part.split(':').next()?;
     Some(host.to_string())
@@ -1903,9 +2120,16 @@ fn extract_host(url: &str) -> Option<String> {
 
 /// Split an endpoint URL into (destination_host, path).
 fn split_endpoint(endpoint: &str) -> (String, String) {
-    if let Some(stripped) = endpoint.strip_prefix("https://").or_else(|| endpoint.strip_prefix("http://")) {
+    if let Some(stripped) = endpoint
+        .strip_prefix("https://")
+        .or_else(|| endpoint.strip_prefix("http://"))
+    {
         if let Some(slash_pos) = stripped.find('/') {
-            let host = stripped[..slash_pos].split(':').next().unwrap_or(&stripped[..slash_pos]).to_string();
+            let host = stripped[..slash_pos]
+                .split(':')
+                .next()
+                .unwrap_or(&stripped[..slash_pos])
+                .to_string();
             let path = stripped[slash_pos..].to_string();
             return (host, path);
         }

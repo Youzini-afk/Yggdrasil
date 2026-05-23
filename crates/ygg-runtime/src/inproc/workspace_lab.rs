@@ -364,7 +364,12 @@ fn draft_workspace_creation(request: &InprocInvocation) -> anyhow::Result<Value>
     let mut risk_notes: Vec<Value> = Vec::new();
 
     // Typical workspace creation needs: clone + read_metadata + install_dependencies + discover_entrypoints
-    for action in &["clone_project", "read_metadata", "install_dependencies", "discover_entrypoints"] {
+    for action in &[
+        "clone_project",
+        "read_metadata",
+        "install_dependencies",
+        "discover_entrypoints",
+    ] {
         if let Some((_, risk, appr, code, net, fs)) = lookup_action(action) {
             proposed_actions.push(serde_json::json!({
                 "action": action,
@@ -506,10 +511,7 @@ fn request_workspace_action(request: &InprocInvocation) -> anyhow::Result<Value>
         .and_then(Value::as_str)
         .unwrap_or("");
 
-    let approval_token = request
-        .input
-        .get("approval_token")
-        .and_then(Value::as_str);
+    let approval_token = request.input.get("approval_token").and_then(Value::as_str);
 
     let policy = request
         .input
@@ -574,8 +576,8 @@ fn request_workspace_action(request: &InprocInvocation) -> anyhow::Result<Value>
     // Policy/action mismatch: if policy claims "allow" but the action taxonomy
     // requires approval or the policy value is invalid, fail closed.
     let valid_policies = ["", "deny", "require_approval", "propose"];
-    let policy_mismatch = !valid_policies.contains(&policy)
-        || (policy == "allow" && requires_approval);
+    let policy_mismatch =
+        !valid_policies.contains(&policy) || (policy == "allow" && requires_approval);
 
     if policy_mismatch {
         return Ok(serde_json::json!({
@@ -715,7 +717,16 @@ fn summarize_workspace_audit(request: &InprocInvocation) -> anyhow::Result<Value
         }
 
         // Strip any raw fields that might have leaked in
-        for key in &["raw_command", "raw_env", "raw_log", "raw_output", "secret", "api_key", "token", "password"] {
+        for key in &[
+            "raw_command",
+            "raw_env",
+            "raw_log",
+            "raw_output",
+            "secret",
+            "api_key",
+            "token",
+            "password",
+        ] {
             if let Some(obj) = summary.as_object_mut() {
                 obj.remove(*key);
             }
@@ -991,8 +1002,14 @@ fn plan_workspace_run(request: &InprocInvocation) -> anyhow::Result<Value> {
     let mut run_steps: Vec<Value> = Vec::new();
 
     for script in &scripts {
-        let name = script.get("name").and_then(Value::as_str).unwrap_or("unknown");
-        let executes_code = script.get("executes_code").and_then(Value::as_bool).unwrap_or(true);
+        let name = script
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let executes_code = script
+            .get("executes_code")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
         run_steps.push(serde_json::json!({
             "step_kind": "run_script",
             "script_name": name,
@@ -1005,8 +1022,14 @@ fn plan_workspace_run(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     for entry in &entrypoints {
-        let name = entry.get("name").and_then(Value::as_str).unwrap_or("unknown");
-        let executes_code = entry.get("executes_code").and_then(Value::as_bool).unwrap_or(true);
+        let name = entry
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let executes_code = entry
+            .get("executes_code")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
         run_steps.push(serde_json::json!({
             "step_kind": "run_entrypoint",
             "entrypoint_name": name,
@@ -1067,10 +1090,7 @@ fn record_fixture_process_result(request: &InprocInvocation) -> anyhow::Result<V
         .unwrap_or("");
 
     // Build a redacted result record from caller-provided fixture data
-    let exit_code = request
-        .input
-        .get("exit_code")
-        .and_then(Value::as_i64);
+    let exit_code = request.input.get("exit_code").and_then(Value::as_i64);
 
     let stdout_preview_len = request
         .input
@@ -1115,7 +1135,16 @@ fn record_fixture_process_result(request: &InprocInvocation) -> anyhow::Result<V
     }
 
     // Strip any raw fields
-    for key in &["raw_stdout", "raw_stderr", "raw_command", "raw_env", "secret", "api_key", "token", "password"] {
+    for key in &[
+        "raw_stdout",
+        "raw_stderr",
+        "raw_command",
+        "raw_env",
+        "secret",
+        "api_key",
+        "token",
+        "password",
+    ] {
         if let Some(obj) = result_record.as_object_mut() {
             obj.remove(*key);
         }
@@ -1164,12 +1193,18 @@ fn discover_workspace_entrypoints(request: &InprocInvocation) -> anyhow::Result<
 
     // Add entrypoints from caller-provided scripts
     for script in &scripts {
-        let name = script.get("name").and_then(Value::as_str).unwrap_or("unknown");
-        let executes_code = script.get("executes_code").and_then(Value::as_bool).unwrap_or(true);
+        let name = script
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let executes_code = script
+            .get("executes_code")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
         // Don't duplicate entries already in stack-based candidates
-        let already_present = candidates.iter().any(|c| {
-            c.get("name").and_then(Value::as_str) == Some(name)
-        });
+        let already_present = candidates
+            .iter()
+            .any(|c| c.get("name").and_then(Value::as_str) == Some(name));
         if !already_present {
             candidates.push(serde_json::json!({
                 "name": name,
@@ -1185,9 +1220,9 @@ fn discover_workspace_entrypoints(request: &InprocInvocation) -> anyhow::Result<
     if let Some(obj) = metadata.as_object() {
         if let Some(bin) = obj.get("bin").and_then(Value::as_object) {
             for (bin_name, _bin_path) in bin {
-                let already_present = candidates.iter().any(|c| {
-                    c.get("name").and_then(Value::as_str) == Some(bin_name.as_str())
-                });
+                let already_present = candidates
+                    .iter()
+                    .any(|c| c.get("name").and_then(Value::as_str) == Some(bin_name.as_str()));
                 if !already_present {
                     candidates.push(serde_json::json!({
                         "name": bin_name,
@@ -1201,9 +1236,9 @@ fn discover_workspace_entrypoints(request: &InprocInvocation) -> anyhow::Result<
         }
         if let Some(scripts_map) = obj.get("npm_scripts").and_then(Value::as_object) {
             for (script_name, _script_val) in scripts_map {
-                let already_present = candidates.iter().any(|c| {
-                    c.get("name").and_then(Value::as_str) == Some(script_name.as_str())
-                });
+                let already_present = candidates
+                    .iter()
+                    .any(|c| c.get("name").and_then(Value::as_str) == Some(script_name.as_str()));
                 if !already_present {
                     candidates.push(serde_json::json!({
                         "name": script_name,
@@ -1316,13 +1351,20 @@ fn classify_source_kind(source_ref: &str) -> &'static str {
     }
     let lower = source_ref.to_lowercase();
     // npm patterns first (before generic URL check, since npm URLs also start with https://)
-    if lower.starts_with("npm:") || lower.contains("npmjs.com") || lower.contains("registry.npmjs.org") {
+    if lower.starts_with("npm:")
+        || lower.contains("npmjs.com")
+        || lower.contains("registry.npmjs.org")
+    {
         return "npm";
     }
     if lower.starts_with("https://") || lower.starts_with("http://") || lower.ends_with(".git") {
         return "git";
     }
-    if lower.starts_with("/") || lower.starts_with("./") || lower.starts_with("../") || lower.starts_with("~/") {
+    if lower.starts_with("/")
+        || lower.starts_with("./")
+        || lower.starts_with("../")
+        || lower.starts_with("~/")
+    {
         return "local";
     }
     if lower.ends_with(".tar.gz") || lower.ends_with(".zip") || lower.ends_with(".tgz") {
@@ -1353,9 +1395,14 @@ fn entrypoint_candidates_for_stack(stack: &str) -> Vec<Value> {
 
 /// Build risk summary from source kind, detected stack, and scripts.
 fn build_risk_summary(source_kind: &str, detected_stack: &str, scripts: &[Value]) -> Value {
-    let executes_code_count = scripts.iter().filter(|s| {
-        s.get("executes_code").and_then(Value::as_bool).unwrap_or(false)
-    }).count();
+    let executes_code_count = scripts
+        .iter()
+        .filter(|s| {
+            s.get("executes_code")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .count();
 
     let overall_risk = if executes_code_count > 0 || source_kind == "local" {
         "high"
@@ -1430,12 +1477,7 @@ fn format_permission_explanation(
     } else {
         parts.join("; ")
     };
-    format!(
-        "action '{}' has {} risk and {}",
-        action,
-        risk,
-        detail
-    )
+    format!("action '{}' has {} risk and {}", action, risk, detail)
 }
 
 // ---------------------------------------------------------------------------
@@ -1532,10 +1574,7 @@ mod tests {
             result["policy_defaults"]["default_decision"],
             json!("denied_by_default")
         );
-        assert_eq!(
-            result["policy_defaults"]["executor_invoked"],
-            json!(false)
-        );
+        assert_eq!(result["policy_defaults"]["executor_invoked"], json!(false));
         assert_eq!(
             result["policy_defaults"]["execution_performed"],
             json!(false)
@@ -1691,7 +1730,10 @@ mod tests {
         );
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
-        assert!(!contains_forbidden_namespace(&output_str), "must not contain forbidden namespace tokens");
+        assert!(
+            !contains_forbidden_namespace(&output_str),
+            "must not contain forbidden namespace tokens"
+        );
     }
 
     #[test]
@@ -1779,7 +1821,11 @@ mod tests {
         assert_eq!(ACTION_TAXONOMY.len(), 10);
         assert_eq!(VALID_ACTIONS.len(), 10);
         for (action, _, _, _, _, _) in ACTION_TAXONOMY {
-            assert!(VALID_ACTIONS.contains(action), "action {} must be in VALID_ACTIONS", action);
+            assert!(
+                VALID_ACTIONS.contains(action),
+                "action {} must be in VALID_ACTIONS",
+                action
+            );
         }
     }
 
@@ -2050,9 +2096,14 @@ mod tests {
         assert_eq!(result["kind"], json!("workspace_entrypoint_candidates"));
         assert_eq!(result["detected_stack"], json!("node"));
         let candidates = result["candidates"].as_array().unwrap();
-        assert!(!candidates.is_empty(), "node stack should produce entrypoint candidates");
+        assert!(
+            !candidates.is_empty(),
+            "node stack should produce entrypoint candidates"
+        );
         // All node candidates should require_approval
-        assert!(candidates.iter().all(|c| c["requires_approval"] == json!(true)));
+        assert!(candidates
+            .iter()
+            .all(|c| c["requires_approval"] == json!(true)));
         assert_eq!(result["execution_performed"], json!(false));
         assert_eq!(result["filesystem_performed"], json!(false));
     }
@@ -2065,8 +2116,13 @@ mod tests {
         );
         let result = try_handle(&req).unwrap().unwrap();
         let candidates = result["candidates"].as_array().unwrap();
-        let has_custom = candidates.iter().any(|c| c["name"] == json!("custom-script"));
-        assert!(has_custom, "should include caller-provided script entrypoint");
+        let has_custom = candidates
+            .iter()
+            .any(|c| c["name"] == json!("custom-script"));
+        assert!(
+            has_custom,
+            "should include caller-provided script entrypoint"
+        );
     }
 
     #[test]
@@ -2127,23 +2183,44 @@ mod tests {
     #[test]
     fn create_fixture_workspace_stack_detection() {
         // Test various stack hints
-        for (hint, expected) in &[("node", "node"), ("npm", "node"), ("rust", "rust"), ("cargo", "rust"), ("python", "python"), ("pip", "python"), ("static", "static"), ("unknown", "unknown")] {
+        for (hint, expected) in &[
+            ("node", "node"),
+            ("npm", "node"),
+            ("rust", "rust"),
+            ("cargo", "rust"),
+            ("python", "python"),
+            ("pip", "python"),
+            ("static", "static"),
+            ("unknown", "unknown"),
+        ] {
             let req = make_request(
                 "official/workspace-lab/create_fixture_workspace",
                 json!({"workspace_ref": "ws-1", "stack_hint": hint}),
             );
             let result = try_handle(&req).unwrap().unwrap();
-            assert_eq!(result["detected_stack"], json!(*expected), "stack_hint {} should detect {}", hint, expected);
+            assert_eq!(
+                result["detected_stack"],
+                json!(*expected),
+                "stack_hint {} should detect {}",
+                hint,
+                expected
+            );
         }
     }
 
     #[test]
     fn classify_source_kind_various() {
-        assert_eq!(classify_source_kind("https://github.com/user/repo.git"), "git");
+        assert_eq!(
+            classify_source_kind("https://github.com/user/repo.git"),
+            "git"
+        );
         assert_eq!(classify_source_kind("http://example.com/repo"), "git");
         assert_eq!(classify_source_kind("git@github.com:user/repo.git"), "git");
         assert_eq!(classify_source_kind("npm:express"), "npm");
-        assert_eq!(classify_source_kind("https://registry.npmjs.org/express"), "npm");
+        assert_eq!(
+            classify_source_kind("https://registry.npmjs.org/express"),
+            "npm"
+        );
         assert_eq!(classify_source_kind("./local/path"), "local");
         assert_eq!(classify_source_kind("/absolute/path"), "local");
         assert_eq!(classify_source_kind("archive.tar.gz"), "archive");

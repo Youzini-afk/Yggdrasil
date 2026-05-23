@@ -17,7 +17,12 @@ use crate::commands::{composition, manifest};
 pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-playable-seed/manifest.yaml")).await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "examples/packages/thirdparty-playable-seed/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // List all surfaces — should include at least the 5 from thirdparty-playable-seed
@@ -29,7 +34,10 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(all.as_array().map(|items| items.len()).unwrap_or(0) >= 5, "third-party surfaces not listed");
+    anyhow::ensure!(
+        all.as_array().map(|items| items.len()).unwrap_or(0) >= 5,
+        "third-party surfaces not listed"
+    );
 
     // Check experience_entry slot
     let entries = runtime
@@ -42,7 +50,11 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_entry = entries
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/playable-seed")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/playable-seed"))
+        })
         .unwrap_or(false);
     anyhow::ensure!(has_entry, "third-party experience_entry surface missing");
 
@@ -57,7 +69,11 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_renderer = renderers
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/playable-seed")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/playable-seed"))
+        })
         .unwrap_or(false);
     anyhow::ensure!(has_renderer, "third-party play_renderer surface missing");
 
@@ -72,7 +88,11 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_forge = forge_panels
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/playable-seed")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/playable-seed"))
+        })
         .unwrap_or(false);
     anyhow::ensure!(has_forge, "third-party forge_panel surface missing");
 
@@ -87,7 +107,11 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_assist = assistants
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/playable-seed")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/playable-seed"))
+        })
         .unwrap_or(false);
     anyhow::ensure!(has_assist, "third-party assistant_action surface missing");
 
@@ -102,7 +126,11 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_editor = editors
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/playable-seed")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/playable-seed"))
+        })
         .unwrap_or(false);
     anyhow::ensure!(has_editor, "third-party asset_editor surface missing");
 
@@ -114,7 +142,12 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
 pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-playable-seed/manifest.yaml")).await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "examples/packages/thirdparty-playable-seed/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // Invoke the launch capability through normal routing (echo inproc echoes input)
@@ -129,7 +162,10 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
         })
         .await?;
     // Echo inproc returns input, so verify the input is echoed
-    anyhow::ensure!(launch.output["title"] == json!("Community Seed"), "third-party launch capability did not echo input");
+    anyhow::ensure!(
+        launch.output["title"] == json!("Community Seed"),
+        "third-party launch capability did not echo input"
+    );
 
     // Invoke render_payload capability
     let render = runtime
@@ -142,7 +178,10 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
             input: json!({}),
         })
         .await?;
-    anyhow::ensure!(render.provider_package_id == "thirdparty/playable-seed", "third-party render routed to wrong provider");
+    anyhow::ensure!(
+        render.provider_package_id == "thirdparty/playable-seed",
+        "third-party render routed to wrong provider"
+    );
 
     Ok(())
 }
@@ -156,11 +195,17 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
 
     // Load an official package that provides a shared capability ID
     runtime
-        .load_package(echo_package("official/replacement-fixture", "shared/playable-seed/launch"))
+        .load_package(echo_package(
+            "official/replacement-fixture",
+            "shared/playable-seed/launch",
+        ))
         .await?;
     // Load a third-party package that provides the SAME capability ID
     runtime
-        .load_package(echo_package("thirdparty/replacement-fixture", "shared/playable-seed/launch"))
+        .load_package(echo_package(
+            "thirdparty/replacement-fixture",
+            "shared/playable-seed/launch",
+        ))
         .await?;
 
     // Without explicit provider, the route should be ambiguous — NOT preferred to official
@@ -174,7 +219,10 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
             input: json!({}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "ambiguous route should be rejected, official package should NOT win");
+    anyhow::ensure!(
+        denied.is_err(),
+        "ambiguous route should be rejected, official package should NOT win"
+    );
 
     // With explicit third-party provider, it should work — proving no official priority
     let result = runtime
@@ -198,7 +246,10 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
 /// Proves that composition check passes with the third-party replacement
 /// composition descriptor.
 pub(crate) async fn composition_thirdparty() -> anyhow::Result<()> {
-    composition::composition_check(PathBuf::from("examples/compositions/playable-seed-replacement/composition.yaml")).await?;
+    composition::composition_check(PathBuf::from(
+        "examples/compositions/playable-seed-replacement/composition.yaml",
+    ))
+    .await?;
     Ok(())
 }
 
@@ -212,7 +263,12 @@ pub(crate) async fn composition_thirdparty() -> anyhow::Result<()> {
 pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-agent-runtime/manifest.yaml")).await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "examples/packages/thirdparty-agent-runtime/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // Check assistant_action slot
@@ -226,9 +282,16 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_assistant = assistants
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/agent-runtime")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/agent-runtime"))
+        })
         .unwrap_or(false);
-    anyhow::ensure!(has_assistant, "third-party agent-runtime assistant_action surface missing");
+    anyhow::ensure!(
+        has_assistant,
+        "third-party agent-runtime assistant_action surface missing"
+    );
 
     // Check forge_panel slot
     let forge_panels = runtime
@@ -241,9 +304,16 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_forge = forge_panels
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/agent-runtime")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/agent-runtime"))
+        })
         .unwrap_or(false);
-    anyhow::ensure!(has_forge, "third-party agent-runtime forge_panel surface missing");
+    anyhow::ensure!(
+        has_forge,
+        "third-party agent-runtime forge_panel surface missing"
+    );
 
     // Check home_card slot
     let home_cards = runtime
@@ -256,9 +326,16 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let has_home = home_cards
         .as_array()
-        .map(|items| items.iter().any(|r| r["package_id"] == json!("thirdparty/agent-runtime")))
+        .map(|items| {
+            items
+                .iter()
+                .any(|r| r["package_id"] == json!("thirdparty/agent-runtime"))
+        })
         .unwrap_or(false);
-    anyhow::ensure!(has_home, "third-party agent-runtime home_card surface missing");
+    anyhow::ensure!(
+        has_home,
+        "third-party agent-runtime home_card surface missing"
+    );
 
     Ok(())
 }
@@ -269,7 +346,12 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
 pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from("examples/packages/thirdparty-agent-runtime/manifest.yaml")).await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "examples/packages/thirdparty-agent-runtime/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
 
     // run: deterministic no-inference no-network plan
@@ -283,13 +365,34 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             input: json!({}),
         })
         .await?;
-    anyhow::ensure!(run_result.output["kind"] == json!("thirdparty_agent_run_plan"), "thirdparty agent-runtime run returned wrong kind");
-    anyhow::ensure!(run_result.output["inference_performed"] == json!(false), "thirdparty agent-runtime run must not perform inference");
-    anyhow::ensure!(run_result.output["network_performed"] == json!(false), "thirdparty agent-runtime run must not perform network");
-    anyhow::ensure!(run_result.output["trace_events"].is_array(), "thirdparty agent-runtime run missing trace_events");
-    anyhow::ensure!(run_result.output["stream_frames"].is_array(), "thirdparty agent-runtime run missing stream_frames");
-    anyhow::ensure!(run_result.output["proposal_draft"].is_object(), "thirdparty agent-runtime run missing proposal_draft");
-    anyhow::ensure!(run_result.output["provenance"]["package_id"] == json!("thirdparty/agent-runtime"), "thirdparty agent-runtime run provenance mismatch");
+    anyhow::ensure!(
+        run_result.output["kind"] == json!("thirdparty_agent_run_plan"),
+        "thirdparty agent-runtime run returned wrong kind"
+    );
+    anyhow::ensure!(
+        run_result.output["inference_performed"] == json!(false),
+        "thirdparty agent-runtime run must not perform inference"
+    );
+    anyhow::ensure!(
+        run_result.output["network_performed"] == json!(false),
+        "thirdparty agent-runtime run must not perform network"
+    );
+    anyhow::ensure!(
+        run_result.output["trace_events"].is_array(),
+        "thirdparty agent-runtime run missing trace_events"
+    );
+    anyhow::ensure!(
+        run_result.output["stream_frames"].is_array(),
+        "thirdparty agent-runtime run missing stream_frames"
+    );
+    anyhow::ensure!(
+        run_result.output["proposal_draft"].is_object(),
+        "thirdparty agent-runtime run missing proposal_draft"
+    );
+    anyhow::ensure!(
+        run_result.output["provenance"]["package_id"] == json!("thirdparty/agent-runtime"),
+        "thirdparty agent-runtime run provenance mismatch"
+    );
 
     // draft_proposal: approval-gated
     let proposal = runtime
@@ -302,9 +405,18 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             input: json!({"change": "community-driven modification"}),
         })
         .await?;
-    anyhow::ensure!(proposal.output["kind"] == json!("thirdparty_agent_proposal"), "thirdparty agent-runtime draft_proposal wrong kind");
-    anyhow::ensure!(proposal.output["requires_user_approval"] == json!(true), "thirdparty agent-runtime proposal must require approval");
-    anyhow::ensure!(proposal.output["provenance"]["package_id"] == json!("thirdparty/agent-runtime"), "thirdparty agent-runtime proposal provenance mismatch");
+    anyhow::ensure!(
+        proposal.output["kind"] == json!("thirdparty_agent_proposal"),
+        "thirdparty agent-runtime draft_proposal wrong kind"
+    );
+    anyhow::ensure!(
+        proposal.output["requires_user_approval"] == json!(true),
+        "thirdparty agent-runtime proposal must require approval"
+    );
+    anyhow::ensure!(
+        proposal.output["provenance"]["package_id"] == json!("thirdparty/agent-runtime"),
+        "thirdparty agent-runtime proposal provenance mismatch"
+    );
 
     // explain_run: no-inference explanation
     let explain = runtime
@@ -317,10 +429,22 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             input: json!({"trace_events": [{"step": 1}, {"step": 2}]}),
         })
         .await?;
-    anyhow::ensure!(explain.output["kind"] == json!("thirdparty_agent_run_explanation"), "thirdparty agent-runtime explain_run wrong kind");
-    anyhow::ensure!(explain.output["inference_performed"] == json!(false), "thirdparty agent-runtime explain_run must not claim inference");
-    anyhow::ensure!(explain.output["network_performed"] == json!(false), "thirdparty agent-runtime explain_run must not claim network");
-    anyhow::ensure!(explain.output["trace_event_count"] == json!(2), "thirdparty agent-runtime explain_run wrong event count");
+    anyhow::ensure!(
+        explain.output["kind"] == json!("thirdparty_agent_run_explanation"),
+        "thirdparty agent-runtime explain_run wrong kind"
+    );
+    anyhow::ensure!(
+        explain.output["inference_performed"] == json!(false),
+        "thirdparty agent-runtime explain_run must not claim inference"
+    );
+    anyhow::ensure!(
+        explain.output["network_performed"] == json!(false),
+        "thirdparty agent-runtime explain_run must not claim network"
+    );
+    anyhow::ensure!(
+        explain.output["trace_event_count"] == json!(2),
+        "thirdparty agent-runtime explain_run wrong event count"
+    );
 
     // summarize_trace: no-inference summary
     let trace = runtime
@@ -333,10 +457,22 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             input: json!({"trace_events": [{"e": 1}, {"e": 2}, {"e": 3}]}),
         })
         .await?;
-    anyhow::ensure!(trace.output["kind"] == json!("thirdparty_agent_trace_summary"), "thirdparty agent-runtime summarize_trace wrong kind");
-    anyhow::ensure!(trace.output["event_count"] == json!(3), "thirdparty agent-runtime summarize_trace wrong event count");
-    anyhow::ensure!(trace.output["inference_performed"] == json!(false), "thirdparty agent-runtime summarize_trace must not claim inference");
-    anyhow::ensure!(trace.output["network_performed"] == json!(false), "thirdparty agent-runtime summarize_trace must not claim network");
+    anyhow::ensure!(
+        trace.output["kind"] == json!("thirdparty_agent_trace_summary"),
+        "thirdparty agent-runtime summarize_trace wrong kind"
+    );
+    anyhow::ensure!(
+        trace.output["event_count"] == json!(3),
+        "thirdparty agent-runtime summarize_trace wrong event count"
+    );
+    anyhow::ensure!(
+        trace.output["inference_performed"] == json!(false),
+        "thirdparty agent-runtime summarize_trace must not claim inference"
+    );
+    anyhow::ensure!(
+        trace.output["network_performed"] == json!(false),
+        "thirdparty agent-runtime summarize_trace must not claim network"
+    );
 
     // echo: passthrough
     let echo = runtime
@@ -349,8 +485,14 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
             input: json!({"hello": "community"}),
         })
         .await?;
-    anyhow::ensure!(echo.output["kind"] == json!("thirdparty_agent_echo"), "thirdparty agent-runtime echo wrong kind");
-    anyhow::ensure!(echo.output["input"]["hello"] == json!("community"), "thirdparty agent-runtime echo did not pass through input");
+    anyhow::ensure!(
+        echo.output["kind"] == json!("thirdparty_agent_echo"),
+        "thirdparty agent-runtime echo wrong kind"
+    );
+    anyhow::ensure!(
+        echo.output["input"]["hello"] == json!("community"),
+        "thirdparty agent-runtime echo did not pass through input"
+    );
 
     Ok(())
 }
@@ -361,6 +503,9 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
 /// verifies no official priority: the third-party is the selected provider and
 /// official is only a candidate.
 pub(crate) async fn composition_agent_runtime_replacement() -> anyhow::Result<()> {
-    composition::composition_check(PathBuf::from("examples/compositions/agent-runtime-replacement/composition.yaml")).await?;
+    composition::composition_check(PathBuf::from(
+        "examples/compositions/agent-runtime-replacement/composition.yaml",
+    ))
+    .await?;
     Ok(())
 }

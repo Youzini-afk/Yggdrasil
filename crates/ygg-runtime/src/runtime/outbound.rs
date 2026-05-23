@@ -31,12 +31,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::time::timeout;
-use schemars::JsonSchema;
 use ygg_core::{new_id, RedactionState};
 
 use super::Runtime;
@@ -758,7 +758,6 @@ impl FakeGitOutboundExecutor {
     pub fn call_count(&self) -> u64 {
         self.call_count.load(std::sync::atomic::Ordering::SeqCst)
     }
-
 }
 
 impl Default for FakeGitOutboundExecutor {
@@ -823,16 +822,27 @@ impl GitOutboundExecutor for RealGitOutboundExecutor {
     async fn fetch(&self, request: GitOutboundRequest) -> anyhow::Result<GitOutboundResponse> {
         validate_git_outbound_request_shape(&request)?;
         if !request.secret_refs.is_empty() {
-            anyhow::bail!("real git outbound does not support private repository auth in this stage")
+            anyhow::bail!(
+                "real git outbound does not support private repository auth in this stage"
+            )
         }
 
         fs::create_dir_all(&self.config.install_root)?;
-        let timeout_duration = Duration::from_millis(request.timeout_ms.unwrap_or(self.config.timeout_ms));
-        let resolved_commit_sha = resolve_git_ref(&request.remote_url, &request.reference, timeout_duration).await?;
+        let timeout_duration =
+            Duration::from_millis(request.timeout_ms.unwrap_or(self.config.timeout_ms));
+        let resolved_commit_sha =
+            resolve_git_ref(&request.remote_url, &request.reference, timeout_duration).await?;
         let mut resolved_path = None;
-        let mut hash_material = format!("{}\n{}\n{}", request.remote_url, request.reference, resolved_commit_sha).into_bytes();
+        let mut hash_material = format!(
+            "{}\n{}\n{}",
+            request.remote_url, request.reference, resolved_commit_sha
+        )
+        .into_bytes();
 
-        if matches!(request.fetch_kind, GitFetchKind::TreeOnly | GitFetchKind::ShallowClone) {
+        if matches!(
+            request.fetch_kind,
+            GitFetchKind::TreeOnly | GitFetchKind::ShallowClone
+        ) {
             let subdir = request
                 .destination_hint
                 .clone()
@@ -1039,7 +1049,8 @@ impl OutboundExecutor for FakeOutboundExecutor {
                     kind: OutboundFrameKind::Done,
                     data_shape: serde_json::json!({"status": "cancelled"}),
                     bytes_received,
-                }).await?;
+                })
+                .await?;
                 return Ok(OutboundStreamSummary {
                     status: "cancelled".to_string(),
                     status_code: Some(200),
@@ -1061,7 +1072,8 @@ impl OutboundExecutor for FakeOutboundExecutor {
                 kind: OutboundFrameKind::Event,
                 data_shape: event.clone(),
                 bytes_received,
-            }).await?;
+            })
+            .await?;
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
 
@@ -1072,7 +1084,8 @@ impl OutboundExecutor for FakeOutboundExecutor {
             kind: OutboundFrameKind::Done,
             data_shape: serde_json::json!({"status": "ok"}),
             bytes_received,
-        }).await?;
+        })
+        .await?;
 
         Ok(OutboundStreamSummary {
             status: "ok".to_string(),
@@ -1670,8 +1683,8 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
         let mut final_status = response_status.to_string();
 
         if use_stream {
-            use futures::StreamExt;
             use crate::runtime::outbound_sse::SseParser;
+            use futures::StreamExt;
 
             let mut sse_parser = SseParser::new();
             let mut ndjson_buffer = String::new();
@@ -1705,14 +1718,20 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
                 let chunk = match chunk_result {
                     Ok(c) => c,
                     Err(e) => {
-                        let error_msg = if e.is_timeout() { "stream timeout" } else { "stream error" };
+                        let error_msg = if e.is_timeout() {
+                            "stream timeout"
+                        } else {
+                            "stream error"
+                        };
                         seq += 1;
-                        let _ = emit.emit(OutboundStreamFrame {
-                            seq,
-                            kind: OutboundFrameKind::Error,
-                            data_shape: serde_json::json!({"error": error_msg}),
-                            bytes_received,
-                        }).await;
+                        let _ = emit
+                            .emit(OutboundStreamFrame {
+                                seq,
+                                kind: OutboundFrameKind::Error,
+                                data_shape: serde_json::json!({"error": error_msg}),
+                                bytes_received,
+                            })
+                            .await;
                         final_status = if e.is_timeout() { "timeout" } else { "error" }.to_string();
                         break;
                     }
@@ -1764,7 +1783,8 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
                                 kind: OutboundFrameKind::Event,
                                 data_shape,
                                 bytes_received,
-                            }).await?;
+                            })
+                            .await?;
                         }
                     }
                     StreamFormat::Ndjson => {
@@ -1792,7 +1812,12 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
                             // Redact: parse as JSON and redact, or emit as string shape
                             let data_shape = serde_json::from_str::<Value>(&line_preview)
                                 .map(|v| redact_json_value(&v))
-                                .unwrap_or_else(|_| Value::String(format!("ndjson_line_{}bytes", line_preview.len())));
+                                .unwrap_or_else(|_| {
+                                    Value::String(format!(
+                                        "ndjson_line_{}bytes",
+                                        line_preview.len()
+                                    ))
+                                });
 
                             seq += 1;
                             emit.emit(OutboundStreamFrame {
@@ -1800,7 +1825,8 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
                                 kind: OutboundFrameKind::Event,
                                 data_shape,
                                 bytes_received,
-                            }).await?;
+                            })
+                            .await?;
                         }
                     }
                     StreamFormat::Raw => {
@@ -1824,7 +1850,8 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
                             kind: OutboundFrameKind::Data,
                             data_shape,
                             bytes_received,
-                        }).await?;
+                        })
+                        .await?;
                     }
                 }
 
@@ -1859,7 +1886,8 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
                         kind: OutboundFrameKind::Event,
                         data_shape,
                         bytes_received,
-                    }).await?;
+                    })
+                    .await?;
                 }
             }
         }
@@ -1871,7 +1899,8 @@ impl OutboundExecutor for LiveHttpOutboundExecutor {
             kind: OutboundFrameKind::Done,
             data_shape: serde_json::json!({"status": final_status}),
             bytes_received,
-        }).await?;
+        })
+        .await?;
 
         Ok(OutboundStreamSummary {
             status: final_status,
@@ -2144,11 +2173,12 @@ where
             .permissions(&request.package_id)
             .await
             .unwrap_or_default();
-        if !self.is_contract_none_package(&request.package_id).await && !permissions
-            .git_fetch
-            .hosts
-            .iter()
-            .any(|allowed| git_host_matches(allowed, &host))
+        if !self.is_contract_none_package(&request.package_id).await
+            && !permissions
+                .git_fetch
+                .hosts
+                .iter()
+                .any(|allowed| git_host_matches(allowed, &host))
         {
             return self
                 .deny_git_fetch(
@@ -2291,7 +2321,11 @@ fn git_audit_payload(
     })
 }
 
-async fn resolve_git_ref(remote_url: &str, reference: &str, timeout_duration: Duration) -> anyhow::Result<String> {
+async fn resolve_git_ref(
+    remote_url: &str,
+    reference: &str,
+    timeout_duration: Duration,
+) -> anyhow::Result<String> {
     let output = timeout(
         timeout_duration,
         Command::new("git")
@@ -2545,7 +2579,7 @@ mod tests {
             redaction_state: None,
             timeout_ms: None,
             metadata: Value::Null,
-        correlation_id: None,
+            correlation_id: None,
         };
         let response = executor.fetch(request).await.unwrap();
         assert_eq!(response.status, "denied");
@@ -2694,7 +2728,7 @@ mod tests {
             method: "POST".to_string(),
             purpose: None,
             secret_refs_used: vec!["secret_ref:env:KEY".to_string()],
-        correlation_id: None,
+            correlation_id: None,
         };
         let executor = OutboundExecutorRequest {
             package_id: "test/pkg".to_string(),

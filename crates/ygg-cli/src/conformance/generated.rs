@@ -23,7 +23,8 @@ pub(crate) async fn generated_subprocess_package() -> anyhow::Result<()> {
 }
 
 pub(crate) async fn generated_typescript_subprocess_package() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-ts-package-{}", std::process::id()));
+    let path =
+        std::env::temp_dir().join(format!("ygg-generated-ts-package-{}", std::process::id()));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -42,7 +43,8 @@ pub(crate) async fn generated_typescript_subprocess_package() -> anyhow::Result<
 }
 
 pub(crate) async fn generated_experience_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-experience-{}", std::process::id()));
+    let path =
+        std::env::temp_dir().join(format!("ygg-generated-experience-{}", std::process::id()));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -59,7 +61,11 @@ pub(crate) async fn generated_experience_template() -> anyhow::Result<()> {
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
     // Legacy experience template (auto-detected from --language typescript-experience)
     // preserves the original 4 surfaces for backward compatibility.
-    anyhow::ensure!(manifest.contributes.surfaces.len() >= 4, "legacy experience template should have >= 4 surfaces, got {}", manifest.contributes.surfaces.len());
+    anyhow::ensure!(
+        manifest.contributes.surfaces.len() >= 4,
+        "legacy experience template should have >= 4 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
     fs::remove_dir_all(path)?;
     Ok(())
 }
@@ -81,14 +87,21 @@ pub(crate) async fn generated_basic_template() -> anyhow::Result<()> {
     package::package_check(path.join("manifest.yaml")).await?;
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
-    anyhow::ensure!(manifest.contributes.surfaces.is_empty(), "basic template should have 0 surfaces, got {}", manifest.contributes.surfaces.len());
+    anyhow::ensure!(
+        manifest.contributes.surfaces.is_empty(),
+        "basic template should have 0 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
     fs::remove_dir_all(path)?;
     Ok(())
 }
 
 /// Test that the explicit --template experience generates only experience_entry.
 pub(crate) async fn generated_explicit_experience_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-explicit-experience-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "ygg-generated-explicit-experience-{}",
+        std::process::id()
+    ));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -103,9 +116,16 @@ pub(crate) async fn generated_explicit_experience_template() -> anyhow::Result<(
     package::package_check(path.join("manifest.yaml")).await?;
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
-    anyhow::ensure!(manifest.contributes.surfaces.len() == 1, "explicit experience template should have 1 surface, got {}", manifest.contributes.surfaces.len());
     anyhow::ensure!(
-        matches!(manifest.contributes.surfaces[0].slot, ygg_core::SurfaceSlot::ExperienceEntry),
+        manifest.contributes.surfaces.len() == 1,
+        "explicit experience template should have 1 surface, got {}",
+        manifest.contributes.surfaces.len()
+    );
+    anyhow::ensure!(
+        matches!(
+            manifest.contributes.surfaces[0].slot,
+            ygg_core::SurfaceSlot::ExperienceEntry
+        ),
         "explicit experience template surface slot should be experience_entry"
     );
     fs::remove_dir_all(path)?;
@@ -114,7 +134,10 @@ pub(crate) async fn generated_explicit_experience_template() -> anyhow::Result<(
 
 /// Test that the assistant-action template generates one surface with fork_then_approve.
 pub(crate) async fn generated_assistant_action_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-assistant-action-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "ygg-generated-assistant-action-{}",
+        std::process::id()
+    ));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -129,13 +152,21 @@ pub(crate) async fn generated_assistant_action_template() -> anyhow::Result<()> 
     package::package_check(path.join("manifest.yaml")).await?;
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
-    anyhow::ensure!(manifest.contributes.surfaces.len() == 1, "assistant-action template should have 1 surface, got {}", manifest.contributes.surfaces.len());
     anyhow::ensure!(
-        matches!(manifest.contributes.surfaces[0].slot, ygg_core::SurfaceSlot::AssistantAction),
+        manifest.contributes.surfaces.len() == 1,
+        "assistant-action template should have 1 surface, got {}",
+        manifest.contributes.surfaces.len()
+    );
+    anyhow::ensure!(
+        matches!(
+            manifest.contributes.surfaces[0].slot,
+            ygg_core::SurfaceSlot::AssistantAction
+        ),
         "assistant-action template surface slot should be assistant_action"
     );
     anyhow::ensure!(
-        manifest.contributes.surfaces[0].approval_policy == Some(ygg_core::SurfaceApprovalPolicy::ForkThenApprove),
+        manifest.contributes.surfaces[0].approval_policy
+            == Some(ygg_core::SurfaceApprovalPolicy::ForkThenApprove),
         "assistant-action template should have fork_then_approve policy"
     );
     fs::remove_dir_all(path)?;
@@ -144,7 +175,8 @@ pub(crate) async fn generated_assistant_action_template() -> anyhow::Result<()> 
 
 /// Test that the asset-editor template generates one surface with the asset_editor slot.
 pub(crate) async fn generated_asset_editor_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-asset-editor-{}", std::process::id()));
+    let path =
+        std::env::temp_dir().join(format!("ygg-generated-asset-editor-{}", std::process::id()));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -159,9 +191,16 @@ pub(crate) async fn generated_asset_editor_template() -> anyhow::Result<()> {
     package::package_check(path.join("manifest.yaml")).await?;
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
-    anyhow::ensure!(manifest.contributes.surfaces.len() == 1, "asset-editor template should have 1 surface, got {}", manifest.contributes.surfaces.len());
     anyhow::ensure!(
-        matches!(manifest.contributes.surfaces[0].slot, ygg_core::SurfaceSlot::AssetEditor),
+        manifest.contributes.surfaces.len() == 1,
+        "asset-editor template should have 1 surface, got {}",
+        manifest.contributes.surfaces.len()
+    );
+    anyhow::ensure!(
+        matches!(
+            manifest.contributes.surfaces[0].slot,
+            ygg_core::SurfaceSlot::AssetEditor
+        ),
         "asset-editor template surface slot should be asset_editor"
     );
     fs::remove_dir_all(path)?;
@@ -170,7 +209,8 @@ pub(crate) async fn generated_asset_editor_template() -> anyhow::Result<()> {
 
 /// Test that the full-surface template generates all 5 surfaces.
 pub(crate) async fn generated_full_surface_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-full-surface-{}", std::process::id()));
+    let path =
+        std::env::temp_dir().join(format!("ygg-generated-full-surface-{}", std::process::id()));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -185,23 +225,55 @@ pub(crate) async fn generated_full_surface_template() -> anyhow::Result<()> {
     package::package_check(path.join("manifest.yaml")).await?;
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
-    anyhow::ensure!(manifest.contributes.surfaces.len() == 5, "full-surface template should have 5 surfaces, got {}", manifest.contributes.surfaces.len());
-    let slots: Vec<&str> = manifest.contributes.surfaces.iter().map(|s| match s.slot {
-        ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
-        ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
-        ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
-        ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
-        ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
-        ygg_core::SurfaceSlot::HomeCard => "home_card",
-    }).collect();
-    anyhow::ensure!(slots.contains(&"experience_entry"), "full-surface should include experience_entry");
-    anyhow::ensure!(slots.contains(&"play_renderer"), "full-surface should include play_renderer");
-    anyhow::ensure!(slots.contains(&"forge_panel"), "full-surface should include forge_panel");
-    anyhow::ensure!(slots.contains(&"assistant_action"), "full-surface should include assistant_action");
-    anyhow::ensure!(slots.contains(&"asset_editor"), "full-surface should include asset_editor");
+    anyhow::ensure!(
+        manifest.contributes.surfaces.len() == 5,
+        "full-surface template should have 5 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
+    let slots: Vec<&str> = manifest
+        .contributes
+        .surfaces
+        .iter()
+        .map(|s| match s.slot {
+            ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+            ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+            ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+            ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+            ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+            ygg_core::SurfaceSlot::HomeCard => "home_card",
+        })
+        .collect();
+    anyhow::ensure!(
+        slots.contains(&"experience_entry"),
+        "full-surface should include experience_entry"
+    );
+    anyhow::ensure!(
+        slots.contains(&"play_renderer"),
+        "full-surface should include play_renderer"
+    );
+    anyhow::ensure!(
+        slots.contains(&"forge_panel"),
+        "full-surface should include forge_panel"
+    );
+    anyhow::ensure!(
+        slots.contains(&"assistant_action"),
+        "full-surface should include assistant_action"
+    );
+    anyhow::ensure!(
+        slots.contains(&"asset_editor"),
+        "full-surface should include asset_editor"
+    );
     // Verify assistant_action has fork_then_approve
-    let assist = manifest.contributes.surfaces.iter().find(|s| matches!(s.slot, ygg_core::SurfaceSlot::AssistantAction)).unwrap();
-    anyhow::ensure!(assist.approval_policy == Some(ygg_core::SurfaceApprovalPolicy::ForkThenApprove), "full-surface assistant_action should have fork_then_approve");
+    let assist = manifest
+        .contributes
+        .surfaces
+        .iter()
+        .find(|s| matches!(s.slot, ygg_core::SurfaceSlot::AssistantAction))
+        .unwrap();
+    anyhow::ensure!(
+        assist.approval_policy == Some(ygg_core::SurfaceApprovalPolicy::ForkThenApprove),
+        "full-surface assistant_action should have fork_then_approve"
+    );
     fs::remove_dir_all(path)?;
     Ok(())
 }
@@ -224,19 +296,45 @@ pub(crate) async fn generated_networked_template() -> anyhow::Result<()> {
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
     // Networked template should have 2 capabilities: fetch and echo
-    anyhow::ensure!(manifest.provides.len() == 2, "networked template should have 2 capabilities, got {}", manifest.provides.len());
+    anyhow::ensure!(
+        manifest.provides.len() == 2,
+        "networked template should have 2 capabilities, got {}",
+        manifest.provides.len()
+    );
     // Verify at least one capability has network side effect
-    let has_network_side_effect = manifest.provides.iter().any(|c| c.side_effects.contains(&"network".to_string()));
-    anyhow::ensure!(has_network_side_effect, "networked template should have a capability with network side_effect");
+    let has_network_side_effect = manifest
+        .provides
+        .iter()
+        .any(|c| c.side_effects.contains(&"network".to_string()));
+    anyhow::ensure!(
+        has_network_side_effect,
+        "networked template should have a capability with network side_effect"
+    );
     // Verify network declarations exist
-    anyhow::ensure!(!manifest.permissions.network.declarations.is_empty(), "networked template should have network declarations");
+    anyhow::ensure!(
+        !manifest.permissions.network.declarations.is_empty(),
+        "networked template should have network declarations"
+    );
     // Verify declared network metadata is present and structured
     let decl = &manifest.permissions.network.declarations[0];
-    anyhow::ensure!(!decl.host.is_empty(), "network declaration should have a host");
-    anyhow::ensure!(!decl.methods.is_empty(), "network declaration should specify methods");
-    anyhow::ensure!(decl.purpose.is_some(), "network declaration should have a purpose");
+    anyhow::ensure!(
+        !decl.host.is_empty(),
+        "network declaration should have a host"
+    );
+    anyhow::ensure!(
+        !decl.methods.is_empty(),
+        "network declaration should specify methods"
+    );
+    anyhow::ensure!(
+        decl.purpose.is_some(),
+        "network declaration should have a purpose"
+    );
     // Verify no surfaces (networked template is capability-focused)
-    anyhow::ensure!(manifest.contributes.surfaces.is_empty(), "networked template should have 0 surfaces, got {}", manifest.contributes.surfaces.len());
+    anyhow::ensure!(
+        manifest.contributes.surfaces.is_empty(),
+        "networked template should have 0 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
     fs::remove_dir_all(path)?;
     Ok(())
 }
@@ -259,12 +357,23 @@ pub(crate) async fn generated_streaming_template() -> anyhow::Result<()> {
     package::package_conformance(path.join("manifest.yaml")).await?;
     let manifest = manifest::read_manifest(path.join("manifest.yaml")).await?;
     // Streaming template should have 2 capabilities: stream-plan and echo
-    anyhow::ensure!(manifest.provides.len() == 2, "streaming template should have 2 capabilities, got {}", manifest.provides.len());
+    anyhow::ensure!(
+        manifest.provides.len() == 2,
+        "streaming template should have 2 capabilities, got {}",
+        manifest.provides.len()
+    );
     // Verify at least one capability has streaming=true
     let has_streaming = manifest.provides.iter().any(|c| c.streaming);
-    anyhow::ensure!(has_streaming, "streaming template should have a streaming capability");
+    anyhow::ensure!(
+        has_streaming,
+        "streaming template should have a streaming capability"
+    );
     // Verify no surfaces (streaming template is capability-focused)
-    anyhow::ensure!(manifest.contributes.surfaces.is_empty(), "streaming template should have 0 surfaces, got {}", manifest.contributes.surfaces.len());
+    anyhow::ensure!(
+        manifest.contributes.surfaces.is_empty(),
+        "streaming template should have 0 surfaces, got {}",
+        manifest.contributes.surfaces.len()
+    );
     fs::remove_dir_all(path)?;
     Ok(())
 }
@@ -274,7 +383,10 @@ pub(crate) async fn generated_streaming_template() -> anyhow::Result<()> {
 /// Verifies: 4 capabilities, run is streaming, assistant_action + forge_panel surfaces,
 /// permissions.network.declarations empty, no raw secrets, no kernel.v1.agent/model/prompt/memory/turn text.
 pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-agent-runtime-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "ygg-generated-agent-runtime-{}",
+        std::process::id()
+    ));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -298,9 +410,18 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
     );
 
     // run capability must be streaming
-    let run_cap = manifest.provides.iter().find(|c| c.id == "example/generated-agent-runtime/run");
-    anyhow::ensure!(run_cap.is_some(), "agent-runtime should have run capability");
-    anyhow::ensure!(run_cap.unwrap().streaming, "run capability should be streaming");
+    let run_cap = manifest
+        .provides
+        .iter()
+        .find(|c| c.id == "example/generated-agent-runtime/run");
+    anyhow::ensure!(
+        run_cap.is_some(),
+        "agent-runtime should have run capability"
+    );
+    anyhow::ensure!(
+        run_cap.unwrap().streaming,
+        "run capability should be streaming"
+    );
 
     // 2 surfaces: assistant_action + forge_panel (no experience_entry)
     anyhow::ensure!(
@@ -308,17 +429,31 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
         "agent-runtime template should have 2 surfaces, got {}",
         manifest.contributes.surfaces.len()
     );
-    let slots: Vec<&str> = manifest.contributes.surfaces.iter().map(|s| match s.slot {
-        ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
-        ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
-        ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
-        ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
-        ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
-        ygg_core::SurfaceSlot::HomeCard => "home_card",
-    }).collect();
-    anyhow::ensure!(slots.contains(&"assistant_action"), "agent-runtime should have assistant_action surface");
-    anyhow::ensure!(slots.contains(&"forge_panel"), "agent-runtime should have forge_panel surface");
-    anyhow::ensure!(!slots.contains(&"experience_entry"), "agent-runtime should NOT have experience_entry surface");
+    let slots: Vec<&str> = manifest
+        .contributes
+        .surfaces
+        .iter()
+        .map(|s| match s.slot {
+            ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+            ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+            ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+            ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+            ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+            ygg_core::SurfaceSlot::HomeCard => "home_card",
+        })
+        .collect();
+    anyhow::ensure!(
+        slots.contains(&"assistant_action"),
+        "agent-runtime should have assistant_action surface"
+    );
+    anyhow::ensure!(
+        slots.contains(&"forge_panel"),
+        "agent-runtime should have forge_panel surface"
+    );
+    anyhow::ensure!(
+        !slots.contains(&"experience_entry"),
+        "agent-runtime should NOT have experience_entry surface"
+    );
 
     // No network declarations (no-network)
     anyhow::ensure!(
@@ -335,7 +470,13 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
     );
 
     // No kernel.v1.agent/model/prompt/memory/turn text in manifest or package.ts
-    let forbidden = ["kernel.v1.agent", "kernel.v1.model", "kernel.v1.prompt", "kernel.v1.memory", "kernel.v1.turn"];
+    let forbidden = [
+        "kernel.v1.agent",
+        "kernel.v1.model",
+        "kernel.v1.prompt",
+        "kernel.v1.memory",
+        "kernel.v1.turn",
+    ];
     for token in &forbidden {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -362,7 +503,10 @@ pub(crate) async fn generated_agent_runtime_template() -> anyhow::Result<()> {
 /// play_renderer, forge_panel, assistant_action), 6 capabilities, no network
 /// declarations, no kernel.v1.experience/world/turn/chat/memory text.
 pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-generated-experience-runtime-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "ygg-generated-experience-runtime-{}",
+        std::process::id()
+    ));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -384,18 +528,35 @@ pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()
         "experience-runtime template should have 4 surfaces, got {}",
         manifest.contributes.surfaces.len()
     );
-    let slots: Vec<&str> = manifest.contributes.surfaces.iter().map(|s| match s.slot {
-        ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
-        ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
-        ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
-        ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
-        ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
-        ygg_core::SurfaceSlot::HomeCard => "home_card",
-    }).collect();
-    anyhow::ensure!(slots.contains(&"experience_entry"), "experience-runtime should have experience_entry");
-    anyhow::ensure!(slots.contains(&"play_renderer"), "experience-runtime should have play_renderer");
-    anyhow::ensure!(slots.contains(&"forge_panel"), "experience-runtime should have forge_panel");
-    anyhow::ensure!(slots.contains(&"assistant_action"), "experience-runtime should have assistant_action");
+    let slots: Vec<&str> = manifest
+        .contributes
+        .surfaces
+        .iter()
+        .map(|s| match s.slot {
+            ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
+            ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
+            ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
+            ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
+            ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
+            ygg_core::SurfaceSlot::HomeCard => "home_card",
+        })
+        .collect();
+    anyhow::ensure!(
+        slots.contains(&"experience_entry"),
+        "experience-runtime should have experience_entry"
+    );
+    anyhow::ensure!(
+        slots.contains(&"play_renderer"),
+        "experience-runtime should have play_renderer"
+    );
+    anyhow::ensure!(
+        slots.contains(&"forge_panel"),
+        "experience-runtime should have forge_panel"
+    );
+    anyhow::ensure!(
+        slots.contains(&"assistant_action"),
+        "experience-runtime should have assistant_action"
+    );
 
     // 6 capabilities: describe-contract, create-checkpoint, inspect-checkpoint, draft-recovery, bind-agent-run, echo
     anyhow::ensure!(
@@ -413,7 +574,13 @@ pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()
     // No kernel experience namespace
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
-    let forbidden = ["kernel.v1.experience", "kernel.v1.world", "kernel.v1.turn", "kernel.v1.chat", "kernel.v1.memory"];
+    let forbidden = [
+        "kernel.v1.experience",
+        "kernel.v1.world",
+        "kernel.v1.turn",
+        "kernel.v1.chat",
+        "kernel.v1.memory",
+    ];
     for token in &forbidden {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -437,18 +604,34 @@ pub(crate) async fn generated_experience_runtime_template() -> anyhow::Result<()
 /// Test that the faux-model-readiness example package passes check/conformance.
 /// Proves the no-network readiness substrate shape without real model inference.
 pub(crate) async fn faux_model_readiness_package() -> anyhow::Result<()> {
-    let manifest_path = std::path::PathBuf::from("examples/packages/faux-model-readiness/manifest.yaml");
-    anyhow::ensure!(manifest_path.exists(), "faux-model-readiness manifest not found");
+    let manifest_path =
+        std::path::PathBuf::from("examples/packages/faux-model-readiness/manifest.yaml");
+    anyhow::ensure!(
+        manifest_path.exists(),
+        "faux-model-readiness manifest not found"
+    );
     package::package_check(manifest_path.clone()).await?;
     let manifest = manifest::read_manifest(manifest_path.clone()).await?;
     // Verify it has network declarations
-    anyhow::ensure!(!manifest.permissions.network.declarations.is_empty(), "faux-model-readiness should declare network permissions");
+    anyhow::ensure!(
+        !manifest.permissions.network.declarations.is_empty(),
+        "faux-model-readiness should declare network permissions"
+    );
     // Verify at least one capability has network side effect
-    let has_network_side_effect = manifest.provides.iter().any(|c| c.side_effects.contains(&"network".to_string()));
-    anyhow::ensure!(has_network_side_effect, "faux-model-readiness should have a capability with network side_effect");
+    let has_network_side_effect = manifest
+        .provides
+        .iter()
+        .any(|c| c.side_effects.contains(&"network".to_string()));
+    anyhow::ensure!(
+        has_network_side_effect,
+        "faux-model-readiness should have a capability with network side_effect"
+    );
     // Verify at least one streaming capability
     let has_streaming = manifest.provides.iter().any(|c| c.streaming);
-    anyhow::ensure!(has_streaming, "faux-model-readiness should have a streaming capability");
+    anyhow::ensure!(
+        has_streaming,
+        "faux-model-readiness should have a streaming capability"
+    );
     // Verify no raw secrets in manifest metadata
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
@@ -458,27 +641,48 @@ pub(crate) async fn faux_model_readiness_package() -> anyhow::Result<()> {
     );
     // Verify declared network metadata has proper structure
     let decl = &manifest.permissions.network.declarations[0];
-    anyhow::ensure!(!decl.host.is_empty(), "network declaration should have a host");
-    anyhow::ensure!(!decl.methods.is_empty(), "network declaration should specify methods");
-    anyhow::ensure!(decl.purpose.is_some(), "network declaration should have a purpose");
+    anyhow::ensure!(
+        !decl.host.is_empty(),
+        "network declaration should have a host"
+    );
+    anyhow::ensure!(
+        !decl.methods.is_empty(),
+        "network declaration should specify methods"
+    );
+    anyhow::ensure!(
+        decl.purpose.is_some(),
+        "network declaration should have a purpose"
+    );
     Ok(())
 }
 
 /// Test that the faux-agent-readiness example package passes check/conformance.
 /// Proves the proposal/trace substrate shape without real agent loop or model inference.
 pub(crate) async fn faux_agent_readiness_package() -> anyhow::Result<()> {
-    let manifest_path = std::path::PathBuf::from("examples/packages/faux-agent-readiness/manifest.yaml");
-    anyhow::ensure!(manifest_path.exists(), "faux-agent-readiness manifest not found");
+    let manifest_path =
+        std::path::PathBuf::from("examples/packages/faux-agent-readiness/manifest.yaml");
+    anyhow::ensure!(
+        manifest_path.exists(),
+        "faux-agent-readiness manifest not found"
+    );
     package::package_check(manifest_path.clone()).await?;
     let manifest = manifest::read_manifest(manifest_path.clone()).await?;
     // Verify it has proposal/trace capabilities
-    anyhow::ensure!(manifest.provides.len() >= 2, "faux-agent-readiness should have at least 2 capabilities, got {}", manifest.provides.len());
+    anyhow::ensure!(
+        manifest.provides.len() >= 2,
+        "faux-agent-readiness should have at least 2 capabilities, got {}",
+        manifest.provides.len()
+    );
     // Verify at least one streaming capability
     let has_streaming = manifest.provides.iter().any(|c| c.streaming);
-    anyhow::ensure!(has_streaming, "faux-agent-readiness should have a streaming capability");
+    anyhow::ensure!(
+        has_streaming,
+        "faux-agent-readiness should have a streaming capability"
+    );
     // Verify no network permissions (agent readiness does not need network)
     anyhow::ensure!(
-        manifest.permissions.network.declarations.is_empty() && manifest.permissions.network.hosts.is_empty(),
+        manifest.permissions.network.declarations.is_empty()
+            && manifest.permissions.network.hosts.is_empty(),
         "faux-agent-readiness should not declare network permissions (no-network proof)"
     );
     // Verify no raw secrets in manifest
@@ -507,7 +711,11 @@ pub(crate) async fn composition_descriptor() -> anyhow::Result<()> {
         None,
     )
     .await?;
-    composition::init_composition(composition_path.clone(), "example/composed-experience".to_string()).await?;
+    composition::init_composition(
+        composition_path.clone(),
+        "example/composed-experience".to_string(),
+    )
+    .await?;
     composition::composition_check(composition_path.join("composition.yaml")).await?;
     fs::remove_dir_all(root)?;
     Ok(())
@@ -586,7 +794,10 @@ required_capabilities:
         ),
     )?;
     let result = composition::composition_check(fail_path).await;
-    anyhow::ensure!(result.is_err(), "composition check should fail when required capability is missing");
+    anyhow::ensure!(
+        result.is_err(),
+        "composition check should fail when required capability is missing"
+    );
 
     fs::remove_dir_all(root)?;
     Ok(())

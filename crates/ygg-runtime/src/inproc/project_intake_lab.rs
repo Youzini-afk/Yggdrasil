@@ -1050,7 +1050,7 @@ fn generate_subprocess_wrapper_preview(request: &InprocInvocation) -> anyhow::Re
     // Generate wrapper code preview — no real execution
     let wrapper_content = match language {
         "python" => format!(
-r#"# Adapter subprocess wrapper for {adapter_package_id}
+            r#"# Adapter subprocess wrapper for {adapter_package_id}
 # SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
 # This preview is generated for inspection only; do not execute without approval.
 
@@ -1072,7 +1072,7 @@ if __name__ == "__main__":
             source_ref = source_ref,
         ),
         _ => format!(
-r#"// Adapter subprocess wrapper for {adapter_package_id}
+            r#"// Adapter subprocess wrapper for {adapter_package_id}
 // SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
 // This preview is generated for inspection only; do not execute without approval.
 

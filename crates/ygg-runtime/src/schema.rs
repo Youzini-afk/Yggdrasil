@@ -61,7 +61,8 @@ mod tests {
 
     #[test]
     fn rejects_missing_required_field() {
-        let result = validate_json_schema_subset(&json!({"type": "object", "required": ["ok"]}), &json!({}));
+        let result =
+            validate_json_schema_subset(&json!({"type": "object", "required": ["ok"]}), &json!({}));
         assert!(result.is_err());
     }
 }

@@ -9,6 +9,7 @@ use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, HostCommand, ManifestCommand,
     PackageCommand, PerfCommand,
 };
+use commands::audit;
 use commands::{capability, composition, demo, host, manifest, package, perf};
 
 #[tokio::main]
@@ -96,6 +97,7 @@ async fn main() -> anyhow::Result<()> {
                 input,
             } => capability::capability_invoke(manifest, capability_id, input).await,
         },
+        Command::Audit(args) => audit::run(args).await,
         Command::InitPackage {
             path,
             id,

@@ -170,7 +170,9 @@ impl SseParser {
 
     /// Apply a single field to the current incomplete event.
     fn apply_field(&mut self, name: &str, value: &str) {
-        let incomplete = self.current_event.get_or_insert_with(IncompleteEvent::default);
+        let incomplete = self
+            .current_event
+            .get_or_insert_with(IncompleteEvent::default);
 
         match name {
             "event" => {
@@ -417,9 +419,7 @@ mod tests {
     #[test]
     fn sse_parser_multiple_events() {
         let mut parser = SseParser::new();
-        let events = parser.push(
-            b"data: event1\n\ndata: event2\n\ndata: event3\n\n",
-        );
+        let events = parser.push(b"data: event1\n\ndata: event2\n\ndata: event3\n\n");
         assert_eq!(events.len(), 3);
         assert_eq!(events[0].data, "event1");
         assert_eq!(events[1].data, "event2");

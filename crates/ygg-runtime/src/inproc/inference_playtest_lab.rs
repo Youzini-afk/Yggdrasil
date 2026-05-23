@@ -68,9 +68,7 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
         .and_then(Value::as_str)
         .unwrap_or("unknown_session");
 
-    let branch_id = input
-        .get("branch_id")
-        .and_then(Value::as_str);
+    let branch_id = input.get("branch_id").and_then(Value::as_str);
 
     let inference_result = input
         .get("inference_result")
@@ -93,15 +91,13 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
 
     // Build proposal draft — NOT calling kernel.v1.proposal.create
     // The caller (conformance/host) must feed this into kernel.v1.proposal.create
-    let operations = vec![
-        serde_json::json!({
-            "op": "asset.put",
-            "payload": {
-                "mime": "application/json",
-                "content": serde_json::to_string(&asset_content).unwrap_or_else(|_| "{}".to_string()),
-            },
-        }),
-    ];
+    let operations = vec![serde_json::json!({
+        "op": "asset.put",
+        "payload": {
+            "mime": "application/json",
+            "content": serde_json::to_string(&asset_content).unwrap_or_else(|_| "{}".to_string()),
+        },
+    })];
 
     let source_inference = serde_json::json!({
         "package_id": "official/inference-local-lab",
@@ -186,7 +182,12 @@ fn inspect_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
     let source_inference = proposal
         .get("source_inference")
         .cloned()
-        .or_else(|| proposal.get("expected_effects").and_then(|effects| effects.get("source_inference")).cloned())
+        .or_else(|| {
+            proposal
+                .get("expected_effects")
+                .and_then(|effects| effects.get("source_inference"))
+                .cloned()
+        })
         .unwrap_or(Value::Null);
 
     // Determine risk from operations
@@ -336,11 +337,18 @@ fn looks_like_raw_secret_field(input: &Value) -> bool {
 /// Heuristic: value looks like a raw API key / secret.
 fn looks_like_raw_secret_value(s: &str) -> bool {
     let s = s.trim();
-    if s.starts_with("secret_ref:") || s.starts_with("secretRef:") || s.starts_with("secret-ref:") || s.starts_with("host:") {
+    if s.starts_with("secret_ref:")
+        || s.starts_with("secretRef:")
+        || s.starts_with("secret-ref:")
+        || s.starts_with("host:")
+    {
         return false;
     }
     // Long alphanumeric strings likely to be raw keys
-    if s.len() >= 20 && s.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.') {
+    if s.len() >= 20
+        && s.chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
         return true;
     }
     // Common API key prefixes
@@ -385,9 +393,15 @@ mod tests {
         assert_eq!(result["requires_user_approval"], true);
         // Must have asset.put operation
         let ops = result["operations"].as_array().unwrap();
-        assert!(ops.iter().any(|op| op["op"] == "asset.put"), "must have asset.put operation");
+        assert!(
+            ops.iter().any(|op| op["op"] == "asset.put"),
+            "must have asset.put operation"
+        );
         // Must have source_inference provenance
-        assert_eq!(result["source_inference"]["package_id"], "official/inference-local-lab");
+        assert_eq!(
+            result["source_inference"]["package_id"],
+            "official/inference-local-lab"
+        );
         assert_eq!(result["source_inference"]["network_performed"], false);
         // Must NOT contain chat/message/prompt fields
         let output_str = serde_json::to_string(&result).unwrap();
@@ -427,7 +441,10 @@ mod tests {
         assert_eq!(result["kind"], "inference_playtest_inspection");
         assert_eq!(result["proposal_id"], "prp_test");
         assert_eq!(result["risk"], "low");
-        assert!(result["provenance"]["source_inference"]["package_id"] == "official/inference-local-lab");
+        assert!(
+            result["provenance"]["source_inference"]["package_id"]
+                == "official/inference-local-lab"
+        );
     }
 
     #[test]
@@ -443,7 +460,10 @@ mod tests {
         let result = branch_plan(&req).unwrap();
         assert_eq!(result["kind"], "inference_playtest_branch_plan");
         assert_eq!(result["fork_metadata"]["proposal_id"], "prp_test");
-        assert_eq!(result["fork_metadata"]["source_inference"]["package_id"], "official/inference-local-lab");
+        assert_eq!(
+            result["fork_metadata"]["source_inference"]["package_id"],
+            "official/inference-local-lab"
+        );
     }
 
     #[test]
@@ -457,12 +477,21 @@ mod tests {
         let flow = result["flow"].as_array().unwrap();
         assert!(flow.len() >= 7, "flow must have at least 7 steps");
         // Verify key step names
-        let step_names: Vec<&str> = flow.iter().map(|s| s["name"].as_str().unwrap_or_default()).collect();
+        let step_names: Vec<&str> = flow
+            .iter()
+            .map(|s| s["name"].as_str().unwrap_or_default())
+            .collect();
         assert!(step_names.contains(&"session"), "must have session step");
-        assert!(step_names.contains(&"inference"), "must have inference step");
+        assert!(
+            step_names.contains(&"inference"),
+            "must have inference step"
+        );
         assert!(step_names.contains(&"proposal"), "must have proposal step");
         assert!(step_names.contains(&"inspect"), "must have inspect step");
-        assert!(step_names.contains(&"approve_or_reject"), "must have approve_or_reject step");
+        assert!(
+            step_names.contains(&"approve_or_reject"),
+            "must have approve_or_reject step"
+        );
         assert!(step_names.contains(&"apply"), "must have apply step");
         assert!(step_names.contains(&"fork"), "must have fork step");
     }

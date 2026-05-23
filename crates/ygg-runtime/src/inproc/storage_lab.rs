@@ -93,13 +93,7 @@ const RETRIEVAL_BACKEND_CANDIDATES: &[&str] = &[
 ];
 
 /// Allowed modalities for multimodal index plans.
-const ALLOWED_MODALITIES: &[&str] = &[
-    "text",
-    "image",
-    "audio",
-    "video",
-    "structured",
-];
+const ALLOWED_MODALITIES: &[&str] = &["text", "image", "audio", "video", "structured"];
 
 /// Maximum number of asset_refs allowed in a multimodal index plan.
 const MAX_ASSET_REFS: usize = 64;
@@ -151,12 +145,7 @@ fn is_safe_id(id: &str) -> bool {
     }
     // Reject obvious injection characters
     for ch in id.chars() {
-        if !ch.is_ascii_alphanumeric()
-            && ch != '-'
-            && ch != '_'
-            && ch != '/'
-            && ch != ':'
-        {
+        if !ch.is_ascii_alphanumeric() && ch != '-' && ch != '_' && ch != '/' && ch != ':' {
             return false;
         }
     }
@@ -319,12 +308,27 @@ fn describe_backend_classes(request: &InprocInvocation) -> anyhow::Result<Value>
                     "In-memory event store for testing and ephemeral sessions",
                 ),
                 "sqlite_event_store" => (
-                    vec!["append", "replay", "range", "kind_prefix", "subscription", "durable"],
+                    vec![
+                        "append",
+                        "replay",
+                        "range",
+                        "kind_prefix",
+                        "subscription",
+                        "durable",
+                    ],
                     "available",
                     "SQLite-backed event store for single-host durable sessions",
                 ),
                 "postgres_event_store_future" => (
-                    vec!["append", "replay", "range", "kind_prefix", "subscription", "durable", "remote"],
+                    vec![
+                        "append",
+                        "replay",
+                        "range",
+                        "kind_prefix",
+                        "subscription",
+                        "durable",
+                        "remote",
+                    ],
                     "future",
                     "Future PostgreSQL event store for server/team deployments",
                 ),
@@ -343,11 +347,7 @@ fn describe_backend_classes(request: &InprocInvocation) -> anyhow::Result<Value>
                     "future",
                     "Future TDB multimodal retrieval provider",
                 ),
-                _ => (
-                    vec![] as Vec<&str>,
-                    "unknown",
-                    "Unknown backend class",
-                ),
+                _ => (vec![] as Vec<&str>, "unknown", "Unknown backend class"),
             };
             serde_json::json!({
                 "class_id": class_id,
@@ -372,7 +372,10 @@ fn describe_backend_classes(request: &InprocInvocation) -> anyhow::Result<Value>
 
 fn plan_package_state_store(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let package_id = request
@@ -386,7 +389,10 @@ fn plan_package_state_store(request: &InprocInvocation) -> anyhow::Result<Value>
     }
 
     if !is_safe_id(package_id) {
-        return Ok(rejected_output(request, "package_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "package_id contains unsafe characters or path traversal",
+        ));
     }
 
     let store_id = request
@@ -396,7 +402,10 @@ fn plan_package_state_store(request: &InprocInvocation) -> anyhow::Result<Value>
         .unwrap_or("default");
 
     if !is_safe_id(store_id) {
-        return Ok(rejected_output(request, "store_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "store_id contains unsafe characters or path traversal",
+        ));
     }
 
     let schema_hint = request
@@ -455,7 +464,10 @@ fn plan_package_state_store(request: &InprocInvocation) -> anyhow::Result<Value>
 
 fn put_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let document_id = request
@@ -465,7 +477,10 @@ fn put_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or("");
 
     if !is_safe_id(document_id) {
-        return Ok(rejected_output(request, "document_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "document_id contains unsafe characters or path traversal",
+        ));
     }
 
     let store_id = request
@@ -475,14 +490,13 @@ fn put_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or("default");
 
     if !is_safe_id(store_id) {
-        return Ok(rejected_output(request, "store_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "store_id contains unsafe characters or path traversal",
+        ));
     }
 
-    let content = request
-        .input
-        .get("content")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let content = request.input.get("content").cloned().unwrap_or(Value::Null);
 
     let content_address = crate::runtime::content_address(&format!("{}:{}", document_id, content));
 
@@ -521,7 +535,10 @@ fn put_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn get_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let document_id = request
@@ -531,7 +548,10 @@ fn get_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or("");
 
     if !is_safe_id(document_id) {
-        return Ok(rejected_output(request, "document_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "document_id contains unsafe characters or path traversal",
+        ));
     }
 
     let store_id = request
@@ -541,7 +561,10 @@ fn get_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or("default");
 
     if !is_safe_id(store_id) {
-        return Ok(rejected_output(request, "store_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "store_id contains unsafe characters or path traversal",
+        ));
     }
 
     Ok(serde_json::json!({
@@ -562,7 +585,10 @@ fn get_document_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn query_document_prefix_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let prefix = request
@@ -572,7 +598,10 @@ fn query_document_prefix_preview(request: &InprocInvocation) -> anyhow::Result<V
         .unwrap_or("");
 
     if !is_safe_id(prefix) && !prefix.is_empty() {
-        return Ok(rejected_output(request, "prefix contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "prefix contains unsafe characters or path traversal",
+        ));
     }
 
     let store_id = request
@@ -582,7 +611,10 @@ fn query_document_prefix_preview(request: &InprocInvocation) -> anyhow::Result<V
         .unwrap_or("default");
 
     if !is_safe_id(store_id) {
-        return Ok(rejected_output(request, "store_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "store_id contains unsafe characters or path traversal",
+        ));
     }
 
     Ok(serde_json::json!({
@@ -602,7 +634,10 @@ fn query_document_prefix_preview(request: &InprocInvocation) -> anyhow::Result<V
 
 fn delete_document_tombstone_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let document_id = request
@@ -612,7 +647,10 @@ fn delete_document_tombstone_preview(request: &InprocInvocation) -> anyhow::Resu
         .unwrap_or("");
 
     if !is_safe_id(document_id) {
-        return Ok(rejected_output(request, "document_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "document_id contains unsafe characters or path traversal",
+        ));
     }
 
     let store_id = request
@@ -622,7 +660,10 @@ fn delete_document_tombstone_preview(request: &InprocInvocation) -> anyhow::Resu
         .unwrap_or("default");
 
     if !is_safe_id(store_id) {
-        return Ok(rejected_output(request, "store_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "store_id contains unsafe characters or path traversal",
+        ));
     }
 
     Ok(serde_json::json!({
@@ -642,7 +683,10 @@ fn delete_document_tombstone_preview(request: &InprocInvocation) -> anyhow::Resu
 
 fn export_store_snapshot_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let store_id = request
@@ -652,7 +696,10 @@ fn export_store_snapshot_preview(request: &InprocInvocation) -> anyhow::Result<V
         .unwrap_or("default");
 
     if !is_safe_id(store_id) {
-        return Ok(rejected_output(request, "store_id contains unsafe characters or path traversal"));
+        return Ok(rejected_output(
+            request,
+            "store_id contains unsafe characters or path traversal",
+        ));
     }
 
     Ok(serde_json::json!({
@@ -680,7 +727,12 @@ fn describe_blob_store_contract(request: &InprocInvocation) -> anyhow::Result<Va
         .map(|class_id| {
             let (capability_flags, status, description) = match *class_id {
                 "local_content_addressed_future" => (
-                    vec!["put_blob", "get_blob_metadata", "content_addressed", "dedup"],
+                    vec![
+                        "put_blob",
+                        "get_blob_metadata",
+                        "content_addressed",
+                        "dedup",
+                    ],
                     "future",
                     "Future local content-addressed blob storage with hash-based dedup",
                 ),
@@ -699,11 +751,7 @@ fn describe_blob_store_contract(request: &InprocInvocation) -> anyhow::Result<Va
                     "future",
                     "Future remote object store (S3/GCS/Azure Blob) backend",
                 ),
-                _ => (
-                    Vec::<&str>::new(),
-                    "unknown",
-                    "Unknown blob backend class",
-                ),
+                _ => (Vec::<&str>::new(), "unknown", "Unknown blob backend class"),
             };
             serde_json::json!({
                 "class_id": class_id,
@@ -787,15 +835,9 @@ fn put_blob_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or(0);
 
     // Content hash: if provided, normalize it; otherwise derive from safe sample.
-    let content_hash = request
-        .input
-        .get("content_hash")
-        .and_then(Value::as_str);
+    let content_hash = request.input.get("content_hash").and_then(Value::as_str);
 
-    let content_sample = request
-        .input
-        .get("content_sample")
-        .and_then(Value::as_str);
+    let content_sample = request.input.get("content_sample").and_then(Value::as_str);
 
     // Reject oversized inline samples
     if let Some(sample) = content_sample {
@@ -1351,8 +1393,7 @@ fn draft_multimodal_index_plan(request: &InprocInvocation) -> anyhow::Result<Val
         .cloned()
         .unwrap_or_default();
 
-    let allowed_set: std::collections::HashSet<&str> =
-        ALLOWED_MODALITIES.iter().copied().collect();
+    let allowed_set: std::collections::HashSet<&str> = ALLOWED_MODALITIES.iter().copied().collect();
     for modality in &modalities {
         if let Some(m) = modality.as_str() {
             if !allowed_set.contains(m) {
@@ -1527,10 +1568,7 @@ fn explain_retrieval_backend_fit(request: &InprocInvocation) -> anyhow::Result<V
         .and_then(Value::as_str)
         .unwrap_or("general");
 
-    let backend_hint = request
-        .input
-        .get("backend_hint")
-        .and_then(Value::as_str);
+    let backend_hint = request.input.get("backend_hint").and_then(Value::as_str);
 
     // Build fit matrix — all backends are "future" status
     // TDB is only a future multimodal provider slot
@@ -1690,11 +1728,7 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in forbidden_namespace_tokens() {
-            assert!(
-                !output_str.contains(&token),
-                "must not contain {}",
-                token
-            );
+            assert!(!output_str.contains(&token), "must not contain {}", token);
         }
     }
 
@@ -1704,7 +1738,12 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         // No secret-bearing backend config in output
-        for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential")] {
+        for token in &[
+            &format!("d{}n", "s"),
+            &format!("connection_{}", "string"),
+            "password",
+            &format!("cred{}", "ential"),
+        ] {
             assert!(
                 !output_str.to_lowercase().contains(token),
                 "must not contain {}",
@@ -1724,10 +1763,22 @@ mod tests {
         }
         // Check that no standalone "sql" appears outside of "sqlite"
         // and no "table", "collection", or "vector" as product terms
-        assert!(!lower.contains("\"sql\""), "must not contain standalone sql term");
-        assert!(!lower.contains("table"), "must not contain table terminology");
-        assert!(!lower.contains("collection"), "must not contain collection terminology");
-        assert!(!lower.contains("vector"), "must not contain vector terminology");
+        assert!(
+            !lower.contains("\"sql\""),
+            "must not contain standalone sql term"
+        );
+        assert!(
+            !lower.contains("table"),
+            "must not contain table terminology"
+        );
+        assert!(
+            !lower.contains("collection"),
+            "must not contain collection terminology"
+        );
+        assert!(
+            !lower.contains("vector"),
+            "must not contain vector terminology"
+        );
     }
 
     #[test]
@@ -1758,7 +1809,10 @@ mod tests {
         );
         let result = try_handle(&req).unwrap().unwrap();
         let namespace = result["namespace"].as_str().unwrap();
-        assert!(namespace.starts_with("my-pkg/state/"), "namespace must belong to package");
+        assert!(
+            namespace.starts_with("my-pkg/state/"),
+            "namespace must belong to package"
+        );
     }
 
     #[test]
@@ -1843,12 +1897,21 @@ mod tests {
 
     #[test]
     fn describe_blob_store_contract_shape() {
-        let req = make_request("official/storage-lab/describe_blob_store_contract", json!({}));
+        let req = make_request(
+            "official/storage-lab/describe_blob_store_contract",
+            json!({}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("blob_store_contract"));
-        assert_eq!(result["contract_type"], json!("content_addressed_blob_store"));
+        assert_eq!(
+            result["contract_type"],
+            json!("content_addressed_blob_store")
+        );
         let candidates = result["backend_candidates"].as_array().unwrap();
-        assert!(candidates.len() >= 3, "must have at least 3 backend candidates");
+        assert!(
+            candidates.len() >= 3,
+            "must have at least 3 backend candidates"
+        );
         let red_lines = result["red_lines"].as_array().unwrap();
         assert!(red_lines.contains(&json!("no_blob_content_in_events")));
         assert!(red_lines.contains(&json!("no_raw_secrets")));
@@ -1976,15 +2039,14 @@ mod tests {
 
     #[test]
     fn blob_no_forbidden_namespace() {
-        let req = make_request("official/storage-lab/describe_blob_store_contract", json!({}));
+        let req = make_request(
+            "official/storage-lab/describe_blob_store_contract",
+            json!({}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in forbidden_namespace_tokens() {
-            assert!(
-                !output_str.contains(&token),
-                "must not contain {}",
-                token
-            );
+            assert!(!output_str.contains(&token), "must not contain {}", token);
         }
     }
 
@@ -1999,9 +2061,15 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("projection_store_contract"));
         let contract_kinds = result["contract_kinds"].as_array().unwrap();
-        assert!(contract_kinds.len() >= 4, "must list at least 4 contract kinds");
+        assert!(
+            contract_kinds.len() >= 4,
+            "must list at least 4 contract kinds"
+        );
         let candidates = result["backend_candidates"].as_array().unwrap();
-        assert!(candidates.len() >= 4, "must have at least 4 backend candidates");
+        assert!(
+            candidates.len() >= 4,
+            "must have at least 4 backend candidates"
+        );
         let red_lines = result["red_lines"].as_array().unwrap();
         assert!(red_lines.contains(&json!("no_table_exposure")));
         assert!(red_lines.contains(&json!("no_sql_exposure")));
@@ -2095,11 +2163,26 @@ mod tests {
         let lower_no_negation = lower
             .replace("no_table_exposure", "")
             .replace("no_sql_exposure", "");
-        assert!(!lower_no_negation.contains("\"sql\""), "must not contain standalone sql term");
-        assert!(!lower_no_negation.contains("table"), "must not contain table terminology");
-        assert!(!lower_no_negation.contains("collection"), "must not contain collection terminology");
-        assert!(!lower_no_negation.contains("vector"), "must not contain vector terminology");
-        assert!(!lower_no_negation.contains("\"database\""), "must not contain database terminology");
+        assert!(
+            !lower_no_negation.contains("\"sql\""),
+            "must not contain standalone sql term"
+        );
+        assert!(
+            !lower_no_negation.contains("table"),
+            "must not contain table terminology"
+        );
+        assert!(
+            !lower_no_negation.contains("collection"),
+            "must not contain collection terminology"
+        );
+        assert!(
+            !lower_no_negation.contains("vector"),
+            "must not contain vector terminology"
+        );
+        assert!(
+            !lower_no_negation.contains("\"database\""),
+            "must not contain database terminology"
+        );
         // No kernel namespace tokens
         for token in forbidden_namespace_tokens() {
             assert!(
@@ -2218,10 +2301,16 @@ mod tests {
         assert_eq!(result["kind"], json!("retrieval_provider_contract"));
 
         let contract_kinds = result["contract_kinds"].as_array().unwrap();
-        assert!(contract_kinds.len() >= 5, "must list at least 5 contract kinds");
+        assert!(
+            contract_kinds.len() >= 5,
+            "must list at least 5 contract kinds"
+        );
 
         let candidates = result["backend_candidates"].as_array().unwrap();
-        assert!(candidates.len() >= 6, "must have at least 6 backend candidates");
+        assert!(
+            candidates.len() >= 6,
+            "must have at least 6 backend candidates"
+        );
 
         let red_lines = result["red_lines"].as_array().unwrap();
         assert!(red_lines.contains(&json!("no_embedding_generation")));
@@ -2373,18 +2462,21 @@ mod tests {
         // Output must not contain kernel vector namespace
         let output_str = serde_json::to_string(&result).unwrap();
         for token in forbidden_namespace_tokens() {
-            assert!(
-                !output_str.contains(&token),
-                "must not contain {}",
-                token
-            );
+            assert!(!output_str.contains(&token), "must not contain {}", token);
         }
         // No secret-bearing backend config
         let lower = output_str.to_lowercase();
         // "no_secret_backend_config" in red_lines is a negation term (blocking the leakage),
         // not leakage itself — filter it out.
         let lower_filtered = lower.replace("no_secret_backend_config", "");
-        for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), &format!("postgres{}://", "ql"), &format!("redis{}", "://")] {
+        for token in &[
+            &format!("d{}n", "s"),
+            &format!("connection_{}", "string"),
+            "password",
+            &format!("cred{}", "ential"),
+            &format!("postgres{}://", "ql"),
+            &format!("redis{}", "://"),
+        ] {
             assert!(
                 !lower_filtered.contains(token),
                 "must not contain {}",
@@ -2443,11 +2535,7 @@ mod tests {
 
         // No kernel namespace tokens
         for token in forbidden_namespace_tokens() {
-            assert!(
-                !output_str.contains(&token),
-                "must not contain {}",
-                token
-            );
+            assert!(!output_str.contains(&token), "must not contain {}", token);
         }
 
         // No secret-bearing backend config
@@ -2455,12 +2543,14 @@ mod tests {
         // not leakage itself — filter it out.
         let lower_raw = output_str.to_lowercase();
         let lower = lower_raw.replace("no_secret_backend_config", "");
-        for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), "bucket"] {
-            assert!(
-                !lower.contains(token),
-                "must not contain {}",
-                token
-            );
+        for token in &[
+            &format!("d{}n", "s"),
+            &format!("connection_{}", "string"),
+            "password",
+            &format!("cred{}", "ential"),
+            "bucket",
+        ] {
+            assert!(!lower.contains(token), "must not contain {}", token);
         }
 
         // No standalone "vector" as product terminology in output
@@ -2470,7 +2560,7 @@ mod tests {
         //  check that no bare "vector" appears outside of identifiers, red_lines, and descriptions)
         let lower_no_identifiers = lower
             .replace("pgvector_future", "")
-            .replace("pgvector", "")  // proper noun in descriptions
+            .replace("pgvector", "") // proper noun in descriptions
             .replace("remote_vector_provider_future", "")
             .replace("opensearch_vector_future", "")
             .replace("redis_vector_future", "")

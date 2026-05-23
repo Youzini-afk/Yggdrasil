@@ -1,8 +1,8 @@
 use serde_json::json;
 use serde_json::Value;
 use ygg_core::{
-    CapabilityDescriptor, EntryDescriptor, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
-    RedactionState, SandboxPolicy, StreamFrameType, StreamInvocationState,
+    CapabilityDescriptor, EntryDescriptor, PackageContributions, PackageEntry, PackageManifest,
+    PermissionSet, RedactionState, SandboxPolicy, StreamFrameType, StreamInvocationState,
     EVENT_STREAM_CANCELLED, EVENT_STREAM_CHUNK, EVENT_STREAM_ENDED, EVENT_STREAM_ERROR,
     EVENT_STREAM_STARTED, EVENT_STREAM_TIMEOUT,
 };
@@ -45,7 +45,11 @@ fn streaming_echo_package(id: &str, capability_id: &str, streaming: bool) -> Pac
 pub(crate) async fn stream_normal_lifecycle() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
     runtime
-        .load_package(streaming_echo_package("example/stream", "example/stream/echo", true))
+        .load_package(streaming_echo_package(
+            "example/stream",
+            "example/stream/echo",
+            true,
+        ))
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
 
@@ -64,13 +68,23 @@ pub(crate) async fn stream_normal_lifecycle() -> anyhow::Result<()> {
 
     // Append chunks
     let chunk1 = runtime
-        .stream_capability_chunk(&session.id, &record.invocation_id, json!({"n": 1}), RedactionState::NotCaptured)
+        .stream_capability_chunk(
+            &session.id,
+            &record.invocation_id,
+            json!({"n": 1}),
+            RedactionState::NotCaptured,
+        )
         .await?;
     assert_eq!(chunk1.frame_type, StreamFrameType::Chunk);
     assert_eq!(chunk1.sequence, 1);
 
     let chunk2 = runtime
-        .stream_capability_chunk(&session.id, &record.invocation_id, json!({"n": 2}), RedactionState::NotCaptured)
+        .stream_capability_chunk(
+            &session.id,
+            &record.invocation_id,
+            json!({"n": 2}),
+            RedactionState::NotCaptured,
+        )
         .await?;
     assert_eq!(chunk2.sequence, 2);
 
@@ -83,10 +97,17 @@ pub(crate) async fn stream_normal_lifecycle() -> anyhow::Result<()> {
     // Verify events emitted
     let events = store.list_session(&session.id).await?;
     let started = events.iter().find(|e| e.kind == EVENT_STREAM_STARTED);
-    let chunk_events: Vec<_> = events.iter().filter(|e| e.kind == EVENT_STREAM_CHUNK).collect();
+    let chunk_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_STREAM_CHUNK)
+        .collect();
     let ended = events.iter().find(|e| e.kind == EVENT_STREAM_ENDED);
     assert!(started.is_some(), "missing kernel/v1/stream.started");
-    assert_eq!(chunk_events.len(), 2, "expected 2 kernel/v1/stream.chunk events");
+    assert_eq!(
+        chunk_events.len(),
+        2,
+        "expected 2 kernel/v1/stream.chunk events"
+    );
     assert!(ended.is_some(), "missing kernel/v1/stream.ended");
 
     Ok(())
@@ -96,12 +117,22 @@ pub(crate) async fn stream_normal_lifecycle() -> anyhow::Result<()> {
 pub(crate) async fn stream_cancel_blocks_chunks() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
     runtime
-        .load_package(streaming_echo_package("example/stream", "example/stream/echo", true))
+        .load_package(streaming_echo_package(
+            "example/stream",
+            "example/stream/echo",
+            true,
+        ))
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
 
     let (_, record) = runtime
-        .stream_capability_start(&session.id, &"example/stream/echo".to_string(), None, None, json!({}))
+        .stream_capability_start(
+            &session.id,
+            &"example/stream/echo".to_string(),
+            None,
+            None,
+            json!({}),
+        )
         .await?;
 
     // Cancel
@@ -112,7 +143,12 @@ pub(crate) async fn stream_cancel_blocks_chunks() -> anyhow::Result<()> {
 
     // Chunk after cancel should fail
     let result = runtime
-        .stream_capability_chunk(&session.id, &record.invocation_id, json!({}), RedactionState::NotCaptured)
+        .stream_capability_chunk(
+            &session.id,
+            &record.invocation_id,
+            json!({}),
+            RedactionState::NotCaptured,
+        )
         .await;
     assert!(result.is_err());
 
@@ -128,12 +164,22 @@ pub(crate) async fn stream_cancel_blocks_chunks() -> anyhow::Result<()> {
 pub(crate) async fn stream_timeout_blocks_chunks() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
     runtime
-        .load_package(streaming_echo_package("example/stream", "example/stream/echo", true))
+        .load_package(streaming_echo_package(
+            "example/stream",
+            "example/stream/echo",
+            true,
+        ))
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
 
     let (_, record) = runtime
-        .stream_capability_start(&session.id, &"example/stream/echo".to_string(), None, None, json!({}))
+        .stream_capability_start(
+            &session.id,
+            &"example/stream/echo".to_string(),
+            None,
+            None,
+            json!({}),
+        )
         .await?;
 
     // Timeout
@@ -144,7 +190,12 @@ pub(crate) async fn stream_timeout_blocks_chunks() -> anyhow::Result<()> {
 
     // Chunk after timeout should fail
     let result = runtime
-        .stream_capability_chunk(&session.id, &record.invocation_id, json!({}), RedactionState::NotCaptured)
+        .stream_capability_chunk(
+            &session.id,
+            &record.invocation_id,
+            json!({}),
+            RedactionState::NotCaptured,
+        )
         .await;
     assert!(result.is_err());
 
@@ -160,12 +211,22 @@ pub(crate) async fn stream_timeout_blocks_chunks() -> anyhow::Result<()> {
 pub(crate) async fn stream_error_terminal() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
     runtime
-        .load_package(streaming_echo_package("example/stream", "example/stream/echo", true))
+        .load_package(streaming_echo_package(
+            "example/stream",
+            "example/stream/echo",
+            true,
+        ))
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
 
     let (_, record) = runtime
-        .stream_capability_start(&session.id, &"example/stream/echo".to_string(), None, None, json!({}))
+        .stream_capability_start(
+            &session.id,
+            &"example/stream/echo".to_string(),
+            None,
+            None,
+            json!({}),
+        )
         .await?;
 
     // Error
@@ -176,7 +237,12 @@ pub(crate) async fn stream_error_terminal() -> anyhow::Result<()> {
 
     // Chunk after error should fail
     let result = runtime
-        .stream_capability_chunk(&session.id, &record.invocation_id, json!({}), RedactionState::NotCaptured)
+        .stream_capability_chunk(
+            &session.id,
+            &record.invocation_id,
+            json!({}),
+            RedactionState::NotCaptured,
+        )
         .await;
     assert!(result.is_err());
 
@@ -193,12 +259,22 @@ pub(crate) async fn stream_non_streaming_rejected() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     // Load a non-streaming capability (streaming=false)
     runtime
-        .load_package(streaming_echo_package("example/nonstream", "example/nonstream/echo", false))
+        .load_package(streaming_echo_package(
+            "example/nonstream",
+            "example/nonstream/echo",
+            false,
+        ))
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
 
     let result = runtime
-        .stream_capability_start(&session.id, &"example/nonstream/echo".to_string(), None, None, json!({}))
+        .stream_capability_start(
+            &session.id,
+            &"example/nonstream/echo".to_string(),
+            None,
+            None,
+            json!({}),
+        )
         .await;
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
@@ -215,7 +291,11 @@ pub(crate) async fn stream_non_streaming_rejected() -> anyhow::Result<()> {
 pub(crate) async fn stream_no_model_agent_methods() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let value = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.host.info", json!({}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.host.info",
+            json!({}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let methods = value
@@ -242,7 +322,11 @@ pub(crate) async fn stream_no_model_agent_methods() -> anyhow::Result<()> {
 pub(crate) async fn stream_protocol_dispatch() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(streaming_echo_package("example/stream", "example/stream/echo", true))
+        .load_package(streaming_echo_package(
+            "example/stream",
+            "example/stream/echo",
+            true,
+        ))
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
 

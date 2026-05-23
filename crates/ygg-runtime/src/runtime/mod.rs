@@ -12,6 +12,7 @@ use ygg_core::{
 use crate::{EventStore, HostPolicy, InprocPackageCatalog, SecretResolverConfig};
 
 mod assets;
+mod audit;
 mod branches;
 mod capabilities;
 mod events;
@@ -19,19 +20,25 @@ mod handles;
 mod hooks;
 mod network;
 mod outbound;
-mod outbound_websocket;
 mod outbound_sse;
+mod outbound_websocket;
 mod packages;
 mod permissions;
 mod projections;
 mod proposals;
 mod protocol_dispatch;
+mod remote;
 mod session;
 mod streaming;
+mod wasm;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
 pub use self::assets::{
     content_address, standard_asset_metadata, AssetGetResponse, AssetPutRequest,
+};
+pub use self::audit::{
+    AuditPackageParams, DeclaredAuthority, PackageAuditReport, TighteningSuggestion,
+    UnusedAuthority, UsedAuthority,
 };
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
@@ -41,30 +48,29 @@ pub use self::network::{
     OutboundStreamCompletion, OutboundWebSocketCompletion,
 };
 pub use self::outbound::{
-    is_secret_header_name, is_static_header_allowed, DenyAllGitOutboundExecutor,
+    is_secret_header_name, is_static_header_allowed, CancelSignal, DenyAllGitOutboundExecutor,
     DenyAllOutboundExecutor, ExecutorKind, FakeGitOutboundExecutor, FakeOutboundExecutor,
     GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
-    GitOutboundRequest, GitOutboundResponse, LiveHttpOutboundExecutor,
-    LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutor,
-    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
-    OutboundFrameKind, OutboundStreamFrame, OutboundStreamSummary, RealGitOutboundExecutor,
-    RealGitOutboundExecutorConfig, RedactedHeaderValue, ResolvedSecretHeader,
-    OutboundSecretHeaderSpec, OutboundStaticHeader, SecretHeaderSpec, StaticHeader, StreamFormat, StreamStartStatus,
-    KernelOutboundStreamResponse, CancelSignal, StreamEmitter,
-    STATIC_HEADER_ALLOWLIST,
+    GitOutboundRequest, GitOutboundResponse, KernelOutboundStreamResponse,
+    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig,
+    OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
+    OutboundFrameKind, OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame,
+    OutboundStreamSummary, RealGitOutboundExecutor, RealGitOutboundExecutorConfig,
+    RedactedHeaderValue, ResolvedSecretHeader, SecretHeaderSpec, StaticHeader, StreamEmitter,
+    StreamFormat, StreamStartStatus, STATIC_HEADER_ALLOWLIST,
+};
+pub use self::outbound_sse::{SseEvent, SseParser};
+pub use self::outbound_websocket::{
+    DenyAllWebSocketExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
+    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, LiveWebSocketProfile,
+    OutboundWebSocketFrame, OutboundWebSocketOpenRequest, OutboundWebSocketSession, SendStatus,
+    WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
 };
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};
 pub use self::session::OpenSessionRequest;
 pub use self::streaming::StreamRegistry;
-pub use self::outbound_sse::{SseEvent, SseParser};
-pub use self::outbound_websocket::{
-    DenyAllWebSocketExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
-    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, LiveWebSocketProfile,
-    OutboundWebSocketFrame, OutboundWebSocketOpenRequest, OutboundWebSocketSession,
-    SendStatus, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
-};
 
 // ---------------------------------------------------------------------------
 // RuntimeConfig

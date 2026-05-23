@@ -2,7 +2,9 @@ use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use ygg_core::{new_id, KernelSession, SessionId, SessionStatus, EVENT_SESSION_OPENED, EVENT_SESSION_CLOSED};
+use ygg_core::{
+    new_id, KernelSession, SessionId, SessionStatus, EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED,
+};
 
 use super::Runtime;
 use crate::EventStore;
@@ -18,7 +20,10 @@ impl<S> Runtime<S>
 where
     S: EventStore,
 {
-    pub async fn open_session(&self, mut request: OpenSessionRequest) -> anyhow::Result<KernelSession> {
+    pub async fn open_session(
+        &self,
+        mut request: OpenSessionRequest,
+    ) -> anyhow::Result<KernelSession> {
         if request.labels.is_empty() {
             request.labels = self.config.default_labels.clone();
         }
@@ -35,7 +40,10 @@ where
             metadata: request.metadata,
         };
 
-        self.sessions.write().await.insert(session.id.clone(), session.clone());
+        self.sessions
+            .write()
+            .await
+            .insert(session.id.clone(), session.clone());
 
         self.append_kernel_event(
             &session.id,
@@ -51,7 +59,10 @@ where
         Ok(session)
     }
 
-    pub async fn close_session(&self, session_id: SessionId) -> anyhow::Result<ygg_core::EventEnvelope> {
+    pub async fn close_session(
+        &self,
+        session_id: SessionId,
+    ) -> anyhow::Result<ygg_core::EventEnvelope> {
         let mut sessions = self.sessions.write().await;
         match sessions.get_mut(&session_id) {
             Some(session) if session.status == SessionStatus::Open => {
@@ -62,7 +73,8 @@ where
             None => anyhow::bail!("session '{session_id}' is not open"),
         }
         drop(sessions);
-        self.append_kernel_event(&session_id, EVENT_SESSION_CLOSED, serde_json::json!({})).await
+        self.append_kernel_event(&session_id, EVENT_SESSION_CLOSED, serde_json::json!({}))
+            .await
     }
 }
 

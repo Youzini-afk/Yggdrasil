@@ -48,7 +48,10 @@ required_surfaces:
 "#
         ),
     )?;
-    println!("initialized composition descriptor at {}", path.join("composition.yaml").display());
+    println!(
+        "initialized composition descriptor at {}",
+        path.join("composition.yaml").display()
+    );
     Ok(())
 }
 
@@ -58,9 +61,18 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)?,
         _ => serde_json::from_str(&raw)?,
     };
-    anyhow::ensure!(!composition.id.trim().is_empty(), "composition id is required");
-    anyhow::ensure!(!composition.version.trim().is_empty(), "composition version is required");
-    anyhow::ensure!(!composition.entry_surface_id.trim().is_empty(), "composition entry_surface_id is required");
+    anyhow::ensure!(
+        !composition.id.trim().is_empty(),
+        "composition id is required"
+    );
+    anyhow::ensure!(
+        !composition.version.trim().is_empty(),
+        "composition version is required"
+    );
+    anyhow::ensure!(
+        !composition.entry_surface_id.trim().is_empty(),
+        "composition entry_surface_id is required"
+    );
 
     let base = path.parent().unwrap_or_else(|| std::path::Path::new("."));
 
@@ -72,12 +84,19 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
     let mut loaded_packages = Vec::new();
 
     for package_path in &composition.packages {
-        let resolved = if package_path.is_absolute() { package_path.clone() } else { base.join(package_path) };
+        let resolved = if package_path.is_absolute() {
+            package_path.clone()
+        } else {
+            base.join(package_path)
+        };
         match read_manifest(resolved).await {
             Ok(manifest) => {
                 manifest.validate_basic()?;
                 for surface in manifest.contributes.surfaces {
-                    let slot = serde_json::to_value(&surface.slot)?.as_str().unwrap_or_default().to_string();
+                    let slot = serde_json::to_value(&surface.slot)?
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string();
                     surface_ids.push(surface.id);
                     slots.push(slot);
                 }
@@ -87,7 +106,10 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
                 loaded_packages.push(package_path.display().to_string());
             }
             Err(e) => {
-                anyhow::bail!("required package '{}' failed to load: {e}", package_path.display());
+                anyhow::bail!(
+                    "required package '{}' failed to load: {e}",
+                    package_path.display()
+                );
             }
         }
     }
@@ -95,12 +117,19 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
     // Collect info from optional packages (warn only on missing)
     let mut optional_loaded = Vec::new();
     for package_path in &composition.optional_packages {
-        let resolved = if package_path.is_absolute() { package_path.clone() } else { base.join(package_path) };
+        let resolved = if package_path.is_absolute() {
+            package_path.clone()
+        } else {
+            base.join(package_path)
+        };
         match read_manifest(resolved).await {
             Ok(manifest) => {
                 manifest.validate_basic()?;
                 for surface in manifest.contributes.surfaces {
-                    let slot = serde_json::to_value(&surface.slot)?.as_str().unwrap_or_default().to_string();
+                    let slot = serde_json::to_value(&surface.slot)?
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string();
                     surface_ids.push(surface.id);
                     slots.push(slot);
                 }
@@ -110,7 +139,10 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
                 optional_loaded.push(package_path.display().to_string());
             }
             Err(e) => {
-                warnings.push(format!("optional package '{}' not loaded: {e}", package_path.display()));
+                warnings.push(format!(
+                    "optional package '{}' not loaded: {e}",
+                    package_path.display()
+                ));
             }
         }
     }
@@ -122,14 +154,18 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
 
     // Build slot counts from the indexed BTreeMap (already existed for diagnostics)
     // and surface_id → slot index for entry surface lookup
-    let surface_slot_map: BTreeMap<&str, &str> = surface_ids.iter()
+    let surface_slot_map: BTreeMap<&str, &str> = surface_ids
+        .iter()
         .zip(slots.iter())
         .map(|(id, slot)| (id.as_str(), slot.as_str()))
         .collect();
 
     // Check entry surface
     if !surface_id_set.contains(composition.entry_surface_id.as_str()) {
-        anyhow::bail!("entry surface '{}' not provided by composition packages", composition.entry_surface_id);
+        anyhow::bail!(
+            "entry surface '{}' not provided by composition packages",
+            composition.entry_surface_id
+        );
     }
 
     // Check required surfaces
@@ -140,7 +176,10 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         }
     }
     if !missing_surfaces.is_empty() {
-        anyhow::bail!("required surface slots missing: {}", missing_surfaces.join(", "));
+        anyhow::bail!(
+            "required surface slots missing: {}",
+            missing_surfaces.join(", ")
+        );
     }
 
     // Check required capabilities
@@ -151,7 +190,10 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         }
     }
     if !missing_capabilities.is_empty() {
-        anyhow::bail!("required capabilities missing: {}", missing_capabilities.join(", "));
+        anyhow::bail!(
+            "required capabilities missing: {}",
+            missing_capabilities.join(", ")
+        );
     }
 
     // Print structured diagnostics
@@ -169,7 +211,11 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         println!("    - {pkg}");
     }
 
-    println!("  optional packages ({} loaded, {} total):", optional_loaded.len(), composition.optional_packages.len());
+    println!(
+        "  optional packages ({} loaded, {} total):",
+        optional_loaded.len(),
+        composition.optional_packages.len()
+    );
     for pkg in &optional_loaded {
         println!("    - {pkg}");
     }
@@ -189,10 +235,20 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
     }
 
     if !composition.required_capabilities.is_empty() {
-        println!("  required capabilities: {} (all present)", composition.required_capabilities.len());
+        println!(
+            "  required capabilities: {} (all present)",
+            composition.required_capabilities.len()
+        );
     }
 
-    println!("  entry activation: {}", if composition.default_activation.is_some() { "present" } else { "missing" });
+    println!(
+        "  entry activation: {}",
+        if composition.default_activation.is_some() {
+            "present"
+        } else {
+            "missing"
+        }
+    );
 
     if !composition.permission_expectations.is_empty() {
         println!("  permission expectations:");
@@ -222,7 +278,9 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
     // --- Experience package set diagnostics (Beta 5) ---
 
     // Entry surface check
-    let entry_surface_slot = surface_slot_map.get(composition.entry_surface_id.as_str()).copied();
+    let entry_surface_slot = surface_slot_map
+        .get(composition.entry_surface_id.as_str())
+        .copied();
     if let Some(slot) = entry_surface_slot {
         println!("  entry surface slot: {slot}");
     } else if !composition.entry_surface_id.is_empty() {
@@ -230,7 +288,12 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
     }
 
     // Surface slot coverage summary
-    let required_experience_slots = ["experience_entry", "play_renderer", "forge_panel", "assistant_action"];
+    let required_experience_slots = [
+        "experience_entry",
+        "play_renderer",
+        "forge_panel",
+        "assistant_action",
+    ];
     println!("  experience surface coverage:");
     for slot in &required_experience_slots {
         let count = slot_counts.get(slot).copied().unwrap_or(0);
@@ -243,7 +306,9 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         println!("  replacement candidates:");
         for cand in &composition.replacement_candidates {
             // Check if any loaded package could serve as replacement (prefix-based, keep helper)
-            let is_loaded = capability_ids.iter().any(|cap| cap.starts_with(cand.as_str()));
+            let is_loaded = capability_ids
+                .iter()
+                .any(|cap| cap.starts_with(cand.as_str()));
             let status = if is_loaded { "available" } else { "not loaded" };
             println!("    - {cand} ({status})");
         }
@@ -253,10 +318,14 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
         let mut slot_providers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for (slot, surface_id) in slots.iter().zip(surface_ids.iter()) {
             // Extract package id from surface id (prefix before last /)
-            let pkg_id = surface_id.rfind('/').map(|i| &surface_id[..i]).unwrap_or(surface_id);
+            let pkg_id = surface_id
+                .rfind('/')
+                .map(|i| &surface_id[..i])
+                .unwrap_or(surface_id);
             slot_providers.entry(slot).or_default().push(pkg_id);
         }
-        let multi_slots: Vec<(&str, usize)> = slot_providers.iter()
+        let multi_slots: Vec<(&str, usize)> = slot_providers
+            .iter()
             .filter(|(_, pkgs)| pkgs.len() > 1)
             .map(|(slot, pkgs)| (*slot, pkgs.len()))
             .collect();
@@ -279,15 +348,25 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
     // Checkpoint/state capability coverage (uses contains-based suffix check on indexed set)
     let has_experience_entry_slot = slot_set.contains("experience_entry");
     if has_experience_entry_slot {
-        let checkpoint_count = capability_ids.iter()
+        let checkpoint_count = capability_ids
+            .iter()
             .filter(|cap| cap.contains("/create_checkpoint") || cap.contains("/create-checkpoint"))
             .count();
-        let recovery_count = capability_ids.iter()
+        let recovery_count = capability_ids
+            .iter()
             .filter(|cap| cap.contains("/draft_recovery") || cap.contains("/draft-recovery"))
             .count();
         println!("  state capability coverage:");
-        let cp_status = if checkpoint_count == 0 { "missing".to_string() } else { format!("{} provider(s)", checkpoint_count) };
-        let rec_status = if recovery_count == 0 { "missing".to_string() } else { format!("{} provider(s)", recovery_count) };
+        let cp_status = if checkpoint_count == 0 {
+            "missing".to_string()
+        } else {
+            format!("{} provider(s)", checkpoint_count)
+        };
+        let rec_status = if recovery_count == 0 {
+            "missing".to_string()
+        } else {
+            format!("{} provider(s)", recovery_count)
+        };
         println!("    create_checkpoint: {}", cp_status);
         println!("    draft_recovery: {}", rec_status);
         if checkpoint_count == 0 {
@@ -300,13 +379,40 @@ pub(crate) async fn composition_check(path: PathBuf) -> Result<()> {
 
     // Memory/observability optional packages hint
     if has_experience_entry_slot {
-        let has_memory = capability_ids.iter().any(|cap| cap.contains("/record_memory") || cap.contains("/record-memory") || cap.contains("/retrieve_memory") || cap.contains("/retrieve-memory"));
-        let has_observability = capability_ids.iter().any(|cap| cap.contains("/summarize_session_health") || cap.contains("/summarize-session-health") || cap.contains("/summarize_experience_health") || cap.contains("/summarize-experience-health"));
+        let has_memory = capability_ids.iter().any(|cap| {
+            cap.contains("/record_memory")
+                || cap.contains("/record-memory")
+                || cap.contains("/retrieve_memory")
+                || cap.contains("/retrieve-memory")
+        });
+        let has_observability = capability_ids.iter().any(|cap| {
+            cap.contains("/summarize_session_health")
+                || cap.contains("/summarize-session-health")
+                || cap.contains("/summarize_experience_health")
+                || cap.contains("/summarize-experience-health")
+        });
         println!("  optional package coverage:");
-        println!("    memory: {}", if has_memory { "present" } else { "not present — consider adding memory-lab for long-term memory" });
-        println!("    observability: {}", if has_observability { "present" } else { "not present — consider adding experience-observability-lab for health/diagnostics" });
+        println!(
+            "    memory: {}",
+            if has_memory {
+                "present"
+            } else {
+                "not present — consider adding memory-lab for long-term memory"
+            }
+        );
+        println!(
+            "    observability: {}",
+            if has_observability {
+                "present"
+            } else {
+                "not present — consider adding experience-observability-lab for health/diagnostics"
+            }
+        );
     }
 
-    println!("composition check: {}@{} ok", composition.id, composition.version);
+    println!(
+        "composition check: {}@{} ok",
+        composition.id, composition.version
+    );
     Ok(())
 }

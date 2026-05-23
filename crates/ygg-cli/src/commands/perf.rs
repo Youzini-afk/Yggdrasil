@@ -868,7 +868,9 @@ async fn scenario_subprocess_cold_start_sample() -> Result<f64> {
         })
         .await?;
     let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-    let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+    let _ = runtime
+        .unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string())
+        .await;
     Ok(elapsed_ms)
 }
 
@@ -916,7 +918,9 @@ async fn scenario_subprocess_handshake_sample() -> Result<f64> {
     let start = Instant::now();
     runtime.load_package(manifest).await?;
     let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-    let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+    let _ = runtime
+        .unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string())
+        .await;
     Ok(elapsed_ms)
 }
 
@@ -948,7 +952,9 @@ async fn scenario_subprocess_invoke_steady(
 
     for _ in 0..warmup {
         if let Err(e) = scenario_subprocess_invoke_steady_sample(&runtime, payload_bytes).await {
-            let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+            let _ = runtime
+                .unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string())
+                .await;
             return error_result(scenario_id, iterations, e);
         }
     }
@@ -959,13 +965,17 @@ async fn scenario_subprocess_invoke_steady(
         match scenario_subprocess_invoke_steady_sample(&runtime, payload_bytes).await {
             Ok(ms) => durations.push(ms),
             Err(e) => {
-                let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+                let _ = runtime
+                    .unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string())
+                    .await;
                 return error_result(scenario_id, iterations, e);
             }
         }
     }
     let memory_delta = rss_delta(before_rss, read_rss_mb());
-    let _ = runtime.unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string()).await;
+    let _ = runtime
+        .unload_package(&SUBPROCESS_ECHO_PACKAGE_ID.to_string())
+        .await;
     build_result(
         scenario_id,
         iterations,
@@ -1144,13 +1154,18 @@ async fn scenario_outbound_execute_fake_throughput_req_s(
         iterations,
         &durations,
         "ok",
-        vec![format!("{batch_size} execute_outbound_with_policy calls per iteration; {req_s:.2} req/s")],
+        vec![format!(
+            "{batch_size} execute_outbound_with_policy calls per iteration; {req_s:.2} req/s"
+        )],
         memory_delta,
         false,
     )
 }
 
-async fn scenario_outbound_execute_fake_batch<S>(runtime: &Runtime<S>, batch_size: u32) -> Result<f64>
+async fn scenario_outbound_execute_fake_batch<S>(
+    runtime: &Runtime<S>,
+    batch_size: u32,
+) -> Result<f64>
 where
     S: EventStore,
 {
@@ -1199,7 +1214,10 @@ async fn scenario_outbound_stream_ttft_sample<S>(runtime: &Runtime<S>) -> Result
 where
     S: EventStore,
 {
-    let session_id = format!("kernel_outbound_stream_{}", PERF_OUTBOUND_PACKAGE_ID.replace('/', "_"));
+    let session_id = format!(
+        "kernel_outbound_stream_{}",
+        PERF_OUTBOUND_PACKAGE_ID.replace('/', "_")
+    );
     let mut rx = runtime.subscribe_events();
     let start = Instant::now();
     let response = start_fake_outbound_stream(runtime).await?;
@@ -1221,7 +1239,8 @@ where
             .get("stream_id")
             .and_then(|v| v.as_str())
             .or_else(|| {
-                event.payload
+                event
+                    .payload
                     .get("data")
                     .and_then(|d| d.get("stream_id"))
                     .and_then(|v| v.as_str())
@@ -1286,7 +1305,10 @@ where
     let deadline = std::time::Duration::from_secs(2);
     let started = Instant::now();
     loop {
-        let events = runtime.store().list_session(&session_id.to_string()).await?;
+        let events = runtime
+            .store()
+            .list_session(&session_id.to_string())
+            .await?;
         if events.iter().any(|event| {
             event.kind == ygg_core::EVENT_STREAM_ENDED
                 && event.payload.get("stream_id").and_then(|v| v.as_str()) == Some(stream_id)

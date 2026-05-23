@@ -10,7 +10,7 @@ use std::fs;
 use std::sync::Arc;
 
 use serde_json::json;
-use ygg_core::{EventEnvelope, KERNEL_PACKAGE_ID, SessionId};
+use ygg_core::{EventEnvelope, SessionId, KERNEL_PACKAGE_ID};
 use ygg_runtime::{EventStore, InMemoryEventStore, SqliteEventStore};
 
 use ygg_core::new_id;
@@ -21,7 +21,11 @@ use ygg_core::new_id;
 
 /// Create a temporary SQLite database path, unique per invocation.
 fn temp_db_path(label: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("ygg-storage-s1-{}-{}.db", label, std::process::id()))
+    std::env::temp_dir().join(format!(
+        "ygg-storage-s1-{}-{}.db",
+        label,
+        std::process::id()
+    ))
 }
 
 /// Build a simple event envelope with a given session, sequence, and kind.
@@ -67,15 +71,27 @@ pub(crate) async fn in_memory_event_store_contract_append_range() -> anyhow::Res
 
     // list_session
     let session_events = store.list_session(&sid).await?;
-    anyhow::ensure!(session_events.len() == 3, "expected 3 session events, got {}", session_events.len());
+    anyhow::ensure!(
+        session_events.len() == 3,
+        "expected 3 session events, got {}",
+        session_events.len()
+    );
 
     // list_all
     let all_events = store.list_all().await?;
-    anyhow::ensure!(all_events.len() == 3, "expected 3 total events, got {}", all_events.len());
+    anyhow::ensure!(
+        all_events.len() == 3,
+        "expected 3 total events, got {}",
+        all_events.len()
+    );
 
     // list_session_range: after_sequence=0 → events 1 and 2
     let range = store.list_session_range(&sid, Some(0), None).await?;
-    anyhow::ensure!(range.len() == 2, "expected 2 events after seq 0, got {}", range.len());
+    anyhow::ensure!(
+        range.len() == 2,
+        "expected 2 events after seq 0, got {}",
+        range.len()
+    );
     anyhow::ensure!(range[0].sequence == 1);
     anyhow::ensure!(range[1].sequence == 2);
 
@@ -91,7 +107,11 @@ pub(crate) async fn in_memory_event_store_contract_append_range() -> anyhow::Res
     // next_sequence for unknown session
     let unknown_sid: SessionId = "ses_unknown".to_string();
     let unknown_next = store.next_sequence(&unknown_sid).await?;
-    anyhow::ensure!(unknown_next == 0, "expected next_sequence=0 for unknown session, got {}", unknown_next);
+    anyhow::ensure!(
+        unknown_next == 0,
+        "expected next_sequence=0 for unknown session, got {}",
+        unknown_next
+    );
 
     Ok(())
 }
@@ -116,15 +136,27 @@ pub(crate) async fn sqlite_event_store_contract_append_range() -> anyhow::Result
 
     // list_session
     let session_events = store.list_session(&sid).await?;
-    anyhow::ensure!(session_events.len() == 3, "expected 3 session events, got {}", session_events.len());
+    anyhow::ensure!(
+        session_events.len() == 3,
+        "expected 3 session events, got {}",
+        session_events.len()
+    );
 
     // list_all
     let all_events = store.list_all().await?;
-    anyhow::ensure!(all_events.len() == 3, "expected 3 total events, got {}", all_events.len());
+    anyhow::ensure!(
+        all_events.len() == 3,
+        "expected 3 total events, got {}",
+        all_events.len()
+    );
 
     // list_session_range: after_sequence=0 → events 1 and 2
     let range = store.list_session_range(&sid, Some(0), None).await?;
-    anyhow::ensure!(range.len() == 2, "expected 2 events after seq 0, got {}", range.len());
+    anyhow::ensure!(
+        range.len() == 2,
+        "expected 2 events after seq 0, got {}",
+        range.len()
+    );
     anyhow::ensure!(range[0].sequence == 1);
     anyhow::ensure!(range[1].sequence == 2);
 
@@ -140,7 +172,11 @@ pub(crate) async fn sqlite_event_store_contract_append_range() -> anyhow::Result
     // next_sequence for unknown session
     let unknown_sid: SessionId = "ses_unknown".to_string();
     let unknown_next = store.next_sequence(&unknown_sid).await?;
-    anyhow::ensure!(unknown_next == 0, "expected next_sequence=0 for unknown session, got {}", unknown_next);
+    anyhow::ensure!(
+        unknown_next == 0,
+        "expected next_sequence=0 for unknown session, got {}",
+        unknown_next
+    );
 
     let _ = fs::remove_file(path);
     Ok(())
@@ -200,11 +236,19 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
         mem_perm.len(),
         sqlite_perm.len()
     );
-    anyhow::ensure!(mem_perm.len() == 2, "expected 2 permission events, got {}", mem_perm.len());
+    anyhow::ensure!(
+        mem_perm.len() == 2,
+        "expected 2 permission events, got {}",
+        mem_perm.len()
+    );
 
     // Session-scoped kind-prefix query
-    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
-    let sqlite_session_perm = sqlite.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
+    let mem_session_perm = mem
+        .list_session_kind_prefix(&sid, "kernel/v1/permission")
+        .await?;
+    let sqlite_session_perm = sqlite
+        .list_session_kind_prefix(&sid, "kernel/v1/permission")
+        .await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_session_perm, &sqlite_session_perm),
         "session kind_prefix mismatch"
@@ -270,9 +314,17 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
         let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
         sequences.sort();
         let dedup: HashSet<u64> = sequences.iter().copied().collect();
-        anyhow::ensure!(dedup.len() == sequences.len(), "in-memory: duplicate sequences found");
+        anyhow::ensure!(
+            dedup.len() == sequences.len(),
+            "in-memory: duplicate sequences found"
+        );
         for (i, seq) in sequences.iter().enumerate() {
-            anyhow::ensure!(*seq == i as u64, "in-memory: non-contiguous at index {}: {}", i, seq);
+            anyhow::ensure!(
+                *seq == i as u64,
+                "in-memory: non-contiguous at index {}: {}",
+                i,
+                seq
+            );
         }
     }
 
@@ -320,9 +372,17 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
         let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
         sequences.sort();
         let dedup: HashSet<u64> = sequences.iter().copied().collect();
-        anyhow::ensure!(dedup.len() == sequences.len(), "sqlite: duplicate sequences found");
+        anyhow::ensure!(
+            dedup.len() == sequences.len(),
+            "sqlite: duplicate sequences found"
+        );
         for (i, seq) in sequences.iter().enumerate() {
-            anyhow::ensure!(*seq == i as u64, "sqlite: non-contiguous at index {}: {}", i, seq);
+            anyhow::ensure!(
+                *seq == i as u64,
+                "sqlite: non-contiguous at index {}: {}",
+                i,
+                seq
+            );
         }
 
         let _ = fs::remove_file(path);
@@ -493,13 +553,25 @@ pub(crate) async fn postgres_event_store_contract_append_range() -> anyhow::Resu
     store.append(make_event(&sid, 2, "test/gamma")).await?;
 
     let session_events = store.list_session(&sid).await?;
-    anyhow::ensure!(session_events.len() == 3, "expected 3 session events, got {}", session_events.len());
+    anyhow::ensure!(
+        session_events.len() == 3,
+        "expected 3 session events, got {}",
+        session_events.len()
+    );
 
     let all_events = store.list_all().await?;
-    anyhow::ensure!(all_events.len() >= 3, "expected at least 3 total events, got {}", all_events.len());
+    anyhow::ensure!(
+        all_events.len() >= 3,
+        "expected at least 3 total events, got {}",
+        all_events.len()
+    );
 
     let range = store.list_session_range(&sid, Some(0), None).await?;
-    anyhow::ensure!(range.len() == 2, "expected 2 events after seq 0, got {}", range.len());
+    anyhow::ensure!(
+        range.len() == 2,
+        "expected 2 events after seq 0, got {}",
+        range.len()
+    );
     anyhow::ensure!(range[0].sequence == 1);
     anyhow::ensure!(range[1].sequence == 2);
 
@@ -512,7 +584,11 @@ pub(crate) async fn postgres_event_store_contract_append_range() -> anyhow::Resu
 
     let unknown_sid: SessionId = format!("ses_pg_unknown_{}", ygg_core::new_id("pg"));
     let unknown_next = store.next_sequence(&unknown_sid).await?;
-    anyhow::ensure!(unknown_next == 0, "expected next_sequence=0 for unknown session, got {}", unknown_next);
+    anyhow::ensure!(
+        unknown_next == 0,
+        "expected next_sequence=0 for unknown session, got {}",
+        unknown_next
+    );
 
     Ok(())
 }
@@ -563,10 +639,18 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
         mem_perm.len(),
         pg_perm.len()
     );
-    anyhow::ensure!(pg_perm.len() == 2, "expected 2 permission events, got {}", pg_perm.len());
+    anyhow::ensure!(
+        pg_perm.len() == 2,
+        "expected 2 permission events, got {}",
+        pg_perm.len()
+    );
 
-    let mem_session_perm = mem.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
-    let pg_session_perm = pg.list_session_kind_prefix(&sid, "kernel/v1/permission").await?;
+    let mem_session_perm = mem
+        .list_session_kind_prefix(&sid, "kernel/v1/permission")
+        .await?;
+    let pg_session_perm = pg
+        .list_session_kind_prefix(&sid, "kernel/v1/permission")
+        .await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_session_perm, &pg_session_perm),
         "session kind_prefix mismatch"
@@ -619,9 +703,17 @@ pub(crate) async fn postgres_backend_parity_concurrent_append() -> anyhow::Resul
     let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
     sequences.sort();
     let dedup: HashSet<u64> = sequences.iter().copied().collect();
-    anyhow::ensure!(dedup.len() == sequences.len(), "postgres: duplicate sequences found");
+    anyhow::ensure!(
+        dedup.len() == sequences.len(),
+        "postgres: duplicate sequences found"
+    );
     for (i, seq) in sequences.iter().enumerate() {
-        anyhow::ensure!(*seq == i as u64, "postgres: non-contiguous at index {}: {}", i, seq);
+        anyhow::ensure!(
+            *seq == i as u64,
+            "postgres: non-contiguous at index {}: {}",
+            i,
+            seq
+        );
     }
 
     Ok(())

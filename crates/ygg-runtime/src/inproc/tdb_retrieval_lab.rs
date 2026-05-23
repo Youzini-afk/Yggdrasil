@@ -8,7 +8,9 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
         return None;
     }
-    let local = request.capability_id.strip_prefix(&format!("{PACKAGE_ID}/"))?;
+    let local = request
+        .capability_id
+        .strip_prefix(&format!("{PACKAGE_ID}/"))?;
     Some(match local {
         "describe_tdb_retrieval_contract" => Ok(describe_contract()),
         "draft_tdb_index_plan" => draft_index_plan(&request.input),
@@ -125,7 +127,11 @@ fn draft_query_plan(input: &Value) -> anyhow::Result<Value> {
     if !query_modalities.iter().all(|m| is_allowed_modality(m)) {
         return Ok(reject("unsupported_modality"));
     }
-    let limit = input.get("limit").and_then(Value::as_u64).unwrap_or(8).min(32);
+    let limit = input
+        .get("limit")
+        .and_then(Value::as_u64)
+        .unwrap_or(8)
+        .min(32);
     Ok(json!({
         "kind": "tdb_query_plan",
         "index_id": index_id,
@@ -283,7 +289,10 @@ fn validate_common_input(input: &Value) -> anyhow::Result<()> {
 }
 
 fn required_safe_id(input: &Value, field: &str) -> anyhow::Result<String> {
-    let value = input.get(field).and_then(Value::as_str).unwrap_or("default_index");
+    let value = input
+        .get(field)
+        .and_then(Value::as_str)
+        .unwrap_or("default_index");
     if !is_safe_id(value) {
         anyhow::bail!("tdb retrieval lab id field is unsafe");
     }
@@ -304,7 +313,13 @@ fn read_string_array(input: &Value, field: &str) -> Vec<String> {
     input
         .get(field)
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(Value::as_str).map(str::to_string).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -327,7 +342,10 @@ mod tests {
 
     #[test]
     fn index_plan_is_plan_only() {
-        let output = invoke("draft_tdb_index_plan", json!({"index_id": "demo", "asset_refs": ["asset/a"]}));
+        let output = invoke(
+            "draft_tdb_index_plan",
+            json!({"index_id": "demo", "asset_refs": ["asset/a"]}),
+        );
         assert_eq!(output["kind"], json!("tdb_index_plan"));
         assert_eq!(output["index_created"], json!(false));
         assert_eq!(output["tdb_opened"], json!(false));

@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 
+use schemars::{
+    gen::SchemaGenerator,
+    schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec},
+    JsonSchema,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::RwLock;
-use schemars::{gen::SchemaGenerator, schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec}, JsonSchema};
 use uuid::Uuid;
 use ygg_core::{CapHandleId, CapabilityDescriptor, CapabilityId, HookSubscription, PackageId};
 
@@ -56,13 +60,20 @@ pub struct CapabilityFabric {
 }
 
 impl CapabilityFabric {
-    pub async fn register_package(&self, package_id: &PackageId, descriptors: &[CapabilityDescriptor]) {
+    pub async fn register_package(
+        &self,
+        package_id: &PackageId,
+        descriptors: &[CapabilityDescriptor],
+    ) {
         let mut providers = self.providers.write().await;
         for descriptor in descriptors {
-            providers.entry(descriptor.id.clone()).or_default().push(RegisteredCapability {
-                descriptor: descriptor.clone(),
-                provider_package_id: package_id.clone(),
-            });
+            providers
+                .entry(descriptor.id.clone())
+                .or_default()
+                .push(RegisteredCapability {
+                    descriptor: descriptor.clone(),
+                    provider_package_id: package_id.clone(),
+                });
         }
     }
 
@@ -82,12 +93,22 @@ impl CapabilityFabric {
             .values()
             .flat_map(|providers| providers.iter().cloned())
             .collect();
-        values.sort_by(|a, b| a.descriptor.id.cmp(&b.descriptor.id).then(a.provider_package_id.cmp(&b.provider_package_id)));
+        values.sort_by(|a, b| {
+            a.descriptor
+                .id
+                .cmp(&b.descriptor.id)
+                .then(a.provider_package_id.cmp(&b.provider_package_id))
+        });
         values
     }
 
     pub async fn describe(&self, capability_id: &CapabilityId) -> Vec<RegisteredCapability> {
-        self.providers.read().await.get(capability_id).cloned().unwrap_or_default()
+        self.providers
+            .read()
+            .await
+            .get(capability_id)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub async fn resolve(
@@ -106,17 +127,22 @@ impl CapabilityFabric {
         match providers.as_slice() {
             [] => anyhow::bail!("capability '{}' has no provider", capability_id),
             [provider] => Ok(provider.clone()),
-            _ => anyhow::bail!("capability '{}' has ambiguous providers; specify provider_package_id", capability_id),
+            _ => anyhow::bail!(
+                "capability '{}' has ambiguous providers; specify provider_package_id",
+                capability_id
+            ),
         }
     }
-
 }
 
 fn version_matches(requirement: &str, provided: &str) -> bool {
     if requirement == "*" || requirement == provided {
         return true;
     }
-    if let Some(major) = requirement.strip_prefix('^').and_then(|req| req.split('.').next()) {
+    if let Some(major) = requirement
+        .strip_prefix('^')
+        .and_then(|req| req.split('.').next())
+    {
         return provided.split('.').next() == Some(major);
     }
     false
@@ -145,10 +171,13 @@ impl ExtensionRegistry {
     pub async fn register_package(&self, package_id: &PackageId, hooks: &[HookSubscription]) {
         let mut registry = self.hooks.write().await;
         for hook in hooks {
-            registry.entry(hook.extension_point.clone()).or_default().push(RegisteredHook {
-                subscriber_package_id: package_id.clone(),
-                subscription: hook.clone(),
-            });
+            registry
+                .entry(hook.extension_point.clone())
+                .or_default()
+                .push(RegisteredHook {
+                    subscriber_package_id: package_id.clone(),
+                    subscription: hook.clone(),
+                });
         }
         for hooks in registry.values_mut() {
             hooks.sort_by(|a, b| {
@@ -170,11 +199,21 @@ impl ExtensionRegistry {
     }
 
     pub async fn list_hooks(&self, extension_point: &str) -> Vec<RegisteredHook> {
-        self.hooks.read().await.get(extension_point).cloned().unwrap_or_default()
+        self.hooks
+            .read()
+            .await
+            .get(extension_point)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub async fn list_all_hooks(&self) -> Vec<RegisteredHook> {
-        self.hooks.read().await.values().flat_map(|hooks| hooks.iter().cloned()).collect()
+        self.hooks
+            .read()
+            .await
+            .values()
+            .flat_map(|hooks| hooks.iter().cloned())
+            .collect()
     }
 
     pub async fn dispatch(&self, extension_point: &str, payload: Value) -> ExtensionDispatchResult {
@@ -187,14 +226,24 @@ impl ExtensionRegistry {
         for hook in &invoked {
             if hook.subscription.handler == "metadata_trace" {
                 if let Some(object) = payload.as_object_mut() {
-                    let metadata = object.entry("metadata").or_insert_with(|| Value::Object(Default::default()));
+                    let metadata = object
+                        .entry("metadata")
+                        .or_insert_with(|| Value::Object(Default::default()));
                     if let Some(metadata) = metadata.as_object_mut() {
-                        metadata.insert("hook_trace".to_string(), Value::String(hook.subscriber_package_id.clone()));
+                        metadata.insert(
+                            "hook_trace".to_string(),
+                            Value::String(hook.subscriber_package_id.clone()),
+                        );
                     }
                 }
             }
         }
-        ExtensionDispatchResult { extension_point: extension_point.to_string(), invoked, vetoed_by, payload }
+        ExtensionDispatchResult {
+            extension_point: extension_point.to_string(),
+            invoked,
+            vetoed_by,
+            payload,
+        }
     }
 }
 
@@ -217,10 +266,16 @@ mod tests {
             side_effects: Vec::new(),
             description: None,
         };
-        fabric.register_package(&"example/a".to_string(), &[descriptor.clone()]).await;
-        fabric.register_package(&"example/b".to_string(), &[descriptor]).await;
+        fabric
+            .register_package(&"example/a".to_string(), &[descriptor.clone()])
+            .await;
+        fabric
+            .register_package(&"example/b".to_string(), &[descriptor])
+            .await;
 
-        let result = fabric.resolve(&"example/echo/echo".to_string(), None, None).await;
+        let result = fabric
+            .resolve(&"example/echo/echo".to_string(), None, None)
+            .await;
         assert!(result.is_err());
     }
 
@@ -236,11 +291,19 @@ mod tests {
             side_effects: Vec::new(),
             description: None,
         };
-        fabric.register_package(&"example/a".to_string(), &[descriptor.clone()]).await;
-        fabric.register_package(&"example/b".to_string(), &[descriptor]).await;
+        fabric
+            .register_package(&"example/a".to_string(), &[descriptor.clone()])
+            .await;
+        fabric
+            .register_package(&"example/b".to_string(), &[descriptor])
+            .await;
 
         let result = fabric
-            .resolve(&"example/echo/echo".to_string(), Some(&"example/b".to_string()), Some("^0.1"))
+            .resolve(
+                &"example/echo/echo".to_string(),
+                Some(&"example/b".to_string()),
+                Some("^0.1"),
+            )
             .await?;
         assert_eq!(result.provider_package_id, "example/b");
         Ok(())
@@ -260,7 +323,9 @@ mod tests {
                 }],
             )
             .await;
-        let result = registry.dispatch("kernel/v1/session.before_open", json!({})).await;
+        let result = registry
+            .dispatch("kernel/v1/session.before_open", json!({}))
+            .await;
         assert_eq!(result.vetoed_by, Some("example/veto".to_string()));
     }
 }

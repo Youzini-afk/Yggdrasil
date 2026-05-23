@@ -183,7 +183,10 @@ impl SqliteEventStore {
         let conn = Connection::open(path)?;
         init_schema(&conn)?;
         let (tx, _) = broadcast::channel(256);
-        Ok(Self { conn: Arc::new(Mutex::new(conn)), tx })
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+            tx,
+        })
     }
 }
 
@@ -424,14 +427,22 @@ fn row_to_event(row: &rusqlite::Row<'_>) -> rusqlite::Result<EventEnvelope> {
         sequence: sequence as EventSequence,
         timestamp: chrono::DateTime::parse_from_rfc3339(&timestamp)
             .map(|dt| dt.with_timezone(&chrono::Utc))
-            .map_err(|err| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(err)))?,
+            .map_err(|err| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    3,
+                    rusqlite::types::Type::Text,
+                    Box::new(err),
+                )
+            })?,
         writer_package_id: row.get::<_, PackageId>(4)?,
         kind: row.get(5)?,
         schema_version: schema_version as u16,
-        payload: serde_json::from_str(&payload_json)
-            .map_err(|err| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(err)))?,
-        metadata: serde_json::from_str(&metadata_json)
-            .map_err(|err| rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(err)))?,
+        payload: serde_json::from_str(&payload_json).map_err(|err| {
+            rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(err))
+        })?,
+        metadata: serde_json::from_str(&metadata_json).map_err(|err| {
+            rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(err))
+        })?,
     })
 }
 
@@ -470,7 +481,8 @@ mod sqlite_tests {
 
     #[tokio::test]
     async fn sqlite_concurrent_append_no_duplicate_sequences() -> anyhow::Result<()> {
-        let path = std::env::temp_dir().join(format!("ygg-test-concurrent-{}.db", new_id("sqlite")));
+        let path =
+            std::env::temp_dir().join(format!("ygg-test-concurrent-{}.db", new_id("sqlite")));
         let store = SqliteEventStore::open(&path)?;
         let session_id = "ses_concurrent".to_string();
 
@@ -512,11 +524,25 @@ mod sqlite_tests {
         let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
         sequences.sort();
         // No duplicates
-        let dedup: Vec<u64> = sequences.iter().copied().collect::<std::collections::HashSet<_>>().into_iter().collect();
-        assert_eq!(dedup.len(), sequences.len(), "duplicate sequences found: {:?}", sequences);
+        let dedup: Vec<u64> = sequences
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        assert_eq!(
+            dedup.len(),
+            sequences.len(),
+            "duplicate sequences found: {:?}",
+            sequences
+        );
         // Contiguous from 0
         for (i, seq) in sequences.iter().enumerate() {
-            assert_eq!(*seq, i as u64, "non-contiguous sequence at index {}: {}", i, seq);
+            assert_eq!(
+                *seq, i as u64,
+                "non-contiguous sequence at index {}: {}",
+                i, seq
+            );
         }
 
         let _ = std::fs::remove_file(path);
@@ -563,7 +589,9 @@ mod sqlite_tests {
         let perm_events = store.list_kind_prefix("kernel/v1/permission").await?;
         assert_eq!(perm_events.len(), 2);
 
-        let session_perm = store.list_session_kind_prefix(&session_id, "kernel/v1/permission").await?;
+        let session_perm = store
+            .list_session_kind_prefix(&session_id, "kernel/v1/permission")
+            .await?;
         assert_eq!(session_perm.len(), 2);
 
         let _ = std::fs::remove_file(path);
@@ -580,7 +608,10 @@ pub struct InMemoryEventStore {
 impl Default for InMemoryEventStore {
     fn default() -> Self {
         let (tx, _) = broadcast::channel(256);
-        Self { events: Arc::new(RwLock::new(HashMap::new())), tx }
+        Self {
+            events: Arc::new(RwLock::new(HashMap::new())),
+            tx,
+        }
     }
 }
 
@@ -602,8 +633,19 @@ impl EventStore for InMemoryEventStore {
     }
 
     async fn list_all(&self) -> anyhow::Result<Vec<EventEnvelope>> {
-        let mut events: Vec<_> = self.events.read().await.values().flat_map(|events| events.clone()).collect();
-        events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp).then(a.session_id.cmp(&b.session_id)).then(a.sequence.cmp(&b.sequence)));
+        let mut events: Vec<_> = self
+            .events
+            .read()
+            .await
+            .values()
+            .flat_map(|events| events.clone())
+            .collect();
+        events.sort_by(|a, b| {
+            a.timestamp
+                .cmp(&b.timestamp)
+                .then(a.session_id.cmp(&b.session_id))
+                .then(a.sequence.cmp(&b.sequence))
+        });
         Ok(events)
     }
 
@@ -622,7 +664,11 @@ impl EventStore for InMemoryEventStore {
             .cloned()
             .unwrap_or_default()
             .into_iter()
-            .filter(|event| after_sequence.map(|sequence| event.sequence > sequence).unwrap_or(true))
+            .filter(|event| {
+                after_sequence
+                    .map(|sequence| event.sequence > sequence)
+                    .unwrap_or(true)
+            })
             .collect();
         if let Some(limit) = limit {
             events.truncate(limit);
@@ -631,7 +677,13 @@ impl EventStore for InMemoryEventStore {
     }
 
     async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence> {
-        Ok(self.events.read().await.get(session_id).map(|events| events.len() as EventSequence).unwrap_or(0))
+        Ok(self
+            .events
+            .read()
+            .await
+            .get(session_id)
+            .map(|events| events.len() as EventSequence)
+            .unwrap_or(0))
     }
 
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {
@@ -651,7 +703,10 @@ impl EventStore for InMemoryEventStore {
         metadata_json: serde_json::Value,
     ) -> anyhow::Result<EventEnvelope> {
         let mut map = self.events.write().await;
-        let seq = map.get(&session_id).map(|v| v.len() as EventSequence).unwrap_or(0);
+        let seq = map
+            .get(&session_id)
+            .map(|v| v.len() as EventSequence)
+            .unwrap_or(0);
         let event = EventEnvelope {
             id: ygg_core::new_id("evt"),
             session_id,
@@ -730,21 +785,20 @@ mod postgres_backend {
         /// stored beyond the pool internals; it is never written to
         /// events, proposals, logs, or public output.
         pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-            let pg_config: tokio_postgres::Config = database_url.parse().map_err(|_e| {
-                anyhow::anyhow!("postgres config parse error (details redacted)")
-            })?;
+            let pg_config: tokio_postgres::Config = database_url
+                .parse()
+                .map_err(|_e| anyhow::anyhow!("postgres config parse error (details redacted)"))?;
             let mgr = deadpool_postgres::Manager::new(pg_config, tokio_postgres::NoTls);
             let pool = Pool::builder(mgr)
                 .max_size(5)
                 .build()
-                .map_err(|_e| {
-                    anyhow::anyhow!("postgres pool create error (details redacted)")
-                })?;
+                .map_err(|_e| anyhow::anyhow!("postgres pool create error (details redacted)"))?;
 
             // Verify connectivity and init schema
-            let conn = pool.get().await.map_err(|_e| {
-                anyhow::anyhow!("postgres connect error (details redacted)")
-            })?;
+            let conn = pool
+                .get()
+                .await
+                .map_err(|_e| anyhow::anyhow!("postgres connect error (details redacted)"))?;
             conn.batch_execute(
                 r#"
                 CREATE TABLE IF NOT EXISTS events (
@@ -906,12 +960,9 @@ mod postgres_backend {
             let tx = conn.transaction().await.map_err(redact_pg)?;
 
             // Acquire session-scoped advisory lock (released on commit/rollback)
-            tx.execute(
-                "SELECT pg_advisory_xact_lock(hashtext($1))",
-                &[&session_id],
-            )
-            .await
-            .map_err(redact_pg)?;
+            tx.execute("SELECT pg_advisory_xact_lock(hashtext($1))", &[&session_id])
+                .await
+                .map_err(redact_pg)?;
 
             let row = tx
                 .query_one(
@@ -1105,8 +1156,7 @@ mod postgres_backend {
             let events = store.list_session(&session_id).await?;
             let mut sequences: Vec<u64> = events.iter().map(|e| e.sequence).collect();
             sequences.sort();
-            let dedup: std::collections::HashSet<u64> =
-                sequences.iter().copied().collect();
+            let dedup: std::collections::HashSet<u64> = sequences.iter().copied().collect();
             assert_eq!(
                 dedup.len(),
                 sequences.len(),
@@ -1114,13 +1164,7 @@ mod postgres_backend {
                 sequences
             );
             for (i, seq) in sequences.iter().enumerate() {
-                assert_eq!(
-                    *seq,
-                    i as u64,
-                    "non-contiguous at index {}: {}",
-                    i,
-                    seq
-                );
+                assert_eq!(*seq, i as u64, "non-contiguous at index {}: {}", i, seq);
             }
             Ok(())
         }

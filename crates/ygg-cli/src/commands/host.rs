@@ -7,11 +7,10 @@ use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
     DenyAllWebSocketExecutor, EventStore, FakeGitOutboundExecutor, FakeOutboundExecutor,
-    FakeWebSocketExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
-    InMemoryEventStore, LiveHttpOutboundExecutor, LiveWebSocketExecutor, LiveWebSocketProfile,
-    OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext,
-    RealGitOutboundExecutor, RealGitOutboundExecutorConfig, Runtime, RuntimeConfig,
-    SqliteEventStore, WebSocketExecutor,
+    FakeWebSocketExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig, InMemoryEventStore,
+    LiveHttpOutboundExecutor, LiveWebSocketExecutor, LiveWebSocketProfile,
+    OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext, RealGitOutboundExecutor,
+    RealGitOutboundExecutorConfig, Runtime, RuntimeConfig, SqliteEventStore, WebSocketExecutor,
 };
 
 use super::manifest::read_manifest;
@@ -136,9 +135,10 @@ fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
             GitOutboundExecutorConfig::Custom(Arc::new(FakeGitOutboundExecutor::new()))
         }
         HostGitOutboundExecutorKind::Real => {
-            let install_root = git.install_root.clone().unwrap_or_else(|| {
-                std::env::temp_dir().join("ygg-installed-packages")
-            });
+            let install_root = git
+                .install_root
+                .clone()
+                .unwrap_or_else(|| std::env::temp_dir().join("ygg-installed-packages"));
             GitOutboundExecutorConfig::Custom(Arc::new(RealGitOutboundExecutor::new(
                 RealGitOutboundExecutorConfig {
                     install_root,
@@ -216,9 +216,9 @@ pub(crate) fn build_outbound_execute_executor(
     }
     match config.executor {
         HostExecuteOutboundExecutorKind::DenyAll => Ok(OutboundExecutorConfig::DenyAll),
-        HostExecuteOutboundExecutorKind::Fake => {
-            Ok(OutboundExecutorConfig::Custom(Arc::new(FakeOutboundExecutor::new())))
-        }
+        HostExecuteOutboundExecutorKind::Fake => Ok(OutboundExecutorConfig::Custom(Arc::new(
+            FakeOutboundExecutor::new(),
+        ))),
         HostExecuteOutboundExecutorKind::Live => {
             let executor = LiveHttpOutboundExecutor::new_from_profile(
                 config.https_only,
@@ -370,7 +370,6 @@ mod tests {
             .expect_err("non-wss websocket without test flag should fail");
         assert!(err.to_string().contains("wss_only=false"));
     }
-
 }
 
 async fn serve_runtime<S>(

@@ -22,15 +22,13 @@ use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "official/memory-lab";
 
-async fn load_memory_lab(
-) -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
+async fn load_memory_lab() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>>
+{
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from(
-                "packages/official/memory-lab/manifest.yaml",
-            ))
-            .await?,
+            manifest::read_manifest(PathBuf::from("packages/official/memory-lab/manifest.yaml"))
+                .await?,
         )
         .await?;
     Ok(runtime)
@@ -72,8 +70,14 @@ pub(crate) async fn memory_lab_contract() -> anyhow::Result<()> {
 
     // 3 surfaces
     let surfaces = contract.output["surfaces"].as_object().unwrap();
-    anyhow::ensure!(surfaces.contains_key("forge_panel"), "must have forge_panel");
-    anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action");
+    anyhow::ensure!(
+        surfaces.contains_key("forge_panel"),
+        "must have forge_panel"
+    );
+    anyhow::ensure!(
+        surfaces.contains_key("assistant_action"),
+        "must have assistant_action"
+    );
     anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
     // 9 capabilities
@@ -185,12 +189,13 @@ pub(crate) async fn memory_lab_trace_retrieval() -> anyhow::Result<()> {
 
     anyhow::ensure!(trace.output["kind"] == json!("retrieval_trace"));
     anyhow::ensure!(trace.output["algorithm"] == json!("deterministic_keyword_contains"));
+    anyhow::ensure!(trace.output["trace"].is_array(), "must have trace array");
     anyhow::ensure!(
-        trace.output["trace"].is_array(),
-        "must have trace array"
-    );
-    anyhow::ensure!(
-        trace.output["trace"].as_array().map(|a| a.len()).unwrap_or(0) > 0,
+        trace.output["trace"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            > 0,
         "trace must have steps"
     );
     anyhow::ensure!(trace.output["inference_performed"] == json!(false));

@@ -401,11 +401,21 @@ fn record_player_action(request: &InprocInvocation) -> anyhow::Result<Value> {
     let projection_ref = format!("projection:board:{}:{}", board_id, sequence);
 
     // Beta 2: deterministic content address for the action payload
-    let payload_str = serde_json::to_string(&request.input.get("payload").cloned().unwrap_or(serde_json::json!({})))
-        .unwrap_or_default();
+    let payload_str = serde_json::to_string(
+        &request
+            .input
+            .get("payload")
+            .cloned()
+            .unwrap_or(serde_json::json!({})),
+    )
+    .unwrap_or_default();
     let ca = crate::runtime::content_address(&payload_str);
     let state_snapshot_asset_ref = format!("asset:state_snapshot:{}:{}", board_id, sequence);
-    let disclosure = request.input.get("disclosure").and_then(Value::as_str).unwrap_or("player_action");
+    let disclosure = request
+        .input
+        .get("disclosure")
+        .and_then(Value::as_str)
+        .unwrap_or("player_action");
 
     Ok(serde_json::json!({
         "kind": "playable_creation_board_action_recorded",
@@ -603,10 +613,15 @@ fn create_checkpoint(request: &InprocInvocation) -> anyhow::Result<Value> {
         "sequence": sequence,
         "format": format,
         "state_snapshot": state_snapshot,
-    })).unwrap_or_default();
+    }))
+    .unwrap_or_default();
     let ca = crate::runtime::content_address(&checkpoint_content);
     let state_snapshot_asset_ref = format!("asset:state_snapshot:{}:{}", board_id, sequence);
-    let disclosure = request.input.get("disclosure").and_then(Value::as_str).unwrap_or("checkpoint");
+    let disclosure = request
+        .input
+        .get("disclosure")
+        .and_then(Value::as_str)
+        .unwrap_or("checkpoint");
 
     Ok(serde_json::json!({
         "kind": "playable_creation_board_checkpoint",
@@ -951,7 +966,11 @@ fn explain_provenance(request: &InprocInvocation) -> anyhow::Result<Value> {
         .map(|s| s.to_string())
         .unwrap_or("proposal:default".to_string());
 
-    let sequence = request.input.get("sequence").and_then(Value::as_u64).unwrap_or(1);
+    let sequence = request
+        .input
+        .get("sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
 
     // Compute content addresses for the chain artifacts
     let state_delta_ref = format!("asset:state_delta:{}:{}", board_id, sequence);
@@ -1526,7 +1545,9 @@ mod tests {
         assert!(!safety::contains_raw_secret(
             &json!({"api_key": "secret_ref:env:MY_KEY"})
         ));
-        assert!(!safety::contains_raw_secret(&json!({"objective": "safe text"})));
+        assert!(!safety::contains_raw_secret(
+            &json!({"objective": "safe text"})
+        ));
     }
 
     #[test]
@@ -1562,10 +1583,22 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("playable_creation_board_action_recorded"));
-        assert!(result["content_address"].is_string(), "must have content_address");
-        assert!(result["content_address"].as_str().unwrap().starts_with("fnv1a64:"));
-        assert!(result["state_snapshot_asset_ref"].is_string(), "must have state_snapshot_asset_ref");
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_action_recorded")
+        );
+        assert!(
+            result["content_address"].is_string(),
+            "must have content_address"
+        );
+        assert!(result["content_address"]
+            .as_str()
+            .unwrap()
+            .starts_with("fnv1a64:"));
+        assert!(
+            result["state_snapshot_asset_ref"].is_string(),
+            "must have state_snapshot_asset_ref"
+        );
         assert!(result["disclosure"].is_string(), "must have disclosure");
     }
 
@@ -1581,9 +1614,18 @@ mod tests {
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("playable_creation_board_checkpoint"));
-        assert!(result["content_address"].is_string(), "must have content_address");
-        assert!(result["content_address"].as_str().unwrap().starts_with("fnv1a64:"));
-        assert!(result["state_snapshot_asset_ref"].is_string(), "must have state_snapshot_asset_ref");
+        assert!(
+            result["content_address"].is_string(),
+            "must have content_address"
+        );
+        assert!(result["content_address"]
+            .as_str()
+            .unwrap()
+            .starts_with("fnv1a64:"));
+        assert!(
+            result["state_snapshot_asset_ref"].is_string(),
+            "must have state_snapshot_asset_ref"
+        );
         assert!(result["disclosure"].is_string(), "must have disclosure");
         assert!(result["provenance"]["content_address"].is_string());
     }
@@ -1599,14 +1641,23 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("playable_creation_board_provenance_chain"));
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_provenance_chain")
+        );
         let chain = result["chain"].as_array().unwrap();
         // Each chain step should now have content_address
         for step in chain {
-            assert!(step["content_address"].is_string(), "chain step must have content_address");
+            assert!(
+                step["content_address"].is_string(),
+                "chain step must have content_address"
+            );
         }
         // Must have provenance_graph
-        assert!(result["provenance_graph"].is_object(), "must have provenance_graph");
+        assert!(
+            result["provenance_graph"].is_object(),
+            "must have provenance_graph"
+        );
         assert!(result["provenance_graph"]["nodes"].is_array());
         assert!(result["provenance_graph"]["edges"].is_array());
     }
@@ -1623,7 +1674,10 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("playable_creation_board_state_diff_preview"));
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_state_diff_preview")
+        );
         assert_eq!(result["branch_aware"], json!(true));
         assert!(result["before_content_address"].is_string());
         assert!(result["after_content_address"].is_string());
@@ -1642,7 +1696,10 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("playable_creation_board_asset_provenance"));
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_asset_provenance")
+        );
         assert!(result["content_address"].is_string());
         assert!(result["provenance_graph"].is_object());
         assert!(result["provenance_graph"]["disclosure"].is_string());
@@ -1662,7 +1719,10 @@ mod tests {
     fn content_address_different_for_different_content() {
         let ca1 = crate::runtime::content_address("content a");
         let ca2 = crate::runtime::content_address("content b");
-        assert_ne!(ca1, ca2, "different content must produce different addresses");
+        assert_ne!(
+            ca1, ca2,
+            "different content must produce different addresses"
+        );
     }
 
     #[test]
@@ -1675,7 +1735,10 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("playable_creation_board_state_diff_rejected"));
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_state_diff_rejected")
+        );
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
     }
 
@@ -1689,7 +1752,10 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("playable_creation_board_provenance_describe_rejected"));
+        assert_eq!(
+            result["kind"],
+            json!("playable_creation_board_provenance_describe_rejected")
+        );
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
     }
 

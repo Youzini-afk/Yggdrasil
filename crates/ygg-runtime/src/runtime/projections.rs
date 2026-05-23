@@ -1,6 +1,6 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use schemars::JsonSchema;
 use ygg_core::{SessionId, EVENT_PROJECTION_UPDATED};
 
 use super::Runtime;
@@ -20,12 +20,21 @@ impl<S> Runtime<S>
 where
     S: EventStore,
 {
-    pub async fn projection_register(&self, definition: ProjectionDefinition) -> anyhow::Result<ProjectionDefinition> {
-        self.projections.write().await.insert(definition.id.clone(), definition.clone());
+    pub async fn projection_register(
+        &self,
+        definition: ProjectionDefinition,
+    ) -> anyhow::Result<ProjectionDefinition> {
+        self.projections
+            .write()
+            .await
+            .insert(definition.id.clone(), definition.clone());
         Ok(definition)
     }
 
-    pub async fn projection_rebuild(&self, projection_id: &str) -> anyhow::Result<ProjectionDefinition> {
+    pub async fn projection_rebuild(
+        &self,
+        projection_id: &str,
+    ) -> anyhow::Result<ProjectionDefinition> {
         let mut projections = self.projections.write().await;
         let projection = projections
             .get_mut(projection_id)
@@ -51,7 +60,10 @@ where
         Ok(projection)
     }
 
-    pub async fn projection_get(&self, projection_id: &str) -> anyhow::Result<ProjectionDefinition> {
+    pub async fn projection_get(
+        &self,
+        projection_id: &str,
+    ) -> anyhow::Result<ProjectionDefinition> {
         self.projections
             .read()
             .await

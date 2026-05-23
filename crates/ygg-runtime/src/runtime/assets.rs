@@ -1,11 +1,11 @@
 use chrono::Utc;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use schemars::JsonSchema;
-use ygg_core::{new_id, AssetRecord, PackageId, KERNEL_PACKAGE_ID, EVENT_ASSET_PUT};
+use ygg_core::{new_id, AssetRecord, PackageId, EVENT_ASSET_PUT, KERNEL_PACKAGE_ID};
 
 use super::{Runtime, StoredAsset};
-use crate::{EventStore, redaction};
+use crate::{redaction, EventStore};
 
 // ---------------------------------------------------------------------------
 // Stable content-address helper (FNV-1a 64-bit, deterministic across runs)
@@ -41,10 +41,7 @@ pub fn content_address(content: &str) -> String {
 ///
 /// Callers should merge this into their `AssetPutRequest.metadata`.
 /// No raw secrets are included; secret fields use `secret_ref:` references.
-pub fn standard_asset_metadata(
-    origin_package_id: &str,
-    disclosure: &str,
-) -> Value {
+pub fn standard_asset_metadata(origin_package_id: &str, disclosure: &str) -> Value {
     json!({
         "content_address_scheme": "fnv1a64",
         "provenance": {
@@ -81,7 +78,9 @@ where
         // Scan asset metadata for raw secrets (content is arbitrary user data — excluded)
         let metadata_scan = redaction::scan_value_for_raw_secrets(&request.metadata, "metadata");
         if metadata_scan.has_findings() {
-            let findings: Vec<String> = metadata_scan.findings.iter()
+            let findings: Vec<String> = metadata_scan
+                .findings
+                .iter()
                 .map(|f| format!("{} ({:?})", f.path, f.detection))
                 .collect();
             anyhow::bail!(
@@ -90,7 +89,10 @@ where
             );
         }
 
-        let origin_package_id = request.origin_package_id.take().unwrap_or_else(|| KERNEL_PACKAGE_ID.to_string());
+        let origin_package_id = request
+            .origin_package_id
+            .take()
+            .unwrap_or_else(|| KERNEL_PACKAGE_ID.to_string());
         let ca = content_address(&request.content);
         let record = AssetRecord {
             id: new_id("ast"),
@@ -101,7 +103,13 @@ where
             created_at: Utc::now(),
             metadata: request.metadata,
         };
-        self.assets.write().await.insert(record.id.clone(), StoredAsset { record: record.clone(), content: request.content.clone() });
+        self.assets.write().await.insert(
+            record.id.clone(),
+            StoredAsset {
+                record: record.clone(),
+                content: request.content.clone(),
+            },
+        );
         self.append_kernel_event_with_metadata(
             &format!("kernel_asset_{}", record.id),
             EVENT_ASSET_PUT,
@@ -118,12 +126,21 @@ where
             .await
             .get(asset_id)
             .cloned()
-            .map(|stored| AssetGetResponse { record: stored.record, content: stored.content })
+            .map(|stored| AssetGetResponse {
+                record: stored.record,
+                content: stored.content,
+            })
             .ok_or_else(|| anyhow::anyhow!("asset '{asset_id}' not found"))
     }
 
     pub async fn list_assets(&self) -> Vec<AssetRecord> {
-        let mut assets: Vec<_> = self.assets.read().await.values().map(|stored| stored.record.clone()).collect();
+        let mut assets: Vec<_> = self
+            .assets
+            .read()
+            .await
+            .values()
+            .map(|stored| stored.record.clone())
+            .collect();
         assets.sort_by(|a, b| a.created_at.cmp(&b.created_at));
         assets
     }

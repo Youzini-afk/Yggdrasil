@@ -55,12 +55,18 @@ pub struct SecretRef {
 impl SecretRef {
     /// Create a new secret reference with the given ref_id.
     pub fn new(ref_id: impl Into<String>) -> Self {
-        Self { ref_id: ref_id.into(), label: None }
+        Self {
+            ref_id: ref_id.into(),
+            label: None,
+        }
     }
 
     /// Create a secret reference with a human-readable label.
     pub fn with_label(ref_id: impl Into<String>, label: impl Into<String>) -> Self {
-        Self { ref_id: ref_id.into(), label: Some(label.into()) }
+        Self {
+            ref_id: ref_id.into(),
+            label: Some(label.into()),
+        }
     }
 
     /// Check whether a string looks like a valid secret reference.
@@ -71,7 +77,9 @@ impl SecretRef {
     /// - `secret-ref:<vault>:<key>` (kebab-case variant)
     /// - `host:xxx` references for host-injected secrets
     pub fn is_valid_ref(s: &str) -> bool {
-        if s.starts_with(SECRET_REF_PREFIX) || SECRET_REF_ALT_PREFIXES.iter().any(|p| s.starts_with(p)) {
+        if s.starts_with(SECRET_REF_PREFIX)
+            || SECRET_REF_ALT_PREFIXES.iter().any(|p| s.starts_with(p))
+        {
             // Must have at least vault:key after the prefix
             let after_prefix = s.find(':').map(|i| &s[i + 1..]).unwrap_or("");
             after_prefix.contains(':') && after_prefix.len() > 2
@@ -151,7 +159,11 @@ pub fn looks_like_raw_secret(value: &str) -> bool {
     }
 
     // Long alphanumeric strings typical of API keys (>= 32 chars, high entropy)
-    if value.len() >= 32 && value.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.') {
+    if value.len() >= 32
+        && value
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
         // Check for mixed-case/digit pattern typical of API keys
         let has_upper = value.chars().any(|c| c.is_ascii_uppercase());
         let has_lower = value.chars().any(|c| c.is_ascii_lowercase());

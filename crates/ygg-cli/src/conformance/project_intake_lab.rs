@@ -595,8 +595,14 @@ pub(crate) async fn project_intake_wrapper_preview_no_execution() -> anyhow::Res
     let files = ts_result.output["files"].as_array().unwrap();
     anyhow::ensure!(!files.is_empty(), "must have files");
     let content = files[0]["content"].as_str().unwrap();
-    anyhow::ensure!(content.contains("SAFE COMMENT"), "wrapper must contain SAFE COMMENT");
-    anyhow::ensure!(content.contains("policy-gated executor"), "wrapper must reference policy-gated executor");
+    anyhow::ensure!(
+        content.contains("SAFE COMMENT"),
+        "wrapper must contain SAFE COMMENT"
+    );
+    anyhow::ensure!(
+        content.contains("policy-gated executor"),
+        "wrapper must reference policy-gated executor"
+    );
 
     // Python variant
     let py_result = invoke(
@@ -637,12 +643,21 @@ pub(crate) async fn project_intake_fixture_preview_redacted() -> anyhow::Result<
 
     // Fixture input must not contain raw secrets
     let input_str = serde_json::to_string(&result.output["fixture_input"]).unwrap();
-    anyhow::ensure!(!input_str.contains("sk-"), "fixture input must not contain sk- prefix");
-    anyhow::ensure!(!input_str.contains("Bearer "), "fixture input must not contain Bearer prefix");
+    anyhow::ensure!(
+        !input_str.contains("sk-"),
+        "fixture input must not contain sk- prefix"
+    );
+    anyhow::ensure!(
+        !input_str.contains("Bearer "),
+        "fixture input must not contain Bearer prefix"
+    );
 
     // Fixture output must be redacted
     let output = &result.output["fixture_output"];
-    anyhow::ensure!(output["result_preview"] == json!("[redacted]"), "fixture output result must be redacted");
+    anyhow::ensure!(
+        output["result_preview"] == json!("[redacted]"),
+        "fixture output result must be redacted"
+    );
 
     Ok(())
 }

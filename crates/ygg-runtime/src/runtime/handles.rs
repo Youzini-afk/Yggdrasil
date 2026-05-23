@@ -16,7 +16,12 @@ impl HandleTable {
         let id = handle.id;
         let holder = handle.scope.holder_package_id.clone();
         self.handles.write().await.insert(id, handle);
-        self.by_holder.write().await.entry(holder).or_default().push(id);
+        self.by_holder
+            .write()
+            .await
+            .entry(holder)
+            .or_default()
+            .push(id);
         id
     }
 

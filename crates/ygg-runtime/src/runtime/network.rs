@@ -235,8 +235,8 @@ where
             )
         };
 
-        let principal_str = serde_json::to_string(&request.principal)
-            .unwrap_or_else(|_| "\"unknown\"".to_string());
+        let principal_str =
+            serde_json::to_string(&request.principal).unwrap_or_else(|_| "\"unknown\"".to_string());
 
         if !decision.allowed {
             let record = OutboundAuditRecord {
@@ -254,8 +254,7 @@ where
                 status: "denied".to_string(),
                 error: decision.denial_reason.clone(),
             };
-            let session_id =
-                format!("kernel_outbound_{}", request.package_id.replace('/', "_"));
+            let session_id = format!("kernel_outbound_{}", request.package_id.replace('/', "_"));
             self.append_kernel_event(
                 &session_id,
                 EVENT_OUTBOUND_DENIED,
@@ -268,9 +267,12 @@ where
             );
         }
 
-        let purpose = request
-            .purpose
-            .or_else(|| decision.matched_declaration.as_ref().and_then(|d| d.purpose.clone()));
+        let purpose = request.purpose.or_else(|| {
+            decision
+                .matched_declaration
+                .as_ref()
+                .and_then(|d| d.purpose.clone())
+        });
 
         let record = OutboundAuditRecord {
             id: new_id("ob"),
@@ -302,7 +304,10 @@ where
         &self,
         completion: OutboundExecuteCompletion<'_>,
     ) -> anyhow::Result<()> {
-        let session_id = format!("kernel_outbound_{}", completion.package_id.replace('/', "_"));
+        let session_id = format!(
+            "kernel_outbound_{}",
+            completion.package_id.replace('/', "_")
+        );
         self.append_kernel_event(
             &session_id,
             EVENT_OUTBOUND_EXECUTE_COMPLETED,
@@ -441,7 +446,10 @@ mod tests {
     use ygg_core::NetworkPermissions;
 
     fn make_perms(declarations: Vec<NetworkDeclaration>, hosts: Vec<String>) -> NetworkPermissions {
-        NetworkPermissions { hosts, declarations }
+        NetworkPermissions {
+            hosts,
+            declarations,
+        }
     }
 
     #[test]
@@ -559,7 +567,10 @@ mod tests {
         // GET matches the structured declaration
         let decision = check_network_policy(&perms, "api.example.com", "GET");
         assert!(decision.allowed);
-        assert_eq!(decision.matched_declaration.unwrap().purpose, Some("structured".to_string()));
+        assert_eq!(
+            decision.matched_declaration.unwrap().purpose,
+            Some("structured".to_string())
+        );
     }
 
     #[test]

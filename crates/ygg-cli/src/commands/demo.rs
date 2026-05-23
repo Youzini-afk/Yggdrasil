@@ -44,8 +44,8 @@ pub(crate) async fn demo() -> Result<()> {
 
 pub(crate) fn demo_event_writer_manifest() -> ygg_core::PackageManifest {
     use ygg_core::{
-        EntryDescriptor, EventPermissions, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
-        SandboxPolicy,
+        EntryDescriptor, EventPermissions, PackageContributions, PackageEntry, PackageManifest,
+        PermissionSet, SandboxPolicy,
     };
 
     PackageManifest {
@@ -170,8 +170,8 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant)?,
         transport: "demo".to_string(),
-    correlation_id: None,
-    parent_invocation_id: None,
+        correlation_id: None,
+        parent_invocation_id: None,
     };
     let proposal = runtime
         .call_protocol(

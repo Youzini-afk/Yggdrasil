@@ -43,27 +43,63 @@ fn describe_families(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn mask_secret(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let secret = request.input.get("secret").and_then(Value::as_str).unwrap_or_default();
+    let secret = request
+        .input
+        .get("secret")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let masked = if secret.is_empty() {
         "<secret:redacted>".to_string()
     } else {
-        let suffix: String = secret.chars().rev().take(4).collect::<String>().chars().rev().collect();
+        let suffix: String = secret
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
         format!("<secret:...{suffix}>")
     };
     Ok(serde_json::json!({"kind": "model_secret_mask", "masked": masked, "raw_returned": false}))
 }
 
 fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let family = request.input.get("provider_family").and_then(Value::as_str).unwrap_or_default();
-    let supported = ["openai", "openai-compatible", "anthropic", "google", "deepseek", "xai"].contains(&family);
-    let base_url = request.input.get("base_url").and_then(Value::as_str).unwrap_or_default();
-    let secret_ref = request.input.get("secret_ref").and_then(Value::as_str).unwrap_or_default();
-    let has_raw_secret = request.input.get("api_key").is_some() || request.input.get("secret").is_some();
+    let family = request
+        .input
+        .get("provider_family")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let supported = [
+        "openai",
+        "openai-compatible",
+        "anthropic",
+        "google",
+        "deepseek",
+        "xai",
+    ]
+    .contains(&family);
+    let base_url = request
+        .input
+        .get("base_url")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let secret_ref = request
+        .input
+        .get("secret_ref")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let has_raw_secret =
+        request.input.get("api_key").is_some() || request.input.get("secret").is_some();
     let mut diagnostics = Vec::new();
     if !supported {
-        diagnostics.push(serde_json::json!({"severity": "error", "message": "unsupported provider_family"}));
+        diagnostics.push(
+            serde_json::json!({"severity": "error", "message": "unsupported provider_family"}),
+        );
     }
-    if family == "openai-compatible" && !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
+    if family == "openai-compatible"
+        && !(base_url.starts_with("http://") || base_url.starts_with("https://"))
+    {
         diagnostics.push(serde_json::json!({"severity": "error", "message": "openai-compatible requires http(s) base_url"}));
     }
     if secret_ref.is_empty() {
@@ -72,7 +108,9 @@ fn validate_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
     if has_raw_secret {
         diagnostics.push(serde_json::json!({"severity": "error", "message": "raw secrets are not accepted; use secret_ref"}));
     }
-    let valid = !diagnostics.iter().any(|d| d.get("severity").and_then(Value::as_str) == Some("error"));
+    let valid = !diagnostics
+        .iter()
+        .any(|d| d.get("severity").and_then(Value::as_str) == Some("error"));
     Ok(serde_json::json!({
         "kind": "model_connector_profile_validation",
         "valid": valid,

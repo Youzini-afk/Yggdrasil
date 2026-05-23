@@ -8,6 +8,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{mpsc, Mutex, RwLock};
@@ -16,7 +17,6 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::{HeaderName, HeaderValue};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-use schemars::JsonSchema;
 
 use super::outbound::ExecutorKind;
 use ygg_core::RedactionState;
@@ -55,19 +55,48 @@ pub struct OutboundWebSocketSession {
 
 #[derive(Debug, Clone)]
 pub enum WebSocketEvent {
-    Opened { connection_id: String, subprotocol: Option<String> },
-    Frame { connection_id: String, direction: FrameDirection, kind: FrameKind, bytes: usize, seq: u64, payload: WebSocketFramePayload },
-    Error { connection_id: String, code: String, message_redacted: String },
-    Closed { connection_id: String, code: u16, reason: String, total_frames_in: u64, total_frames_out: u64, total_bytes_in: u64, total_bytes_out: u64, duration_ms: u64 },
+    Opened {
+        connection_id: String,
+        subprotocol: Option<String>,
+    },
+    Frame {
+        connection_id: String,
+        direction: FrameDirection,
+        kind: FrameKind,
+        bytes: usize,
+        seq: u64,
+        payload: WebSocketFramePayload,
+    },
+    Error {
+        connection_id: String,
+        code: String,
+        message_redacted: String,
+    },
+    Closed {
+        connection_id: String,
+        code: u16,
+        reason: String,
+        total_frames_in: u64,
+        total_frames_out: u64,
+        total_bytes_in: u64,
+        total_bytes_out: u64,
+        duration_ms: u64,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum FrameDirection { Inbound, Outbound }
+pub enum FrameDirection {
+    Inbound,
+    Outbound,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum FrameKind { Text, Binary }
+pub enum FrameKind {
+    Text,
+    Binary,
+}
 
 #[derive(Debug, Clone)]
 pub enum WebSocketFramePayload {
@@ -128,7 +157,11 @@ impl WebSocketExecutor for DenyAllWebSocketExecutor {
         Err(anyhow::anyhow!("websocket outbound denied by host policy"))
     }
 
-    async fn send(&self, _connection_id: &str, _frame: OutboundWebSocketFrame) -> Result<SendStatus> {
+    async fn send(
+        &self,
+        _connection_id: &str,
+        _frame: OutboundWebSocketFrame,
+    ) -> Result<SendStatus> {
         Err(anyhow::anyhow!("websocket outbound denied by host policy"))
     }
 
@@ -189,7 +222,11 @@ impl FakeWebSocketExecutor {
 
     pub fn with_simulated_idle_timeout() -> Self {
         Self {
-            simulated_close: Some((Some("idle_timeout".to_string()), 1001, "idle_timeout".to_string())),
+            simulated_close: Some((
+                Some("idle_timeout".to_string()),
+                1001,
+                "idle_timeout".to_string(),
+            )),
             ..Self::new()
         }
     }
@@ -197,7 +234,11 @@ impl FakeWebSocketExecutor {
     pub fn with_simulated_byte_limit(frames: Vec<OutboundWebSocketFrame>) -> Self {
         Self {
             canned_inbound_frames: frames,
-            simulated_close: Some((Some("inbound_limit".to_string()), 1009, "inbound_limit".to_string())),
+            simulated_close: Some((
+                Some("inbound_limit".to_string()),
+                1009,
+                "inbound_limit".to_string(),
+            )),
             ..Self::new()
         }
     }
@@ -215,7 +256,9 @@ impl FakeWebSocketExecutor {
 }
 
 impl Default for FakeWebSocketExecutor {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[async_trait]
@@ -226,7 +269,9 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
                 anyhow::bail!("websocket connection cap exceeded");
             }
         }
-        let connection_id = req.metadata.get("connection_id")
+        let connection_id = req
+            .metadata
+            .get("connection_id")
             .and_then(Value::as_str)
             .map(str::to_string)
             .unwrap_or_else(|| Uuid::new_v4().to_string());
@@ -236,14 +281,23 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
             started: Some(Instant::now()),
             ..FakeConnectionState::default()
         }));
-        self.connections.write().await.insert(connection_id.clone(), FakeConnection { tx: tx.clone(), state: state.clone() });
+        self.connections.write().await.insert(
+            connection_id.clone(),
+            FakeConnection {
+                tx: tx.clone(),
+                state: state.clone(),
+            },
+        );
 
         let canned = self.canned_inbound_frames.clone();
         let auto_close = self.auto_close_after_canned;
         let simulated_close = self.simulated_close.clone();
         let cid = connection_id.clone();
         tokio::spawn(async move {
-            let _ = tx.send(WebSocketEvent::Opened { connection_id: cid.clone(), subprotocol });
+            let _ = tx.send(WebSocketEvent::Opened {
+                connection_id: cid.clone(),
+                subprotocol,
+            });
             for frame in canned {
                 let mut guard = state.lock().await;
                 guard.next_seq += 1;
@@ -270,7 +324,10 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
                         message_redacted: format!("websocket {error_code}"),
                     });
                 }
-                let duration_ms = guard.started.map(|start| start.elapsed().as_millis() as u64).unwrap_or(0);
+                let duration_ms = guard
+                    .started
+                    .map(|start| start.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
                 let _ = tx.send(WebSocketEvent::Closed {
                     connection_id: cid,
                     code: close_code,
@@ -284,7 +341,10 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
             } else if auto_close {
                 let mut guard = state.lock().await;
                 guard.closed = true;
-                let duration_ms = guard.started.map(|start| start.elapsed().as_millis() as u64).unwrap_or(0);
+                let duration_ms = guard
+                    .started
+                    .map(|start| start.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
                 let _ = tx.send(WebSocketEvent::Closed {
                     connection_id: cid,
                     code: 1000,
@@ -322,7 +382,10 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
         guard.bytes_out += frame.len() as u64;
         let seq = guard.next_seq;
         drop(guard);
-        self.recorded_outbound.lock().await.push((connection_id.to_string(), frame.clone()));
+        self.recorded_outbound
+            .lock()
+            .await
+            .push((connection_id.to_string(), frame.clone()));
         let _ = conn.tx.send(WebSocketEvent::Frame {
             connection_id: connection_id.to_string(),
             direction: FrameDirection::Outbound,
@@ -335,14 +398,22 @@ impl WebSocketExecutor for FakeWebSocketExecutor {
     }
 
     async fn close(&self, connection_id: &str, code: u16, reason: Option<String>) -> Result<()> {
-        let conn = self.connections.read().await.get(connection_id).cloned()
+        let conn = self
+            .connections
+            .read()
+            .await
+            .get(connection_id)
+            .cloned()
             .ok_or_else(|| anyhow::anyhow!("websocket connection not found"))?;
         let mut guard = conn.state.lock().await;
         if guard.closed {
             return Ok(());
         }
         guard.closed = true;
-        let duration_ms = guard.started.map(|start| start.elapsed().as_millis() as u64).unwrap_or(0);
+        let duration_ms = guard
+            .started
+            .map(|start| start.elapsed().as_millis() as u64)
+            .unwrap_or(0);
         let _ = conn.tx.send(WebSocketEvent::Closed {
             connection_id: connection_id.to_string(),
             code,
@@ -406,7 +477,10 @@ enum LiveCommand {
 
 impl LiveWebSocketExecutor {
     pub fn new(config: LiveWebSocketExecutorConfig) -> Self {
-        Self { config, connections: RwLock::new(HashMap::new()) }
+        Self {
+            config,
+            connections: RwLock::new(HashMap::new()),
+        }
     }
 
     pub fn new_from_profile_fields(
@@ -452,29 +526,55 @@ impl LiveWebSocketExecutor {
 
     fn validate_open_request(&self, req: &OutboundWebSocketOpenRequest) -> Result<String> {
         if self.config.allowed_hosts.is_empty()
-            || !self.config.allowed_hosts.iter().any(|allowed| ws_host_matches(allowed, &req.destination_host))
+            || !self
+                .config
+                .allowed_hosts
+                .iter()
+                .any(|allowed| ws_host_matches(allowed, &req.destination_host))
         {
-            anyhow::bail!("host policy does not allow websocket host '{}'", req.destination_host);
+            anyhow::bail!(
+                "host policy does not allow websocket host '{}'",
+                req.destination_host
+            );
         }
-        let scheme = req.metadata.get("scheme").and_then(Value::as_str).unwrap_or("wss");
+        let scheme = req
+            .metadata
+            .get("scheme")
+            .and_then(Value::as_str)
+            .unwrap_or("wss");
         if self.config.wss_only && scheme != "wss" {
             let loopback = is_loopback_host(&req.destination_host);
             if !self.config.allow_insecure_ws_for_tests || !loopback || scheme != "ws" {
-                anyhow::bail!("live websocket executor rejects non-WSS URL for host '{}'", req.destination_host);
+                anyhow::bail!(
+                    "live websocket executor rejects non-WSS URL for host '{}'",
+                    req.destination_host
+                );
             }
         } else if scheme != "wss" && scheme != "ws" {
             anyhow::bail!("live websocket executor requires ws or wss scheme");
         }
         let raw_path = req.path.as_deref().unwrap_or("/");
-        let path = if raw_path.starts_with('/') { raw_path.to_string() } else { format!("/{raw_path}") };
+        let path = if raw_path.starts_with('/') {
+            raw_path.to_string()
+        } else {
+            format!("/{raw_path}")
+        };
         let url = format!("{scheme}://{}{}", req.destination_host, path);
         let parsed = reqwest::Url::parse(&url)
             .map_err(|e| anyhow::anyhow!("invalid websocket URL '{}': {e}", url))?;
         let actual_host = parsed.host_str().unwrap_or("");
-        if !actual_host.eq_ignore_ascii_case(req.destination_host.split(':').next().unwrap_or(&req.destination_host))
-            && !actual_host.eq_ignore_ascii_case(&req.destination_host)
+        if !actual_host.eq_ignore_ascii_case(
+            req.destination_host
+                .split(':')
+                .next()
+                .unwrap_or(&req.destination_host),
+        ) && !actual_host.eq_ignore_ascii_case(&req.destination_host)
         {
-            anyhow::bail!("websocket URL host '{}' does not match destination_host '{}'", actual_host, req.destination_host);
+            anyhow::bail!(
+                "websocket URL host '{}' does not match destination_host '{}'",
+                actual_host,
+                req.destination_host
+            );
         }
         Ok(url)
     }
@@ -521,37 +621,53 @@ impl WebSocketExecutor for LiveWebSocketExecutor {
         if response.status().as_u16() != 101 {
             anyhow::bail!("websocket upgrade failed with status {}", response.status());
         }
-        let negotiated = response.headers()
+        let negotiated = response
+            .headers()
             .get("sec-websocket-protocol")
             .and_then(|v| v.to_str().ok())
             .map(str::to_string);
         if let Some(protocol) = &negotiated {
-            if !req.subprotocols.iter().any(|requested| requested == protocol) {
+            if !req
+                .subprotocols
+                .iter()
+                .any(|requested| requested == protocol)
+            {
                 anyhow::bail!("websocket negotiated unexpected subprotocol");
             }
         }
 
-        let connection_id = req.metadata.get("connection_id")
+        let connection_id = req
+            .metadata
+            .get("connection_id")
             .and_then(Value::as_str)
             .map(str::to_string)
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
-        self.connections.write().await.insert(connection_id.clone(), LiveConnection {
-            tx: cmd_tx,
-            max_frame_bytes: req.max_frame_bytes.min(self.config.max_frame_bytes),
-            max_total_bytes_outbound: req.max_total_bytes_outbound.min(self.config.max_total_bytes_outbound),
-            total_bytes_outbound: 0,
-            closed: false,
+        self.connections.write().await.insert(
+            connection_id.clone(),
+            LiveConnection {
+                tx: cmd_tx,
+                max_frame_bytes: req.max_frame_bytes.min(self.config.max_frame_bytes),
+                max_total_bytes_outbound: req
+                    .max_total_bytes_outbound
+                    .min(self.config.max_total_bytes_outbound),
+                total_bytes_outbound: 0,
+                closed: false,
+            },
+        );
+        let _ = event_tx.send(WebSocketEvent::Opened {
+            connection_id: connection_id.clone(),
+            subprotocol: negotiated.clone(),
         });
-        let _ = event_tx.send(WebSocketEvent::Opened { connection_id: connection_id.clone(), subprotocol: negotiated.clone() });
         spawn_live_actor(
             connection_id.clone(),
             ws_stream,
             cmd_rx,
             event_tx,
             req.max_frame_bytes.min(self.config.max_frame_bytes),
-            req.max_total_bytes_inbound.min(self.config.max_total_bytes_inbound),
+            req.max_total_bytes_inbound
+                .min(self.config.max_total_bytes_inbound),
             req.max_idle_ms.min(self.config.max_idle_ms),
             req.max_duration_ms.min(self.config.max_duration_ms),
         );
@@ -596,7 +712,9 @@ impl WebSocketExecutor for LiveWebSocketExecutor {
             return Ok(());
         };
         conn.closed = true;
-        conn.tx.try_send(LiveCommand::Close(code, reason)).map_err(|_| anyhow::anyhow!("websocket connection closed"))?;
+        conn.tx
+            .try_send(LiveCommand::Close(code, reason))
+            .map_err(|_| anyhow::anyhow!("websocket connection closed"))?;
         Ok(())
     }
 }
@@ -624,12 +742,34 @@ fn spawn_live_actor<S>(
         let (mut sink, mut stream) = ws_stream.split();
         loop {
             if started.elapsed() >= Duration::from_millis(max_duration_ms) {
-                let _ = event_tx.send(WebSocketEvent::Closed { connection_id: connection_id.clone(), code: 1000, reason: "max_duration_ms".to_string(), total_frames_in: frames_in, total_frames_out: frames_out, total_bytes_in: bytes_in, total_bytes_out: bytes_out, duration_ms: started.elapsed().as_millis() as u64 });
+                let _ = event_tx.send(WebSocketEvent::Closed {
+                    connection_id: connection_id.clone(),
+                    code: 1000,
+                    reason: "max_duration_ms".to_string(),
+                    total_frames_in: frames_in,
+                    total_frames_out: frames_out,
+                    total_bytes_in: bytes_in,
+                    total_bytes_out: bytes_out,
+                    duration_ms: started.elapsed().as_millis() as u64,
+                });
                 break;
             }
             if last_activity.elapsed() >= Duration::from_millis(max_idle_ms) {
-                let _ = event_tx.send(WebSocketEvent::Error { connection_id: connection_id.clone(), code: "idle_timeout".to_string(), message_redacted: "websocket idle timeout".to_string() });
-                let _ = event_tx.send(WebSocketEvent::Closed { connection_id: connection_id.clone(), code: 1001, reason: "idle_timeout".to_string(), total_frames_in: frames_in, total_frames_out: frames_out, total_bytes_in: bytes_in, total_bytes_out: bytes_out, duration_ms: started.elapsed().as_millis() as u64 });
+                let _ = event_tx.send(WebSocketEvent::Error {
+                    connection_id: connection_id.clone(),
+                    code: "idle_timeout".to_string(),
+                    message_redacted: "websocket idle timeout".to_string(),
+                });
+                let _ = event_tx.send(WebSocketEvent::Closed {
+                    connection_id: connection_id.clone(),
+                    code: 1001,
+                    reason: "idle_timeout".to_string(),
+                    total_frames_in: frames_in,
+                    total_frames_out: frames_out,
+                    total_bytes_in: bytes_in,
+                    total_bytes_out: bytes_out,
+                    duration_ms: started.elapsed().as_millis() as u64,
+                });
                 break;
             }
             tokio::select! {
@@ -750,7 +890,10 @@ mod tests {
 
     #[tokio::test]
     async fn deny_all_websocket_executor_rejects_open() {
-        let err = DenyAllWebSocketExecutor.open(ws_req("api.example.com")).await.unwrap_err();
+        let err = DenyAllWebSocketExecutor
+            .open(ws_req("api.example.com"))
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("denied"));
     }
 
@@ -761,10 +904,30 @@ mod tests {
             OutboundWebSocketFrame::Binary(Bytes::from_static(b"two")),
         ]);
         let mut session = executor.open(ws_req("api.example.com")).await.unwrap();
-        assert!(matches!(session.events.recv().await.unwrap(), WebSocketEvent::Opened { .. }));
-        assert!(matches!(session.events.recv().await.unwrap(), WebSocketEvent::Frame { seq: 1, direction: FrameDirection::Inbound, .. }));
-        assert!(matches!(session.events.recv().await.unwrap(), WebSocketEvent::Frame { seq: 2, direction: FrameDirection::Inbound, .. }));
-        assert!(matches!(session.events.recv().await.unwrap(), WebSocketEvent::Closed { code: 1000, .. }));
+        assert!(matches!(
+            session.events.recv().await.unwrap(),
+            WebSocketEvent::Opened { .. }
+        ));
+        assert!(matches!(
+            session.events.recv().await.unwrap(),
+            WebSocketEvent::Frame {
+                seq: 1,
+                direction: FrameDirection::Inbound,
+                ..
+            }
+        ));
+        assert!(matches!(
+            session.events.recv().await.unwrap(),
+            WebSocketEvent::Frame {
+                seq: 2,
+                direction: FrameDirection::Inbound,
+                ..
+            }
+        ));
+        assert!(matches!(
+            session.events.recv().await.unwrap(),
+            WebSocketEvent::Closed { code: 1000, .. }
+        ));
     }
 
     #[tokio::test]
@@ -772,10 +935,23 @@ mod tests {
         let executor = FakeWebSocketExecutor::new();
         let mut session = executor.open(ws_req("api.example.com")).await.unwrap();
         let _ = session.events.recv().await.unwrap();
-        let status = executor.send(&session.connection_id, OutboundWebSocketFrame::Text("hello".to_string())).await.unwrap();
+        let status = executor
+            .send(
+                &session.connection_id,
+                OutboundWebSocketFrame::Text("hello".to_string()),
+            )
+            .await
+            .unwrap();
         assert_eq!(status, SendStatus::Ok);
         assert_eq!(executor.recorded_outbound_frames().await.len(), 1);
-        assert!(matches!(session.events.recv().await.unwrap(), WebSocketEvent::Frame { direction: FrameDirection::Outbound, seq: 1, .. }));
+        assert!(matches!(
+            session.events.recv().await.unwrap(),
+            WebSocketEvent::Frame {
+                direction: FrameDirection::Outbound,
+                seq: 1,
+                ..
+            }
+        ));
     }
 
     #[tokio::test]
@@ -783,14 +959,23 @@ mod tests {
         let executor = FakeWebSocketExecutor::new();
         let mut session = executor.open(ws_req("api.example.com")).await.unwrap();
         let _ = session.events.recv().await.unwrap();
-        executor.close(&session.connection_id, 1001, Some("bye".to_string())).await.unwrap();
-        assert!(matches!(session.events.recv().await.unwrap(), WebSocketEvent::Closed { code: 1001, .. }));
+        executor
+            .close(&session.connection_id, 1001, Some("bye".to_string()))
+            .await
+            .unwrap();
+        assert!(matches!(
+            session.events.recv().await.unwrap(),
+            WebSocketEvent::Closed { code: 1001, .. }
+        ));
     }
 
     #[tokio::test]
     async fn fake_websocket_executor_send_to_unknown_connection_returns_not_found() {
         let executor = FakeWebSocketExecutor::new();
-        let status = executor.send("missing", OutboundWebSocketFrame::Text("hello".to_string())).await.unwrap();
+        let status = executor
+            .send("missing", OutboundWebSocketFrame::Text("hello".to_string()))
+            .await
+            .unwrap();
         assert_eq!(status, SendStatus::ConnectionNotFound);
     }
 
@@ -801,24 +986,59 @@ mod tests {
         let mut b = executor.open(ws_req("api.example.com")).await.unwrap();
         let _ = a.events.recv().await.unwrap();
         let _ = b.events.recv().await.unwrap();
-        executor.send(&a.connection_id, OutboundWebSocketFrame::Text("a1".to_string())).await.unwrap();
-        executor.send(&a.connection_id, OutboundWebSocketFrame::Text("a2".to_string())).await.unwrap();
-        executor.send(&b.connection_id, OutboundWebSocketFrame::Text("b1".to_string())).await.unwrap();
-        assert!(matches!(a.events.recv().await.unwrap(), WebSocketEvent::Frame { seq: 1, .. }));
-        assert!(matches!(a.events.recv().await.unwrap(), WebSocketEvent::Frame { seq: 2, .. }));
-        assert!(matches!(b.events.recv().await.unwrap(), WebSocketEvent::Frame { seq: 1, .. }));
+        executor
+            .send(
+                &a.connection_id,
+                OutboundWebSocketFrame::Text("a1".to_string()),
+            )
+            .await
+            .unwrap();
+        executor
+            .send(
+                &a.connection_id,
+                OutboundWebSocketFrame::Text("a2".to_string()),
+            )
+            .await
+            .unwrap();
+        executor
+            .send(
+                &b.connection_id,
+                OutboundWebSocketFrame::Text("b1".to_string()),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            a.events.recv().await.unwrap(),
+            WebSocketEvent::Frame { seq: 1, .. }
+        ));
+        assert!(matches!(
+            a.events.recv().await.unwrap(),
+            WebSocketEvent::Frame { seq: 2, .. }
+        ));
+        assert!(matches!(
+            b.events.recv().await.unwrap(),
+            WebSocketEvent::Frame { seq: 1, .. }
+        ));
     }
 
     #[test]
     fn live_websocket_executor_rejects_unallowed_host() {
-        let executor = LiveWebSocketExecutor::new(LiveWebSocketExecutorConfig { allowed_hosts: vec!["api.example.com".to_string()], ..Default::default() });
-        let err = executor.validate_open_request(&ws_req("evil.example.com")).unwrap_err();
+        let executor = LiveWebSocketExecutor::new(LiveWebSocketExecutorConfig {
+            allowed_hosts: vec!["api.example.com".to_string()],
+            ..Default::default()
+        });
+        let err = executor
+            .validate_open_request(&ws_req("evil.example.com"))
+            .unwrap_err();
         assert!(err.to_string().contains("does not allow"));
     }
 
     #[test]
     fn live_websocket_executor_rejects_non_wss_when_wss_only() {
-        let executor = LiveWebSocketExecutor::new(LiveWebSocketExecutorConfig { allowed_hosts: vec!["api.example.com".to_string()], ..Default::default() });
+        let executor = LiveWebSocketExecutor::new(LiveWebSocketExecutorConfig {
+            allowed_hosts: vec!["api.example.com".to_string()],
+            ..Default::default()
+        });
         let mut req = ws_req("api.example.com");
         req.metadata = serde_json::json!({"scheme": "ws"});
         let err = executor.validate_open_request(&req).unwrap_err();

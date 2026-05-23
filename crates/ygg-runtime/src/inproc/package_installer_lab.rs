@@ -121,7 +121,10 @@ fn plan_install(input: &Value) -> anyhow::Result<Value> {
 
 fn apply_install(input: &Value) -> anyhow::Result<Value> {
     reject_raw_secret(input)?;
-    let approved = input.get("approved").and_then(Value::as_bool).unwrap_or(false);
+    let approved = input
+        .get("approved")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if !approved {
         anyhow::bail!("apply_install requires an approved proposal")
     }
@@ -130,7 +133,10 @@ fn apply_install(input: &Value) -> anyhow::Result<Value> {
     let reference = input.get("ref").and_then(Value::as_str).unwrap_or("main");
     let commit_sha = string_field(input, "commit_sha")?;
     let content_hash = string_field(input, "content_hash")?;
-    let manifest_path = input.get("manifest_path").and_then(Value::as_str).unwrap_or("manifest.yaml");
+    let manifest_path = input
+        .get("manifest_path")
+        .and_then(Value::as_str)
+        .unwrap_or("manifest.yaml");
     validate_public_https_git_url(remote_url)?;
     validate_package_id(package_id)?;
     validate_safe_ref(reference)?;
@@ -189,7 +195,10 @@ fn update(input: &Value) -> anyhow::Result<Value> {
     reject_raw_secret(input)?;
     let package_id = string_field(input, "package_id")?;
     validate_package_id(package_id)?;
-    let target_ref = input.get("target_ref").and_then(Value::as_str).unwrap_or("main");
+    let target_ref = input
+        .get("target_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("main");
     validate_safe_ref(target_ref)?;
     Ok(json!({
         "kind": "package_update_proposal_draft",

@@ -3,16 +3,16 @@ use std::time::Instant;
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
-    CapHandle, CapHandleId, CapabilityId, HandleLease, HandleProvenance, HandleScope,
-    PackageEntry, EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED,
-    EVENT_CAPABILITY_INVOKED, KERNEL_PACKAGE_ID,
+    CapHandle, CapHandleId, CapabilityId, HandleLease, HandleProvenance, HandleScope, PackageEntry,
+    EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
+    KERNEL_PACKAGE_ID,
 };
 
 use super::Runtime;
 use crate::{
-    CapabilityInvocationRequest, CapabilityInvocationResult, EventStore,
-    InprocInvocation, PackageState, ProtocolContext, ProtocolPrincipal, RegisteredCapability,
-    validate_json_schema_subset,
+    validate_json_schema_subset, CapabilityInvocationRequest, CapabilityInvocationResult,
+    EventStore, InprocInvocation, PackageState, ProtocolContext, ProtocolPrincipal,
+    RegisteredCapability,
 };
 
 impl<S> Runtime<S>
@@ -27,7 +27,8 @@ where
         &self,
         request: CapabilityInvocationRequest,
     ) -> anyhow::Result<CapabilityInvocationResult> {
-        self.invoke_capability_authorized(request, Uuid::new_v4()).await
+        self.invoke_capability_authorized(request, Uuid::new_v4())
+            .await
     }
 
     async fn invoke_capability_authorized(
@@ -127,7 +128,12 @@ where
                 }
             }
             validate_handle_lease(&handle)?;
-            return Ok((handle.cap_type, Some(handle.cap_version), handle_id));
+            let version = if handle.cap_version == "1" {
+                None
+            } else {
+                Some(handle.cap_version.clone())
+            };
+            return Ok((handle.cap_type, version, handle_id));
         }
 
         let capability_id = request
@@ -138,13 +144,14 @@ where
             let allowed = if self.is_contract_none_package(caller).await {
                 true
             } else {
-                self
-                    .packages
+                self.packages
                     .permissions(caller)
                     .await
                     .map(|permissions| {
                         permissions.capabilities.invoke.iter().any(|pattern| {
-                            pattern == "*" || pattern == &capability_id || capability_id.starts_with(pattern.trim_end_matches('*'))
+                            pattern == "*"
+                                || pattern == &capability_id
+                                || capability_id.starts_with(pattern.trim_end_matches('*'))
                         })
                     })
                     .unwrap_or(false)
@@ -156,7 +163,10 @@ where
                     "capabilities.invoke",
                 )
                 .await?;
-                anyhow::bail!("package '{caller}' is not allowed to invoke '{}'", capability_id);
+                anyhow::bail!(
+                    "package '{caller}' is not allowed to invoke '{}'",
+                    capability_id
+                );
             }
         }
         let holder = request
@@ -177,7 +187,10 @@ where
                 id: CapHandleId::new(),
                 cap_type: capability_id.clone(),
                 cap_version: provider.descriptor.version,
-                scope: HandleScope { holder_package_id: holder, session_id: None },
+                scope: HandleScope {
+                    holder_package_id: holder,
+                    session_id: None,
+                },
                 constraints: json!({}),
                 lease: HandleLease {
                     expires_at: None,
@@ -228,7 +241,9 @@ where
             )
             .await?;
         validate_json_schema_subset(&provider.descriptor.input_schema, &request.input)?;
-        let output = self.execute_registered_capability(&provider, &capability_id, request.input).await?;
+        let output = self
+            .execute_registered_capability(&provider, &capability_id, request.input)
+            .await?;
         self.handles.record_invocation(active_handle).await?;
         let result = CapabilityInvocationResult {
             capability_id: provider.descriptor.id,
@@ -238,7 +253,10 @@ where
             correlation_id,
         };
         let _ = self
-            .dispatch_extension_handlers("kernel/v1/capability.after_invoke", serde_json::to_value(&result).unwrap_or_else(|_| json!({})))
+            .dispatch_extension_handlers(
+                "kernel/v1/capability.after_invoke",
+                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+            )
             .await;
         Ok(result)
     }
@@ -277,12 +295,18 @@ where
     ) -> anyhow::Result<Value> {
         let output = match self.package_status(&provider.provider_package_id).await {
             Some(record) => match record.manifest.entry.kind {
-                PackageEntry::RustInproc { crate_ref, symbol, .. } => {
+                PackageEntry::RustInproc {
+                    crate_ref, symbol, ..
+                } => {
                     let package = self
                         .config
                         .inproc_packages
                         .lookup(&crate_ref, &symbol)
-                        .ok_or_else(|| anyhow::anyhow!("rust_inproc entry '{crate_ref}::{symbol}' is not available"))?;
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "rust_inproc entry '{crate_ref}::{symbol}' is not available"
+                            )
+                        })?;
                     package
                         .invoke(InprocInvocation {
                             capability_id: capability_id.to_string(),
@@ -303,14 +327,21 @@ where
                             .set_state(&provider.provider_package_id, PackageState::Degraded)
                             .await
                         {
-                            self.append_package_degraded_event(&record, &error.to_string()).await?;
+                            self.append_package_degraded_event(&record, &error.to_string())
+                                .await?;
                         }
                         return Err(error);
                     }
                 },
-                other => anyhow::bail!("entry kind '{}' cannot execute capabilities yet", crate::entry_kind(&other)),
+                other => anyhow::bail!(
+                    "entry kind '{}' cannot execute capabilities yet",
+                    crate::entry_kind(&other)
+                ),
             },
-            None => anyhow::bail!("provider package '{}' is not loaded", provider.provider_package_id),
+            None => anyhow::bail!(
+                "provider package '{}' is not loaded",
+                provider.provider_package_id
+            ),
         };
         validate_json_schema_subset(&provider.descriptor.output_schema, &output)?;
         Ok(output)
@@ -324,16 +355,28 @@ where
         match &context.principal {
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 request.caller_package_id = None;
-                self.invoke_capability_authorized(request, context.effective_correlation_id()).await
+                self.invoke_capability_authorized(request, context.effective_correlation_id())
+                    .await
             }
             ProtocolPrincipal::Package { package_id } => {
                 request.caller_package_id = Some(package_id.clone());
-                self.invoke_capability_authorized(request, context.effective_correlation_id()).await
+                self.invoke_capability_authorized(request, context.effective_correlation_id())
+                    .await
             }
-            ProtocolPrincipal::Human { .. } | ProtocolPrincipal::Assistant { .. } | ProtocolPrincipal::Anonymous => {
-                if self.principal_has_grant(&context.principal, "capabilities.invoke", request.capability_id.as_deref()).await {
+            ProtocolPrincipal::Human { .. }
+            | ProtocolPrincipal::Assistant { .. }
+            | ProtocolPrincipal::Anonymous => {
+                if self
+                    .principal_has_grant(
+                        &context.principal,
+                        "capabilities.invoke",
+                        request.capability_id.as_deref(),
+                    )
+                    .await
+                {
                     request.caller_package_id = None;
-                    self.invoke_capability_authorized(request, context.effective_correlation_id()).await
+                    self.invoke_capability_authorized(request, context.effective_correlation_id())
+                        .await
                 } else {
                     anyhow::bail!("principal is not allowed to invoke capabilities")
                 }
@@ -373,7 +416,10 @@ mod tests {
 
     use serde_json::json;
     use serde_json::Value;
-    use ygg_core::{EntryDescriptor, PackageContributions, PackageEntry, PermissionSet, SandboxPolicy, EVENT_PERMISSION_DENIED};
+    use ygg_core::{
+        EntryDescriptor, PackageContributions, PackageEntry, PermissionSet, SandboxPolicy,
+        EVENT_PERMISSION_DENIED,
+    };
 
     use super::*;
     use crate::{CapabilityInvocationRequest, InMemoryEventStore, RuntimeConfig};
@@ -493,8 +539,12 @@ mod tests {
             .await;
         assert!(denied.is_err());
 
-        let events = store.list_session(&"kernel_capability_example_echo_echo".to_string()).await?;
-        assert!(events.iter().any(|event| event.kind == EVENT_PERMISSION_DENIED));
+        let events = store
+            .list_session(&"kernel_capability_example_echo_echo".to_string())
+            .await?;
+        assert!(events
+            .iter()
+            .any(|event| event.kind == EVENT_PERMISSION_DENIED));
         Ok(())
     }
 

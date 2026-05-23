@@ -8,9 +8,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use ygg_core::PackageEntry;
-use ygg_runtime::{
-    CapabilityInvocationRequest, InMemoryEventStore, Runtime, RuntimeConfig,
-};
+use ygg_runtime::{CapabilityInvocationRequest, InMemoryEventStore, Runtime, RuntimeConfig};
 
 use super::manifest::read_manifest;
 use crate::cli::PackageTemplate;
@@ -21,7 +19,10 @@ pub(crate) async fn package_load(path: PathBuf) -> Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store, RuntimeConfig::default());
     let record = runtime.load_package(manifest).await?;
-    println!("loaded package: {}@{} ({:?})", record.id, record.version, record.state);
+    println!(
+        "loaded package: {}@{} ({:?})",
+        record.id, record.version, record.state
+    );
     Ok(())
 }
 
@@ -115,7 +116,8 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     // Checkpoint/recovery capability coverage for experience packages
     // Build a BTreeSet for exact capability suffix lookups
     let cap_ids: Vec<&str> = manifest.provides.iter().map(|c| c.id.as_str()).collect();
-    let cap_suffix_set: BTreeSet<&str> = cap_ids.iter()
+    let cap_suffix_set: BTreeSet<&str> = cap_ids
+        .iter()
         .filter_map(|c| c.rfind('/').map(|i| &c[i..]))
         .collect();
     if has_experience_entry {
@@ -125,13 +127,18 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         if !has_launch {
             warnings.push("experience_entry surface has no launch/describe_contract capability — surface activation may fail".to_string());
         }
-        let has_checkpoint = cap_suffix_set.contains("/create_checkpoint") || cap_suffix_set.contains("/create-checkpoint");
-        let has_recovery = cap_suffix_set.contains("/draft_recovery") || cap_suffix_set.contains("/draft-recovery");
+        let has_checkpoint = cap_suffix_set.contains("/create_checkpoint")
+            || cap_suffix_set.contains("/create-checkpoint");
+        let has_recovery = cap_suffix_set.contains("/draft_recovery")
+            || cap_suffix_set.contains("/draft-recovery");
         if !has_checkpoint {
             warnings.push("missing create_checkpoint capability — experience cannot be saved/restored mid-session".to_string());
         }
         if !has_recovery {
-            warnings.push("missing draft_recovery capability — experience cannot recover from failures".to_string());
+            warnings.push(
+                "missing draft_recovery capability — experience cannot recover from failures"
+                    .to_string(),
+            );
         }
         let has_request_change = cap_suffix_set.contains("/request_change")
             || cap_suffix_set.contains("/request-change")
@@ -144,13 +151,20 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
 
     // Dangerous permissions check
     if !perm.network.declarations.is_empty() {
-        let has_wildcard = perm.network.declarations.iter().any(|d| d.methods.is_empty());
+        let has_wildcard = perm
+            .network
+            .declarations
+            .iter()
+            .any(|d| d.methods.is_empty());
         if has_wildcard {
             warnings.push("network declaration with empty methods list allows any HTTP method — consider restricting".to_string());
         }
     }
     if perm.capabilities.invoke.iter().any(|p| p == "*") {
-        warnings.push("capabilities.invoke: [\"*\"] grants access to all capabilities — consider narrowing".to_string());
+        warnings.push(
+            "capabilities.invoke: [\"*\"] grants access to all capabilities — consider narrowing"
+                .to_string(),
+        );
     }
 
     // Deterministic path check: network or secret refs make package non-deterministic
@@ -176,13 +190,23 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
             println!("    {}: {}", slot, ids.join(", "));
         }
     }
-    println!("  permissions:  {}", serde_json::to_string(&permissions_summary)?);
+    println!(
+        "  permissions:  {}",
+        serde_json::to_string(&permissions_summary)?
+    );
     if !perm.network.declarations.is_empty() {
         println!("  network declarations:");
         for decl in &perm.network.declarations {
-            let methods = if decl.methods.is_empty() { "*".to_string() } else { decl.methods.join(", ") };
+            let methods = if decl.methods.is_empty() {
+                "*".to_string()
+            } else {
+                decl.methods.join(", ")
+            };
             let purpose = decl.purpose.as_deref().unwrap_or("(none)");
-            println!("    {}: methods=[{}] purpose={}", decl.host, methods, purpose);
+            println!(
+                "    {}: methods=[{}] purpose={}",
+                decl.host, methods, purpose
+            );
         }
     } else if !perm.network.hosts.is_empty() {
         println!("  network hosts: {}", perm.network.hosts.join(", "));
@@ -190,7 +214,10 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
     if !perm.git_fetch.hosts.is_empty() {
         println!("  git fetch hosts: {}", perm.git_fetch.hosts.join(", "));
     }
-    println!("  sandbox:      {}", serde_json::to_string(&sandbox_summary)?);
+    println!(
+        "  sandbox:      {}",
+        serde_json::to_string(&sandbox_summary)?
+    );
     if !warnings.is_empty() {
         println!("  warnings:");
         for w in &warnings {
@@ -232,11 +259,21 @@ pub(crate) async fn package_install_git(
     content_hash: String,
     manifest_path: String,
 ) -> Result<()> {
-    validate_git_lock_inputs(&remote_url, &package_id, &reference, &commit_sha, &content_hash, &manifest_path)?;
+    validate_git_lock_inputs(
+        &remote_url,
+        &package_id,
+        &reference,
+        &commit_sha,
+        &content_hash,
+        &manifest_path,
+    )?;
     let lock_path = profile_lock_path(&profile)?;
     let mut lockfile = read_or_new_lockfile(&profile, &lock_path)?;
     anyhow::ensure!(
-        !lockfile.packages.iter().any(|entry| entry.package_id == package_id),
+        !lockfile
+            .packages
+            .iter()
+            .any(|entry| entry.package_id == package_id),
         "package '{package_id}' is already installed in this profile lockfile"
     );
     let install_root_subdir = install_root_subdir(&package_id, &commit_sha);
@@ -277,8 +314,13 @@ pub(crate) async fn package_uninstall_git(profile: PathBuf, package_id: String) 
     let lock_path = profile_lock_path(&profile)?;
     let mut lockfile = read_or_new_lockfile(&profile, &lock_path)?;
     let before = lockfile.packages.len();
-    lockfile.packages.retain(|entry| entry.package_id != package_id);
-    anyhow::ensure!(before != lockfile.packages.len(), "package '{package_id}' is not installed");
+    lockfile
+        .packages
+        .retain(|entry| entry.package_id != package_id);
+    anyhow::ensure!(
+        before != lockfile.packages.len(),
+        "package '{package_id}' is not installed"
+    );
     write_lockfile(&lock_path, &mut lockfile)?;
     println!("uninstalled package lock entry: {package_id}");
     println!("  lockfile: {}", lock_path.display());
@@ -374,7 +416,9 @@ fn read_or_new_lockfile(profile: &PathBuf, lock_path: &PathBuf) -> Result<Packag
 }
 
 fn write_lockfile(lock_path: &PathBuf, lockfile: &mut PackageInstallLockfile) -> Result<()> {
-    lockfile.packages.sort_by(|a, b| a.package_id.cmp(&b.package_id));
+    lockfile
+        .packages
+        .sort_by(|a, b| a.package_id.cmp(&b.package_id));
     lockfile.generated_at = timestamp_label();
     if let Some(parent) = lock_path.parent() {
         fs::create_dir_all(parent)?;
@@ -405,15 +449,30 @@ fn validate_git_lock_inputs(
 
 fn validate_https_git_url(remote_url: &str) -> Result<()> {
     anyhow::ensure!(remote_url.starts_with("https://"), "git_url must use HTTPS");
-    anyhow::ensure!(!remote_url.contains('?'), "git_url must not include query strings");
-    anyhow::ensure!(!remote_url.contains('@'), "git_url must not include credentials");
+    anyhow::ensure!(
+        !remote_url.contains('?'),
+        "git_url must not include query strings"
+    );
+    anyhow::ensure!(
+        !remote_url.contains('@'),
+        "git_url must not include credentials"
+    );
     Ok(())
 }
 
 fn validate_package_id(package_id: &str) -> Result<()> {
-    anyhow::ensure!(!package_id.trim().is_empty(), "package_id must not be empty");
-    anyhow::ensure!(!package_id.contains(".."), "package_id must not contain path traversal");
-    anyhow::ensure!(!package_id.starts_with('/'), "package_id must not be absolute");
+    anyhow::ensure!(
+        !package_id.trim().is_empty(),
+        "package_id must not be empty"
+    );
+    anyhow::ensure!(
+        !package_id.contains(".."),
+        "package_id must not contain path traversal"
+    );
+    anyhow::ensure!(
+        !package_id.starts_with('/'),
+        "package_id must not be absolute"
+    );
     Ok(())
 }
 
@@ -421,12 +480,18 @@ fn validate_safe_ref(reference: &str) -> Result<()> {
     anyhow::ensure!(!reference.trim().is_empty(), "ref must not be empty");
     anyhow::ensure!(!reference.contains(".."), "ref must not contain '..'");
     anyhow::ensure!(!reference.contains(' '), "ref must not contain spaces");
-    anyhow::ensure!(!reference.contains('\\'), "ref must not contain backslashes");
+    anyhow::ensure!(
+        !reference.contains('\\'),
+        "ref must not contain backslashes"
+    );
     Ok(())
 }
 
 fn validate_commit_sha(commit_sha: &str) -> Result<()> {
-    anyhow::ensure!(commit_sha.len() == 40, "commit_sha must be a 40-character SHA-1");
+    anyhow::ensure!(
+        commit_sha.len() == 40,
+        "commit_sha must be a 40-character SHA-1"
+    );
     anyhow::ensure!(
         commit_sha.chars().all(|ch| ch.is_ascii_hexdigit()),
         "commit_sha must be hex"
@@ -437,8 +502,14 @@ fn validate_commit_sha(commit_sha: &str) -> Result<()> {
 fn validate_manifest_path(path: &str) -> Result<()> {
     anyhow::ensure!(!path.trim().is_empty(), "manifest_path must not be empty");
     anyhow::ensure!(!path.starts_with('/'), "manifest_path must be relative");
-    anyhow::ensure!(!path.contains(".."), "manifest_path must not contain path traversal");
-    anyhow::ensure!(!path.contains('\\'), "manifest_path must not contain backslashes");
+    anyhow::ensure!(
+        !path.contains(".."),
+        "manifest_path must not contain path traversal"
+    );
+    anyhow::ensure!(
+        !path.contains('\\'),
+        "manifest_path must not contain backslashes"
+    );
     anyhow::ensure!(
         path.ends_with(".yaml") || path.ends_with(".yml"),
         "manifest_path must be yaml"
@@ -565,14 +636,25 @@ pub(crate) async fn package_run_fixture(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn package_invoke_local(path: PathBuf, capability_id: String, input: String) -> Result<()> {
+pub(crate) async fn package_invoke_local(
+    path: PathBuf,
+    capability_id: String,
+    input: String,
+) -> Result<()> {
     let manifest = read_manifest(path).await?;
     let payload: serde_json::Value = serde_json::from_str(&input)?;
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store, RuntimeConfig::default());
     runtime.load_package(manifest).await?;
     let result = runtime
-        .invoke_capability(CapabilityInvocationRequest { handle: None, capability_id: Some(capability_id), caller_package_id: None, provider_package_id: None, version: None, input: payload })
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some(capability_id),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            input: payload,
+        })
         .await?;
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
@@ -584,7 +666,9 @@ pub(crate) async fn package_conformance(path: PathBuf) -> Result<()> {
     let capability = manifest
         .provides
         .first()
-        .ok_or_else(|| anyhow::anyhow!("package conformance requires at least one provided capability"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!("package conformance requires at least one provided capability")
+        })?
         .id
         .clone();
     let store = Arc::new(InMemoryEventStore::default());
@@ -600,7 +684,10 @@ pub(crate) async fn package_conformance(path: PathBuf) -> Result<()> {
             input: json!({"package_conformance": true}),
         })
         .await?;
-    anyhow::ensure!(result.output == json!({"package_conformance": true}), "package did not echo conformance payload");
+    anyhow::ensure!(
+        result.output == json!({"package_conformance": true}),
+        "package did not echo conformance payload"
+    );
     println!("package conformance: ok");
     Ok(())
 }
@@ -626,14 +713,20 @@ pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
     // Load
     let load_record = runtime.load_package(manifest.clone()).await?;
     let before = runtime.package_status(&package_id).await;
-    println!("package load: {}@{} ({:?})", load_record.id, load_record.version, load_record.state);
+    println!(
+        "package load: {}@{} ({:?})",
+        load_record.id, load_record.version, load_record.state
+    );
 
     // Logs before restart
     let logs_before = runtime.package_logs(&package_id).await;
     println!("logs before restart: {}", logs_before.len());
 
     if !can_restart {
-        println!("restart: skipped (entry kind '{}' does not support restart)", entry_kind);
+        println!(
+            "restart: skipped (entry kind '{}' does not support restart)",
+            entry_kind
+        );
         println!("  hint: only subprocess packages support restart; rust_inproc/wasm/remote require re-load");
         runtime.unload_package(&package_id).await?;
         return Ok(());
@@ -646,7 +739,10 @@ pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
     // Logs after restart
     let logs_after = runtime.package_logs(&package_id).await;
 
-    println!("restart: {}@{} ({:?})", restart_record.id, restart_record.version, restart_record.state);
+    println!(
+        "restart: {}@{} ({:?})",
+        restart_record.id, restart_record.version, restart_record.state
+    );
     println!("status before: {:?}", before.as_ref().map(|r| &r.state));
     println!("status after:  {:?}", after.as_ref().map(|r| &r.state));
     println!("logs after restart: {}", logs_after.len());
@@ -1184,8 +1280,9 @@ sandbox_policy:
   wall_clock_ms: 30000
 "#
         ),
-        "subprocess" if matches!(effective_template, EffectiveTemplate::ExperienceRuntime) => format!(
-            r#"schema_version: 1
+        "subprocess" if matches!(effective_template, EffectiveTemplate::ExperienceRuntime) => {
+            format!(
+                r#"schema_version: 1
 id: {id}
 version: 0.1.0
 entry:
@@ -1235,7 +1332,8 @@ sandbox_policy:
   memory_mb: 128
   wall_clock_ms: 30000
 "#
-        ),
+            )
+        }
         "subprocess" if matches!(effective_template, EffectiveTemplate::PlayableBoard) => format!(
             r#"schema_version: 1
 id: {id}
@@ -1301,8 +1399,9 @@ sandbox_policy:
   wall_clock_ms: 30000
 "#
         ),
-        "subprocess" if matches!(effective_template, EffectiveTemplate::PlayableExperience) => format!(
-            r#"schema_version: 1
+        "subprocess" if matches!(effective_template, EffectiveTemplate::PlayableExperience) => {
+            format!(
+                r#"schema_version: 1
 id: {id}
 version: 0.1.0
 display_name: Generated Playable Experience
@@ -1377,7 +1476,8 @@ sandbox_policy:
   memory_mb: 128
   wall_clock_ms: 30000
 "#
-        ),
+            )
+        }
         "subprocess" => format!(
             r#"schema_version: 1
 id: {id}
@@ -1431,31 +1531,65 @@ sandbox_policy:
     };
     fs::write(path.join("manifest.yaml"), manifest)?;
     if effective_entry == "subprocess" && language.starts_with("python") {
-        fs::write(path.join("package.py"), templates::PYTHON_SUBPROCESS_TEMPLATE)?;
+        fs::write(
+            path.join("package.py"),
+            templates::PYTHON_SUBPROCESS_TEMPLATE,
+        )?;
     } else if effective_entry == "subprocess" && is_typescript {
         if matches!(effective_template, EffectiveTemplate::Networked) {
-            fs::write(path.join("package.ts"), templates::typescript_networked_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_networked_template(&id),
+            )?;
         } else if matches!(effective_template, EffectiveTemplate::Streaming) {
-            fs::write(path.join("package.ts"), templates::typescript_streaming_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_streaming_template(&id),
+            )?;
         } else if matches!(effective_template, EffectiveTemplate::AgentRuntime) {
-            fs::write(path.join("package.ts"), templates::typescript_agent_runtime_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_agent_runtime_template(&id),
+            )?;
         } else if matches!(effective_template, EffectiveTemplate::ExperienceRuntime) {
-            fs::write(path.join("package.ts"), templates::typescript_experience_runtime_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_experience_runtime_template(&id),
+            )?;
         } else if matches!(effective_template, EffectiveTemplate::PlayableBoard) {
-            fs::write(path.join("package.ts"), templates::typescript_playable_board_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_playable_board_template(&id),
+            )?;
         } else if matches!(effective_template, EffectiveTemplate::PlayableExperience) {
-            fs::write(path.join("package.ts"), templates::typescript_playable_experience_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_playable_experience_template(&id),
+            )?;
         } else {
-            fs::write(path.join("package.ts"), templates::typescript_subprocess_template(&id))?;
+            fs::write(
+                path.join("package.ts"),
+                templates::typescript_subprocess_template(&id),
+            )?;
         }
-        fs::write(path.join("package.mjs"), templates::TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE)?;
+        fs::write(
+            path.join("package.mjs"),
+            templates::TYPESCRIPT_SUBPROCESS_RUNTIME_TEMPLATE,
+        )?;
         fs::write(path.join("tsconfig.json"), templates::TYPESCRIPT_TSCONFIG)?;
-        fs::write(path.join("package.json"), templates::typescript_package_json(&id))?;
+        fs::write(
+            path.join("package.json"),
+            templates::typescript_package_json(&id),
+        )?;
     }
     fs::write(
         path.join("README.md"),
         format!("# {id}\n\nYggdrasil capability package skeleton (template: {:?}).\n\nRun `ygg package conformance manifest.yaml` from this directory.\n", effective_template),
     )?;
-    println!("initialized package skeleton at {} (template: {:?})", path.display(), effective_template);
+    println!(
+        "initialized package skeleton at {} (template: {:?})",
+        path.display(),
+        effective_template
+    );
     Ok(())
 }

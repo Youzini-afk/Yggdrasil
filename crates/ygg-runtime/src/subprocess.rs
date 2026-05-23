@@ -11,13 +11,13 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
+use schemars::JsonSchema;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::timeout;
-use schemars::JsonSchema;
-use ygg_core::{PackageEntry, PackageId, PackageManifest, SubprocessTransport};
+use ygg_core::{CapHandleId, PackageEntry, PackageId, PackageManifest, SubprocessTransport};
 
 use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolError, Runtime};
 
@@ -45,7 +45,12 @@ pub struct SubprocessLogLine {
 }
 
 impl SubprocessSupervisor {
-    pub async fn start<S>(&self, manifest: &PackageManifest, runtime: Runtime<S>) -> anyhow::Result<()>
+    pub async fn start<S>(
+        &self,
+        manifest: &PackageManifest,
+        runtime: Runtime<S>,
+        bindings: HashMap<String, CapHandleId>,
+    ) -> anyhow::Result<()>
     where
         S: EventStore,
     {
@@ -65,9 +70,18 @@ impl SubprocessSupervisor {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()?;
-        let stdin = child.stdin.take().ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stdin"))?;
-        let stdout = child.stdout.take().ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stdout"))?;
-        let stderr = child.stderr.take().ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stderr"))?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stdin"))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stdout"))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("failed to capture subprocess stderr"))?;
         let handle = Arc::new(SubprocessHandle {
             package_id: manifest.id.clone(),
             child: Mutex::new(child),
@@ -79,7 +93,8 @@ impl SubprocessSupervisor {
             reverse_kernel_requests: Mutex::new(HashSet::new()),
         });
 
-        let handshake_timeout = Duration::from_millis(manifest.sandbox_policy.wall_clock_ms.min(5_000));
+        let handshake_timeout =
+            Duration::from_millis(manifest.sandbox_policy.wall_clock_ms.min(5_000));
         let request = json!({
             "jsonrpc": "2.0",
             "id": "handshake-1",
@@ -90,6 +105,7 @@ impl SubprocessSupervisor {
                 "manifest_version": manifest.version,
                 "permissions": manifest.permissions,
                 "capabilities": manifest.provides.iter().map(|capability| capability.id.clone()).collect::<Vec<_>>(),
+                "bindings": bindings,
             }
         });
         let response = match timeout(handshake_timeout, handle.call_direct(request)).await {
@@ -118,11 +134,19 @@ impl SubprocessSupervisor {
             reverse_handle.pump_reverse_kernel_requests(runtime).await;
         });
 
-        self.handles.write().await.insert(manifest.id.clone(), handle);
+        self.handles
+            .write()
+            .await
+            .insert(manifest.id.clone(), handle);
         Ok(())
     }
 
-    pub async fn invoke(&self, package_id: &PackageId, capability_id: &str, input: Value) -> anyhow::Result<Value> {
+    pub async fn invoke(
+        &self,
+        package_id: &PackageId,
+        capability_id: &str,
+        input: Value,
+    ) -> anyhow::Result<Value> {
         let handle = self
             .handles
             .read()
@@ -161,16 +185,23 @@ impl SubprocessSupervisor {
         }
     }
 
-    pub async fn restart<S>(&self, manifest: &PackageManifest, runtime: Runtime<S>) -> anyhow::Result<()>
+    pub async fn restart<S>(
+        &self,
+        manifest: &PackageManifest,
+        runtime: Runtime<S>,
+        bindings: HashMap<String, CapHandleId>,
+    ) -> anyhow::Result<()>
     where
         S: EventStore,
     {
         self.stop(&manifest.id).await;
-        self.start(manifest, runtime).await
+        self.start(manifest, runtime, bindings).await
     }
 
     pub async fn drain_logs(&self, package_id: &PackageId) -> Vec<SubprocessLogLine> {
-        let Some(handle) = self.handles.read().await.get(package_id).cloned() else { return Vec::new() };
+        let Some(handle) = self.handles.read().await.get(package_id).cloned() else {
+            return Vec::new();
+        };
         handle.drain_logs().await
     }
 }
@@ -183,19 +214,29 @@ impl SubprocessHandle {
             .ok_or_else(|| anyhow::anyhow!("subprocess request missing id"))?;
         let id_key = id_to_key(&id);
         let (tx, rx) = oneshot::channel();
-        self.pending_responses.lock().await.insert(id_key.clone(), tx);
+        self.pending_responses
+            .lock()
+            .await
+            .insert(id_key.clone(), tx);
 
         if let Err(error) = self.write_json_frame(request).await {
             self.pending_responses.lock().await.remove(&id_key);
             return Err(error);
         }
 
-        rx.await.map_err(|_| anyhow::anyhow!("subprocess package '{}' response channel closed", self.package_id))
+        rx.await.map_err(|_| {
+            anyhow::anyhow!(
+                "subprocess package '{}' response channel closed",
+                self.package_id
+            )
+        })
     }
 
     async fn call_direct(&self, request: Value) -> anyhow::Result<Value> {
         let mut stdin = self.stdin.lock().await;
-        stdin.write_all(serde_json::to_string(&request)?.as_bytes()).await?;
+        stdin
+            .write_all(serde_json::to_string(&request)?.as_bytes())
+            .await?;
         stdin.write_all(b"\n").await?;
         stdin.flush().await?;
         drop(stdin);
@@ -270,7 +311,10 @@ impl SubprocessHandle {
 
             let id = frame.get("id").cloned().unwrap_or(Value::Null);
             let request_id = id_to_key(&id);
-            self.reverse_kernel_requests.lock().await.insert(request_id.clone());
+            self.reverse_kernel_requests
+                .lock()
+                .await
+                .insert(request_id.clone());
 
             let kernel_method: Result<KernelMethod, _> = method.parse();
             let Ok(kernel_method) = kernel_method else {
@@ -278,8 +322,13 @@ impl SubprocessHandle {
                     "protocol method '{}' is not a known kernel method",
                     method
                 ));
-                let _ = self.write_json_frame(json!({"jsonrpc": "2.0", "id": id, "error": error})).await;
-                self.reverse_kernel_requests.lock().await.remove(&request_id);
+                let _ = self
+                    .write_json_frame(json!({"jsonrpc": "2.0", "id": id, "error": error}))
+                    .await;
+                self.reverse_kernel_requests
+                    .lock()
+                    .await
+                    .remove(&request_id);
                 continue;
             };
 
@@ -295,7 +344,9 @@ impl SubprocessHandle {
                     .and_then(|result| result.get("stream_id"))
                     .or_else(|| {
                         if matches!(kernel_method, KernelMethod::OutboundWebSocketOpen) {
-                            response.get("result").and_then(|result| result.get("connection_id"))
+                            response
+                                .get("result")
+                                .and_then(|result| result.get("connection_id"))
                         } else {
                             None
                         }
@@ -307,7 +358,10 @@ impl SubprocessHandle {
             };
 
             if self.write_json_frame(response).await.is_err() {
-                self.reverse_kernel_requests.lock().await.remove(&request_id);
+                self.reverse_kernel_requests
+                    .lock()
+                    .await
+                    .remove(&request_id);
                 break;
             }
 
@@ -315,10 +369,21 @@ impl SubprocessHandle {
                 let stream_handle = self.clone();
                 let runtime_for_stream = runtime.clone();
                 tokio::spawn(async move {
-                    stream_handle.pipe_reverse_stream(runtime_for_stream, id, request_id, stream_id, stream_events).await;
+                    stream_handle
+                        .pipe_reverse_stream(
+                            runtime_for_stream,
+                            id,
+                            request_id,
+                            stream_id,
+                            stream_events,
+                        )
+                        .await;
                 });
             } else {
-                self.reverse_kernel_requests.lock().await.remove(&request_id);
+                self.reverse_kernel_requests
+                    .lock()
+                    .await
+                    .remove(&request_id);
             }
         }
     }
@@ -330,11 +395,14 @@ impl SubprocessHandle {
         request_id: String,
         stream_id: String,
         mut events: tokio::sync::broadcast::Receiver<ygg_core::EventEnvelope>,
-    )
-    where
+    ) where
         S: EventStore,
     {
-        let Some(_record) = runtime.stream_registry().get_invocation_by_stream_id(&stream_id).await else {
+        let Some(_record) = runtime
+            .stream_registry()
+            .get_invocation_by_stream_id(&stream_id)
+            .await
+        else {
             let _ = self
                 .write_json_frame(json!({
                     "jsonrpc": "2.0",
@@ -344,7 +412,10 @@ impl SubprocessHandle {
                     "error": "stream not found"
                 }))
                 .await;
-            self.reverse_kernel_requests.lock().await.remove(&request_id);
+            self.reverse_kernel_requests
+                .lock()
+                .await
+                .remove(&request_id);
             return;
         };
 
@@ -387,7 +458,10 @@ impl SubprocessHandle {
                     "payload": event.payload,
                 }),
                 ygg_core::EVENT_STREAM_CHUNK => {
-                    let sequence = event.payload.get("sequence").and_then(Value::as_u64)
+                    let sequence = event
+                        .payload
+                        .get("sequence")
+                        .and_then(Value::as_u64)
                         .or_else(|| event.payload.get("outbound_seq").and_then(Value::as_u64))
                         .unwrap_or(event.sequence);
                     if !seen_sequences.insert(sequence) {
@@ -433,18 +507,29 @@ impl SubprocessHandle {
 
             let terminal = matches!(
                 frame.get("kind").and_then(Value::as_str),
-                Some("kernel/v1/stream.ended" | "kernel/v1/stream.error" | "kernel/v1/stream.cancelled" | "kernel/v1/stream.timeout" | "kernel/v1/outbound.websocket.completed")
+                Some(
+                    "kernel/v1/stream.ended"
+                        | "kernel/v1/stream.error"
+                        | "kernel/v1/stream.cancelled"
+                        | "kernel/v1/stream.timeout"
+                        | "kernel/v1/outbound.websocket.completed"
+                )
             );
             if self.write_json_frame(frame).await.is_err() || terminal {
                 break;
             }
         }
-        self.reverse_kernel_requests.lock().await.remove(&request_id);
+        self.reverse_kernel_requests
+            .lock()
+            .await
+            .remove(&request_id);
     }
 
     async fn write_json_frame(&self, frame: Value) -> anyhow::Result<()> {
         let mut stdin = self.stdin.lock().await;
-        stdin.write_all(serde_json::to_string(&frame)?.as_bytes()).await?;
+        stdin
+            .write_all(serde_json::to_string(&frame)?.as_bytes())
+            .await?;
         stdin.write_all(b"\n").await?;
         stdin.flush().await?;
         Ok(())
@@ -486,7 +571,11 @@ where
     }
     let context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
     match runtime
-        .call_subprocess_protocol(&context, method, frame.get("params").cloned().unwrap_or(Value::Null))
+        .call_subprocess_protocol(
+            &context,
+            method,
+            frame.get("params").cloned().unwrap_or(Value::Null),
+        )
         .await
     {
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),

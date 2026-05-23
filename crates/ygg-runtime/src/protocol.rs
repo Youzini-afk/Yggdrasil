@@ -1,9 +1,13 @@
 use std::fmt;
 use std::str::FromStr;
 
+use schemars::{
+    gen::SchemaGenerator,
+    schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec},
+    JsonSchema,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use schemars::{gen::SchemaGenerator, schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec}, JsonSchema};
 use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
@@ -58,6 +62,7 @@ pub enum KernelMethod {
     PermissionRevoke,
     PermissionList,
     PermissionAudit,
+    AuditPackage,
     ProposalCreate,
     ProposalGet,
     ProposalList,
@@ -121,6 +126,7 @@ impl KernelMethod {
             Self::PermissionRevoke => "kernel.v1.permission.revoke",
             Self::PermissionList => "kernel.v1.permission.list",
             Self::PermissionAudit => "kernel.v1.permission.audit",
+            Self::AuditPackage => "kernel.v1.audit.package",
             Self::ProposalCreate => "kernel.v1.proposal.create",
             Self::ProposalGet => "kernel.v1.proposal.get",
             Self::ProposalList => "kernel.v1.proposal.list",
@@ -184,6 +190,7 @@ impl KernelMethod {
             Self::PermissionRevoke => MethodStatus::Partial,
             Self::PermissionList => MethodStatus::Partial,
             Self::PermissionAudit => MethodStatus::Partial,
+            Self::AuditPackage => MethodStatus::Partial,
             Self::ProposalCreate => MethodStatus::Partial,
             Self::ProposalGet => MethodStatus::Partial,
             Self::ProposalList => MethodStatus::Partial,
@@ -258,6 +265,7 @@ impl KernelMethod {
             Self::PermissionRevoke,
             Self::PermissionList,
             Self::PermissionAudit,
+            Self::AuditPackage,
             Self::ProposalCreate,
             Self::ProposalGet,
             Self::ProposalList,
@@ -278,7 +286,11 @@ impl KernelMethod {
 
     /// Convert to the serialisable descriptor used in the public registry.
     pub fn to_protocol_method(&self) -> ProtocolMethod {
-        ProtocolMethod { id: self.id(), streaming: self.streaming(), status: self.status() }
+        ProtocolMethod {
+            id: self.id(),
+            streaming: self.streaming(),
+            status: self.status(),
+        }
     }
 
     /// Whether this method has a dispatch branch in the runtime
@@ -299,7 +311,7 @@ impl KernelMethod {
             | Self::PackageLogs
             | Self::PackageList
             | Self::PackageStatus
-            |             Self::CapabilityDiscover
+            | Self::CapabilityDiscover
             | Self::CapabilityInvoke
             | Self::CapabilityHandleAttenuate
             | Self::CapabilityHandleRevoke
@@ -322,6 +334,7 @@ impl KernelMethod {
             | Self::PermissionRevoke
             | Self::PermissionList
             | Self::PermissionAudit
+            | Self::AuditPackage
             | Self::ProposalCreate
             | Self::ProposalGet
             | Self::ProposalList
@@ -402,6 +415,7 @@ impl FromStr for KernelMethod {
             "kernel.v1.permission.revoke" => Ok(Self::PermissionRevoke),
             "kernel.v1.permission.list" => Ok(Self::PermissionList),
             "kernel.v1.permission.audit" => Ok(Self::PermissionAudit),
+            "kernel.v1.audit.package" => Ok(Self::AuditPackage),
             "kernel.v1.proposal.create" => Ok(Self::ProposalCreate),
             "kernel.v1.proposal.get" => Ok(Self::ProposalGet),
             "kernel.v1.proposal.list" => Ok(Self::ProposalList),
@@ -446,9 +460,16 @@ pub enum MethodStatus {
 pub enum ProtocolPrincipal {
     HostAdmin,
     HostDev,
-    Package { package_id: String },
-    Human { user_id: String },
-    Assistant { assistant_id: String, delegated_user_id: Option<String> },
+    Package {
+        package_id: String,
+    },
+    Human {
+        user_id: String,
+    },
+    Assistant {
+        assistant_id: String,
+        delegated_user_id: Option<String>,
+    },
     Anonymous,
 }
 
@@ -476,7 +497,9 @@ impl ProtocolContext {
 
     pub fn package(package_id: impl Into<String>, transport: impl Into<String>) -> Self {
         Self {
-            principal: ProtocolPrincipal::Package { package_id: package_id.into() },
+            principal: ProtocolPrincipal::Package {
+                package_id: package_id.into(),
+            },
             transport: transport.into(),
             correlation_id: Some(Uuid::new_v4()),
             parent_invocation_id: None,
@@ -495,7 +518,10 @@ impl ProtocolContext {
 
 fn optional_uuid_schema(_gen: &mut SchemaGenerator) -> Schema {
     let mut schema = SchemaObject::default();
-    schema.instance_type = Some(SingleOrVec::Vec(vec![InstanceType::String, InstanceType::Null]));
+    schema.instance_type = Some(SingleOrVec::Vec(vec![
+        InstanceType::String,
+        InstanceType::Null,
+    ]));
     schema.format = Some("uuid".to_string());
     schema.metadata = Some(Box::new(Metadata::default()));
     Schema::Object(schema)
@@ -528,7 +554,11 @@ pub struct ProtocolError {
 
 impl ProtocolError {
     pub fn new(code: impl Into<String>, message: impl Into<String>, details: Value) -> Self {
-        Self { code: code.into(), message: message.into(), details }
+        Self {
+            code: code.into(),
+            message: message.into(),
+            details,
+        }
     }
 
     pub fn invalid_request(message: impl Into<String>) -> Self {
@@ -541,11 +571,20 @@ impl ProtocolError {
             "kernel/v1/error/permission_denied"
         } else if message.contains("ambiguous") {
             "kernel/v1/error/ambiguous_route"
-        } else if message.contains("schema") || message.contains("required") || message.contains("does not match") {
+        } else if message.contains("schema")
+            || message.contains("required")
+            || message.contains("does not match")
+        {
             "kernel/v1/error/schema_invalid"
-        } else if message.contains("not loaded") || message.contains("not found") || message.contains("no provider") {
+        } else if message.contains("not loaded")
+            || message.contains("not found")
+            || message.contains("no provider")
+        {
             "kernel/v1/error/not_found"
-        } else if message.contains("closed") || message.contains("not ready") || message.contains("cannot execute") {
+        } else if message.contains("closed")
+            || message.contains("not ready")
+            || message.contains("cannot execute")
+        {
             "kernel/v1/error/package_state"
         } else {
             "kernel/v1/error/internal"
@@ -567,63 +606,296 @@ pub const KERNEL_PROTOCOL_VERSION: &str = "0.1.0";
 // of truth. If a new method variant is added to KernelMethod, a corresponding
 // entry must appear here (tests enforce this).
 pub const KERNEL_METHODS: &[ProtocolMethod] = &[
-    ProtocolMethod { id: "kernel.v1.session.open", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.session.close", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.session.fork", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.session.branch.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.session.get", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.session.list", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.event.append", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.event.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.event.subscribe", streaming: true, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.package.load", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.package.unload", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.package.restart", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.package.logs", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.package.list", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.package.status", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.package.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.capability.discover", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.capability.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.capability.invoke", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.cap.attenuate", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.cap.revoke", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.cap.list_for", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.capability.stream", streaming: true, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.capability.cancel", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.extension_point.list", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.extension_point.describe", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.hook.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.asset.put", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.asset.get", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.asset.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.projection.register", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.projection.rebuild", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.projection.get", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.projection.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.host.info", streaming: false, status: MethodStatus::Implemented },
-    ProtocolMethod { id: "kernel.v1.host.ping", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.host.diagnostics", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.host.principal", streaming: false, status: MethodStatus::Planned },
-    ProtocolMethod { id: "kernel.v1.permission.grant", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.permission.revoke", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.permission.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.permission.audit", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.proposal.create", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.proposal.get", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.proposal.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.proposal.approve", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.proposal.reject", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.proposal.apply", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.surface.contribution.list", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.surface.contribution.describe", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.audit", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.execute", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.stream", streaming: true, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.websocket.open", streaming: true, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.websocket.send", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.websocket.close", streaming: false, status: MethodStatus::Partial },
-    ProtocolMethod { id: "kernel.v1.outbound.git_fetch", streaming: false, status: MethodStatus::Partial },
+    ProtocolMethod {
+        id: "kernel.v1.session.open",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.session.close",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.session.fork",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.session.branch.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.session.get",
+        streaming: false,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.session.list",
+        streaming: false,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.event.append",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.event.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.event.subscribe",
+        streaming: true,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.load",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.unload",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.restart",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.logs",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.status",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.package.describe",
+        streaming: false,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.capability.discover",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.capability.describe",
+        streaming: false,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.capability.invoke",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.cap.attenuate",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.cap.revoke",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.cap.list_for",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.capability.stream",
+        streaming: true,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.capability.cancel",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.extension_point.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.extension_point.describe",
+        streaming: false,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.hook.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.asset.put",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.asset.get",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.asset.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.projection.register",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.projection.rebuild",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.projection.get",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.projection.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.host.info",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.host.ping",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.host.diagnostics",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.host.principal",
+        streaming: false,
+        status: MethodStatus::Planned,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.permission.grant",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.permission.revoke",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.permission.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.permission.audit",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.audit.package",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proposal.create",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proposal.get",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proposal.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proposal.approve",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proposal.reject",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proposal.apply",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.surface.contribution.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.surface.contribution.describe",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.audit",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.execute",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.stream",
+        streaming: true,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.websocket.open",
+        streaming: true,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.websocket.send",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.websocket.close",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.outbound.git_fetch",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
 ];
 
 pub fn method_ids() -> Vec<&'static str> {
@@ -674,7 +946,11 @@ mod tests {
     fn every_registry_id_parses_to_kernel_method() {
         for method in KERNEL_METHODS {
             let parsed: Result<KernelMethod, String> = method.id.parse();
-            assert!(parsed.is_ok(), "registry id '{}' does not parse to KernelMethod", method.id);
+            assert!(
+                parsed.is_ok(),
+                "registry id '{}' does not parse to KernelMethod",
+                method.id
+            );
         }
     }
 
@@ -695,7 +971,12 @@ mod tests {
         for method in KERNEL_METHODS {
             let km: KernelMethod = method.id.parse().unwrap();
             assert_eq!(method.id, km.id(), "id mismatch for {:?}", km);
-            assert_eq!(method.streaming, km.streaming(), "streaming mismatch for {:?}", km);
+            assert_eq!(
+                method.streaming,
+                km.streaming(),
+                "streaming mismatch for {:?}",
+                km
+            );
             assert_eq!(method.status, km.status(), "status mismatch for {:?}", km);
         }
     }
@@ -705,7 +986,11 @@ mod tests {
         let all = KernelMethod::all();
         let ids: Vec<&'static str> = all.iter().map(|m| m.id()).collect();
         let unique: std::collections::HashSet<&'static str> = ids.iter().copied().collect();
-        assert_eq!(ids.len(), unique.len(), "KernelMethod::all() contains duplicate ids");
+        assert_eq!(
+            ids.len(),
+            unique.len(),
+            "KernelMethod::all() contains duplicate ids"
+        );
     }
 
     #[test]
@@ -713,7 +998,10 @@ mod tests {
         let km = KernelMethod::SessionClose;
         assert_eq!(km.id(), "kernel.v1.session.close");
         assert_eq!(km.status(), MethodStatus::Implemented);
-        assert!(km.is_dispatched(), "kernel.v1.session.close must be dispatch-covered");
+        assert!(
+            km.is_dispatched(),
+            "kernel.v1.session.close must be dispatch-covered"
+        );
     }
 
     #[test]
@@ -726,14 +1014,20 @@ mod tests {
             "kernel.v1.hook.list status must be Implemented or Partial since dispatch exists, got {:?}",
             km.status()
         );
-        assert!(km.is_dispatched(), "kernel.v1.hook.list must be dispatch-covered");
+        assert!(
+            km.is_dispatched(),
+            "kernel.v1.hook.list must be dispatch-covered"
+        );
     }
 
     #[test]
     fn implemented_or_partial_methods_must_be_dispatched() {
         for method in KERNEL_METHODS {
             let km: KernelMethod = method.id.parse().unwrap();
-            if matches!(km.status(), MethodStatus::Implemented | MethodStatus::Partial) {
+            if matches!(
+                km.status(),
+                MethodStatus::Implemented | MethodStatus::Partial
+            ) {
                 assert!(
                     km.is_dispatched(),
                     "{:?} ({}) is {:?} but has no dispatch — add dispatch or downgrade to Planned",
@@ -765,7 +1059,11 @@ mod tests {
         for km in KernelMethod::all() {
             let s = km.to_string();
             let parsed: KernelMethod = s.parse().unwrap();
-            assert_eq!(*km, parsed, "Display -> FromStr roundtrip failed for {:?}", km);
+            assert_eq!(
+                *km, parsed,
+                "Display -> FromStr roundtrip failed for {:?}",
+                km
+            );
         }
     }
 }

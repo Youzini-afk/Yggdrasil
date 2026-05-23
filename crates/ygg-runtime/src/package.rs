@@ -85,7 +85,11 @@ impl Default for HostPolicy {
 impl HostPolicy {
     pub fn validate(&self, manifest: &PackageManifest) -> anyhow::Result<()> {
         let kind = entry_kind(&manifest.entry.kind);
-        if !self.allowed_entry_kinds.iter().any(|allowed| allowed == kind) {
+        if !self
+            .allowed_entry_kinds
+            .iter()
+            .any(|allowed| allowed == kind)
+        {
             anyhow::bail!("entry kind '{kind}' is not allowed by host policy");
         }
         if manifest.sandbox_policy.memory_mb > self.max_memory_mb {
@@ -106,7 +110,11 @@ pub struct PackageRegistry {
 }
 
 impl PackageRegistry {
-    pub async fn load(&self, manifest: PackageManifest, policy: &HostPolicy) -> anyhow::Result<PackageRecord> {
+    pub async fn load(
+        &self,
+        manifest: PackageManifest,
+        policy: &HostPolicy,
+    ) -> anyhow::Result<PackageRecord> {
         manifest.validate_basic()?;
         policy.validate(&manifest)?;
 
@@ -139,7 +147,11 @@ impl PackageRegistry {
         self.packages.read().await.get(package_id).cloned()
     }
 
-    pub async fn set_state(&self, package_id: &PackageId, state: PackageState) -> Option<PackageRecord> {
+    pub async fn set_state(
+        &self,
+        package_id: &PackageId,
+        state: PackageState,
+    ) -> Option<PackageRecord> {
         let mut packages = self.packages.write().await;
         let record = packages.get_mut(package_id)?;
         record.state = state;
@@ -148,11 +160,19 @@ impl PackageRegistry {
     }
 
     pub async fn permissions(&self, package_id: &PackageId) -> Option<ygg_core::PermissionSet> {
-        self.packages.read().await.get(package_id).map(|record| record.manifest.permissions.clone())
+        self.packages
+            .read()
+            .await
+            .get(package_id)
+            .map(|record| record.manifest.permissions.clone())
     }
 
     pub async fn manifest(&self, package_id: &PackageId) -> Option<PackageManifest> {
-        self.packages.read().await.get(package_id).map(|record| record.manifest.clone())
+        self.packages
+            .read()
+            .await
+            .get(package_id)
+            .map(|record| record.manifest.clone())
     }
 }
 
@@ -177,7 +197,10 @@ pub fn trust_level(entry: &PackageEntry) -> TrustLevel {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
-    use ygg_core::{EntryDescriptor, PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy};
+    use ygg_core::{
+        EntryDescriptor, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
+        SandboxPolicy,
+    };
 
     use super::*;
 
@@ -206,7 +229,9 @@ mod tests {
     #[tokio::test]
     async fn loads_lists_and_unloads_package() -> anyhow::Result<()> {
         let registry = PackageRegistry::default();
-        let record = registry.load(manifest("org/pkg"), &HostPolicy::default()).await?;
+        let record = registry
+            .load(manifest("org/pkg"), &HostPolicy::default())
+            .await?;
         assert_eq!(record.state, PackageState::Ready);
         assert_eq!(registry.list().await.len(), 1);
         assert!(registry.status(&"org/pkg".to_string()).await.is_some());
@@ -230,7 +255,10 @@ mod tests {
     fn entry_kind_names_are_manifest_names() {
         let entry = PackageEntry::Remote {
             endpoint: "https://example.test".to_string(),
-            auth: ygg_core::RemoteAuth { scheme: "none".to_string(), config: Value::Null },
+            auth: ygg_core::RemoteAuth {
+                scheme: "none".to_string(),
+                config: Value::Null,
+            },
         };
         assert_eq!(entry_kind(&entry), "remote");
         assert_eq!(trust_level(&entry), TrustLevel::RemoteBoundary);

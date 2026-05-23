@@ -39,7 +39,12 @@ fn define_binding(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn resolve_binding(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let mut bindings = request.input.get("bindings").and_then(Value::as_array).cloned().unwrap_or_default();
+    let mut bindings = request
+        .input
+        .get("bindings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     bindings.sort_by(|a, b| {
         let ap = a.get("priority").and_then(Value::as_i64).unwrap_or(0);
         let bp = b.get("priority").and_then(Value::as_i64).unwrap_or(0);
@@ -69,7 +74,11 @@ fn preview_routes(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn params_normalize(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let params = request.input.get("params").cloned().unwrap_or_else(|| serde_json::json!({}));
+    let params = request
+        .input
+        .get("params")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
     Ok(serde_json::json!({
         "kind": "model_params_normalized",
         "params": {

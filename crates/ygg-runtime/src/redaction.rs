@@ -65,7 +65,9 @@ impl SecretScanResult {
 /// - `label` fields
 /// - `summary` fields
 pub fn scan_value_for_raw_secrets(value: &Value, root_path: &str) -> SecretScanResult {
-    let mut result = SecretScanResult { findings: Vec::new() };
+    let mut result = SecretScanResult {
+        findings: Vec::new(),
+    };
     scan_recursive(value, root_path, &mut result, false);
     result
 }
@@ -208,8 +210,8 @@ fn redact_path_recursive(value: &mut Value, parts: &[&str]) {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn detects_api_key_field_name() {

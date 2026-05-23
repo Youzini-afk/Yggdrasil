@@ -19,7 +19,7 @@ pub use capability::{
 #[cfg(feature = "postgres")]
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
-pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog};
+pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog, KernelEnv};
 pub use package::{
     entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel,
 };
@@ -35,22 +35,23 @@ pub use redaction::{
 };
 pub use runtime::{
     check_network_policy, content_address, is_secret_header_name, is_static_header_allowed,
-    standard_asset_metadata, AppendEventRequest, AssetGetResponse, AssetPutRequest, BranchRecord,
-    CancelSignal, DenyAllGitOutboundExecutor,
+    standard_asset_metadata, AppendEventRequest, AssetGetResponse, AssetPutRequest,
+    AuditPackageParams, BranchRecord, CancelSignal, DeclaredAuthority, DenyAllGitOutboundExecutor,
     DenyAllOutboundExecutor, DenyAllWebSocketExecutor, EventListRequest, ExecutorKind,
     FakeGitOutboundExecutor, FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection,
     FrameKind, GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig,
     GitOutboundPolicyConfig, GitOutboundRequest, GitOutboundResponse, KernelOutboundStreamResponse,
     LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, LiveWebSocketExecutor,
     LiveWebSocketExecutorConfig, LiveWebSocketProfile, NetworkPolicyDecision, OpenSessionRequest,
-    OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig, PermissionGrantRecord,
-    OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind, OutboundRequest,
-    OutboundStreamFrame, OutboundStreamSummary, OutboundWebSocketFrame,
-    OutboundWebSocketOpenRequest, OutboundWebSocketSession, ProjectionDefinition, ProposalApproval,
-    ProposalOperation, ProposalRecord, ProposalStatus, RealGitOutboundExecutor,
-    RealGitOutboundExecutorConfig, RedactedHeaderValue, ResolvedSecretHeader, Runtime,
-    RuntimeConfig, OutboundSecretHeaderSpec, OutboundStaticHeader, SecretHeaderSpec, SendStatus, SseEvent, SseParser, StaticHeader,
-    StreamEmitter, StreamFormat, StreamRegistry, StreamStartStatus, WebSocketEvent,
+    OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
+    OutboundExecutorResponse, OutboundFrameKind, OutboundRequest, OutboundSecretHeaderSpec,
+    OutboundStaticHeader, OutboundStreamFrame, OutboundStreamSummary, OutboundWebSocketFrame,
+    OutboundWebSocketOpenRequest, OutboundWebSocketSession, PackageAuditReport,
+    PermissionGrantRecord, ProjectionDefinition, ProposalApproval, ProposalOperation,
+    ProposalRecord, ProposalStatus, RealGitOutboundExecutor, RealGitOutboundExecutorConfig,
+    RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
+    SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter, StreamFormat, StreamRegistry,
+    StreamStartStatus, TighteningSuggestion, UnusedAuthority, UsedAuthority, WebSocketEvent,
     WebSocketExecutor, WebSocketFramePayload, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;

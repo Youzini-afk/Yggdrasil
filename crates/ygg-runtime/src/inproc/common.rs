@@ -38,7 +38,9 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
 
     match local_name {
         "echo" => Some(Ok(request.input.clone())),
-        "fail" => Some(Err(anyhow::anyhow!("official package-lab requested failure"))),
+        "fail" => Some(Err(anyhow::anyhow!(
+            "official package-lab requested failure"
+        ))),
         "describe" => Some(describe(request)),
         "validate" => Some(validate()),
         "sample" => Some(sample(request)),
@@ -95,19 +97,56 @@ fn sample(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn summarize(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let count = request.input.get("events").and_then(Value::as_array).map(|events| events.len()).unwrap_or(0);
+    let count = request
+        .input
+        .get("events")
+        .and_then(Value::as_array)
+        .map(|events| events.len())
+        .unwrap_or(0);
     Ok(serde_json::json!({"event_count": count}))
 }
 
 fn launch_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let packages = request.input.get("packages").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let required_capabilities = request.input.get("required_capabilities").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let optional_packages = request.input.get("optional_packages").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let permission_expectations = request.input.get("permission_expectations").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let replacement_candidates = request.input.get("replacement_candidates").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let compatibility_notes = request.input.get("compatibility_notes").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let default_activation = request.input.get("default_activation").cloned().unwrap_or(Value::Null);
-    let surfaces = request.input.get("surfaces").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let packages = request
+        .input
+        .get("packages")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let required_capabilities = request
+        .input
+        .get("required_capabilities")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let optional_packages = request
+        .input
+        .get("optional_packages")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let permission_expectations = request
+        .input
+        .get("permission_expectations")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let replacement_candidates = request
+        .input
+        .get("replacement_candidates")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let compatibility_notes = request
+        .input
+        .get("compatibility_notes")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let default_activation = request
+        .input
+        .get("default_activation")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let surfaces = request
+        .input
+        .get("surfaces")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
     Ok(serde_json::json!({
         "kind": "composition_launch_plan",
         "composition_id": request.input.get("id").cloned().unwrap_or(Value::Null),
@@ -134,11 +173,31 @@ fn permission_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn surface_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let surfaces = request.input.get("surfaces").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let required_capabilities = request.input.get("required_capabilities").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let permission_expectations = request.input.get("permission_expectations").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let replacement_candidates = request.input.get("replacement_candidates").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let compatibility_notes = request.input.get("compatibility_notes").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let surfaces = request
+        .input
+        .get("surfaces")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let required_capabilities = request
+        .input
+        .get("required_capabilities")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let permission_expectations = request
+        .input
+        .get("permission_expectations")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let replacement_candidates = request
+        .input
+        .get("replacement_candidates")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let compatibility_notes = request
+        .input
+        .get("compatibility_notes")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
     Ok(serde_json::json!({
         "kind": "composition_surface_graph",
         "entry_surface_id": request.input.get("entry_surface_id").cloned().unwrap_or(Value::Null),
@@ -152,21 +211,48 @@ fn surface_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn compat_report(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let required_capabilities = request.input.get("required_capabilities").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let available_capabilities = request.input.get("available_capabilities").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let permission_expectations = request.input.get("permission_expectations").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let replacement_candidates = request.input.get("replacement_candidates").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let compatibility_notes = request.input.get("compatibility_notes").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let surfaces = request.input.get("surfaces").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let required_capabilities = request
+        .input
+        .get("required_capabilities")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let available_capabilities = request
+        .input
+        .get("available_capabilities")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let permission_expectations = request
+        .input
+        .get("permission_expectations")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let replacement_candidates = request
+        .input
+        .get("replacement_candidates")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let compatibility_notes = request
+        .input
+        .get("compatibility_notes")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let surfaces = request
+        .input
+        .get("surfaces")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
 
     // Compute missing required capabilities
-    let required_caps: Vec<&str> = required_capabilities.as_array()
+    let required_caps: Vec<&str> = required_capabilities
+        .as_array()
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
-    let available_caps: Vec<&str> = available_capabilities.as_array()
+    let available_caps: Vec<&str> = available_capabilities
+        .as_array()
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
-    let missing: Vec<&str> = required_caps.iter()
+    let missing: Vec<&str> = required_caps
+        .iter()
         .filter(|cap| !available_caps.contains(cap))
         .copied()
         .collect();
@@ -185,7 +271,11 @@ fn compat_report(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn preview(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let content = request.input.get("content").and_then(Value::as_str).unwrap_or_default();
+    let content = request
+        .input
+        .get("content")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     Ok(serde_json::json!({
         "kind": "asset_preview",
         "asset_id": request.input.get("asset_id").cloned().unwrap_or(Value::Null),
@@ -234,7 +324,12 @@ fn rebuild_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn explain_source_events(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let event_count = request.input.get("events").and_then(Value::as_array).map(|events| events.len()).unwrap_or(0);
+    let event_count = request
+        .input
+        .get("events")
+        .and_then(Value::as_array)
+        .map(|events| events.len())
+        .unwrap_or(0);
     Ok(serde_json::json!({
         "kind": "projection_source_events",
         "projection_id": request.input.get("projection_id").cloned().unwrap_or(Value::Null),
@@ -286,8 +381,16 @@ fn project(request: &InprocInvocation) -> anyhow::Result<Value> {
 /// No network, no inference. Used by asset-lab and other packages needing
 /// stable content-addressed asset metadata.
 fn content_address(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let content = request.input.get("content").and_then(Value::as_str).unwrap_or_default();
-    let scheme = request.input.get("scheme").and_then(Value::as_str).unwrap_or("fnv1a64");
+    let content = request
+        .input
+        .get("content")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let scheme = request
+        .input
+        .get("scheme")
+        .and_then(Value::as_str)
+        .unwrap_or("fnv1a64");
     let ca = crate::runtime::content_address(content);
     Ok(serde_json::json!({
         "kind": "asset_content_address",
@@ -324,7 +427,11 @@ fn content_address(request: &InprocInvocation) -> anyhow::Result<Value> {
 /// No network, no inference. Used by asset-lab and other packages needing
 /// asset lineage metadata.
 fn provenance_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let asset_id = request.input.get("asset_id").and_then(Value::as_str).unwrap_or_default();
+    let asset_id = request
+        .input
+        .get("asset_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     Ok(serde_json::json!({
         "kind": "asset_provenance_graph",
         "package_id": request.provider_package_id,
@@ -347,8 +454,16 @@ fn provenance_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
 /// No network, no inference. Used by projection-lab and other packages needing
 /// state snapshot metadata.
 fn state_snapshot(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let projection_id = request.input.get("projection_id").cloned().unwrap_or(Value::Null);
-    let branch_ref = request.input.get("branch_ref").cloned().unwrap_or(Value::Null);
+    let projection_id = request
+        .input
+        .get("projection_id")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let branch_ref = request
+        .input
+        .get("branch_ref")
+        .cloned()
+        .unwrap_or(Value::Null);
     Ok(serde_json::json!({
         "kind": "projection_state_snapshot",
         "package_id": request.provider_package_id,
@@ -392,27 +507,45 @@ mod tests {
 
     #[test]
     fn extract_local_name_matches_namespace() {
-        assert_eq!(extract_local_name("official/asset-lab/preview", "official/asset-lab"), Some("preview"));
-        assert_eq!(extract_local_name("official/package-lab/echo", "official/package-lab"), Some("echo"));
+        assert_eq!(
+            extract_local_name("official/asset-lab/preview", "official/asset-lab"),
+            Some("preview")
+        );
+        assert_eq!(
+            extract_local_name("official/package-lab/echo", "official/package-lab"),
+            Some("echo")
+        );
     }
 
     #[test]
     fn extract_local_name_rejects_wrong_namespace() {
-        assert_eq!(extract_local_name("thirdparty/pkg/preview", "official/asset-lab"), None);
-        assert_eq!(extract_local_name("official/asset-lab/preview", "official/other"), None);
+        assert_eq!(
+            extract_local_name("thirdparty/pkg/preview", "official/asset-lab"),
+            None
+        );
+        assert_eq!(
+            extract_local_name("official/asset-lab/preview", "official/other"),
+            None
+        );
     }
 
     #[test]
     fn extract_local_name_rejects_partial_prefix() {
         // "official/asset" is a prefix of "official/asset-lab" but not a valid namespace
-        assert_eq!(extract_local_name("official/asset-lab/preview", "official/asset"), None);
+        assert_eq!(
+            extract_local_name("official/asset-lab/preview", "official/asset"),
+            None
+        );
     }
 
     #[test]
     fn try_handle_official_preview() {
         let request = make_request("official/asset-lab", "official/asset-lab/preview");
         let result = try_handle(&request);
-        assert!(result.is_some(), "official package preview should be handled");
+        assert!(
+            result.is_some(),
+            "official package preview should be handled"
+        );
         let output = result.unwrap().unwrap();
         assert_eq!(output["kind"], "asset_preview");
     }
@@ -420,25 +553,37 @@ mod tests {
     #[test]
     fn try_handle_rejects_non_official() {
         let request = make_request("thirdparty/pkg", "thirdparty/pkg/preview");
-        assert!(try_handle(&request).is_none(), "non-official package should not be handled by common");
+        assert!(
+            try_handle(&request).is_none(),
+            "non-official package should not be handled by common"
+        );
     }
 
     #[test]
     fn try_handle_rejects_wrong_namespace() {
         let request = make_request("official/other", "official/asset-lab/preview");
-        assert!(try_handle(&request).is_none(), "wrong namespace should not be handled");
+        assert!(
+            try_handle(&request).is_none(),
+            "wrong namespace should not be handled"
+        );
     }
 
     #[test]
     fn try_handle_unknown_local_name_returns_none() {
         let request = make_request("official/package-lab", "official/package-lab/nonexistent");
-        assert!(try_handle(&request).is_none(), "unknown local name should return None");
+        assert!(
+            try_handle(&request).is_none(),
+            "unknown local name should return None"
+        );
     }
 
     #[test]
     fn unhandled_capability_returns_error() {
         let request = make_request("official/package-lab", "official/package-lab/unknown");
         let result = unhandled_capability(&request);
-        assert!(result.is_err(), "unhandled capability should return an error");
+        assert!(
+            result.is_err(),
+            "unhandled capability should return an error"
+        );
     }
 }

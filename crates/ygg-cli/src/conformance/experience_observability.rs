@@ -223,9 +223,7 @@ pub(crate) async fn experience_observability_proposal_causality() -> anyhow::Res
     .await?;
 
     anyhow::ensure!(causal.output["kind"] == json!("proposal_causal_chain"));
-    anyhow::ensure!(
-        causal.output["proposal_id"] == json!("proposal:board1:1")
-    );
+    anyhow::ensure!(causal.output["proposal_id"] == json!("proposal:board1:1"));
 
     // Every chain step must have content_address
     let chain = causal.output["chain"].as_array().unwrap();
@@ -240,11 +238,7 @@ pub(crate) async fn experience_observability_proposal_causality() -> anyhow::Res
             "chain step {} must have step kind",
             i
         );
-        anyhow::ensure!(
-            step["ref"].is_string(),
-            "chain step {} must have ref",
-            i
-        );
+        anyhow::ensure!(step["ref"].is_string(), "chain step {} must have ref", i);
     }
 
     anyhow::ensure!(causal.output["inference_performed"] == json!(false));
@@ -272,10 +266,7 @@ pub(crate) async fn experience_observability_cost_latency() -> anyhow::Result<()
     anyhow::ensure!(cost.output["total_invocations"] == json!(12));
     anyhow::ensure!(cost.output["outbound_request_count"] == json!(3));
     anyhow::ensure!(cost.output["total_duration_hint_ms"] == json!(5000));
-    anyhow::ensure!(
-        cost.output["cost_refs"].is_array(),
-        "must have cost_refs"
-    );
+    anyhow::ensure!(cost.output["cost_refs"].is_array(), "must have cost_refs");
     anyhow::ensure!(cost.output["inference_performed"] == json!(false));
 
     // No raw secret data
@@ -324,16 +315,8 @@ pub(crate) async fn experience_observability_failure_breadcrumbs() -> anyhow::Re
     // Breadcrumbs must have kind, ref, sequence
     let crumbs = breadcrumbs.output["breadcrumbs"].as_array().unwrap();
     for (i, crumb) in crumbs.iter().enumerate() {
-        anyhow::ensure!(
-            crumb["kind"].is_string(),
-            "breadcrumb {} must have kind",
-            i
-        );
-        anyhow::ensure!(
-            crumb["ref"].is_string(),
-            "breadcrumb {} must have ref",
-            i
-        );
+        anyhow::ensure!(crumb["kind"].is_string(), "breadcrumb {} must have kind", i);
+        anyhow::ensure!(crumb["ref"].is_string(), "breadcrumb {} must have ref", i);
     }
 
     Ok(())
@@ -354,9 +337,7 @@ pub(crate) async fn experience_observability_guardrail_summary() -> anyhow::Resu
     )
     .await?;
 
-    anyhow::ensure!(
-        guardrails.output["kind"] == json!("guardrail_audit_summary")
-    );
+    anyhow::ensure!(guardrails.output["kind"] == json!("guardrail_audit_summary"));
     anyhow::ensure!(
         guardrails.output["total_guardrails"]
             .as_u64()
@@ -432,9 +413,7 @@ pub(crate) async fn experience_observability_no_raw_secrets() -> anyhow::Result<
         }),
     )
     .await?;
-    anyhow::ensure!(
-        health.output["kind"] == json!("experience_observability_rejected")
-    );
+    anyhow::ensure!(health.output["kind"] == json!("experience_observability_rejected"));
     anyhow::ensure!(health.output["redaction_state"] == json!("unsafe_blocked"));
 
     // trace_proposal_causality blocks raw secret
@@ -447,9 +426,7 @@ pub(crate) async fn experience_observability_no_raw_secrets() -> anyhow::Result<
         }),
     )
     .await?;
-    anyhow::ensure!(
-        causal.output["kind"] == json!("experience_observability_rejected")
-    );
+    anyhow::ensure!(causal.output["kind"] == json!("experience_observability_rejected"));
 
     // summarize_guardrails blocks raw secret
     let guardrails = invoke(
@@ -461,9 +438,7 @@ pub(crate) async fn experience_observability_no_raw_secrets() -> anyhow::Result<
         }),
     )
     .await?;
-    anyhow::ensure!(
-        guardrails.output["kind"] == json!("experience_observability_rejected")
-    );
+    anyhow::ensure!(guardrails.output["kind"] == json!("experience_observability_rejected"));
 
     Ok(())
 }

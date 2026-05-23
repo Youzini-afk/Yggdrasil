@@ -1,15 +1,17 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Instant;
 use bytes::Bytes;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Instant;
 use ygg_core::{CapHandleId, PackageId, RedactionState};
 
 use super::Runtime;
-use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal, EventListRequest,
-    OutboundStreamFrame, OutboundFrameKind, StreamEmitter, StreamRegistry,
-    OutboundWebSocketFrame, WebSocketEvent};
+use crate::{
+    EventListRequest, EventStore, KernelMethod, OutboundFrameKind, OutboundStreamFrame,
+    OutboundWebSocketFrame, ProtocolContext, ProtocolPrincipal, StreamEmitter, StreamRegistry,
+    WebSocketEvent,
+};
 
 const WEBSOCKET_METHOD: &str = "WEBSOCKET";
 
@@ -43,14 +45,25 @@ where
         let result: anyhow::Result<Value> = match kernel_method {
             KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
             KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
-            KernelMethod::OutboundWebSocketOpen => self.dispatch_outbound_websocket_open(context, params).await,
-            KernelMethod::OutboundWebSocketSend => self.dispatch_outbound_websocket_send(&params).await,
-            KernelMethod::OutboundWebSocketClose => self.dispatch_outbound_websocket_close(&params).await,
+            KernelMethod::OutboundWebSocketOpen => {
+                self.dispatch_outbound_websocket_open(context, params).await
+            }
+            KernelMethod::OutboundWebSocketSend => {
+                self.dispatch_outbound_websocket_send(&params).await
+            }
+            KernelMethod::OutboundWebSocketClose => {
+                self.dispatch_outbound_websocket_close(&params).await
+            }
             KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
-            KernelMethod::HostInfo => serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from),
+            KernelMethod::HostInfo => {
+                serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from)
+            }
             KernelMethod::HostPing => Ok(json!({"ok": true})),
             KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
-            KernelMethod::CapabilityDiscover => serde_json::to_value(self.discover_capabilities().await).map_err(anyhow::Error::from),
+            KernelMethod::CapabilityDiscover => {
+                serde_json::to_value(self.discover_capabilities().await)
+                    .map_err(anyhow::Error::from)
+            }
             KernelMethod::CapabilityInvoke => match serde_json::from_value(params) {
                 Ok(request) => self
                     .invoke_capability_with_context(context, request)
@@ -66,7 +79,12 @@ where
         result.map_err(crate::ProtocolError::from_anyhow)
     }
 
-    pub(crate) async fn call_protocol_inner(&self, context: &ProtocolContext, method: &str, params: Value) -> anyhow::Result<Value> {
+    pub(crate) async fn call_protocol_inner(
+        &self,
+        context: &ProtocolContext,
+        method: &str,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         let kernel_method: KernelMethod = method.parse().map_err(|_| {
             anyhow::anyhow!("protocol method '{}' is not a known kernel method", method)
         })?;
@@ -78,22 +96,35 @@ where
 
             // Surface domain
             KernelMethod::SurfaceContributionList => self.dispatch_surface_list(&params).await,
-            KernelMethod::SurfaceContributionDescribe => self.dispatch_surface_describe(&params).await,
+            KernelMethod::SurfaceContributionDescribe => {
+                self.dispatch_surface_describe(&params).await
+            }
 
             // Outbound domain
             KernelMethod::OutboundAudit => self.dispatch_outbound_audit(&params).await,
             KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
             KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
-            KernelMethod::OutboundWebSocketOpen => self.dispatch_outbound_websocket_open(context, params).await,
-            KernelMethod::OutboundWebSocketSend => self.dispatch_outbound_websocket_send(&params).await,
-            KernelMethod::OutboundWebSocketClose => self.dispatch_outbound_websocket_close(&params).await,
-            KernelMethod::OutboundGitFetch => self.dispatch_outbound_git_fetch(context, params).await,
+            KernelMethod::OutboundWebSocketOpen => {
+                self.dispatch_outbound_websocket_open(context, params).await
+            }
+            KernelMethod::OutboundWebSocketSend => {
+                self.dispatch_outbound_websocket_send(&params).await
+            }
+            KernelMethod::OutboundWebSocketClose => {
+                self.dispatch_outbound_websocket_close(&params).await
+            }
+            KernelMethod::OutboundGitFetch => {
+                self.dispatch_outbound_git_fetch(context, params).await
+            }
 
             // Permission domain
             KernelMethod::PermissionGrant => self.dispatch_permission_grant(&params).await,
             KernelMethod::PermissionRevoke => self.dispatch_permission_revoke(&params).await,
             KernelMethod::PermissionList => self.dispatch_permission_list(&params).await,
             KernelMethod::PermissionAudit => self.dispatch_permission_audit().await,
+
+            // Audit domain
+            KernelMethod::AuditPackage => self.dispatch_audit_package(&params).await,
 
             // Proposal domain
             KernelMethod::ProposalCreate => self.dispatch_proposal_create(context, &params).await,
@@ -113,7 +144,8 @@ where
 
             // Event domain
             KernelMethod::EventAppend => Ok(serde_json::to_value(
-                self.append_event_with_context(context, serde_json::from_value(params)?).await?,
+                self.append_event_with_context(context, serde_json::from_value(params)?)
+                    .await?,
             )?),
             KernelMethod::EventList => self.dispatch_event_list(context, &params).await,
 
@@ -128,9 +160,12 @@ where
             KernelMethod::PackageLogs => self.dispatch_package_logs(&params).await,
 
             // Capability domain
-            KernelMethod::CapabilityDiscover => Ok(serde_json::to_value(self.discover_capabilities().await)?),
+            KernelMethod::CapabilityDiscover => {
+                Ok(serde_json::to_value(self.discover_capabilities().await)?)
+            }
             KernelMethod::CapabilityInvoke => Ok(serde_json::to_value(
-                self.invoke_capability_with_context(context, serde_json::from_value(params)?).await?,
+                self.invoke_capability_with_context(context, serde_json::from_value(params)?)
+                    .await?,
             )?),
             KernelMethod::CapabilityHandleAttenuate => self.dispatch_cap_attenuate(&params).await,
             KernelMethod::CapabilityHandleRevoke => self.dispatch_cap_revoke(&params).await,
@@ -147,15 +182,22 @@ where
                 "kernel/v1/package.loaded",
                 "kernel/v1/package.unloaded"
             ])),
-            KernelMethod::HookList => Ok(serde_json::to_value(self.extensions.list_all_hooks().await)?),
+            KernelMethod::HookList => Ok(serde_json::to_value(
+                self.extensions.list_all_hooks().await,
+            )?),
 
             // Asset domain
-            KernelMethod::AssetPut => Ok(serde_json::to_value(self.put_asset(serde_json::from_value(params)?).await?)?),
+            KernelMethod::AssetPut => Ok(serde_json::to_value(
+                self.put_asset(serde_json::from_value(params)?).await?,
+            )?),
             KernelMethod::AssetGet => self.dispatch_asset_get(&params).await,
             KernelMethod::AssetList => Ok(serde_json::to_value(self.list_assets().await)?),
 
             // Projection domain
-            KernelMethod::ProjectionRegister => Ok(serde_json::to_value(self.projection_register(serde_json::from_value(params)?).await?)?),
+            KernelMethod::ProjectionRegister => Ok(serde_json::to_value(
+                self.projection_register(serde_json::from_value(params)?)
+                    .await?,
+            )?),
             KernelMethod::ProjectionRebuild => self.dispatch_projection_rebuild(&params).await,
             KernelMethod::ProjectionGet => self.dispatch_projection_get(&params).await,
             KernelMethod::ProjectionList => Ok(serde_json::to_value(self.projection_list().await)?),
@@ -185,7 +227,10 @@ where
     // --- Surface ---
 
     async fn dispatch_surface_list(&self, params: &Value) -> anyhow::Result<Value> {
-        let slot = params.get("slot").and_then(Value::as_str).map(str::to_string);
+        let slot = params
+            .get("slot")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         Ok(self.list_surface_contributions(slot).await)
     }
 
@@ -193,7 +238,9 @@ where
         let surface_id = params
             .get("surface_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.surface.contribution.describe requires surface_id"))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.surface.contribution.describe requires surface_id")
+            })?;
         self.describe_surface_contribution(surface_id).await
     }
 
@@ -205,10 +252,27 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.audit requires package_id"))?
             .to_string();
-        Ok(serde_json::to_value(self.list_outbound_audit(&package_id).await?)?)
+        Ok(serde_json::to_value(
+            self.list_outbound_audit(&package_id).await?,
+        )?)
     }
 
-    async fn dispatch_outbound_execute(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
+    // --- Audit ---
+
+    async fn dispatch_audit_package(&self, params: &Value) -> anyhow::Result<Value> {
+        let request: crate::AuditPackageParams = serde_json::from_value(params.clone())?;
+        let (since, until) = request.window();
+        Ok(serde_json::to_value(
+            self.audit_package(&request.package_id, since, until)
+                .await?,
+        )?)
+    }
+
+    async fn dispatch_outbound_execute(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         // --- L3: public outbound/secret boundary ---
         // Determine package_id from the protocol context principal.
         // The caller CANNOT self-assert a different package_id.
@@ -267,10 +331,7 @@ where
                     .collect()
             })
             .unwrap_or_default();
-        let metadata = params
-            .get("metadata")
-            .cloned()
-            .unwrap_or(Value::Null);
+        let metadata = params.get("metadata").cloned().unwrap_or(Value::Null);
         let body_shape = params.get("body_shape").cloned();
 
         // L4: Parse secret_headers from params for host-side injection.
@@ -334,9 +395,12 @@ where
             HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
                 anyhow::anyhow!("kernel.v1.outbound.execute secret header name is invalid")
             })?;
-            let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.execute secret header is unavailable")
-            })?;
+            let raw_value = self
+                .resolve_secret_ref(&spec.secret_ref)
+                .await
+                .map_err(|_| {
+                    anyhow::anyhow!("kernel.v1.outbound.execute secret header is unavailable")
+                })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
                 "basic" => format!("Basic {}", raw_value),
@@ -389,17 +453,19 @@ where
     /// then starts a kernel stream and spawns the executor's `stream`
     /// method to emit frames asynchronously. Returns a stream_id
     /// that the caller subscribes to via the existing event stream.
-    async fn dispatch_outbound_stream(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
+    async fn dispatch_outbound_stream(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         // --- Same auth/permission checks as dispatch_outbound_execute ---
         let package_id = match &context.principal {
             ProtocolPrincipal::Package { package_id } => package_id.clone(),
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
-                params
-                    .get("package_id")
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-                    .unwrap_or_else(|| "host/test".to_string())
-            }
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => params
+                .get("package_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| "host/test".to_string()),
             other => {
                 anyhow::bail!(
                     "kernel.v1.outbound.stream requires package or host principal, got {:?}",
@@ -445,10 +511,7 @@ where
                     .collect()
             })
             .unwrap_or_default();
-        let metadata = params
-            .get("metadata")
-            .cloned()
-            .unwrap_or(Value::Null);
+        let metadata = params.get("metadata").cloned().unwrap_or(Value::Null);
         let body_shape = params.get("body_shape").cloned();
 
         // Y3: Host-level stream policy mirrors outbound.execute fail-closed
@@ -541,9 +604,7 @@ where
             .get("max_total_bytes")
             .and_then(Value::as_u64)
             .map(|v| v as usize);
-        let max_duration_ms = params
-            .get("max_duration_ms")
-            .and_then(Value::as_u64);
+        let max_duration_ms = params.get("max_duration_ms").and_then(Value::as_u64);
 
         // Build the policy request (same checks as execute)
         let policy_request = super::OutboundRequest {
@@ -563,9 +624,12 @@ where
             reqwest::header::HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
                 anyhow::anyhow!("kernel.v1.outbound.stream secret header name is invalid")
             })?;
-            let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.stream secret header is unavailable")
-            })?;
+            let raw_value = self
+                .resolve_secret_ref(&spec.secret_ref)
+                .await
+                .map_err(|_| {
+                    anyhow::anyhow!("kernel.v1.outbound.stream secret header is unavailable")
+                })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
                 "basic" => format!("Basic {}", raw_value),
@@ -608,16 +672,19 @@ where
         let session_id = format!("kernel_outbound_stream_{}", package_id.replace('/', "_"));
 
         // Register the stream in the StreamRegistry
-        let stream_record = self.streams.start_invocation(
-            outbound_capability_id.clone(),
-            package_id.clone(),
-            session_id.clone(),
-            serde_json::json!({
-                "destination_host": destination_host,
-                "method": method,
-                "stream_format": stream_format_str,
-            }),
-        ).await;
+        let stream_record = self
+            .streams
+            .start_invocation(
+                outbound_capability_id.clone(),
+                package_id.clone(),
+                session_id.clone(),
+                serde_json::json!({
+                    "destination_host": destination_host,
+                    "method": method,
+                    "stream_format": stream_format_str,
+                }),
+            )
+            .await;
 
         // Emit kernel/v1/stream.started event
         let event_payload = json!({
@@ -640,9 +707,15 @@ where
         // Determine executor kind for the response
         let executor = self.outbound_executor();
         let executor_kind = match &self.config.outbound_executor {
-            super::outbound::OutboundExecutorConfig::DenyAll => super::outbound::ExecutorKind::DenyAll,
-            super::outbound::OutboundExecutorConfig::Custom(_) => super::outbound::ExecutorKind::Fake,
-            super::outbound::OutboundExecutorConfig::LiveHttp(_) => super::outbound::ExecutorKind::Real,
+            super::outbound::OutboundExecutorConfig::DenyAll => {
+                super::outbound::ExecutorKind::DenyAll
+            }
+            super::outbound::OutboundExecutorConfig::Custom(_) => {
+                super::outbound::ExecutorKind::Fake
+            }
+            super::outbound::OutboundExecutorConfig::LiveHttp(_) => {
+                super::outbound::ExecutorKind::Real
+            }
         };
         let network_performed = matches!(executor_kind, super::outbound::ExecutorKind::Real);
 
@@ -677,22 +750,24 @@ where
         let network_performed_for_error = network_performed;
 
         tokio::spawn(async move {
-            let result = executor_for_task.stream(
-                executor_request,
-                stream_format,
-                emitter.clone(),
-                cancel_rx,
-                max_frame_bytes,
-                max_total_bytes,
-                max_duration_ms,
-            ).await;
+            let result = executor_for_task
+                .stream(
+                    executor_request,
+                    stream_format,
+                    emitter.clone(),
+                    cancel_rx,
+                    max_frame_bytes,
+                    max_total_bytes,
+                    max_duration_ms,
+                )
+                .await;
 
             // Helper closure for appending kernel events
             let append_event = |kind: &'static str, payload: Value| {
                 let store = store_for_end.clone();
                 let session_id = session_id_for_end.clone();
                 async move {
-                    use ygg_core::{EventEnvelope, new_id, KERNEL_PACKAGE_ID};
+                    use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
                     let seq = store.next_sequence(&session_id).await.unwrap_or(0);
                     let event = EventEnvelope {
                         id: new_id("evt"),
@@ -716,14 +791,18 @@ where
                     let _ = streams_for_end.end_invocation(&invocation_id_for_end).await;
 
                     // Emit kernel/v1/stream.ended event
-                    append_event(ygg_core::EVENT_STREAM_ENDED, json!({
-                        "invocation_id": invocation_id_for_end,
-                        "stream_id": stream_id_for_end,
-                        "status": summary.status,
-                        "frame_count": summary.frame_count,
-                        "bytes_received": summary.bytes_received,
-                        "executor_kind": summary.executor_kind,
-                    })).await;
+                    append_event(
+                        ygg_core::EVENT_STREAM_ENDED,
+                        json!({
+                            "invocation_id": invocation_id_for_end,
+                            "stream_id": stream_id_for_end,
+                            "status": summary.status,
+                            "frame_count": summary.frame_count,
+                            "bytes_received": summary.bytes_received,
+                            "executor_kind": summary.executor_kind,
+                        }),
+                    )
+                    .await;
 
                     // Emit outbound audit record
                     append_event(ygg_core::EVENT_OUTBOUND_REQUEST, json!({
@@ -747,53 +826,67 @@ where
                         "error" => "error",
                         _ => "ended",
                     };
-                    append_event(ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED, json!({
-                        "id": completion_id_for_end,
-                        "package_id": pkg_id_for_end,
-                        "capability_id": cap_id_for_end,
-                        "destination_host": host_for_end,
-                        "method": method_for_end,
-                        "stream_format": format_str_for_end,
-                        "status": summary.status,
-                        "total_chunks": summary.frame_count,
-                        "total_bytes": summary.bytes_received,
-                        "duration_ms": started_for_end.elapsed().as_millis() as u64,
-                        "final_termination": final_termination,
-                        "executor_kind": summary.executor_kind,
-                        "network_performed": summary.network_performed,
-                        "redaction_state": summary.redaction_state,
-                        "secret_refs_used": secret_refs_for_end,
-                        "correlation_id": correlation_id_for_end,
-                    })).await;
+                    append_event(
+                        ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED,
+                        json!({
+                            "id": completion_id_for_end,
+                            "package_id": pkg_id_for_end,
+                            "capability_id": cap_id_for_end,
+                            "destination_host": host_for_end,
+                            "method": method_for_end,
+                            "stream_format": format_str_for_end,
+                            "status": summary.status,
+                            "total_chunks": summary.frame_count,
+                            "total_bytes": summary.bytes_received,
+                            "duration_ms": started_for_end.elapsed().as_millis() as u64,
+                            "final_termination": final_termination,
+                            "executor_kind": summary.executor_kind,
+                            "network_performed": summary.network_performed,
+                            "redaction_state": summary.redaction_state,
+                            "secret_refs_used": secret_refs_for_end,
+                            "correlation_id": correlation_id_for_end,
+                        }),
+                    )
+                    .await;
                 }
                 Err(e) => {
                     // Error the invocation in the registry
-                    let _ = streams_for_end.error_invocation(&invocation_id_for_end, &e.to_string()).await;
+                    let _ = streams_for_end
+                        .error_invocation(&invocation_id_for_end, &e.to_string())
+                        .await;
 
                     // Emit kernel/v1/stream.error event
-                    append_event(ygg_core::EVENT_STREAM_ERROR, json!({
-                        "invocation_id": invocation_id_for_end,
-                        "stream_id": stream_id_for_end,
-                        "error": e.to_string(),
-                    })).await;
-                    append_event(ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED, json!({
-                        "id": completion_id_for_end,
-                        "package_id": pkg_id_for_end,
-                        "capability_id": cap_id_for_end,
-                        "destination_host": host_for_end,
-                        "method": method_for_end,
-                        "stream_format": format_str_for_end,
-                        "status": "error",
-                        "total_chunks": 0,
-                        "total_bytes": 0,
-                        "duration_ms": started_for_end.elapsed().as_millis() as u64,
-                        "final_termination": "error",
-                        "executor_kind": executor_kind_for_error,
-                        "network_performed": network_performed_for_error,
-                        "redaction_state": ygg_core::RedactionState::Redacted,
-                        "secret_refs_used": secret_refs_for_end,
-                        "correlation_id": correlation_id_for_end,
-                    })).await;
+                    append_event(
+                        ygg_core::EVENT_STREAM_ERROR,
+                        json!({
+                            "invocation_id": invocation_id_for_end,
+                            "stream_id": stream_id_for_end,
+                            "error": e.to_string(),
+                        }),
+                    )
+                    .await;
+                    append_event(
+                        ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED,
+                        json!({
+                            "id": completion_id_for_end,
+                            "package_id": pkg_id_for_end,
+                            "capability_id": cap_id_for_end,
+                            "destination_host": host_for_end,
+                            "method": method_for_end,
+                            "stream_format": format_str_for_end,
+                            "status": "error",
+                            "total_chunks": 0,
+                            "total_bytes": 0,
+                            "duration_ms": started_for_end.elapsed().as_millis() as u64,
+                            "final_termination": "error",
+                            "executor_kind": executor_kind_for_error,
+                            "network_performed": network_performed_for_error,
+                            "redaction_state": ygg_core::RedactionState::Redacted,
+                            "secret_refs_used": secret_refs_for_end,
+                            "correlation_id": correlation_id_for_end,
+                        }),
+                    )
+                    .await;
                 }
             }
         });
@@ -812,7 +905,11 @@ where
         Ok(response_value)
     }
 
-    async fn dispatch_outbound_websocket_open(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
+    async fn dispatch_outbound_websocket_open(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         let package_id = match &context.principal {
             ProtocolPrincipal::Package { package_id } => package_id.clone(),
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => params
@@ -829,7 +926,9 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.open requires capability_id"))?
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.outbound.websocket.open requires capability_id")
+            })?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
@@ -839,20 +938,36 @@ where
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.open requires destination_host"))?
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.outbound.websocket.open requires destination_host")
+            })?
             .to_string();
-        let path = params.get("path").and_then(Value::as_str).map(str::to_string);
-        let purpose = params.get("purpose").and_then(Value::as_str).map(str::to_string);
+        let path = params
+            .get("path")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let purpose = params
+            .get("purpose")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         let mut metadata = params.get("metadata").cloned().unwrap_or(Value::Null);
         let subprotocols: Vec<String> = params
             .get("subprotocols")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
         let secret_refs: Vec<String> = params
             .get("secret_refs")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
         let secret_headers_spec = parse_secret_headers(&params)?;
         let static_headers_spec = parse_static_headers(&params)?;
@@ -903,9 +1018,14 @@ where
             HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
                 anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header name is invalid")
             })?;
-            let raw_value = self.resolve_secret_ref(&spec.secret_ref).await.map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header is unavailable")
-            })?;
+            let raw_value = self
+                .resolve_secret_ref(&spec.secret_ref)
+                .await
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "kernel.v1.outbound.websocket.open secret header is unavailable"
+                    )
+                })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
                 "basic" => format!("Basic {}", raw_value),
@@ -923,26 +1043,37 @@ where
             .collect::<HashMap<_, _>>();
 
         let session_id = format!("kernel_outbound_websocket_{}", package_id.replace('/', "_"));
-        let stream_record = self.streams.start_invocation(
-            capability_id.clone(),
-            package_id.clone(),
-            session_id.clone(),
+        let stream_record = self
+            .streams
+            .start_invocation(
+                capability_id.clone(),
+                package_id.clone(),
+                session_id.clone(),
+                json!({
+                    "destination_host": destination_host,
+                    "method": WEBSOCKET_METHOD,
+                }),
+            )
+            .await;
+        self.append_kernel_event(
+            &session_id,
+            ygg_core::EVENT_STREAM_STARTED,
             json!({
-                "destination_host": destination_host,
-                "method": WEBSOCKET_METHOD,
+                "invocation_id": stream_record.invocation_id,
+                "stream_id": stream_record.stream_id,
+                "capability_id": capability_id,
+                "provider_package_id": package_id,
+                "session_id": session_id,
             }),
-        ).await;
-        self.append_kernel_event(&session_id, ygg_core::EVENT_STREAM_STARTED, json!({
-            "invocation_id": stream_record.invocation_id,
-            "stream_id": stream_record.stream_id,
-            "capability_id": capability_id,
-            "provider_package_id": package_id,
-            "session_id": session_id,
-        })).await?;
+        )
+        .await?;
 
         metadata = match metadata {
             Value::Object(mut map) => {
-                map.insert("connection_id".to_string(), Value::String(stream_record.stream_id.clone()));
+                map.insert(
+                    "connection_id".to_string(),
+                    Value::String(stream_record.stream_id.clone()),
+                );
                 Value::Object(map)
             }
             other => json!({"connection_id": stream_record.stream_id, "request_metadata": other}),
@@ -959,11 +1090,26 @@ where
             metadata,
             static_headers,
             secret_headers,
-            max_frame_bytes: params.get("max_frame_bytes").and_then(Value::as_u64).unwrap_or(65_536) as usize,
-            max_total_bytes_inbound: params.get("max_total_bytes_inbound").and_then(Value::as_u64).unwrap_or(10 * 1024 * 1024) as usize,
-            max_total_bytes_outbound: params.get("max_total_bytes_outbound").and_then(Value::as_u64).unwrap_or(10 * 1024 * 1024) as usize,
-            max_idle_ms: params.get("max_idle_ms").and_then(Value::as_u64).unwrap_or(60_000),
-            max_duration_ms: params.get("max_duration_ms").and_then(Value::as_u64).unwrap_or(1_800_000),
+            max_frame_bytes: params
+                .get("max_frame_bytes")
+                .and_then(Value::as_u64)
+                .unwrap_or(65_536) as usize,
+            max_total_bytes_inbound: params
+                .get("max_total_bytes_inbound")
+                .and_then(Value::as_u64)
+                .unwrap_or(10 * 1024 * 1024) as usize,
+            max_total_bytes_outbound: params
+                .get("max_total_bytes_outbound")
+                .and_then(Value::as_u64)
+                .unwrap_or(10 * 1024 * 1024) as usize,
+            max_idle_ms: params
+                .get("max_idle_ms")
+                .and_then(Value::as_u64)
+                .unwrap_or(60_000),
+            max_duration_ms: params
+                .get("max_duration_ms")
+                .and_then(Value::as_u64)
+                .unwrap_or(1_800_000),
         };
         let session = self.outbound_websocket_executor().open(req).await?;
         let response = json!({
@@ -994,30 +1140,50 @@ where
                 let (kind, mut payload, terminal) = websocket_event_to_kernel_event(event);
                 if terminal {
                     if let Value::Object(map) = &mut payload {
-                        map.insert("id".to_string(), Value::String(completion_id_for_task.clone()));
-                        map.insert("package_id".to_string(), Value::String(pkg_id_for_task.clone()));
-                        map.insert("capability_id".to_string(), Value::String(cap_id_for_task.clone()));
-                        map.insert("destination_host".to_string(), Value::String(host_for_task.clone()));
+                        map.insert(
+                            "id".to_string(),
+                            Value::String(completion_id_for_task.clone()),
+                        );
+                        map.insert(
+                            "package_id".to_string(),
+                            Value::String(pkg_id_for_task.clone()),
+                        );
+                        map.insert(
+                            "capability_id".to_string(),
+                            Value::String(cap_id_for_task.clone()),
+                        );
+                        map.insert(
+                            "destination_host".to_string(),
+                            Value::String(host_for_task.clone()),
+                        );
                         map.insert("executor_kind".to_string(), json!(executor_kind_for_task));
-                        map.insert("network_performed".to_string(), Value::Bool(network_performed_for_task));
-                        map.insert("redaction_state".to_string(), json!(redaction_state_for_task));
+                        map.insert(
+                            "network_performed".to_string(),
+                            Value::Bool(network_performed_for_task),
+                        );
+                        map.insert(
+                            "redaction_state".to_string(),
+                            json!(redaction_state_for_task),
+                        );
                         map.insert("secret_refs_used".to_string(), json!(secret_refs_for_task));
                         map.insert("correlation_id".to_string(), json!(correlation_id_for_task));
                     }
                 }
-                use ygg_core::{EventEnvelope, KERNEL_PACKAGE_ID, new_id};
+                use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
                 let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
-                let _ = store.append(EventEnvelope {
-                    id: new_id("evt"),
-                    session_id: session_id_for_task.clone(),
-                    sequence: seq,
-                    timestamp: chrono::Utc::now(),
-                    writer_package_id: KERNEL_PACKAGE_ID.to_string(),
-                    kind: kind.to_string(),
-                    schema_version: 1,
-                    payload,
-                    metadata: json!({}),
-                }).await;
+                let _ = store
+                    .append(EventEnvelope {
+                        id: new_id("evt"),
+                        session_id: session_id_for_task.clone(),
+                        sequence: seq,
+                        timestamp: chrono::Utc::now(),
+                        writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                        kind: kind.to_string(),
+                        schema_version: 1,
+                        payload,
+                        metadata: json!({}),
+                    })
+                    .await;
                 if terminal {
                     let _ = streams.end_invocation(&invocation_id_for_task).await;
                     let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
@@ -1045,9 +1211,14 @@ where
         let connection_id = params
             .get("connection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.send requires connection_id"))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.outbound.websocket.send requires connection_id")
+            })?;
         let frame = parse_websocket_frame(params)?;
-        let status = self.outbound_websocket_executor().send(connection_id, frame).await?;
+        let status = self
+            .outbound_websocket_executor()
+            .send(connection_id, frame)
+            .await?;
         Ok(json!({"status": status}))
     }
 
@@ -1055,14 +1226,25 @@ where
         let connection_id = params
             .get("connection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.close requires connection_id"))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.outbound.websocket.close requires connection_id")
+            })?;
         let code = params.get("code").and_then(Value::as_u64).unwrap_or(1000) as u16;
-        let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
-        self.outbound_websocket_executor().close(connection_id, code, reason).await?;
+        let reason = params
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        self.outbound_websocket_executor()
+            .close(connection_id, code, reason)
+            .await?;
         Ok(json!({"status": "ok"}))
     }
 
-    async fn dispatch_outbound_git_fetch(&self, context: &ProtocolContext, params: Value) -> anyhow::Result<Value> {
+    async fn dispatch_outbound_git_fetch(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         let package_id = match &context.principal {
             ProtocolPrincipal::Package { package_id } => package_id.clone(),
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => params
@@ -1092,7 +1274,11 @@ where
             .and_then(Value::as_str)
             .unwrap_or("main")
             .to_string();
-        let fetch_kind = match params.get("fetch_kind").and_then(Value::as_str).unwrap_or("refs_only") {
+        let fetch_kind = match params
+            .get("fetch_kind")
+            .and_then(Value::as_str)
+            .unwrap_or("refs_only")
+        {
             "refs_only" => super::GitFetchKind::RefsOnly,
             "tree_only" => super::GitFetchKind::TreeOnly,
             "shallow_clone" => super::GitFetchKind::ShallowClone,
@@ -1101,7 +1287,11 @@ where
         let secret_refs: Vec<String> = params
             .get("secret_refs")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
         let request = super::GitOutboundRequest {
             package_id,
@@ -1109,7 +1299,10 @@ where
             remote_url,
             reference,
             fetch_kind,
-            destination_hint: params.get("destination_hint").and_then(Value::as_str).map(str::to_string),
+            destination_hint: params
+                .get("destination_hint")
+                .and_then(Value::as_str)
+                .map(str::to_string),
             secret_refs,
             redaction_state: None,
             timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
@@ -1117,7 +1310,9 @@ where
             correlation_id: context.correlation_id,
         };
 
-        let response = self.execute_git_outbound_with_policy(context.principal.clone(), request).await?;
+        let response = self
+            .execute_git_outbound_with_policy(context.principal.clone(), request)
+            .await?;
         let mut response_value = serde_json::to_value(&response)?;
         strip_raw_secrets_from_value(&mut response_value);
         Ok(response_value)
@@ -1136,9 +1331,18 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.grant requires permission"))?
             .to_string();
-        let scope = params.get("scope").and_then(Value::as_str).map(str::to_string);
-        let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
-        Ok(serde_json::to_value(self.grant_permission(principal, permission, scope, reason).await?)?)
+        let scope = params
+            .get("scope")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let reason = params
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        Ok(serde_json::to_value(
+            self.grant_permission(principal, permission, scope, reason)
+                .await?,
+        )?)
     }
 
     async fn dispatch_permission_revoke(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1146,7 +1350,9 @@ where
             .get("grant_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.revoke requires grant_id"))?;
-        Ok(serde_json::to_value(self.revoke_permission(grant_id).await?)?)
+        Ok(serde_json::to_value(
+            self.revoke_permission(grant_id).await?,
+        )?)
     }
 
     async fn dispatch_permission_list(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1154,22 +1360,27 @@ where
             Some(value) => Some(serde_json::from_value(value.clone())?),
             None => None,
         };
-        Ok(serde_json::to_value(self.list_permission_grants(principal).await)?)
+        Ok(serde_json::to_value(
+            self.list_permission_grants(principal).await,
+        )?)
     }
 
     async fn dispatch_permission_audit(&self) -> anyhow::Result<Value> {
-        let events = self
-            .store
-            .list_kind_prefix("kernel/v1/permission")
-            .await?;
+        let events = self.store.list_kind_prefix("kernel/v1/permission").await?;
         Ok(serde_json::to_value(events)?)
     }
 
     // --- Proposal ---
 
-    async fn dispatch_proposal_create(&self, context: &ProtocolContext, params: &Value) -> anyhow::Result<Value> {
+    async fn dispatch_proposal_create(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let proposal: super::ProposalRecord = serde_json::from_value(params.clone())?;
-        Ok(serde_json::to_value(self.create_proposal(context, proposal).await?)?)
+        Ok(serde_json::to_value(
+            self.create_proposal(context, proposal).await?,
+        )?)
     }
 
     async fn dispatch_proposal_get(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1184,22 +1395,40 @@ where
         Ok(serde_json::to_value(self.list_proposals().await)?)
     }
 
-    async fn dispatch_proposal_approve(&self, context: &ProtocolContext, params: &Value) -> anyhow::Result<Value> {
+    async fn dispatch_proposal_approve(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.approve requires proposal_id"))?;
-        let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
-        Ok(serde_json::to_value(self.approve_proposal(context, proposal_id, reason).await?)?)
+        let reason = params
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        Ok(serde_json::to_value(
+            self.approve_proposal(context, proposal_id, reason).await?,
+        )?)
     }
 
-    async fn dispatch_proposal_reject(&self, context: &ProtocolContext, params: &Value) -> anyhow::Result<Value> {
+    async fn dispatch_proposal_reject(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.reject requires proposal_id"))?;
-        let reason = params.get("reason").and_then(Value::as_str).map(str::to_string);
-        Ok(serde_json::to_value(self.reject_proposal(context, proposal_id, reason).await?)?)
+        let reason = params
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        Ok(serde_json::to_value(
+            self.reject_proposal(context, proposal_id, reason).await?,
+        )?)
     }
 
     async fn dispatch_proposal_apply(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1207,7 +1436,9 @@ where
             .get("proposal_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.apply requires proposal_id"))?;
-        Ok(serde_json::to_value(self.apply_proposal(proposal_id).await?)?)
+        Ok(serde_json::to_value(
+            self.apply_proposal(proposal_id).await?,
+        )?)
     }
 
     // --- Session ---
@@ -1230,9 +1461,14 @@ where
         let forked_from_sequence = params
             .get("forked_from_sequence")
             .and_then(Value::as_u64)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.fork requires forked_from_sequence"))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.session.fork requires forked_from_sequence")
+            })?;
         let metadata = params.get("metadata").cloned().unwrap_or_else(|| json!({}));
-        Ok(serde_json::to_value(self.fork_session(parent_session_id, forked_from_sequence, metadata).await?)?)
+        Ok(serde_json::to_value(
+            self.fork_session(parent_session_id, forked_from_sequence, metadata)
+                .await?,
+        )?)
     }
 
     async fn dispatch_session_branch_list(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1246,9 +1482,16 @@ where
 
     // --- Event ---
 
-    async fn dispatch_event_list(&self, context: &ProtocolContext, params: &Value) -> anyhow::Result<Value> {
+    async fn dispatch_event_list(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let request: EventListRequest = serde_json::from_value(params.clone())?;
-        Ok(serde_json::to_value(self.list_events_range_with_context(context, &request).await?)?)
+        Ok(serde_json::to_value(
+            self.list_events_range_with_context(context, &request)
+                .await?,
+        )?)
     }
 
     // --- Package ---
@@ -1272,7 +1515,9 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.unload requires package_id"))?
             .to_string();
-        Ok(serde_json::to_value(self.unload_package(&package_id).await?)?)
+        Ok(serde_json::to_value(
+            self.unload_package(&package_id).await?,
+        )?)
     }
 
     async fn dispatch_package_restart(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1281,7 +1526,9 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.restart requires package_id"))?
             .to_string();
-        Ok(serde_json::to_value(self.restart_package(&package_id).await?)?)
+        Ok(serde_json::to_value(
+            self.restart_package(&package_id).await?,
+        )?)
     }
 
     async fn dispatch_package_logs(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1296,12 +1543,10 @@ where
     // --- Capability ---
 
     async fn dispatch_cap_attenuate(&self, params: &Value) -> anyhow::Result<Value> {
-        let parent_handle: CapHandleId = serde_json::from_value(
-            params
-                .get("parent_handle")
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("kernel.v1.cap.attenuate requires parent_handle"))?,
-        )?;
+        let parent_handle: CapHandleId =
+            serde_json::from_value(params.get("parent_handle").cloned().ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.cap.attenuate requires parent_handle")
+            })?)?;
         let constraints = params.get("constraints").cloned().unwrap_or(Value::Null);
         let handle_id = self.handles.attenuate(parent_handle, constraints).await?;
         let handle = self
@@ -1333,19 +1578,65 @@ where
     }
 
     async fn dispatch_capability_stream(&self, params: &Value) -> anyhow::Result<Value> {
-        let capability_id = params
-            .get("capability_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.stream requires capability_id"))?
-            .to_string();
+        let (capability_id, handle_version) = if let Some(handle_value) = params.get("handle") {
+            let handle_id: CapHandleId = serde_json::from_value(handle_value.clone())?;
+            let handle = self
+                .handles
+                .lookup(handle_id)
+                .await
+                .ok_or_else(|| anyhow::anyhow!("capability handle not found"))?;
+            if handle.revoked {
+                anyhow::bail!("capability handle is revoked");
+            }
+            if let Some(expires_at) = handle.lease.expires_at {
+                if expires_at <= chrono::Utc::now() {
+                    anyhow::bail!("capability handle lease expired");
+                }
+            }
+            if let Some(max_invocations) = handle.lease.max_invocations {
+                if handle.lease.invocations_used >= max_invocations {
+                    anyhow::bail!("capability handle lease exhausted");
+                }
+            }
+            let version = if handle.cap_version == "1" {
+                None
+            } else {
+                Some(handle.cap_version)
+            };
+            (handle.cap_type, version)
+        } else {
+            (
+                params
+                    .get("capability_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "kernel.v1.capability.stream requires capability_id or handle"
+                        )
+                    })?
+                    .to_string(),
+                None,
+            )
+        };
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.stream requires session_id"))?
             .to_string();
-        let provider_package_id: Option<String> = params.get("provider_package_id").and_then(Value::as_str).map(String::from);
-        let version: Option<String> = params.get("version").and_then(Value::as_str).map(String::from);
-        let metadata = params.get("metadata").cloned().unwrap_or_else(|| serde_json::json!({}));
+        let provider_package_id: Option<String> = params
+            .get("provider_package_id")
+            .and_then(Value::as_str)
+            .map(String::from);
+        let version: Option<String> = handle_version.or_else(|| {
+            params
+                .get("version")
+                .and_then(Value::as_str)
+                .map(String::from)
+        });
+        let metadata = params
+            .get("metadata")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
         let (frame, record) = self
             .stream_capability_start(
                 &session_id,
@@ -1365,14 +1656,24 @@ where
         let invocation_id = match params.get("invocation_id").and_then(Value::as_str) {
             Some(invocation_id) => invocation_id.to_string(),
             None => {
-                let stream_id = params
-                    .get("stream_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel requires invocation_id or stream_id"))?;
+                let stream_id =
+                    params
+                        .get("stream_id")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "kernel.v1.capability.cancel requires invocation_id or stream_id"
+                            )
+                        })?;
                 self.streams
                     .get_invocation_by_stream_id(stream_id)
                     .await
-                    .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel stream_id '{}' not found", stream_id))?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "kernel.v1.capability.cancel stream_id '{}' not found",
+                            stream_id
+                        )
+                    })?
                     .invocation_id
             }
         };
@@ -1381,7 +1682,9 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel requires session_id"))?
             .to_string();
-        let frame = self.stream_capability_cancel(&session_id, &invocation_id).await?;
+        let frame = self
+            .stream_capability_cancel(&session_id, &invocation_id)
+            .await?;
         if session_id.starts_with("kernel_outbound_websocket_") {
             self.outbound_websocket_executor()
                 .close(&frame.stream_id, 1001, Some("cancelled".to_string()))
@@ -1406,8 +1709,12 @@ where
         let projection_id = params
             .get("projection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.projection.rebuild requires projection_id"))?;
-        Ok(serde_json::to_value(self.projection_rebuild(projection_id).await?)?)
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.projection.rebuild requires projection_id")
+            })?;
+        Ok(serde_json::to_value(
+            self.projection_rebuild(projection_id).await?,
+        )?)
     }
 
     async fn dispatch_projection_get(&self, params: &Value) -> anyhow::Result<Value> {
@@ -1415,7 +1722,9 @@ where
             .get("projection_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.projection.get requires projection_id"))?;
-        Ok(serde_json::to_value(self.projection_get(projection_id).await?)?)
+        Ok(serde_json::to_value(
+            self.projection_get(projection_id).await?,
+        )?)
     }
 }
 
@@ -1473,11 +1782,16 @@ where
         });
 
         // Append a chunk frame to the kernel stream
-        let _kernel_frame = self.streams
-            .append_chunk(&self.invocation_id, payload.clone(), RedactionState::Redacted)
+        let _kernel_frame = self
+            .streams
+            .append_chunk(
+                &self.invocation_id,
+                payload.clone(),
+                RedactionState::Redacted,
+            )
             .await?;
 
-        use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID, EVENT_STREAM_CHUNK};
+        use ygg_core::{new_id, EventEnvelope, EVENT_STREAM_CHUNK, KERNEL_PACKAGE_ID};
         let seq = self.store.next_sequence(&self.session_id).await?;
         self.store
             .append(EventEnvelope {
@@ -1584,7 +1898,8 @@ fn validate_outbound_stream_https_only(
         );
     }
     if url.scheme() != "https" {
-        let is_loopback = actual_host == "127.0.0.1" || actual_host == "localhost" || actual_host == "[::1]";
+        let is_loopback =
+            actual_host == "127.0.0.1" || actual_host == "localhost" || actual_host == "[::1]";
         if !allow_insecure_loopback_for_tests || !is_loopback {
             anyhow::bail!("outbound.stream rejects non-HTTPS URL: {}", url_str);
         }
@@ -1600,7 +1915,9 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
                 .get("text")
                 .or_else(|| params.get("data"))
                 .and_then(Value::as_str)
-                .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.send requires text data"))?
+                .ok_or_else(|| {
+                    anyhow::anyhow!("kernel.v1.outbound.websocket.send requires text data")
+                })?
                 .to_string(),
         )),
         "binary" => {
@@ -1608,11 +1925,15 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
                 .get("bytes")
                 .or_else(|| params.get("data"))
                 .and_then(Value::as_array)
-                .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.websocket.send requires binary bytes array"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("kernel.v1.outbound.websocket.send requires binary bytes array")
+                })?;
             let mut bytes = Vec::with_capacity(arr.len());
             for value in arr {
                 let byte = value.as_u64().ok_or_else(|| {
-                    anyhow::anyhow!("kernel.v1.outbound.websocket.send binary bytes must be integers")
+                    anyhow::anyhow!(
+                        "kernel.v1.outbound.websocket.send binary bytes must be integers"
+                    )
                 })?;
                 if byte > u8::MAX as u64 {
                     anyhow::bail!("kernel.v1.outbound.websocket.send binary byte out of range");
@@ -1627,15 +1948,29 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
 
 fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Value, bool) {
     match event {
-        WebSocketEvent::Opened { connection_id, subprotocol } => (
+        WebSocketEvent::Opened {
+            connection_id,
+            subprotocol,
+        } => (
             ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED,
             json!({"connection_id": connection_id, "subprotocol": subprotocol}),
             false,
         ),
-        WebSocketEvent::Frame { connection_id, direction, kind, bytes, seq, payload } => {
+        WebSocketEvent::Frame {
+            connection_id,
+            direction,
+            kind,
+            bytes,
+            seq,
+            payload,
+        } => {
             let payload_shape = match payload {
-                super::WebSocketFramePayload::Text(text) => json!({"kind": "text", "bytes": text.len()}),
-                super::WebSocketFramePayload::Binary(bytes) => json!({"kind": "binary", "bytes": bytes.len()}),
+                super::WebSocketFramePayload::Text(text) => {
+                    json!({"kind": "text", "bytes": text.len()})
+                }
+                super::WebSocketFramePayload::Binary(bytes) => {
+                    json!({"kind": "binary", "bytes": bytes.len()})
+                }
             };
             (
                 ygg_core::EVENT_OUTBOUND_WEBSOCKET_FRAME,
@@ -1650,12 +1985,25 @@ fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Valu
                 false,
             )
         }
-        WebSocketEvent::Error { connection_id, code, message_redacted } => (
+        WebSocketEvent::Error {
+            connection_id,
+            code,
+            message_redacted,
+        } => (
             ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
             json!({"connection_id": connection_id, "error_code": code, "message_redacted": message_redacted}),
             false,
         ),
-        WebSocketEvent::Closed { connection_id, code, reason, total_frames_in, total_frames_out, total_bytes_in, total_bytes_out, duration_ms } => (
+        WebSocketEvent::Closed {
+            connection_id,
+            code,
+            reason,
+            total_frames_in,
+            total_frames_out,
+            total_bytes_in,
+            total_bytes_out,
+            duration_ms,
+        } => (
             ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
             json!({
                 "connection_id": connection_id,
@@ -1692,16 +2040,18 @@ fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
         None => return Ok(Vec::new()),
     };
 
-    let headers_obj = secret_headers_value
-        .as_object()
-        .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute secret_headers must be an object"))?;
+    let headers_obj = secret_headers_value.as_object().ok_or_else(|| {
+        anyhow::anyhow!("kernel.v1.outbound.execute secret_headers must be an object")
+    })?;
 
     let mut specs = Vec::new();
     for (header_name, header_spec) in headers_obj {
         let secret_ref = header_spec
             .get("secret_ref")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute secret header requires secret_ref"))?
+            .ok_or_else(|| {
+                anyhow::anyhow!("kernel.v1.outbound.execute secret header requires secret_ref")
+            })?
             .to_string();
 
         if !ygg_core::SecretRef::is_valid_ref(&secret_ref) {
@@ -1749,9 +2099,9 @@ fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
         None => return Ok(Vec::new()),
     };
 
-    let headers_obj = static_headers_value
-        .as_object()
-        .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute static_headers must be an object"))?;
+    let headers_obj = static_headers_value.as_object().ok_or_else(|| {
+        anyhow::anyhow!("kernel.v1.outbound.execute static_headers must be an object")
+    })?;
 
     let mut headers = Vec::new();
     for (header_name, header_value) in headers_obj {
@@ -1773,10 +2123,12 @@ fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<super::outbound::S
 
         let value = header_value
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!(
-                "kernel.v1.outbound.execute static_headers value for '{}' must be a string",
-                header_name
-            ))?
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "kernel.v1.outbound.execute static_headers value for '{}' must be a string",
+                    header_name
+                )
+            })?
             .to_string();
 
         // Reject values that look like raw secrets
@@ -1812,7 +2164,11 @@ fn looks_like_raw_secret_value(value: &str) -> bool {
         return true;
     }
     // High-entropy alphanumeric strings of length >= 32
-    if value.len() >= 32 && value.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_') {
+    if value.len() >= 32
+        && value
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_')
+    {
         let has_upper = value.chars().any(|c| c.is_uppercase());
         let has_lower = value.chars().any(|c| c.is_lowercase());
         let has_digit = value.chars().any(|c| c.is_ascii_digit());
@@ -1831,17 +2187,21 @@ fn looks_like_raw_secret_value(value: &str) -> bool {
 mod y2_tests {
     use std::sync::Arc;
 
-    use ygg_core::{
-        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
-        PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
-    };
     use crate::{
-        FakeOutboundExecutor, InMemoryEventStore, OutboundExecutorConfig, ProtocolContext,
-        Runtime, RuntimeConfig,
+        FakeOutboundExecutor, InMemoryEventStore, OutboundExecutorConfig, ProtocolContext, Runtime,
+        RuntimeConfig,
+    };
+    use ygg_core::{
+        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
+        PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
     };
 
     /// Helper: create a runtime with a FakeOutboundExecutor.
-    fn runtime_with_fake() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeOutboundExecutor>) {
+    fn runtime_with_fake() -> (
+        Arc<InMemoryEventStore>,
+        Runtime<InMemoryEventStore>,
+        Arc<FakeOutboundExecutor>,
+    ) {
         let store = Arc::new(InMemoryEventStore::default());
         let fake = Arc::new(FakeOutboundExecutor::new());
         let config = RuntimeConfig {
@@ -1853,10 +2213,7 @@ mod y2_tests {
     }
 
     /// Helper: create a package manifest with network and secret_refs permissions.
-    fn package_with_secret_refs(
-        id: &str,
-        secret_refs: Vec<String>,
-    ) -> PackageManifest {
+    fn package_with_secret_refs(id: &str, secret_refs: Vec<String>) -> PackageManifest {
         PackageManifest {
             schema_version: 1,
             id: id.to_string(),
@@ -1936,7 +2293,8 @@ mod y2_tests {
             "error should mention undeclared secret_ref, got: {err_msg}"
         );
         assert_eq!(
-            fake.call_count(), 0,
+            fake.call_count(),
+            0,
             "executor should not be called for undeclared secret_ref"
         );
     }
@@ -2014,7 +2372,11 @@ mod y2_tests {
             .await;
 
         // Should succeed (fake executor returns ok)
-        assert!(result.is_ok(), "request without secret_headers should succeed, got: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "request without secret_headers should succeed, got: {:?}",
+            result.err()
+        );
         assert_eq!(fake.call_count(), 1, "executor should be called");
     }
 
@@ -2045,14 +2407,18 @@ mod y2_tests {
             )
             .await;
 
-        assert!(result.is_err(), "undeclared second secret_ref should be denied");
+        assert!(
+            result.is_err(),
+            "undeclared second secret_ref should be denied"
+        );
         let err_msg = format!("{:?}", result.unwrap_err());
         assert!(
             err_msg.contains("not declared"),
             "error should mention undeclared secret_ref, got: {err_msg}"
         );
         assert_eq!(
-            fake.call_count(), 0,
+            fake.call_count(),
+            0,
             "executor should not be called when any secret_ref is undeclared"
         );
     }
@@ -2080,7 +2446,10 @@ mod y2_tests {
             )
             .await;
 
-        assert!(result.is_err(), "top-level undeclared secret_ref should be denied");
+        assert!(
+            result.is_err(),
+            "top-level undeclared secret_ref should be denied"
+        );
         let err_msg = format!("{:?}", result.unwrap_err());
         assert!(
             err_msg.contains("not declared"),
@@ -2094,17 +2463,21 @@ mod y2_tests {
 mod z_websocket_tests {
     use std::sync::Arc;
 
-    use ygg_core::{
-        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
-        PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
-    };
     use crate::{
         EventStore, FakeOutboundExecutor, FakeWebSocketExecutor, InMemoryEventStore,
         OutboundExecutePolicyConfig, OutboundExecutorConfig, OutboundExecutorResponse,
         ProtocolContext, Runtime, RuntimeConfig,
     };
+    use ygg_core::{
+        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
+        PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    };
 
-    fn runtime_with_fake_ws() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeWebSocketExecutor>) {
+    fn runtime_with_fake_ws() -> (
+        Arc<InMemoryEventStore>,
+        Runtime<InMemoryEventStore>,
+        Arc<FakeWebSocketExecutor>,
+    ) {
         let store = Arc::new(InMemoryEventStore::default());
         let fake = Arc::new(FakeWebSocketExecutor::new());
         let config = RuntimeConfig {
@@ -2159,12 +2532,21 @@ mod z_websocket_tests {
     #[tokio::test]
     async fn dispatch_outbound_websocket_open_namespace_enforced() {
         let (_store, runtime, _fake) = runtime_with_fake_ws();
-        runtime.load_package(package_ws("example/ws-ns", vec![])).await.expect("load package");
+        runtime
+            .load_package(package_ws("example/ws-ns", vec![]))
+            .await
+            .expect("load package");
         let context = ProtocolContext::package("example/ws-ns", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-            "capability_id": "other/pkg/ws",
-            "destination_host": "api.example.com"
-        })).await;
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "other/pkg/ws",
+                    "destination_host": "api.example.com"
+                }),
+            )
+            .await;
         assert!(result.is_err());
         assert!(format!("{:?}", result.unwrap_err()).contains("namespace"));
     }
@@ -2172,13 +2554,22 @@ mod z_websocket_tests {
     #[tokio::test]
     async fn dispatch_outbound_websocket_open_secret_ref_undeclared_fails() {
         let (_store, runtime, _fake) = runtime_with_fake_ws();
-        runtime.load_package(package_ws("example/ws-secret", vec![])).await.expect("load package");
+        runtime
+            .load_package(package_ws("example/ws-secret", vec![]))
+            .await
+            .expect("load package");
         let context = ProtocolContext::package("example/ws-secret", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-            "capability_id": "example/ws-secret/ws",
-            "destination_host": "api.example.com",
-            "secret_refs": ["secret_ref:env:MISSING"]
-        })).await;
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/ws-secret/ws",
+                    "destination_host": "api.example.com",
+                    "secret_refs": ["secret_ref:env:MISSING"]
+                }),
+            )
+            .await;
         assert!(result.is_err());
         assert!(format!("{:?}", result.unwrap_err()).contains("not declared"));
     }
@@ -2186,20 +2577,42 @@ mod z_websocket_tests {
     #[tokio::test]
     async fn dispatch_outbound_websocket_open_with_fake_executor_emits_opened() {
         let (store, runtime, _fake) = runtime_with_fake_ws();
-        runtime.load_package(package_ws("example/ws-ok", vec![])).await.expect("load package");
+        runtime
+            .load_package(package_ws("example/ws-ok", vec![]))
+            .await
+            .expect("load package");
         let context = ProtocolContext::package("example/ws-ok", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-            "capability_id": "example/ws-ok/ws",
-            "destination_host": "api.example.com",
-            "subprotocols": ["json"]
-        })).await.expect("open websocket");
-        let connection_id = result.get("connection_id").and_then(serde_json::Value::as_str).unwrap();
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/ws-ok/ws",
+                    "destination_host": "api.example.com",
+                    "subprotocols": ["json"]
+                }),
+            )
+            .await
+            .expect("open websocket");
+        let connection_id = result
+            .get("connection_id")
+            .and_then(serde_json::Value::as_str)
+            .unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-        let events = store.list_kind_prefix(ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED).await.unwrap();
-        assert!(events.iter().any(|event| event.payload.get("connection_id").and_then(serde_json::Value::as_str) == Some(connection_id)));
+        let events = store
+            .list_kind_prefix(ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED)
+            .await
+            .unwrap();
+        assert!(events.iter().any(|event| event
+            .payload
+            .get("connection_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(connection_id)));
     }
 
-    fn runtime_with_fake_execute(fake: Arc<FakeOutboundExecutor>) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
+    fn runtime_with_fake_execute(
+        fake: Arc<FakeOutboundExecutor>,
+    ) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
         let store = Arc::new(InMemoryEventStore::default());
         let config = RuntimeConfig {
             outbound_executor: OutboundExecutorConfig::Custom(fake),
@@ -2231,13 +2644,23 @@ mod z_websocket_tests {
     async fn outbound_execute_emits_completed_event_on_success() {
         let fake = Arc::new(FakeOutboundExecutor::new());
         let (store, runtime) = runtime_with_fake_execute(fake);
-        runtime.load_package(package_ws("example/z6-exec-ok", vec![])).await.unwrap();
+        runtime
+            .load_package(package_ws("example/z6-exec-ok", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-exec-ok", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
-            "capability_id": "example/z6-exec-ok/ws",
-            "destination_host": "api.example.com",
-            "method": "WEBSOCKET"
-        })).await.unwrap();
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/z6-exec-ok/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET"
+                }),
+            )
+            .await
+            .unwrap();
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
         assert_eq!(payload["status"], "ok");
         assert_eq!(payload["executor_kind"], "fake");
@@ -2263,13 +2686,23 @@ mod z_websocket_tests {
             },
         ));
         let (store, runtime) = runtime_with_fake_execute(fake);
-        runtime.load_package(package_ws("example/z6-exec-error", vec![])).await.unwrap();
+        runtime
+            .load_package(package_ws("example/z6-exec-error", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-exec-error", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
-            "capability_id": "example/z6-exec-error/ws",
-            "destination_host": "api.example.com",
-            "method": "WEBSOCKET"
-        })).await.unwrap();
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/z6-exec-error/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET"
+                }),
+            )
+            .await
+            .unwrap();
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
         assert_eq!(payload["status"], "error");
     }
@@ -2278,13 +2711,22 @@ mod z_websocket_tests {
     async fn outbound_execute_emits_completed_event_on_denied() {
         let fake = Arc::new(FakeOutboundExecutor::new());
         let (store, runtime) = runtime_with_fake_execute(fake);
-        runtime.load_package(package_ws("example/z6-exec-denied", vec![])).await.unwrap();
+        runtime
+            .load_package(package_ws("example/z6-exec-denied", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-exec-denied", "in_process");
-        let result = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
-            "capability_id": "example/z6-exec-denied/ws",
-            "destination_host": "denied.example.com",
-            "method": "WEBSOCKET"
-        })).await;
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/z6-exec-denied/ws",
+                    "destination_host": "denied.example.com",
+                    "method": "WEBSOCKET"
+                }),
+            )
+            .await;
         assert!(result.is_err());
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
         assert_eq!(payload["status"], "denied");
@@ -2294,14 +2736,24 @@ mod z_websocket_tests {
     async fn outbound_stream_emits_completed_event_on_ended() {
         let fake = Arc::new(FakeOutboundExecutor::new());
         let (store, runtime) = runtime_with_fake_execute(fake);
-        runtime.load_package(package_ws("example/z6-stream-ended", vec![])).await.unwrap();
+        runtime
+            .load_package(package_ws("example/z6-stream-ended", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-stream-ended", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.stream", serde_json::json!({
-            "capability_id": "example/z6-stream-ended/ws",
-            "destination_host": "api.example.com",
-            "method": "WEBSOCKET",
-            "stream_format": "sse"
-        })).await.unwrap();
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.stream",
+                serde_json::json!({
+                    "capability_id": "example/z6-stream-ended/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET",
+                    "stream_format": "sse"
+                }),
+            )
+            .await
+            .unwrap();
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED).await;
         assert_eq!(payload["status"], "ok");
         assert_eq!(payload["final_termination"], "ended");
@@ -2311,19 +2763,36 @@ mod z_websocket_tests {
     async fn outbound_stream_emits_completed_event_on_cancelled() {
         let fake = Arc::new(FakeOutboundExecutor::new());
         let (store, runtime) = runtime_with_fake_execute(fake);
-        runtime.load_package(package_ws("example/z6-stream-cancel", vec![])).await.unwrap();
+        runtime
+            .load_package(package_ws("example/z6-stream-cancel", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-stream-cancel", "in_process");
-        let response = runtime.call_protocol(&context, "kernel.v1.outbound.stream", serde_json::json!({
-            "capability_id": "example/z6-stream-cancel/ws",
-            "destination_host": "api.example.com",
-            "method": "WEBSOCKET",
-            "stream_format": "sse"
-        })).await.unwrap();
+        let response = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.stream",
+                serde_json::json!({
+                    "capability_id": "example/z6-stream-cancel/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET",
+                    "stream_format": "sse"
+                }),
+            )
+            .await
+            .unwrap();
         let stream_id = response["stream_id"].as_str().unwrap();
-        runtime.call_protocol(&context, "kernel.v1.capability.cancel", serde_json::json!({
-            "stream_id": stream_id,
-            "session_id": "kernel_outbound_stream_example_z6-stream-cancel"
-        })).await.unwrap();
+        runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.capability.cancel",
+                serde_json::json!({
+                    "stream_id": stream_id,
+                    "session_id": "kernel_outbound_stream_example_z6-stream-cancel"
+                }),
+            )
+            .await
+            .unwrap();
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED).await;
         assert_eq!(payload["status"], "cancelled");
         assert_eq!(payload["final_termination"], "cancelled");
@@ -2331,15 +2800,33 @@ mod z_websocket_tests {
 
     #[tokio::test]
     async fn outbound_websocket_emits_completed_event_on_close() {
-        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![crate::OutboundWebSocketFrame::Text("hello".to_string())]));
+        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![
+            crate::OutboundWebSocketFrame::Text("hello".to_string()),
+        ]));
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Runtime::new(store.clone(), RuntimeConfig { outbound_websocket_executor: fake, ..RuntimeConfig::default() });
-        runtime.load_package(package_ws("example/z6-ws-close", vec![])).await.unwrap();
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                outbound_websocket_executor: fake,
+                ..RuntimeConfig::default()
+            },
+        );
+        runtime
+            .load_package(package_ws("example/z6-ws-close", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-ws-close", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-            "capability_id": "example/z6-ws-close/ws",
-            "destination_host": "api.example.com"
-        })).await.unwrap();
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/z6-ws-close/ws",
+                    "destination_host": "api.example.com"
+                }),
+            )
+            .await
+            .unwrap();
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await;
         assert_eq!(payload["package_id"], "example/z6-ws-close");
         assert_eq!(payload["total_frames_in"], 1);
@@ -2350,18 +2837,37 @@ mod z_websocket_tests {
         let env_name = format!("YGG_Z6_SECRET_{}", std::process::id());
         std::env::set_var(&env_name, "super-secret-value");
         struct Guard(String);
-        impl Drop for Guard { fn drop(&mut self) { std::env::remove_var(&self.0); } }
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                std::env::remove_var(&self.0);
+            }
+        }
         let _guard = Guard(env_name.clone());
         let fake = Arc::new(FakeOutboundExecutor::new());
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Runtime::new(store.clone(), RuntimeConfig {
-            outbound_executor: OutboundExecutorConfig::Custom(fake),
-            outbound_execute_policy: OutboundExecutePolicyConfig { enabled: true, allowed_hosts: vec!["api.example.com".to_string()], https_only: true, timeout_ms: 30_000, allow_redirects: false, allow_insecure_loopback_for_tests: false },
-            secret_resolver: crate::SecretResolverConfig::with_resolver(Arc::new(crate::EnvSecretResolver::from_iter(vec![env_name.clone()]))),
-            ..RuntimeConfig::default()
-        });
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                outbound_executor: OutboundExecutorConfig::Custom(fake),
+                outbound_execute_policy: OutboundExecutePolicyConfig {
+                    enabled: true,
+                    allowed_hosts: vec!["api.example.com".to_string()],
+                    https_only: true,
+                    timeout_ms: 30_000,
+                    allow_redirects: false,
+                    allow_insecure_loopback_for_tests: false,
+                },
+                secret_resolver: crate::SecretResolverConfig::with_resolver(Arc::new(
+                    crate::EnvSecretResolver::from_iter(vec![env_name.clone()]),
+                )),
+                ..RuntimeConfig::default()
+            },
+        );
         let secret_ref = format!("secret_ref:env:{env_name}");
-        runtime.load_package(package_ws("example/z6-secret", vec![secret_ref.clone()])).await.unwrap();
+        runtime
+            .load_package(package_ws("example/z6-secret", vec![secret_ref.clone()]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-secret", "in_process");
         let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
             "capability_id": "example/z6-secret/ws",
@@ -2378,19 +2884,39 @@ mod z_websocket_tests {
 
     #[tokio::test]
     async fn outbound_completion_event_no_payload_in_websocket() {
-        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![crate::OutboundWebSocketFrame::Text("raw-frame-payload".to_string())]));
+        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![
+            crate::OutboundWebSocketFrame::Text("raw-frame-payload".to_string()),
+        ]));
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Runtime::new(store.clone(), RuntimeConfig { outbound_websocket_executor: fake, ..RuntimeConfig::default() });
-        runtime.load_package(package_ws("example/z6-ws-scrub", vec![])).await.unwrap();
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                outbound_websocket_executor: fake,
+                ..RuntimeConfig::default()
+            },
+        );
+        runtime
+            .load_package(package_ws("example/z6-ws-scrub", vec![]))
+            .await
+            .unwrap();
         let context = ProtocolContext::package("example/z6-ws-scrub", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-            "capability_id": "example/z6-ws-scrub/ws",
-            "destination_host": "api.example.com"
-        })).await.unwrap();
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/z6-ws-scrub/ws",
+                    "destination_host": "api.example.com"
+                }),
+            )
+            .await
+            .unwrap();
         let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await;
         assert!(payload.get("payload").is_none());
         assert!(payload.get("body").is_none());
         assert!(payload.get("data").is_none());
-        assert!(!serde_json::to_string(&payload).unwrap().contains("raw-frame-payload"));
+        assert!(!serde_json::to_string(&payload)
+            .unwrap()
+            .contains("raw-frame-payload"));
     }
 }

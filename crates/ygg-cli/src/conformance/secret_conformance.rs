@@ -2,7 +2,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use serde_json::json;
-use ygg_runtime::{EnvSecretResolver, InMemoryEventStore, OpenSessionRequest, ProtocolContext, Runtime, RuntimeConfig, SecretResolverConfig};
+use ygg_runtime::{
+    EnvSecretResolver, InMemoryEventStore, OpenSessionRequest, ProtocolContext, Runtime,
+    RuntimeConfig, SecretResolverConfig,
+};
 
 use super::fixtures::*;
 
@@ -30,11 +33,19 @@ pub(crate) async fn permission_grant_rehydrate() -> anyhow::Result<()> {
         )
         .await
         .map_err(|e| anyhow::anyhow!(e.message))?;
-    let grant_id = grant["id"].as_str().ok_or_else(|| anyhow::anyhow!("grant missing id"))?.to_string();
+    let grant_id = grant["id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("grant missing id"))?
+        .to_string();
 
     // Verify the grant is effective before drop
     let grants_before = runtime.list_permission_grants(None).await;
-    anyhow::ensure!(grants_before.iter().any(|g| g.id == grant_id && g.revoked_at.is_none()), "grant not found before drop");
+    anyhow::ensure!(
+        grants_before
+            .iter()
+            .any(|g| g.id == grant_id && g.revoked_at.is_none()),
+        "grant not found before drop"
+    );
 
     drop(runtime);
     drop(store);
@@ -46,11 +57,20 @@ pub(crate) async fn permission_grant_rehydrate() -> anyhow::Result<()> {
 
     // Verify the grant survived rehydrate
     let grants_after = hydrated.list_permission_grants(None).await;
-    anyhow::ensure!(grants_after.iter().any(|g| g.id == grant_id && g.revoked_at.is_none()), "grant did not survive rehydrate");
+    anyhow::ensure!(
+        grants_after
+            .iter()
+            .any(|g| g.id == grant_id && g.revoked_at.is_none()),
+        "grant did not survive rehydrate"
+    );
 
     // Revoke and rehydrate again
     hydrated
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.permission.revoke", json!({"grant_id": grant_id}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.permission.revoke",
+            json!({"grant_id": grant_id}),
+        )
         .await
         .map_err(|e| anyhow::anyhow!(e.message))?;
     drop(hydrated);
@@ -60,8 +80,14 @@ pub(crate) async fn permission_grant_rehydrate() -> anyhow::Result<()> {
     hydrated2.hydrate_substrate_from_events().await?;
     let grants_final = hydrated2.list_permission_grants(None).await;
     let revived_grant = grants_final.iter().find(|g| g.id == grant_id);
-    anyhow::ensure!(revived_grant.is_some(), "revoked grant not found after rehydrate");
-    anyhow::ensure!(revived_grant.unwrap().revoked_at.is_some(), "revoked grant should have revoked_at after rehydrate");
+    anyhow::ensure!(
+        revived_grant.is_some(),
+        "revoked grant not found after rehydrate"
+    );
+    anyhow::ensure!(
+        revived_grant.unwrap().revoked_at.is_some(),
+        "revoked grant should have revoked_at after rehydrate"
+    );
 
     let _ = fs::remove_file(path);
     Ok(())
@@ -101,8 +127,14 @@ pub(crate) async fn raw_secret_blocked_in_proposal() -> anyhow::Result<()> {
             }),
         )
         .await;
-    anyhow::ensure!(denied.is_err(), "proposal with raw secret should be rejected");
-    anyhow::ensure!(denied.unwrap_err().message.contains("raw secret"), "error should mention raw secret");
+    anyhow::ensure!(
+        denied.is_err(),
+        "proposal with raw secret should be rejected"
+    );
+    anyhow::ensure!(
+        denied.unwrap_err().message.contains("raw secret"),
+        "error should mention raw secret"
+    );
 
     // Proposal with secret_ref should be accepted
     let accepted = runtime
@@ -116,7 +148,10 @@ pub(crate) async fn raw_secret_blocked_in_proposal() -> anyhow::Result<()> {
             }),
         )
         .await;
-    anyhow::ensure!(accepted.is_ok(), "proposal with secret_ref should be accepted");
+    anyhow::ensure!(
+        accepted.is_ok(),
+        "proposal with secret_ref should be accepted"
+    );
 
     Ok(())
 }
@@ -134,8 +169,14 @@ pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()>
             metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "asset with raw secret in metadata should be rejected");
-    anyhow::ensure!(denied.unwrap_err().to_string().contains("raw secret"), "error should mention raw secret");
+    anyhow::ensure!(
+        denied.is_err(),
+        "asset with raw secret in metadata should be rejected"
+    );
+    anyhow::ensure!(
+        denied.unwrap_err().to_string().contains("raw secret"),
+        "error should mention raw secret"
+    );
 
     // Asset with secret_ref in metadata should be accepted
     let accepted = runtime
@@ -146,18 +187,25 @@ pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()>
             metadata: json!({"secret": "secret_ref:env:MY_KEY"}),
         })
         .await;
-    anyhow::ensure!(accepted.is_ok(), "asset with secret_ref in metadata should be accepted");
+    anyhow::ensure!(
+        accepted.is_ok(),
+        "asset with secret_ref in metadata should be accepted"
+    );
 
     // Asset with arbitrary content (no secret field names) should be accepted
     let content_ok = runtime
         .put_asset(ygg_runtime::runtime::AssetPutRequest {
             origin_package_id: None,
             mime: "text/plain".to_string(),
-            content: "sk-abc123def456ghi789jkl012mno345 this looks like a key but it's in content".to_string(),
+            content: "sk-abc123def456ghi789jkl012mno345 this looks like a key but it's in content"
+                .to_string(),
             metadata: json!({"purpose": "conformance"}),
         })
         .await;
-    anyhow::ensure!(content_ok.is_ok(), "asset with non-secret metadata and arbitrary content should be accepted");
+    anyhow::ensure!(
+        content_ok.is_ok(),
+        "asset with non-secret metadata and arbitrary content should be accepted"
+    );
 
     Ok(())
 }
@@ -175,7 +223,10 @@ pub(crate) async fn no_secret_bypass() -> anyhow::Result<()> {
             metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "official package must not bypass secret scanning");
+    anyhow::ensure!(
+        denied.is_err(),
+        "official package must not bypass secret scanning"
+    );
 
     Ok(())
 }
@@ -214,17 +265,36 @@ pub(crate) async fn env_resolver_allowed() -> anyhow::Result<()> {
     let runtime = Runtime::new(store, config);
 
     // All supported prefix forms should resolve
-    let result = runtime.resolve_secret_ref(&format!("secret_ref:env:{}", name)).await;
-    anyhow::ensure!(result.is_ok(), "secret_ref:env should resolve: {:?}", result);
-    anyhow::ensure!(result.unwrap() == "test-value-not-a-provider-key", "resolved value mismatch");
+    let result = runtime
+        .resolve_secret_ref(&format!("secret_ref:env:{}", name))
+        .await;
+    anyhow::ensure!(
+        result.is_ok(),
+        "secret_ref:env should resolve: {:?}",
+        result
+    );
+    anyhow::ensure!(
+        result.unwrap() == "test-value-not-a-provider-key",
+        "resolved value mismatch"
+    );
 
-    let result = runtime.resolve_secret_ref(&format!("secretRef:env:{}", name)).await;
+    let result = runtime
+        .resolve_secret_ref(&format!("secretRef:env:{}", name))
+        .await;
     anyhow::ensure!(result.is_ok(), "secretRef:env should resolve: {:?}", result);
 
-    let result = runtime.resolve_secret_ref(&format!("secret-ref:env:{}", name)).await;
-    anyhow::ensure!(result.is_ok(), "secret-ref:env should resolve: {:?}", result);
+    let result = runtime
+        .resolve_secret_ref(&format!("secret-ref:env:{}", name))
+        .await;
+    anyhow::ensure!(
+        result.is_ok(),
+        "secret-ref:env should resolve: {:?}",
+        result
+    );
 
-    let result = runtime.resolve_secret_ref(&format!("host:env:{}", name)).await;
+    let result = runtime
+        .resolve_secret_ref(&format!("host:env:{}", name))
+        .await;
     anyhow::ensure!(result.is_ok(), "host:env should resolve: {:?}", result);
 
     Ok(())
@@ -244,14 +314,24 @@ pub(crate) async fn env_resolver_denied() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store, config);
 
-    let result = runtime.resolve_secret_ref(&format!("secret_ref:env:{}", name)).await;
+    let result = runtime
+        .resolve_secret_ref(&format!("secret_ref:env:{}", name))
+        .await;
     anyhow::ensure!(result.is_err(), "denied env should fail");
     let err_msg = result.unwrap_err().to_string();
-    anyhow::ensure!(err_msg.contains("not in allowlist"), "error should mention allowlist: {err_msg}");
-    anyhow::ensure!(!err_msg.contains("should-not-be-returned"), "error must not leak raw value: {err_msg}");
+    anyhow::ensure!(
+        err_msg.contains("not in allowlist"),
+        "error should mention allowlist: {err_msg}"
+    );
+    anyhow::ensure!(
+        !err_msg.contains("should-not-be-returned"),
+        "error must not leak raw value: {err_msg}"
+    );
 
     // Non-env vault should also be rejected
-    let result = runtime.resolve_secret_ref("secret_ref:vault:prod/openai").await;
+    let result = runtime
+        .resolve_secret_ref("secret_ref:vault:prod/openai")
+        .await;
     anyhow::ensure!(result.is_err(), "non-env vault should be rejected");
 
     // host:<non-env-key> should not be treated as env
@@ -275,11 +355,19 @@ pub(crate) async fn env_resolver_missing_no_leak() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store, config);
 
-    let result = runtime.resolve_secret_ref(&format!("secret_ref:env:{}", name)).await;
+    let result = runtime
+        .resolve_secret_ref(&format!("secret_ref:env:{}", name))
+        .await;
     anyhow::ensure!(result.is_err(), "missing env should fail");
     let err_msg = result.unwrap_err().to_string();
-    anyhow::ensure!(err_msg.contains("not set"), "error should mention 'not set': {err_msg}");
-    anyhow::ensure!(err_msg.contains(&name), "error should contain env name for debugging: {err_msg}");
+    anyhow::ensure!(
+        err_msg.contains("not set"),
+        "error should mention 'not set': {err_msg}"
+    );
+    anyhow::ensure!(
+        err_msg.contains(&name),
+        "error should contain env name for debugging: {err_msg}"
+    );
 
     // Even if the env var exists, denied env name must not leak the value in errors
     let existing_name = unique_env_name("NOLEAK");
@@ -292,10 +380,15 @@ pub(crate) async fn env_resolver_missing_no_leak() -> anyhow::Result<()> {
     let store2 = Arc::new(InMemoryEventStore::default());
     let runtime2 = Runtime::new(store2, config2);
 
-    let result2 = runtime2.resolve_secret_ref(&format!("secret_ref:env:{}", existing_name)).await;
+    let result2 = runtime2
+        .resolve_secret_ref(&format!("secret_ref:env:{}", existing_name))
+        .await;
     anyhow::ensure!(result2.is_err(), "denied env should fail");
     let err_msg2 = result2.unwrap_err().to_string();
-    anyhow::ensure!(!err_msg2.contains("super-secret-value-xyz"), "error must not leak raw env value: {err_msg2}");
+    anyhow::ensure!(
+        !err_msg2.contains("super-secret-value-xyz"),
+        "error must not leak raw env value: {err_msg2}"
+    );
 
     Ok(())
 }

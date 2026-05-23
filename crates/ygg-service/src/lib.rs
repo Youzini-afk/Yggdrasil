@@ -13,10 +13,13 @@ use serde_json::Value;
 use tower_http::cors::CorsLayer;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
-    host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest,
-    PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResponse, RegisteredCapability,
+    host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
+    EventListRequest, PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest,
+    ProtocolResponse, RegisteredCapability,
 };
-use ygg_runtime::{AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig};
+use ygg_runtime::{
+    AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
+};
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -32,7 +35,9 @@ where
     S: EventStore,
 {
     fn clone(&self) -> Self {
-        Self { runtime: self.runtime.clone() }
+        Self {
+            runtime: self.runtime.clone(),
+        }
     }
 }
 
@@ -81,14 +86,29 @@ where
     Router::new()
         .route("/health", get(health))
         .route("/kernel/v1/session.open", post(open_session::<S>))
-        .route("/kernel/v1/event.append/:session_id", post(append_event::<S>))
+        .route(
+            "/kernel/v1/event.append/:session_id",
+            post(append_event::<S>),
+        )
         .route("/kernel/v1/event.list/:session_id", get(list_events::<S>))
-        .route("/kernel/v1/event.subscribe/:session_id", get(subscribe_events::<S>))
+        .route(
+            "/kernel/v1/event.subscribe/:session_id",
+            get(subscribe_events::<S>),
+        )
         .route("/kernel/v1/package.load", post(load_package::<S>))
         .route("/kernel/v1/package.list", get(list_packages::<S>))
-        .route("/kernel/v1/package.status/:namespace/:name", get(package_status::<S>))
-        .route("/kernel/v1/package.unload/:namespace/:name", post(unload_package::<S>))
-        .route("/kernel/v1/capability.discover", get(discover_capabilities::<S>))
+        .route(
+            "/kernel/v1/package.status/:namespace/:name",
+            get(package_status::<S>),
+        )
+        .route(
+            "/kernel/v1/package.unload/:namespace/:name",
+            post(unload_package::<S>),
+        )
+        .route(
+            "/kernel/v1/capability.discover",
+            get(discover_capabilities::<S>),
+        )
         .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
         .route("/kernel/v1/host.info", get(host_info))
         .route("/rpc", post(rpc::<S>))
@@ -130,13 +150,16 @@ where
     Ok(Json(
         state
             .runtime
-            .append_event_with_context(&ProtocolContext::host_dev("http_ad_hoc"), AppendEventRequest {
-                session_id,
-                writer_package_id: request.writer_package_id,
-                kind: request.kind,
-                payload: request.payload,
-                metadata: request.metadata,
-            })
+            .append_event_with_context(
+                &ProtocolContext::host_dev("http_ad_hoc"),
+                AppendEventRequest {
+                    session_id,
+                    writer_package_id: request.writer_package_id,
+                    kind: request.kind,
+                    payload: request.payload,
+                    metadata: request.metadata,
+                },
+            )
             .await?,
     ))
 }
@@ -185,22 +208,31 @@ where
         .await?;
     let replay = VecDeque::from(replay);
     let rx = state.runtime.subscribe_events();
-    let stream = futures::stream::unfold((replay, rx, session_id, query), |(mut replay, mut rx, session_id, query)| async move {
-        if let Some(event) = replay.pop_front() {
-            let sse = SseEvent::default().event("kernel.v1.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
-            return Some((Ok(sse), (replay, rx, session_id, query)));
-        }
-        loop {
-            match rx.recv().await {
-                Ok(event) if event_matches_query(&event, &session_id, &query) => {
-                    let sse = SseEvent::default().event("kernel.v1.event").json_data(event).unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
-                    return Some((Ok(sse), (replay, rx, session_id, query)));
-                }
-                Ok(_) => continue,
-                Err(_) => return None,
+    let stream = futures::stream::unfold(
+        (replay, rx, session_id, query),
+        |(mut replay, mut rx, session_id, query)| async move {
+            if let Some(event) = replay.pop_front() {
+                let sse = SseEvent::default()
+                    .event("kernel.v1.event")
+                    .json_data(event)
+                    .unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
+                return Some((Ok(sse), (replay, rx, session_id, query)));
             }
-        }
-    });
+            loop {
+                match rx.recv().await {
+                    Ok(event) if event_matches_query(&event, &session_id, &query) => {
+                        let sse = SseEvent::default()
+                            .event("kernel.v1.event")
+                            .json_data(event)
+                            .unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
+                        return Some((Ok(sse), (replay, rx, session_id, query)));
+                    }
+                    Ok(_) => continue,
+                    Err(_) => return None,
+                }
+            }
+        },
+    );
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
@@ -270,7 +302,9 @@ where
     Ok(Json(state.runtime.unload_package(&package_id).await?))
 }
 
-async fn discover_capabilities<S>(State(state): State<AppState<S>>) -> Json<Vec<RegisteredCapability>>
+async fn discover_capabilities<S>(
+    State(state): State<AppState<S>>,
+) -> Json<Vec<RegisteredCapability>>
 where
     S: EventStore,
 {
@@ -304,9 +338,21 @@ where
     S: EventStore,
 {
     let context = ProtocolContext::host_dev("http_rpc");
-    match state.runtime.call_protocol(&context, &request.method, request.params).await {
-        Ok(result) => Json(ProtocolResponse { id: request.id, result: Some(result), error: None }),
-        Err(error) => Json(ProtocolResponse { id: request.id, result: None, error: Some(error) }),
+    match state
+        .runtime
+        .call_protocol(&context, &request.method, request.params)
+        .await
+    {
+        Ok(result) => Json(ProtocolResponse {
+            id: request.id,
+            result: Some(result),
+            error: None,
+        }),
+        Err(error) => Json(ProtocolResponse {
+            id: request.id,
+            result: None,
+            error: Some(error),
+        }),
     }
 }
 
@@ -327,8 +373,12 @@ impl axum::response::IntoResponse for ServiceError {
         let status = match error.code.as_str() {
             "kernel/v1/error/permission_denied" => StatusCode::FORBIDDEN,
             "kernel/v1/error/not_found" => StatusCode::NOT_FOUND,
-            "kernel/v1/error/schema_invalid" | "kernel/v1/error/invalid_request" => StatusCode::BAD_REQUEST,
-            "kernel/v1/error/ambiguous_route" | "kernel/v1/error/package_state" => StatusCode::CONFLICT,
+            "kernel/v1/error/schema_invalid" | "kernel/v1/error/invalid_request" => {
+                StatusCode::BAD_REQUEST
+            }
+            "kernel/v1/error/ambiguous_route" | "kernel/v1/error/package_state" => {
+                StatusCode::CONFLICT
+            }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (status, Json(serde_json::json!({ "error": error }))).into_response()
@@ -353,7 +403,8 @@ mod tests {
                     .uri("/rpc")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        json!({"id": "1", "method": "kernel.v1.host.info", "params": {}}).to_string(),
+                        json!({"id": "1", "method": "kernel.v1.host.info", "params": {}})
+                            .to_string(),
                     ))?,
             )
             .await?;
@@ -374,7 +425,8 @@ mod tests {
                     .uri("/rpc")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        json!({"id": "1", "method": "kernel.v1.event.list", "params": {}}).to_string(),
+                        json!({"id": "1", "method": "kernel.v1.event.list", "params": {}})
+                            .to_string(),
                     ))?,
             )
             .await?;

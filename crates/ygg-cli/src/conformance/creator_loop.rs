@@ -14,9 +14,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-use serde_json;
 use crate::cli::PackageTemplate;
 use crate::commands::{composition, manifest, package};
+use serde_json;
 
 /// Case 1: Generated playable-board template passes check/conformance with
 /// 4 surfaces (experience_entry, play_renderer, forge_panel, assistant_action)
@@ -65,10 +65,22 @@ pub(crate) async fn creator_loop_playable_board_template() -> anyhow::Result<()>
             ygg_core::SurfaceSlot::HomeCard => "home_card",
         })
         .collect();
-    anyhow::ensure!(slots.contains(&"experience_entry"), "playable-board should have experience_entry");
-    anyhow::ensure!(slots.contains(&"play_renderer"), "playable-board should have play_renderer");
-    anyhow::ensure!(slots.contains(&"forge_panel"), "playable-board should have forge_panel");
-    anyhow::ensure!(slots.contains(&"assistant_action"), "playable-board should have assistant_action");
+    anyhow::ensure!(
+        slots.contains(&"experience_entry"),
+        "playable-board should have experience_entry"
+    );
+    anyhow::ensure!(
+        slots.contains(&"play_renderer"),
+        "playable-board should have play_renderer"
+    );
+    anyhow::ensure!(
+        slots.contains(&"forge_panel"),
+        "playable-board should have forge_panel"
+    );
+    anyhow::ensure!(
+        slots.contains(&"assistant_action"),
+        "playable-board should have assistant_action"
+    );
 
     // 7 capabilities
     anyhow::ensure!(
@@ -86,7 +98,13 @@ pub(crate) async fn creator_loop_playable_board_template() -> anyhow::Result<()>
     // No kernel namespace in manifest
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
-    let forbidden = ["kernel.v1.experience", "kernel.v1.world", "kernel.v1.turn", "kernel.v1.chat", "kernel.v1.memory"];
+    let forbidden = [
+        "kernel.v1.experience",
+        "kernel.v1.world",
+        "kernel.v1.turn",
+        "kernel.v1.chat",
+        "kernel.v1.memory",
+    ];
     for token in &forbidden {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -151,10 +169,28 @@ pub(crate) async fn creator_loop_playable_experience_template() -> anyhow::Resul
 
     // Check specific capabilities exist
     let cap_ids: Vec<&str> = manifest.provides.iter().map(|c| c.id.as_str()).collect();
-    anyhow::ensure!(cap_ids.iter().any(|c| c.contains("/launch")), "playable-experience should have launch");
-    anyhow::ensure!(cap_ids.iter().any(|c| c.contains("/create_checkpoint") || c.contains("/create-checkpoint")), "playable-experience should have create_checkpoint");
-    anyhow::ensure!(cap_ids.iter().any(|c| c.contains("/inspect_checkpoint") || c.contains("/inspect-checkpoint")), "playable-experience should have inspect_checkpoint");
-    anyhow::ensure!(cap_ids.iter().any(|c| c.contains("/draft_recovery") || c.contains("/draft-recovery")), "playable-experience should have draft_recovery");
+    anyhow::ensure!(
+        cap_ids.iter().any(|c| c.contains("/launch")),
+        "playable-experience should have launch"
+    );
+    anyhow::ensure!(
+        cap_ids
+            .iter()
+            .any(|c| c.contains("/create_checkpoint") || c.contains("/create-checkpoint")),
+        "playable-experience should have create_checkpoint"
+    );
+    anyhow::ensure!(
+        cap_ids
+            .iter()
+            .any(|c| c.contains("/inspect_checkpoint") || c.contains("/inspect-checkpoint")),
+        "playable-experience should have inspect_checkpoint"
+    );
+    anyhow::ensure!(
+        cap_ids
+            .iter()
+            .any(|c| c.contains("/draft_recovery") || c.contains("/draft-recovery")),
+        "playable-experience should have draft_recovery"
+    );
 
     // No network declarations
     anyhow::ensure!(
@@ -194,7 +230,10 @@ pub(crate) async fn creator_loop_experience_surface_warnings() -> anyhow::Result
         "experience template should have 1 surface"
     );
     anyhow::ensure!(
-        matches!(manifest.contributes.surfaces[0].slot, ygg_core::SurfaceSlot::ExperienceEntry),
+        matches!(
+            manifest.contributes.surfaces[0].slot,
+            ygg_core::SurfaceSlot::ExperienceEntry
+        ),
         "experience template surface should be experience_entry"
     );
 
@@ -212,12 +251,25 @@ pub(crate) async fn creator_loop_missing_checkpoint_warning() -> anyhow::Result<
     let manifest_path = PathBuf::from("packages/official/playable-creation-board/manifest.yaml");
     let manifest = manifest::read_manifest(manifest_path.clone()).await?;
     // Verify it has create_checkpoint — this package should NOT warn
-    let has_checkpoint = manifest.provides.iter().any(|c| c.id.contains("/create_checkpoint") || c.id.contains("/create-checkpoint"));
-    anyhow::ensure!(has_checkpoint, "playable-creation-board should have create_checkpoint");
+    let has_checkpoint = manifest
+        .provides
+        .iter()
+        .any(|c| c.id.contains("/create_checkpoint") || c.id.contains("/create-checkpoint"));
+    anyhow::ensure!(
+        has_checkpoint,
+        "playable-creation-board should have create_checkpoint"
+    );
 
     // Verify the experience_entry surface exists
-    let has_entry = manifest.contributes.surfaces.iter().any(|s| matches!(s.slot, ygg_core::SurfaceSlot::ExperienceEntry));
-    anyhow::ensure!(has_entry, "playable-creation-board should have experience_entry surface");
+    let has_entry = manifest
+        .contributes
+        .surfaces
+        .iter()
+        .any(|s| matches!(s.slot, ygg_core::SurfaceSlot::ExperienceEntry));
+    anyhow::ensure!(
+        has_entry,
+        "playable-creation-board should have experience_entry surface"
+    );
 
     // This package passes check
     package::package_check(manifest_path).await?;
@@ -228,10 +280,8 @@ pub(crate) async fn creator_loop_missing_checkpoint_warning() -> anyhow::Result<
 /// empty network methods).
 pub(crate) async fn creator_loop_dangerous_permissions_warning() -> anyhow::Result<()> {
     // Create a manifest with dangerous permissions
-    let path = std::env::temp_dir().join(format!(
-        "ygg-creator-loop-dangerous-{}",
-        std::process::id()
-    ));
+    let path =
+        std::env::temp_dir().join(format!("ygg-creator-loop-dangerous-{}", std::process::id()));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -288,10 +338,8 @@ sandbox_policy:
 /// Case 6: Package diagnostics note non-deterministic path when network is declared.
 pub(crate) async fn creator_loop_network_nondeterministic_hint() -> anyhow::Result<()> {
     // The networked template declares network access
-    let path = std::env::temp_dir().join(format!(
-        "ygg-creator-loop-network-{}",
-        std::process::id()
-    ));
+    let path =
+        std::env::temp_dir().join(format!("ygg-creator-loop-network-{}", std::process::id()));
     if path.exists() {
         fs::remove_dir_all(&path)?;
     }
@@ -391,9 +439,15 @@ pub(crate) async fn creator_loop_walkthrough_reference() -> anyhow::Result<()> {
     );
 
     // Has experience_entry surface with launch capability
-    let entry_surface = manifest.contributes.surfaces.iter()
+    let entry_surface = manifest
+        .contributes
+        .surfaces
+        .iter()
         .find(|s| matches!(s.slot, ygg_core::SurfaceSlot::ExperienceEntry));
-    anyhow::ensure!(entry_surface.is_some(), "must have experience_entry surface");
+    anyhow::ensure!(
+        entry_surface.is_some(),
+        "must have experience_entry surface"
+    );
     let entry = entry_surface.unwrap();
     anyhow::ensure!(
         entry.activation.launch_capability_id.is_some(),
@@ -401,16 +455,23 @@ pub(crate) async fn creator_loop_walkthrough_reference() -> anyhow::Result<()> {
     );
 
     // Has create_checkpoint capability
-    let has_checkpoint = manifest.provides.iter().any(|c| c.id.contains("/create_checkpoint"));
+    let has_checkpoint = manifest
+        .provides
+        .iter()
+        .any(|c| c.id.contains("/create_checkpoint"));
     anyhow::ensure!(has_checkpoint, "must have create_checkpoint capability");
 
     // Has request_change capability
-    let has_request_change = manifest.provides.iter().any(|c| c.id.contains("/request_change"));
+    let has_request_change = manifest
+        .provides
+        .iter()
+        .any(|c| c.id.contains("/request_change"));
     anyhow::ensure!(has_request_change, "must have request_change capability");
 
     // No network permissions
     anyhow::ensure!(
-        manifest.permissions.network.declarations.is_empty() && manifest.permissions.network.hosts.is_empty(),
+        manifest.permissions.network.declarations.is_empty()
+            && manifest.permissions.network.hosts.is_empty(),
         "playable-creation-board should have no network permissions"
     );
 
@@ -424,7 +485,8 @@ pub(crate) async fn creator_loop_walkthrough_reference() -> anyhow::Result<()> {
 /// replaces official playable-seed through composition.
 pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()> {
     // Verify the third-party playable-seed package passes package check
-    let tp_manifest_path = PathBuf::from("examples/packages/thirdparty-playable-seed/manifest.yaml");
+    let tp_manifest_path =
+        PathBuf::from("examples/packages/thirdparty-playable-seed/manifest.yaml");
     package::package_check(tp_manifest_path.clone()).await?;
 
     let manifest = manifest::read_manifest(tp_manifest_path).await?;

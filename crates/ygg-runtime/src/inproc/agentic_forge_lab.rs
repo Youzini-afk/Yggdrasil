@@ -256,17 +256,14 @@ fn start_run(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     let run_id = format!("run_{}", deterministic_id(&request.input));
-    let objective = request.input
+    let objective = request
+        .input
         .get("objective")
         .and_then(Value::as_str)
         .unwrap_or("deterministic agentic forge run");
 
     let plan_graph = build_plan_graph(&run_id, objective);
-    let working_state = build_working_state(
-        &run_id,
-        &request.provider_package_id,
-        &request.input,
-    );
+    let working_state = build_working_state(&run_id, &request.provider_package_id, &request.input);
 
     Ok(serde_json::json!({
         "kind": "agentic_forge_run_started",
@@ -306,12 +303,14 @@ fn start_run(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn inspect_run(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
 
-    let state = request.input
+    let state = request
+        .input
         .get("lifecycle_state")
         .and_then(Value::as_str)
         .filter(|s| is_valid_lifecycle_state(s))
@@ -334,7 +333,8 @@ fn inspect_run(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn cancel_run(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
@@ -362,22 +362,26 @@ fn cancel_run(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn summarize_run(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
-    let event_count = request.input
+    let event_count = request
+        .input
         .get("trace_events")
         .and_then(Value::as_array)
         .map(|a| a.len())
         .unwrap_or(0);
-    let node_count = request.input
+    let node_count = request
+        .input
         .get("plan_graph")
         .and_then(|pg| pg.get("nodes"))
         .and_then(Value::as_array)
         .map(|a| a.len())
         .unwrap_or(3);
-    let candidate_count = request.input
+    let candidate_count = request
+        .input
         .get("candidate_refs")
         .and_then(Value::as_array)
         .map(|a| a.len())
@@ -403,11 +407,13 @@ fn summarize_run(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn export_plan_graph(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
-    let objective = request.input
+    let objective = request
+        .input
         .get("objective")
         .and_then(Value::as_str)
         .unwrap_or("deterministic agentic forge run");
@@ -447,15 +453,18 @@ fn create_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
-    let target_branch = request.input
+    let target_branch = request
+        .input
         .get("target_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:target:default");
-    let scratch_branch = request.input
+    let scratch_branch = request
+        .input
         .get("scratch_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:scratch:default");
@@ -493,25 +502,30 @@ fn create_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn compare_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let candidate_id = request.input
+    let candidate_id = request
+        .input
         .get("candidate_id")
         .and_then(Value::as_str)
         .unwrap_or("cand_unknown");
-    let target_branch = request.input
+    let target_branch = request
+        .input
         .get("target_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:target:default");
-    let scratch_branch = request.input
+    let scratch_branch = request
+        .input
         .get("scratch_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:scratch:default");
 
     // Determine staleness: compare target_revision from candidate vs current_target_revision
-    let candidate_revision = request.input
+    let candidate_revision = request
+        .input
         .get("target_revision")
         .and_then(Value::as_u64)
         .unwrap_or(1);
-    let current_target_revision = request.input
+    let current_target_revision = request
+        .input
         .get("current_target_revision")
         .and_then(Value::as_u64)
         .unwrap_or(1);
@@ -558,29 +572,35 @@ fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let candidate_id = request.input
+    let candidate_id = request
+        .input
         .get("candidate_id")
         .and_then(Value::as_str)
         .unwrap_or("cand_unknown");
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
-    let target_branch = request.input
+    let target_branch = request
+        .input
         .get("target_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:target:default");
-    let scratch_branch = request.input
+    let scratch_branch = request
+        .input
         .get("scratch_branch_ref")
         .and_then(Value::as_str)
         .unwrap_or("branch:scratch:default");
 
     // Stale target check: revision mismatch blocks promote
-    let candidate_revision = request.input
+    let candidate_revision = request
+        .input
         .get("target_revision")
         .and_then(Value::as_u64)
         .unwrap_or(1);
-    let current_target_revision = request.input
+    let current_target_revision = request
+        .input
         .get("current_target_revision")
         .and_then(Value::as_u64)
         .unwrap_or(1);
@@ -603,7 +623,8 @@ fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     // Produce a proposal draft — package-owned ops, not kernel.v1.proposal.create call
-    let changed_assets = request.input
+    let changed_assets = request
+        .input
         .get("changed_asset_refs")
         .cloned()
         .unwrap_or(serde_json::json!([]));
@@ -647,7 +668,8 @@ fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn archive_candidate(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let candidate_id = request.input
+    let candidate_id = request
+        .input
         .get("candidate_id")
         .and_then(Value::as_str)
         .unwrap_or("cand_unknown");
@@ -709,15 +731,18 @@ fn run_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
-    let node_id = request.input
+    let node_id = request
+        .input
         .get("node_id")
         .and_then(Value::as_str)
         .unwrap_or("node_infer_default");
-    let provider_kind = request.input
+    let provider_kind = request
+        .input
         .get("provider_kind")
         .and_then(Value::as_str)
         .unwrap_or("deterministic");
@@ -765,7 +790,8 @@ fn run_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     // deterministic / recorded / local_fake: produce candidate_seed or proposal_seed
-    let objective = request.input
+    let objective = request
+        .input
         .get("objective")
         .and_then(Value::as_str)
         .unwrap_or("deterministic inference");
@@ -822,16 +848,19 @@ fn replay_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    let run_id = request.input
+    let run_id = request
+        .input
         .get("run_id")
         .and_then(Value::as_str)
         .unwrap_or("run_unknown");
-    let node_id = request.input
+    let node_id = request
+        .input
         .get("node_id")
         .and_then(Value::as_str)
         .unwrap_or("node_infer_default");
 
-    let recorded_fingerprint = request.input
+    let recorded_fingerprint = request
+        .input
         .get("expected_fingerprint")
         .and_then(Value::as_str)
         .unwrap_or("");
@@ -870,7 +899,8 @@ fn replay_inference_node(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn validate_inference_output(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let action = request.input
+    let action = request
+        .input
         .get("action")
         .and_then(Value::as_str)
         .unwrap_or("unknown_action");
@@ -910,7 +940,8 @@ fn validate_inference_output(request: &InprocInvocation) -> anyhow::Result<Value
 }
 
 fn explain_inference_failure(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let failure_kind = request.input
+    let failure_kind = request
+        .input
         .get("failure_kind")
         .and_then(Value::as_str)
         .unwrap_or("unknown");
@@ -949,7 +980,10 @@ fn explain_inference_failure(request: &InprocInvocation) -> anyhow::Result<Value
 
 fn deterministic_id(input: &Value) -> String {
     // Simple deterministic ID from input content, no random
-    let objective = input.get("objective").and_then(Value::as_str).unwrap_or("default");
+    let objective = input
+        .get("objective")
+        .and_then(Value::as_str)
+        .unwrap_or("default");
     let len = objective.len();
     format!("{:04x}", len.wrapping_mul(31).wrapping_add(0xaf))
 }
@@ -1063,7 +1097,10 @@ mod tests {
 
     #[test]
     fn start_run_returns_plan_graph_and_working_state() {
-        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "test run"}));
+        let req = make_request(
+            "official/agentic-forge-lab/start_run",
+            json!({"objective": "test run"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_run_started"));
         assert_eq!(result["lifecycle_state"], json!("prepared"));
@@ -1074,7 +1111,10 @@ mod tests {
 
     #[test]
     fn start_run_blocks_raw_secret() {
-        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}));
+        let req = make_request(
+            "official/agentic-forge-lab/start_run",
+            json!({"objective": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_run_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
@@ -1082,14 +1122,20 @@ mod tests {
 
     #[test]
     fn start_run_blocks_bearer_secret() {
-        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "test", "token": "Bearer abc123"}));
+        let req = make_request(
+            "official/agentic-forge-lab/start_run",
+            json!({"objective": "test", "token": "Bearer abc123"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
     }
 
     #[test]
     fn start_run_accepts_secret_ref() {
-        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "test", "api_key": "secret_ref:env:MY_KEY"}));
+        let req = make_request(
+            "official/agentic-forge-lab/start_run",
+            json!({"objective": "test", "api_key": "secret_ref:env:MY_KEY"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_run_started"));
         assert_ne!(result["redaction_state"], json!("unsafe_blocked"));
@@ -1097,7 +1143,10 @@ mod tests {
 
     #[test]
     fn cancel_run_sets_cancelled_state() {
-        let req = make_request("official/agentic-forge-lab/cancel_run", json!({"run_id": "run_test", "lifecycle_state": "running"}));
+        let req = make_request(
+            "official/agentic-forge-lab/cancel_run",
+            json!({"run_id": "run_test", "lifecycle_state": "running"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_run_cancelled"));
         assert_eq!(result["lifecycle_state"], json!("cancelled"));
@@ -1105,7 +1154,10 @@ mod tests {
 
     #[test]
     fn summarize_run_returns_observability() {
-        let req = make_request("official/agentic-forge-lab/summarize_run", json!({"run_id": "run_test", "trace_events": [{"a": 1}, {"b": 2}]}));
+        let req = make_request(
+            "official/agentic-forge-lab/summarize_run",
+            json!({"run_id": "run_test", "trace_events": [{"a": 1}, {"b": 2}]}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_run_summary"));
         assert_eq!(result["trace_event_count"], json!(2));
@@ -1113,7 +1165,10 @@ mod tests {
 
     #[test]
     fn export_plan_graph_returns_nodes_edges() {
-        let req = make_request("official/agentic-forge-lab/export_plan_graph", json!({"run_id": "run_test"}));
+        let req = make_request(
+            "official/agentic-forge-lab/export_plan_graph",
+            json!({"run_id": "run_test"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_plan_graph"));
         assert!(result["plan_graph"]["nodes"].as_array().unwrap().len() >= 1);
@@ -1122,7 +1177,10 @@ mod tests {
 
     #[test]
     fn no_kernel_agent_namespace_in_output() {
-        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "test"}));
+        let req = make_request(
+            "official/agentic-forge-lab/start_run",
+            json!({"objective": "test"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         assert!(!output_str.contains("kernel.v1.agent"));
@@ -1142,12 +1200,22 @@ mod tests {
 
     #[test]
     fn contains_raw_secret_detects_sk_prefix() {
-        assert!(safety::contains_raw_secret(&json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})));
+        assert!(safety::contains_raw_secret(
+            &json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})
+        ));
         assert!(safety::contains_raw_secret(&json!({"token": "Bearer xyz"})));
-        assert!(!safety::contains_raw_secret(&json!({"api_key": "secret_ref:env:MY_KEY"})));
-        assert!(!safety::contains_raw_secret(&json!({"api_key": "secret-ref:env:MY_KEY"})));
-        assert!(!safety::contains_raw_secret(&json!({"api_key": "host:env:MY_KEY"})));
-        assert!(!safety::contains_raw_secret(&json!({"objective": "safe text"})));
+        assert!(!safety::contains_raw_secret(
+            &json!({"api_key": "secret_ref:env:MY_KEY"})
+        ));
+        assert!(!safety::contains_raw_secret(
+            &json!({"api_key": "secret-ref:env:MY_KEY"})
+        ));
+        assert!(!safety::contains_raw_secret(
+            &json!({"api_key": "host:env:MY_KEY"})
+        ));
+        assert!(!safety::contains_raw_secret(
+            &json!({"objective": "safe text"})
+        ));
     }
 
     // -----------------------------------------------------------------------
@@ -1156,12 +1224,15 @@ mod tests {
 
     #[test]
     fn create_candidate_returns_branch_aware_candidate() {
-        let req = make_request("official/agentic-forge-lab/create_candidate", json!({
-            "run_id": "run_test",
-            "target_branch_ref": "branch:target:main",
-            "scratch_branch_ref": "branch:scratch:s1",
-            "target_revision": 1,
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/create_candidate",
+            json!({
+                "run_id": "run_test",
+                "target_branch_ref": "branch:target:main",
+                "scratch_branch_ref": "branch:scratch:s1",
+                "target_revision": 1,
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_candidate_created"));
         assert_eq!(result["target_branch_unchanged"], json!(true));
@@ -1183,21 +1254,27 @@ mod tests {
     #[test]
     fn compare_candidate_reports_diff_and_stale() {
         // Matching revisions → stale=false
-        let req = make_request("official/agentic-forge-lab/compare_candidate", json!({
-            "candidate_id": "cand_test",
-            "target_revision": 1,
-            "current_target_revision": 1,
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/compare_candidate",
+            json!({
+                "candidate_id": "cand_test",
+                "target_revision": 1,
+                "current_target_revision": 1,
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_candidate_comparison"));
         assert_eq!(result["stale"], json!(false));
 
         // Mismatched revisions → stale=true
-        let req_stale = make_request("official/agentic-forge-lab/compare_candidate", json!({
-            "candidate_id": "cand_test",
-            "target_revision": 1,
-            "current_target_revision": 3,
-        }));
+        let req_stale = make_request(
+            "official/agentic-forge-lab/compare_candidate",
+            json!({
+                "candidate_id": "cand_test",
+                "target_revision": 1,
+                "current_target_revision": 3,
+            }),
+        );
         let result_stale = try_handle(&req_stale).unwrap().unwrap();
         assert_eq!(result_stale["stale"], json!(true));
         assert_eq!(result_stale["candidate_target_revision"], json!(1));
@@ -1206,30 +1283,42 @@ mod tests {
 
     #[test]
     fn draft_promote_proposal_returns_proposal_draft() {
-        let req = make_request("official/agentic-forge-lab/draft_promote_proposal", json!({
-            "candidate_id": "cand_test",
-            "run_id": "run_test",
-            "target_revision": 1,
-            "current_target_revision": 1,
-            "target_branch_ref": "branch:target:main",
-            "scratch_branch_ref": "branch:scratch:s1",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/draft_promote_proposal",
+            json!({
+                "candidate_id": "cand_test",
+                "run_id": "run_test",
+                "target_revision": 1,
+                "current_target_revision": 1,
+                "target_branch_ref": "branch:target:main",
+                "scratch_branch_ref": "branch:scratch:s1",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("agentic_forge_promote_proposal_draft"));
+        assert_eq!(
+            result["kind"],
+            json!("agentic_forge_promote_proposal_draft")
+        );
         assert_eq!(result["target_branch_unchanged"], json!(true));
         assert_eq!(result["direct_mutation"], json!(false));
-        assert_eq!(result["proposal_draft"]["requires_user_approval"], json!(true));
+        assert_eq!(
+            result["proposal_draft"]["requires_user_approval"],
+            json!(true)
+        );
         assert!(result["proposal_draft"]["operations"].is_array());
     }
 
     #[test]
     fn draft_promote_blocked_on_stale_target() {
-        let req = make_request("official/agentic-forge-lab/draft_promote_proposal", json!({
-            "candidate_id": "cand_test",
-            "run_id": "run_test",
-            "target_revision": 1,
-            "current_target_revision": 2,
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/draft_promote_proposal",
+            json!({
+                "candidate_id": "cand_test",
+                "run_id": "run_test",
+                "target_revision": 1,
+                "current_target_revision": 2,
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_promote_blocked"));
         assert_eq!(result["reason"], json!("stale_target_branch"));
@@ -1238,10 +1327,13 @@ mod tests {
 
     #[test]
     fn archive_candidate_sets_archived_status() {
-        let req = make_request("official/agentic-forge-lab/archive_candidate", json!({
-            "candidate_id": "cand_test",
-            "status": "draft",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/archive_candidate",
+            json!({
+                "candidate_id": "cand_test",
+                "status": "draft",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_candidate_archived"));
         assert_eq!(result["status"], json!("archived"));
@@ -1250,7 +1342,10 @@ mod tests {
 
     #[test]
     fn explain_branch_policy_returns_policy() {
-        let req = make_request("official/agentic-forge-lab/explain_branch_policy", json!({}));
+        let req = make_request(
+            "official/agentic-forge-lab/explain_branch_policy",
+            json!({}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_branch_policy"));
         assert_eq!(result["policy"]["promote_requires_proposal"], json!(true));
@@ -1259,19 +1354,34 @@ mod tests {
 
     #[test]
     fn start_run_includes_scratch_branch_policy() {
-        let req = make_request("official/agentic-forge-lab/start_run", json!({"objective": "branch test"}));
+        let req = make_request(
+            "official/agentic-forge-lab/start_run",
+            json!({"objective": "branch test"}),
+        );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["scratch_branch_policy"]["intent"], json!("explore_without_mutating_target"));
-        assert_eq!(result["scratch_branch_policy"]["promote_requires_proposal"], json!(true));
-        assert_eq!(result["scratch_branch_policy"]["stale_target_blocks_promote"], json!(true));
+        assert_eq!(
+            result["scratch_branch_policy"]["intent"],
+            json!("explore_without_mutating_target")
+        );
+        assert_eq!(
+            result["scratch_branch_policy"]["promote_requires_proposal"],
+            json!(true)
+        );
+        assert_eq!(
+            result["scratch_branch_policy"]["stale_target_blocks_promote"],
+            json!(true)
+        );
     }
 
     #[test]
     fn create_candidate_blocks_raw_secret() {
-        let req = make_request("official/agentic-forge-lab/create_candidate", json!({
-            "run_id": "run_test",
-            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/create_candidate",
+            json!({
+                "run_id": "run_test",
+                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_candidate_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
@@ -1279,11 +1389,14 @@ mod tests {
 
     #[test]
     fn draft_promote_blocks_raw_secret() {
-        let req = make_request("official/agentic-forge-lab/draft_promote_proposal", json!({
-            "candidate_id": "cand_test",
-            "run_id": "run_test",
-            "token": "Bearer abc123",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/draft_promote_proposal",
+            json!({
+                "candidate_id": "cand_test",
+                "run_id": "run_test",
+                "token": "Bearer abc123",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_promote_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
@@ -1306,14 +1419,32 @@ mod tests {
             "official/agentic-forge-lab/archive_candidate",
             "official/agentic-forge-lab/explain_branch_policy",
         ] {
-            let req = make_request(cap, json!({"run_id": "run_ns", "candidate_id": "cand_ns", "target_revision": 1, "current_target_revision": 1}));
+            let req = make_request(
+                cap,
+                json!({"run_id": "run_ns", "candidate_id": "cand_ns", "target_revision": 1, "current_target_revision": 1}),
+            );
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
-            assert!(!output_str.contains("kernel.v1.agent"), "{cap} must not contain kernel.v1.agent");
-            assert!(!output_str.contains("kernel.v1.model"), "{cap} must not contain kernel.v1.model");
-            assert!(!output_str.contains("kernel.v1.prompt"), "{cap} must not contain kernel.v1.prompt");
-            assert!(!output_str.contains("kernel.v1.memory"), "{cap} must not contain kernel.v1.memory");
-            assert!(!output_str.contains("kernel.v1.turn"), "{cap} must not contain kernel.v1.turn");
+            assert!(
+                !output_str.contains("kernel.v1.agent"),
+                "{cap} must not contain kernel.v1.agent"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.model"),
+                "{cap} must not contain kernel.v1.model"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.prompt"),
+                "{cap} must not contain kernel.v1.prompt"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.memory"),
+                "{cap} must not contain kernel.v1.memory"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.turn"),
+                "{cap} must not contain kernel.v1.turn"
+            );
         }
     }
 
@@ -1323,16 +1454,25 @@ mod tests {
 
     #[test]
     fn run_inference_node_deterministic_produces_candidate_seed() {
-        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
-            "run_id": "run_inf",
-            "node_id": "node_infer_1",
-            "provider_kind": "deterministic",
-            "objective": "analyze composition",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/run_inference_node",
+            json!({
+                "run_id": "run_inf",
+                "node_id": "node_infer_1",
+                "provider_kind": "deterministic",
+                "objective": "analyze composition",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_inference_node_result"));
-        assert_eq!(result["node_result"]["output_action"], json!("candidate_seed"));
-        assert_eq!(result["node_result"]["target_branch_unchanged"], json!(true));
+        assert_eq!(
+            result["node_result"]["output_action"],
+            json!("candidate_seed")
+        );
+        assert_eq!(
+            result["node_result"]["target_branch_unchanged"],
+            json!(true)
+        );
         assert_eq!(result["node_result"]["direct_mutation"], json!(false));
         assert_eq!(result["inference_trace"]["network_performed"], json!(false));
         assert_eq!(result["network_performed"], json!(false));
@@ -1340,23 +1480,32 @@ mod tests {
 
     #[test]
     fn run_inference_node_objective_with_proposal_produces_proposal_seed() {
-        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
-            "run_id": "run_inf",
-            "node_id": "node_infer_2",
-            "provider_kind": "deterministic",
-            "objective": "draft proposal for changes",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/run_inference_node",
+            json!({
+                "run_id": "run_inf",
+                "node_id": "node_infer_2",
+                "provider_kind": "deterministic",
+                "objective": "draft proposal for changes",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["node_result"]["output_action"], json!("proposal_seed"));
+        assert_eq!(
+            result["node_result"]["output_action"],
+            json!("proposal_seed")
+        );
     }
 
     #[test]
     fn run_inference_node_cloud_adapter_returns_needs_host_policy() {
-        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
-            "run_id": "run_cloud",
-            "node_id": "node_infer_cloud",
-            "provider_kind": "cloud_adapter_plan",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/run_inference_node",
+            json!({
+                "run_id": "run_cloud",
+                "node_id": "node_infer_cloud",
+                "provider_kind": "cloud_adapter_plan",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_inference_node_plan"));
         assert_eq!(result["node_result"]["status"], json!("needs_host_policy"));
@@ -1366,10 +1515,13 @@ mod tests {
 
     #[test]
     fn run_inference_node_rejects_invalid_provider() {
-        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
-            "run_id": "run_bad",
-            "provider_kind": "cloud_real",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/run_inference_node",
+            json!({
+                "run_id": "run_bad",
+                "provider_kind": "cloud_real",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_inference_rejected"));
         assert_eq!(result["reason"], json!("invalid_provider_kind"));
@@ -1377,10 +1529,13 @@ mod tests {
 
     #[test]
     fn run_inference_node_blocks_raw_secret() {
-        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
-            "run_id": "run_inf",
-            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/run_inference_node",
+            json!({
+                "run_id": "run_inf",
+                "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_inference_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
@@ -1394,11 +1549,14 @@ mod tests {
             "node_id": "node_infer_1",
         });
         let expected_fp = format!("fp_{}", deterministic_id(&input));
-        let req = make_request("official/agentic-forge-lab/replay_inference_node", json!({
-            "run_id": "run_replay",
-            "node_id": "node_infer_1",
-            "expected_fingerprint": expected_fp,
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/replay_inference_node",
+            json!({
+                "run_id": "run_replay",
+                "node_id": "node_infer_1",
+                "expected_fingerprint": expected_fp,
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_replay_ok"));
         assert_eq!(result["fingerprint_match"], json!(true));
@@ -1406,11 +1564,14 @@ mod tests {
 
     #[test]
     fn replay_inference_node_mismatch_flagged() {
-        let req = make_request("official/agentic-forge-lab/replay_inference_node", json!({
-            "run_id": "run_replay",
-            "node_id": "node_infer_1",
-            "expected_fingerprint": "fp_WRONG",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/replay_inference_node",
+            json!({
+                "run_id": "run_replay",
+                "node_id": "node_infer_1",
+                "expected_fingerprint": "fp_WRONG",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_replay_mismatch"));
         assert_eq!(result["fingerprint_match"], json!(false));
@@ -1420,11 +1581,19 @@ mod tests {
     #[test]
     fn validate_inference_output_accepts_allowed_actions() {
         for action in ALLOWED_INFERENCE_ACTIONS {
-            let req = make_request("official/agentic-forge-lab/validate_inference_output", json!({
-                "action": action,
-            }));
+            let req = make_request(
+                "official/agentic-forge-lab/validate_inference_output",
+                json!({
+                    "action": action,
+                }),
+            );
             let result = try_handle(&req).unwrap().unwrap();
-            assert_eq!(result["validation_result"], json!("accepted"), "action {} should be accepted", action);
+            assert_eq!(
+                result["validation_result"],
+                json!("accepted"),
+                "action {} should be accepted",
+                action
+            );
             assert_eq!(result["allowed"], json!(true));
         }
     }
@@ -1432,20 +1601,31 @@ mod tests {
     #[test]
     fn validate_inference_output_rejects_forbidden_actions() {
         for action in FORBIDDEN_INFERENCE_ACTIONS {
-            let req = make_request("official/agentic-forge-lab/validate_inference_output", json!({
-                "action": action,
-            }));
+            let req = make_request(
+                "official/agentic-forge-lab/validate_inference_output",
+                json!({
+                    "action": action,
+                }),
+            );
             let result = try_handle(&req).unwrap().unwrap();
-            assert_eq!(result["validation_result"], json!("rejected"), "action {} should be rejected", action);
+            assert_eq!(
+                result["validation_result"],
+                json!("rejected"),
+                "action {} should be rejected",
+                action
+            );
             assert_eq!(result["allowed"], json!(false));
         }
     }
 
     #[test]
     fn validate_inference_output_rejects_unknown_action() {
-        let req = make_request("official/agentic-forge-lab/validate_inference_output", json!({
-            "action": "arbitrary_exec",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/validate_inference_output",
+            json!({
+                "action": "arbitrary_exec",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["validation_result"], json!("rejected"));
         assert_eq!(result["allowed"], json!(false));
@@ -1454,21 +1634,34 @@ mod tests {
     #[test]
     fn explain_inference_failure_returns_recovery_hints() {
         for kind in INFERENCE_FAILURE_KINDS {
-            let req = make_request("official/agentic-forge-lab/explain_inference_failure", json!({
-                "failure_kind": kind,
-            }));
+            let req = make_request(
+                "official/agentic-forge-lab/explain_inference_failure",
+                json!({
+                    "failure_kind": kind,
+                }),
+            );
             let result = try_handle(&req).unwrap().unwrap();
-            assert_eq!(result["kind"], json!("agentic_forge_inference_failure_explanation"));
+            assert_eq!(
+                result["kind"],
+                json!("agentic_forge_inference_failure_explanation")
+            );
             assert_eq!(result["is_known"], json!(true));
-            assert!(result["recovery_hint"].as_str().unwrap().len() > 0, "failure {} should have recovery hint", kind);
+            assert!(
+                result["recovery_hint"].as_str().unwrap().len() > 0,
+                "failure {} should have recovery hint",
+                kind
+            );
         }
     }
 
     #[test]
     fn explain_inference_failure_unknown_kind() {
-        let req = make_request("official/agentic-forge-lab/explain_inference_failure", json!({
-            "failure_kind": "unknown_error",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/explain_inference_failure",
+            json!({
+                "failure_kind": "unknown_error",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["is_known"], json!(false));
     }
@@ -1481,14 +1674,32 @@ mod tests {
             "official/agentic-forge-lab/validate_inference_output",
             "official/agentic-forge-lab/explain_inference_failure",
         ] {
-            let req = make_request(cap, json!({"run_id": "run_ns", "node_id": "n1", "provider_kind": "deterministic", "failure_kind": "timeout", "action": "candidate_seed", "expected_fingerprint": "fp_test"}));
+            let req = make_request(
+                cap,
+                json!({"run_id": "run_ns", "node_id": "n1", "provider_kind": "deterministic", "failure_kind": "timeout", "action": "candidate_seed", "expected_fingerprint": "fp_test"}),
+            );
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
-            assert!(!output_str.contains("kernel.v1.agent"), "{cap} must not contain kernel.v1.agent");
-            assert!(!output_str.contains("kernel.v1.model"), "{cap} must not contain kernel.v1.model");
-            assert!(!output_str.contains("kernel.v1.prompt"), "{cap} must not contain kernel.v1.prompt");
-            assert!(!output_str.contains("kernel.v1.memory"), "{cap} must not contain kernel.v1.memory");
-            assert!(!output_str.contains("kernel.v1.turn"), "{cap} must not contain kernel.v1.turn");
+            assert!(
+                !output_str.contains("kernel.v1.agent"),
+                "{cap} must not contain kernel.v1.agent"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.model"),
+                "{cap} must not contain kernel.v1.model"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.prompt"),
+                "{cap} must not contain kernel.v1.prompt"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.memory"),
+                "{cap} must not contain kernel.v1.memory"
+            );
+            assert!(
+                !output_str.contains("kernel.v1.turn"),
+                "{cap} must not contain kernel.v1.turn"
+            );
         }
     }
 
@@ -1496,20 +1707,39 @@ mod tests {
     fn describe_contract_includes_phase_c_fields() {
         let req = make_request("official/agentic-forge-lab/describe_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
-        assert!(result["plan_node_kinds"].is_array(), "describe_contract must have plan_node_kinds");
-        assert!(result["provider_kinds"].is_array(), "describe_contract must have provider_kinds");
-        assert!(result["inference_failure_taxonomy"].is_array(), "describe_contract must have inference_failure_taxonomy");
-        assert!(result["allowed_inference_actions"].is_array(), "describe_contract must have allowed_inference_actions");
-        assert_eq!(result["capabilities"].as_array().unwrap().len(), 15, "describe_contract must list 15 capabilities");
+        assert!(
+            result["plan_node_kinds"].is_array(),
+            "describe_contract must have plan_node_kinds"
+        );
+        assert!(
+            result["provider_kinds"].is_array(),
+            "describe_contract must have provider_kinds"
+        );
+        assert!(
+            result["inference_failure_taxonomy"].is_array(),
+            "describe_contract must have inference_failure_taxonomy"
+        );
+        assert!(
+            result["allowed_inference_actions"].is_array(),
+            "describe_contract must have allowed_inference_actions"
+        );
+        assert_eq!(
+            result["capabilities"].as_array().unwrap().len(),
+            15,
+            "describe_contract must list 15 capabilities"
+        );
     }
 
     #[test]
     fn local_fake_provider_sets_inference_performed() {
-        let req = make_request("official/agentic-forge-lab/run_inference_node", json!({
-            "run_id": "run_local",
-            "node_id": "node_infer_local",
-            "provider_kind": "local_fake",
-        }));
+        let req = make_request(
+            "official/agentic-forge-lab/run_inference_node",
+            json!({
+                "run_id": "run_local",
+                "node_id": "node_infer_local",
+                "provider_kind": "local_fake",
+            }),
+        );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["inference_performed"], json!(true));
         assert_eq!(result["inference_trace"]["model_performed"], json!(true));

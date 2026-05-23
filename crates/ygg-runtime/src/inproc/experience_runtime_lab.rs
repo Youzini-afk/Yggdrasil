@@ -687,6 +687,8 @@ mod tests {
         assert!(!safety::contains_raw_secret(
             &json!({"api_key": "secret_ref:env:MY_KEY"})
         ));
-        assert!(!safety::contains_raw_secret(&json!({"objective": "safe text"})));
+        assert!(!safety::contains_raw_secret(
+            &json!({"objective": "safe text"})
+        ));
     }
 }

@@ -56,16 +56,13 @@ fn forbidden_kernel_namespace_tokens() -> Vec<String> {
     .collect()
 }
 
-
-async fn load_storage_lab(
-) -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
+async fn load_storage_lab() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>>
+{
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from(
-                "packages/official/storage-lab/manifest.yaml",
-            ))
-            .await?,
+            manifest::read_manifest(PathBuf::from("packages/official/storage-lab/manifest.yaml"))
+                .await?,
         )
         .await?;
     Ok(runtime)
@@ -107,8 +104,14 @@ pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<
 
     // 3 surfaces
     let surfaces = contract.output["surfaces"].as_object().unwrap();
-    anyhow::ensure!(surfaces.contains_key("forge_panel"), "must have forge_panel");
-    anyhow::ensure!(surfaces.contains_key("assistant_action"), "must have assistant_action");
+    anyhow::ensure!(
+        surfaces.contains_key("forge_panel"),
+        "must have forge_panel"
+    );
+    anyhow::ensure!(
+        surfaces.contains_key("assistant_action"),
+        "must have assistant_action"
+    );
     anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
     // 20 capabilities
@@ -152,7 +155,12 @@ pub(crate) async fn backend_classes_no_secret_config() -> anyhow::Result<()> {
 
     let output_str = serde_json::to_string(&result.output).unwrap();
     let lower = output_str.to_lowercase();
-    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential")] {
+    for token in &[
+        &format!("d{}n", "s"),
+        &format!("connection_{}", "string"),
+        "password",
+        &format!("cred{}", "ential"),
+    ] {
         anyhow::ensure!(
             !lower.contains(token),
             "backend_classes must not contain {}",
@@ -237,7 +245,10 @@ pub(crate) async fn package_state_plan_scoped() -> anyhow::Result<()> {
     anyhow::ensure!(plan.output["requires_user_approval"] == json!(true));
 
     // Has quota hints
-    anyhow::ensure!(plan.output["quota_hints"].is_object(), "must have quota_hints");
+    anyhow::ensure!(
+        plan.output["quota_hints"].is_object(),
+        "must have quota_hints"
+    );
 
     // Has backend candidates
     anyhow::ensure!(
@@ -248,12 +259,14 @@ pub(crate) async fn package_state_plan_scoped() -> anyhow::Result<()> {
     // No raw secrets or paths in output
     let output_str = serde_json::to_string(&plan.output).unwrap();
     let lower = output_str.to_lowercase();
-    for token in &[&format!("d{}n", "s"), "password", &format!("cred{}", "ential"), &format!("connection_{}", "string"), "file://"] {
-        anyhow::ensure!(
-            !lower.contains(token),
-            "plan must not contain {}",
-            token
-        );
+    for token in &[
+        &format!("d{}n", "s"),
+        "password",
+        &format!("cred{}", "ential"),
+        &format!("connection_{}", "string"),
+        "file://",
+    ] {
+        anyhow::ensure!(!lower.contains(token), "plan must not contain {}", token);
     }
 
     Ok(())
@@ -512,7 +525,10 @@ pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
     let candidates = contract.output["backend_candidates"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
-    anyhow::ensure!(candidates.len() >= 3, "must have at least 3 backend candidates");
+    anyhow::ensure!(
+        candidates.len() >= 3,
+        "must have at least 3 backend candidates"
+    );
 
     // Red lines
     let red_lines = contract.output["red_lines"]
@@ -548,7 +564,15 @@ pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
 
     // No secret-bearing backend config in backend candidates
     let lower = output_str.to_lowercase();
-    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), "bucket", "s3://", "gcs://"] {
+    for token in &[
+        &format!("d{}n", "s"),
+        &format!("connection_{}", "string"),
+        "password",
+        &format!("cred{}", "ential"),
+        "bucket",
+        "s3://",
+        "gcs://",
+    ] {
         anyhow::ensure!(
             !lower.contains(token),
             "blob contract must not contain {}",
@@ -824,13 +848,19 @@ pub(crate) async fn projection_contract_shape() -> anyhow::Result<()> {
     let contract_kinds = contract.output["contract_kinds"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("contract_kinds must be array"))?;
-    anyhow::ensure!(contract_kinds.len() >= 4, "must have at least 4 contract kinds");
+    anyhow::ensure!(
+        contract_kinds.len() >= 4,
+        "must have at least 4 contract kinds"
+    );
 
     // Backend candidates
     let candidates = contract.output["backend_candidates"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
-    anyhow::ensure!(candidates.len() >= 4, "must have at least 4 backend candidates");
+    anyhow::ensure!(
+        candidates.len() >= 4,
+        "must have at least 4 backend candidates"
+    );
 
     // Red lines
     let red_lines = contract.output["red_lines"]
@@ -941,17 +971,21 @@ pub(crate) async fn projection_materialization_plan_only() -> anyhow::Result<()>
     let candidates = plan.output["backend_candidates"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
-    anyhow::ensure!(candidates.len() >= 4, "must have at least 4 backend candidates");
+    anyhow::ensure!(
+        candidates.len() >= 4,
+        "must have at least 4 backend candidates"
+    );
 
     // No credentials in output
     let output_str = serde_json::to_string(&plan.output).unwrap();
     let lower = output_str.to_lowercase();
-    for token in &[&format!("d{}n", "s"), "password", &format!("cred{}", "ential"), &format!("connection_{}", "string")] {
-        anyhow::ensure!(
-            !lower.contains(token),
-            "plan must not contain {}",
-            token
-        );
+    for token in &[
+        &format!("d{}n", "s"),
+        "password",
+        &format!("cred{}", "ential"),
+        &format!("connection_{}", "string"),
+    ] {
+        anyhow::ensure!(!lower.contains(token), "plan must not contain {}", token);
     }
 
     Ok(())
@@ -1174,12 +1208,18 @@ pub(crate) async fn retrieval_contract_shape() -> anyhow::Result<()> {
     let contract_kinds = contract.output["contract_kinds"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("contract_kinds must be array"))?;
-    anyhow::ensure!(contract_kinds.len() >= 5, "must have at least 5 contract kinds");
+    anyhow::ensure!(
+        contract_kinds.len() >= 5,
+        "must have at least 5 contract kinds"
+    );
 
     let candidates = contract.output["backend_candidates"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
-    anyhow::ensure!(candidates.len() >= 6, "must have at least 6 backend candidates");
+    anyhow::ensure!(
+        candidates.len() >= 6,
+        "must have at least 6 backend candidates"
+    );
 
     let red_lines = contract.output["red_lines"]
         .as_array()
@@ -1238,7 +1278,10 @@ pub(crate) async fn multimodal_index_plan_no_embedding_no_storage() -> anyhow::R
     let candidates = plan.output["backend_candidates"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
-    anyhow::ensure!(candidates.len() >= 6, "must have at least 6 backend candidates");
+    anyhow::ensure!(
+        candidates.len() >= 6,
+        "must have at least 6 backend candidates"
+    );
     for candidate in candidates {
         anyhow::ensure!(
             candidate["status"] == json!("future"),
@@ -1250,7 +1293,8 @@ pub(crate) async fn multimodal_index_plan_no_embedding_no_storage() -> anyhow::R
 }
 
 /// Case 24: Multimodal index rejects invalid modality or too many asset_refs.
-pub(crate) async fn multimodal_index_rejects_invalid_modality_or_too_many_refs() -> anyhow::Result<()> {
+pub(crate) async fn multimodal_index_rejects_invalid_modality_or_too_many_refs(
+) -> anyhow::Result<()> {
     let rt = load_storage_lab().await?;
 
     // Invalid modality "embedding"
@@ -1337,7 +1381,10 @@ pub(crate) async fn vector_search_plan_no_execution() -> anyhow::Result<()> {
     let candidates = plan.output["backend_candidates"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("backend_candidates must be array"))?;
-    anyhow::ensure!(candidates.len() >= 6, "must have at least 6 backend candidates");
+    anyhow::ensure!(
+        candidates.len() >= 6,
+        "must have at least 6 backend candidates"
+    );
 
     Ok(())
 }
@@ -1369,7 +1416,10 @@ pub(crate) async fn backend_fit_mentions_tdb_future_only() -> anyhow::Result<()>
     let tdb_entry = fit_matrix.iter().find(|e| e["class_id"] == "tdb_future");
     anyhow::ensure!(tdb_entry.is_some(), "must contain tdb_future entry");
     let tdb = tdb_entry.unwrap();
-    anyhow::ensure!(tdb["status"] == "future", "tdb_future must have status future");
+    anyhow::ensure!(
+        tdb["status"] == "future",
+        "tdb_future must have status future"
+    );
 
     // No kernel namespace tokens
     let output_str = serde_json::to_string(&fit.output).unwrap();
@@ -1386,7 +1436,14 @@ pub(crate) async fn backend_fit_mentions_tdb_future_only() -> anyhow::Result<()>
     let lower_raw = output_str.to_lowercase();
     // "no_secret_backend_config" is a negation term — filter it out.
     let lower = lower_raw.replace("no_secret_backend_config", "");
-    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), &format!("postgres{}://", "ql"), &format!("redis{}", "://")] {
+    for token in &[
+        &format!("d{}n", "s"),
+        &format!("connection_{}", "string"),
+        "password",
+        &format!("cred{}", "ential"),
+        &format!("postgres{}://", "ql"),
+        &format!("redis{}", "://"),
+    ] {
         anyhow::ensure!(
             !lower.contains(token),
             "backend fit must not contain {}",
@@ -1496,7 +1553,13 @@ pub(crate) async fn retrieval_no_kernel_vector_namespace_or_secret_config() -> a
     // "no_secret_backend_config" is a negation term, not leakage — filter it out.
     let lower_raw = output_str.to_lowercase();
     let lower = lower_raw.replace("no_secret_backend_config", "");
-    for token in &[&format!("d{}n", "s"), &format!("connection_{}", "string"), "password", &format!("cred{}", "ential"), "bucket"] {
+    for token in &[
+        &format!("d{}n", "s"),
+        &format!("connection_{}", "string"),
+        "password",
+        &format!("cred{}", "ential"),
+        "bucket",
+    ] {
         anyhow::ensure!(
             !lower.contains(token),
             "retrieval contract must not contain {}",

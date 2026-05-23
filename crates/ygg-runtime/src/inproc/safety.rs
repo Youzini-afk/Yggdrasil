@@ -126,7 +126,9 @@ mod tests {
 
     #[test]
     fn allows_secret_ref() {
-        assert!(!contains_raw_secret(&json!({"api_key": "secret_ref:env:MY_KEY"})));
+        assert!(!contains_raw_secret(
+            &json!({"api_key": "secret_ref:env:MY_KEY"})
+        ));
     }
 
     #[test]
@@ -146,7 +148,9 @@ mod tests {
 
     #[test]
     fn detects_high_entropy_string() {
-        assert!(contains_raw_secret(&json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})));
+        assert!(contains_raw_secret(
+            &json!({"api_key": "RawSecretExample1234567890abcdefABCDEF123456"})
+        ));
     }
 
     #[test]

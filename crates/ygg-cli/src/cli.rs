@@ -109,6 +109,8 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: CapabilityCommand,
     },
+    /// Audit declared package authority against observed effects.
+    Audit(crate::commands::audit::AuditArgs),
     /// Generate package skeletons.
     InitPackage {
         path: PathBuf,

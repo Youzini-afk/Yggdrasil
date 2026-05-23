@@ -34,10 +34,12 @@ const PACKAGE_ID: &str = "official/agentic-forge-lab";
 async fn load_forge_lab() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/agentic-forge-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/agentic-forge-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
     Ok(runtime)
 }
@@ -63,11 +65,19 @@ pub(crate) async fn agentic_forge_describe_contract() -> anyhow::Result<()> {
         "describe_contract must return agentic_forge_contract kind"
     );
     anyhow::ensure!(
-        contract.output["lifecycle_states"].as_array().map(|a| a.len()).unwrap_or(0) == 9,
+        contract.output["lifecycle_states"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            == 9,
         "describe_contract must list 9 lifecycle states"
     );
     anyhow::ensure!(
-        contract.output["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 15,
+        contract.output["capabilities"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            == 15,
         "describe_contract must list 15 capabilities"
     );
     anyhow::ensure!(
@@ -89,9 +99,18 @@ pub(crate) async fn agentic_forge_describe_contract() -> anyhow::Result<()> {
 
     // No kernel agent namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "describe_contract must not contain kernel.v1.agent");
-    anyhow::ensure!(!output_str.contains("kernel.v1.model"), "describe_contract must not contain kernel.v1.model");
-    anyhow::ensure!(!output_str.contains("kernel.v1.prompt"), "describe_contract must not contain kernel.v1.prompt");
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.agent"),
+        "describe_contract must not contain kernel.v1.agent"
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.model"),
+        "describe_contract must not contain kernel.v1.model"
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.prompt"),
+        "describe_contract must not contain kernel.v1.prompt"
+    );
 
     Ok(())
 }
@@ -134,31 +153,83 @@ pub(crate) async fn agentic_forge_start_run() -> anyhow::Result<()> {
     let pg = &started.output["plan_graph"];
     anyhow::ensure!(pg["nodes"].is_array(), "plan_graph must have nodes");
     anyhow::ensure!(pg["edges"].is_array(), "plan_graph must have edges");
-    anyhow::ensure!(pg["status"] == json!("prepared"), "plan_graph status must be prepared");
+    anyhow::ensure!(
+        pg["status"] == json!("prepared"),
+        "plan_graph status must be prepared"
+    );
     anyhow::ensure!(pg["revision"] == json!(1), "plan_graph revision must be 1");
-    anyhow::ensure!(pg["deterministic_mode"] == json!(true), "plan_graph deterministic_mode must be true");
-    anyhow::ensure!(pg["approval_policy"].is_string(), "plan_graph must have approval_policy");
-    anyhow::ensure!(pg["retry_policy"].is_object(), "plan_graph must have retry_policy");
-    anyhow::ensure!(pg["input_refs"].is_array(), "plan_graph must have input_refs");
-    anyhow::ensure!(pg["output_refs"].is_array(), "plan_graph must have output_refs");
+    anyhow::ensure!(
+        pg["deterministic_mode"] == json!(true),
+        "plan_graph deterministic_mode must be true"
+    );
+    anyhow::ensure!(
+        pg["approval_policy"].is_string(),
+        "plan_graph must have approval_policy"
+    );
+    anyhow::ensure!(
+        pg["retry_policy"].is_object(),
+        "plan_graph must have retry_policy"
+    );
+    anyhow::ensure!(
+        pg["input_refs"].is_array(),
+        "plan_graph must have input_refs"
+    );
+    anyhow::ensure!(
+        pg["output_refs"].is_array(),
+        "plan_graph must have output_refs"
+    );
 
     // Working state checks
     let ws = &started.output["working_state"];
     anyhow::ensure!(ws["run_id"].is_string(), "working_state must have run_id");
-    anyhow::ensure!(ws["owner_package"] == json!(PACKAGE_ID), "working_state owner_package must match");
-    anyhow::ensure!(ws["target_branch_ref"] == json!("branch:target:main"), "working_state target_branch_ref");
-    anyhow::ensure!(ws["scratch_branch_ref"] == json!("branch:scratch:s1"), "working_state scratch_branch_ref");
-    anyhow::ensure!(ws["current_objective"].is_string(), "working_state must have current_objective");
-    anyhow::ensure!(ws["plan_graph_ref"].is_string(), "working_state must have plan_graph_ref");
-    anyhow::ensure!(ws["candidate_refs"].is_array(), "working_state must have candidate_refs");
-    anyhow::ensure!(ws["tool_observation_refs"].is_array(), "working_state must have tool_observation_refs");
-    anyhow::ensure!(ws["inference_trace_refs"].is_array(), "working_state must have inference_trace_refs");
-    anyhow::ensure!(ws["policy_state"].is_object(), "working_state must have policy_state");
-    anyhow::ensure!(ws["policy_state"]["deterministic_mode"] == json!(true), "policy_state deterministic_mode");
+    anyhow::ensure!(
+        ws["owner_package"] == json!(PACKAGE_ID),
+        "working_state owner_package must match"
+    );
+    anyhow::ensure!(
+        ws["target_branch_ref"] == json!("branch:target:main"),
+        "working_state target_branch_ref"
+    );
+    anyhow::ensure!(
+        ws["scratch_branch_ref"] == json!("branch:scratch:s1"),
+        "working_state scratch_branch_ref"
+    );
+    anyhow::ensure!(
+        ws["current_objective"].is_string(),
+        "working_state must have current_objective"
+    );
+    anyhow::ensure!(
+        ws["plan_graph_ref"].is_string(),
+        "working_state must have plan_graph_ref"
+    );
+    anyhow::ensure!(
+        ws["candidate_refs"].is_array(),
+        "working_state must have candidate_refs"
+    );
+    anyhow::ensure!(
+        ws["tool_observation_refs"].is_array(),
+        "working_state must have tool_observation_refs"
+    );
+    anyhow::ensure!(
+        ws["inference_trace_refs"].is_array(),
+        "working_state must have inference_trace_refs"
+    );
+    anyhow::ensure!(
+        ws["policy_state"].is_object(),
+        "working_state must have policy_state"
+    );
+    anyhow::ensure!(
+        ws["policy_state"]["deterministic_mode"] == json!(true),
+        "policy_state deterministic_mode"
+    );
 
     // Trace events
     anyhow::ensure!(
-        started.output["trace_events"].as_array().map(|a| a.len()).unwrap_or(0) >= 2,
+        started.output["trace_events"]
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or(0)
+            >= 2,
         "start_run must produce at least 2 trace events"
     );
 
@@ -475,24 +546,66 @@ pub(crate) async fn agentic_forge_create_candidate() -> anyhow::Result<()> {
     );
 
     let cand = &result.output["candidate"];
-    anyhow::ensure!(cand["candidate_id"].is_string(), "candidate must have candidate_id");
+    anyhow::ensure!(
+        cand["candidate_id"].is_string(),
+        "candidate must have candidate_id"
+    );
     anyhow::ensure!(cand["run_id"] == json!("run_conf_b"), "candidate run_id");
-    anyhow::ensure!(cand["target_branch_ref"] == json!("branch:target:main"), "candidate target_branch_ref");
-    anyhow::ensure!(cand["scratch_branch_ref"] == json!("branch:scratch:s1"), "candidate scratch_branch_ref");
-    anyhow::ensure!(cand["changed_asset_refs"].is_array(), "candidate must have changed_asset_refs");
-    anyhow::ensure!(cand["projection_refs"].is_array(), "candidate must have projection_refs");
-    anyhow::ensure!(cand["diff_summary"].is_string(), "candidate must have diff_summary");
-    anyhow::ensure!(cand["inspection_refs"].is_array(), "candidate must have inspection_refs");
-    anyhow::ensure!(cand["confidence"].is_number(), "candidate must have confidence");
-    anyhow::ensure!(cand["uncertainty"].is_number(), "candidate must have uncertainty");
-    anyhow::ensure!(cand["provenance"]["package_id"].is_string(), "candidate must have provenance");
-    anyhow::ensure!(cand["status"] == json!("draft"), "candidate initial status is draft");
-    anyhow::ensure!(cand["target_revision"] == json!(1), "candidate target_revision");
+    anyhow::ensure!(
+        cand["target_branch_ref"] == json!("branch:target:main"),
+        "candidate target_branch_ref"
+    );
+    anyhow::ensure!(
+        cand["scratch_branch_ref"] == json!("branch:scratch:s1"),
+        "candidate scratch_branch_ref"
+    );
+    anyhow::ensure!(
+        cand["changed_asset_refs"].is_array(),
+        "candidate must have changed_asset_refs"
+    );
+    anyhow::ensure!(
+        cand["projection_refs"].is_array(),
+        "candidate must have projection_refs"
+    );
+    anyhow::ensure!(
+        cand["diff_summary"].is_string(),
+        "candidate must have diff_summary"
+    );
+    anyhow::ensure!(
+        cand["inspection_refs"].is_array(),
+        "candidate must have inspection_refs"
+    );
+    anyhow::ensure!(
+        cand["confidence"].is_number(),
+        "candidate must have confidence"
+    );
+    anyhow::ensure!(
+        cand["uncertainty"].is_number(),
+        "candidate must have uncertainty"
+    );
+    anyhow::ensure!(
+        cand["provenance"]["package_id"].is_string(),
+        "candidate must have provenance"
+    );
+    anyhow::ensure!(
+        cand["status"] == json!("draft"),
+        "candidate initial status is draft"
+    );
+    anyhow::ensure!(
+        cand["target_revision"] == json!(1),
+        "candidate target_revision"
+    );
 
     // No kernel namespace
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "create_candidate must not contain kernel.v1.agent");
-    anyhow::ensure!(!output_str.contains("kernel.v1.proposal.create"), "create_candidate must not call kernel.v1.proposal.create");
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.agent"),
+        "create_candidate must not contain kernel.v1.agent"
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.proposal.create"),
+        "create_candidate must not call kernel.v1.proposal.create"
+    );
 
     Ok(())
 }
@@ -613,8 +726,14 @@ pub(crate) async fn agentic_forge_draft_promote_proposal() -> anyhow::Result<()>
 
     // No kernel mutation namespace
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.v1.proposal.create"), "must not reference kernel.v1.proposal.create");
-    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "must not contain kernel.v1.agent");
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.proposal.create"),
+        "must not reference kernel.v1.proposal.create"
+    );
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.agent"),
+        "must not contain kernel.v1.agent"
+    );
 
     Ok(())
 }
@@ -707,7 +826,10 @@ pub(crate) async fn agentic_forge_archive_candidate() -> anyhow::Result<()> {
 
     // Verify no direct mutation terms
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "archive output must not contain kernel.v1.agent");
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.agent"),
+        "archive output must not contain kernel.v1.agent"
+    );
 
     Ok(())
 }
@@ -742,7 +864,9 @@ pub(crate) async fn agentic_forge_inference_node_deterministic() -> anyhow::Resu
         "run_inference_node must return agentic_forge_inference_node_result kind"
     );
     // Output action must be candidate_seed or proposal_seed (no direct mutation)
-    let action = result.output["node_result"]["output_action"].as_str().unwrap_or("");
+    let action = result.output["node_result"]["output_action"]
+        .as_str()
+        .unwrap_or("");
     anyhow::ensure!(
         action == "candidate_seed" || action == "proposal_seed",
         "inference output_action must be candidate_seed or proposal_seed, got: {action}"
@@ -762,8 +886,14 @@ pub(crate) async fn agentic_forge_inference_node_deterministic() -> anyhow::Resu
 
     // No kernel namespace
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "inference output must not contain kernel.v1.agent");
-    anyhow::ensure!(!output_str.contains("auto_promote"), "inference output must not contain auto_promote");
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.agent"),
+        "inference output must not contain kernel.v1.agent"
+    );
+    anyhow::ensure!(
+        !output_str.contains("auto_promote"),
+        "inference output must not contain auto_promote"
+    );
 
     Ok(())
 }
@@ -804,7 +934,10 @@ pub(crate) async fn agentic_forge_replay_match_mismatch() -> anyhow::Result<()> 
         "node_id": "node_infer_1",
     });
     let expected_fp = format!("fp_{}", {
-        let obj = base_input.get("objective").and_then(serde_json::Value::as_str).unwrap_or("default");
+        let obj = base_input
+            .get("objective")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("default");
         let len = obj.len();
         format!("{:04x}", len.wrapping_mul(31).wrapping_add(0xaf))
     });
@@ -841,7 +974,12 @@ pub(crate) async fn agentic_forge_inference_output_validation() -> anyhow::Resul
     let runtime = load_forge_lab().await?;
 
     // Test forbidden actions are rejected
-    for forbidden in &["privilege_escalation", "auto_promote", "secret_request", "target_branch_write"] {
+    for forbidden in &[
+        "privilege_escalation",
+        "auto_promote",
+        "secret_request",
+        "target_branch_write",
+    ] {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
@@ -866,7 +1004,12 @@ pub(crate) async fn agentic_forge_inference_output_validation() -> anyhow::Resul
     }
 
     // Test allowed actions are accepted
-    for allowed in &["candidate_seed", "proposal_seed", "observation", "needs_repair"] {
+    for allowed in &[
+        "candidate_seed",
+        "proposal_seed",
+        "observation",
+        "needs_repair",
+    ] {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
@@ -931,7 +1074,10 @@ pub(crate) async fn agentic_forge_cloud_adapter_no_network() -> anyhow::Result<(
 
     // No raw network or endpoint data in output
     let output_str = serde_json::to_string(&result.output).unwrap();
-    anyhow::ensure!(!output_str.contains("kernel.v1.agent"), "cloud adapter output must not contain kernel.v1.agent");
+    anyhow::ensure!(
+        !output_str.contains("kernel.v1.agent"),
+        "cloud adapter output must not contain kernel.v1.agent"
+    );
 
     Ok(())
 }
@@ -941,7 +1087,17 @@ pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result
     let runtime = load_forge_lab().await?;
 
     // Test all known failure kinds
-    for kind in &["rate_limit", "quota", "timeout", "auth", "network_denied", "invalid_output", "malformed_output", "replay_mismatch", "policy_reject"] {
+    for kind in &[
+        "rate_limit",
+        "quota",
+        "timeout",
+        "auth",
+        "network_denied",
+        "invalid_output",
+        "malformed_output",
+        "replay_mismatch",
+        "policy_reject",
+    ] {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
@@ -964,7 +1120,10 @@ pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result
             "failure kind '{kind}' must be known"
         );
         anyhow::ensure!(
-            result.output["recovery_hint"].as_str().map(|s| s.len() > 0).unwrap_or(false),
+            result.output["recovery_hint"]
+                .as_str()
+                .map(|s| s.len() > 0)
+                .unwrap_or(false),
             "failure kind '{kind}' must have a non-empty recovery_hint"
         );
         anyhow::ensure!(
@@ -1001,13 +1160,16 @@ pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result
 
 const TOOL_BRIDGE_ID: &str = "official/capability-tool-bridge-lab";
 
-async fn load_tool_bridge() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>> {
+async fn load_tool_bridge() -> anyhow::Result<ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>>
+{
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/capability-tool-bridge-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/capability-tool-bridge-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
     Ok(runtime)
 }
@@ -1055,7 +1217,8 @@ pub(crate) async fn agentic_forge_explain_tool_call_scoped() -> anyhow::Result<(
         "explain_tool_call must confirm requires_approval=true"
     );
     anyhow::ensure!(
-        result.output["tool_call_context"]["requesting_package"] == json!("official/agentic-forge-lab"),
+        result.output["tool_call_context"]["requesting_package"]
+            == json!("official/agentic-forge-lab"),
         "tool_call_context must include requesting_package"
     );
     anyhow::ensure!(
@@ -1163,7 +1326,9 @@ pub(crate) async fn agentic_forge_tool_risk_categories() -> anyhow::Result<()> {
     );
     let inj_risks = inj.output["risks"].as_array().unwrap();
     anyhow::ensure!(
-        inj_risks.iter().any(|r| r["category"] == "prompt_injection"),
+        inj_risks
+            .iter()
+            .any(|r| r["category"] == "prompt_injection"),
         "should detect prompt_injection"
     );
     anyhow::ensure!(
@@ -1188,7 +1353,9 @@ pub(crate) async fn agentic_forge_tool_risk_categories() -> anyhow::Result<()> {
 
     let sec_risks = sec.output["risks"].as_array().unwrap();
     anyhow::ensure!(
-        sec_risks.iter().any(|r| r["category"] == "secret_exfiltration"),
+        sec_risks
+            .iter()
+            .any(|r| r["category"] == "secret_exfiltration"),
         "should detect secret_exfiltration"
     );
 
@@ -1210,7 +1377,9 @@ pub(crate) async fn agentic_forge_tool_risk_categories() -> anyhow::Result<()> {
 
     let outb_risks = outb.output["risks"].as_array().unwrap();
     anyhow::ensure!(
-        outb_risks.iter().any(|r| r["category"] == "outbound_expansion"),
+        outb_risks
+            .iter()
+            .any(|r| r["category"] == "outbound_expansion"),
         "should detect outbound_expansion"
     );
 
@@ -1306,7 +1475,8 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
         "nested delegation without explicit must block toolchain"
     );
     anyhow::ensure!(
-        nested.output["steps"][0]["reason"] == json!("nested_delegation_requires_explicit_delegation"),
+        nested.output["steps"][0]["reason"]
+            == json!("nested_delegation_requires_explicit_delegation"),
         "blocked reason must be nested_delegation_requires_explicit_delegation"
     );
 
@@ -1370,7 +1540,8 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
         "target branch write without promote grant must block"
     );
     anyhow::ensure!(
-        branch_write.output["steps"][0]["reason"] == json!("target_branch_write_without_promote_grant"),
+        branch_write.output["steps"][0]["reason"]
+            == json!("target_branch_write_without_promote_grant"),
         "blocked reason must be target_branch_write_without_promote_grant"
     );
 
@@ -1391,7 +1562,8 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
     package::package_check(thirdparty_path).await?;
 
     // Verify composition YAML can be loaded
-    let comp_path = PathBuf::from("examples/compositions/agentic-forge-replacement/composition.yaml");
+    let comp_path =
+        PathBuf::from("examples/compositions/agentic-forge-replacement/composition.yaml");
     let comp_content = tokio::fs::read_to_string(&comp_path).await?;
     let comp: serde_yaml::Value = serde_yaml::from_str(&comp_content)?;
 
@@ -1406,8 +1578,13 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
 
     // No official priority: official is a candidate, not auto-selected
     let candidates = comp["replacement_candidates"].as_sequence().unwrap();
-    let has_official = candidates.iter().any(|c| c.as_str() == Some("official/agentic-forge-lab"));
-    anyhow::ensure!(has_official, "official/agentic-forge-lab must appear as replacement candidate");
+    let has_official = candidates
+        .iter()
+        .any(|c| c.as_str() == Some("official/agentic-forge-lab"));
+    anyhow::ensure!(
+        has_official,
+        "official/agentic-forge-lab must appear as replacement candidate"
+    );
     // Official is just a candidate — no priority field
     anyhow::ensure!(
         comp.get("priority").is_none(),
@@ -1416,10 +1593,17 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
 
     // Verify required capabilities align with agentic-forge-lab
     let req_caps = comp["required_capabilities"].as_sequence().unwrap();
-    anyhow::ensure!(req_caps.len() >= 7, "composition must require at least 7 capabilities");
+    anyhow::ensure!(
+        req_caps.len() >= 7,
+        "composition must require at least 7 capabilities"
+    );
 
     // Verify surfaces match
-    let req_surfaces = comp["required_surfaces"].as_sequence().unwrap();    anyhow::ensure!(req_surfaces.len() >= 3, "composition must require at least 3 surfaces");
+    let req_surfaces = comp["required_surfaces"].as_sequence().unwrap();
+    anyhow::ensure!(
+        req_surfaces.len() >= 3,
+        "composition must require at least 3 surfaces"
+    );
 
     Ok(())
 }
@@ -1430,8 +1614,10 @@ pub(crate) async fn agentic_forge_no_official_priority() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/agentic-forge-lab/manifest.yaml"))
-                .await?,
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/agentic-forge-lab/manifest.yaml",
+            ))
+            .await?,
         )
         .await?;
 
@@ -1483,14 +1669,18 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/agentic-forge-lab/manifest.yaml"))
-                .await?,
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/agentic-forge-lab/manifest.yaml",
+            ))
+            .await?,
         )
         .await?;
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/capability-tool-bridge-lab/manifest.yaml"))
-                .await?,
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/capability-tool-bridge-lab/manifest.yaml",
+            ))
+            .await?,
         )
         .await?;
 
@@ -1517,7 +1707,9 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     let secret_obs = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/capability-tool-bridge-lab/record_tool_observation".to_string()),
+            capability_id: Some(
+                "official/capability-tool-bridge-lab/record_tool_observation".to_string(),
+            ),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -1537,7 +1729,9 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     let inj_risk = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/capability-tool-bridge-lab/summarize_tool_risk".to_string()),
+            capability_id: Some(
+                "official/capability-tool-bridge-lab/summarize_tool_risk".to_string(),
+            ),
             caller_package_id: None,
             provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
             version: None,
@@ -1549,7 +1743,10 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
         .await?;
     let risks = inj_risk.output["risks"].as_array().unwrap();
     let has_injection = risks.iter().any(|r| r["category"] == "prompt_injection");
-    anyhow::ensure!(has_injection, "prompt injection must be detected across tool bridge path");
+    anyhow::ensure!(
+        has_injection,
+        "prompt injection must be detected across tool bridge path"
+    );
 
     // Agentic forge: inference output privilege escalation rejected
     let priv_escalation = runtime
@@ -1578,8 +1775,10 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/agentic-forge-lab/manifest.yaml"))
-                .await?,
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/agentic-forge-lab/manifest.yaml",
+            ))
+            .await?,
         )
         .await?;
 
@@ -1597,8 +1796,13 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
 
     // Contract must mention budget or deadline requirements
     let output_str = serde_json::to_string(&desc.output).unwrap_or_default();
-    let has_budget = output_str.contains("budget") || output_str.contains("deadline") || output_str.contains("max_steps");
-    anyhow::ensure!(has_budget, "describe_contract must reference budget/deadline constraints");
+    let has_budget = output_str.contains("budget")
+        || output_str.contains("deadline")
+        || output_str.contains("max_steps");
+    anyhow::ensure!(
+        has_budget,
+        "describe_contract must reference budget/deadline constraints"
+    );
 
     // start_run with explicit budget produces plan graph with node budget
     let with_budget = runtime
@@ -1650,7 +1854,10 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
         let s = serde_json::to_string(e).unwrap_or_default();
         s.contains("cancel") || s.contains("deadline") || s.contains("reason")
     });
-    anyhow::ensure!(has_deadline_trace, "cancellation trace must reference cancel/deadline/reason");
+    anyhow::ensure!(
+        has_deadline_trace,
+        "cancellation trace must reference cancel/deadline/reason"
+    );
 
     Ok(())
 }
@@ -1661,14 +1868,18 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/agentic-forge-lab/manifest.yaml"))
-                .await?,
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/agentic-forge-lab/manifest.yaml",
+            ))
+            .await?,
         )
         .await?;
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/capability-tool-bridge-lab/manifest.yaml"))
-                .await?,
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/capability-tool-bridge-lab/manifest.yaml",
+            ))
+            .await?,
         )
         .await?;
 

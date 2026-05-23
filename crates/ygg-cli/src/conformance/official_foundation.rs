@@ -13,7 +13,9 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
         "packages/official/schema-tools/manifest.yaml",
         "packages/official/event-tools/manifest.yaml",
     ] {
-        runtime.load_package(manifest::read_manifest(PathBuf::from(manifest_path)).await?).await?;
+        runtime
+            .load_package(manifest::read_manifest(PathBuf::from(manifest_path)).await?)
+            .await?;
     }
     let echo = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -25,7 +27,10 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
             input: json!({"official": "ordinary"}),
         })
         .await?;
-    anyhow::ensure!(echo.output == json!({"official": "ordinary"}), "package-lab echo failed");
+    anyhow::ensure!(
+        echo.output == json!({"official": "ordinary"}),
+        "package-lab echo failed"
+    );
     let schema = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -36,7 +41,10 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
             input: json!({"schema": {"type": "object"}, "value": {}}),
         })
         .await?;
-    anyhow::ensure!(schema.output["valid"] == json!(true), "schema-tools validate failed");
+    anyhow::ensure!(
+        schema.output["valid"] == json!(true),
+        "schema-tools validate failed"
+    );
     let events = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -47,11 +55,21 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
             input: json!({"events": [{"kind": "x"}, {"kind": "y"}]}),
         })
         .await?;
-    anyhow::ensure!(events.output["event_count"] == json!(2), "event-tools summarize failed");
+    anyhow::ensure!(
+        events.output["event_count"] == json!(2),
+        "event-tools summarize failed"
+    );
     let surfaces = runtime
-        .call_protocol(&ProtocolContext::host_dev("conformance"), "kernel.v1.surface.contribution.list", json!({"slot": "forge_panel"}))
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.surface.contribution.list",
+            json!({"slot": "forge_panel"}),
+        )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(surfaces.as_array().map(|items| items.len()).unwrap_or(0) >= 2, "official package surfaces missing");
+    anyhow::ensure!(
+        surfaces.as_array().map(|items| items.len()).unwrap_or(0) >= 2,
+        "official package surfaces missing"
+    );
     Ok(())
 }

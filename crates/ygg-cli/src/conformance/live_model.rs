@@ -42,14 +42,13 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_core::{
-    EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions, PackageEntry,
-    PackageManifest, PermissionSet, SandboxPolicy,
-    CapabilityDescriptor,
+    CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
+    PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
 };
 use ygg_runtime::{
     CapabilityInvocationRequest, EnvSecretResolver, EventStore, InMemoryEventStore,
-    LiveHttpOutboundExecutorConfig, OutboundExecutorConfig, ProtocolContext,
-    Runtime, RuntimeConfig, SecretResolverConfig,
+    LiveHttpOutboundExecutorConfig, OutboundExecutorConfig, ProtocolContext, Runtime,
+    RuntimeConfig, SecretResolverConfig,
 };
 
 use crate::commands::manifest;
@@ -154,7 +153,8 @@ fn runtime_with_live_http_and_env_resolver(
 pub(crate) async fn outbound_secret_headers_parsed() -> anyhow::Result<()> {
     let test_key = "test-l4-parse-key-do-not-log";
     std::env::set_var("YGG_L4_PARSE_KEY", test_key);
-    let (_store, runtime) = runtime_with_live_http_and_env_resolver(vec!["YGG_L4_PARSE_KEY".to_string()]);
+    let (_store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L4_PARSE_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l4-headers", "127.0.0.1"))
         .await?;
@@ -251,7 +251,9 @@ pub(crate) async fn outbound_live_loopback_secret_injection() -> anyhow::Result<
                 match tokio::time::timeout(
                     std::time::Duration::from_millis(500),
                     stream.read(&mut tmp),
-                ).await {
+                )
+                .await
+                {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&tmp[..n]);
@@ -271,7 +273,10 @@ pub(crate) async fn outbound_live_loopback_secret_injection() -> anyhow::Result<
             // Check if Authorization header is present and correct
             auth_received_clone.store(true, Ordering::SeqCst);
             let request_lower = request_str.to_lowercase();
-            let has_bearer = request_lower.contains(&format!("authorization: bearer {}", test_key.to_lowercase()));
+            let has_bearer = request_lower.contains(&format!(
+                "authorization: bearer {}",
+                test_key.to_lowercase()
+            ));
             if has_bearer {
                 auth_correct_clone.store(true, Ordering::SeqCst);
             }
@@ -286,9 +291,8 @@ pub(crate) async fn outbound_live_loopback_secret_injection() -> anyhow::Result<
     });
 
     // Set up runtime with the correct env resolver
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L4_TEST_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L4_TEST_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l4-loopback", "127.0.0.1"))
         .await?;
@@ -379,12 +383,14 @@ pub(crate) async fn outbound_live_loopback_secret_injection() -> anyhow::Result<
 /// and no raw secrets. No real network calls.
 pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()> {
     let (_store, runtime) = fixtures::runtime();
-    runtime.load_package(
-        manifest::read_manifest(std::path::PathBuf::from(
-            "packages/official/model-provider-lab/manifest.yaml",
-        ))
-        .await?,
-    ).await?;
+    runtime
+        .load_package(
+            manifest::read_manifest(std::path::PathBuf::from(
+                "packages/official/model-provider-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
 
     // Invoke normalize_stream for DeepSeek with sample provider events
     let result = runtime
@@ -456,7 +462,8 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
 
     // Verify normalization result
     anyhow::ensure!(
-        response.get("kind").and_then(|v| v.as_str()) == Some("model_provider_stream_normalization"),
+        response.get("kind").and_then(|v| v.as_str())
+            == Some("model_provider_stream_normalization"),
         "response kind should be model_provider_stream_normalization"
     );
     anyhow::ensure!(
@@ -468,19 +475,38 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
         "response stream_family should be delta_sse"
     );
     anyhow::ensure!(
-        response.get("terminal_frame_consistent").and_then(|v| v.as_bool()) == Some(true),
+        response
+            .get("terminal_frame_consistent")
+            .and_then(|v| v.as_bool())
+            == Some(true),
         "stream should have terminal_frame_consistent=true"
     );
 
     // Verify frames exist and have start → chunk → end lifecycle
-    let frames = response.get("frames").and_then(|v| v.as_array())
+    let frames = response
+        .get("frames")
+        .and_then(|v| v.as_array())
         .ok_or_else(|| anyhow::anyhow!("missing frames"))?;
-    anyhow::ensure!(frames.len() >= 3, "should have at least start, chunk, end frames");
+    anyhow::ensure!(
+        frames.len() >= 3,
+        "should have at least start, chunk, end frames"
+    );
 
-    let first_kind = frames[0].get("kind").and_then(|v| v.as_str()).unwrap_or_default();
-    anyhow::ensure!(first_kind == "start", "first frame should be 'start', got '{}'", first_kind);
+    let first_kind = frames[0]
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    anyhow::ensure!(
+        first_kind == "start",
+        "first frame should be 'start', got '{}'",
+        first_kind
+    );
 
-    let last_kind = frames.last().and_then(|f| f.get("kind")).and_then(|v| v.as_str()).unwrap_or_default();
+    let last_kind = frames
+        .last()
+        .and_then(|f| f.get("kind"))
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
     anyhow::ensure!(
         last_kind == "end" || last_kind == "error",
         "last frame should be 'end' or 'error', got '{}'",
@@ -512,7 +538,10 @@ pub(crate) async fn live_model_default_disabled_when_env_unset() -> anyhow::Resu
     let prev_key = std::env::var_os("DEEPSEEK_API_KEY");
 
     std::env::remove_var("YGG_LIVE_MODEL_TESTS");
-    std::env::set_var("DEEPSEEK_API_KEY", "test-live-model-default-disabled-do-not-log");
+    std::env::set_var(
+        "DEEPSEEK_API_KEY",
+        "test-live-model-default-disabled-do-not-log",
+    );
 
     let result = outbound_live_deepseek_opt_in().await;
 
@@ -572,9 +601,8 @@ pub(crate) async fn outbound_live_deepseek_opt_in() -> anyhow::Result<()> {
     let api_key = deepseek_key.unwrap();
 
     // Set up runtime with LiveHttp executor and env resolver
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "DEEPSEEK_API_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["DEEPSEEK_API_KEY".to_string()]);
     std::env::set_var("DEEPSEEK_API_KEY", &api_key);
     runtime
         .load_package(networked_package("example/l4-live", "api.deepseek.com"))
@@ -655,12 +683,14 @@ pub(crate) async fn outbound_live_deepseek_opt_in() -> anyhow::Result<()> {
 /// credential header shape.
 pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
     let (_store, runtime) = fixtures::runtime();
-    runtime.load_package(
-        manifest::read_manifest(std::path::PathBuf::from(
-            "packages/official/model-provider-lab/manifest.yaml",
-        ))
-        .await?,
-    ).await?;
+    runtime
+        .load_package(
+            manifest::read_manifest(std::path::PathBuf::from(
+                "packages/official/model-provider-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
 
     // Invoke normalize_request for DeepSeek profile
     let result = runtime
@@ -700,7 +730,8 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
         "normalize_request should return stream_family=delta_sse"
     );
     anyhow::ensure!(
-        response.get("endpoint")
+        response
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("api.deepseek.com"))
             .unwrap_or(false),
@@ -820,25 +851,30 @@ async fn start_loopback_server(
     let exp_path = expected_path.to_string();
 
     let server = tokio::spawn(async move {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
         use std::sync::atomic::Ordering;
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-        if let Ok((mut stream, _)) = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            listener.accept(),
-        ).await.unwrap() {
+        if let Ok((mut stream, _)) =
+            tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
+                .await
+                .unwrap()
+        {
             let mut buf = Vec::new();
             let mut tmp = [0u8; 8192];
             loop {
                 match tokio::time::timeout(
                     std::time::Duration::from_millis(500),
                     stream.read(&mut tmp),
-                ).await {
+                )
+                .await
+                {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&tmp[..n]);
                         let s = String::from_utf8_lossy(&buf);
-                        if s.contains("\r\n\r\n") { break; }
+                        if s.contains("\r\n\r\n") {
+                            break;
+                        }
                     }
                     _ => break,
                 }
@@ -848,12 +884,14 @@ async fn start_loopback_server(
             {
                 let mut captured = req_captured.lock().await;
                 // Redact any auth headers from captured request for safety
-                *captured = request_str.lines()
+                *captured = request_str
+                    .lines()
                     .map(|line| {
                         let line_lower = line.to_lowercase();
                         if line_lower.starts_with("authorization:")
                             || line_lower.starts_with("x-api-key:")
-                            || line_lower.starts_with("x-goog-api-key:") {
+                            || line_lower.starts_with("x-goog-api-key:")
+                        {
                             format!("{}: [redacted]", line.split(':').next().unwrap_or(""))
                         } else {
                             line.to_string()
@@ -914,16 +952,11 @@ pub(crate) async fn openai_chat_loopback() -> anyhow::Result<()> {
     let test_key = "test-l5-openai-chat-key-do-not-log";
     std::env::set_var("YGG_L5_OPENAI_CHAT_KEY", test_key);
 
-    let (port, server, checks) = start_loopback_server(
-        "authorization",
-        "bearer",
-        "POST",
-        "/v1/chat/completions",
-    ).await;
+    let (port, server, checks) =
+        start_loopback_server("authorization", "bearer", "POST", "/v1/chat/completions").await;
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L5_OPENAI_CHAT_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L5_OPENAI_CHAT_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l5-openai-chat", "127.0.0.1"))
         .await?;
@@ -1019,16 +1052,11 @@ pub(crate) async fn openai_responses_loopback() -> anyhow::Result<()> {
     let test_key = "test-l5-openai-resp-key-do-not-log";
     std::env::set_var("YGG_L5_OPENAI_RESP_KEY", test_key);
 
-    let (port, server, checks) = start_loopback_server(
-        "authorization",
-        "bearer",
-        "POST",
-        "/v1/responses",
-    ).await;
+    let (port, server, checks) =
+        start_loopback_server("authorization", "bearer", "POST", "/v1/responses").await;
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L5_OPENAI_RESP_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L5_OPENAI_RESP_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l5-openai-resp", "127.0.0.1"))
         .await?;
@@ -1130,22 +1158,27 @@ pub(crate) async fn anthropic_messages_loopback() -> anyhow::Result<()> {
     let server = tokio::spawn(async move {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-        if let Ok((mut stream, _)) = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            listener.accept(),
-        ).await.unwrap() {
+        if let Ok((mut stream, _)) =
+            tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
+                .await
+                .unwrap()
+        {
             let mut buf = Vec::new();
             let mut tmp = [0u8; 8192];
             loop {
                 match tokio::time::timeout(
                     std::time::Duration::from_millis(500),
                     stream.read(&mut tmp),
-                ).await {
+                )
+                .await
+                {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&tmp[..n]);
                         let s = String::from_utf8_lossy(&buf);
-                        if s.contains("\r\n\r\n") { break; }
+                        if s.contains("\r\n\r\n") {
+                            break;
+                        }
                     }
                     _ => break,
                 }
@@ -1186,9 +1219,8 @@ pub(crate) async fn anthropic_messages_loopback() -> anyhow::Result<()> {
         }
     });
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L5_ANTHROPIC_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L5_ANTHROPIC_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l5-anthropic", "127.0.0.1"))
         .await?;
@@ -1304,22 +1336,27 @@ pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
     let server = tokio::spawn(async move {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-        if let Ok((mut stream, _)) = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            listener.accept(),
-        ).await.unwrap() {
+        if let Ok((mut stream, _)) =
+            tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
+                .await
+                .unwrap()
+        {
             let mut buf = Vec::new();
             let mut tmp = [0u8; 8192];
             loop {
                 match tokio::time::timeout(
                     std::time::Duration::from_millis(500),
                     stream.read(&mut tmp),
-                ).await {
+                )
+                .await
+                {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&tmp[..n]);
                         let s = String::from_utf8_lossy(&buf);
-                        if s.contains("\r\n\r\n") { break; }
+                        if s.contains("\r\n\r\n") {
+                            break;
+                        }
                     }
                     _ => break,
                 }
@@ -1354,9 +1391,8 @@ pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
         }
     });
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L5_GEMINI_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L5_GEMINI_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l5-gemini", "127.0.0.1"))
         .await?;
@@ -1439,7 +1475,7 @@ pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
 pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
     // Don't set the env var — it will be missing
     let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L5_MISSING_KEY".to_string(),  // allowed but not set
+        "YGG_L5_MISSING_KEY".to_string(), // allowed but not set
     ]);
     runtime
         .load_package(networked_package("example/l5-missing", "127.0.0.1"))
@@ -1507,12 +1543,14 @@ pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
 /// are consistent — no private runtime calls needed.
 pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()> {
     let (_store, runtime) = fixtures::runtime();
-    runtime.load_package(
-        manifest::read_manifest(std::path::PathBuf::from(
-            "packages/official/model-provider-lab/manifest.yaml",
-        ))
-        .await?,
-    ).await?;
+    runtime
+        .load_package(
+            manifest::read_manifest(std::path::PathBuf::from(
+                "packages/official/model-provider-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
 
     // --- OpenAI Chat Completions ---
     let openai_result = runtime
@@ -1539,14 +1577,16 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
         "OpenAI normalize_request method should be POST"
     );
     anyhow::ensure!(
-        openai_resp.get("endpoint")
+        openai_resp
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("api.openai.com"))
             .unwrap_or(false),
         "OpenAI normalize_request endpoint should contain api.openai.com"
     );
     anyhow::ensure!(
-        openai_resp.get("endpoint")
+        openai_resp
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("/v1/chat/completions"))
             .unwrap_or(false),
@@ -1579,11 +1619,15 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
 
     let openai_resp_out = &openai_resp_result.output;
     anyhow::ensure!(
-        openai_resp_out.get("request_dialect").and_then(|v| v.as_str()) == Some("openai_responses"),
+        openai_resp_out
+            .get("request_dialect")
+            .and_then(|v| v.as_str())
+            == Some("openai_responses"),
         "OpenAI Responses dialect should be openai_responses"
     );
     anyhow::ensure!(
-        openai_resp_out.get("endpoint")
+        openai_resp_out
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("/v1/responses"))
             .unwrap_or(false),
@@ -1612,26 +1656,33 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
 
     let anthropic_resp = &anthropic_result.output;
     anyhow::ensure!(
-        anthropic_resp.get("endpoint")
+        anthropic_resp
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("api.anthropic.com"))
             .unwrap_or(false),
         "Anthropic normalize_request endpoint should contain api.anthropic.com"
     );
     anyhow::ensure!(
-        anthropic_resp.get("endpoint")
+        anthropic_resp
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("/v1/messages"))
             .unwrap_or(false),
         "Anthropic normalize_request endpoint should contain /v1/messages"
     );
     anyhow::ensure!(
-        anthropic_resp.get("request_dialect").and_then(|v| v.as_str()) == Some("anthropic_messages"),
+        anthropic_resp
+            .get("request_dialect")
+            .and_then(|v| v.as_str())
+            == Some("anthropic_messages"),
         "Anthropic normalize_request dialect should be anthropic_messages"
     );
 
     // Verify Anthropic headers shape includes x-api-key and anthropic-version
-    let headers = anthropic_resp.get("headers").ok_or_else(|| anyhow::anyhow!("missing headers"))?;
+    let headers = anthropic_resp
+        .get("headers")
+        .ok_or_else(|| anyhow::anyhow!("missing headers"))?;
     anyhow::ensure!(
         headers.get("x-api-key").is_some(),
         "Anthropic headers should contain x-api-key placeholder"
@@ -1662,21 +1713,24 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
 
     let gemini_resp = &gemini_result.output;
     anyhow::ensure!(
-        gemini_resp.get("endpoint")
+        gemini_resp
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains("generativelanguage.googleapis.com"))
             .unwrap_or(false),
         "Gemini normalize_request endpoint should contain generativelanguage.googleapis.com"
     );
     anyhow::ensure!(
-        gemini_resp.get("endpoint")
+        gemini_resp
+            .get("endpoint")
             .and_then(|v| v.as_str())
             .map(|e| e.contains(":generateContent"))
             .unwrap_or(false),
         "Gemini normalize_request endpoint should contain :generateContent"
     );
     anyhow::ensure!(
-        gemini_resp.get("request_dialect").and_then(|v| v.as_str()) == Some("gemini_generate_content"),
+        gemini_resp.get("request_dialect").and_then(|v| v.as_str())
+            == Some("gemini_generate_content"),
         "Gemini normalize_request dialect should be gemini_generate_content"
     );
 
@@ -1719,8 +1773,11 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
 /// Anthropic, and Gemini shapes with FakeOutboundExecutor, ensuring
 /// response/audit never contain raw secret values.
 pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
-    use ygg_runtime::{FakeOutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal};
     use ygg_core::RedactionState;
+    use ygg_runtime::{
+        FakeOutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest, OutboundRequest,
+        ProtocolPrincipal,
+    };
 
     let store = Arc::new(InMemoryEventStore::default());
     let fake = Arc::new(FakeOutboundExecutor::new());
@@ -1743,7 +1800,9 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
 
     let pkg_id = "example/l5-no-leak";
     let cap_id = "example/l5-no-leak/fetch";
-    let principal = ProtocolPrincipal::Package { package_id: pkg_id.to_string() };
+    let principal = ProtocolPrincipal::Package {
+        package_id: pkg_id.to_string(),
+    };
     let secret_ref = "secret_ref:env:TEST_PROVIDER_KEY".to_string();
 
     // OpenAI shape
@@ -1757,7 +1816,7 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -1850,7 +1909,7 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![secret_ref.clone()],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: pkg_id.to_string(),
@@ -1897,7 +1956,9 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
         anyhow::ensure!(
-            !payload_str.contains("Bearer ") && !payload_str.contains("sk-") && !payload_str.contains("AIza"),
+            !payload_str.contains("Bearer ")
+                && !payload_str.contains("sk-")
+                && !payload_str.contains("AIza"),
             "audit event must not contain raw secret patterns"
         );
     }
@@ -2091,22 +2152,27 @@ pub(crate) async fn openrouter_loopback_headers() -> anyhow::Result<()> {
     let server = tokio::spawn(async move {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-        if let Ok((mut stream, _)) = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            listener.accept(),
-        ).await.unwrap() {
+        if let Ok((mut stream, _)) =
+            tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
+                .await
+                .unwrap()
+        {
             let mut buf = Vec::new();
             let mut tmp = [0u8; 8192];
             loop {
                 match tokio::time::timeout(
                     std::time::Duration::from_millis(500),
                     stream.read(&mut tmp),
-                ).await {
+                )
+                .await
+                {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&tmp[..n]);
                         let s = String::from_utf8_lossy(&buf);
-                        if s.contains("\r\n\r\n") { break; }
+                        if s.contains("\r\n\r\n") {
+                            break;
+                        }
                     }
                     _ => break,
                 }
@@ -2139,7 +2205,8 @@ pub(crate) async fn openrouter_loopback_headers() -> anyhow::Result<()> {
             }
 
             // Respond
-            let body = r#"{"id":"fake-or-001","object":"chat.completion","model":"fake","choices":[]}"#;
+            let body =
+                r#"{"id":"fake-or-001","object":"chat.completion","model":"fake","choices":[]}"#;
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                 body.len(),
@@ -2149,9 +2216,8 @@ pub(crate) async fn openrouter_loopback_headers() -> anyhow::Result<()> {
         }
     });
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L6_OPENROUTER_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L6_OPENROUTER_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l6-openrouter", "127.0.0.1"))
         .await?;
@@ -2254,16 +2320,11 @@ pub(crate) async fn xai_loopback() -> anyhow::Result<()> {
     let test_key = "test-l6-xai-key-do-not-log";
     std::env::set_var("YGG_L6_XAI_KEY", test_key);
 
-    let (port, server, checks) = start_loopback_server(
-        "authorization",
-        "bearer",
-        "POST",
-        "/v1/chat/completions",
-    ).await;
+    let (port, server, checks) =
+        start_loopback_server("authorization", "bearer", "POST", "/v1/chat/completions").await;
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L6_XAI_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L6_XAI_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l6-xai", "127.0.0.1"))
         .await?;
@@ -2363,11 +2424,11 @@ pub(crate) async fn fireworks_loopback() -> anyhow::Result<()> {
         "bearer",
         "POST",
         "/inference/v1/chat/completions",
-    ).await;
+    )
+    .await;
 
-    let (store, runtime) = runtime_with_live_http_and_env_resolver(vec![
-        "YGG_L6_FIREWORKS_KEY".to_string(),
-    ]);
+    let (store, runtime) =
+        runtime_with_live_http_and_env_resolver(vec!["YGG_L6_FIREWORKS_KEY".to_string()]);
     runtime
         .load_package(networked_package("example/l6-fireworks", "127.0.0.1"))
         .await?;
@@ -2453,12 +2514,14 @@ pub(crate) async fn fireworks_loopback() -> anyhow::Result<()> {
 /// lifecycle and no raw secrets. No real network calls.
 pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
     let (_store, runtime) = fixtures::runtime();
-    runtime.load_package(
-        manifest::read_manifest(std::path::PathBuf::from(
-            "packages/official/model-provider-lab/manifest.yaml",
-        ))
-        .await?,
-    ).await?;
+    runtime
+        .load_package(
+            manifest::read_manifest(std::path::PathBuf::from(
+                "packages/official/model-provider-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
 
     // Invoke normalize_stream for DeepSeek with reasoning, keep-alive, and mid-stream error
     let result = runtime
@@ -2523,7 +2586,8 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
     let response = &result.output;
 
     anyhow::ensure!(
-        response.get("kind").and_then(|v| v.as_str()) == Some("model_provider_stream_normalization"),
+        response.get("kind").and_then(|v| v.as_str())
+            == Some("model_provider_stream_normalization"),
         "response kind should be model_provider_stream_normalization"
     );
     anyhow::ensure!(
@@ -2531,14 +2595,22 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
         "response family should be deepseek"
     );
     anyhow::ensure!(
-        response.get("terminal_frame_consistent").and_then(|v| v.as_bool()) == Some(true),
+        response
+            .get("terminal_frame_consistent")
+            .and_then(|v| v.as_bool())
+            == Some(true),
         "DeepSeek reasoning stream should have terminal_frame_consistent=true"
     );
 
     // Verify frames exist and include reasoning quirk
-    let frames = response.get("frames").and_then(|v| v.as_array())
+    let frames = response
+        .get("frames")
+        .and_then(|v| v.as_array())
         .ok_or_else(|| anyhow::anyhow!("missing frames"))?;
-    anyhow::ensure!(frames.len() >= 4, "should have at least start, reasoning chunk, chunk, end frames");
+    anyhow::ensure!(
+        frames.len() >= 4,
+        "should have at least start, reasoning chunk, chunk, end frames"
+    );
 
     // Verify at least one frame has reasoning_delta (DeepSeek reasoning_content quirk)
     let has_reasoning = frames.iter().any(|f| {
@@ -2587,12 +2659,14 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
 /// frames. No real network calls.
 pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
     let (_store, runtime) = fixtures::runtime();
-    runtime.load_package(
-        manifest::read_manifest(std::path::PathBuf::from(
-            "packages/official/model-provider-lab/manifest.yaml",
-        ))
-        .await?,
-    ).await?;
+    runtime
+        .load_package(
+            manifest::read_manifest(std::path::PathBuf::from(
+                "packages/official/model-provider-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
 
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
@@ -2643,7 +2717,8 @@ pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
     let response = &result.output;
 
     anyhow::ensure!(
-        response.get("kind").and_then(|v| v.as_str()) == Some("model_provider_stream_normalization"),
+        response.get("kind").and_then(|v| v.as_str())
+            == Some("model_provider_stream_normalization"),
         "response kind should be model_provider_stream_normalization"
     );
     anyhow::ensure!(
@@ -2652,10 +2727,14 @@ pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
     );
 
     // Verify frames include an error frame for the mid-stream error
-    let frames = response.get("frames").and_then(|v| v.as_array())
+    let frames = response
+        .get("frames")
+        .and_then(|v| v.as_array())
         .ok_or_else(|| anyhow::anyhow!("missing frames"))?;
 
-    let has_error = frames.iter().any(|f| f.get("kind").and_then(|v| v.as_str()) == Some("error"));
+    let has_error = frames
+        .iter()
+        .any(|f| f.get("kind").and_then(|v| v.as_str()) == Some("error"));
     anyhow::ensure!(
         has_error,
         "OpenRouter mid-stream error should produce an error frame"
@@ -2704,7 +2783,11 @@ pub(crate) async fn provider_quirk_fixtures_no_secrets() -> anyhow::Result<()> {
     for entry in std::fs::read_dir(fixtures_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map(|e| e == "json" || e == "sse").unwrap_or(false) {
+        if path
+            .extension()
+            .map(|e| e == "json" || e == "sse")
+            .unwrap_or(false)
+        {
             checked_count += 1;
             let content = std::fs::read_to_string(&path)?;
 
@@ -2774,7 +2857,7 @@ pub(crate) async fn provider_quirk_fixtures_no_secrets() -> anyhow::Result<()> {
 /// from being incorrectly rejected while maintaining security.
 pub(crate) async fn static_headers_openrouter_safe() -> anyhow::Result<()> {
     // Unit-test level: verify the allowlist includes these headers
-    use ygg_runtime::{is_static_header_allowed, is_secret_header_name};
+    use ygg_runtime::{is_secret_header_name, is_static_header_allowed};
 
     // http-referer is allowed (case-insensitive)
     anyhow::ensure!(

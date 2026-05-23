@@ -27,13 +27,25 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
 }
 
 fn assemble_preview(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let sources = request.input.get("sources").and_then(Value::as_array).cloned().unwrap_or_default();
-    let budget = request.input.get("budget").and_then(Value::as_u64).unwrap_or(4096);
+    let sources = request
+        .input
+        .get("sources")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let budget = request
+        .input
+        .get("budget")
+        .and_then(Value::as_u64)
+        .unwrap_or(4096);
     let mut used = 0_u64;
     let mut included = Vec::new();
     let mut omitted = Vec::new();
     for source in sources {
-        let text = source.get("text").and_then(Value::as_str).unwrap_or_default();
+        let text = source
+            .get("text")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let cost = text.len() as u64;
         if used + cost <= budget {
             used += cost;
@@ -61,8 +73,16 @@ fn inspect_layers(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn budget_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let requested = request.input.get("requested").and_then(Value::as_u64).unwrap_or(0);
-    let limit = request.input.get("limit").and_then(Value::as_u64).unwrap_or(4096);
+    let requested = request
+        .input
+        .get("requested")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let limit = request
+        .input
+        .get("limit")
+        .and_then(Value::as_u64)
+        .unwrap_or(4096);
     Ok(serde_json::json!({
         "kind": "context_budget_plan",
         "requested": requested,
@@ -73,10 +93,18 @@ fn budget_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn render_template(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let mut rendered = request.input.get("template").and_then(Value::as_str).unwrap_or_default().to_string();
+    let mut rendered = request
+        .input
+        .get("template")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
     if let Some(vars) = request.input.get("variables").and_then(Value::as_object) {
         for (key, value) in vars {
-            let replacement = value.as_str().map(str::to_string).unwrap_or_else(|| value.to_string());
+            let replacement = value
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| value.to_string());
             rendered = rendered.replace(&format!("{{{{{key}}}}}"), &replacement);
         }
     }

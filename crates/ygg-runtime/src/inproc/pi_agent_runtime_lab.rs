@@ -86,7 +86,12 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn summarize_trace(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let event_count = request.input.get("trace_events").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+    let event_count = request
+        .input
+        .get("trace_events")
+        .and_then(Value::as_array)
+        .map(|a| a.len())
+        .unwrap_or(0);
     Ok(serde_json::json!({
         "kind": "pi_agent_trace_summary",
         "event_count": event_count,

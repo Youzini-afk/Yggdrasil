@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use schemars::JsonSchema;
 
 use crate::ids::{CapabilityId, EventId, PackageId, SessionId};
 use crate::manifest::ContractMode;

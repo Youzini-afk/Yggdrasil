@@ -12,26 +12,35 @@ use super::fixtures::*;
 use crate::commands::manifest;
 
 /// Load inference-local-lab + inference-playtest-lab and open a session.
-async fn setup_both_labs() -> anyhow::Result<(ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>, ygg_core::SessionId)> {
+async fn setup_both_labs() -> anyhow::Result<(
+    ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>,
+    ygg_core::SessionId,
+)> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-local-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-local-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
     runtime
-        .load_package(manifest::read_manifest(PathBuf::from(
-            "packages/official/inference-playtest-lab/manifest.yaml",
-        ))
-        .await?)
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/inference-playtest-lab/manifest.yaml",
+            ))
+            .await?,
+        )
         .await?;
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
     Ok((runtime, session.id))
 }
 
 /// Produce a deterministic inference_result from inference-local-lab/invoke.
-async fn invoke_inference_local(runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>) -> anyhow::Result<serde_json::Value> {
+async fn invoke_inference_local(
+    runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>,
+) -> anyhow::Result<serde_json::Value> {
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -91,7 +100,9 @@ pub(crate) async fn inference_playtest_draft() -> anyhow::Result<()> {
     // asset.put content must be JSON
     for op in ops {
         if op["op"] == "asset.put" {
-            let content = op["payload"]["content"].as_str().expect("asset.put must have string content");
+            let content = op["payload"]["content"]
+                .as_str()
+                .expect("asset.put must have string content");
             serde_json::from_str::<serde_json::Value>(content)
                 .map_err(|_| anyhow::anyhow!("asset.put content must be valid JSON"))?;
         }
@@ -191,7 +202,8 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
         "inspection must have permissions"
     );
     anyhow::ensure!(
-        inspection.output["provenance"]["source_inference"]["package_id"] == json!("official/inference-local-lab"),
+        inspection.output["provenance"]["source_inference"]["package_id"]
+            == json!("official/inference-local-lab"),
         "inspection must preserve source_inference provenance from expected_effects"
     );
 
@@ -383,7 +395,8 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
         "branch metadata must contain proposal_id"
     );
     anyhow::ensure!(
-        branch["metadata"]["source_inference"]["package_id"] == json!("official/inference-local-lab"),
+        branch["metadata"]["source_inference"]["package_id"]
+            == json!("official/inference-local-lab"),
         "branch metadata must contain source_inference provenance"
     );
 

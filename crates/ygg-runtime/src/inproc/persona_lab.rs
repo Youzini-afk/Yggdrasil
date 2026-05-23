@@ -29,7 +29,10 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
 fn import_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
     let data = request.input.get("data").unwrap_or(&request.input);
     let core = data.get("data").unwrap_or(data);
-    let name = core.get("name").and_then(Value::as_str).unwrap_or("Unnamed Persona");
+    let name = core
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or("Unnamed Persona");
     Ok(serde_json::json!({
         "kind": "persona_profile",
         "imported_format": data.get("spec").and_then(Value::as_str).unwrap_or("generic_profile"),
@@ -75,8 +78,16 @@ fn describe_profile(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn render_fragment(request: &InprocInvocation) -> anyhow::Result<Value> {
     let profile = request.input.get("profile").unwrap_or(&request.input);
-    let name = profile.pointer("/core/name").or_else(|| profile.get("name")).and_then(Value::as_str).unwrap_or("Persona");
-    let description = profile.pointer("/core/description").or_else(|| profile.get("description")).and_then(Value::as_str).unwrap_or("");
+    let name = profile
+        .pointer("/core/name")
+        .or_else(|| profile.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("Persona");
+    let description = profile
+        .pointer("/core/description")
+        .or_else(|| profile.get("description"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
     Ok(serde_json::json!({
         "kind": "persona_fragment",
         "fragment": format!("{name}: {description}"),

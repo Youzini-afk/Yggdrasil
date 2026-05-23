@@ -20,7 +20,9 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
             metadata: json!({"phase": "A"}),
         })
         .await?;
-    let branch = runtime.fork_session(session.id.clone(), 0, json!({"durable": true})).await?;
+    let branch = runtime
+        .fork_session(session.id.clone(), 0, json!({"durable": true}))
+        .await?;
     runtime
         .projection_register(ygg_runtime::runtime::ProjectionDefinition {
             id: "example/durable/projection".to_string(),
@@ -29,17 +31,34 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
             state: json!({}),
         })
         .await?;
-    runtime.projection_rebuild("example/durable/projection").await?;
+    runtime
+        .projection_rebuild("example/durable/projection")
+        .await?;
     drop(runtime);
     drop(store);
 
     let reopened = Arc::new(SqliteEventStore::open(&path)?);
     let hydrated = Runtime::new(reopened, RuntimeConfig::default());
     hydrated.hydrate_substrate_from_events().await?;
-    anyhow::ensure!(hydrated.get_asset(&asset.id).await?.content == "durable", "asset did not rehydrate");
-    anyhow::ensure!(hydrated.list_branches(&session.id).await.iter().any(|item| item.id == branch.id), "branch did not rehydrate");
-    let projection = hydrated.projection_get("example/durable/projection").await?;
-    anyhow::ensure!(projection.state["event_count"].as_u64().unwrap_or(0) >= 1, "projection did not rehydrate");
+    anyhow::ensure!(
+        hydrated.get_asset(&asset.id).await?.content == "durable",
+        "asset did not rehydrate"
+    );
+    anyhow::ensure!(
+        hydrated
+            .list_branches(&session.id)
+            .await
+            .iter()
+            .any(|item| item.id == branch.id),
+        "branch did not rehydrate"
+    );
+    let projection = hydrated
+        .projection_get("example/durable/projection")
+        .await?;
+    anyhow::ensure!(
+        projection.state["event_count"].as_u64().unwrap_or(0) >= 1,
+        "projection did not rehydrate"
+    );
     let _ = fs::remove_file(path);
     Ok(())
 }

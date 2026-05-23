@@ -227,10 +227,16 @@ fn describe_sharing_contract(request: &InprocInvocation) -> anyhow::Result<Value
 
 fn export_composition_bundle(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
     if contains_forbidden_marketplace_fields(&request.input) {
-        return Ok(rejected_output(request, "input contains forbidden marketplace/billing/signing fields"));
+        return Ok(rejected_output(
+            request,
+            "input contains forbidden marketplace/billing/signing fields",
+        ));
     }
 
     let composition_id = request
@@ -258,12 +264,18 @@ fn export_composition_bundle(request: &InprocInvocation) -> anyhow::Result<Value
         crate::runtime::content_address(&format!("{:?}", packages))
     );
 
-    let lockfile_id = format!("lockfile:{}", crate::runtime::content_address(&format!("{:?}", packages)));
+    let lockfile_id = format!(
+        "lockfile:{}",
+        crate::runtime::content_address(&format!("{:?}", packages))
+    );
 
     let package_entries: Vec<Value> = packages
         .iter()
         .map(|p| {
-            let pid = p.get("package_id").and_then(Value::as_str).unwrap_or("unknown");
+            let pid = p
+                .get("package_id")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown");
             let version = p.get("version").and_then(Value::as_str).unwrap_or("0.0.0");
             serde_json::json!({
                 "package_id": pid,
@@ -308,10 +320,16 @@ fn export_composition_bundle(request: &InprocInvocation) -> anyhow::Result<Value
 
 fn import_composition_bundle(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "bundle contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "bundle contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
     if contains_forbidden_marketplace_fields(&request.input) {
-        return Ok(rejected_output(request, "bundle contains forbidden marketplace/billing/signing fields"));
+        return Ok(rejected_output(
+            request,
+            "bundle contains forbidden marketplace/billing/signing fields",
+        ));
     }
 
     let bundle_id = request
@@ -350,18 +368,24 @@ fn import_composition_bundle(request: &InprocInvocation) -> anyhow::Result<Value
     let has_incompatible_format = format_version != BUNDLE_FORMAT_VERSION;
 
     let (status, diagnostics): (&str, Vec<Value>) = if has_incompatible_format {
-        ("migration_required", vec![serde_json::json!({
-            "kind": "format_version_mismatch",
-            "expected": BUNDLE_FORMAT_VERSION,
-            "found": format_version,
-            "action": "migrate bundle format before import"
-        })])
+        (
+            "migration_required",
+            vec![serde_json::json!({
+                "kind": "format_version_mismatch",
+                "expected": BUNDLE_FORMAT_VERSION,
+                "found": format_version,
+                "action": "migrate bundle format before import"
+            })],
+        )
     } else if has_missing {
-        ("minor_incompatibility", vec![serde_json::json!({
-            "kind": "missing_packages",
-            "count": missing_packages.len(),
-            "action": "install missing packages or adjust composition"
-        })])
+        (
+            "minor_incompatibility",
+            vec![serde_json::json!({
+                "kind": "missing_packages",
+                "count": missing_packages.len(),
+                "action": "install missing packages or adjust composition"
+            })],
+        )
     } else {
         ("compatible", vec![])
     };
@@ -391,7 +415,10 @@ fn import_composition_bundle(request: &InprocInvocation) -> anyhow::Result<Value
 
 fn create_branch_session_bundle(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let session_id = request
@@ -449,7 +476,10 @@ fn create_branch_session_bundle(request: &InprocInvocation) -> anyhow::Result<Va
 
 fn create_package_set_lockfile(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let packages = request
@@ -462,7 +492,10 @@ fn create_package_set_lockfile(request: &InprocInvocation) -> anyhow::Result<Val
     let package_entries: Vec<Value> = packages
         .iter()
         .map(|p| {
-            let pid = p.get("package_id").and_then(Value::as_str).unwrap_or("unknown");
+            let pid = p
+                .get("package_id")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown");
             let version = p.get("version").and_then(Value::as_str).unwrap_or("0.0.0");
             let content_address = crate::runtime::content_address(&format!("{}:{}", pid, version));
             serde_json::json!({
@@ -474,7 +507,10 @@ fn create_package_set_lockfile(request: &InprocInvocation) -> anyhow::Result<Val
         .collect();
 
     let lockfile_content = format!("{:?}", package_entries);
-    let lockfile_id = format!("lockfile:{}", crate::runtime::content_address(&lockfile_content));
+    let lockfile_id = format!(
+        "lockfile:{}",
+        crate::runtime::content_address(&lockfile_content)
+    );
 
     Ok(serde_json::json!({
         "kind": "package_set_lockfile",
@@ -493,7 +529,10 @@ fn create_package_set_lockfile(request: &InprocInvocation) -> anyhow::Result<Val
 
 fn compatibility_report(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let source_ref = request
@@ -528,12 +567,20 @@ fn compatibility_report(request: &InprocInvocation) -> anyhow::Result<Value> {
 
     let source_ids: Vec<String> = source_packages
         .iter()
-        .filter_map(|p| p.get("package_id").and_then(Value::as_str).map(String::from))
+        .filter_map(|p| {
+            p.get("package_id")
+                .and_then(Value::as_str)
+                .map(String::from)
+        })
         .collect();
 
     let target_ids: Vec<String> = target_packages
         .iter()
-        .filter_map(|p| p.get("package_id").and_then(Value::as_str).map(String::from))
+        .filter_map(|p| {
+            p.get("package_id")
+                .and_then(Value::as_str)
+                .map(String::from)
+        })
         .collect();
 
     for sid in &source_ids {
@@ -620,7 +667,10 @@ fn compatibility_report(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn ai_disclosure_bundle(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let content_refs = request
@@ -646,10 +696,7 @@ fn ai_disclosure_bundle(request: &InprocInvocation) -> anyhow::Result<Value> {
                 .and_then(Value::as_str)
                 .filter(|k| AI_DISCLOSURE_KINDS.contains(k))
                 .unwrap_or(default_kind);
-            let description = cr
-                .get("description")
-                .and_then(Value::as_str)
-                .unwrap_or("");
+            let description = cr.get("description").and_then(Value::as_str).unwrap_or("");
             serde_json::json!({
                 "content_ref": content_ref,
                 "disclosure_kind": kind,
@@ -683,7 +730,10 @@ fn ai_disclosure_bundle(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 fn read_only_share_manifest(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let session_ref = request
@@ -732,7 +782,10 @@ fn read_only_share_manifest(request: &InprocInvocation) -> anyhow::Result<Value>
 
 fn async_fork_share_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
-        return Ok(rejected_output(request, "input contains raw-secret-like content; use secret_ref references instead"));
+        return Ok(rejected_output(
+            request,
+            "input contains raw-secret-like content; use secret_ref references instead",
+        ));
     }
 
     let source_session = request
@@ -912,7 +965,10 @@ mod tests {
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("composition_bundle_import"));
-        assert_eq!(result["compatibility_status"], json!("minor_incompatibility"));
+        assert_eq!(
+            result["compatibility_status"],
+            json!("minor_incompatibility")
+        );
         assert_eq!(result["requires_user_approval"], json!(true));
     }
 
@@ -1052,7 +1108,10 @@ mod tests {
         ];
 
         for cap in &caps {
-            let req = make_request(&format!("official/sharing-lab/{}", cap), json!({"test": "ns_check"}));
+            let req = make_request(
+                &format!("official/sharing-lab/{}", cap),
+                json!({"test": "ns_check"}),
+            );
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
             for token in &forbidden {

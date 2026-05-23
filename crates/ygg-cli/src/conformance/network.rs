@@ -16,17 +16,17 @@
 use std::sync::Arc;
 
 use ygg_core::{
-    CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions, PackageContributions,
-    PackageEntry, PackageManifest, PermissionSet, RedactionState, SandboxPolicy,
-    EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED, EVENT_OUTBOUND_REQUEST,
+    CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
+    PackageContributions, PackageEntry, PackageManifest, PermissionSet, RedactionState,
+    SandboxPolicy, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED, EVENT_OUTBOUND_REQUEST,
     EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED, EVENT_STREAM_CHUNK,
 };
 use ygg_runtime::{
     check_network_policy, EnvSecretResolver, EventStore, ExecutorKind, FakeOutboundExecutor,
-    FakeWebSocketExecutor, InMemoryEventStore, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
-    LiveWebSocketExecutor, LiveWebSocketExecutorConfig, OutboundWebSocketFrame,
-    OutboundExecutor, OutboundExecutePolicyConfig, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundRequest, ProtocolPrincipal, Runtime, RuntimeConfig,
+    FakeWebSocketExecutor, InMemoryEventStore, LiveHttpOutboundExecutor,
+    LiveHttpOutboundExecutorConfig, LiveWebSocketExecutor, LiveWebSocketExecutorConfig,
+    OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
+    OutboundRequest, OutboundWebSocketFrame, ProtocolPrincipal, Runtime, RuntimeConfig,
     SecretResolverConfig, SseParser, WebSocketExecutor,
 };
 
@@ -71,7 +71,10 @@ fn network_package_with_secret_refs(
         consumes: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
-            network: NetworkPermissions { declarations, hosts },
+            network: NetworkPermissions {
+                declarations,
+                hosts,
+            },
             secret_refs,
             ..PermissionSet::default()
         },
@@ -82,7 +85,9 @@ fn network_package_with_secret_refs(
 /// Package with no network permission is denied and produces outbound denied audit.
 pub(crate) async fn no_network_permission_denied() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
-    runtime.load_package(network_package("example/no-net", vec![], vec![])).await?;
+    runtime
+        .load_package(network_package("example/no-net", vec![], vec![]))
+        .await?;
 
     let result = runtime
         .check_and_audit_outbound(OutboundRequest {
@@ -95,17 +100,26 @@ pub(crate) async fn no_network_permission_denied() -> anyhow::Result<()> {
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await;
 
-    anyhow::ensure!(result.is_err(), "outbound request should be denied without network permission");
+    anyhow::ensure!(
+        result.is_err(),
+        "outbound request should be denied without network permission"
+    );
 
     // Check that an outbound denied event was recorded
     let session_id = "kernel_outbound_example_no-net".to_string();
     let events = store.list_session(&session_id).await?;
-    let denied_events: Vec<_> = events.iter().filter(|e| e.kind == EVENT_OUTBOUND_DENIED).collect();
-    anyhow::ensure!(!denied_events.is_empty(), "expected kernel/v1/outbound.denied audit event");
+    let denied_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_OUTBOUND_DENIED)
+        .collect();
+    anyhow::ensure!(
+        !denied_events.is_empty(),
+        "expected kernel/v1/outbound.denied audit event"
+    );
 
     // Verify audit record does not contain raw body/secret
     let payload = &denied_events[0].payload;
@@ -146,17 +160,22 @@ pub(crate) async fn allowlisted_host_method_allowed() -> anyhow::Result<()> {
             method: "POST".to_string(),
             purpose: None,
             secret_refs_used: vec!["secret_ref:env:MY_KEY".to_string()],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await?;
 
-    anyhow::ensure!(record.status == "allowed", "allowlisted request should be allowed");
+    anyhow::ensure!(
+        record.status == "allowed",
+        "allowlisted request should be allowed"
+    );
     anyhow::ensure!(
         record.redaction_state == RedactionState::Redacted,
         "audit record should have redacted redaction_state"
     );
     anyhow::ensure!(
-        record.secret_refs_used.contains(&"secret_ref:env:MY_KEY".to_string()),
+        record
+            .secret_refs_used
+            .contains(&"secret_ref:env:MY_KEY".to_string()),
         "audit record should contain secret_ref"
     );
     anyhow::ensure!(
@@ -167,8 +186,14 @@ pub(crate) async fn allowlisted_host_method_allowed() -> anyhow::Result<()> {
     // Verify no raw secret/body in the audit event
     let session_id = "kernel_outbound_example_allowlisted".to_string();
     let events = store.list_session(&session_id).await?;
-    let request_events: Vec<_> = events.iter().filter(|e| e.kind == EVENT_OUTBOUND_REQUEST).collect();
-    anyhow::ensure!(!request_events.is_empty(), "expected kernel/v1/outbound.request audit event");
+    let request_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_OUTBOUND_REQUEST)
+        .collect();
+    anyhow::ensure!(
+        !request_events.is_empty(),
+        "expected kernel/v1/outbound.request audit event"
+    );
     let payload_str = serde_json::to_string(&request_events[0].payload)?;
     anyhow::ensure!(
         !payload_str.contains("raw_body") && !payload_str.contains("raw_header"),
@@ -204,7 +229,7 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
             method: "DELETE".to_string(),
             purpose: None,
             secret_refs_used: vec![],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await;
     anyhow::ensure!(result.is_err(), "wrong method should be denied");
@@ -221,7 +246,7 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await;
     anyhow::ensure!(result2.is_err(), "wrong host should be denied");
@@ -229,8 +254,14 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
     // Verify denied events
     let session_id = "kernel_outbound_example_method-mismatch".to_string();
     let events = store.list_session(&session_id).await?;
-    let denied_events: Vec<_> = events.iter().filter(|e| e.kind == EVENT_OUTBOUND_DENIED).collect();
-    anyhow::ensure!(denied_events.len() >= 2, "expected at least 2 outbound.denied events");
+    let denied_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_OUTBOUND_DENIED)
+        .collect();
+    anyhow::ensure!(
+        denied_events.len() >= 2,
+        "expected at least 2 outbound.denied events"
+    );
     Ok(())
 }
 
@@ -253,11 +284,14 @@ pub(crate) async fn official_no_network_bypass() -> anyhow::Result<()> {
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await;
 
-    anyhow::ensure!(result.is_err(), "official package must not bypass network permission");
+    anyhow::ensure!(
+        result.is_err(),
+        "official package must not bypass network permission"
+    );
     Ok(())
 }
 
@@ -290,7 +324,7 @@ pub(crate) async fn audit_no_raw_secrets() -> anyhow::Result<()> {
                 "secret_ref:env:MY_API_KEY".to_string(),
                 "host:internal_key".to_string(),
             ],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await?;
 
@@ -365,7 +399,11 @@ pub(crate) async fn network_policy_pure_function() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// Helper: create a runtime with a FakeOutboundExecutor.
-fn runtime_with_fake_executor() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeOutboundExecutor>) {
+fn runtime_with_fake_executor() -> (
+    Arc<InMemoryEventStore>,
+    Runtime<InMemoryEventStore>,
+    Arc<FakeOutboundExecutor>,
+) {
     let store = Arc::new(InMemoryEventStore::default());
     let fake = Arc::new(FakeOutboundExecutor::new());
     let config = RuntimeConfig {
@@ -377,7 +415,11 @@ fn runtime_with_fake_executor() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEve
 }
 
 /// Helper: create a runtime with FakeOutboundExecutor and enabled outbound stream policy.
-fn runtime_with_fake_stream_executor() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>, Arc<FakeOutboundExecutor>) {
+fn runtime_with_fake_stream_executor() -> (
+    Arc<InMemoryEventStore>,
+    Runtime<InMemoryEventStore>,
+    Arc<FakeOutboundExecutor>,
+) {
     let store = Arc::new(InMemoryEventStore::default());
     let fake = Arc::new(FakeOutboundExecutor::new());
     let config = RuntimeConfig {
@@ -396,7 +438,9 @@ fn runtime_with_fake_stream_executor() -> (Arc<InMemoryEventStore>, Runtime<InMe
     (store, runtime, fake)
 }
 
-fn runtime_with_fake_ws_executor(fake: Arc<FakeWebSocketExecutor>) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
+fn runtime_with_fake_ws_executor(
+    fake: Arc<FakeWebSocketExecutor>,
+) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(
         store.clone(),
@@ -425,7 +469,9 @@ async fn wait_for_kind(
 /// M3: Package without network declaration is denied; executor is never called.
 pub(crate) async fn outbound_no_permission_executor_not_called() -> anyhow::Result<()> {
     let (_store, runtime, fake) = runtime_with_fake_executor();
-    runtime.load_package(network_package("example/m3-no-net", vec![], vec![])).await?;
+    runtime
+        .load_package(network_package("example/m3-no-net", vec![], vec![]))
+        .await?;
 
     let result = runtime
         .execute_outbound_with_policy(
@@ -439,7 +485,7 @@ pub(crate) async fn outbound_no_permission_executor_not_called() -> anyhow::Resu
                 method: "GET".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-no-net".to_string(),
@@ -460,7 +506,10 @@ pub(crate) async fn outbound_no_permission_executor_not_called() -> anyhow::Resu
         )
         .await;
 
-    anyhow::ensure!(result.is_err(), "outbound request should be denied without network permission");
+    anyhow::ensure!(
+        result.is_err(),
+        "outbound request should be denied without network permission"
+    );
     // The executor should never have been called
     anyhow::ensure!(
         fake.call_count() == 0,
@@ -498,7 +547,7 @@ pub(crate) async fn outbound_policy_executor_mismatch_denied() -> anyhow::Result
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec!["secret_ref:env:KEY".to_string()],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-mismatch".to_string(),
@@ -519,8 +568,14 @@ pub(crate) async fn outbound_policy_executor_mismatch_denied() -> anyhow::Result
         )
         .await;
 
-    anyhow::ensure!(result.is_err(), "mismatched policy/executor host should be rejected");
-    anyhow::ensure!(fake.call_count() == 0, "executor must not be called after mismatch");
+    anyhow::ensure!(
+        result.is_err(),
+        "mismatched policy/executor host should be rejected"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor must not be called after mismatch"
+    );
     Ok(())
 }
 
@@ -552,7 +607,7 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec!["secret_ref:env:OPENAI_KEY".to_string()],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-allowlisted".to_string(),
@@ -598,8 +653,14 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
     // Verify audit event is redacted
     let session_id = "kernel_outbound_example_m3-allowlisted".to_string();
     let events = store.list_session(&session_id).await?;
-    let request_events: Vec<_> = events.iter().filter(|e| e.kind == EVENT_OUTBOUND_REQUEST).collect();
-    anyhow::ensure!(!request_events.is_empty(), "expected kernel/v1/outbound.request audit event");
+    let request_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_OUTBOUND_REQUEST)
+        .collect();
+    anyhow::ensure!(
+        !request_events.is_empty(),
+        "expected kernel/v1/outbound.request audit event"
+    );
 
     let payload = &request_events[0].payload;
     anyhow::ensure!(
@@ -637,7 +698,7 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-raw-body".to_string(),
@@ -665,8 +726,14 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
     // Check audit event — raw body content must not appear
     let session_id = "kernel_outbound_example_m3-raw-body".to_string();
     let events = store.list_session(&session_id).await?;
-    let request_events: Vec<_> = events.iter().filter(|e| e.kind == EVENT_OUTBOUND_REQUEST).collect();
-    anyhow::ensure!(!request_events.is_empty(), "expected kernel/v1/outbound.request audit event");
+    let request_events: Vec<_> = events
+        .iter()
+        .filter(|e| e.kind == EVENT_OUTBOUND_REQUEST)
+        .collect();
+    anyhow::ensure!(
+        !request_events.is_empty(),
+        "expected kernel/v1/outbound.request audit event"
+    );
 
     let payload_str = serde_json::to_string(&request_events[0].payload)?;
     // The body_shape content ("Hello world", "gpt-4o", "temperature") must not be in the audit record
@@ -679,7 +746,9 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
         "audit event must not contain body_shape field"
     );
     // Redaction state must be redacted or not_captured
-    let redaction = request_events[0].payload.get("redaction_state")
+    let redaction = request_events[0]
+        .payload
+        .get("redaction_state")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown");
     anyhow::ensure!(
@@ -725,7 +794,7 @@ pub(crate) async fn outbound_secret_refs_only() -> anyhow::Result<()> {
                     "secret_ref:env:MY_API_KEY".to_string(),
                     "host:internal_token".to_string(),
                 ],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-secret-refs".to_string(),
@@ -767,12 +836,7 @@ pub(crate) async fn outbound_secret_refs_only() -> anyhow::Result<()> {
     // (We check the policy-level secret_refs_used which is what gets audited)
     // Already covered by audit_no_raw_secrets, but let's also verify
     // the executor response doesn't contain secret fields
-    let forbidden_response_fields = [
-        "raw_secret",
-        "api_key",
-        "secret_value",
-        "token_value",
-    ];
+    let forbidden_response_fields = ["raw_secret", "api_key", "secret_value", "token_value"];
     for field in &forbidden_response_fields {
         anyhow::ensure!(
             response_json.get(field).is_none(),
@@ -814,7 +878,7 @@ pub(crate) async fn outbound_host_mismatch_redirect_denied() -> anyhow::Result<(
                 method: "GET".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/m3-redirect".to_string(),
@@ -835,7 +899,10 @@ pub(crate) async fn outbound_host_mismatch_redirect_denied() -> anyhow::Result<(
         )
         .await;
 
-    anyhow::ensure!(result.is_err(), "request to non-allowlisted host must be denied");
+    anyhow::ensure!(
+        result.is_err(),
+        "request to non-allowlisted host must be denied"
+    );
     // Executor should not be called for denied requests
     anyhow::ensure!(
         fake.call_count() == 0,
@@ -881,7 +948,9 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
 
     let pkg_id = "example/m4-provider-shapes";
     let cap_id = "example/m4-provider-shapes/fetch";
-    let principal = ProtocolPrincipal::Package { package_id: pkg_id.to_string() };
+    let principal = ProtocolPrincipal::Package {
+        package_id: pkg_id.to_string(),
+    };
     let secret_ref = "secret_ref:env:PROVIDER_KEY".to_string();
 
     // OpenAI request shape
@@ -915,9 +984,18 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
             },
         )
         .await?;
-    anyhow::ensure!(openai_response.status == "ok", "openai shape should succeed");
-    anyhow::ensure!(!openai_response.network_performed, "openai shape must not perform real network");
-    anyhow::ensure!(openai_response.executor_kind == ExecutorKind::Fake, "openai shape executor_kind must be Fake");
+    anyhow::ensure!(
+        openai_response.status == "ok",
+        "openai shape should succeed"
+    );
+    anyhow::ensure!(
+        !openai_response.network_performed,
+        "openai shape must not perform real network"
+    );
+    anyhow::ensure!(
+        openai_response.executor_kind == ExecutorKind::Fake,
+        "openai shape executor_kind must be Fake"
+    );
 
     // Anthropic request shape
     let anthropic_response = runtime
@@ -950,8 +1028,14 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
             },
         )
         .await?;
-    anyhow::ensure!(anthropic_response.status == "ok", "anthropic shape should succeed");
-    anyhow::ensure!(anthropic_response.executor_kind == ExecutorKind::Fake, "anthropic shape executor_kind must be Fake");
+    anyhow::ensure!(
+        anthropic_response.status == "ok",
+        "anthropic shape should succeed"
+    );
+    anyhow::ensure!(
+        anthropic_response.executor_kind == ExecutorKind::Fake,
+        "anthropic shape executor_kind must be Fake"
+    );
 
     // Gemini request shape
     let gemini_response = runtime
@@ -984,8 +1068,14 @@ pub(crate) async fn outbound_model_provider_shape_fake_executor() -> anyhow::Res
             },
         )
         .await?;
-    anyhow::ensure!(gemini_response.status == "ok", "gemini shape should succeed");
-    anyhow::ensure!(gemini_response.executor_kind == ExecutorKind::Fake, "gemini shape executor_kind must be Fake");
+    anyhow::ensure!(
+        gemini_response.status == "ok",
+        "gemini shape should succeed"
+    );
+    anyhow::ensure!(
+        gemini_response.executor_kind == ExecutorKind::Fake,
+        "gemini shape executor_kind must be Fake"
+    );
 
     // Verify all three calls reached the executor
     anyhow::ensure!(
@@ -1032,7 +1122,7 @@ pub(crate) async fn outbound_live_http_default_disabled() -> anyhow::Result<()> 
             method: "GET".to_string(),
             purpose: None,
             secret_refs_used: vec![],
-        correlation_id: None,
+            correlation_id: None,
         })
         .await;
 
@@ -1255,7 +1345,10 @@ pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
         response_value.get("status")
     );
     anyhow::ensure!(
-        response_value.get("network_performed").and_then(|v| v.as_bool()) == Some(false),
+        response_value
+            .get("network_performed")
+            .and_then(|v| v.as_bool())
+            == Some(false),
         "response network_performed should be false"
     );
     anyhow::ensure!(
@@ -1297,7 +1390,9 @@ pub(crate) async fn outbound_execute_spoofed_package_id_rejected() -> anyhow::Re
         ))
         .await?;
     // Load the "victim" package with no network permission
-    runtime.load_package(network_package("example/l3-victim", vec![], vec![])).await?;
+    runtime
+        .load_package(network_package("example/l3-victim", vec![], vec![]))
+        .await?;
 
     // The caller is example/l3-victim (package principal), but they try
     // to specify package_id: "example/l3-real" in params — which has
@@ -1335,7 +1430,9 @@ pub(crate) async fn outbound_execute_spoofed_package_id_rejected() -> anyhow::Re
 /// through the public protocol dispatch.
 pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()> {
     let (_store, runtime, fake) = runtime_with_fake_executor();
-    runtime.load_package(network_package("example/l3-no-net", vec![], vec![])).await?;
+    runtime
+        .load_package(network_package("example/l3-no-net", vec![], vec![]))
+        .await?;
 
     let context = ygg_runtime::ProtocolContext::package("example/l3-no-net", "in_process");
 
@@ -1505,7 +1602,7 @@ pub(crate) async fn outbound_execute_profile_fake_executor_works() -> anyhow::Re
                 method: "POST".to_string(),
                 purpose: None,
                 secret_refs_used: vec![],
-            correlation_id: None,
+                correlation_id: None,
             },
             OutboundExecutorRequest {
                 package_id: "example/y1-fake".to_string(),
@@ -1526,7 +1623,10 @@ pub(crate) async fn outbound_execute_profile_fake_executor_works() -> anyhow::Re
         )
         .await?;
 
-    anyhow::ensure!(response.status == "ok", "fake executor response should be ok");
+    anyhow::ensure!(
+        response.status == "ok",
+        "fake executor response should be ok"
+    );
     anyhow::ensure!(
         response.executor_kind == ExecutorKind::Fake,
         "response executor_kind must be Fake"
@@ -1599,7 +1699,10 @@ pub(crate) async fn outbound_websocket_profile_default_deny_all() -> anyhow::Res
 
     anyhow::ensure!(result.is_err(), "default websocket profile must deny open");
     let err = format!("{:?}", result.unwrap_err());
-    anyhow::ensure!(err.contains("denied"), "expected deny-all error, got: {err}");
+    anyhow::ensure!(
+        err.contains("denied"),
+        "expected deny-all error, got: {err}"
+    );
     Ok(())
 }
 
@@ -1651,10 +1754,17 @@ pub(crate) async fn outbound_websocket_profile_fake_executor_works() -> anyhow::
     );
 
     let status = fake
-        .send(&connection_id, OutboundWebSocketFrame::Text("hello".to_string()))
+        .send(
+            &connection_id,
+            OutboundWebSocketFrame::Text("hello".to_string()),
+        )
         .await?;
-    anyhow::ensure!(format!("{:?}", status) == "Ok", "fake websocket send should be Ok");
-    fake.close(&connection_id, 1000, Some("done".to_string())).await?;
+    anyhow::ensure!(
+        format!("{:?}", status) == "Ok",
+        "fake websocket send should be Ok"
+    );
+    fake.close(&connection_id, 1000, Some("done".to_string()))
+        .await?;
     Ok(())
 }
 
@@ -1673,7 +1783,10 @@ pub(crate) async fn outbound_websocket_profile_live_disabled_returns_deny() -> a
         .close("missing", 1000, None)
         .await
         .expect_err("disabled websocket profile must return deny-all executor");
-    anyhow::ensure!(err.to_string().contains("denied"), "expected deny-all error: {err}");
+    anyhow::ensure!(
+        err.to_string().contains("denied"),
+        "expected deny-all error: {err}"
+    );
     Ok(())
 }
 
@@ -1683,19 +1796,32 @@ pub(crate) async fn outbound_websocket_secret_ref_undeclared_fails() -> anyhow::
     runtime
         .load_package(network_package_with_secret_refs(
             "example/z7-ws-secret",
-            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }],
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
             vec![],
             vec!["secret_ref:env:DECLARED".to_string()],
         ))
         .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-secret", "in_process");
-    let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-        "capability_id": "example/z7-ws-secret/fetch",
-        "destination_host": "api.openai.com",
-        "secret_refs": ["secret_ref:env:UNDECLARED"]
-    })).await;
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.outbound.websocket.open",
+            serde_json::json!({
+                "capability_id": "example/z7-ws-secret/fetch",
+                "destination_host": "api.openai.com",
+                "secret_refs": ["secret_ref:env:UNDECLARED"]
+            }),
+        )
+        .await;
     anyhow::ensure!(result.is_err(), "undeclared websocket secret_ref must fail");
-    anyhow::ensure!(format!("{:?}", result.unwrap_err()).contains("not declared"), "error should mention not declared");
+    anyhow::ensure!(
+        format!("{:?}", result.unwrap_err()).contains("not declared"),
+        "error should mention not declared"
+    );
     Ok(())
 }
 
@@ -1705,16 +1831,29 @@ pub(crate) async fn outbound_websocket_capability_namespace_enforced() -> anyhow
     runtime
         .load_package(network_package(
             "example/z7-ws-ns",
-            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }],
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
             vec![],
         ))
         .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-ns", "in_process");
-    let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({
-        "capability_id": "other/pkg/fetch",
-        "destination_host": "api.openai.com"
-    })).await;
-    anyhow::ensure!(result.is_err(), "websocket capability namespace spoof must fail");
+    let result = runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.outbound.websocket.open",
+            serde_json::json!({
+                "capability_id": "other/pkg/fetch",
+                "destination_host": "api.openai.com"
+            }),
+        )
+        .await;
+    anyhow::ensure!(
+        result.is_err(),
+        "websocket capability namespace spoof must fail"
+    );
     Ok(())
 }
 
@@ -1723,117 +1862,273 @@ pub(crate) async fn outbound_websocket_wss_only_default() -> anyhow::Result<()> 
         allowed_hosts: vec!["api.openai.com".to_string()],
         ..LiveWebSocketExecutorConfig::default()
     });
-    let err = executor.open(ygg_runtime::OutboundWebSocketOpenRequest {
-        capability_id: "example/z7-wss/fetch".to_string(),
-        package_id: "example/z7-wss".to_string(),
-        destination_host: "api.openai.com".to_string(),
-        path: Some("/ws".to_string()),
-        purpose: None,
-        subprotocols: Vec::new(),
-        secret_refs: Vec::new(),
-        metadata: serde_json::json!({"scheme": "ws"}),
-        static_headers: std::collections::HashMap::new(),
-        secret_headers: std::collections::HashMap::new(),
-        max_frame_bytes: 1024,
-        max_total_bytes_inbound: 1024,
-        max_total_bytes_outbound: 1024,
-        max_idle_ms: 1000,
-        max_duration_ms: 5000,
-    }).await.expect_err("non-WSS open should fail before network");
-    anyhow::ensure!(err.to_string().contains("non-WSS"), "expected non-WSS error: {err}");
+    let err = executor
+        .open(ygg_runtime::OutboundWebSocketOpenRequest {
+            capability_id: "example/z7-wss/fetch".to_string(),
+            package_id: "example/z7-wss".to_string(),
+            destination_host: "api.openai.com".to_string(),
+            path: Some("/ws".to_string()),
+            purpose: None,
+            subprotocols: Vec::new(),
+            secret_refs: Vec::new(),
+            metadata: serde_json::json!({"scheme": "ws"}),
+            static_headers: std::collections::HashMap::new(),
+            secret_headers: std::collections::HashMap::new(),
+            max_frame_bytes: 1024,
+            max_total_bytes_inbound: 1024,
+            max_total_bytes_outbound: 1024,
+            max_idle_ms: 1000,
+            max_duration_ms: 5000,
+        })
+        .await
+        .expect_err("non-WSS open should fail before network");
+    anyhow::ensure!(
+        err.to_string().contains("non-WSS"),
+        "expected non-WSS error: {err}"
+    );
     Ok(())
 }
 
-pub(crate) async fn outbound_websocket_idle_timeout_emits_error_and_completed() -> anyhow::Result<()> {
-    let (store, runtime) = runtime_with_fake_ws_executor(Arc::new(FakeWebSocketExecutor::with_simulated_idle_timeout()));
-    runtime.load_package(network_package("example/z7-ws-idle", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+pub(crate) async fn outbound_websocket_idle_timeout_emits_error_and_completed() -> anyhow::Result<()>
+{
+    let (store, runtime) = runtime_with_fake_ws_executor(Arc::new(
+        FakeWebSocketExecutor::with_simulated_idle_timeout(),
+    ));
+    runtime
+        .load_package(network_package(
+            "example/z7-ws-idle",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-idle", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-idle/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
-    anyhow::ensure!(completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("idle_timeout"), "completed reason should be idle_timeout");
+    anyhow::ensure!(
+        completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("idle_timeout"),
+        "completed reason should be idle_timeout"
+    );
     let errors = wait_for_kind(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR).await?;
-    anyhow::ensure!(!errors.is_empty(), "idle timeout should emit websocket error");
+    anyhow::ensure!(
+        !errors.is_empty(),
+        "idle timeout should emit websocket error"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_websocket_max_total_bytes_inbound_terminates() -> anyhow::Result<()> {
-    let fake = Arc::new(FakeWebSocketExecutor::with_simulated_byte_limit(vec![OutboundWebSocketFrame::Text("overflow".to_string())]));
+    let fake = Arc::new(FakeWebSocketExecutor::with_simulated_byte_limit(vec![
+        OutboundWebSocketFrame::Text("overflow".to_string()),
+    ]));
     let (store, runtime) = runtime_with_fake_ws_executor(fake);
-    runtime.load_package(network_package("example/z7-ws-bytes", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    runtime
+        .load_package(network_package(
+            "example/z7-ws-bytes",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-bytes", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-bytes/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
-    anyhow::ensure!(completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("inbound_limit"), "completed reason should be inbound_limit");
-    anyhow::ensure!(completed[0].payload.get("total_bytes_in").and_then(|v| v.as_u64()).unwrap_or(0) > 0, "completion should include inbound byte total");
+    anyhow::ensure!(
+        completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("inbound_limit"),
+        "completed reason should be inbound_limit"
+    );
+    anyhow::ensure!(
+        completed[0]
+            .payload
+            .get("total_bytes_in")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0)
+            > 0,
+        "completion should include inbound byte total"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_websocket_max_concurrent_connections_enforced() -> anyhow::Result<()> {
     let fake = Arc::new(FakeWebSocketExecutor::with_max_concurrent_connections(1));
     let (_store, runtime) = runtime_with_fake_ws_executor(fake);
-    runtime.load_package(network_package("example/z7-ws-cap", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    runtime
+        .load_package(network_package(
+            "example/z7-ws-cap",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-cap", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await;
-    anyhow::ensure!(result.is_err(), "second websocket open should exceed concurrent cap");
+    anyhow::ensure!(
+        result.is_err(),
+        "second websocket open should exceed concurrent cap"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_websocket_cancel_via_capability_cancel() -> anyhow::Result<()> {
     let fake = Arc::new(FakeWebSocketExecutor::new());
     let (store, runtime) = runtime_with_fake_ws_executor(fake.clone());
-    runtime.load_package(network_package("example/z7-ws-cancel", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    runtime
+        .load_package(network_package(
+            "example/z7-ws-cancel",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-cancel", "in_process");
     let response = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cancel/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    let connection_id = response.get("connection_id").and_then(|v| v.as_str()).ok_or_else(|| anyhow::anyhow!("missing connection_id"))?;
-    runtime.call_protocol(&context, "kernel.v1.capability.cancel", serde_json::json!({
-        "stream_id": connection_id,
-        "session_id": "kernel_outbound_websocket_example_z7-ws-cancel"
-    })).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let connection_id = response
+        .get("connection_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("missing connection_id"))?;
+    runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.capability.cancel",
+            serde_json::json!({
+                "stream_id": connection_id,
+                "session_id": "kernel_outbound_websocket_example_z7-ws-cancel"
+            }),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
-    anyhow::ensure!(completed[0].payload.get("code").and_then(|v| v.as_u64()) == Some(1001), "cancel close code should be 1001");
+    anyhow::ensure!(
+        completed[0].payload.get("code").and_then(|v| v.as_u64()) == Some(1001),
+        "cancel close code should be 1001"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_execute_completed_audit_emitted() -> anyhow::Result<()> {
     let (store, runtime, _fake) = runtime_with_fake_executor();
-    runtime.load_package(network_package("example/z7-exec-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
+    runtime
+        .load_package(network_package(
+            "example/z7-exec-audit",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-exec-audit", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-audit/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
-    anyhow::ensure!(events[0].payload.get("status").and_then(|v| v.as_str()) == Some("ok"), "execute completion status should be ok");
+    anyhow::ensure!(
+        events[0].payload.get("status").and_then(|v| v.as_str()) == Some("ok"),
+        "execute completion status should be ok"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_execute_correlation_id_propagates() -> anyhow::Result<()> {
     let (store, runtime, _fake) = runtime_with_fake_executor();
-    runtime.load_package(network_package("example/z7-exec-correlation", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
-    let context = ygg_runtime::ProtocolContext::package("example/z7-exec-correlation", "in_process");
+    runtime
+        .load_package(network_package(
+            "example/z7-exec-correlation",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
+    let context =
+        ygg_runtime::ProtocolContext::package("example/z7-exec-correlation", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-correlation/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
-    anyhow::ensure!(events[0].payload.get("correlation_id").and_then(|v| v.as_str()) == context.correlation_id.as_ref().map(|id| id.to_string()).as_deref(), "outbound completion correlation_id should match context");
+    anyhow::ensure!(
+        events[0]
+            .payload
+            .get("correlation_id")
+            .and_then(|v| v.as_str())
+            == context
+                .correlation_id
+                .as_ref()
+                .map(|id| id.to_string())
+                .as_deref(),
+        "outbound completion correlation_id should match context"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_stream_completed_audit_emitted() -> anyhow::Result<()> {
     let (store, runtime, _fake) = runtime_with_fake_stream_executor();
-    runtime.load_package(network_package("example/z7-stream-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }], vec![])).await?;
+    runtime
+        .load_package(network_package(
+            "example/z7-stream-audit",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-stream-audit", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.stream", serde_json::json!({"capability_id":"example/z7-stream-audit/fetch","destination_host":"api.openai.com","method":"POST","stream_format":"sse"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_STREAM_COMPLETED).await?;
-    anyhow::ensure!(events[0].payload.get("final_termination").and_then(|v| v.as_str()) == Some("ended"), "stream completion should end normally");
+    anyhow::ensure!(
+        events[0]
+            .payload
+            .get("final_termination")
+            .and_then(|v| v.as_str())
+            == Some("ended"),
+        "stream completion should end normally"
+    );
     Ok(())
 }
 
 pub(crate) async fn outbound_websocket_completed_audit_emitted() -> anyhow::Result<()> {
-    let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![OutboundWebSocketFrame::Text("hello".to_string())]));
+    let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![
+        OutboundWebSocketFrame::Text("hello".to_string()),
+    ]));
     let (store, runtime) = runtime_with_fake_ws_executor(fake);
-    runtime.load_package(network_package("example/z7-ws-audit", vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["WEBSOCKET".to_string()], purpose: None }], vec![])).await?;
+    runtime
+        .load_package(network_package(
+            "example/z7-ws-audit",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["WEBSOCKET".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
     let context = ygg_runtime::ProtocolContext::package("example/z7-ws-audit", "in_process");
     runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-audit/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
-    anyhow::ensure!(events[0].payload.get("package_id").and_then(|v| v.as_str()) == Some("example/z7-ws-audit"), "websocket completion should include package_id");
-    anyhow::ensure!(events[0].payload.get("payload").is_none() && events[0].payload.get("data").is_none() && events[0].payload.get("body").is_none(), "websocket completion must not contain raw payload/body/data fields");
+    anyhow::ensure!(
+        events[0].payload.get("package_id").and_then(|v| v.as_str()) == Some("example/z7-ws-audit"),
+        "websocket completion should include package_id"
+    );
+    anyhow::ensure!(
+        events[0].payload.get("payload").is_none()
+            && events[0].payload.get("data").is_none()
+            && events[0].payload.get("body").is_none(),
+        "websocket completion must not contain raw payload/body/data fields"
+    );
     Ok(())
 }
 
@@ -1842,10 +2137,7 @@ pub(crate) async fn outbound_websocket_completed_audit_emitted() -> anyhow::Resu
 // ---------------------------------------------------------------------------
 
 /// Helper: create a package manifest with network declarations and secret_refs.
-fn package_with_secret_refs(
-    id: &str,
-    secret_refs: Vec<String>,
-) -> PackageManifest {
+fn package_with_secret_refs(id: &str, secret_refs: Vec<String>) -> PackageManifest {
     PackageManifest {
         schema_version: 1,
         id: id.to_string(),
@@ -1922,10 +2214,7 @@ pub(crate) async fn outbound_execute_secret_ref_undeclared_fails() -> anyhow::Re
         )
         .await;
 
-    anyhow::ensure!(
-        result.is_err(),
-        "undeclared secret_ref should be denied"
-    );
+    anyhow::ensure!(result.is_err(), "undeclared secret_ref should be denied");
     let err_msg = format!("{:?}", result.unwrap_err());
     anyhow::ensure!(
         err_msg.contains("not declared"),
@@ -2023,7 +2312,10 @@ pub(crate) async fn outbound_stream_profile_default_deny_all() -> anyhow::Result
         )
         .await;
 
-    anyhow::ensure!(result.is_err(), "default profile must reject outbound.stream");
+    anyhow::ensure!(
+        result.is_err(),
+        "default profile must reject outbound.stream"
+    );
     Ok(())
 }
 
@@ -2069,19 +2361,28 @@ pub(crate) async fn outbound_stream_fake_executor_emits_canned_frames() -> anyho
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    anyhow::ensure!(fake.call_count() == 1, "fake stream executor should be called once");
+    anyhow::ensure!(
+        fake.call_count() == 1,
+        "fake stream executor should be called once"
+    );
 
     let session_id = "kernel_outbound_stream_example_y3-fake-stream".to_string();
     let mut chunk_count = 0usize;
     for _ in 0..20 {
         let events = store.list_session(&session_id).await?;
-        chunk_count = events.iter().filter(|e| e.kind == EVENT_STREAM_CHUNK).count();
+        chunk_count = events
+            .iter()
+            .filter(|e| e.kind == EVENT_STREAM_CHUNK)
+            .count();
         if chunk_count >= 1 {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    anyhow::ensure!(chunk_count >= 1, "fake stream should emit at least one frame");
+    anyhow::ensure!(
+        chunk_count >= 1,
+        "fake stream should emit at least one frame"
+    );
     Ok(())
 }
 
@@ -2116,8 +2417,14 @@ pub(crate) async fn subprocess_reverse_kernel_call_dispatched() -> anyhow::Resul
     )
     .await;
 
-    anyhow::ensure!(response.get("result").is_some(), "reverse response should contain result: {response:?}");
-    anyhow::ensure!(fake.call_count() == 1, "fake executor should be called once");
+    anyhow::ensure!(
+        response.get("result").is_some(),
+        "reverse response should contain result: {response:?}"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 1,
+        "fake executor should be called once"
+    );
     Ok(())
 }
 
@@ -2127,11 +2434,17 @@ pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow:
     runtime
         .load_package(network_package(
             "example/y4-real",
-            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }],
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
             vec![],
         ))
         .await?;
-    runtime.load_package(network_package("example/y4-victim", vec![], vec![])).await?;
+    runtime
+        .load_package(network_package("example/y4-victim", vec![], vec![]))
+        .await?;
 
     let response = ygg_runtime::dispatch_reverse_kernel_frame(
         &runtime,
@@ -2150,8 +2463,14 @@ pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow:
     )
     .await;
 
-    anyhow::ensure!(response.get("error").is_some(), "spoofed reverse call should fail: {response:?}");
-    anyhow::ensure!(fake.call_count() == 0, "executor must not run for spoofed principal");
+    anyhow::ensure!(
+        response.get("error").is_some(),
+        "spoofed reverse call should fail: {response:?}"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor must not run for spoofed principal"
+    );
     Ok(())
 }
 
@@ -2161,7 +2480,11 @@ pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<(
     runtime
         .load_package(network_package(
             "example/y4-stream",
-            vec![NetworkDeclaration { host: "api.openai.com".to_string(), methods: vec!["POST".to_string()], purpose: None }],
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
             vec![],
         ))
         .await?;
@@ -2201,7 +2524,11 @@ pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<(
         let events = store.list_session(&session_id).await?;
         if events.iter().any(|event| {
             event.kind == EVENT_STREAM_CHUNK
-                && event.payload.get("stream_id").and_then(|value| value.as_str()) == Some(stream_id)
+                && event
+                    .payload
+                    .get("stream_id")
+                    .and_then(|value| value.as_str())
+                    == Some(stream_id)
         }) {
             return Ok(());
         }
@@ -2226,7 +2553,8 @@ pub(crate) async fn outbound_stream_secret_ref_undeclared_fails() -> anyhow::Res
         ))
         .await?;
 
-    let context = ygg_runtime::ProtocolContext::package("example/y3-secret-undeclared", "in_process");
+    let context =
+        ygg_runtime::ProtocolContext::package("example/y3-secret-undeclared", "in_process");
     let result = runtime
         .call_protocol(
             &context,
@@ -2244,8 +2572,14 @@ pub(crate) async fn outbound_stream_secret_ref_undeclared_fails() -> anyhow::Res
 
     anyhow::ensure!(result.is_err(), "undeclared secret_ref should be denied");
     let err_msg = format!("{:?}", result.unwrap_err());
-    anyhow::ensure!(err_msg.contains("not declared"), "error should mention not declared: {err_msg}");
-    anyhow::ensure!(fake.call_count() == 0, "executor must not be called for undeclared secret_ref");
+    anyhow::ensure!(
+        err_msg.contains("not declared"),
+        "error should mention not declared: {err_msg}"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor must not be called for undeclared secret_ref"
+    );
     Ok(())
 }
 
@@ -2273,7 +2607,9 @@ pub(crate) async fn outbound_stream_secret_ref_declared_resolves() -> anyhow::Re
             allow_redirects: false,
             allow_insecure_loopback_for_tests: false,
         },
-        secret_resolver: SecretResolverConfig::with_resolver(Arc::new(EnvSecretResolver::from_iter(vec![env_name.clone()]))),
+        secret_resolver: SecretResolverConfig::with_resolver(Arc::new(
+            EnvSecretResolver::from_iter(vec![env_name.clone()]),
+        )),
         ..RuntimeConfig::default()
     };
     let runtime = Runtime::new(store, config);
@@ -2308,14 +2644,20 @@ pub(crate) async fn outbound_stream_secret_ref_declared_resolves() -> anyhow::Re
         .await
         .map_err(|e| anyhow::anyhow!("{:?}", e))?;
 
-    anyhow::ensure!(response.get("status").and_then(|v| v.as_str()) == Some("ok"), "declared secret_ref should proceed");
+    anyhow::ensure!(
+        response.get("status").and_then(|v| v.as_str()) == Some("ok"),
+        "declared secret_ref should proceed"
+    );
     for _ in 0..20 {
         if fake.call_count() >= 1 {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    anyhow::ensure!(fake.call_count() == 1, "executor should be called after declared secret_ref resolves");
+    anyhow::ensure!(
+        fake.call_count() == 1,
+        "executor should be called after declared secret_ref resolves"
+    );
     Ok(())
 }
 
@@ -2347,8 +2689,14 @@ pub(crate) async fn outbound_stream_capability_namespace_enforced() -> anyhow::R
         )
         .await;
 
-    anyhow::ensure!(result.is_err(), "cross-namespace capability_id should be denied");
-    anyhow::ensure!(fake.call_count() == 0, "executor must not be called for namespace denial");
+    anyhow::ensure!(
+        result.is_err(),
+        "cross-namespace capability_id should be denied"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor must not be called for namespace denial"
+    );
     Ok(())
 }
 
@@ -2381,10 +2729,19 @@ pub(crate) async fn outbound_stream_https_only() -> anyhow::Result<()> {
         )
         .await;
 
-    anyhow::ensure!(result.is_err(), "http:// outbound.stream URL should be denied");
+    anyhow::ensure!(
+        result.is_err(),
+        "http:// outbound.stream URL should be denied"
+    );
     let err_msg = format!("{:?}", result.unwrap_err());
-    anyhow::ensure!(err_msg.contains("HTTPS") || err_msg.contains("https"), "error should mention HTTPS: {err_msg}");
-    anyhow::ensure!(fake.call_count() == 0, "executor must not be called for http URL");
+    anyhow::ensure!(
+        err_msg.contains("HTTPS") || err_msg.contains("https"),
+        "error should mention HTTPS: {err_msg}"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "executor must not be called for http URL"
+    );
     Ok(())
 }
 
@@ -2392,7 +2749,11 @@ pub(crate) async fn outbound_stream_https_only() -> anyhow::Result<()> {
 pub(crate) async fn sse_parser_basic_smoke() -> anyhow::Result<()> {
     let mut parser = SseParser::new();
     let events = parser.push(b"data: x\n\n");
-    anyhow::ensure!(events.len() == 1, "expected one SSE event, got {}", events.len());
+    anyhow::ensure!(
+        events.len() == 1,
+        "expected one SSE event, got {}",
+        events.len()
+    );
     anyhow::ensure!(events[0].data == "x", "SSE data mismatch");
     Ok(())
 }
@@ -2403,7 +2764,10 @@ pub(crate) async fn sse_parser_partial_chunks() -> anyhow::Result<()> {
     let first = parser.push(b"data: ");
     anyhow::ensure!(first.is_empty(), "partial chunk should not emit");
     let second = parser.push(b"x\n\n");
-    anyhow::ensure!(second.len() == 1, "completed partial event should emit once");
+    anyhow::ensure!(
+        second.len() == 1,
+        "completed partial event should emit once"
+    );
     anyhow::ensure!(second[0].data == "x", "partial chunk SSE data mismatch");
     Ok(())
 }

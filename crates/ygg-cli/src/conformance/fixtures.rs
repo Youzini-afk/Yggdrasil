@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_core::{
-    CapabilityDescriptor, CapabilityPermissions, EntryDescriptor, EventPermissions, HookSubscription,
-    HookTiming, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
-    SandboxPolicy,
+    CapabilityDescriptor, CapabilityPermissions, EntryDescriptor, EventPermissions,
+    HookSubscription, HookTiming, PackageContributions, PackageEntry, PackageManifest,
+    PermissionSet, SandboxPolicy,
 };
 use ygg_runtime::{InMemoryEventStore, Runtime, RuntimeConfig};
 
@@ -19,12 +19,20 @@ pub(crate) fn runtime() -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>
 pub(crate) fn event_package(id: &str, read: bool, append: bool) -> PackageManifest {
     PackageManifest {
         id: id.to_string(),
-        permissions: PermissionSet { events: EventPermissions { read, append }, ..PermissionSet::default() },
+        permissions: PermissionSet {
+            events: EventPermissions { read, append },
+            ..PermissionSet::default()
+        },
         ..demo::demo_event_writer_manifest()
     }
 }
 
-pub(crate) fn hook_package(id: &str, extension_point: &str, handler: &str, precedence: i32) -> PackageManifest {
+pub(crate) fn hook_package(
+    id: &str,
+    extension_point: &str,
+    handler: &str,
+    precedence: i32,
+) -> PackageManifest {
     PackageManifest {
         id: id.to_string(),
         contributes: PackageContributions {
@@ -40,7 +48,11 @@ pub(crate) fn hook_package(id: &str, extension_point: &str, handler: &str, prece
     }
 }
 
-pub(crate) fn hook_handler_package(id: &str, extension_point: &str, handler: &str) -> PackageManifest {
+pub(crate) fn hook_handler_package(
+    id: &str,
+    extension_point: &str,
+    handler: &str,
+) -> PackageManifest {
     PackageManifest {
         schema_version: 1,
         id: id.to_string(),
@@ -79,7 +91,12 @@ pub(crate) fn hook_handler_package(id: &str, extension_point: &str, handler: &st
 }
 
 pub(crate) fn echo_package(id: &str, capability_id: &str) -> PackageManifest {
-    schema_echo_package(id, capability_id, serde_json::Value::Null, serde_json::Value::Null)
+    schema_echo_package(
+        id,
+        capability_id,
+        serde_json::Value::Null,
+        serde_json::Value::Null,
+    )
 }
 
 pub(crate) fn schema_echo_package(
@@ -113,7 +130,9 @@ pub(crate) fn schema_echo_package(
         consumes: Vec::new(),
         contributes: PackageContributions::default(),
         permissions: PermissionSet {
-            capabilities: CapabilityPermissions { invoke: vec!["*".to_string()] },
+            capabilities: CapabilityPermissions {
+                invoke: vec!["*".to_string()],
+            },
             ..PermissionSet::default()
         },
         sandbox_policy: SandboxPolicy::default(),
@@ -133,7 +152,10 @@ pub(crate) fn event_schema_package() -> PackageManifest {
             surfaces: Vec::new(),
         },
         permissions: PermissionSet {
-            events: EventPermissions { read: false, append: true },
+            events: EventPermissions {
+                read: false,
+                append: true,
+            },
             ..PermissionSet::default()
         },
         ..demo::demo_event_writer_manifest()

@@ -88,10 +88,7 @@ pub(crate) async fn workspace_lab_contract() -> anyhow::Result<()> {
         surfaces.contains_key("assistant_action"),
         "must have assistant_action"
     );
-    anyhow::ensure!(
-        surfaces.contains_key("home_card"),
-        "must have home_card"
-    );
+    anyhow::ensure!(surfaces.contains_key("home_card"), "must have home_card");
 
     // 12 capabilities (5 original + 7 E3)
     anyhow::ensure!(
@@ -115,27 +112,18 @@ pub(crate) async fn workspace_lab_contract() -> anyhow::Result<()> {
 
     // Deny-by-default
     anyhow::ensure!(
-        contract.output["policy_defaults"]["default_decision"]
-            == json!("denied_by_default")
+        contract.output["policy_defaults"]["default_decision"] == json!("denied_by_default")
     );
-    anyhow::ensure!(
-        contract.output["policy_defaults"]["executor_invoked"] == json!(false)
-    );
-    anyhow::ensure!(
-        contract.output["policy_defaults"]["execution_performed"] == json!(false)
-    );
-    anyhow::ensure!(
-        contract.output["policy_defaults"]["proposal_required"] == json!(true)
-    );
+    anyhow::ensure!(contract.output["policy_defaults"]["executor_invoked"] == json!(false));
+    anyhow::ensure!(contract.output["policy_defaults"]["execution_performed"] == json!(false));
+    anyhow::ensure!(contract.output["policy_defaults"]["proposal_required"] == json!(true));
 
     // Managed workspace defaults (E3)
     anyhow::ensure!(
-        contract.output["managed_workspace_defaults"]["managed_workspace_kind"]
-            == json!("fixture")
+        contract.output["managed_workspace_defaults"]["managed_workspace_kind"] == json!("fixture")
     );
     anyhow::ensure!(
-        contract.output["managed_workspace_defaults"]["workspace_created_in_host"]
-            == json!(false)
+        contract.output["managed_workspace_defaults"]["workspace_created_in_host"] == json!(false)
     );
     anyhow::ensure!(
         contract.output["managed_workspace_defaults"]["execution_performed"] == json!(false)
@@ -586,9 +574,7 @@ pub(crate) async fn workspace_lab_fixture_workspace_creation() -> anyhow::Result
     );
 
     // Real creation requires approval/policy/executor
-    let requires = result.output["real_creation_requires"]
-        .as_array()
-        .unwrap();
+    let requires = result.output["real_creation_requires"].as_array().unwrap();
     anyhow::ensure!(
         requires.iter().any(|v| v == "approval"),
         "real_creation_requires must include approval"
@@ -694,10 +680,7 @@ pub(crate) async fn workspace_lab_run_plan_requires_approval() -> anyhow::Result
         plan.output["kind"] == json!("workspace_run_plan"),
         "must produce workspace_run_plan"
     );
-    anyhow::ensure!(
-        plan.output["plan_only"] == json!(true),
-        "must be plan_only"
-    );
+    anyhow::ensure!(plan.output["plan_only"] == json!(true), "must be plan_only");
     anyhow::ensure!(
         plan.output["requires_user_approval"] == json!(true),
         "must require user approval"
@@ -713,7 +696,10 @@ pub(crate) async fn workspace_lab_run_plan_requires_approval() -> anyhow::Result
 
     // All run steps must require approval and executor_invoked=false
     let steps = plan.output["run_steps"].as_array().unwrap();
-    anyhow::ensure!(steps.len() == 4, "must have 4 run steps (3 scripts + 1 entrypoint)");
+    anyhow::ensure!(
+        steps.len() == 4,
+        "must have 4 run steps (3 scripts + 1 entrypoint)"
+    );
     for step in steps {
         anyhow::ensure!(
             step["requires_approval"] == json!(true),

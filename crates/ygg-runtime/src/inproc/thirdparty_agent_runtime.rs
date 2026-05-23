@@ -125,7 +125,12 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn summarize_trace(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let event_count = request.input.get("trace_events").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+    let event_count = request
+        .input
+        .get("trace_events")
+        .and_then(Value::as_array)
+        .map(|a| a.len())
+        .unwrap_or(0);
     Ok(serde_json::json!({
         "kind": "thirdparty_agent_trace_summary",
         "event_count": event_count,
@@ -185,8 +190,16 @@ fn memory_lab_describe_contract(request: &InprocInvocation) -> anyhow::Result<Va
 }
 
 fn memory_lab_record_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let key = request.input.get("key").and_then(Value::as_str).unwrap_or("memory:default");
-    let content = request.input.get("content").and_then(Value::as_str).unwrap_or("");
+    let key = request
+        .input
+        .get("key")
+        .and_then(Value::as_str)
+        .unwrap_or("memory:default");
+    let content = request
+        .input
+        .get("content")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let record_id = format!("mem:{}:{}", key, crate::runtime::content_address(content));
     Ok(serde_json::json!({
         "kind": "memory_record",
@@ -303,7 +316,11 @@ fn memory_lab_branch_view(request: &InprocInvocation) -> anyhow::Result<Value> {
 }
 
 fn memory_lab_explain_provenance(request: &InprocInvocation) -> anyhow::Result<Value> {
-    let record_id = request.input.get("record_id").and_then(Value::as_str).unwrap_or("mem:unknown");
+    let record_id = request
+        .input
+        .get("record_id")
+        .and_then(Value::as_str)
+        .unwrap_or("mem:unknown");
     Ok(serde_json::json!({
         "kind": "memory_provenance",
         "record_id": record_id,

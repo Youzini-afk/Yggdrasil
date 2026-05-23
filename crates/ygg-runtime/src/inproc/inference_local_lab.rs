@@ -24,12 +24,7 @@ const HTTP_SHAPED_FIELDS: &[&str] = &[
 ];
 
 // Messages/chat-shaped field names that must be rejected
-const MESSAGES_SHAPED_FIELDS: &[&str] = &[
-    "messages",
-    "system",
-    "user",
-    "assistant",
-];
+const MESSAGES_SHAPED_FIELDS: &[&str] = &["messages", "system", "user", "assistant"];
 
 // ---------------------------------------------------------------------------
 // Top-level dispatch
@@ -247,7 +242,10 @@ fn stream(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     // Reject HTTP/messages-shaped fields in stream too
-    for field in HTTP_SHAPED_FIELDS.iter().chain(MESSAGES_SHAPED_FIELDS.iter()) {
+    for field in HTTP_SHAPED_FIELDS
+        .iter()
+        .chain(MESSAGES_SHAPED_FIELDS.iter())
+    {
         if input.get(*field).is_some() {
             return Ok(serde_json::json!({
                 "kind": "inference_local_stream_result",
@@ -397,11 +395,7 @@ fn explain_error(request: &InprocInvocation) -> anyhow::Result<Value> {
             false,
             "local",
         ),
-        _ => (
-            "Unknown local inference error.",
-            false,
-            "local",
-        ),
+        _ => ("Unknown local inference error.", false, "local"),
     };
 
     Ok(serde_json::json!({
@@ -422,7 +416,14 @@ fn explain_error(request: &InprocInvocation) -> anyhow::Result<Value> {
 
 /// Check if input contains raw secret-looking fields.
 fn looks_like_raw_secret_field(input: &Value) -> bool {
-    let secret_field_names = ["api_key", "apiKey", "secret", "password", "token", "credential"];
+    let secret_field_names = [
+        "api_key",
+        "apiKey",
+        "secret",
+        "password",
+        "token",
+        "credential",
+    ];
     if let Some(obj) = input.as_object() {
         for key in obj.keys() {
             if secret_field_names.contains(&key.as_str()) {
@@ -442,11 +443,18 @@ fn looks_like_raw_secret_field(input: &Value) -> bool {
 /// Heuristic: value looks like a raw API key / secret.
 fn looks_like_raw_secret_value(s: &str) -> bool {
     let s = s.trim();
-    if s.starts_with("secret_ref:") || s.starts_with("secretRef:") || s.starts_with("secret-ref:") || s.starts_with("host:") {
+    if s.starts_with("secret_ref:")
+        || s.starts_with("secretRef:")
+        || s.starts_with("secret-ref:")
+        || s.starts_with("host:")
+    {
         return false;
     }
     // Long alphanumeric strings likely to be raw keys
-    if s.len() >= 20 && s.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.') {
+    if s.len() >= 20
+        && s.chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
         return true;
     }
     // Common API key prefixes
@@ -470,11 +478,22 @@ mod tests {
 
     #[test]
     fn describe_capabilities_returns_local_transports() {
-        let req = make_request("official/inference-local-lab/describe_capabilities", serde_json::json!({}));
+        let req = make_request(
+            "official/inference-local-lab/describe_capabilities",
+            serde_json::json!({}),
+        );
         let result = describe_capabilities(&req).unwrap();
         assert_eq!(result["kind"], "inference_local_capabilities");
-        assert!(result["transport_kinds"].as_array().unwrap().iter().any(|t| t == "in_memory"));
-        assert!(result["transport_kinds"].as_array().unwrap().iter().any(|t| t == "local_process"));
+        assert!(result["transport_kinds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t == "in_memory"));
+        assert!(result["transport_kinds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t == "local_process"));
         assert_eq!(result["network_required"], false);
         assert_eq!(result["secrets_required"], false);
         assert_eq!(result["streaming_supported"], true);
@@ -491,7 +510,10 @@ mod tests {
             serde_json::json!({"transport_kind": "http", "operation_kind": "generate"}),
         );
         let result = invoke(&req).unwrap();
-        assert_eq!(result["normalized_error"]["error_kind"], "transport_rejected");
+        assert_eq!(
+            result["normalized_error"]["error_kind"],
+            "transport_rejected"
+        );
     }
 
     #[test]
@@ -501,7 +523,10 @@ mod tests {
             serde_json::json!({"url": "https://api.example.com", "operation_kind": "generate"}),
         );
         let result = invoke(&req).unwrap();
-        assert_eq!(result["normalized_error"]["error_kind"], "http_field_rejected");
+        assert_eq!(
+            result["normalized_error"]["error_kind"],
+            "http_field_rejected"
+        );
     }
 
     #[test]
@@ -511,7 +536,10 @@ mod tests {
             serde_json::json!({"messages": [{"role": "user", "content": "hi"}], "operation_kind": "generate"}),
         );
         let result = invoke(&req).unwrap();
-        assert_eq!(result["normalized_error"]["error_kind"], "messages_field_rejected");
+        assert_eq!(
+            result["normalized_error"]["error_kind"],
+            "messages_field_rejected"
+        );
     }
 
     #[test]
@@ -545,7 +573,10 @@ mod tests {
         );
         let result = stream(&req).unwrap();
         let frames = result["frames"].as_array().unwrap();
-        let kinds: Vec<&str> = frames.iter().map(|f| f["kind"].as_str().unwrap_or_default()).collect();
+        let kinds: Vec<&str> = frames
+            .iter()
+            .map(|f| f["kind"].as_str().unwrap_or_default())
+            .collect();
         assert_eq!(kinds[0], "start");
         assert!(kinds.contains(&"chunk"));
         assert!(kinds.contains(&"progress"));

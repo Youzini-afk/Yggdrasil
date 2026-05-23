@@ -30,25 +30,14 @@ const PACKAGE_ID: &str = "official/experience-observability-lab";
 // Session health statuses
 // ---------------------------------------------------------------------------
 
-const SESSION_HEALTH_STATUSES: &[&str] = &[
-    "healthy",
-    "degraded",
-    "failed",
-    "recovering",
-    "unknown",
-];
+const SESSION_HEALTH_STATUSES: &[&str] =
+    &["healthy", "degraded", "failed", "recovering", "unknown"];
 
 // ---------------------------------------------------------------------------
 // Package health statuses
 // ---------------------------------------------------------------------------
 
-const PACKAGE_HEALTH_STATUSES: &[&str] = &[
-    "loaded",
-    "degraded",
-    "unloaded",
-    "failed",
-    "unknown",
-];
+const PACKAGE_HEALTH_STATUSES: &[&str] = &["loaded", "degraded", "unloaded", "failed", "unknown"];
 
 // ---------------------------------------------------------------------------
 // Agent run health statuses
@@ -711,10 +700,7 @@ fn summarize_guardrails(request: &InprocInvocation) -> anyhow::Result<Value> {
             ])
         });
 
-    let total_guardrails = guardrails
-        .as_array()
-        .map(|a| a.len())
-        .unwrap_or(0);
+    let total_guardrails = guardrails.as_array().map(|a| a.len()).unwrap_or(0);
 
     Ok(serde_json::json!({
         "kind": "guardrail_audit_summary",
@@ -851,11 +837,7 @@ mod tests {
             "kernel.v1.prompt.",
             "kernel.v1.director.",
         ] {
-            assert!(
-                !output_str.contains(token),
-                "must not contain {}",
-                token
-            );
+            assert!(!output_str.contains(token), "must not contain {}", token);
         }
     }
 

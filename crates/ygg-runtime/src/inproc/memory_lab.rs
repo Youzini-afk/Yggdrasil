@@ -293,10 +293,7 @@ fn retrieve_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
         .cloned()
         .unwrap_or_default();
 
-    let branch_ref = request
-        .input
-        .get("branch_ref")
-        .and_then(Value::as_str);
+    let branch_ref = request.input.get("branch_ref").and_then(Value::as_str);
 
     let mut matches = Vec::new();
     for record in &records {
@@ -316,14 +313,11 @@ fn retrieve_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
             .and_then(Value::as_str)
             .map(|k| vec![k.to_string()])
             .or_else(|| {
-                record
-                    .get("keys")
-                    .and_then(Value::as_array)
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str().map(String::from))
-                            .collect()
-                    })
+                record.get("keys").and_then(Value::as_array).map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
             })
             .unwrap_or_default();
 
@@ -331,7 +325,12 @@ fn retrieve_memory(request: &InprocInvocation) -> anyhow::Result<Value> {
             .iter()
             .any(|k| query.contains(&k.to_lowercase()) || k.to_lowercase().contains(&query));
 
-        if hit || record.get("constant").and_then(Value::as_bool).unwrap_or(false) {
+        if hit
+            || record
+                .get("constant")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        {
             matches.push(serde_json::json!({
                 "record": record,
                 "reason": if hit { "keyword" } else { "constant" },
@@ -451,8 +450,13 @@ fn draft_memory_update(request: &InprocInvocation) -> anyhow::Result<Value> {
         .and_then(Value::as_str)
         .unwrap_or("branch:main");
 
-    let draft_id = format!("draft:{}:{}", key, crate::runtime::content_address(&format!("{:?}", proposed_content)));
-    let content_address = crate::runtime::content_address(&format!("draft:{}:{}", key, proposed_content));
+    let draft_id = format!(
+        "draft:{}:{}",
+        key,
+        crate::runtime::content_address(&format!("{:?}", proposed_content))
+    );
+    let content_address =
+        crate::runtime::content_address(&format!("draft:{}:{}", key, proposed_content));
 
     Ok(serde_json::json!({
         "kind": "memory_update_draft",
@@ -859,11 +863,7 @@ mod tests {
             "kernel.v1.prompt.",
             "kernel.v1.director.",
         ] {
-            assert!(
-                !output_str.contains(token),
-                "must not contain {}",
-                token
-            );
+            assert!(!output_str.contains(token), "must not contain {}", token);
         }
     }
 

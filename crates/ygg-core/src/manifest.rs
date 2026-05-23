@@ -1,6 +1,6 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
-use schemars::JsonSchema;
 
 use crate::ids::{CapabilityId, ExtensionPointId, PackageId};
 
@@ -57,11 +57,17 @@ impl std::ops::DerefMut for EntryDescriptor {
 
 impl EntryDescriptor {
     pub fn v1(kind: PackageEntry) -> Self {
-        Self { kind, contract: ContractMode::V1 }
+        Self {
+            kind,
+            contract: ContractMode::V1,
+        }
     }
 
     pub fn contract_none(kind: PackageEntry) -> Self {
-        Self { kind, contract: ContractMode::None }
+        Self {
+            kind,
+            contract: ContractMode::None,
+        }
     }
 }
 
@@ -526,7 +532,10 @@ pub enum ManifestError {
     #[error("invalid network method in permissions.network.declarations: {0}")]
     InvalidNetworkMethod(String),
     #[error("contract mode '{contract:?}' is not valid for entry kind '{kind}'")]
-    InvalidContractMode { kind: String, contract: ContractMode },
+    InvalidContractMode {
+        kind: String,
+        contract: ContractMode,
+    },
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -666,7 +675,10 @@ mod tests {
             permissions: PermissionSet::default(),
             sandbox_policy: SandboxPolicy::default(),
         };
-        assert!(manifest.permissions.secret_refs.is_empty(), "default secret_refs should be empty");
+        assert!(
+            manifest.permissions.secret_refs.is_empty(),
+            "default secret_refs should be empty"
+        );
         assert_eq!(manifest.validate_basic(), Ok(()));
     }
 
@@ -694,7 +706,10 @@ mod tests {
             },
             sandbox_policy: SandboxPolicy::default(),
         };
-        assert_eq!(manifest.permissions.secret_refs, vec!["secret_ref:env:OPENAI_API_KEY"]);
+        assert_eq!(
+            manifest.permissions.secret_refs,
+            vec!["secret_ref:env:OPENAI_API_KEY"]
+        );
         assert_eq!(manifest.validate_basic(), Ok(()));
     }
 
@@ -761,8 +776,13 @@ mod tests {
             },
             sandbox_policy: SandboxPolicy::default(),
         };
-        let err = manifest.validate_basic().expect_err("malformed secret_ref should be rejected");
-        assert_eq!(err, ManifestError::InvalidSecretRef("not-a-secret-ref".to_string()));
+        let err = manifest
+            .validate_basic()
+            .expect_err("malformed secret_ref should be rejected");
+        assert_eq!(
+            err,
+            ManifestError::InvalidSecretRef("not-a-secret-ref".to_string())
+        );
     }
 
     #[test]
@@ -789,8 +809,13 @@ mod tests {
             },
             sandbox_policy: SandboxPolicy::default(),
         };
-        let err = manifest.validate_basic().expect_err("non-env secret_ref should be rejected");
-        assert_eq!(err, ManifestError::InvalidSecretRef("secret_ref:vault:NAME".to_string()));
+        let err = manifest
+            .validate_basic()
+            .expect_err("non-env secret_ref should be rejected");
+        assert_eq!(
+            err,
+            ManifestError::InvalidSecretRef("secret_ref:vault:NAME".to_string())
+        );
     }
 
     #[test]
@@ -813,14 +838,17 @@ mod tests {
 
     #[test]
     fn contract_mode_defaults_to_v1_and_serializes_lowercase() {
-        let raw = serde_yaml::from_str::<PackageManifest>(r#"
+        let raw = serde_yaml::from_str::<PackageManifest>(
+            r#"
 schema_version: 1
 id: org/test
 version: 0.1.0
 entry:
   kind: subprocess
   command: ["node", "index.mjs"]
-"#).expect("manifest parses");
+"#,
+        )
+        .expect("manifest parses");
         assert_eq!(raw.entry.contract, ContractMode::V1);
 
         let none = EntryDescriptor::contract_none(PackageEntry::Subprocess {
@@ -828,21 +856,37 @@ entry:
             transport: SubprocessTransport::JsonRpcStdio,
         });
         let yaml = serde_yaml::to_string(&none).expect("entry serializes");
-        assert!(yaml.contains("contract: none"), "contract none should serialize as lowercase string: {yaml}");
+        assert!(
+            yaml.contains("contract: none"),
+            "contract none should serialize as lowercase string: {yaml}"
+        );
     }
 
     #[test]
     fn contract_none_rejected_for_wasm_and_remote() {
         let mut wasm = base_manifest_with_network_methods(vec![]);
-        wasm.entry = EntryDescriptor::contract_none(PackageEntry::Wasm { module: "pkg.wasm".to_string(), abi_version: 1, memory_limit_mb: 64 });
-        assert!(matches!(wasm.validate_basic(), Err(ManifestError::InvalidContractMode { .. })));
+        wasm.entry = EntryDescriptor::contract_none(PackageEntry::Wasm {
+            module: "pkg.wasm".to_string(),
+            abi_version: 1,
+            memory_limit_mb: 64,
+        });
+        assert!(matches!(
+            wasm.validate_basic(),
+            Err(ManifestError::InvalidContractMode { .. })
+        ));
 
         let mut remote = base_manifest_with_network_methods(vec![]);
         remote.entry = EntryDescriptor::contract_none(PackageEntry::Remote {
             endpoint: "https://example.com/rpc".to_string(),
-            auth: RemoteAuth { scheme: "none".to_string(), config: Value::Null },
+            auth: RemoteAuth {
+                scheme: "none".to_string(),
+                config: Value::Null,
+            },
         });
-        assert!(matches!(remote.validate_basic(), Err(ManifestError::InvalidContractMode { .. })));
+        assert!(matches!(
+            remote.validate_basic(),
+            Err(ManifestError::InvalidContractMode { .. })
+        ));
     }
 
     #[test]
