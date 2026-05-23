@@ -1,6 +1,7 @@
 //! Conformance tests for `official/secret-store-lab`.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use serde_json::json;
@@ -9,7 +10,8 @@ use tokio::sync::Mutex;
 use ygg_runtime::{CapabilityInvocationRequest, HostSecretResolver, StoreSecretResolver};
 
 use super::fixtures::*;
-use crate::commands::manifest;
+use crate::cli::HostProfile;
+use crate::commands::{host::runtime_config_from_profile, manifest};
 
 const MANIFEST_PATH: &str = "packages/official/secret-store-lab/manifest.yaml";
 const PACKAGE_ID: &str = "official/secret-store-lab";
@@ -98,8 +100,18 @@ pub(crate) async fn list_returns_names_not_values() -> anyhow::Result<()> {
     let _guard = DataDirGuard::new()?;
     let rt = load_secret_store_lab().await?;
 
-    invoke(&rt, "official/secret-store-lab/put_secret", json!({ "name": "KEY_ONE", "value": "synthetic-test-value-one" })).await?;
-    invoke(&rt, "official/secret-store-lab/put_secret", json!({ "name": "KEY_TWO", "value": "synthetic-test-value-two" })).await?;
+    invoke(
+        &rt,
+        "official/secret-store-lab/put_secret",
+        json!({ "name": "KEY_ONE", "value": "synthetic-test-value-one" }),
+    )
+    .await?;
+    invoke(
+        &rt,
+        "official/secret-store-lab/put_secret",
+        json!({ "name": "KEY_TWO", "value": "synthetic-test-value-two" }),
+    )
+    .await?;
     let list = invoke(&rt, "official/secret-store-lab/list_secrets", json!({})).await?;
     let text = serde_json::to_string(&list.output)?;
     anyhow::ensure!(text.contains("KEY_ONE"));
@@ -114,10 +126,25 @@ pub(crate) async fn delete_removes() -> anyhow::Result<()> {
     let _guard = DataDirGuard::new()?;
     let rt = load_secret_store_lab().await?;
 
-    invoke(&rt, "official/secret-store-lab/put_secret", json!({ "name": "DELETE_ME", "value": "synthetic-test-value-delete" })).await?;
-    let deleted = invoke(&rt, "official/secret-store-lab/delete_secret", json!({ "name": "DELETE_ME" })).await?;
+    invoke(
+        &rt,
+        "official/secret-store-lab/put_secret",
+        json!({ "name": "DELETE_ME", "value": "synthetic-test-value-delete" }),
+    )
+    .await?;
+    let deleted = invoke(
+        &rt,
+        "official/secret-store-lab/delete_secret",
+        json!({ "name": "DELETE_ME" }),
+    )
+    .await?;
     anyhow::ensure!(deleted.output["removed"] == json!(true));
-    let has = invoke(&rt, "official/secret-store-lab/has_secret", json!({ "name": "DELETE_ME" })).await?;
+    let has = invoke(
+        &rt,
+        "official/secret-store-lab/has_secret",
+        json!({ "name": "DELETE_ME" }),
+    )
+    .await?;
     anyhow::ensure!(has.output["exists"] == json!(false));
     Ok(())
 }
@@ -128,7 +155,12 @@ pub(crate) async fn put_invalid_name_rejected() -> anyhow::Result<()> {
     let rt = load_secret_store_lab().await?;
 
     for name in ["", "HAS SPACE", &"A".repeat(129)] {
-        let result = invoke(&rt, "official/secret-store-lab/put_secret", json!({ "name": name, "value": "synthetic-test-value-invalid" })).await;
+        let result = invoke(
+            &rt,
+            "official/secret-store-lab/put_secret",
+            json!({ "name": name, "value": "synthetic-test-value-invalid" }),
+        )
+        .await;
         anyhow::ensure!(result.is_err(), "invalid name should be rejected: {name:?}");
     }
     Ok(())
@@ -155,7 +187,10 @@ pub(crate) async fn health_reports_layout() -> anyhow::Result<()> {
     let rt = load_secret_store_lab().await?;
 
     let health = invoke(&rt, "official/secret-store-lab/health", json!({})).await?;
-    anyhow::ensure!(health.output["store_path"].as_str().unwrap_or("").ends_with("secrets.dat"));
+    anyhow::ensure!(health.output["store_path"]
+        .as_str()
+        .unwrap_or("")
+        .ends_with("secrets.dat"));
     anyhow::ensure!(health.output["key_source"].as_str().is_some());
     Ok(())
 }
@@ -164,7 +199,12 @@ pub(crate) async fn resolver_resolves_existing() -> anyhow::Result<()> {
     let _lock = ENV_LOCK.lock().await;
     let _guard = DataDirGuard::new()?;
     let rt = load_secret_store_lab().await?;
-    invoke(&rt, "official/secret-store-lab/put_secret", json!({ "name": "RESOLVE_ME", "value": "synthetic-test-value-resolve" })).await?;
+    invoke(
+        &rt,
+        "official/secret-store-lab/put_secret",
+        json!({ "name": "RESOLVE_ME", "value": "synthetic-test-value-resolve" }),
+    )
+    .await?;
 
     let resolver = StoreSecretResolver::new()?;
     let resolved = resolver.resolve("secret_ref:store:RESOLVE_ME").await?;
@@ -200,7 +240,12 @@ pub(crate) async fn resolver_error_does_not_leak_value() -> anyhow::Result<()> {
     let _lock = ENV_LOCK.lock().await;
     let _guard = DataDirGuard::new()?;
     let rt = load_secret_store_lab().await?;
-    invoke(&rt, "official/secret-store-lab/put_secret", json!({ "name": "NO_LEAK", "value": "synthetic-test-value-no-leak" })).await?;
+    invoke(
+        &rt,
+        "official/secret-store-lab/put_secret",
+        json!({ "name": "NO_LEAK", "value": "synthetic-test-value-no-leak" }),
+    )
+    .await?;
     let resolver = StoreSecretResolver::new()?;
     let err = resolver
         .resolve("secret_ref:store:NOT_PRESENT")
@@ -208,5 +253,29 @@ pub(crate) async fn resolver_error_does_not_leak_value() -> anyhow::Result<()> {
         .context("unexpected resolution success")
         .expect_err("missing name should fail");
     anyhow::ensure!(!err.to_string().contains("synthetic-test-value-no-leak"));
+    Ok(())
+}
+
+pub(crate) async fn host_profile_installs_composite_resolver() -> anyhow::Result<()> {
+    let _lock = ENV_LOCK.lock().await;
+    let _guard = DataDirGuard::new()?;
+    let profile: HostProfile = serde_yaml::from_str("title: conformance\n")?;
+    let config = runtime_config_from_profile(&profile)?;
+    let runtime =
+        ygg_runtime::Runtime::new(Arc::new(ygg_runtime::InMemoryEventStore::default()), config);
+
+    let err = runtime
+        .resolve_secret_ref("secret_ref:store:NONEXISTENT")
+        .await
+        .expect_err("missing store secret should fail");
+    let msg = err.to_string();
+    anyhow::ensure!(
+        msg.contains("not in store"),
+        "host profile should install store resolver, got: {msg}"
+    );
+    anyhow::ensure!(
+        !msg.contains("no secret resolver configured"),
+        "host profile must not leave DenyAll resolver installed: {msg}"
+    );
     Ok(())
 }

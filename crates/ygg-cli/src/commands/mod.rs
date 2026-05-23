@@ -3,7 +3,7 @@ pub(crate) mod capability;
 pub(crate) mod composition;
 pub(crate) mod conformance_package;
 pub(crate) mod demo;
-pub(crate) mod host;
+pub mod host;
 pub mod install;
 pub mod list_installed;
 pub mod lockfile;

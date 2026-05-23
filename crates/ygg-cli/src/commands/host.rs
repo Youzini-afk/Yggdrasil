@@ -15,7 +15,8 @@ use ygg_runtime::{
 use super::manifest::read_manifest;
 use crate::cli::{
     HostEventStoreProfile, HostExecuteOutboundExecutorKind, HostExecuteOutboundProfile,
-    HostProfile, HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
+    HostProfile, HostSecretResolverProfile, HostWebSocketOutboundExecutorKind,
+    HostWebSocketOutboundProfile,
 };
 
 impl LiveWebSocketProfile for HostWebSocketOutboundProfile {
@@ -108,7 +109,7 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
     }
 }
 
-fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
+pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
     validate_execute_outbound_profile(&profile.outbound.execute)?;
     validate_websocket_outbound_profile(&profile.outbound.websocket)?;
 
@@ -128,7 +129,42 @@ fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
     config.outbound_websocket_executor =
         build_outbound_websocket_executor(&profile.outbound.websocket)?;
 
+    config.secret_resolver = build_secret_resolver(&profile.secret_resolver)?;
+
     Ok(config)
+}
+
+pub(crate) fn build_secret_resolver(
+    profile: &HostSecretResolverProfile,
+) -> Result<ygg_runtime::SecretResolverConfig> {
+    use std::collections::HashSet;
+    use ygg_runtime::{
+        CompositeSecretResolver, DenyAllSecretResolver, EnvSecretResolver, SecretResolverConfig,
+        StoreSecretResolver,
+    };
+
+    // If both env and store are off, fall back to DenyAll for safety.
+    if profile.env_allowlist.is_empty() && !profile.store_enabled {
+        return Ok(SecretResolverConfig::with_resolver(Arc::new(
+            DenyAllSecretResolver,
+        )));
+    }
+
+    let mut composite = CompositeSecretResolver::new();
+
+    if !profile.env_allowlist.is_empty() {
+        let allowlist: HashSet<String> = profile.env_allowlist.iter().cloned().collect();
+        composite = composite.with_env(Arc::new(EnvSecretResolver::new(allowlist)));
+    }
+
+    if profile.store_enabled {
+        // StoreSecretResolver::new() resolves the default store path via
+        // ygg_core::paths::secret_store_path(). It can fail if data_dir
+        // resolution fails on this system — propagate that error.
+        composite = composite.with_store(Arc::new(StoreSecretResolver::new()?));
+    }
+
+    Ok(SecretResolverConfig::with_resolver(Arc::new(composite)))
 }
 
 /// Build the `OutboundExecutorConfig` from the execute profile section (Y1).

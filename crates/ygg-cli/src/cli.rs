@@ -235,7 +235,7 @@ pub enum CompositionCommand {
 }
 
 #[derive(Debug, Default, Deserialize)]
-pub(crate) struct HostProfile {
+pub struct HostProfile {
     #[serde(default)]
     pub(crate) title: Option<String>,
     #[serde(default)]
@@ -243,7 +243,32 @@ pub(crate) struct HostProfile {
     #[serde(default)]
     pub(crate) outbound: HostOutboundProfile,
     #[serde(default)]
+    pub(crate) secret_resolver: HostSecretResolverProfile,
+    #[serde(default)]
     pub(crate) autoload: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct HostSecretResolverProfile {
+    /// Environment variable names that are allowed to be resolved via
+    /// `secret_ref:env:NAME`. Empty default = no env resolution.
+    #[serde(default)]
+    pub(crate) env_allowlist: Vec<String>,
+
+    /// Whether the encrypted secret store at <data_dir>/secrets.dat is
+    /// available for `secret_ref:store:NAME` resolution.
+    /// Default: true.
+    #[serde(default = "default_true")]
+    pub(crate) store_enabled: bool,
+}
+
+impl Default for HostSecretResolverProfile {
+    fn default() -> Self {
+        Self {
+            env_allowlist: Vec::new(),
+            store_enabled: true,
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]

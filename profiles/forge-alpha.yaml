@@ -1,4 +1,7 @@
 title: Yggdrasil Forge Alpha Host
+secret_resolver:
+  store_enabled: true
+  env_allowlist: [] # explicit empty; opt in by listing names
 autoload:
   - ../examples/packages/echo-rust-inproc/manifest.yaml
   - ../examples/packages/echo-subprocess-python/manifest.yaml

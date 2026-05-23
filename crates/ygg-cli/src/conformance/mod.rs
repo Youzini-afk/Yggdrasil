@@ -1929,6 +1929,11 @@ fn build_cases() -> Vec<ConformanceCase> {
             ["official", "secret_store", "secret"],
             secret_store::resolver_error_does_not_leak_value
         ),
+        c!(
+            "secret_store_resolver.host_profile_installs_composite_resolver",
+            ["official", "secret_store", "secret", "host"],
+            secret_store::host_profile_installs_composite_resolver
+        ),
         // --- sharing lab Beta 6 ---
         c!(
             "sharing_lab.contract_shape",
