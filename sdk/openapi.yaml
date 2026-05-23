@@ -2052,7 +2052,7 @@ paths:
                         description: Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
                         type: string
                       timestamp:
-                        default: 2026-05-23T15:13:17.371661950Z
+                        default: 2026-05-23T16:20:53.858373304Z
                         description: Timestamp of frame emission.
                         format: date-time
                         type: string
@@ -10660,7 +10660,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T15:13:17.386345877Z
+                        default: 2026-05-23T16:20:53.867538517Z
                         format: date-time
                         type: string
                       created_by:
@@ -10881,7 +10881,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T15:13:17.384273385Z
+                        default: 2026-05-23T16:20:53.866283310Z
                         format: date-time
                         type: string
                       created_by:
@@ -11057,7 +11057,7 @@ paths:
                       - type: 'null'
                       default: null
                     created_at:
-                      default: 2026-05-23T15:13:17.380683728Z
+                      default: 2026-05-23T16:20:53.863929409Z
                       format: date-time
                       type: string
                     created_by:
@@ -11241,7 +11241,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T15:13:17.381027634Z
+                        default: 2026-05-23T16:20:53.864114808Z
                         format: date-time
                         type: string
                       created_by:
@@ -11458,7 +11458,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T15:13:17.382254617Z
+                        default: 2026-05-23T16:20:53.864957202Z
                         format: date-time
                         type: string
                       created_by:
@@ -11671,7 +11671,7 @@ paths:
                           - type: 'null'
                           default: null
                         created_at:
-                          default: 2026-05-23T15:13:17.383290292Z
+                          default: 2026-05-23T16:20:53.865614897Z
                           format: date-time
                           type: string
                         created_by:
@@ -11893,7 +11893,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T15:13:17.385270900Z
+                        default: 2026-05-23T16:20:53.866965714Z
                         format: date-time
                         type: string
                       created_by:
@@ -12606,3 +12606,105 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke kernel.v1.surface.contribution.list
+  /rpc/kernel.v1.surface.resolve_bundle:
+    post:
+      operationId: surfaceResolveBundle
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.surface.resolve_bundle
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    surface_id:
+                      type: string
+                  required:
+                  - surface_id
+                  title: SurfaceResolveBundleParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      SurfaceBundleSourceSchema:
+                        enum:
+                        - installed_project
+                        - dev_path
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      bundle_url:
+                        type: string
+                      export_name:
+                        type: string
+                      project_id:
+                        type:
+                        - string
+                        - 'null'
+                      source:
+                        $ref: '#/$defs/SurfaceBundleSourceSchema'
+                      stylesheets:
+                        items:
+                          type: string
+                        type: array
+                      surface_id:
+                        type: string
+                      wrapper_class:
+                        type:
+                        - string
+                        - 'null'
+                    required:
+                    - bundle_url
+                    - export_name
+                    - source
+                    - stylesheets
+                    - surface_id
+                    title: SurfaceResolveBundleResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.surface.resolve_bundle

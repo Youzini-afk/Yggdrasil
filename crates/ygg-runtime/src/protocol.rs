@@ -74,6 +74,7 @@ pub enum KernelMethod {
     ProposalApprove,
     ProposalReject,
     ProposalApply,
+    SurfaceResolveBundle,
     SurfaceContributionList,
     SurfaceContributionDescribe,
     OutboundAudit,
@@ -142,6 +143,7 @@ impl KernelMethod {
             Self::ProposalApprove => "kernel.v1.proposal.approve",
             Self::ProposalReject => "kernel.v1.proposal.reject",
             Self::ProposalApply => "kernel.v1.proposal.apply",
+            Self::SurfaceResolveBundle => "kernel.v1.surface.resolve_bundle",
             Self::SurfaceContributionList => "kernel.v1.surface.contribution.list",
             Self::SurfaceContributionDescribe => "kernel.v1.surface.contribution.describe",
             Self::OutboundAudit => "kernel.v1.outbound.audit",
@@ -210,6 +212,7 @@ impl KernelMethod {
             Self::ProposalApprove => MethodStatus::Partial,
             Self::ProposalReject => MethodStatus::Partial,
             Self::ProposalApply => MethodStatus::Partial,
+            Self::SurfaceResolveBundle => MethodStatus::Partial,
             Self::SurfaceContributionList => MethodStatus::Partial,
             Self::SurfaceContributionDescribe => MethodStatus::Partial,
             Self::OutboundAudit => MethodStatus::Partial,
@@ -289,6 +292,7 @@ impl KernelMethod {
             Self::ProposalApprove,
             Self::ProposalReject,
             Self::ProposalApply,
+            Self::SurfaceResolveBundle,
             Self::SurfaceContributionList,
             Self::SurfaceContributionDescribe,
             Self::OutboundAudit,
@@ -362,6 +366,7 @@ impl KernelMethod {
             | Self::ProposalApprove
             | Self::ProposalReject
             | Self::ProposalApply
+            | Self::SurfaceResolveBundle
             | Self::SurfaceContributionList
             | Self::SurfaceContributionDescribe
             | Self::OutboundAudit
@@ -447,6 +452,7 @@ impl FromStr for KernelMethod {
             "kernel.v1.proposal.approve" => Ok(Self::ProposalApprove),
             "kernel.v1.proposal.reject" => Ok(Self::ProposalReject),
             "kernel.v1.proposal.apply" => Ok(Self::ProposalApply),
+            "kernel.v1.surface.resolve_bundle" => Ok(Self::SurfaceResolveBundle),
             "kernel.v1.surface.contribution.list" => Ok(Self::SurfaceContributionList),
             "kernel.v1.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
             "kernel.v1.outbound.audit" => Ok(Self::OutboundAudit),
@@ -906,6 +912,11 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     },
     ProtocolMethod {
         id: "kernel.v1.proposal.apply",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.surface.resolve_bundle",
         streaming: false,
         status: MethodStatus::Partial,
     },

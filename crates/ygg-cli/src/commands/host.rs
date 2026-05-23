@@ -130,6 +130,7 @@ pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfi
         build_outbound_websocket_executor(&profile.outbound.websocket)?;
 
     config.secret_resolver = build_secret_resolver(&profile.secret_resolver)?;
+    config.surface_dev_paths = profile.surface_dev_paths.clone();
 
     Ok(config)
 }

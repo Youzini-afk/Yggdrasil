@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -96,6 +96,9 @@ pub struct RuntimeConfig {
     pub outbound_execute_policy: OutboundExecutePolicyConfig,
     /// Outbound WebSocket executor. Defaults to DenyAll (fail-closed).
     pub outbound_websocket_executor: Arc<dyn WebSocketExecutor>,
+    /// Development-mode surface bundle path overrides. Maps a surface_id prefix
+    /// to a filesystem directory containing built bundles.
+    pub surface_dev_paths: BTreeMap<String, String>,
 }
 
 impl Default for RuntimeConfig {
@@ -109,6 +112,7 @@ impl Default for RuntimeConfig {
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
+            surface_dev_paths: BTreeMap::new(),
         }
     }
 }

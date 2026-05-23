@@ -24852,7 +24852,7 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T15:13:17.383290292Z",
+///        "default": "2026-05-23T16:20:53.865614897Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -25565,7 +25565,7 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.386345877Z",
+///      "default": "2026-05-23T16:20:53.867538517Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25693,7 +25693,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.384273385Z",
+///      "default": "2026-05-23T16:20:53.866283310Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25821,7 +25821,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.380683728Z",
+///      "default": "2026-05-23T16:20:53.863929409Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25949,7 +25949,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.381027634Z",
+///      "default": "2026-05-23T16:20:53.864114808Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26077,7 +26077,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.382254617Z",
+///      "default": "2026-05-23T16:20:53.864957202Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26205,7 +26205,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.385270900Z",
+///      "default": "2026-05-23T16:20:53.866965714Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26333,7 +26333,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.393073096Z",
+///      "default": "2026-05-23T16:20:53.872596044Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26461,7 +26461,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.392659742Z",
+///      "default": "2026-05-23T16:20:53.872308054Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26589,7 +26589,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.392409761Z",
+///      "default": "2026-05-23T16:20:53.872126582Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26717,7 +26717,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.393217071Z",
+///      "default": "2026-05-23T16:20:53.872725185Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26845,7 +26845,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T15:13:17.392891753Z",
+///      "default": "2026-05-23T16:20:53.872458379Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -33926,7 +33926,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.371661950Z",
+///      "default": "2026-05-23T16:20:53.858373304Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34017,7 +34017,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.394393005Z",
+///      "default": "2026-05-23T16:20:53.873600821Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34108,7 +34108,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.394054567Z",
+///      "default": "2026-05-23T16:20:53.873312100Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34199,7 +34199,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.394210199Z",
+///      "default": "2026-05-23T16:20:53.873471970Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34290,7 +34290,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.394311718Z",
+///      "default": "2026-05-23T16:20:53.873536991Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34381,7 +34381,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.394143475Z",
+///      "default": "2026-05-23T16:20:53.873394048Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34472,7 +34472,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T15:13:17.394458206Z",
+///      "default": "2026-05-23T16:20:53.873664811Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -37191,6 +37191,83 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceApprovalPolicy {
         value.parse()
     }
 }
+///`SurfaceBundleSourceSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "installed_project",
+///    "dev_path"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum SurfaceBundleSourceSchema {
+    #[serde(rename = "installed_project")]
+    InstalledProject,
+    #[serde(rename = "dev_path")]
+    DevPath,
+}
+impl ::std::fmt::Display for SurfaceBundleSourceSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::InstalledProject => f.write_str("installed_project"),
+            Self::DevPath => f.write_str("dev_path"),
+        }
+    }
+}
+impl ::std::str::FromStr for SurfaceBundleSourceSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed_project" => Ok(Self::InstalledProject),
+            "dev_path" => Ok(Self::DevPath),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for SurfaceBundleSourceSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for SurfaceBundleSourceSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for SurfaceBundleSourceSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`SurfaceContribution`
 ///
 /// <details><summary>JSON schema</summary>
@@ -38357,6 +38434,93 @@ pub struct SurfacePermissionRequirement {
     pub risk: SurfaceRisk,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub scope: ::std::option::Option<::std::string::String>,
+}
+///`SurfaceResolveBundleParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "SurfaceResolveBundleParams",
+///  "type": "object",
+///  "required": [
+///    "surface_id"
+///  ],
+///  "properties": {
+///    "surface_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SurfaceResolveBundleParams {
+    pub surface_id: ::std::string::String,
+}
+///`SurfaceResolveBundleResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "SurfaceResolveBundleResult",
+///  "type": "object",
+///  "required": [
+///    "bundle_url",
+///    "export_name",
+///    "source",
+///    "stylesheets",
+///    "surface_id"
+///  ],
+///  "properties": {
+///    "bundle_url": {
+///      "type": "string"
+///    },
+///    "export_name": {
+///      "type": "string"
+///    },
+///    "project_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "source": {
+///      "$ref": "#/definitions/SurfaceBundleSourceSchema"
+///    },
+///    "stylesheets": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "surface_id": {
+///      "type": "string"
+///    },
+///    "wrapper_class": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SurfaceResolveBundleResult {
+    pub bundle_url: ::std::string::String,
+    pub export_name: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub project_id: ::std::option::Option<::std::string::String>,
+    pub source: SurfaceBundleSourceSchema,
+    pub stylesheets: ::std::vec::Vec<::std::string::String>,
+    pub surface_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub wrapper_class: ::std::option::Option<::std::string::String>,
 }
 ///`SurfaceRisk`
 ///
@@ -41110,7 +41274,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.386345877Z\"")
+        >("\"2026-05-23T16:20:53.867538517Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41130,7 +41294,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.384273385Z\"")
+        >("\"2026-05-23T16:20:53.866283310Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41150,7 +41314,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.380683728Z\"")
+        >("\"2026-05-23T16:20:53.863929409Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41170,7 +41334,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.381027634Z\"")
+        >("\"2026-05-23T16:20:53.864114808Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41190,7 +41354,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.382254617Z\"")
+        >("\"2026-05-23T16:20:53.864957202Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41210,7 +41374,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.385270900Z\"")
+        >("\"2026-05-23T16:20:53.866965714Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41230,7 +41394,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.393073096Z\"")
+        >("\"2026-05-23T16:20:53.872596044Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41250,7 +41414,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.392659742Z\"")
+        >("\"2026-05-23T16:20:53.872308054Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41270,7 +41434,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.392409761Z\"")
+        >("\"2026-05-23T16:20:53.872126582Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41290,7 +41454,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.393217071Z\"")
+        >("\"2026-05-23T16:20:53.872725185Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41310,7 +41474,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.392891753Z\"")
+        >("\"2026-05-23T16:20:53.872458379Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -41360,7 +41524,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.371661950Z\"")
+        >("\"2026-05-23T16:20:53.858373304Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41377,7 +41541,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.394393005Z\"")
+        >("\"2026-05-23T16:20:53.873600821Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41394,7 +41558,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.394054567Z\"")
+        >("\"2026-05-23T16:20:53.873312100Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41411,7 +41575,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.394210199Z\"")
+        >("\"2026-05-23T16:20:53.873471970Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41428,7 +41592,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.394311718Z\"")
+        >("\"2026-05-23T16:20:53.873536991Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41445,7 +41609,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.394143475Z\"")
+        >("\"2026-05-23T16:20:53.873394048Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41462,7 +41626,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T15:13:17.394458206Z\"")
+        >("\"2026-05-23T16:20:53.873664811Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

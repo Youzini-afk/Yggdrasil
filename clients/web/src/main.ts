@@ -322,24 +322,17 @@ async function handleMountSurfaceClick(packageId: string, surfaceId: string) {
   }
 
   const record = surfaceEntries.find((entry) => entry.package_id === packageId && entry.surface.id === surfaceId);
-  const resolved = resolveSurfaceBundle(packageId, surfaceId, record?.surface.metadata);
   const outlet = document.getElementById("surface-outlet");
   const listArea = document.getElementById("surface-list-area");
   const inner = document.getElementById("surface-outlet-inner");
   if (!outlet || !inner) return;
-
-  if (!resolved) {
-    outlet.classList.remove("hidden");
-    listArea?.classList.add("hidden");
-    inner.innerHTML = `<div class="surface-mount-error">No bundle resolution available for ${escapeHtml(packageId)}/${escapeHtml(surfaceId)}</div>`;
-    return;
-  }
 
   listArea?.classList.add("hidden");
   outlet.classList.remove("hidden");
   inner.innerHTML = "";
 
   try {
+    const resolved = await resolveSurfaceBundle(client, surfaceId);
     activeMountedSurface = await mountSurface({
       containerId: "surface-outlet-inner",
       surfaceId,
@@ -349,7 +342,7 @@ async function handleMountSurfaceClick(packageId: string, surfaceId: string) {
       stylesheets: resolved.stylesheets,
       initialProps: {
         surfaceId,
-        packageId,
+        packageId: record?.package_id ?? packageId,
         sessionId,
       },
       hostBridge: {
@@ -385,24 +378,23 @@ async function mountProjectSurface(projectId: string) {
       container.innerHTML = `<div class="project-placeholder">${escapeHtml(project.title)} is running. Workspace/native surface mounting is a Wave 4 placeholder until bundle metadata is available.</div>`;
       return;
     }
-    const record = surfaceEntries.find((entry) => entry.surface.id === project.entry_surface_id);
-    const resolved = record ? resolveSurfaceBundle(record.package_id, project.entry_surface_id, record.surface.metadata) : null;
-    if (!resolved || !record) {
-      container.innerHTML = `<div class="project-placeholder">${escapeHtml(project.title)} is running. No bundle mapping found for ${escapeHtml(project.entry_surface_id)}.</div>`;
-      return;
-    }
     if (activeMountedSurface) await activeMountedSurface.unmount();
     container.innerHTML = "";
-    activeMountedSurface = await mountSurface({
-      containerId: "project-surface-container",
-      surfaceId: project.entry_surface_id,
-      bundleUrl: resolved.bundleUrl,
-      exportName: resolved.exportName,
-      wrapperClass: resolved.wrapperClass,
-      stylesheets: resolved.stylesheets,
-      hostBridge: { callRpc: (method, params) => client.invoke(method, params) },
-      initialProps: { projectId },
-    });
+    try {
+      const resolved = await resolveSurfaceBundle(client, project.entry_surface_id);
+      activeMountedSurface = await mountSurface({
+        containerId: "project-surface-container",
+        surfaceId: resolved.surfaceId,
+        bundleUrl: resolved.bundleUrl,
+        exportName: resolved.exportName,
+        wrapperClass: resolved.wrapperClass,
+        stylesheets: resolved.stylesheets,
+        hostBridge: { callRpc: (method, params) => client.invoke(method, params) },
+        initialProps: { projectId },
+      });
+    } catch (caught) {
+      container.innerHTML = `<div class="project-placeholder">${escapeHtml(project.title)} is running. No bundle mapping found for ${escapeHtml(project.entry_surface_id)}: ${escapeHtml(caught instanceof Error ? caught.message : String(caught))}</div>`;
+    }
   }, 0);
 }
 

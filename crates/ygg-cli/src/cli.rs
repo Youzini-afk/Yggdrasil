@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -248,6 +249,12 @@ pub struct HostProfile {
     pub(crate) secret_resolver: HostSecretResolverProfile,
     #[serde(default)]
     pub(crate) autoload: Vec<PathBuf>,
+    /// Development-mode surface bundle path overrides.
+    /// Maps a surface_id prefix to a filesystem directory containing built bundles.
+    /// Used when no installed project at ~/.yggdrasil/projects/<id>/dist/ provides
+    /// the surface, falling back to a sibling repo build for development.
+    #[serde(default)]
+    pub surface_dev_paths: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

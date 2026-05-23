@@ -24,10 +24,10 @@ mod permissions;
 mod playable_creation_board;
 mod project_intake_lab;
 mod project_lifecycle;
-mod protocol_project;
 mod project_secret;
 mod proposals;
 mod protocol;
+mod protocol_project;
 mod replacement;
 mod secret_conformance;
 mod secret_store;
@@ -371,6 +371,26 @@ fn build_cases() -> Vec<ConformanceCase> {
             "protocol.project_lifecycle_event_emitted_on_start",
             ["protocol", "project", "event"],
             protocol_project::project_lifecycle_event_emitted_on_start
+        ),
+        c!(
+            "surface.resolve_via_dev_path",
+            ["protocol", "surface"],
+            protocol_project::surface_resolve_via_dev_path
+        ),
+        c!(
+            "surface.resolve_via_installed_project",
+            ["protocol", "surface", "project"],
+            protocol_project::surface_resolve_via_installed_project
+        ),
+        c!(
+            "surface.resolve_unknown_fails",
+            ["protocol", "surface"],
+            protocol_project::surface_resolve_unknown_fails
+        ),
+        c!(
+            "surface.resolve_admin_principal_required",
+            ["protocol", "surface", "permission"],
+            protocol_project::surface_resolve_admin_principal_required
         ),
         // --- package check / reload ---
         c!(

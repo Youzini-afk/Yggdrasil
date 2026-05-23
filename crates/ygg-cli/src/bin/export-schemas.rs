@@ -96,6 +96,26 @@ struct SurfaceDescribeParams {
     surface_id: String,
 }
 #[derive(JsonSchema)]
+struct SurfaceResolveBundleParams {
+    surface_id: String,
+}
+#[derive(JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum SurfaceBundleSourceSchema {
+    InstalledProject,
+    DevPath,
+}
+#[derive(JsonSchema)]
+struct SurfaceResolveBundleResult {
+    surface_id: String,
+    bundle_url: String,
+    export_name: String,
+    stylesheets: Vec<String>,
+    wrapper_class: Option<String>,
+    project_id: Option<String>,
+    source: SurfaceBundleSourceSchema,
+}
+#[derive(JsonSchema)]
 struct PermissionGrantParams {
     principal: ProtocolPrincipal,
     permission: String,
@@ -509,6 +529,10 @@ fn main() -> anyhow::Result<()> {
             KernelMethod::SurfaceContributionList => {
                 (schema_value::<SurfaceListParams>(), json!({"type":"array"}))
             }
+            KernelMethod::SurfaceResolveBundle => (
+                schema_value::<SurfaceResolveBundleParams>(),
+                schema_value::<SurfaceResolveBundleResult>(),
+            ),
             KernelMethod::SurfaceContributionDescribe => (
                 schema_value::<SurfaceDescribeParams>(),
                 json!({"type":"object"}),
@@ -574,9 +598,18 @@ fn main() -> anyhow::Result<()> {
             schema_value::<PackageLifecyclePayload>(),
         ),
         (EVENT_PACKAGE_LOG, schema_value::<SubprocessLogLine>()),
-        (PROJECT_INSTALLED, schema_value::<ProjectLifecyclePayloadSchema>()),
-        (PROJECT_STARTED, schema_value::<ProjectLifecyclePayloadSchema>()),
-        (PROJECT_STOPPED, schema_value::<ProjectLifecyclePayloadSchema>()),
+        (
+            PROJECT_INSTALLED,
+            schema_value::<ProjectLifecyclePayloadSchema>(),
+        ),
+        (
+            PROJECT_STARTED,
+            schema_value::<ProjectLifecyclePayloadSchema>(),
+        ),
+        (
+            PROJECT_STOPPED,
+            schema_value::<ProjectLifecyclePayloadSchema>(),
+        ),
         (
             PROJECT_UNINSTALLED,
             schema_value::<ProjectLifecyclePayloadSchema>(),

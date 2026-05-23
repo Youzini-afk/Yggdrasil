@@ -588,4 +588,14 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn surface_resolve_bundle(
+        &self,
+        params: SurfaceResolveBundleParams,
+    ) -> Result<SurfaceResolveBundleResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.surface.resolve_bundle", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
 }

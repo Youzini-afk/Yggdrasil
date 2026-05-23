@@ -1624,6 +1624,8 @@ export interface SurfaceActivation {
 
 export type SurfaceApprovalPolicy = "none" | "user_approval" | "fork_then_approve";
 
+export type SurfaceBundleSourceSchema = "installed_project" | "dev_path";
+
 export interface SurfaceContribution {
   "activation"?: SurfaceActivation;
   "approval_policy"?: SurfaceApprovalPolicy | null;
@@ -1654,6 +1656,20 @@ export interface SurfacePermissionRequirement {
   "reason"?: null | string;
   "risk"?: SurfaceRisk;
   "scope"?: null | string;
+}
+
+export interface SurfaceResolveBundleParams {
+  "surface_id": string;
+}
+
+export interface SurfaceResolveBundleResult {
+  "bundle_url": string;
+  "export_name": string;
+  "project_id"?: null | string;
+  "source": SurfaceBundleSourceSchema;
+  "stylesheets": Array<string>;
+  "surface_id": string;
+  "wrapper_class"?: null | string;
 }
 
 export type SurfaceRisk = "low" | "medium" | "high";

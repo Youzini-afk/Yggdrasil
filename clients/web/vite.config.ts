@@ -1,6 +1,39 @@
 import { defineConfig } from 'vite';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+
+const surfaceDevPaths = loadSurfaceDevPaths();
+const ydltavernDevPath = surfaceDevPaths.ydltavern ?? resolve(__dirname, '../../../YdlTavern/packages/ydltavern-surface/dist');
+
+function loadSurfaceDevPaths(): Record<string, string> {
+  const envValue = process.env.YGG_SURFACE_DEV_PATHS;
+  if (envValue) {
+    try {
+      return JSON.parse(envValue) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
+  const profilePath = process.env.YGG_HOST_PROFILE ?? resolve(__dirname, '../../profiles/forge-alpha.yaml');
+  if (!existsSync(profilePath)) return {};
+  const raw = readFileSync(profilePath, 'utf8');
+  const map: Record<string, string> = {};
+  const lines = raw.split(/\r?\n/);
+  const start = lines.findIndex((line) => /^surface_dev_paths:\s*$/.test(line));
+  if (start < 0) return map;
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\S/.test(line)) break;
+    const match = line.match(/^\s{2}([^:#]+):\s*(.+?)\s*$/);
+    if (!match) continue;
+    const key = match[1].trim();
+    const value = match[2].trim().replace(/^['"]|['"]$/g, '');
+    map[key] = resolve(profilePath, '..', value);
+  }
+  return map;
+}
 
 // Yggdrasil web client config.
 // Plain TS app with iframe-hosted surface bundles. No framework.
@@ -44,6 +77,7 @@ export default defineConfig({
       allow: [
         '..',
         resolve(__dirname, '../../../YdlTavern'),
+        ...Object.values(surfaceDevPaths),
       ],
     },
   },
@@ -51,17 +85,24 @@ export default defineConfig({
   // package assets through a host-owned same-origin static route.
   plugins: [
     {
-      name: 'ydltavern-bundle-server',
+      name: 'surface-dev-bundle-server',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          if (!req.url?.startsWith('/surface-bundles/ydltavern/')) {
+          const requestPath = req.url?.split('?')[0] ?? '';
+          const match = requestPath.match(/^\/surface-bundles\/([^/]+)\/(.+)$/);
+          if (!match) {
             next();
             return;
           }
 
-          const requestPath = req.url.split('?')[0] ?? '';
-          const relativePath = requestPath.replace('/surface-bundles/ydltavern/', '');
-          const filePath = resolve(__dirname, '../../../YdlTavern/packages/ydltavern-surface/dist', relativePath);
+          const prefix = decodeURIComponent(match[1]);
+          const relativePath = decodeURIComponent(match[2]);
+          const base = surfaceDevPaths[prefix] ?? (prefix === 'ydltavern' ? ydltavernDevPath : undefined);
+          if (!base || relativePath.includes('..')) {
+            next();
+            return;
+          }
+          const filePath = resolve(base, relativePath);
 
           readFile(filePath)
             .then((data) => {
@@ -84,7 +125,7 @@ export default defineConfig({
     {
       name: 'ydltavern-st-compat-server',
       configureServer(server) {
-        const compatBase = resolve(__dirname, '../../../YdlTavern/packages/ydltavern-surface/dist/st-compat');
+        const compatBase = resolve(ydltavernDevPath, 'st-compat');
         const routes = {
           '/script.js': 'script.js',
           '/scripts/extensions.js': 'scripts/extensions.js',

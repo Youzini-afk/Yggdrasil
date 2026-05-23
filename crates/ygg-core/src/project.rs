@@ -82,7 +82,9 @@ pub struct ProjectInner {
 }
 
 /// Newtype for project id with format validation.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord,
+)]
 #[serde(transparent)]
 pub struct ProjectId(String);
 

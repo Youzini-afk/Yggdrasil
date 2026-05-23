@@ -1,10 +1,12 @@
 use std::collections::VecDeque;
 use std::convert::Infallible;
+use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode};
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
+use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::Stream;
@@ -111,6 +113,10 @@ where
         )
         .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
         .route("/kernel/v1/host.info", get(host_info))
+        .route(
+            "/surface-bundles/:prefix/*file",
+            get(surface_bundle_file::<S>),
+        )
         .route("/rpc", post(rpc::<S>))
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -328,6 +334,82 @@ where
 
 async fn host_info() -> Json<serde_json::Value> {
     Json(serde_json::to_value(runtime_host_info()).expect("host info serializes"))
+}
+
+async fn surface_bundle_file<S>(
+    State(state): State<AppState<S>>,
+    Path((prefix, file)): Path<(String, String)>,
+) -> impl IntoResponse
+where
+    S: EventStore,
+{
+    let Some(path) = surface_bundle_path(state, &prefix, &file) else {
+        return (StatusCode::NOT_FOUND, "surface bundle path not found").into_response();
+    };
+    match tokio::fs::read(&path).await {
+        Ok(bytes) => {
+            let content_type = content_type_for(&path);
+            ([(header::CONTENT_TYPE, content_type)], bytes).into_response()
+        }
+        Err(_) => (StatusCode::NOT_FOUND, "surface bundle file not found").into_response(),
+    }
+}
+
+fn surface_bundle_path<S>(state: AppState<S>, prefix: &str, file: &str) -> Option<PathBuf>
+where
+    S: EventStore,
+{
+    let safe_file = safe_relative_path(file)?;
+    if prefix == "projects" {
+        let mut parts = safe_file.components();
+        let project_id = parts.next()?.as_os_str().to_str()?;
+        let project_id = ygg_core::project::ProjectId::new(project_id).ok()?;
+        let mut rest = PathBuf::new();
+        for part in parts {
+            rest.push(part.as_os_str());
+        }
+        if rest.as_os_str().is_empty() {
+            return None;
+        }
+        return ygg_core::paths::project_dir(&project_id)
+            .ok()
+            .map(|dir| dir.join("dist").join(rest));
+    }
+
+    let Some(base) = state.runtime.config().surface_dev_paths.get(prefix) else {
+        return None;
+    };
+    Some(PathBuf::from(base).join(safe_file))
+}
+
+fn safe_relative_path(path: &str) -> Option<PathBuf> {
+    let mut out = PathBuf::new();
+    for component in std::path::Path::new(path).components() {
+        match component {
+            Component::Normal(part) => out.push(part),
+            Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    if out.as_os_str().is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+fn content_type_for(path: &std::path::Path) -> &'static str {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some("mjs") | Some("js") => "application/javascript",
+        Some("css") => "text/css",
+        Some("json") | Some("map") => "application/json",
+        Some("svg") => "image/svg+xml",
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("woff") => "font/woff",
+        Some("woff2") => "font/woff2",
+        _ => "application/octet-stream",
+    }
 }
 
 async fn rpc<S>(
