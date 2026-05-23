@@ -10,7 +10,9 @@ use serde_json::Value;
 use ygg_core::{CapHandleId, CapabilityId, PackageId};
 
 use crate::runtime::HandleTable;
-use crate::{CapabilityInvocationRequest, CapabilityInvocationResult, EventStore, Runtime};
+use crate::{
+    CapabilityInvocationRequest, CapabilityInvocationResult, EventStore, ProjectRegistry, Runtime,
+};
 
 mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
@@ -72,6 +74,10 @@ pub trait InprocCapabilityInvoker: Send + Sync {
         &self,
         request: CapabilityInvocationRequest,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>>;
+
+    fn project_registry(&self) -> Option<Arc<ProjectRegistry>> {
+        None
+    }
 }
 
 struct RuntimeInprocInvoker<S>
@@ -95,6 +101,10 @@ where
             request.session_id = self.session_id.clone();
         }
         Box::pin(async move { runtime.invoke_capability(request).await })
+    }
+
+    fn project_registry(&self) -> Option<Arc<ProjectRegistry>> {
+        Some(self.runtime.config().project_registry.clone())
     }
 }
 
@@ -129,6 +139,15 @@ pub(crate) async fn invoke_capability_from_inproc(
         .try_with(Clone::clone)
         .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
     invoker.invoke_capability(request).await
+}
+
+pub(crate) fn project_registry_from_inproc() -> anyhow::Result<Arc<ProjectRegistry>> {
+    let invoker = INPROC_INVOKER
+        .try_with(Clone::clone)
+        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
+    invoker
+        .project_registry()
+        .ok_or_else(|| anyhow::anyhow!("inproc project registry context is unavailable"))
 }
 
 #[derive(Clone, Default)]

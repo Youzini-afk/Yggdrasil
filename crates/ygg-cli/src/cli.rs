@@ -143,6 +143,8 @@ pub enum Command {
     Install(crate::commands::install::InstallArgs),
     /// Uninstall a package from a profile.
     Uninstall(crate::commands::uninstall::UninstallArgs),
+    /// Manage installed projects.
+    Project(crate::commands::project::ProjectArgs),
     /// List packages installed in a profile.
     ListInstalled(crate::commands::list_installed::ListInstalledArgs),
     /// Update installed packages.

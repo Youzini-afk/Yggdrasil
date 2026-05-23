@@ -13,7 +13,7 @@ use cli::{
 use commands::audit;
 use commands::{
     capability, composition, conformance_package, demo, host, install as install_command,
-    list_installed, lockfile, manifest, package, perf, uninstall, update,
+    list_installed, lockfile, manifest, package, perf, project, uninstall, update,
 };
 
 #[tokio::main]
@@ -54,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Audit(args) => audit::run(args).await,
         Command::Install(args) => install_command::run(args).await,
         Command::Uninstall(args) => uninstall::run(args).await,
+        Command::Project(args) => project::run(args).await,
         Command::ListInstalled(args) => list_installed::run(args).await,
         Command::Update(args) => update::run(args).await,
         Command::Lockfile(args) => lockfile::run(args).await,

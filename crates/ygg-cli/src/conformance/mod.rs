@@ -23,6 +23,7 @@ mod official_play_creation;
 mod permissions;
 mod playable_creation_board;
 mod project_intake_lab;
+mod project_lifecycle;
 mod project_secret;
 mod proposals;
 mod protocol;
@@ -1970,6 +1971,42 @@ fn build_cases() -> Vec<ConformanceCase> {
             "project_secret.list_returns_names_not_values",
             ["project", "secret"],
             project_secret::list_returns_names_not_values
+        ),
+        // --- project lifecycle (Round 10A.2 Wave 3) ---
+        c!(
+            "project.detect_native_yaml",
+            ["project", "install"],
+            project_lifecycle::detect_native_yaml
+        ),
+        c!(
+            "project.detect_no_yaml",
+            ["project", "install"],
+            project_lifecycle::detect_no_yaml
+        ),
+        c!(
+            "project.detect_invalid_yaml_rejected",
+            ["project", "install"],
+            project_lifecycle::detect_invalid_yaml_rejected
+        ),
+        c!(
+            "project.register_creates_project_dir",
+            ["project", "install"],
+            project_lifecycle::register_creates_project_dir
+        ),
+        c!(
+            "project.list_returns_registered",
+            ["project"],
+            project_lifecycle::list_returns_registered
+        ),
+        c!(
+            "project.state_transitions",
+            ["project"],
+            project_lifecycle::state_transitions
+        ),
+        c!(
+            "project.archive_keeps_data",
+            ["project", "uninstall"],
+            project_lifecycle::archive_keeps_data
         ),
         // --- sharing lab Beta 6 ---
         c!(

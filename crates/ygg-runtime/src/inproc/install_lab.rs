@@ -14,12 +14,13 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
     conformance::PackageConformanceReport, paths, DependencySource, LockEntry, LockRequirement,
-    LockSource, Lockfile, PackageDependency, PackageManifest, PermissionSet,
+    LockSource, Lockfile, PackageDependency, PackageManifest, PermissionSet, ProjectDescriptor,
+    ProjectType,
 };
 
 use crate::CapabilityInvocationRequest;
 
-use super::{invoke_capability_from_inproc, InprocInvocation};
+use super::{invoke_capability_from_inproc, project_registry_from_inproc, InprocInvocation};
 
 const PACKAGE_ID: &str = "official/install-lab";
 const MAX_DEPTH: usize = 32;
@@ -34,6 +35,12 @@ pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
         }
         "install.execute_plan" | "official/install-lab/execute_plan" => {
             Some(execute_plan(request.input.clone()).await)
+        }
+        "install.detect_kind" | "official/install-lab/detect_kind" => {
+            Some(detect_kind(request.input.clone()).await)
+        }
+        "install.register_project" | "official/install-lab/register_project" => {
+            Some(register_project_capability(request.input.clone()).await)
         }
         "install.uninstall" | "official/install-lab/uninstall" => {
             Some(uninstall(request.input.clone()).await)
@@ -71,6 +78,8 @@ struct ResolvePlanInput {
 struct ExecutePlanInput {
     plan: InstallPlan,
     consent: Consent,
+    #[serde(default)]
+    project_descriptor: Option<ProjectDescriptor>,
     #[serde(default = "default_profile")]
     profile: String,
     #[serde(default)]
@@ -81,6 +90,23 @@ struct ExecutePlanInput {
 struct ProfileInput {
     #[serde(default = "default_profile")]
     profile: String,
+    #[serde(default)]
+    data_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DetectKindInput {
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    url: Option<String>,
+    #[serde(default = "default_head_ref")]
+    root_ref: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RegisterProjectInput {
+    descriptor: ProjectDescriptor,
     #[serde(default)]
     data_dir: Option<String>,
 }
@@ -111,6 +137,17 @@ struct InstallPlan {
     permissions_summary: PermissionsSummary,
     signature_summary: SignatureSummary,
     integrity_summary: IntegritySummary,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DetectedProjectKind {
+    /// Has project.yaml that parses as YggdrasilNative.
+    Native { descriptor: ProjectDescriptor },
+    /// Has project.yaml that parses as ExternalWrapped or ExternalWorkspace.
+    DeclaredExternal { descriptor: ProjectDescriptor },
+    /// No project.yaml; this is an external project that needs wrapping or workspace mode.
+    External { has_manifest_yaml: bool },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -486,12 +523,98 @@ pub async fn execute_plan(input: Value) -> Result<Value> {
     let lockfile = toml::to_string_pretty(&lock)?;
     atomic_write(&lockfile_path, lockfile.as_bytes())?;
 
+    let registered_project = if let Some(descriptor) = input.project_descriptor {
+        Some(write_and_register_project(
+            descriptor,
+            input.data_dir.as_deref(),
+        )?)
+    } else {
+        let root = input.plan.packages.first();
+        if let Some(root) = root {
+            let store_path = store_path_for_hash(&root.tree_hash, input.data_dir.as_deref())?;
+            let project_yaml = store_path.join("project.yaml");
+            if project_yaml.is_file() {
+                let descriptor = read_project_descriptor(&project_yaml)?;
+                Some(write_and_register_project(
+                    descriptor,
+                    input.data_dir.as_deref(),
+                )?)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+
     Ok(json!({
         "installed": installed,
         "lockfile_path": lockfile_path.to_string_lossy(),
         "profile_path": profile_path.to_string_lossy(),
         "lockfile": lockfile,
+        "project": registered_project,
     }))
+}
+
+pub async fn detect_kind(input: Value) -> Result<Value> {
+    let input: DetectKindInput = serde_json::from_value(input)?;
+    let source = input
+        .path
+        .or(input.url)
+        .ok_or_else(|| anyhow::anyhow!("detect_kind requires path or url"))?;
+    let root = parse_root_descriptor(&source, &input.root_ref)?;
+    let detected = match root.source {
+        SourceDescriptor::Local { path } => detect_project_kind(&path)?,
+        SourceDescriptor::Git { url, ref_name } => {
+            let resolved = invoke_package_capability(
+                "official/git-tools-lab",
+                "official/git-tools-lab/resolve_ref",
+                json!({ "remote_url": url, "ref": ref_name }),
+            )
+            .await?;
+            let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
+            let tmp =
+                std::env::temp_dir().join(format!("yggdrasil-detect-kind-{}", Uuid::new_v4()));
+            let result = async {
+                invoke_package_capability(
+                    "official/git-tools-lab",
+                    "official/git-tools-lab/fetch_tree",
+                    json!({ "remote_url": url, "commit_sha": commit_sha, "dest_dir": tmp.to_string_lossy() }),
+                )
+                .await?;
+                detect_project_kind(&tmp)
+            }
+            .await;
+            fs::remove_dir_all(&tmp).ok();
+            result?
+        }
+        SourceDescriptor::Internal => anyhow::bail!("internal packages cannot be detected"),
+    };
+    Ok(serde_json::to_value(detected)?)
+}
+
+pub async fn register_project_capability(input: Value) -> Result<Value> {
+    let input: RegisterProjectInput = serde_json::from_value(input)?;
+    let info = write_and_register_project(input.descriptor, input.data_dir.as_deref())?;
+    Ok(info)
+}
+
+pub fn detect_project_kind(staging_dir: &Path) -> Result<DetectedProjectKind> {
+    let project_yaml = staging_dir.join("project.yaml");
+    if project_yaml.exists() {
+        let descriptor = read_project_descriptor(&project_yaml)?;
+        return Ok(match descriptor.project.project_type {
+            ProjectType::YggdrasilNative => DetectedProjectKind::Native { descriptor },
+            ProjectType::ExternalWrapped | ProjectType::ExternalWorkspace => {
+                DetectedProjectKind::DeclaredExternal { descriptor }
+            }
+        });
+    }
+
+    let manifest_yaml = staging_dir.join("manifest.yaml");
+    Ok(DetectedProjectKind::External {
+        has_manifest_yaml: manifest_yaml.exists(),
+    })
 }
 
 pub async fn uninstall(input: Value) -> Result<Value> {
@@ -978,6 +1101,60 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
+fn read_project_descriptor(path: &Path) -> Result<ProjectDescriptor> {
+    let yaml = fs::read_to_string(path)
+        .with_context(|| format!("failed to read project descriptor {}", path.display()))?;
+    let descriptor: ProjectDescriptor =
+        serde_yaml::from_str(&yaml).map_err(|e| anyhow::anyhow!("invalid project.yaml: {e}"))?;
+    descriptor.validate()?;
+    Ok(descriptor)
+}
+
+fn write_and_register_project(
+    descriptor: ProjectDescriptor,
+    data_dir_override: Option<&str>,
+) -> Result<Value> {
+    descriptor.validate()?;
+    let project_id = descriptor.project.id.clone();
+    let project_dir = ensure_project_initialized_for(&project_id, data_dir_override)?;
+    let descriptor_path = project_dir.join("project.yaml");
+    let yaml = serde_yaml::to_string(&descriptor)?;
+    atomic_write(&descriptor_path, yaml.as_bytes())?;
+    project_registry_from_inproc()?.register(descriptor)?;
+    Ok(json!({
+        "project_id": project_id.as_str(),
+        "project_dir": project_dir.to_string_lossy(),
+    }))
+}
+
+fn ensure_project_initialized_for(
+    project_id: &ygg_core::ProjectId,
+    data_dir_override: Option<&str>,
+) -> Result<PathBuf> {
+    if let Some(dir) = data_dir_override {
+        let project_dir = PathBuf::from(dir)
+            .join("projects")
+            .join(project_id.as_str());
+        fs::create_dir_all(project_dir.join("sessions"))?;
+        fs::create_dir_all(project_dir.join("state"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&project_dir)?.permissions();
+            perms.set_mode(0o700);
+            fs::set_permissions(&project_dir, perms)?;
+        }
+        Ok(project_dir)
+    } else {
+        paths::ensure_project_initialized(project_id)?;
+        paths::project_dir(project_id)
+    }
+}
+
+fn default_head_ref() -> String {
+    "HEAD".to_string()
+}
+
 fn ensure_layout(data_dir_override: Option<&str>) -> Result<()> {
     if let Some(dir) = data_dir_override {
         let data = PathBuf::from(dir);
@@ -986,6 +1163,8 @@ fn ensure_layout(data_dir_override: Option<&str>) -> Result<()> {
         fs::create_dir_all(data.join("profiles"))?;
         fs::create_dir_all(data.join("keys"))?;
         fs::create_dir_all(data.join("cache"))?;
+        fs::create_dir_all(data.join("projects"))?;
+        fs::create_dir_all(data.join("projects/.archived"))?;
 
         #[cfg(unix)]
         {

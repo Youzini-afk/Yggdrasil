@@ -32,6 +32,20 @@ provides:
       - filesystem.write
       - package.activation
     streaming: false
+  - id: official/install-lab/detect_kind
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects:
+      - filesystem.read
+    streaming: false
+  - id: official/install-lab/register_project
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    side_effects:
+      - filesystem.write
+    streaming: false
   - id: official/install-lab/uninstall
     version: 1.0.0
     input_schema: {}

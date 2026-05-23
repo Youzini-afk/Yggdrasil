@@ -10,5 +10,6 @@ pub mod lockfile;
 pub(crate) mod manifest;
 pub(crate) mod package;
 pub(crate) mod perf;
+pub mod project;
 pub mod uninstall;
 pub mod update;
