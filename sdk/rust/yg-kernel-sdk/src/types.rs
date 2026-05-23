@@ -4495,7 +4495,6 @@ impl ::std::convert::TryFrom<::std::string::String> for ContractMode {
 ///    "capabilities_invoke",
 ///    "events_append",
 ///    "events_read",
-///    "git_fetch_hosts",
 ///    "network_hosts",
 ///    "secret_refs"
 ///  ],
@@ -4517,12 +4516,6 @@ impl ::std::convert::TryFrom<::std::string::String> for ContractMode {
 ///    },
 ///    "events_read": {
 ///      "type": "boolean"
-///    },
-///    "git_fetch_hosts": {
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
 ///    },
 ///    "network_hosts": {
 ///      "type": "array",
@@ -4548,7 +4541,6 @@ pub struct DeclaredAuthority {
     pub capabilities_invoke: ::std::vec::Vec<::std::string::String>,
     pub events_append: bool,
     pub events_read: bool,
-    pub git_fetch_hosts: ::std::vec::Vec<::std::string::String>,
     pub network_hosts: ::std::vec::Vec<::std::string::String>,
     pub secret_refs: ::std::vec::Vec<::std::string::String>,
 }
@@ -7713,212 +7705,6 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutorKind {
         value.parse()
     }
 }
-///The kind of outbound executor that produced a response.
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "The kind of outbound executor that produced a response.",
-///  "oneOf": [
-///    {
-///      "description": "All outbound is denied; no network performed.",
-///      "type": "string",
-///      "enum": [
-///        "deny_all"
-///      ]
-///    },
-///    {
-///      "description": "Fake/deterministic fixture executor; no real network.",
-///      "type": "string",
-///      "enum": [
-///        "fake"
-///      ]
-///    },
-///    {
-///      "description": "Real network executor (future M4+).",
-///      "type": "string",
-///      "enum": [
-///        "real"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum ExecutorKind {
-    ///All outbound is denied; no network performed.
-    #[serde(rename = "deny_all")]
-    DenyAll,
-    ///Fake/deterministic fixture executor; no real network.
-    #[serde(rename = "fake")]
-    Fake,
-    ///Real network executor (future M4+).
-    #[serde(rename = "real")]
-    Real,
-}
-impl ::std::fmt::Display for ExecutorKind {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::DenyAll => f.write_str("deny_all"),
-            Self::Fake => f.write_str("fake"),
-            Self::Real => f.write_str("real"),
-        }
-    }
-}
-impl ::std::str::FromStr for ExecutorKind {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "deny_all" => Ok(Self::DenyAll),
-            "fake" => Ok(Self::Fake),
-            "real" => Ok(Self::Real),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for ExecutorKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for ExecutorKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for ExecutorKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-///The kind of outbound executor that produced a response.
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "The kind of outbound executor that produced a response.",
-///  "oneOf": [
-///    {
-///      "description": "All outbound is denied; no network performed.",
-///      "type": "string",
-///      "enum": [
-///        "deny_all"
-///      ]
-///    },
-///    {
-///      "description": "Fake/deterministic fixture executor; no real network.",
-///      "type": "string",
-///      "enum": [
-///        "fake"
-///      ]
-///    },
-///    {
-///      "description": "Real network executor (future M4+).",
-///      "type": "string",
-///      "enum": [
-///        "real"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum ExecutorKind {
-    ///All outbound is denied; no network performed.
-    #[serde(rename = "deny_all")]
-    DenyAll,
-    ///Fake/deterministic fixture executor; no real network.
-    #[serde(rename = "fake")]
-    Fake,
-    ///Real network executor (future M4+).
-    #[serde(rename = "real")]
-    Real,
-}
-impl ::std::fmt::Display for ExecutorKind {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::DenyAll => f.write_str("deny_all"),
-            Self::Fake => f.write_str("fake"),
-            Self::Real => f.write_str("real"),
-        }
-    }
-}
-impl ::std::str::FromStr for ExecutorKind {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "deny_all" => Ok(Self::DenyAll),
-            "fake" => Ok(Self::Fake),
-            "real" => Ok(Self::Real),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for ExecutorKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for ExecutorKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for ExecutorKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
 ///`ExtensionPointDescribeResult`
 ///
 /// <details><summary>JSON schema</summary>
@@ -8811,976 +8597,6 @@ impl ::std::convert::TryFrom<::std::string::String> for FrameKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
-}
-///`GitFetchDeniedPayload`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "GitFetchDeniedPayload",
-///  "type": "object"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct GitFetchDeniedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for GitFetchDeniedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
-    }
-}
-impl ::std::convert::From<GitFetchDeniedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: GitFetchDeniedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for GitFetchDeniedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
-}
-///`GitFetchFailedPayload`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "GitFetchFailedPayload",
-///  "type": "object"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct GitFetchFailedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for GitFetchFailedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
-    }
-}
-impl ::std::convert::From<GitFetchFailedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: GitFetchFailedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for GitFetchFailedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
-}
-/**The kind of git fetch a caller is asking the host to perform.
-
-This is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "The kind of git fetch a caller is asking the host to perform.\n\nThis is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.",
-///  "oneOf": [
-///    {
-///      "description": "Fetch just enough metadata to resolve a ref / inspect a manifest.",
-///      "type": "string",
-///      "enum": [
-///        "refs_only"
-///      ]
-///    },
-///    {
-///      "description": "Fetch a single tree snapshot without history where the executor can.",
-///      "type": "string",
-///      "enum": [
-///        "tree_only"
-///      ]
-///    },
-///    {
-///      "description": "Shallow clone / checkout bounded by host policy.",
-///      "type": "string",
-///      "enum": [
-///        "shallow_clone"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum GitFetchKind {
-    ///Fetch just enough metadata to resolve a ref / inspect a manifest.
-    #[serde(rename = "refs_only")]
-    RefsOnly,
-    ///Fetch a single tree snapshot without history where the executor can.
-    #[serde(rename = "tree_only")]
-    TreeOnly,
-    ///Shallow clone / checkout bounded by host policy.
-    #[serde(rename = "shallow_clone")]
-    ShallowClone,
-}
-impl ::std::fmt::Display for GitFetchKind {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::RefsOnly => f.write_str("refs_only"),
-            Self::TreeOnly => f.write_str("tree_only"),
-            Self::ShallowClone => f.write_str("shallow_clone"),
-        }
-    }
-}
-impl ::std::str::FromStr for GitFetchKind {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "refs_only" => Ok(Self::RefsOnly),
-            "tree_only" => Ok(Self::TreeOnly),
-            "shallow_clone" => Ok(Self::ShallowClone),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for GitFetchKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for GitFetchKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for GitFetchKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-/**The kind of git fetch a caller is asking the host to perform.
-
-This is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "The kind of git fetch a caller is asking the host to perform.\n\nThis is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.",
-///  "oneOf": [
-///    {
-///      "description": "Fetch just enough metadata to resolve a ref / inspect a manifest.",
-///      "type": "string",
-///      "enum": [
-///        "refs_only"
-///      ]
-///    },
-///    {
-///      "description": "Fetch a single tree snapshot without history where the executor can.",
-///      "type": "string",
-///      "enum": [
-///        "tree_only"
-///      ]
-///    },
-///    {
-///      "description": "Shallow clone / checkout bounded by host policy.",
-///      "type": "string",
-///      "enum": [
-///        "shallow_clone"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum GitFetchKind {
-    ///Fetch just enough metadata to resolve a ref / inspect a manifest.
-    #[serde(rename = "refs_only")]
-    RefsOnly,
-    ///Fetch a single tree snapshot without history where the executor can.
-    #[serde(rename = "tree_only")]
-    TreeOnly,
-    ///Shallow clone / checkout bounded by host policy.
-    #[serde(rename = "shallow_clone")]
-    ShallowClone,
-}
-impl ::std::fmt::Display for GitFetchKind {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::RefsOnly => f.write_str("refs_only"),
-            Self::TreeOnly => f.write_str("tree_only"),
-            Self::ShallowClone => f.write_str("shallow_clone"),
-        }
-    }
-}
-impl ::std::str::FromStr for GitFetchKind {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "refs_only" => Ok(Self::RefsOnly),
-            "tree_only" => Ok(Self::TreeOnly),
-            "shallow_clone" => Ok(Self::ShallowClone),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for GitFetchKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for GitFetchKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for GitFetchKind {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-///`GitFetchPermissions`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "properties": {
-///    "hosts": {
-///      "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitFetchPermissions {
-    ///HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub hosts: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for GitFetchPermissions {
-    fn default() -> Self {
-        Self { hosts: Default::default() }
-    }
-}
-/**Request sent to a git outbound executor.
-
-The request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "GitOutboundRequest",
-///  "description": "Request sent to a git outbound executor.\n\nThe request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.",
-///  "type": "object",
-///  "required": [
-///    "capability_id",
-///    "fetch_kind",
-///    "package_id",
-///    "reference",
-///    "remote_url"
-///  ],
-///  "properties": {
-///    "capability_id": {
-///      "description": "Capability through which the request was made.",
-///      "type": "string"
-///    },
-///    "destination_hint": {
-///      "description": "Optional host-internal destination hint. The executor may ignore it.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "fetch_kind": {
-///      "description": "Fetch shape requested by the caller.",
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchKind"
-///        }
-///      ]
-///    },
-///    "metadata": {
-///      "description": "Opaque package-owned metadata. Must not contain raw secrets.",
-///      "default": null
-///    },
-///    "package_id": {
-///      "description": "Package that initiated the git fetch request.",
-///      "type": "string"
-///    },
-///    "redaction_state": {
-///      "description": "Redaction state carried forward from policy/audit.",
-///      "default": null,
-///      "anyOf": [
-///        {
-///          "$ref": "#/definitions/RedactionState"
-///        },
-///        {
-///          "type": "null"
-///        }
-///      ]
-///    },
-///    "reference": {
-///      "description": "Branch, tag, or commit SHA requested by the caller.",
-///      "type": "string"
-///    },
-///    "remote_url": {
-///      "description": "Public HTTPS git URL. Non-HTTPS transports are rejected by policy.",
-///      "type": "string"
-///    },
-///    "secret_refs": {
-///      "description": "Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    },
-///    "timeout_ms": {
-///      "description": "Optional timeout in milliseconds.",
-///      "default": null,
-///      "type": [
-///        "integer",
-///        "null"
-///      ],
-///      "format": "uint64",
-///      "minimum": 0.0
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitOutboundRequest {
-    ///Capability through which the request was made.
-    pub capability_id: ::std::string::String,
-    ///Optional host-internal destination hint. The executor may ignore it.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub destination_hint: ::std::option::Option<::std::string::String>,
-    ///Fetch shape requested by the caller.
-    pub fetch_kind: GitFetchKind,
-    ///Opaque package-owned metadata. Must not contain raw secrets.
-    #[serde(default = "defaults::git_outbound_request_metadata")]
-    pub metadata: ::serde_json::Value,
-    ///Package that initiated the git fetch request.
-    pub package_id: ::std::string::String,
-    ///Redaction state carried forward from policy/audit.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub redaction_state: ::std::option::Option<RedactionState>,
-    ///Branch, tag, or commit SHA requested by the caller.
-    pub reference: ::std::string::String,
-    ///Public HTTPS git URL. Non-HTTPS transports are rejected by policy.
-    pub remote_url: ::std::string::String,
-    ///Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub secret_refs: ::std::vec::Vec<::std::string::String>,
-    ///Optional timeout in milliseconds.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub timeout_ms: ::std::option::Option<u64>,
-}
-/**Request sent to a git outbound executor.
-
-The request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "GitOutboundRequest",
-///  "description": "Request sent to a git outbound executor.\n\nThe request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.",
-///  "type": "object",
-///  "required": [
-///    "capability_id",
-///    "fetch_kind",
-///    "package_id",
-///    "reference",
-///    "remote_url"
-///  ],
-///  "properties": {
-///    "capability_id": {
-///      "description": "Capability through which the request was made.",
-///      "type": "string"
-///    },
-///    "destination_hint": {
-///      "description": "Optional host-internal destination hint. The executor may ignore it.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "fetch_kind": {
-///      "description": "Fetch shape requested by the caller.",
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchKind"
-///        }
-///      ]
-///    },
-///    "metadata": {
-///      "description": "Opaque package-owned metadata. Must not contain raw secrets.",
-///      "default": null
-///    },
-///    "package_id": {
-///      "description": "Package that initiated the git fetch request.",
-///      "type": "string"
-///    },
-///    "redaction_state": {
-///      "description": "Redaction state carried forward from policy/audit.",
-///      "default": null,
-///      "anyOf": [
-///        {
-///          "$ref": "#/definitions/RedactionState"
-///        },
-///        {
-///          "type": "null"
-///        }
-///      ]
-///    },
-///    "reference": {
-///      "description": "Branch, tag, or commit SHA requested by the caller.",
-///      "type": "string"
-///    },
-///    "remote_url": {
-///      "description": "Public HTTPS git URL. Non-HTTPS transports are rejected by policy.",
-///      "type": "string"
-///    },
-///    "secret_refs": {
-///      "description": "Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    },
-///    "timeout_ms": {
-///      "description": "Optional timeout in milliseconds.",
-///      "default": null,
-///      "type": [
-///        "integer",
-///        "null"
-///      ],
-///      "format": "uint64",
-///      "minimum": 0.0
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitOutboundRequest {
-    ///Capability through which the request was made.
-    pub capability_id: ::std::string::String,
-    ///Optional host-internal destination hint. The executor may ignore it.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub destination_hint: ::std::option::Option<::std::string::String>,
-    ///Fetch shape requested by the caller.
-    pub fetch_kind: GitFetchKind,
-    ///Opaque package-owned metadata. Must not contain raw secrets.
-    #[serde(default = "defaults::git_outbound_request_metadata")]
-    pub metadata: ::serde_json::Value,
-    ///Package that initiated the git fetch request.
-    pub package_id: ::std::string::String,
-    ///Redaction state carried forward from policy/audit.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub redaction_state: ::std::option::Option<RedactionState>,
-    ///Branch, tag, or commit SHA requested by the caller.
-    pub reference: ::std::string::String,
-    ///Public HTTPS git URL. Non-HTTPS transports are rejected by policy.
-    pub remote_url: ::std::string::String,
-    ///Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub secret_refs: ::std::vec::Vec<::std::string::String>,
-    ///Optional timeout in milliseconds.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub timeout_ms: ::std::option::Option<u64>,
-}
-///Response returned by a git outbound executor.
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "GitOutboundResponse",
-///  "description": "Response returned by a git outbound executor.",
-///  "type": "object",
-///  "required": [
-///    "executor_kind",
-///    "network_performed",
-///    "status"
-///  ],
-///  "properties": {
-///    "executor_kind": {
-///      "description": "What kind of executor produced this response.",
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/ExecutorKind"
-///        }
-///      ]
-///    },
-///    "metadata": {
-///      "description": "Opaque executor metadata, shape only.",
-///      "default": null
-///    },
-///    "network_performed": {
-///      "description": "Whether real network I/O was performed.",
-///      "type": "boolean"
-///    },
-///    "redaction_state": {
-///      "description": "Redaction state applied to the response.",
-///      "default": "not_captured",
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/RedactionState"
-///        }
-///      ]
-///    },
-///    "resolved_commit_sha": {
-///      "description": "Resolved commit SHA, when known. Empty for deny-all/default responses.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "resolved_content_hash": {
-///      "description": "Full-tree content hash, when known. Empty for deny-all/default responses.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "resolved_path": {
-///      "description": "Host-selected install root subdir / opaque ref. Must not expose raw secrets.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "status": {
-///      "description": "High-level status: \"ok\", \"denied\", \"error\", \"timeout\".",
-///      "type": "string"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitOutboundResponse {
-    ///What kind of executor produced this response.
-    pub executor_kind: ExecutorKind,
-    ///Opaque executor metadata, shape only.
-    #[serde(default = "defaults::git_outbound_response_metadata")]
-    pub metadata: ::serde_json::Value,
-    ///Whether real network I/O was performed.
-    pub network_performed: bool,
-    ///Redaction state applied to the response.
-    #[serde(default = "defaults::git_outbound_response_redaction_state")]
-    pub redaction_state: RedactionState,
-    ///Resolved commit SHA, when known. Empty for deny-all/default responses.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub resolved_commit_sha: ::std::option::Option<::std::string::String>,
-    ///Full-tree content hash, when known. Empty for deny-all/default responses.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub resolved_content_hash: ::std::option::Option<::std::string::String>,
-    ///Host-selected install root subdir / opaque ref. Must not expose raw secrets.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub resolved_path: ::std::option::Option<::std::string::String>,
-    ///High-level status: "ok", "denied", "error", "timeout".
-    pub status: ::std::string::String,
-}
-///Response returned by a git outbound executor.
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "GitOutboundResponse",
-///  "description": "Response returned by a git outbound executor.",
-///  "type": "object",
-///  "required": [
-///    "executor_kind",
-///    "network_performed",
-///    "status"
-///  ],
-///  "properties": {
-///    "executor_kind": {
-///      "description": "What kind of executor produced this response.",
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/ExecutorKind"
-///        }
-///      ]
-///    },
-///    "metadata": {
-///      "description": "Opaque executor metadata, shape only.",
-///      "default": null
-///    },
-///    "network_performed": {
-///      "description": "Whether real network I/O was performed.",
-///      "type": "boolean"
-///    },
-///    "redaction_state": {
-///      "description": "Redaction state applied to the response.",
-///      "default": "not_captured",
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/RedactionState"
-///        }
-///      ]
-///    },
-///    "resolved_commit_sha": {
-///      "description": "Resolved commit SHA, when known. Empty for deny-all/default responses.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "resolved_content_hash": {
-///      "description": "Full-tree content hash, when known. Empty for deny-all/default responses.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "resolved_path": {
-///      "description": "Host-selected install root subdir / opaque ref. Must not expose raw secrets.",
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "status": {
-///      "description": "High-level status: \"ok\", \"denied\", \"error\", \"timeout\".",
-///      "type": "string"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct GitOutboundResponse {
-    ///What kind of executor produced this response.
-    pub executor_kind: ExecutorKind,
-    ///Opaque executor metadata, shape only.
-    #[serde(default = "defaults::git_outbound_response_metadata")]
-    pub metadata: ::serde_json::Value,
-    ///Whether real network I/O was performed.
-    pub network_performed: bool,
-    ///Redaction state applied to the response.
-    #[serde(default = "defaults::git_outbound_response_redaction_state")]
-    pub redaction_state: RedactionState,
-    ///Resolved commit SHA, when known. Empty for deny-all/default responses.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub resolved_commit_sha: ::std::option::Option<::std::string::String>,
-    ///Full-tree content hash, when known. Empty for deny-all/default responses.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub resolved_content_hash: ::std::option::Option<::std::string::String>,
-    ///Host-selected install root subdir / opaque ref. Must not expose raw secrets.
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub resolved_path: ::std::option::Option<::std::string::String>,
-    ///High-level status: "ok", "denied", "error", "timeout".
-    pub status: ::std::string::String,
 }
 ///`HandleLease`
 ///
@@ -15585,19 +14401,6 @@ pub struct PackageLifecyclePayload {
 ///        },
 ///        "type": "object"
 ///      },
-///      "GitFetchPermissions": {
-///        "properties": {
-///          "hosts": {
-///            "default": [],
-///            "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///            "items": {
-///              "type": "string"
-///            },
-///            "type": "array"
-///          }
-///        },
-///        "type": "object"
-///      },
 ///      "HookSubscription": {
 ///        "properties": {
 ///          "extension_point": {
@@ -15790,9 +14593,6 @@ pub struct PackageLifecyclePayload {
 ///                "read": [],
 ///                "write": []
 ///              },
-///              "git_fetch": {
-///                "hosts": []
-///              },
 ///              "network": {
 ///                "declarations": [],
 ///                "hosts": []
@@ -15907,16 +14707,6 @@ pub struct PackageLifecyclePayload {
 ///            "default": {
 ///              "read": [],
 ///              "write": []
-///            }
-///          },
-///          "git_fetch": {
-///            "allOf": [
-///              {
-///                "$ref": "#/definitions/GitFetchPermissions"
-///              }
-///            ],
-///            "default": {
-///              "hosts": []
 ///            }
 ///          },
 ///          "network": {
@@ -16328,9 +15118,6 @@ impl ::std::convert::From<::std::vec::Vec<SubprocessLogLine>> for PackageLogsRes
 ///          "read": [],
 ///          "write": []
 ///        },
-///        "git_fetch": {
-///          "hosts": []
-///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
@@ -16487,9 +15274,6 @@ pub struct PackageManifest {
 ///        "filesystem": {
 ///          "read": [],
 ///          "write": []
-///        },
-///        "git_fetch": {
-///          "hosts": []
 ///        },
 ///        "network": {
 ///          "declarations": [],
@@ -16649,8 +15433,162 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
-///        "git_fetch": {
+///        "network": {
+///          "declarations": [],
 ///          "hosts": []
+///        },
+///        "packages": {
+///          "call": []
+///        },
+///        "secret_refs": []
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PermissionSet"
+///        }
+///      ]
+///    },
+///    "provides": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/CapabilityDescriptor"
+///      }
+///    },
+///    "sandbox_policy": {
+///      "default": {
+///        "cpu_quota_ms_per_invoke": 5000,
+///        "memory_mb": 128,
+///        "wall_clock_ms": 30000
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/SandboxPolicy"
+///        }
+///      ]
+///    },
+///    "schema_version": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageManifest {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub author: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub consumes: ::std::vec::Vec<CapabilityRequirement>,
+    #[serde(default = "defaults::package_manifest_contributes")]
+    pub contributes: PackageContributions,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub description: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub display_name: ::std::option::Option<::std::string::String>,
+    pub entry: EntryDescriptor,
+    pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub license: ::std::option::Option<::std::string::String>,
+    #[serde(default = "defaults::package_manifest_permissions")]
+    pub permissions: PermissionSet,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub provides: ::std::vec::Vec<CapabilityDescriptor>,
+    #[serde(default = "defaults::package_manifest_sandbox_policy")]
+    pub sandbox_policy: SandboxPolicy,
+    pub schema_version: u16,
+    pub version: ::std::string::String,
+}
+///`PackageManifest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "entry",
+///    "id",
+///    "schema_version",
+///    "version"
+///  ],
+///  "properties": {
+///    "author": {
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "consumes": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/CapabilityRequirement"
+///      }
+///    },
+///    "contributes": {
+///      "default": {
+///        "extension_points": [],
+///        "hooks": [],
+///        "schemas": [],
+///        "surfaces": []
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PackageContributions"
+///        }
+///      ]
+///    },
+///    "description": {
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "display_name": {
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "entry": {
+///      "$ref": "#/definitions/EntryDescriptor"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "license": {
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "permissions": {
+///      "default": {
+///        "assets": {
+///          "read": false,
+///          "write": false
+///        },
+///        "capabilities": {
+///          "invoke": []
+///        },
+///        "events": {
+///          "append": false,
+///          "read": false
+///        },
+///        "filesystem": {
+///          "read": [],
+///          "write": []
 ///        },
 ///        "network": {
 ///          "declarations": [],
@@ -16809,9 +15747,6 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
-///        "git_fetch": {
-///          "hosts": []
-///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
@@ -16969,9 +15904,6 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
-///        "git_fetch": {
-///          "hosts": []
-///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
@@ -17128,169 +16060,6 @@ pub struct PackageManifest {
 ///        "filesystem": {
 ///          "read": [],
 ///          "write": []
-///        },
-///        "git_fetch": {
-///          "hosts": []
-///        },
-///        "network": {
-///          "declarations": [],
-///          "hosts": []
-///        },
-///        "packages": {
-///          "call": []
-///        },
-///        "secret_refs": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/PermissionSet"
-///        }
-///      ]
-///    },
-///    "provides": {
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/CapabilityDescriptor"
-///      }
-///    },
-///    "sandbox_policy": {
-///      "default": {
-///        "cpu_quota_ms_per_invoke": 5000,
-///        "memory_mb": 128,
-///        "wall_clock_ms": 30000
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/SandboxPolicy"
-///        }
-///      ]
-///    },
-///    "schema_version": {
-///      "type": "integer",
-///      "format": "uint16",
-///      "minimum": 0.0
-///    },
-///    "version": {
-///      "type": "string"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct PackageManifest {
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub author: ::std::option::Option<::std::string::String>,
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub consumes: ::std::vec::Vec<CapabilityRequirement>,
-    #[serde(default = "defaults::package_manifest_contributes")]
-    pub contributes: PackageContributions,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub description: ::std::option::Option<::std::string::String>,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub display_name: ::std::option::Option<::std::string::String>,
-    pub entry: EntryDescriptor,
-    pub id: ::std::string::String,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub license: ::std::option::Option<::std::string::String>,
-    #[serde(default = "defaults::package_manifest_permissions")]
-    pub permissions: PermissionSet,
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub provides: ::std::vec::Vec<CapabilityDescriptor>,
-    #[serde(default = "defaults::package_manifest_sandbox_policy")]
-    pub sandbox_policy: SandboxPolicy,
-    pub schema_version: u16,
-    pub version: ::std::string::String,
-}
-///`PackageManifest`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "type": "object",
-///  "required": [
-///    "entry",
-///    "id",
-///    "schema_version",
-///    "version"
-///  ],
-///  "properties": {
-///    "author": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "consumes": {
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/CapabilityRequirement"
-///      }
-///    },
-///    "contributes": {
-///      "default": {
-///        "extension_points": [],
-///        "hooks": [],
-///        "schemas": [],
-///        "surfaces": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/PackageContributions"
-///        }
-///      ]
-///    },
-///    "description": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "display_name": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "entry": {
-///      "$ref": "#/definitions/EntryDescriptor"
-///    },
-///    "id": {
-///      "type": "string"
-///    },
-///    "license": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "permissions": {
-///      "default": {
-///        "assets": {
-///          "read": false,
-///          "write": false
-///        },
-///        "capabilities": {
-///          "invoke": []
-///        },
-///        "events": {
-///          "append": false,
-///          "read": false
-///        },
-///        "filesystem": {
-///          "read": [],
-///          "write": []
-///        },
-///        "git_fetch": {
-///          "hosts": []
 ///        },
 ///        "network": {
 ///          "declarations": [],
@@ -17954,19 +16723,6 @@ impl ::std::default::Default for PackagePermissions {
 ///      },
 ///      "type": "object"
 ///    },
-///    "GitFetchPermissions": {
-///      "properties": {
-///        "hosts": {
-///          "default": [],
-///          "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-///          "items": {
-///            "type": "string"
-///          },
-///          "type": "array"
-///        }
-///      },
-///      "type": "object"
-///    },
 ///    "HookSubscription": {
 ///      "properties": {
 ///        "extension_point": {
@@ -18159,9 +16915,6 @@ impl ::std::default::Default for PackagePermissions {
 ///              "read": [],
 ///              "write": []
 ///            },
-///            "git_fetch": {
-///              "hosts": []
-///            },
 ///            "network": {
 ///              "declarations": [],
 ///              "hosts": []
@@ -18276,16 +17029,6 @@ impl ::std::default::Default for PackagePermissions {
 ///          "default": {
 ///            "read": [],
 ///            "write": []
-///          }
-///        },
-///        "git_fetch": {
-///          "allOf": [
-///            {
-///              "$ref": "#/definitions/GitFetchPermissions"
-///            }
-///          ],
-///          "default": {
-///            "hosts": []
 ///          }
 ///        },
 ///        "network": {
@@ -20146,16 +18889,6 @@ pub struct PermissionRevokeParams {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20200,8 +18933,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -20221,7 +18952,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -20280,16 +19010,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20334,8 +19054,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -20355,7 +19073,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -20413,16 +19130,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20467,8 +19174,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -20488,7 +19193,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -20546,16 +19250,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20600,8 +19294,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -20621,7 +19313,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -20679,16 +19370,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20733,8 +19414,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -20754,7 +19433,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -20812,16 +19490,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20866,8 +19534,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -20887,7 +19553,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -20945,16 +19610,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -20999,8 +19654,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -21020,7 +19673,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -21078,16 +19730,6 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
-///    "git_fetch": {
-///      "default": {
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/GitFetchPermissions"
-///        }
-///      ]
-///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21132,8 +19774,6 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set_git_fetch")]
-    pub git_fetch: GitFetchPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
@@ -21153,7 +19793,6 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
-            git_fetch: defaults::permission_set_git_fetch(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
             secret_refs: Default::default(),
@@ -22075,7 +20714,7 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T08:29:21.529040491Z",
+///        "default": "2026-05-23T09:38:51.040813838Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -22788,7 +21427,7 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.530674370Z",
+///      "default": "2026-05-23T09:38:51.042879829Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -22916,7 +21555,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.529621668Z",
+///      "default": "2026-05-23T09:38:51.041592431Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23044,7 +21683,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.527559721Z",
+///      "default": "2026-05-23T09:38:51.039104992Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23172,7 +21811,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.527738991Z",
+///      "default": "2026-05-23T09:38:51.039297293Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23300,7 +21939,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.528503653Z",
+///      "default": "2026-05-23T09:38:51.040180730Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23428,7 +22067,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.530151644Z",
+///      "default": "2026-05-23T09:38:51.042192578Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23556,7 +22195,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.535776321Z",
+///      "default": "2026-05-23T09:38:51.048040246Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23684,7 +22323,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.535507211Z",
+///      "default": "2026-05-23T09:38:51.047759439Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23812,7 +22451,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.535357337Z",
+///      "default": "2026-05-23T09:38:51.047602684Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -23940,7 +22579,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.535922588Z",
+///      "default": "2026-05-23T09:38:51.048171381Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -24068,7 +22707,7 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T08:29:21.535650074Z",
+///      "default": "2026-05-23T09:38:51.047908391Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -29718,522 +28357,6 @@ impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
         value.parse()
     }
 }
-/**Redaction state for an outbound audit record.
-
-Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-///  "oneOf": [
-///    {
-///      "description": "Raw data was not captured (default).",
-///      "type": "string",
-///      "enum": [
-///        "not_captured"
-///      ]
-///    },
-///    {
-///      "description": "Raw data was redacted before recording.",
-///      "type": "string",
-///      "enum": [
-///        "redacted"
-///      ]
-///    },
-///    {
-///      "description": "Only a policy reference is stored; no data captured.",
-///      "type": "string",
-///      "enum": [
-///        "policy_ref"
-///      ]
-///    },
-///    {
-///      "description": "Request was blocked as unsafe; no data recorded.",
-///      "type": "string",
-///      "enum": [
-///        "unsafe_blocked"
-///      ]
-///    },
-///    {
-///      "description": "Explicit user/host approval to capture raw data (rare).",
-///      "type": "string",
-///      "enum": [
-///        "explicitly_approved"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum RedactionState {
-    ///Raw data was not captured (default).
-    #[serde(rename = "not_captured")]
-    NotCaptured,
-    ///Raw data was redacted before recording.
-    #[serde(rename = "redacted")]
-    Redacted,
-    ///Only a policy reference is stored; no data captured.
-    #[serde(rename = "policy_ref")]
-    PolicyRef,
-    ///Request was blocked as unsafe; no data recorded.
-    #[serde(rename = "unsafe_blocked")]
-    UnsafeBlocked,
-    ///Explicit user/host approval to capture raw data (rare).
-    #[serde(rename = "explicitly_approved")]
-    ExplicitlyApproved,
-}
-impl ::std::fmt::Display for RedactionState {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::NotCaptured => f.write_str("not_captured"),
-            Self::Redacted => f.write_str("redacted"),
-            Self::PolicyRef => f.write_str("policy_ref"),
-            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
-            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
-        }
-    }
-}
-impl ::std::str::FromStr for RedactionState {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "not_captured" => Ok(Self::NotCaptured),
-            "redacted" => Ok(Self::Redacted),
-            "policy_ref" => Ok(Self::PolicyRef),
-            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
-            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-/**Redaction state for an outbound audit record.
-
-Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-///  "oneOf": [
-///    {
-///      "description": "Raw data was not captured (default).",
-///      "type": "string",
-///      "enum": [
-///        "not_captured"
-///      ]
-///    },
-///    {
-///      "description": "Raw data was redacted before recording.",
-///      "type": "string",
-///      "enum": [
-///        "redacted"
-///      ]
-///    },
-///    {
-///      "description": "Only a policy reference is stored; no data captured.",
-///      "type": "string",
-///      "enum": [
-///        "policy_ref"
-///      ]
-///    },
-///    {
-///      "description": "Request was blocked as unsafe; no data recorded.",
-///      "type": "string",
-///      "enum": [
-///        "unsafe_blocked"
-///      ]
-///    },
-///    {
-///      "description": "Explicit user/host approval to capture raw data (rare).",
-///      "type": "string",
-///      "enum": [
-///        "explicitly_approved"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum RedactionState {
-    ///Raw data was not captured (default).
-    #[serde(rename = "not_captured")]
-    NotCaptured,
-    ///Raw data was redacted before recording.
-    #[serde(rename = "redacted")]
-    Redacted,
-    ///Only a policy reference is stored; no data captured.
-    #[serde(rename = "policy_ref")]
-    PolicyRef,
-    ///Request was blocked as unsafe; no data recorded.
-    #[serde(rename = "unsafe_blocked")]
-    UnsafeBlocked,
-    ///Explicit user/host approval to capture raw data (rare).
-    #[serde(rename = "explicitly_approved")]
-    ExplicitlyApproved,
-}
-impl ::std::fmt::Display for RedactionState {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::NotCaptured => f.write_str("not_captured"),
-            Self::Redacted => f.write_str("redacted"),
-            Self::PolicyRef => f.write_str("policy_ref"),
-            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
-            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
-        }
-    }
-}
-impl ::std::str::FromStr for RedactionState {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "not_captured" => Ok(Self::NotCaptured),
-            "redacted" => Ok(Self::Redacted),
-            "policy_ref" => Ok(Self::PolicyRef),
-            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
-            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-/**Redaction state for an outbound audit record.
-
-Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-///  "oneOf": [
-///    {
-///      "description": "Raw data was not captured (default).",
-///      "type": "string",
-///      "enum": [
-///        "not_captured"
-///      ]
-///    },
-///    {
-///      "description": "Raw data was redacted before recording.",
-///      "type": "string",
-///      "enum": [
-///        "redacted"
-///      ]
-///    },
-///    {
-///      "description": "Only a policy reference is stored; no data captured.",
-///      "type": "string",
-///      "enum": [
-///        "policy_ref"
-///      ]
-///    },
-///    {
-///      "description": "Request was blocked as unsafe; no data recorded.",
-///      "type": "string",
-///      "enum": [
-///        "unsafe_blocked"
-///      ]
-///    },
-///    {
-///      "description": "Explicit user/host approval to capture raw data (rare).",
-///      "type": "string",
-///      "enum": [
-///        "explicitly_approved"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum RedactionState {
-    ///Raw data was not captured (default).
-    #[serde(rename = "not_captured")]
-    NotCaptured,
-    ///Raw data was redacted before recording.
-    #[serde(rename = "redacted")]
-    Redacted,
-    ///Only a policy reference is stored; no data captured.
-    #[serde(rename = "policy_ref")]
-    PolicyRef,
-    ///Request was blocked as unsafe; no data recorded.
-    #[serde(rename = "unsafe_blocked")]
-    UnsafeBlocked,
-    ///Explicit user/host approval to capture raw data (rare).
-    #[serde(rename = "explicitly_approved")]
-    ExplicitlyApproved,
-}
-impl ::std::fmt::Display for RedactionState {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::NotCaptured => f.write_str("not_captured"),
-            Self::Redacted => f.write_str("redacted"),
-            Self::PolicyRef => f.write_str("policy_ref"),
-            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
-            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
-        }
-    }
-}
-impl ::std::str::FromStr for RedactionState {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "not_captured" => Ok(Self::NotCaptured),
-            "redacted" => Ok(Self::Redacted),
-            "policy_ref" => Ok(Self::PolicyRef),
-            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
-            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-/**Redaction state for an outbound audit record.
-
-Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-///  "oneOf": [
-///    {
-///      "description": "Raw data was not captured (default).",
-///      "type": "string",
-///      "enum": [
-///        "not_captured"
-///      ]
-///    },
-///    {
-///      "description": "Raw data was redacted before recording.",
-///      "type": "string",
-///      "enum": [
-///        "redacted"
-///      ]
-///    },
-///    {
-///      "description": "Only a policy reference is stored; no data captured.",
-///      "type": "string",
-///      "enum": [
-///        "policy_ref"
-///      ]
-///    },
-///    {
-///      "description": "Request was blocked as unsafe; no data recorded.",
-///      "type": "string",
-///      "enum": [
-///        "unsafe_blocked"
-///      ]
-///    },
-///    {
-///      "description": "Explicit user/host approval to capture raw data (rare).",
-///      "type": "string",
-///      "enum": [
-///        "explicitly_approved"
-///      ]
-///    }
-///  ]
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
-)]
-pub enum RedactionState {
-    ///Raw data was not captured (default).
-    #[serde(rename = "not_captured")]
-    NotCaptured,
-    ///Raw data was redacted before recording.
-    #[serde(rename = "redacted")]
-    Redacted,
-    ///Only a policy reference is stored; no data captured.
-    #[serde(rename = "policy_ref")]
-    PolicyRef,
-    ///Request was blocked as unsafe; no data recorded.
-    #[serde(rename = "unsafe_blocked")]
-    UnsafeBlocked,
-    ///Explicit user/host approval to capture raw data (rare).
-    #[serde(rename = "explicitly_approved")]
-    ExplicitlyApproved,
-}
-impl ::std::fmt::Display for RedactionState {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        match *self {
-            Self::NotCaptured => f.write_str("not_captured"),
-            Self::Redacted => f.write_str("redacted"),
-            Self::PolicyRef => f.write_str("policy_ref"),
-            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
-            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
-        }
-    }
-}
-impl ::std::str::FromStr for RedactionState {
-    type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        match value {
-            "not_captured" => Ok(Self::NotCaptured),
-            "redacted" => Ok(Self::Redacted),
-            "policy_ref" => Ok(Self::PolicyRef),
-            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
-            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
-            _ => Err("invalid value".into()),
-        }
-    }
-}
-impl ::std::convert::TryFrom<&str> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
 ///`RegisteredCapability`
 ///
 /// <details><summary>JSON schema</summary>
@@ -31612,7 +29735,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.522504583Z",
+///      "default": "2026-05-23T09:38:51.033176047Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31703,7 +29826,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.536907686Z",
+///      "default": "2026-05-23T09:38:51.049022638Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31794,7 +29917,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.536631896Z",
+///      "default": "2026-05-23T09:38:51.048744164Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31885,7 +30008,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.536763161Z",
+///      "default": "2026-05-23T09:38:51.048894158Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -31976,7 +30099,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.536845169Z",
+///      "default": "2026-05-23T09:38:51.048958728Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -32067,7 +30190,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.536699682Z",
+///      "default": "2026-05-23T09:38:51.048828005Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -32158,7 +30281,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T08:29:21.536971816Z",
+///      "default": "2026-05-23T09:38:51.049086828Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -37820,7 +35943,6 @@ pub struct UnusedAuthority {
 ///    "capabilities_invoked",
 ///    "events_append_count",
 ///    "events_read_count",
-///    "git_fetches",
 ///    "network_hosts_used",
 ///    "secret_refs_used"
 ///  ],
@@ -37853,11 +35975,6 @@ pub struct UnusedAuthority {
 ///      "format": "uint64",
 ///      "minimum": 0.0
 ///    },
-///    "git_fetches": {
-///      "type": "integer",
-///      "format": "uint64",
-///      "minimum": 0.0
-///    },
 ///    "network_hosts_used": {
 ///      "type": "object",
 ///      "additionalProperties": {
@@ -37886,7 +36003,6 @@ pub struct UsedAuthority {
     pub capabilities_invoked: ::std::collections::HashMap<::std::string::String, u64>,
     pub events_append_count: u64,
     pub events_read_count: u64,
-    pub git_fetches: u64,
     pub network_hosts_used: ::std::collections::HashMap<::std::string::String, u64>,
     pub secret_refs_used: ::std::collections::HashMap<::std::string::String, u64>,
 }
@@ -38115,24 +36231,6 @@ pub mod defaults {
     pub(super) fn extension_point_descriptor_payload_schema() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
-    pub(super) fn git_outbound_request_metadata() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn git_outbound_request_metadata() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn git_outbound_response_metadata() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn git_outbound_response_redaction_state() -> super::RedactionState {
-        super::RedactionState::NotCaptured
-    }
-    pub(super) fn git_outbound_response_metadata() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn git_outbound_response_redaction_state() -> super::RedactionState {
-        super::RedactionState::NotCaptured
-    }
     pub(super) fn kernel_outbound_stream_response_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
@@ -38215,8 +36313,47 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
-            git_fetch: super::GitFetchPermissions {
+            network: super::NetworkPermissions {
+                declarations: vec![],
                 hosts: vec![],
+            },
+            packages: super::PackagePermissions {
+                call: vec![],
+            },
+            secret_refs: vec![],
+        }
+    }
+    pub(super) fn package_manifest_sandbox_policy() -> super::SandboxPolicy {
+        super::SandboxPolicy {
+            cpu_quota_ms_per_invoke: 5000_u64,
+            memory_mb: 128_u64,
+            wall_clock_ms: 30000_u64,
+        }
+    }
+    pub(super) fn package_manifest_contributes() -> super::PackageContributions {
+        super::PackageContributions {
+            extension_points: vec![],
+            hooks: vec![],
+            schemas: vec![],
+            surfaces: vec![],
+        }
+    }
+    pub(super) fn package_manifest_permissions() -> super::PermissionSet {
+        super::PermissionSet {
+            assets: super::AssetPermissions {
+                read: false,
+                write: false,
+            },
+            capabilities: super::CapabilityPermissions {
+                invoke: vec![],
+            },
+            events: super::EventPermissions {
+                append: false,
+                read: false,
+            },
+            filesystem: super::FilesystemPermissions {
+                read: vec![],
+                write: vec![],
             },
             network: super::NetworkPermissions {
                 declarations: vec![],
@@ -38260,8 +36397,47 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
-            git_fetch: super::GitFetchPermissions {
+            network: super::NetworkPermissions {
+                declarations: vec![],
                 hosts: vec![],
+            },
+            packages: super::PackagePermissions {
+                call: vec![],
+            },
+            secret_refs: vec![],
+        }
+    }
+    pub(super) fn package_manifest_sandbox_policy() -> super::SandboxPolicy {
+        super::SandboxPolicy {
+            cpu_quota_ms_per_invoke: 5000_u64,
+            memory_mb: 128_u64,
+            wall_clock_ms: 30000_u64,
+        }
+    }
+    pub(super) fn package_manifest_contributes() -> super::PackageContributions {
+        super::PackageContributions {
+            extension_points: vec![],
+            hooks: vec![],
+            schemas: vec![],
+            surfaces: vec![],
+        }
+    }
+    pub(super) fn package_manifest_permissions() -> super::PermissionSet {
+        super::PermissionSet {
+            assets: super::AssetPermissions {
+                read: false,
+                write: false,
+            },
+            capabilities: super::CapabilityPermissions {
+                invoke: vec![],
+            },
+            events: super::EventPermissions {
+                append: false,
+                read: false,
+            },
+            filesystem: super::FilesystemPermissions {
+                read: vec![],
+                write: vec![],
             },
             network: super::NetworkPermissions {
                 declarations: vec![],
@@ -38305,8 +36481,47 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
-            git_fetch: super::GitFetchPermissions {
+            network: super::NetworkPermissions {
+                declarations: vec![],
                 hosts: vec![],
+            },
+            packages: super::PackagePermissions {
+                call: vec![],
+            },
+            secret_refs: vec![],
+        }
+    }
+    pub(super) fn package_manifest_sandbox_policy() -> super::SandboxPolicy {
+        super::SandboxPolicy {
+            cpu_quota_ms_per_invoke: 5000_u64,
+            memory_mb: 128_u64,
+            wall_clock_ms: 30000_u64,
+        }
+    }
+    pub(super) fn package_manifest_contributes() -> super::PackageContributions {
+        super::PackageContributions {
+            extension_points: vec![],
+            hooks: vec![],
+            schemas: vec![],
+            surfaces: vec![],
+        }
+    }
+    pub(super) fn package_manifest_permissions() -> super::PermissionSet {
+        super::PermissionSet {
+            assets: super::AssetPermissions {
+                read: false,
+                write: false,
+            },
+            capabilities: super::CapabilityPermissions {
+                invoke: vec![],
+            },
+            events: super::EventPermissions {
+                append: false,
+                read: false,
+            },
+            filesystem: super::FilesystemPermissions {
+                read: vec![],
+                write: vec![],
             },
             network: super::NetworkPermissions {
                 declarations: vec![],
@@ -38350,144 +36565,6 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
-            git_fetch: super::GitFetchPermissions {
-                hosts: vec![],
-            },
-            network: super::NetworkPermissions {
-                declarations: vec![],
-                hosts: vec![],
-            },
-            packages: super::PackagePermissions {
-                call: vec![],
-            },
-            secret_refs: vec![],
-        }
-    }
-    pub(super) fn package_manifest_sandbox_policy() -> super::SandboxPolicy {
-        super::SandboxPolicy {
-            cpu_quota_ms_per_invoke: 5000_u64,
-            memory_mb: 128_u64,
-            wall_clock_ms: 30000_u64,
-        }
-    }
-    pub(super) fn package_manifest_contributes() -> super::PackageContributions {
-        super::PackageContributions {
-            extension_points: vec![],
-            hooks: vec![],
-            schemas: vec![],
-            surfaces: vec![],
-        }
-    }
-    pub(super) fn package_manifest_permissions() -> super::PermissionSet {
-        super::PermissionSet {
-            assets: super::AssetPermissions {
-                read: false,
-                write: false,
-            },
-            capabilities: super::CapabilityPermissions {
-                invoke: vec![],
-            },
-            events: super::EventPermissions {
-                append: false,
-                read: false,
-            },
-            filesystem: super::FilesystemPermissions {
-                read: vec![],
-                write: vec![],
-            },
-            git_fetch: super::GitFetchPermissions {
-                hosts: vec![],
-            },
-            network: super::NetworkPermissions {
-                declarations: vec![],
-                hosts: vec![],
-            },
-            packages: super::PackagePermissions {
-                call: vec![],
-            },
-            secret_refs: vec![],
-        }
-    }
-    pub(super) fn package_manifest_sandbox_policy() -> super::SandboxPolicy {
-        super::SandboxPolicy {
-            cpu_quota_ms_per_invoke: 5000_u64,
-            memory_mb: 128_u64,
-            wall_clock_ms: 30000_u64,
-        }
-    }
-    pub(super) fn package_manifest_contributes() -> super::PackageContributions {
-        super::PackageContributions {
-            extension_points: vec![],
-            hooks: vec![],
-            schemas: vec![],
-            surfaces: vec![],
-        }
-    }
-    pub(super) fn package_manifest_permissions() -> super::PermissionSet {
-        super::PermissionSet {
-            assets: super::AssetPermissions {
-                read: false,
-                write: false,
-            },
-            capabilities: super::CapabilityPermissions {
-                invoke: vec![],
-            },
-            events: super::EventPermissions {
-                append: false,
-                read: false,
-            },
-            filesystem: super::FilesystemPermissions {
-                read: vec![],
-                write: vec![],
-            },
-            git_fetch: super::GitFetchPermissions {
-                hosts: vec![],
-            },
-            network: super::NetworkPermissions {
-                declarations: vec![],
-                hosts: vec![],
-            },
-            packages: super::PackagePermissions {
-                call: vec![],
-            },
-            secret_refs: vec![],
-        }
-    }
-    pub(super) fn package_manifest_sandbox_policy() -> super::SandboxPolicy {
-        super::SandboxPolicy {
-            cpu_quota_ms_per_invoke: 5000_u64,
-            memory_mb: 128_u64,
-            wall_clock_ms: 30000_u64,
-        }
-    }
-    pub(super) fn package_manifest_contributes() -> super::PackageContributions {
-        super::PackageContributions {
-            extension_points: vec![],
-            hooks: vec![],
-            schemas: vec![],
-            surfaces: vec![],
-        }
-    }
-    pub(super) fn package_manifest_permissions() -> super::PermissionSet {
-        super::PermissionSet {
-            assets: super::AssetPermissions {
-                read: false,
-                write: false,
-            },
-            capabilities: super::CapabilityPermissions {
-                invoke: vec![],
-            },
-            events: super::EventPermissions {
-                append: false,
-                read: false,
-            },
-            filesystem: super::FilesystemPermissions {
-                read: vec![],
-                write: vec![],
-            },
-            git_fetch: super::GitFetchPermissions {
-                hosts: vec![],
-            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
@@ -38528,9 +36605,38 @@ pub mod defaults {
             write: vec![],
         }
     }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
+    pub(super) fn permission_set_network() -> super::NetworkPermissions {
+        super::NetworkPermissions {
+            declarations: vec![],
             hosts: vec![],
+        }
+    }
+    pub(super) fn permission_set_packages() -> super::PackagePermissions {
+        super::PackagePermissions {
+            call: vec![],
+        }
+    }
+    pub(super) fn permission_set_assets() -> super::AssetPermissions {
+        super::AssetPermissions {
+            read: false,
+            write: false,
+        }
+    }
+    pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
+        super::CapabilityPermissions {
+            invoke: vec![],
+        }
+    }
+    pub(super) fn permission_set_events() -> super::EventPermissions {
+        super::EventPermissions {
+            append: false,
+            read: false,
+        }
+    }
+    pub(super) fn permission_set_filesystem() -> super::FilesystemPermissions {
+        super::FilesystemPermissions {
+            read: vec![],
+            write: vec![],
         }
     }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
@@ -38567,9 +36673,38 @@ pub mod defaults {
             write: vec![],
         }
     }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
+    pub(super) fn permission_set_network() -> super::NetworkPermissions {
+        super::NetworkPermissions {
+            declarations: vec![],
             hosts: vec![],
+        }
+    }
+    pub(super) fn permission_set_packages() -> super::PackagePermissions {
+        super::PackagePermissions {
+            call: vec![],
+        }
+    }
+    pub(super) fn permission_set_assets() -> super::AssetPermissions {
+        super::AssetPermissions {
+            read: false,
+            write: false,
+        }
+    }
+    pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
+        super::CapabilityPermissions {
+            invoke: vec![],
+        }
+    }
+    pub(super) fn permission_set_events() -> super::EventPermissions {
+        super::EventPermissions {
+            append: false,
+            read: false,
+        }
+    }
+    pub(super) fn permission_set_filesystem() -> super::FilesystemPermissions {
+        super::FilesystemPermissions {
+            read: vec![],
+            write: vec![],
         }
     }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
@@ -38606,9 +36741,38 @@ pub mod defaults {
             write: vec![],
         }
     }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
+    pub(super) fn permission_set_network() -> super::NetworkPermissions {
+        super::NetworkPermissions {
+            declarations: vec![],
             hosts: vec![],
+        }
+    }
+    pub(super) fn permission_set_packages() -> super::PackagePermissions {
+        super::PackagePermissions {
+            call: vec![],
+        }
+    }
+    pub(super) fn permission_set_assets() -> super::AssetPermissions {
+        super::AssetPermissions {
+            read: false,
+            write: false,
+        }
+    }
+    pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
+        super::CapabilityPermissions {
+            invoke: vec![],
+        }
+    }
+    pub(super) fn permission_set_events() -> super::EventPermissions {
+        super::EventPermissions {
+            append: false,
+            read: false,
+        }
+    }
+    pub(super) fn permission_set_filesystem() -> super::FilesystemPermissions {
+        super::FilesystemPermissions {
+            read: vec![],
+            write: vec![],
         }
     }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
@@ -38645,11 +36809,6 @@ pub mod defaults {
             write: vec![],
         }
     }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
-            hosts: vec![],
-        }
-    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -38682,128 +36841,6 @@ pub mod defaults {
         super::FilesystemPermissions {
             read: vec![],
             write: vec![],
-        }
-    }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set_network() -> super::NetworkPermissions {
-        super::NetworkPermissions {
-            declarations: vec![],
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set_packages() -> super::PackagePermissions {
-        super::PackagePermissions {
-            call: vec![],
-        }
-    }
-    pub(super) fn permission_set_assets() -> super::AssetPermissions {
-        super::AssetPermissions {
-            read: false,
-            write: false,
-        }
-    }
-    pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
-        super::CapabilityPermissions {
-            invoke: vec![],
-        }
-    }
-    pub(super) fn permission_set_events() -> super::EventPermissions {
-        super::EventPermissions {
-            append: false,
-            read: false,
-        }
-    }
-    pub(super) fn permission_set_filesystem() -> super::FilesystemPermissions {
-        super::FilesystemPermissions {
-            read: vec![],
-            write: vec![],
-        }
-    }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set_network() -> super::NetworkPermissions {
-        super::NetworkPermissions {
-            declarations: vec![],
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set_packages() -> super::PackagePermissions {
-        super::PackagePermissions {
-            call: vec![],
-        }
-    }
-    pub(super) fn permission_set_assets() -> super::AssetPermissions {
-        super::AssetPermissions {
-            read: false,
-            write: false,
-        }
-    }
-    pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
-        super::CapabilityPermissions {
-            invoke: vec![],
-        }
-    }
-    pub(super) fn permission_set_events() -> super::EventPermissions {
-        super::EventPermissions {
-            append: false,
-            read: false,
-        }
-    }
-    pub(super) fn permission_set_filesystem() -> super::FilesystemPermissions {
-        super::FilesystemPermissions {
-            read: vec![],
-            write: vec![],
-        }
-    }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set_network() -> super::NetworkPermissions {
-        super::NetworkPermissions {
-            declarations: vec![],
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set_packages() -> super::PackagePermissions {
-        super::PackagePermissions {
-            call: vec![],
-        }
-    }
-    pub(super) fn permission_set_assets() -> super::AssetPermissions {
-        super::AssetPermissions {
-            read: false,
-            write: false,
-        }
-    }
-    pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
-        super::CapabilityPermissions {
-            invoke: vec![],
-        }
-    }
-    pub(super) fn permission_set_events() -> super::EventPermissions {
-        super::EventPermissions {
-            append: false,
-            read: false,
-        }
-    }
-    pub(super) fn permission_set_filesystem() -> super::FilesystemPermissions {
-        super::FilesystemPermissions {
-            read: vec![],
-            write: vec![],
-        }
-    }
-    pub(super) fn permission_set_git_fetch() -> super::GitFetchPermissions {
-        super::GitFetchPermissions {
-            hosts: vec![],
         }
     }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
@@ -38873,7 +36910,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.530674370Z\"")
+        >("\"2026-05-23T09:38:51.042879829Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38893,7 +36930,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.529621668Z\"")
+        >("\"2026-05-23T09:38:51.041592431Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38913,7 +36950,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.527559721Z\"")
+        >("\"2026-05-23T09:38:51.039104992Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38933,7 +36970,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.527738991Z\"")
+        >("\"2026-05-23T09:38:51.039297293Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38953,7 +36990,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.528503653Z\"")
+        >("\"2026-05-23T09:38:51.040180730Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38973,7 +37010,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.530151644Z\"")
+        >("\"2026-05-23T09:38:51.042192578Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -38993,7 +37030,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.535776321Z\"")
+        >("\"2026-05-23T09:38:51.048040246Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -39013,7 +37050,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.535507211Z\"")
+        >("\"2026-05-23T09:38:51.047759439Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -39033,7 +37070,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.535357337Z\"")
+        >("\"2026-05-23T09:38:51.047602684Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -39053,7 +37090,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.535922588Z\"")
+        >("\"2026-05-23T09:38:51.048171381Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -39073,7 +37110,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.535650074Z\"")
+        >("\"2026-05-23T09:38:51.047908391Z\"")
             .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
@@ -39123,7 +37160,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.522504583Z\"")
+        >("\"2026-05-23T09:38:51.033176047Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -39140,7 +37177,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.536907686Z\"")
+        >("\"2026-05-23T09:38:51.049022638Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -39157,7 +37194,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.536631896Z\"")
+        >("\"2026-05-23T09:38:51.048744164Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -39174,7 +37211,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.536763161Z\"")
+        >("\"2026-05-23T09:38:51.048894158Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -39191,7 +37228,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.536845169Z\"")
+        >("\"2026-05-23T09:38:51.048958728Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -39208,7 +37245,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.536699682Z\"")
+        >("\"2026-05-23T09:38:51.048828005Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -39225,7 +37262,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T08:29:21.536971816Z\"")
+        >("\"2026-05-23T09:38:51.049086828Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

@@ -16,10 +16,6 @@ title: Yggdrasil Forge Host With Live Model Outbound Enabled (Example)
 # injected from host-resolved secret_refs at execution time only.
 
 outbound:
-  git:
-    enabled: false
-    executor: deny_all
-    allowed_hosts: []
   execute:
     enabled: true
     executor: live

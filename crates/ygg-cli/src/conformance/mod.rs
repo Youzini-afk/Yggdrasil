@@ -6,7 +6,6 @@ mod experience_observability;
 mod experience_runtime;
 mod fixtures;
 mod generated;
-mod git_install;
 mod hooks;
 mod inference_local;
 mod inference_playtest;
@@ -530,11 +529,6 @@ fn build_cases() -> Vec<ConformanceCase> {
             official_labs::model_routing_lab
         ),
         c!(
-            "official.package_installer_lab",
-            ["official", "git"],
-            official_labs::package_installer_lab
-        ),
-        c!(
             "official.pi_agent_runtime_lab",
             ["official", "agentic", "slow"],
             official_labs::pi_agent_runtime_lab
@@ -893,47 +887,6 @@ fn build_cases() -> Vec<ConformanceCase> {
             "sse_parser.partial_chunks",
             ["outbound", "network", "stream", "sse"],
             network::sse_parser_partial_chunks
-        ),
-        // --- git outbound ---
-        c!(
-            "git_fetch.deny_all_default",
-            ["git", "outbound"],
-            git_install::git_fetch_deny_all_default
-        ),
-        c!(
-            "git_fetch.requires_https",
-            ["git", "outbound"],
-            git_install::git_fetch_requires_https
-        ),
-        c!(
-            "git_fetch.requires_host_allowlist",
-            ["git", "outbound"],
-            git_install::git_fetch_requires_host_allowlist
-        ),
-        c!(
-            "git_fetch.fake_executor_returns_fixture",
-            ["git", "outbound"],
-            git_install::git_fetch_fake_executor_returns_fixture
-        ),
-        c!(
-            "git_fetch.audit_no_raw_secrets",
-            ["git", "outbound", "secret"],
-            git_install::git_fetch_audit_no_raw_secrets
-        ),
-        c!(
-            "installer_lab.lockfile_round_trip",
-            ["git", "package"],
-            git_install::installer_lockfile_round_trip
-        ),
-        c!(
-            "installer_lab.lockfile_rejects_unsafe_inputs",
-            ["git", "package", "secret"],
-            git_install::installer_lockfile_rejects_unsafe_inputs
-        ),
-        c!(
-            "git_fetch.real_opt_in",
-            ["git", "outbound", "live"],
-            git_install::git_fetch_real_opt_in
         ),
         // --- streaming ---
         c!(

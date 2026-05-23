@@ -34,10 +34,6 @@
 | `kernel/v1/outbound.denied` | [`./schemas/events/kernel__v1__outbound.denied.schema.json`](./schemas/events/kernel__v1__outbound.denied.schema.json) | kernel | 出站请求被拒绝 | partial |
 | `kernel/v1/outbound.execute.completed` | [`./schemas/events/kernel__v1__outbound.execute.completed.schema.json`](./schemas/events/kernel__v1__outbound.execute.completed.schema.json) | kernel | 出站 execute 完成 | implemented |
 | `kernel/v1/outbound.stream.completed` | [`./schemas/events/kernel__v1__outbound.stream.completed.schema.json`](./schemas/events/kernel__v1__outbound.stream.completed.schema.json) | kernel | 出站 stream 完成 | implemented |
-| `kernel/v1/git_fetch.requested` | [`./schemas/events/kernel__v1__git_fetch.requested.schema.json`](./schemas/events/kernel__v1__git_fetch.requested.schema.json) | kernel | git fetch 已请求 | partial |
-| `kernel/v1/git_fetch.denied` | [`./schemas/events/kernel__v1__git_fetch.denied.schema.json`](./schemas/events/kernel__v1__git_fetch.denied.schema.json) | kernel | git fetch 被拒绝 | partial |
-| `kernel/v1/git_fetch.completed` | [`./schemas/events/kernel__v1__git_fetch.completed.schema.json`](./schemas/events/kernel__v1__git_fetch.completed.schema.json) | kernel | git fetch 完成 | partial |
-| `kernel/v1/git_fetch.failed` | [`./schemas/events/kernel__v1__git_fetch.failed.schema.json`](./schemas/events/kernel__v1__git_fetch.failed.schema.json) | kernel | git fetch 失败 | partial |
 | `kernel/v1/stream.started` | [`./schemas/events/kernel__v1__stream.started.schema.json`](./schemas/events/kernel__v1__stream.started.schema.json) | kernel | streaming 调用开始 | partial |
 | `kernel/v1/stream.chunk` | [`./schemas/events/kernel__v1__stream.chunk.schema.json`](./schemas/events/kernel__v1__stream.chunk.schema.json) | kernel | streaming chunk 已发出 | partial |
 | `kernel/v1/stream.progress` | [`./schemas/events/kernel__v1__stream.progress.schema.json`](./schemas/events/kernel__v1__stream.progress.schema.json) | kernel | streaming 进度已发出 | partial |

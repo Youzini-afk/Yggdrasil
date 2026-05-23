@@ -77,7 +77,6 @@ pub enum KernelMethod {
     OutboundWebSocketOpen,
     OutboundWebSocketSend,
     OutboundWebSocketClose,
-    OutboundGitFetch,
 }
 
 impl KernelMethod {
@@ -141,7 +140,6 @@ impl KernelMethod {
             Self::OutboundWebSocketOpen => "kernel.v1.outbound.websocket.open",
             Self::OutboundWebSocketSend => "kernel.v1.outbound.websocket.send",
             Self::OutboundWebSocketClose => "kernel.v1.outbound.websocket.close",
-            Self::OutboundGitFetch => "kernel.v1.outbound.git_fetch",
         }
     }
 
@@ -205,7 +203,6 @@ impl KernelMethod {
             Self::OutboundWebSocketOpen => MethodStatus::Partial,
             Self::OutboundWebSocketSend => MethodStatus::Partial,
             Self::OutboundWebSocketClose => MethodStatus::Partial,
-            Self::OutboundGitFetch => MethodStatus::Partial,
         }
     }
 
@@ -280,7 +277,6 @@ impl KernelMethod {
             Self::OutboundWebSocketOpen,
             Self::OutboundWebSocketSend,
             Self::OutboundWebSocketClose,
-            Self::OutboundGitFetch,
         ]
     }
 
@@ -348,8 +344,7 @@ impl KernelMethod {
             | Self::OutboundStream
             | Self::OutboundWebSocketOpen
             | Self::OutboundWebSocketSend
-            | Self::OutboundWebSocketClose
-            | Self::OutboundGitFetch => true,
+            | Self::OutboundWebSocketClose => true,
             // Planned methods with no dispatch yet
             Self::SessionGet
             | Self::SessionList
@@ -430,7 +425,6 @@ impl FromStr for KernelMethod {
             "kernel.v1.outbound.websocket.open" => Ok(Self::OutboundWebSocketOpen),
             "kernel.v1.outbound.websocket.send" => Ok(Self::OutboundWebSocketSend),
             "kernel.v1.outbound.websocket.close" => Ok(Self::OutboundWebSocketClose),
-            "kernel.v1.outbound.git_fetch" => Ok(Self::OutboundGitFetch),
             other => Err(format!("unknown kernel method: {other}")),
         }
     }
@@ -888,11 +882,6 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
     },
     ProtocolMethod {
         id: "kernel.v1.outbound.websocket.close",
-        streaming: false,
-        status: MethodStatus::Partial,
-    },
-    ProtocolMethod {
-        id: "kernel.v1.outbound.git_fetch",
         streaming: false,
         status: MethodStatus::Partial,
     },

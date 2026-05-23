@@ -487,10 +487,6 @@ fn main() -> anyhow::Result<()> {
                 schema_value::<OutboundWebSocketSendParams>(),
                 json!({"type":"object"}),
             ),
-            KernelMethod::OutboundGitFetch => (
-                schema_value::<GitOutboundRequest>(),
-                schema_value::<GitOutboundResponse>(),
-            ),
         };
         write_method(&out, *method, params, result)?;
     }
@@ -571,16 +567,6 @@ fn main() -> anyhow::Result<()> {
             EVENT_OUTBOUND_STREAM_COMPLETED,
             schema_value::<OutboundStreamSummary>(),
         ),
-        (
-            EVENT_GIT_FETCH_REQUESTED,
-            schema_value::<GitOutboundRequest>(),
-        ),
-        (EVENT_GIT_FETCH_DENIED, json!({"type":"object"})),
-        (
-            EVENT_GIT_FETCH_COMPLETED,
-            schema_value::<GitOutboundResponse>(),
-        ),
-        (EVENT_GIT_FETCH_FAILED, json!({"type":"object"})),
         (EVENT_STREAM_STARTED, json!({"type":"object"})),
         (EVENT_STREAM_CHUNK, schema_value::<StreamFrameEnvelope>()),
         (EVENT_STREAM_PROGRESS, schema_value::<StreamFrameEnvelope>()),

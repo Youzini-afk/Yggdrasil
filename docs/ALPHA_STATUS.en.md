@@ -8,7 +8,7 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 371 named CLI cases pass, plus crate and service unit tests; 110 v1 schemas validate (58 methods + 45 events + 7 top-level).
+- **Conformance:** 362 named CLI cases pass, plus crate and service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
@@ -22,7 +22,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Human and assistant principals get scoped grants.
 - Audit events: `kernel/v1/permission.granted|revoked|denied`, `kernel/v1/package.*` lifecycle, `kernel/v1/proposal.*` lifecycle.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 58 protocol methods, 45 event kinds, and 110 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 57 protocol methods, 41 event kinds, and 105 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
@@ -32,7 +32,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
 - **Outbound executor boundary:** content-free HTTP and WebSocket executor traits. Default is deny-all (fail closed). They can switch to fake executors (with fixtures, used by conformance) or live executors (HTTP uses reqwest + rustls; WebSocket uses tokio-tungstenite + rustls; both off by default; HTTP is HTTPS-only; WebSocket is WSS-only; redirect fail closed). Secret headers are injected at execution time only — never into audit, response, or `Debug`. Real live model / WebSocket outbound requires explicit opt-in through profile and environment variables; default conformance does not use the network, and real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
-- **Protocol methods:** `kernel.v1.outbound.audit` lists outbound audit events for a package; `kernel.v1.outbound.execute` lets ordinary packages issue unary outbound requests through the host executor; `kernel.v1.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.v1.outbound.websocket.open|send|close` provides bidirectional WebSocket outbound; `kernel.v1.outbound.git_fetch` lets packages request public HTTPS git fetches under host policy.
+- **Protocol methods:** `kernel.v1.outbound.audit` lists outbound audit events for a package; `kernel.v1.outbound.execute` lets ordinary packages issue unary outbound requests through the host executor; `kernel.v1.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.v1.outbound.websocket.open|send|close` provides bidirectional WebSocket outbound.
 - **Completion audit events:** `kernel/v1/outbound.execute.completed`, `kernel/v1/outbound.stream.completed`, and `kernel/v1/outbound.websocket.completed` cover all three outbound primitives; events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references.
 - **Streaming lifecycle:** the stream registry tracks in-flight streaming invocations and emits `kernel/v1/stream.started|chunk|progress|ended|error|cancelled|timeout` in order. Cancel and timeout block further chunks. Non-streaming capabilities are rejected.
 
@@ -67,7 +67,8 @@ All ordinary packages, no kernel privilege. They live in `packages/official/` an
 
 **Platform foundation**
 
-- `package-lab`, `package-installer-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
+- `package-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
+- The former installer lab for git-install experiments has been removed; future git installation belongs in the ordinary Round 10+ package `official/git-tools-lab`.
 
 **Creative capability families**
 
@@ -127,7 +128,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 58 methods, 45 events, 7 top-level schemas, 110 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 57 methods, 41 events, 7 top-level schemas, 105 total.
 - `sdk/typescript/kernel-sdk/` and `sdk/rust/yg-kernel-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `yg conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -161,7 +162,6 @@ Home / Play, Forge, and Assist over the public protocol. The web shell is built 
 - `ygg package conformance` validates a generated package locally.
 - `ygg package reload <manifest>` loads the package into an in-memory runtime, restarts (subprocess only), shows before / after status and log counts, and unloads.
 - `ygg package run-fixture` invokes every non-streaming capability with deterministic fixture input and prints a JSON summary.
-- `ygg package install/list-installed/uninstall/update/inspect-lockfile` manages the profile-scoped git install lockfile; real git fetch is explicit opt-in through `GitOutboundExecutor`.
 - `ygg play-create-demo` runs the blank play-creation loop end to end.
 - `ygg perf baseline` runs deterministic baseline measurements (in-process invoke, official capability invoke, event store append / list / range, composition check, profile load, subprocess echo) in text or JSON. See [`performance/BASELINE.md`](performance/BASELINE.en.md).
 
@@ -176,7 +176,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 371 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 362 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

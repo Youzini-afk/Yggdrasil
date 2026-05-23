@@ -39,7 +39,6 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 | Understand the architecture | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
 | Use the public protocol | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.en.md) |
 | Write your first package | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
-| Install packages from git | [`guides/GIT_PACKAGE_INSTALLATION.md`](guides/GIT_PACKAGE_INSTALLATION.en.md) |
 | Host third-party web surfaces | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) |
 | Build web / desktop / release | [`../BUILDING.md`](../BUILDING.md) |
 | See current status | [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) |

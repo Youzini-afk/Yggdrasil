@@ -315,15 +315,6 @@ components:
                 type: string
               type: array
           type: object
-        GitFetchPermissions:
-          properties:
-            hosts:
-              default: []
-              description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-              items:
-                type: string
-              type: array
-          type: object
         HookSubscription:
           properties:
             extension_point:
@@ -441,11 +432,6 @@ components:
               default:
                 read: []
                 write: []
-            git_fetch:
-              allOf:
-              - $ref: '#/$defs/GitFetchPermissions'
-              default:
-                hosts: []
             network:
               allOf:
               - $ref: '#/$defs/NetworkPermissions'
@@ -663,8 +649,6 @@ components:
             filesystem:
               read: []
               write: []
-            git_fetch:
-              hosts: []
             network:
               declarations: []
               hosts: []
@@ -733,15 +717,6 @@ components:
               type: array
             write:
               default: []
-              items:
-                type: string
-              type: array
-          type: object
-        GitFetchPermissions:
-          properties:
-            hosts:
-              default: []
-              description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
               items:
                 type: string
               type: array
@@ -818,11 +793,6 @@ components:
           default:
             read: []
             write: []
-        git_fetch:
-          allOf:
-          - $ref: '#/$defs/GitFetchPermissions'
-          default:
-            hosts: []
         network:
           allOf:
           - $ref: '#/$defs/NetworkPermissions'
@@ -1326,10 +1296,6 @@ paths:
                             type: boolean
                           events_read:
                             type: boolean
-                          git_fetch_hosts:
-                            items:
-                              type: string
-                            type: array
                           network_hosts:
                             items:
                               type: string
@@ -1344,7 +1310,6 @@ paths:
                         - capabilities_invoke
                         - events_append
                         - events_read
-                        - git_fetch_hosts
                         - network_hosts
                         - secret_refs
                         type: object
@@ -1404,10 +1369,6 @@ paths:
                             format: uint64
                             minimum: 0.0
                             type: integer
-                          git_fetches:
-                            format: uint64
-                            minimum: 0.0
-                            type: integer
                           network_hosts_used:
                             additionalProperties:
                               format: uint64
@@ -1426,7 +1387,6 @@ paths:
                         - capabilities_invoked
                         - events_append_count
                         - events_read_count
-                        - git_fetches
                         - network_hosts_used
                         - secret_refs_used
                         type: object
@@ -2016,7 +1976,7 @@ paths:
                         description: Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
                         type: string
                       timestamp:
-                        default: 2026-05-23T08:29:21.522504583Z
+                        default: 2026-05-23T09:38:51.033176047Z
                         description: Timestamp of frame emission.
                         format: date-time
                         type: string
@@ -3597,255 +3557,6 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke kernel.v1.outbound.execute
-  /rpc/kernel.v1.outbound.git_fetch:
-    post:
-      operationId: outboundGitFetch
-      requestBody:
-        content:
-          application/json:
-            schema:
-              additionalProperties: false
-              properties:
-                id:
-                  oneOf:
-                  - type: string
-                  - type: integer
-                  - type: 'null'
-                jsonrpc:
-                  const: '2.0'
-                method:
-                  const: kernel.v1.outbound.git_fetch
-                params:
-                  $defs:
-                    GitFetchKind:
-                      description: |-
-                        The kind of git fetch a caller is asking the host to perform.
-
-                        This is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.
-                      oneOf:
-                      - description: Fetch just enough metadata to resolve a ref / inspect a manifest.
-                        enum:
-                        - refs_only
-                        type: string
-                      - description: Fetch a single tree snapshot without history where the executor can.
-                        enum:
-                        - tree_only
-                        type: string
-                      - description: Shallow clone / checkout bounded by host policy.
-                        enum:
-                        - shallow_clone
-                        type: string
-                    RedactionState:
-                      description: |-
-                        Redaction state for an outbound audit record.
-
-                        Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
-                      oneOf:
-                      - description: Raw data was not captured (default).
-                        enum:
-                        - not_captured
-                        type: string
-                      - description: Raw data was redacted before recording.
-                        enum:
-                        - redacted
-                        type: string
-                      - description: Only a policy reference is stored; no data captured.
-                        enum:
-                        - policy_ref
-                        type: string
-                      - description: Request was blocked as unsafe; no data recorded.
-                        enum:
-                        - unsafe_blocked
-                        type: string
-                      - description: Explicit user/host approval to capture raw data (rare).
-                        enum:
-                        - explicitly_approved
-                        type: string
-                  $schema: https://json-schema.org/draft/2020-12/schema
-                  description: |-
-                    Request sent to a git outbound executor.
-
-                    The request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.
-                  properties:
-                    capability_id:
-                      description: Capability through which the request was made.
-                      type: string
-                    destination_hint:
-                      default: null
-                      description: Optional host-internal destination hint. The executor may ignore it.
-                      type:
-                      - string
-                      - 'null'
-                    fetch_kind:
-                      allOf:
-                      - $ref: '#/$defs/GitFetchKind'
-                      description: Fetch shape requested by the caller.
-                    metadata:
-                      default: null
-                      description: Opaque package-owned metadata. Must not contain raw secrets.
-                    package_id:
-                      description: Package that initiated the git fetch request.
-                      type: string
-                    redaction_state:
-                      anyOf:
-                      - $ref: '#/$defs/RedactionState'
-                      - type: 'null'
-                      default: null
-                      description: Redaction state carried forward from policy/audit.
-                    reference:
-                      description: Branch, tag, or commit SHA requested by the caller.
-                      type: string
-                    remote_url:
-                      description: Public HTTPS git URL. Non-HTTPS transports are rejected by policy.
-                      type: string
-                    secret_refs:
-                      default: []
-                      description: Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.
-                      items:
-                        type: string
-                      type: array
-                    timeout_ms:
-                      default: null
-                      description: Optional timeout in milliseconds.
-                      format: uint64
-                      minimum: 0.0
-                      type:
-                      - integer
-                      - 'null'
-                  required:
-                  - capability_id
-                  - fetch_kind
-                  - package_id
-                  - reference
-                  - remote_url
-                  title: GitOutboundRequest
-                  type: object
-              required:
-              - jsonrpc
-              - id
-              - method
-              - params
-              type: object
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties: false
-                properties:
-                  error:
-                    properties:
-                      code:
-                        type: integer
-                      data: true
-                      message:
-                        type: string
-                    required:
-                    - code
-                    - message
-                    type: object
-                  id:
-                    oneOf:
-                    - type: string
-                    - type: integer
-                    - type: 'null'
-                  jsonrpc:
-                    const: '2.0'
-                  result:
-                    $defs:
-                      ExecutorKind:
-                        description: The kind of outbound executor that produced a response.
-                        oneOf:
-                        - description: All outbound is denied; no network performed.
-                          enum:
-                          - deny_all
-                          type: string
-                        - description: Fake/deterministic fixture executor; no real network.
-                          enum:
-                          - fake
-                          type: string
-                        - description: Real network executor (future M4+).
-                          enum:
-                          - real
-                          type: string
-                      RedactionState:
-                        description: |-
-                          Redaction state for an outbound audit record.
-
-                          Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
-                        oneOf:
-                        - description: Raw data was not captured (default).
-                          enum:
-                          - not_captured
-                          type: string
-                        - description: Raw data was redacted before recording.
-                          enum:
-                          - redacted
-                          type: string
-                        - description: Only a policy reference is stored; no data captured.
-                          enum:
-                          - policy_ref
-                          type: string
-                        - description: Request was blocked as unsafe; no data recorded.
-                          enum:
-                          - unsafe_blocked
-                          type: string
-                        - description: Explicit user/host approval to capture raw data (rare).
-                          enum:
-                          - explicitly_approved
-                          type: string
-                    $schema: https://json-schema.org/draft/2020-12/schema
-                    description: Response returned by a git outbound executor.
-                    properties:
-                      executor_kind:
-                        allOf:
-                        - $ref: '#/$defs/ExecutorKind'
-                        description: What kind of executor produced this response.
-                      metadata:
-                        default: null
-                        description: Opaque executor metadata, shape only.
-                      network_performed:
-                        description: Whether real network I/O was performed.
-                        type: boolean
-                      redaction_state:
-                        allOf:
-                        - $ref: '#/$defs/RedactionState'
-                        default: not_captured
-                        description: Redaction state applied to the response.
-                      resolved_commit_sha:
-                        default: null
-                        description: Resolved commit SHA, when known. Empty for deny-all/default responses.
-                        type:
-                        - string
-                        - 'null'
-                      resolved_content_hash:
-                        default: null
-                        description: Full-tree content hash, when known. Empty for deny-all/default responses.
-                        type:
-                        - string
-                        - 'null'
-                      resolved_path:
-                        default: null
-                        description: Host-selected install root subdir / opaque ref. Must not expose raw secrets.
-                        type:
-                        - string
-                        - 'null'
-                      status:
-                        description: 'High-level status: "ok", "denied", "error", "timeout".'
-                        type: string
-                    required:
-                    - executor_kind
-                    - network_performed
-                    - status
-                    title: GitOutboundResponse
-                    type: object
-                required:
-                - jsonrpc
-                - id
-                type: object
-          description: JSON-RPC response envelope
-      summary: Invoke kernel.v1.outbound.git_fetch
   /rpc/kernel.v1.outbound.stream:
     post:
       operationId: outboundStream
@@ -4747,15 +4458,6 @@ paths:
                                 type: string
                               type: array
                           type: object
-                        GitFetchPermissions:
-                          properties:
-                            hosts:
-                              default: []
-                              description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-                              items:
-                                type: string
-                              type: array
-                          type: object
                         HookSubscription:
                           properties:
                             extension_point:
@@ -4894,8 +4596,6 @@ paths:
                                 filesystem:
                                   read: []
                                   write: []
-                                git_fetch:
-                                  hosts: []
                                 network:
                                   declarations: []
                                   hosts: []
@@ -4970,11 +4670,6 @@ paths:
                               default:
                                 read: []
                                 write: []
-                            git_fetch:
-                              allOf:
-                              - $ref: '#/$defs/GitFetchPermissions'
-                              default:
-                                hosts: []
                             network:
                               allOf:
                               - $ref: '#/$defs/NetworkPermissions'
@@ -5405,15 +5100,6 @@ paths:
                             type: string
                           type: array
                       type: object
-                    GitFetchPermissions:
-                      properties:
-                        hosts:
-                          default: []
-                          description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-                          items:
-                            type: string
-                          type: array
-                      type: object
                     HookSubscription:
                       properties:
                         extension_point:
@@ -5531,11 +5217,6 @@ paths:
                           default:
                             read: []
                             write: []
-                        git_fetch:
-                          allOf:
-                          - $ref: '#/$defs/GitFetchPermissions'
-                          default:
-                            hosts: []
                         network:
                           allOf:
                           - $ref: '#/$defs/NetworkPermissions'
@@ -5753,8 +5434,6 @@ paths:
                         filesystem:
                           read: []
                           write: []
-                        git_fetch:
-                          hosts: []
                         network:
                           declarations: []
                           hosts: []
@@ -6007,15 +5686,6 @@ paths:
                               type: string
                             type: array
                         type: object
-                      GitFetchPermissions:
-                        properties:
-                          hosts:
-                            default: []
-                            description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-                            items:
-                              type: string
-                            type: array
-                        type: object
                       HookSubscription:
                         properties:
                           extension_point:
@@ -6154,8 +5824,6 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
-                              git_fetch:
-                                hosts: []
                               network:
                                 declarations: []
                                 hosts: []
@@ -6230,11 +5898,6 @@ paths:
                             default:
                               read: []
                               write: []
-                          git_fetch:
-                            allOf:
-                            - $ref: '#/$defs/GitFetchPermissions'
-                            default:
-                              hosts: []
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -6787,15 +6450,6 @@ paths:
                               type: string
                             type: array
                         type: object
-                      GitFetchPermissions:
-                        properties:
-                          hosts:
-                            default: []
-                            description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-                            items:
-                              type: string
-                            type: array
-                        type: object
                       HookSubscription:
                         properties:
                           extension_point:
@@ -6934,8 +6588,6 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
-                              git_fetch:
-                                hosts: []
                               network:
                                 declarations: []
                                 hosts: []
@@ -7010,11 +6662,6 @@ paths:
                             default:
                               read: []
                               write: []
-                          git_fetch:
-                            allOf:
-                            - $ref: '#/$defs/GitFetchPermissions'
-                            default:
-                              hosts: []
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -7485,15 +7132,6 @@ paths:
                               type: string
                             type: array
                         type: object
-                      GitFetchPermissions:
-                        properties:
-                          hosts:
-                            default: []
-                            description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-                            items:
-                              type: string
-                            type: array
-                        type: object
                       HookSubscription:
                         properties:
                           extension_point:
@@ -7632,8 +7270,6 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
-                              git_fetch:
-                                hosts: []
                               network:
                                 declarations: []
                                 hosts: []
@@ -7708,11 +7344,6 @@ paths:
                             default:
                               read: []
                               write: []
-                          git_fetch:
-                            allOf:
-                            - $ref: '#/$defs/GitFetchPermissions'
-                            default:
-                              hosts: []
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -8183,15 +7814,6 @@ paths:
                               type: string
                             type: array
                         type: object
-                      GitFetchPermissions:
-                        properties:
-                          hosts:
-                            default: []
-                            description: HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-                            items:
-                              type: string
-                            type: array
-                        type: object
                       HookSubscription:
                         properties:
                           extension_point:
@@ -8330,8 +7952,6 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
-                              git_fetch:
-                                hosts: []
                               network:
                                 declarations: []
                                 hosts: []
@@ -8406,11 +8026,6 @@ paths:
                             default:
                               read: []
                               write: []
-                          git_fetch:
-                            allOf:
-                            - $ref: '#/$defs/GitFetchPermissions'
-                            default:
-                              hosts: []
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -9877,7 +9492,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T08:29:21.530674370Z
+                        default: 2026-05-23T09:38:51.042879829Z
                         format: date-time
                         type: string
                       created_by:
@@ -10098,7 +9713,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T08:29:21.529621668Z
+                        default: 2026-05-23T09:38:51.041592431Z
                         format: date-time
                         type: string
                       created_by:
@@ -10274,7 +9889,7 @@ paths:
                       - type: 'null'
                       default: null
                     created_at:
-                      default: 2026-05-23T08:29:21.527559721Z
+                      default: 2026-05-23T09:38:51.039104992Z
                       format: date-time
                       type: string
                     created_by:
@@ -10458,7 +10073,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T08:29:21.527738991Z
+                        default: 2026-05-23T09:38:51.039297293Z
                         format: date-time
                         type: string
                       created_by:
@@ -10675,7 +10290,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T08:29:21.528503653Z
+                        default: 2026-05-23T09:38:51.040180730Z
                         format: date-time
                         type: string
                       created_by:
@@ -10888,7 +10503,7 @@ paths:
                           - type: 'null'
                           default: null
                         created_at:
-                          default: 2026-05-23T08:29:21.529040491Z
+                          default: 2026-05-23T09:38:51.040813838Z
                           format: date-time
                           type: string
                         created_by:
@@ -11110,7 +10725,7 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T08:29:21.530151644Z
+                        default: 2026-05-23T09:38:51.042192578Z
                         format: date-time
                         type: string
                       created_by:

@@ -71,12 +71,6 @@
             "events_read": {
               "type": "boolean"
             },
-            "git_fetch_hosts": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
             "network_hosts": {
               "items": {
                 "type": "string"
@@ -96,7 +90,6 @@
             "capabilities_invoke",
             "events_append",
             "events_read",
-            "git_fetch_hosts",
             "network_hosts",
             "secret_refs"
           ],
@@ -179,11 +172,6 @@
               "minimum": 0.0,
               "type": "integer"
             },
-            "git_fetches": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": "integer"
-            },
             "network_hosts_used": {
               "additionalProperties": {
                 "format": "uint64",
@@ -207,7 +195,6 @@
             "capabilities_invoked",
             "events_append_count",
             "events_read_count",
-            "git_fetches",
             "network_hosts_used",
             "secret_refs_used"
           ],

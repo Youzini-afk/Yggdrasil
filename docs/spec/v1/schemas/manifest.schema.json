@@ -284,19 +284,6 @@
       },
       "type": "object"
     },
-    "GitFetchPermissions": {
-      "properties": {
-        "hosts": {
-          "default": [],
-          "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
     "HookSubscription": {
       "properties": {
         "extension_point": {
@@ -466,16 +453,6 @@
           "default": {
             "read": [],
             "write": []
-          }
-        },
-        "git_fetch": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/GitFetchPermissions"
-            }
-          ],
-          "default": {
-            "hosts": []
           }
         },
         "network": {
@@ -793,9 +770,6 @@
         "filesystem": {
           "read": [],
           "write": []
-        },
-        "git_fetch": {
-          "hosts": []
         },
         "network": {
           "declarations": [],

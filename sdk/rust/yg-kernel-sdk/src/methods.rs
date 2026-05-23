@@ -220,16 +220,6 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
-    pub async fn outbound_git_fetch(
-        &self,
-        params: GitOutboundRequest,
-    ) -> Result<GitOutboundResponse> {
-        let raw = self
-            .transport
-            .invoke("kernel.v1.outbound.git_fetch", serde_json::to_value(params)?)
-            .await?;
-        Ok(serde_json::from_value(raw)?)
-    }
     pub async fn outbound_stream(
         &self,
         params: OutboundStreamParams,

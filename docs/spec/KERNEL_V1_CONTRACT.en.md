@@ -110,7 +110,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `kernel.v1.projection.get` | partial | Read projection state. |
 | `kernel.v1.projection.list` | partial | List projections. |
 
-### `kernel.v1.outbound.*` (5)
+### `kernel.v1.outbound.*` (4)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -118,7 +118,8 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `kernel.v1.outbound.execute` | implemented | Manifest-gated unary HTTPS outbound with `secret_ref` support. |
 | `kernel.v1.outbound.stream` | implemented | Manifest-gated SSE/NDJSON/raw streaming outbound. |
 | `kernel.v1.outbound.websocket.*` | implemented | Manifest-gated WSS open/send/close. |
-| `kernel.v1.outbound.git_fetch` | implemented | Host-policy-gated public HTTPS git fetch. |
+
+Git installation is not a kernel transport; future support belongs in the ordinary official capability package `official/git-tools-lab` using `kernel.v1.outbound.execute` plus `permissions.filesystem.write`.
 
 ### `kernel.v1.host.*` (4)
 
@@ -145,7 +146,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `kernel.v1.extension_point.describe` | planned | Describe one extension point. |
 | `kernel.v1.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (45)
+## Event kind matrix (41)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -158,7 +159,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | permissions | 3 | `permission.granted`, `.revoked`, `.denied` |
 | proposals | 5 | `proposal.created`, `.approved`, `.rejected`, `.applied`, `.failed` |
 | assets / projections | 2 | `asset.put`, `projection.updated` |
-| outbound / websocket / git | 12 | `outbound.request`, `.denied`, completion events, websocket frames, git fetch events |
+| outbound / websocket | 8 | `outbound.request`, `.denied`, completion events, websocket frames |
 | error | 1 | `kernel/v1/error` |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/v1/...` or another package namespace.
@@ -239,13 +240,13 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 
 ## Schemas and error codes
 
-- Method schemas: `docs/spec/v1/schemas/methods/` (58).
-- Event schemas: `docs/spec/v1/schemas/events/` (45).
+- Method schemas: `docs/spec/v1/schemas/methods/` (57).
+- Event schemas: `docs/spec/v1/schemas/events/` (41).
 - Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (7).
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 110 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 105 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -386,8 +387,8 @@ Official and third-party surfaces use the same descriptors, permission declarati
 
 A v1 implementation must at least prove:
 
-1. 58 method schemas export.
-2. 45 event schemas validate.
+1. 57 method schemas export.
+2. 41 event schemas validate.
 3. 7 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
@@ -424,7 +425,7 @@ The old alpha contract has been replaced by this file. Long-term references shou
 | `kernel.v1.proposal.*` | 6 |
 | `kernel.v1.asset.*` | 3 |
 | `kernel.v1.projection.*` | 4 |
-| `kernel.v1.outbound.*` | 5 |
+| `kernel.v1.outbound.*` | 4 |
 | `kernel.v1.host.*` | 4 |
 | `kernel.v1.audit.*` | 1 |
 | `kernel.v1.surface.*` | 2 |

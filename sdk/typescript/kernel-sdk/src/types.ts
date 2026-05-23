@@ -177,7 +177,6 @@ export interface DeclaredAuthority {
   "capabilities_invoke": Array<string>;
   "events_append": boolean;
   "events_read": boolean;
-  "git_fetch_hosts": Array<string>;
   "network_hosts": Array<string>;
   "secret_refs": Array<string>;
 }
@@ -273,110 +272,6 @@ export interface FilesystemPermissions {
 }
 
 export type FrameKind = "text" | "binary";
-
-export type GitFetchDeniedPayload = Record<string, unknown>;
-
-export type GitFetchFailedPayload = Record<string, unknown>;
-
-/**
- * The kind of git fetch a caller is asking the host to perform.
- * 
- * This is deliberately small and transport-neutral. The kernel does not expose git library concepts such as refspecs, packfiles, trees, or indexes.
- */
-export type GitFetchKind = "refs_only" | "shallow_clone" | "tree_only";
-
-export interface GitFetchPermissions {
-  /**
-   * HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.
-   */
-  "hosts"?: Array<string>;
-}
-
-/**
- * Request sent to a git outbound executor.
- * 
- * The request carries refs and policy shape only. Authentication is expressed as secret refs; raw tokens must never appear here.
- */
-export interface GitOutboundRequest {
-  /**
-   * Capability through which the request was made.
-   */
-  "capability_id": string;
-  /**
-   * Optional host-internal destination hint. The executor may ignore it.
-   */
-  "destination_hint"?: null | string;
-  /**
-   * Fetch shape requested by the caller.
-   */
-  "fetch_kind": GitFetchKind;
-  /**
-   * Opaque package-owned metadata. Must not contain raw secrets.
-   */
-  "metadata"?: unknown;
-  /**
-   * Package that initiated the git fetch request.
-   */
-  "package_id": string;
-  /**
-   * Redaction state carried forward from policy/audit.
-   */
-  "redaction_state"?: RedactionState | null;
-  /**
-   * Branch, tag, or commit SHA requested by the caller.
-   */
-  "reference": string;
-  /**
-   * Public HTTPS git URL. Non-HTTPS transports are rejected by policy.
-   */
-  "remote_url": string;
-  /**
-   * Secret references only. Private repos are not enabled in G1, but the field is part of the public shape so raw tokens never become accepted.
-   */
-  "secret_refs"?: Array<string>;
-  /**
-   * Optional timeout in milliseconds.
-   */
-  "timeout_ms"?: null | number;
-}
-
-/**
- * Response returned by a git outbound executor.
- */
-export interface GitOutboundResponse {
-  /**
-   * What kind of executor produced this response.
-   */
-  "executor_kind": ExecutorKind;
-  /**
-   * Opaque executor metadata, shape only.
-   */
-  "metadata"?: unknown;
-  /**
-   * Whether real network I/O was performed.
-   */
-  "network_performed": boolean;
-  /**
-   * Redaction state applied to the response.
-   */
-  "redaction_state"?: RedactionState;
-  /**
-   * Resolved commit SHA, when known. Empty for deny-all/default responses.
-   */
-  "resolved_commit_sha"?: null | string;
-  /**
-   * Full-tree content hash, when known. Empty for deny-all/default responses.
-   */
-  "resolved_content_hash"?: null | string;
-  /**
-   * Host-selected install root subdir / opaque ref. Must not expose raw secrets.
-   */
-  "resolved_path"?: null | string;
-  /**
-   * High-level status: "ok", "denied", "error", "timeout".
-   */
-  "status": string;
-}
 
 export interface HandleLease {
   "expires_at"?: null | string;
@@ -991,7 +886,6 @@ export interface PermissionSet {
   "capabilities"?: CapabilityPermissions;
   "events"?: EventPermissions;
   "filesystem"?: FilesystemPermissions;
-  "git_fetch"?: GitFetchPermissions;
   "network"?: NetworkPermissions;
   "packages"?: PackagePermissions;
   /**
@@ -1009,7 +903,6 @@ export interface PermissionSet2 {
   "capabilities"?: CapabilityPermissions;
   "events"?: EventPermissions;
   "filesystem"?: FilesystemPermissions;
-  "git_fetch"?: GitFetchPermissions;
   "network"?: NetworkPermissions;
   "packages"?: PackagePermissions;
   /**
@@ -1687,7 +1580,6 @@ export interface UsedAuthority {
   "capabilities_invoked": Record<string, number>;
   "events_append_count": number;
   "events_read_count": number;
-  "git_fetches": number;
   "network_hosts_used": Record<string, number>;
   "secret_refs_used": Record<string, number>;
 }

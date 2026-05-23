@@ -289,8 +289,6 @@ pub struct PermissionSet {
     #[serde(default)]
     pub network: NetworkPermissions,
     #[serde(default)]
-    pub git_fetch: GitFetchPermissions,
-    #[serde(default)]
     pub filesystem: FilesystemPermissions,
     /// Declared secret references this package may use in
     /// `kernel.v1.outbound.execute` calls. Each entry must be a valid
@@ -362,14 +360,6 @@ pub struct NetworkPermissions {
     /// Structured network declarations (host, methods, purpose).
     #[serde(default)]
     pub declarations: Vec<NetworkDeclaration>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct GitFetchPermissions {
-    /// HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`.
-    /// Host policy must still independently allow the same destination.
-    #[serde(default)]
-    pub hosts: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

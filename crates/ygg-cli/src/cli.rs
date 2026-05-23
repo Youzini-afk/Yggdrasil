@@ -206,49 +206,6 @@ pub(crate) enum PackageCommand {
     Reload {
         path: PathBuf,
     },
-    Install {
-        git_url: String,
-        #[arg(long)]
-        profile: PathBuf,
-        #[arg(long)]
-        package_id: String,
-        #[arg(long, default_value = "main")]
-        reference: String,
-        #[arg(long)]
-        commit_sha: String,
-        #[arg(long)]
-        content_hash: String,
-        #[arg(long, default_value = "manifest.yaml")]
-        manifest_path: String,
-    },
-    ListInstalled {
-        #[arg(long)]
-        profile: PathBuf,
-    },
-    Uninstall {
-        package_id: String,
-        #[arg(long)]
-        profile: PathBuf,
-    },
-    Update {
-        package_id: String,
-        #[arg(long)]
-        profile: PathBuf,
-        #[arg(long)]
-        git_url: Option<String>,
-        #[arg(long, default_value = "main")]
-        reference: String,
-        #[arg(long)]
-        commit_sha: String,
-        #[arg(long)]
-        content_hash: String,
-        #[arg(long, default_value = "manifest.yaml")]
-        manifest_path: String,
-    },
-    InspectLockfile {
-        #[arg(long)]
-        profile: PathBuf,
-    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -282,60 +239,9 @@ pub(crate) struct HostProfile {
 #[derive(Debug, Default, Deserialize)]
 pub(crate) struct HostOutboundProfile {
     #[serde(default)]
-    pub(crate) git: HostGitOutboundProfile,
-    #[serde(default)]
     pub(crate) execute: HostExecuteOutboundProfile,
     #[serde(default)]
     pub(crate) websocket: HostWebSocketOutboundProfile,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct HostGitOutboundProfile {
-    #[serde(default)]
-    pub(crate) enabled: bool,
-    #[serde(default)]
-    pub(crate) executor: HostGitOutboundExecutorKind,
-    #[serde(default)]
-    pub(crate) allowed_hosts: Vec<String>,
-    #[serde(default = "default_true")]
-    pub(crate) https_only: bool,
-    #[serde(default = "default_git_max_clone_size_mb")]
-    pub(crate) max_clone_size_mb: u64,
-    #[serde(default = "default_git_timeout_ms")]
-    pub(crate) timeout_ms: u64,
-    #[serde(default)]
-    pub(crate) install_root: Option<PathBuf>,
-    #[serde(default)]
-    pub(crate) allow_redirects: bool,
-}
-
-impl Default for HostGitOutboundProfile {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            executor: HostGitOutboundExecutorKind::DenyAll,
-            allowed_hosts: Vec::new(),
-            https_only: true,
-            max_clone_size_mb: default_git_max_clone_size_mb(),
-            timeout_ms: default_git_timeout_ms(),
-            install_root: None,
-            allow_redirects: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum HostGitOutboundExecutorKind {
-    DenyAll,
-    Fake,
-    Real,
-}
-
-impl Default for HostGitOutboundExecutorKind {
-    fn default() -> Self {
-        Self::DenyAll
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -467,14 +373,6 @@ fn default_max_concurrent_connections() -> usize {
 
 fn default_true() -> bool {
     true
-}
-
-fn default_git_max_clone_size_mb() -> u64 {
-    64
-}
-
-fn default_git_timeout_ms() -> u64 {
-    30_000
 }
 
 fn default_execute_timeout_ms() -> u64 {

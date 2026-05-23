@@ -175,7 +175,6 @@ kernel.v1.outbound.websocket.open   open an outbound WebSocket stream and return
 kernel.v1.outbound.websocket.send   send one outbound WebSocket frame
 kernel.v1.outbound.websocket.close  close an outbound WebSocket connection
 kernel.v1.outbound.audit      list redacted outbound audit records for a package
-kernel.v1.outbound.git_fetch  public HTTPS git fetch under host policy
 ```
 
 The outbound protocol has three outbound primitives: `execute` is a unary HTTP-style request, `stream` is an SSE / NDJSON / raw one-way stream, and `kernel.v1.outbound.websocket.*` is bidirectional WebSocket. `websocket.open` is a streaming method that establishes a WSS connection and returns `connection_id`; `websocket.send` and `websocket.close` are unary methods. `connection_id` is also the `stream_id`; passing it to `kernel.v1.capability.cancel` uses the same cancel/close path.
@@ -189,6 +188,8 @@ WebSocket-specific events use `kernel/v1/outbound.websocket.*`: `opened` records
 All three outbound primitives emit completion audit events: `kernel/v1/outbound.execute.completed`, `kernel/v1/outbound.stream.completed`, and `kernel/v1/outbound.websocket.completed`. These events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references; they do not record raw headers, bodies, secrets, frame payloads, or responses.
 
 `kernel.v1.outbound.audit` returns only redacted audit records: package, capability, destination host, method, purpose, used `secret_ref`s, and redaction state. Raw headers, bodies, secrets, and responses are not written to audit or protocol responses.
+
+Git installation is not a kernel transport. Future `yg install <github-url>` support will be implemented by an ordinary capability package using `kernel.v1.outbound.execute` and filesystem write permission, not by a kernel git fetch method.
 
 ## Package methods
 

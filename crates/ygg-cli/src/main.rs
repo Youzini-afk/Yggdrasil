@@ -39,56 +39,6 @@ async fn main() -> anyhow::Result<()> {
             } => package::package_invoke_local(path, capability_id, input).await,
             PackageCommand::Conformance { path } => package::package_conformance(path).await,
             PackageCommand::Reload { path } => package::package_reload(path).await,
-            PackageCommand::Install {
-                git_url,
-                profile,
-                package_id,
-                reference,
-                commit_sha,
-                content_hash,
-                manifest_path,
-            } => {
-                package::package_install_git(
-                    profile,
-                    git_url,
-                    package_id,
-                    reference,
-                    commit_sha,
-                    content_hash,
-                    manifest_path,
-                )
-                .await
-            }
-            PackageCommand::ListInstalled { profile } => {
-                package::package_list_installed(profile).await
-            }
-            PackageCommand::Uninstall {
-                package_id,
-                profile,
-            } => package::package_uninstall_git(profile, package_id).await,
-            PackageCommand::Update {
-                package_id,
-                profile,
-                git_url,
-                reference,
-                commit_sha,
-                content_hash,
-                manifest_path,
-            } => {
-                package::package_update_git(
-                    profile,
-                    package_id,
-                    git_url,
-                    reference,
-                    commit_sha,
-                    content_hash,
-                    manifest_path,
-                )
-                .await
-            }
-            PackageCommand::InspectLockfile { profile } => {
-                package::package_inspect_lockfile(profile).await
-            }
         },
         Command::Capability { command } => match command {
             CapabilityCommand::Invoke {

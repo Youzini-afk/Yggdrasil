@@ -113,9 +113,6 @@ where
             KernelMethod::OutboundWebSocketClose => {
                 self.dispatch_outbound_websocket_close(&params).await
             }
-            KernelMethod::OutboundGitFetch => {
-                self.dispatch_outbound_git_fetch(context, params).await
-            }
 
             // Permission domain
             KernelMethod::PermissionGrant => self.dispatch_permission_grant(&params).await,
@@ -1238,84 +1235,6 @@ where
             .close(connection_id, code, reason)
             .await?;
         Ok(json!({"status": "ok"}))
-    }
-
-    async fn dispatch_outbound_git_fetch(
-        &self,
-        context: &ProtocolContext,
-        params: Value,
-    ) -> anyhow::Result<Value> {
-        let package_id = match &context.principal {
-            ProtocolPrincipal::Package { package_id } => package_id.clone(),
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => params
-                .get("package_id")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-                .unwrap_or_else(|| "host/test".to_string()),
-            other => anyhow::bail!(
-                "kernel.v1.outbound.git_fetch requires package or host principal, got {:?}",
-                other
-            ),
-        };
-
-        let capability_id = params
-            .get("capability_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.git_fetch requires capability_id"))?
-            .to_string();
-        let remote_url = params
-            .get("remote_url")
-            .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.git_fetch requires remote_url"))?
-            .to_string();
-        let reference = params
-            .get("ref")
-            .or_else(|| params.get("reference"))
-            .and_then(Value::as_str)
-            .unwrap_or("main")
-            .to_string();
-        let fetch_kind = match params
-            .get("fetch_kind")
-            .and_then(Value::as_str)
-            .unwrap_or("refs_only")
-        {
-            "refs_only" => super::GitFetchKind::RefsOnly,
-            "tree_only" => super::GitFetchKind::TreeOnly,
-            "shallow_clone" => super::GitFetchKind::ShallowClone,
-            other => anyhow::bail!("kernel.v1.outbound.git_fetch unknown fetch_kind '{other}'"),
-        };
-        let secret_refs: Vec<String> = params
-            .get("secret_refs")
-            .and_then(Value::as_array)
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(str::to_string))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let request = super::GitOutboundRequest {
-            package_id,
-            capability_id,
-            remote_url,
-            reference,
-            fetch_kind,
-            destination_hint: params
-                .get("destination_hint")
-                .and_then(Value::as_str)
-                .map(str::to_string),
-            secret_refs,
-            redaction_state: None,
-            timeout_ms: params.get("timeout_ms").and_then(Value::as_u64),
-            metadata: params.get("metadata").cloned().unwrap_or(Value::Null),
-            correlation_id: context.correlation_id,
-        };
-
-        let response = self
-            .execute_git_outbound_with_policy(context.principal.clone(), request)
-            .await?;
-        let mut response_value = serde_json::to_value(&response)?;
-        strip_raw_secrets_from_value(&mut response_value);
-        Ok(response_value)
     }
 
     // --- Permission ---

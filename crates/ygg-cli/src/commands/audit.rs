@@ -130,10 +130,6 @@ fn print_human(report: &ygg_runtime::PackageAuditReport, days: u32) {
         "  assets: read={} write={}",
         report.declared.assets_read, report.declared.assets_write
     );
-    println!(
-        "  git_fetch.hosts: {}",
-        list_or_none(&report.declared.git_fetch_hosts)
-    );
     println!();
 
     println!("Used:");
@@ -158,7 +154,6 @@ fn print_human(report: &ygg_runtime::PackageAuditReport, days: u32) {
         report.used.assets_write_count
     );
     println!("  assets.read:    {} reads", report.used.assets_read_count);
-    println!("  git.fetch:      {} fetches", report.used.git_fetches);
     println!();
 
     println!("Unused (consider removing from manifest):");

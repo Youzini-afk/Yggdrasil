@@ -57,19 +57,6 @@
       },
       "type": "object"
     },
-    "GitFetchPermissions": {
-      "properties": {
-        "hosts": {
-          "default": [],
-          "description": "HTTPS git hosts this package may fetch through `kernel.v1.outbound.git_fetch`. Host policy must still independently allow the same destination.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
     "NetworkDeclaration": {
       "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
       "properties": {
@@ -176,16 +163,6 @@
       "default": {
         "read": [],
         "write": []
-      }
-    },
-    "git_fetch": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/GitFetchPermissions"
-        }
-      ],
-      "default": {
-        "hosts": []
       }
     },
     "network": {

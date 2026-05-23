@@ -10,7 +10,6 @@
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md) — 内核 v1 能力句柄模型、衰减、撤销、bindings 与 effect audit
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.md) — 第三方包本地验证 v1 contract compliance
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.md) — 自包含 Path B 包（`entry.contract: "none"`）
-- [`GIT_PACKAGE_INSTALLATION.md`](GIT_PACKAGE_INSTALLATION.md) — 从公开 HTTPS git 仓库安装能力包（git outbound、profile lockfile、installer-lab）
 - [`SURFACE_HOSTING.md`](SURFACE_HOSTING.md) — iframe SurfaceHost、第三方 Web surface bundle 约定与 host bridge
 
 ## 创作能力族

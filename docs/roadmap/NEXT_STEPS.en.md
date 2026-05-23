@@ -14,8 +14,8 @@ The platform substrate is in place.
 - Multi-provider model integration, real outbound calls, a transport-neutral inference seam, and Agentic Forge Beta — all complete.
 - External project operating plane, storage backend neutrality, PostgreSQL event backend, real TDB Rust adapter — all complete.
 - Vite web-shell builds, iframe SurfaceHost, the Tauri 2.x desktop wrapper, and the tag-triggered cross-platform release pipeline — all complete.
-- Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, SDK generation, and 110 schemas are in place.
-- 371 named conformance cases pass, plus crate / service unit tests.
+- Round 9 Contract Foundation is complete: Contract V1, capability handles, binding injection, Path B, effect audit, the conformance kit, SDK generation, and 105 schemas are in place.
+- 362 named conformance cases pass, plus crate / service unit tests.
 
 The next stage isn't more substrate sprawl. Real AI-native playable experiences pull what comes next.
 
@@ -33,7 +33,7 @@ The shape:
 
 Not new phases, but known to-dos that will get done:
 
-- **Automatic resolve / pin / apply for git package installation.** Controlled git fetch, `kernel.v1.outbound.git_fetch`, `official/package-installer-lab`, the profile-scoped lockfile, and manual-pin CLI are in place; next is wiring `ygg package install <github-url>` into automatic commit/content-hash resolution, approval, lockfile write, and package load. Current capability: [`../guides/GIT_PACKAGE_INSTALLATION.md`](../guides/GIT_PACKAGE_INSTALLATION.en.md).
+- **Round 10+: `official/git-tools-lab`.** Implement the `yg install <github-url>` flow as an ordinary official capability package using `kernel.v1.outbound.execute` (smart-http) plus `permissions.filesystem.write`, with sigstore/GPG signed-tag verification. This replaces the deleted kernel git fetch.
 - Package-owned projection execution.
 - `event.subscribe` permission for package principals, plus broader streaming-transport parity.
 - Timeout and error audit for hook handlers.

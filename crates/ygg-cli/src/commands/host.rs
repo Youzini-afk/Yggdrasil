@@ -6,18 +6,16 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
-    DenyAllWebSocketExecutor, EventStore, FakeGitOutboundExecutor, FakeOutboundExecutor,
-    FakeWebSocketExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig, InMemoryEventStore,
-    LiveHttpOutboundExecutor, LiveWebSocketExecutor, LiveWebSocketProfile,
-    OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext, RealGitOutboundExecutor,
-    RealGitOutboundExecutorConfig, Runtime, RuntimeConfig, SqliteEventStore, WebSocketExecutor,
+    DenyAllWebSocketExecutor, EventStore, FakeOutboundExecutor, FakeWebSocketExecutor,
+    InMemoryEventStore, LiveHttpOutboundExecutor, LiveWebSocketExecutor, LiveWebSocketProfile,
+    OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext, Runtime, RuntimeConfig,
+    SqliteEventStore, WebSocketExecutor,
 };
 
 use super::manifest::read_manifest;
 use crate::cli::{
     HostEventStoreProfile, HostExecuteOutboundExecutorKind, HostExecuteOutboundProfile,
-    HostGitOutboundExecutorKind, HostGitOutboundProfile, HostProfile,
-    HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
+    HostProfile, HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
 };
 
 impl LiveWebSocketProfile for HostWebSocketOutboundProfile {
@@ -111,44 +109,10 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
 }
 
 fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
-    validate_git_outbound_profile(&profile.outbound.git)?;
     validate_execute_outbound_profile(&profile.outbound.execute)?;
     validate_websocket_outbound_profile(&profile.outbound.websocket)?;
 
-    let git = &profile.outbound.git;
     let mut config = RuntimeConfig::default();
-    config.git_outbound_policy = GitOutboundPolicyConfig {
-        enabled: git.enabled,
-        allowed_hosts: git.allowed_hosts.clone(),
-        https_only: git.https_only,
-        max_clone_size_mb: git.max_clone_size_mb,
-        timeout_ms: git.timeout_ms,
-        install_root: git
-            .install_root
-            .as_ref()
-            .map(|path| path.display().to_string()),
-        allow_redirects: git.allow_redirects,
-    };
-    config.git_outbound_executor = match git.executor {
-        HostGitOutboundExecutorKind::DenyAll => GitOutboundExecutorConfig::DenyAll,
-        HostGitOutboundExecutorKind::Fake => {
-            GitOutboundExecutorConfig::Custom(Arc::new(FakeGitOutboundExecutor::new()))
-        }
-        HostGitOutboundExecutorKind::Real => {
-            let install_root = git
-                .install_root
-                .clone()
-                .unwrap_or_else(|| std::env::temp_dir().join("ygg-installed-packages"));
-            GitOutboundExecutorConfig::Custom(Arc::new(RealGitOutboundExecutor::new(
-                RealGitOutboundExecutorConfig {
-                    install_root,
-                    timeout_ms: git.timeout_ms,
-                    max_clone_size_mb: git.max_clone_size_mb,
-                },
-            )))
-        }
-    };
-
     // Y1: Wire outbound.execute profile into RuntimeConfig
     let exec = &profile.outbound.execute;
     config.outbound_execute_policy = OutboundExecutePolicyConfig {
@@ -165,40 +129,6 @@ fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
         build_outbound_websocket_executor(&profile.outbound.websocket)?;
 
     Ok(config)
-}
-
-fn validate_git_outbound_profile(git: &HostGitOutboundProfile) -> Result<()> {
-    if !git.https_only {
-        anyhow::bail!("outbound.git.https_only=false is not supported; git install is HTTPS-only")
-    }
-    if git.allow_redirects {
-        anyhow::bail!("outbound.git.allow_redirects=true is not supported; redirects fail closed")
-    }
-    if git.max_clone_size_mb == 0 {
-        anyhow::bail!("outbound.git.max_clone_size_mb must be greater than zero")
-    }
-    if git.timeout_ms == 0 {
-        anyhow::bail!("outbound.git.timeout_ms must be greater than zero")
-    }
-    if let Some(install_root) = &git.install_root {
-        if install_root.as_os_str().is_empty() {
-            anyhow::bail!("outbound.git.install_root must not be empty")
-        }
-    }
-    if !git.enabled {
-        return Ok(());
-    }
-    if git.allowed_hosts.is_empty() {
-        anyhow::bail!("outbound.git.allowed_hosts is required when git outbound is enabled")
-    }
-    if git
-        .allowed_hosts
-        .iter()
-        .any(|host| host.trim().is_empty() || host == "*")
-    {
-        anyhow::bail!("outbound.git.allowed_hosts must not contain empty hosts or wildcard hosts")
-    }
-    Ok(())
 }
 
 /// Build the `OutboundExecutorConfig` from the execute profile section (Y1).

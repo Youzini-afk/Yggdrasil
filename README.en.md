@@ -39,7 +39,7 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 The platform substrate is in place. Contract V1 is the public platform spec; see [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md). The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
-- 371 named conformance cases pass, plus crate / service unit tests; 110 v1 schemas validate (58 methods + 45 events + 7 top-level).
+- 362 named conformance cases pass, plus crate / service unit tests; 105 v1 schemas validate (57 methods + 41 events + 7 top-level).
 - The kernel is content-free, official packages have no privileges, and the public protocol is the only entry.
 - Secure execution, proposal approval, capability handles, binding injection, Path A / Path B, the conformance kit, generated SDKs, streaming lifecycle, model integration, and agent infrastructure are all in.
 - Path A (`entry.contract: "v1"`) and Path B (`entry.contract: "none"`) are both first-class participation modes.
@@ -85,7 +85,6 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 - Network permission declarations, audit and redaction for outbound requests, and the public-protocol outbound trio: unary `kernel.v1.outbound.execute`, SSE/NDJSON/raw `kernel.v1.outbound.stream`, and bidirectional `kernel.v1.outbound.websocket.*`.
 - Real live HTTP / WebSocket outbound executors (off by default; require an opt-in profile plus provider env vars; HTTP is HTTPS-only, WebSocket is WSS-only, redirect fail-closed). Real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
 - The subprocess TypeScript SDK `kernelClient` lets subprocess packages issue permission-scoped reverse kernel calls, including `kernelClient.openWebSocket`.
-- Public HTTPS git install path: `kernel.v1.outbound.git_fetch`, profile-scoped lockfiles, and `official/package-installer-lab`.
 - A generic streaming and cancel lifecycle.
 
 **Official capability packages** (all ordinary packages, no kernel privilege)
@@ -97,7 +96,7 @@ integrations/          Upstream research notes (pi, TavernHeadless, pretext, TDB
 - Experience: playable-creation-board, experience-runtime, experience-observability, memory, sharing, playable-seed.
 - Inference: inference-local, inference-playtest.
 - Storage and external projects: storage, tdb-retrieval, project-intake, workspace.
-- Foundation labs: package, package-installer, schema-tools, event-tools, assistant, blank-experience.
+- Foundation labs: package, schema-tools, event-tools, assistant, blank-experience.
 
 **TypeScript SDKs**
 
@@ -151,7 +150,7 @@ Run the blank play-creation loop end to end via the public protocol:
 cargo run -p ygg-cli -- play-create-demo
 ```
 
-For more commands (manifest, package, git install, composition, host modes, third-party authoring loop, templates), see [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) and [`docs/guides/GIT_PACKAGE_INSTALLATION.md`](docs/guides/GIT_PACKAGE_INSTALLATION.en.md).
+For more commands (manifest, package, composition, host modes, third-party authoring loop, templates), see [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md).
 
 ## Documentation
 

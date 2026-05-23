@@ -8,7 +8,7 @@ use chrono::{DateTime, Duration, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ygg_core::{
-    CapabilityId, PackageId, EVENT_ASSET_PUT, EVENT_CAPABILITY_INVOKED, EVENT_GIT_FETCH_COMPLETED,
+    CapabilityId, PackageId, EVENT_ASSET_PUT, EVENT_CAPABILITY_INVOKED,
     EVENT_OUTBOUND_EXECUTE_COMPLETED, EVENT_OUTBOUND_STREAM_COMPLETED,
     EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
 };
@@ -53,7 +53,6 @@ pub struct DeclaredAuthority {
     pub events_append: bool,
     pub assets_read: bool,
     pub assets_write: bool,
-    pub git_fetch_hosts: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
@@ -65,7 +64,6 @@ pub struct UsedAuthority {
     pub events_append_count: u64,
     pub assets_read_count: u64,
     pub assets_write_count: u64,
-    pub git_fetches: u64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -122,7 +120,6 @@ where
             events_append: manifest.permissions.events.append,
             assets_read: manifest.permissions.assets.read,
             assets_write: manifest.permissions.assets.write,
-            git_fetch_hosts: sorted_unique(manifest.permissions.git_fetch.hosts.clone()),
         };
 
         let mut used = UsedAuthority::default();
@@ -175,16 +172,6 @@ where
                         {
                             increment(&mut used.secret_refs_used, secret_ref.to_string());
                         }
-                    }
-                }
-                EVENT_GIT_FETCH_COMPLETED => {
-                    if event
-                        .payload
-                        .get("package_id")
-                        .and_then(|value| value.as_str())
-                        == Some(package_id.as_str())
-                    {
-                        used.git_fetches += 1;
                     }
                 }
                 EVENT_ASSET_PUT => {

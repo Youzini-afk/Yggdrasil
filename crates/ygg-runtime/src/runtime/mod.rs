@@ -48,14 +48,11 @@ pub use self::network::{
     OutboundStreamCompletion, OutboundWebSocketCompletion,
 };
 pub use self::outbound::{
-    is_secret_header_name, is_static_header_allowed, CancelSignal, DenyAllGitOutboundExecutor,
-    DenyAllOutboundExecutor, ExecutorKind, FakeGitOutboundExecutor, FakeOutboundExecutor,
-    GitFetchKind, GitOutboundExecutor, GitOutboundExecutorConfig, GitOutboundPolicyConfig,
-    GitOutboundRequest, GitOutboundResponse, KernelOutboundStreamResponse,
-    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig,
-    OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse,
-    OutboundFrameKind, OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame,
-    OutboundStreamSummary, RealGitOutboundExecutor, RealGitOutboundExecutorConfig,
+    is_secret_header_name, is_static_header_allowed, CancelSignal, DenyAllOutboundExecutor,
+    ExecutorKind, FakeOutboundExecutor, KernelOutboundStreamResponse, LiveHttpOutboundExecutor,
+    LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutor,
+    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind,
+    OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame, OutboundStreamSummary,
     RedactedHeaderValue, ResolvedSecretHeader, SecretHeaderSpec, StaticHeader, StreamEmitter,
     StreamFormat, StreamStartStatus, STATIC_HEADER_ALLOWLIST,
 };
@@ -86,10 +83,6 @@ pub struct RuntimeConfig {
     pub outbound_executor: OutboundExecutorConfig,
     /// Outbound execute host-level policy. Defaults disabled (fail-closed). (Y1)
     pub outbound_execute_policy: OutboundExecutePolicyConfig,
-    /// Git outbound executor configuration. Defaults to `DenyAll` (fail-closed).
-    pub git_outbound_executor: GitOutboundExecutorConfig,
-    /// Git outbound host policy. Defaults disabled (fail-closed).
-    pub git_outbound_policy: GitOutboundPolicyConfig,
     /// Outbound WebSocket executor. Defaults to DenyAll (fail-closed).
     pub outbound_websocket_executor: Arc<dyn WebSocketExecutor>,
 }
@@ -103,8 +96,6 @@ impl Default for RuntimeConfig {
             secret_resolver: SecretResolverConfig::default(),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
-            git_outbound_executor: GitOutboundExecutorConfig::default(),
-            git_outbound_policy: GitOutboundPolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
         }
     }
