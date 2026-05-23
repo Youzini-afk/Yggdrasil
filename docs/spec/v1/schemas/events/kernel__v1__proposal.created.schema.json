@@ -177,7 +177,7 @@
           "default": null
         },
         "created_at": {
-          "default": "2026-05-23T09:38:51.047602684Z",
+          "default": "2026-05-23T10:35:39.147288241Z",
           "format": "date-time",
           "type": "string"
         },

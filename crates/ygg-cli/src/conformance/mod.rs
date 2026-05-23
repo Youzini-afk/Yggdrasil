@@ -6,9 +6,11 @@ mod experience_observability;
 mod experience_runtime;
 mod fixtures;
 mod generated;
+mod git_tools;
 mod hooks;
 mod inference_local;
 mod inference_playtest;
+mod integrity_tools;
 mod inproc;
 mod live_model;
 mod memory_lab;
@@ -1837,6 +1839,42 @@ fn build_cases() -> Vec<ConformanceCase> {
             ],
             workspace_lab::workspace_lab_e3_raw_secret_no_forbidden_namespace
         ),
+        // --- integrity-lab (Package Installation Foundation I3) ---
+        c!(
+            "integrity.tree_hash_deterministic",
+            ["official", "integrity", "package_install"],
+            integrity_tools::tree_hash_deterministic
+        ),
+        c!(
+            "integrity.tree_hash_excludes_metadata",
+            ["official", "integrity", "package_install"],
+            integrity_tools::tree_hash_excludes_metadata
+        ),
+        c!(
+            "integrity.manifest_hash_yaml_json_equivalent",
+            ["official", "integrity", "package_install"],
+            integrity_tools::manifest_hash_yaml_json_equivalent
+        ),
+        c!(
+            "integrity.gpg_verify_valid_signature",
+            ["official", "integrity", "package_install"],
+            integrity_tools::gpg_verify_valid_signature
+        ),
+        c!(
+            "integrity.gpg_verify_wrong_key_fails",
+            ["official", "integrity", "package_install"],
+            integrity_tools::gpg_verify_wrong_key_fails
+        ),
+        c!(
+            "integrity.gpg_verify_invalid_signature_no_panic",
+            ["official", "integrity", "package_install"],
+            integrity_tools::gpg_verify_invalid_signature_no_panic
+        ),
+        c!(
+            "integrity.fingerprint_extraction_consistent",
+            ["official", "integrity", "package_install"],
+            integrity_tools::fingerprint_extraction_consistent
+        ),
         // --- sharing lab Beta 6 ---
         c!(
             "sharing_lab.contract_shape",
@@ -2133,6 +2171,32 @@ fn build_cases() -> Vec<ConformanceCase> {
             "tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available",
             ["tdb", "retrieval", "storage"],
             tdb_retrieval_lab::real_tdb_opt_in_seam_crate_adapter_available
+        ),
+        // --- git-tools-lab (Package Installation Foundation I2) ---
+        c!(
+            "git_tools.url_validation_https_only",
+            ["official", "git_tools", "install"],
+            git_tools::url_validation_https_only
+        ),
+        c!(
+            "git_tools.url_validation_no_userinfo",
+            ["official", "git_tools", "install", "secret"],
+            git_tools::url_validation_no_userinfo
+        ),
+        c!(
+            "git_tools.path_validation_absolute",
+            ["official", "git_tools", "install"],
+            git_tools::path_validation_absolute
+        ),
+        c!(
+            "git_tools.path_validation_no_traversal",
+            ["official", "git_tools", "install"],
+            git_tools::path_validation_no_traversal
+        ),
+        c!(
+            "git_tools.read_signed_tag_unsigned",
+            ["official", "git_tools", "install", "fixture"],
+            git_tools::read_signed_tag_unsigned
         ),
         // --- real TDB Rust adapter subprocess proof ---
         c!(

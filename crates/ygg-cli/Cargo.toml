@@ -21,6 +21,7 @@ path = "src/bin/validate-schemas.rs"
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+base64 = "0.22"
 chrono.workspace = true
 clap.workspace = true
 heck = "0.5"
@@ -30,6 +31,7 @@ schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
+sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
 syn = "2"
 tempfile = "3"
 tokio.workspace = true

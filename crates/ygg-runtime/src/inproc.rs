@@ -15,8 +15,10 @@ mod common;
 mod context_lab;
 mod experience_observability_lab;
 mod experience_runtime_lab;
+mod git_tools_lab;
 mod inference_local_lab;
 mod inference_playtest_lab;
+mod integrity_lab;
 mod knowledge_lab;
 mod memory_lab;
 mod model_connector_lab;
@@ -185,6 +187,8 @@ fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
         "official/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(request),
         "official/project-intake-lab" => project_intake_lab::try_handle(request),
         "official/workspace-lab" => workspace_lab::try_handle(request),
+        "official/git-tools-lab" => git_tools_lab::try_handle(request),
+        "official/integrity-lab" => integrity_lab::try_handle(request),
         _ => None,
     };
 

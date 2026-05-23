@@ -11,16 +11,22 @@ async-trait.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 futures.workspace = true
+gix = { version = "0.83", default-features = false, features = ["blocking-network-client", "blocking-http-transport-reqwest", "blocking-http-transport-reqwest-rust-tls", "sha1"] }
 rusqlite.workspace = true
+base64 = "0.22"
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
+sha2 = "0.10"
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
+url.workspace = true
 uuid.workspace = true
 ygg-core.workspace = true
 reqwest.workspace = true
 schemars.workspace = true
+sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 
 [features]
