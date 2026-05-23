@@ -1,0 +1,92 @@
+import { MagnifyingGlass } from "@/components/icons";
+import { InputGroup } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+import type { StatusTone } from "@/components/ui/status-pill";
+
+export interface FilterChip {
+  id: string;
+  label: string;
+  count: number;
+  toneDot?: StatusTone;
+}
+
+const dotClass: Record<StatusTone, string> = {
+  running: "bg-aged-brass",
+  stopped: "bg-steel-secondary",
+  starting: "bg-muted-tone",
+  failed: "bg-deep-rust",
+  update: "bg-aged-brass",
+  neutral: "bg-steel-secondary",
+  accent: "bg-aged-brass",
+};
+
+export interface UtilityStripProps {
+  search: string;
+  onSearchChange: (value: string) => void;
+  filters: FilterChip[];
+  activeFilter: string;
+  onFilterChange: (id: string) => void;
+  sortLabel?: string;
+  onSortClick?: () => void;
+}
+
+export function UtilityStrip({
+  search,
+  onSearchChange,
+  filters,
+  activeFilter,
+  onFilterChange,
+  sortLabel = "Recent",
+  onSortClick,
+}: UtilityStripProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="w-[280px]">
+        <InputGroup
+          leftIcon={<MagnifyingGlass size={16} />}
+          rightSlot={
+            <span className="rounded-[4px] border border-whisper-border bg-warm-bone px-1.5 py-0.5 font-mono text-[10px] text-muted-tone">
+              ⌘K
+            </span>
+          }
+          placeholder="Search projects, packages…"
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {filters.map((filter) => {
+          const isActive = filter.id === activeFilter;
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => onFilterChange(filter.id)}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition",
+                isActive
+                  ? "border-aged-brass-border bg-aged-brass-surface text-charcoal-ink"
+                  : "border-whisper-border bg-transparent text-charcoal-ink hover:bg-whisper-border-strong/30",
+              )}
+            >
+              {filter.toneDot ? (
+                <span className={cn("size-1.5 rounded-full", dotClass[filter.toneDot])} aria-hidden />
+              ) : null}
+              <span>{filter.label}</span>
+              <span className="font-mono text-[10px] text-muted-tone">·{String(filter.count).padStart(2, "0")}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="ml-auto">
+        <Button tone="secondary" size="sm" onClick={onSortClick}>
+          Sort: {sortLabel}
+          <span className="text-muted-tone" aria-hidden>
+            ▾
+          </span>
+        </Button>
+      </div>
+    </div>
+  );
+}
