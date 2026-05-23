@@ -1,4 +1,6 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -41,6 +43,11 @@ function loadSurfaceDevPaths(): Record<string, string> {
 export default defineConfig({
   root: '.',
   publicDir: 'public',
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
   build: {
     outDir: 'dist',
     target: 'es2022',
@@ -84,6 +91,8 @@ export default defineConfig({
   // Dev-only middleware for demo surface bundles. Production should expose
   // package assets through a host-owned same-origin static route.
   plugins: [
+    react(),
+    tailwindcss(),
     {
       name: 'surface-dev-bundle-server',
       configureServer(server) {

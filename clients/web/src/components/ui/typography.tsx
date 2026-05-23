@@ -1,0 +1,53 @@
+import { type ReactNode } from "react";
+import { cn } from "@/lib/cn";
+
+export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
+  return <p className={cn("eyebrow", className)}>{children}</p>;
+}
+
+export function EyebrowSm({ children, className }: { children: ReactNode; className?: string }) {
+  return <p className={cn("eyebrow-sm", className)}>{children}</p>;
+}
+
+export function PageTitle({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <h1
+      className={cn(
+        "font-display text-[28px] font-bold leading-[1.1] tracking-[-0.02em] text-charcoal-ink",
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  );
+}
+
+export function HeroTitle({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <h1
+      className={cn(
+        "font-display text-[36px] font-bold leading-[1.1] tracking-[-0.02em] text-charcoal-ink",
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  );
+}
+
+export function CardTitle({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <h3
+      className={cn(
+        "font-display text-[18px] font-bold leading-tight tracking-[-0.015em] text-charcoal-ink",
+        className,
+      )}
+    >
+      {children}
+    </h3>
+  );
+}
+
+export function Mono({ children, className }: { children: ReactNode; className?: string }) {
+  return <span className={cn("font-mono text-[12px] text-charcoal-ink", className)}>{children}</span>;
+}

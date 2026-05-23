@@ -1,0 +1,104 @@
+/**
+ * React-friendly access to the kernel protocol client.
+ * Wraps the existing YggProtocolClient with a context + hooks.
+ */
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { YggProtocolClient, type KernelEvent } from "@/protocol/client";
+
+interface KernelContextValue {
+  client: YggProtocolClient;
+}
+
+const KernelContext = createContext<KernelContextValue | null>(null);
+
+export function KernelProvider({ children, baseUrl }: { children: ReactNode; baseUrl?: string }) {
+  const client = useMemo(() => {
+    const url = baseUrl
+      ?? (typeof location !== "undefined" && location.origin !== "null" ? location.origin : "http://127.0.0.1:8787");
+    return new YggProtocolClient(url);
+  }, [baseUrl]);
+
+  return <KernelContext.Provider value={{ client }}>{children}</KernelContext.Provider>;
+}
+
+export function useKernel(): YggProtocolClient {
+  const ctx = useContext(KernelContext);
+  if (!ctx) throw new Error("useKernel must be used inside <KernelProvider>");
+  return ctx.client;
+}
+
+export interface AsyncResource<T> {
+  data?: T;
+  error?: Error;
+  loading: boolean;
+  refresh: () => void;
+}
+
+export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []): AsyncResource<T> {
+  const [data, setData] = useState<T | undefined>(undefined);
+  const [error, setError] = useState<Error | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+  const cancelled = useRef(false);
+
+  useEffect(() => {
+    cancelled.current = false;
+    setLoading(true);
+    setError(undefined);
+    fn()
+      .then((value) => {
+        if (!cancelled.current) {
+          setData(value);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled.current) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled.current = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, tick]);
+
+  return { data, error, loading, refresh: () => setTick((n) => n + 1) };
+}
+
+export function useEventTail(sessionId: string | undefined, limit = 24): KernelEvent[] {
+  const client = useKernel();
+  const [events, setEvents] = useState<KernelEvent[]>([]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    client
+      .listEvents(sessionId)
+      .then((records) => {
+        if (!cancelled) setEvents(records.slice(-limit));
+      })
+      .catch(() => {
+        // ignored — tail is best-effort
+      });
+    const close = client.subscribeEvents(sessionId, (event) => {
+      setEvents((current) => [...current, event].slice(-limit));
+    });
+    return () => {
+      cancelled = true;
+      close();
+    };
+  }, [client, sessionId, limit]);
+
+  return events;
+}
