@@ -67,6 +67,87 @@ pub(crate) async fn resolve_plan_local_source() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn resolve_plan_runs_conformance() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let pkg = fixture_path("pkg-local");
+    let out = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": pkg }),
+    )
+    .await?;
+    let report = &out.output["plan"]["packages"][0]["conformance"];
+    anyhow::ensure!(report["summary"]["passed"].as_u64().unwrap_or(0) >= 2);
+    anyhow::ensure!(report["summary"]["skipped"].as_u64().unwrap_or(0) >= 5);
+    anyhow::ensure!(report["checks"]
+        .as_array()
+        .context("checks")?
+        .iter()
+        .any(|check| {
+            check["id"] == json!("manifest.schema_valid") && check["status"] == json!("Pass")
+        }));
+    Ok(())
+}
+
+pub(crate) async fn resolve_plan_blocks_on_conformance_failure() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let err = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": fixture_path("pkg-broken-manifest") }),
+    )
+    .await
+    .expect_err("broken manifest should fail conformance");
+    anyhow::ensure!(
+        err.to_string().contains("fails v1 conformance"),
+        "unexpected error: {err}"
+    );
+    Ok(())
+}
+
+pub(crate) async fn resolve_plan_ignore_conformance_overrides() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({
+            "root_url": fixture_path("pkg-broken-manifest"),
+            "ignore_conformance": true,
+        }),
+    )
+    .await?;
+    let report = &out.output["plan"]["packages"][0]["conformance"];
+    anyhow::ensure!(report["summary"]["failed"].as_u64().unwrap_or(0) > 0);
+    Ok(())
+}
+
+pub(crate) async fn transitive_conformance_propagates() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({
+            "root_url": fixture_path("pkg-a-broken-dep"),
+            "ignore_conformance": true,
+        }),
+    )
+    .await?;
+    let packages = out.output["plan"]["packages"]
+        .as_array()
+        .context("packages")?;
+    let dep = packages
+        .iter()
+        .find(|pkg| pkg["id"] == json!("fixture/pkg-broken-manifest"))
+        .context("broken dependency package")?;
+    anyhow::ensure!(
+        dep["conformance"]["summary"]["failed"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0
+    );
+    Ok(())
+}
+
 pub(crate) async fn resolve_plan_with_transitive() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let out = invoke(

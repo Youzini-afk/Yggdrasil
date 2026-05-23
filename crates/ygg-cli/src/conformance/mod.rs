@@ -2206,6 +2206,26 @@ fn build_cases() -> Vec<ConformanceCase> {
             install_lab::resolve_plan_local_source
         ),
         c!(
+            "install_lab.resolve_plan_runs_conformance",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::resolve_plan_runs_conformance
+        ),
+        c!(
+            "install_lab.resolve_plan_blocks_on_conformance_failure",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::resolve_plan_blocks_on_conformance_failure
+        ),
+        c!(
+            "install_lab.resolve_plan_ignore_conformance_overrides",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::resolve_plan_ignore_conformance_overrides
+        ),
+        c!(
+            "install_lab.transitive_conformance_propagates",
+            ["official", "install", "package_install", "fixture"],
+            install_lab::transitive_conformance_propagates
+        ),
+        c!(
             "install_lab.resolve_plan_with_transitive",
             ["official", "install", "package_install", "fixture"],
             install_lab::resolve_plan_with_transitive

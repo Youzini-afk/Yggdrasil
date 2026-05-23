@@ -10,6 +10,7 @@ async fn install_local_fixture() {
         profile: "test".to_string(),
         data_dir: Some(data_dir.clone()),
         allow_unsigned: true,
+        ignore_conformance: true,
         yes: true,
         format: OutputFormat::Human,
     })
@@ -31,6 +32,7 @@ async fn list_lockfile_and_uninstall_local_fixture() {
         profile: "test".to_string(),
         data_dir: Some(data_dir.clone()),
         allow_unsigned: true,
+        ignore_conformance: true,
         yes: true,
         format: OutputFormat::Human,
     })

@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
-    paths, DependencySource, LockEntry, LockRequirement, LockSource, Lockfile, PackageDependency,
-    PackageManifest, PermissionSet,
+    conformance::PackageConformanceReport, paths, DependencySource, LockEntry, LockRequirement,
+    LockSource, Lockfile, PackageDependency, PackageManifest, PermissionSet,
 };
 
 use crate::CapabilityInvocationRequest;
@@ -57,6 +57,8 @@ struct ResolvePlanInput {
     lockfile: Option<String>,
     #[serde(default)]
     allow_unsigned: bool,
+    #[serde(default)]
+    ignore_conformance: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,6 +128,8 @@ struct PlannedPackage {
     permissions: PlannedPermissions,
     #[serde(default)]
     requires: Vec<PlannedRequirement>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    conformance: Option<PackageConformanceReport>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -190,6 +194,7 @@ pub async fn resolve_plan(input: Value) -> Result<Value> {
     resolve_transitive(
         root,
         input.allow_unsigned,
+        input.ignore_conformance,
         &mut visited,
         &mut resolving,
         &mut stack,
@@ -247,6 +252,7 @@ pub async fn resolve_plan(input: Value) -> Result<Value> {
 fn resolve_transitive(
     root: PackageDescriptor,
     allow_unsigned: bool,
+    ignore_conformance: bool,
     visited: &mut HashSet<String>,
     resolving: &mut HashSet<String>,
     stack: &mut Vec<String>,
@@ -267,7 +273,7 @@ fn resolve_transitive(
         SourceDescriptor::Git { .. } => {}
     }
 
-    let resolved = resolve_one(root, allow_unsigned)?;
+    let resolved = resolve_one(root, allow_unsigned, ignore_conformance)?;
     if let Some(pos) = stack.iter().position(|id| id == &resolved.id) {
         let mut cycle = stack[pos..].to_vec();
         cycle.push(resolved.id.clone());
@@ -289,6 +295,7 @@ fn resolve_transitive(
         resolve_transitive(
             next,
             allow_unsigned,
+            ignore_conformance,
             visited,
             resolving,
             stack,
@@ -303,26 +310,33 @@ fn resolve_transitive(
     Ok(())
 }
 
-fn resolve_one(desc: PackageDescriptor, allow_unsigned: bool) -> Result<PlannedPackage> {
+fn resolve_one(
+    desc: PackageDescriptor,
+    allow_unsigned: bool,
+    ignore_conformance: bool,
+) -> Result<PlannedPackage> {
     match desc.source {
-        SourceDescriptor::Local { path } => resolve_local_package(path),
-        SourceDescriptor::Git { url, ref_name } => {
-            block_on_current(resolve_git_package(url, ref_name, allow_unsigned))
-        }
+        SourceDescriptor::Local { path } => resolve_local_package(path, ignore_conformance),
+        SourceDescriptor::Git { url, ref_name } => block_on_current(resolve_git_package(
+            url,
+            ref_name,
+            allow_unsigned,
+            ignore_conformance,
+        )),
         SourceDescriptor::Internal => {
             anyhow::bail!("internal packages do not require installation")
         }
     }
 }
 
-fn resolve_local_package(path: PathBuf) -> Result<PlannedPackage> {
+fn resolve_local_package(path: PathBuf, ignore_conformance: bool) -> Result<PlannedPackage> {
     let path = fs::canonicalize(&path)
         .with_context(|| format!("failed to canonicalize local package {}", path.display()))?;
     let manifest_path = manifest_path_in(&path)?;
     let manifest = parse_manifest_at(&manifest_path)?;
     let manifest_hash = block_on_current(compute_manifest_hash(&manifest_path))?;
     let tree_hash = block_on_current(compute_tree_hash(&path))?;
-    Ok(planned_from_manifest(
+    let mut planned = planned_from_manifest(
         &manifest,
         manifest_path.parent().unwrap_or(&path),
         "local".to_string(),
@@ -334,13 +348,16 @@ fn resolve_local_package(path: PathBuf) -> Result<PlannedPackage> {
         tree_hash,
         false,
         None,
-    ))
+    );
+    attach_conformance(&mut planned, &path, ignore_conformance)?;
+    Ok(planned)
 }
 
 async fn resolve_git_package(
     url: String,
     ref_name: String,
     allow_unsigned: bool,
+    ignore_conformance: bool,
 ) -> Result<PlannedPackage> {
     let resolved = invoke_package_capability(
         "official/git-tools-lab",
@@ -375,7 +392,7 @@ async fn resolve_git_package(
             }
             signed = true;
         }
-        Ok(planned_from_manifest(
+        let mut planned = planned_from_manifest(
             &manifest,
             manifest_path.parent().unwrap_or(&tmp),
             "git".to_string(),
@@ -387,7 +404,9 @@ async fn resolve_git_package(
             tree_hash,
             signed,
             None,
-        ))
+        );
+        attach_conformance(&mut planned, &tmp, ignore_conformance)?;
+        Ok(planned)
     }
     .await;
     fs::remove_dir_all(&tmp).ok();
@@ -647,7 +666,22 @@ fn planned_from_manifest(
             .iter()
             .map(|req| planned_requirement(req, base_dir))
             .collect(),
+        conformance: None,
     }
+}
+
+fn attach_conformance(
+    planned: &mut PlannedPackage,
+    package_path: &Path,
+    ignore_conformance: bool,
+) -> Result<()> {
+    let report = block_on_current(ygg_core::conformance::run_checks(package_path, "v1", true))?;
+    if !report.summary.passed_all_blocking() && !ignore_conformance {
+        let errors = report.failed_checks().join("; ");
+        anyhow::bail!("package {} fails v1 conformance: {errors}", planned.id);
+    }
+    planned.conformance = Some(report);
+    Ok(())
 }
 
 fn planned_requirement(req: &PackageDependency, base_dir: &Path) -> PlannedRequirement {

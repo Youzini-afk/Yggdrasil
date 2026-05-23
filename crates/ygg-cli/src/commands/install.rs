@@ -35,6 +35,11 @@ pub struct InstallArgs {
     #[arg(long)]
     pub allow_unsigned: bool,
 
+    /// Override conformance failures (DANGEROUS; allows installing
+    /// packages that don't comply with the v1 contract)
+    #[arg(long)]
+    pub ignore_conformance: bool,
+
     /// Skip interactive consent prompt (CI mode)
     #[arg(short = 'y', long)]
     pub yes: bool,
@@ -69,6 +74,7 @@ pub async fn run(args: InstallArgs) -> Result<()> {
             "root_ref": install_url.ref_or_default(),
             "lockfile": existing_lockfile,
             "allow_unsigned": args.allow_unsigned,
+            "ignore_conformance": args.ignore_conformance,
         }),
     )
     .await?;
@@ -80,13 +86,18 @@ pub async fn run(args: InstallArgs) -> Result<()> {
 
     match args.format {
         OutputFormat::Json => println!("{}", serde_json::to_string_pretty(&plan)?),
-        OutputFormat::Human => print_plan_human(&plan),
+        OutputFormat::Human => {
+            print_plan_human(&plan);
+            if args.ignore_conformance {
+                print_ignored_conformance_failures(&plan);
+            }
+        }
     }
 
     let consent = if args.yes {
         approve_all(&plan)
     } else {
-        prompt_for_consent(&plan)?
+        prompt_for_consent(&plan, existing_lockfile.as_deref())?
     };
 
     let result = invoke_install_lab(
@@ -195,6 +206,37 @@ pub(crate) fn print_plan_human(plan: &Value) {
     }
 }
 
+fn print_ignored_conformance_failures(plan: &Value) {
+    let failures = plan["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|pkg| {
+            let package_id = pkg["id"].as_str().unwrap_or("(unknown)").to_string();
+            pkg["conformance"]["checks"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|check| check["status"].as_str() == Some("Fail"))
+                .map(move |check| {
+                    let check_id = check["id"].as_str().unwrap_or("(unknown)");
+                    let details = check["details"].as_str().unwrap_or("no details");
+                    format!("  - {package_id}: {check_id}: FAIL ({details})")
+                })
+        })
+        .collect::<Vec<_>>();
+
+    if failures.is_empty() {
+        return;
+    }
+
+    println!("⚠ Installing despite conformance failures:");
+    for failure in failures {
+        println!("{failure}");
+    }
+    println!("These would normally block install. You used --ignore-conformance to bypass.");
+}
+
 pub(crate) fn join_or_none(values: Option<&Vec<Value>>) -> String {
     let rendered = values
         .into_iter()
@@ -226,6 +268,7 @@ mod tests {
             "--data-dir",
             "/tmp/ygg",
             "--allow-unsigned",
+            "--ignore-conformance",
             "--yes",
             "--format",
             "json",
@@ -237,6 +280,7 @@ mod tests {
                 assert_eq!(args.profile, "dev");
                 assert_eq!(args.data_dir, Some(PathBuf::from("/tmp/ygg")));
                 assert!(args.allow_unsigned);
+                assert!(args.ignore_conformance);
                 assert!(args.yes);
                 assert_eq!(args.format, OutputFormat::Json);
             }

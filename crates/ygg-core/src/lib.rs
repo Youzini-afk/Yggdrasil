@@ -1,5 +1,6 @@
 pub mod asset;
 pub mod capability_handle;
+pub mod conformance;
 pub mod event;
 pub mod ids;
 pub mod lockfile;

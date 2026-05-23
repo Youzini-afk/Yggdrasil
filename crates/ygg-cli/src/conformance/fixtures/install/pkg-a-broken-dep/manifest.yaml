@@ -1,0 +1,16 @@
+schema_version: 1
+id: fixture/pkg-a-broken-dep
+version: 0.1.0
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  contract: v1
+  symbol: register
+  abi_version: 1
+provides: []
+requires:
+  - id: fixture/pkg-broken-manifest
+    source:
+      kind: local
+      path: ../pkg-broken-manifest
+permissions: {}
