@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **418**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **427**.
 
 ## Conformance Feedback Loop
 
@@ -62,6 +62,22 @@ Round 10A.2 adds 20 cases, bringing CLI conformance from 398 to 418. Verify the 
 | Wave 4 | `protocol.project_start_transitions_state` | `kernel.v1.project.start` transitions state | implemented |
 | Wave 4 | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
 | Wave 4 | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
+
+### Round 10A.3 end-to-end real path conformance additions
+
+Round 10A.3 adds 9 cases, bringing CLI conformance from 418 to 427. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"`.
+
+| Wave | Case id | Coverage | Status |
+|---|---|---|---|
+| Wave 2 | `surface.resolve_via_dev_path` | dev-path surface bundle resolution | implemented |
+| Wave 2 | `surface.resolve_via_installed_project` | installed-project surface bundle resolution | implemented |
+| Wave 2 | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
+| Wave 2 | `surface.resolve_admin_principal_required` | resolve_bundle restricted to HostAdmin/HostDev | implemented |
+| Wave 3A | `project.start_returns_session_id` | `project.start` returns a project session id | implemented |
+| Wave 3A | `project.start_idempotent_returns_existing_session` | repeated start returns the existing session | implemented |
+| Wave 3A | `project.session_metadata_carries_project_id` | session metadata carries project_id | implemented |
+| Wave 3A | `project.stop_closes_session` | stop closes the project session | implemented |
+| Wave 3A | `project.get_returns_running_session_id` | get/status return running_session_id while Running | implemented |
 
 
 | Area | Case | Status |
@@ -682,6 +698,15 @@ protocol.project_get_returns_full_descriptor PASS
 protocol.project_start_transitions_state PASS
 protocol.project_methods_require_admin_principal PASS
 protocol.project_lifecycle_event_emitted_on_start PASS
+surface.resolve_via_dev_path PASS
+surface.resolve_via_installed_project PASS
+surface.resolve_unknown_fails PASS
+surface.resolve_admin_principal_required PASS
+project.start_returns_session_id PASS
+project.start_idempotent_returns_existing_session PASS
+project.session_metadata_carries_project_id PASS
+project.stop_closes_session PASS
+project.get_returns_running_session_id PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS

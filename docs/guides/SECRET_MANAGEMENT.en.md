@@ -270,6 +270,23 @@ Model provider packages should accept `secret_ref`, for example:
 
 The provider adapter constructs the request shape; the host outbound executor resolves and injects the header at the last moment. Responses, audits, and stream frames continue to contain only references.
 
+## How project scope works
+
+The scope for `secret_ref:project:*` comes from the project session, not from a `projectId` string the surface claims:
+
+1. Home Play or `yg project start` calls `kernel.v1.project.start`.
+2. The host creates or reuses a project session and writes `session.metadata.project_id`.
+3. `clients/web` injects `session_id` into the surface as `initialProps.sessionId`.
+4. Later surface RPCs automatically carry `session_id`.
+5. Host dispatch sets `ProtocolContext.session_id`.
+6. Before outbound dispatch resolves secrets, it reads `metadata.project_id` from that session.
+7. The runtime sets the `ACTIVE_PROJECT_SCOPE` task-local with a `ProjectScopeContext`.
+8. `ProjectStoreSecretResolver` first reads `~/.yggdrasil/projects/<id>/secrets.dat`.
+9. If the entry is missing, the project's `secret_policy` decides whether platform fallback is allowed.
+10. When fallback is allowed, resolution reads `secret_ref:store:NAME`; when fallback is disabled or `require_per_project` matches, it fails closed.
+
+The resolution order is therefore: project store → fallback policy → platform store. For the full real model call path, see [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md); for where the project session comes from, see [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
+
 ## Implementation locations
 
 - `crates/ygg-core/src/secret_ref.rs` — `secret_ref` parsing and validation.

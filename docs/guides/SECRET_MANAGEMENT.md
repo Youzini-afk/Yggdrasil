@@ -270,6 +270,23 @@ env 路径继续可用，平台 store 路径也继续可用，已有平台密钥
 
 provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻解析并注入 header。response、audit、stream frame 中仍然只出现引用。
 
+## Project scope 怎么工作
+
+`secret_ref:project:*` 的范围来自项目 session，而不是 surface 自己传的 `projectId` 字符串：
+
+1. Home Play 或 `yg project start` 调 `kernel.v1.project.start`。
+2. host 创建或复用项目 session，并写入 `session.metadata.project_id`。
+3. `clients/web` 把 `session_id` 注入 surface 的 `initialProps.sessionId`。
+4. surface 后续 RPC 自动带 `session_id`。
+5. host dispatch 设置 `ProtocolContext.session_id`。
+6. outbound dispatch 解析 secret 前，用该 session 查 `metadata.project_id`。
+7. runtime 设置 `ACTIVE_PROJECT_SCOPE` task-local，内容是 `ProjectScopeContext`。
+8. `ProjectStoreSecretResolver` 先读 `~/.yggdrasil/projects/<id>/secrets.dat`。
+9. 如果缺失，按项目 `secret_policy` 决定是否回退平台 store。
+10. fallback 允许时读取 `secret_ref:store:NAME`；fallback 关闭或 `require_per_project` 命中时 fail-closed。
+
+因此解析顺序是：项目 store → fallback policy → 平台 store。完整真实模型调用链见 [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md)；项目 session 的来源见 [`PROJECT_MODEL.md`](PROJECT_MODEL.md)。
+
 ## 实现位置
 
 - `crates/ygg-core/src/secret_ref.rs` — `secret_ref` 解析与校验。

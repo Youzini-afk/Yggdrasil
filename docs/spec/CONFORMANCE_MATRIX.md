@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**418**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**427**。
 
 ## Conformance Feedback Loop
 
@@ -62,6 +62,22 @@ Round 10A.2 新增 20 个用例，CLI conformance 总数从 398 增至 418。实
 | Wave 4 | `protocol.project_start_transitions_state` | `kernel.v1.project.start` 转换状态 | implemented |
 | Wave 4 | `protocol.project_methods_require_admin_principal` | project methods 限 HostAdmin/HostDev | implemented |
 | Wave 4 | `protocol.project_lifecycle_event_emitted_on_start` | start 发出项目 lifecycle event | implemented |
+
+### Round 10A.3 end-to-end real path conformance additions
+
+Round 10A.3 新增 9 个用例，CLI conformance 总数从 418 增至 427。实际 case id 可用 `cargo run -p ygg-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"` 核对。
+
+| Wave | Case id | 覆盖 | 状态 |
+|---|---|---|---|
+| Wave 2 | `surface.resolve_via_dev_path` | dev path surface bundle resolution | implemented |
+| Wave 2 | `surface.resolve_via_installed_project` | installed project surface bundle resolution | implemented |
+| Wave 2 | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
+| Wave 2 | `surface.resolve_admin_principal_required` | resolve_bundle 限 HostAdmin/HostDev | implemented |
+| Wave 3A | `project.start_returns_session_id` | `project.start` 返回 project session id | implemented |
+| Wave 3A | `project.start_idempotent_returns_existing_session` | 重复 start 返回已有 session | implemented |
+| Wave 3A | `project.session_metadata_carries_project_id` | session metadata 携带 project_id | implemented |
+| Wave 3A | `project.stop_closes_session` | stop 关闭 project session | implemented |
+| Wave 3A | `project.get_returns_running_session_id` | get/status Running 时返回 running_session_id | implemented |
 
 
 | 领域 | 用例 | 状态 |
@@ -673,6 +689,15 @@ protocol.project_get_returns_full_descriptor PASS
 protocol.project_start_transitions_state PASS
 protocol.project_methods_require_admin_principal PASS
 protocol.project_lifecycle_event_emitted_on_start PASS
+surface.resolve_via_dev_path PASS
+surface.resolve_via_installed_project PASS
+surface.resolve_unknown_fails PASS
+surface.resolve_admin_principal_required PASS
+project.start_returns_session_id PASS
+project.start_idempotent_returns_existing_session PASS
+project.session_metadata_carries_project_id PASS
+project.stop_closes_session PASS
+project.get_returns_running_session_id PASS
 tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
 tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
 tdb_rust_adapter.real_crate_smoke_opt_in PASS

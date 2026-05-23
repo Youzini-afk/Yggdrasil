@@ -1,0 +1,233 @@
+# Real Model End-to-End Calls
+
+> [English](./REAL_MODEL_END_TO_END.en.md) · [中文](./REAL_MODEL_END_TO_END.md)
+
+This guide follows the real path from a user pressing Send in the YdlTavern surface to an OpenAI/Anthropic/Gemini API response appearing back on screen. The path goes through the public protocol, a project session, package permissions, `secret_ref` resolution, and the host outbound executor.
+
+This is not a kernel-level model API. Model semantics belong to the YdlTavern engine package. The kernel provides sessions, permissions, capability invocation, outbound execution, and audit boundaries.
+
+## Complete call chain
+
+```text
+User types a message in the YdlTavern surface + clicks Send
+  ↓
+SendForm.onSend(text)
+  ↓
+TavernShell → TavernProvider.sendMessage(text)
+  ↓ (local: add user message to chat state)
+  ↓
+invokeCapability("ydltavern/engine/model.live_call", { ... })
+  ↓ (postMessage to the surface-host iframe parent)
+  ↓
+clients/web main thread receives RPC and calls client.invokeWithSession(method, params, sessionId)
+  ↓ (HTTP POST /rpc with session_id)
+  ↓
+ygg host serve routes to dispatch_capability_invoke
+  ↓ (sets ProtocolContext.session_id and ProtocolContext.principal=Package)
+  ↓
+inproc dispatcher finds the ydltavern-engine package (subprocess)
+  ↓ (subprocess JSON-RPC call)
+  ↓
+ydltavern-engine runs the capability handler
+  ↓ (builds an OpenAI/Anthropic/Gemini-shaped request)
+  ↓
+reverse-calls kernel.v1.outbound.execute with secret_headers: {Authorization: secret_ref}
+  ↓
+host dispatch_outbound_execute handles:
+  ✓ checks the package permissions.network.declarations allow this host
+  ✓ checks the package permissions.secret_refs declare this ref
+  ✓ Runtime::resolve_secret_ref_with_session resolves ref → real value
+    ├─ through CompositeSecretResolver
+    ├─ secret_ref:store:* → StoreSecretResolver → decrypt ~/.yggdrasil/secrets.dat
+    ├─ secret_ref:project:* → ProjectStoreSecretResolver
+    │   ├─ uses ACTIVE_PROJECT_SCOPE task-local to read session.metadata.project_id
+    │   ├─ decrypts ~/.yggdrasil/projects/<id>/secrets.dat
+    │   ├─ missing + fallback_to_platform default true → platform store
+    │   └─ missing + fallback disabled → fail closed
+    └─ secret_ref:env:* → EnvSecretResolver (allowlist)
+  ↓
+LiveHttpOutboundExecutor builds an HTTPS request and injects headers
+  ↓
+Real HTTPS call to api.openai.com / api.anthropic.com / etc.
+  ↓
+Response flows back up the reverse path until the surface receives a string
+  ↓
+TavernProvider.sendMessage parses text with extractContentFromResult
+  ↓
+Assistant message content updates → React re-renders → user sees the reply
+```
+
+## Configuring real calls (user view)
+
+Start the Yggdrasil host and web shell:
+
+```bash
+# 1. Start the host
+ygg host serve --profile profiles/forge-alpha.yaml --http 127.0.0.1:8787 &
+
+# 2. Start clients/web
+cd clients/web && npm run dev
+
+# 3. Open http://localhost:5173 in a browser
+```
+
+Then in the UI:
+
+1. The Home screen shows the YdlTavern card if it has been installed with `yg install`.
+2. Click Play.
+3. The project becomes Running.
+4. The host creates a project session.
+5. The surface bundle is resolved and mounted in an iframe.
+6. Open the API Connections drawer.
+7. Choose an OpenAI / Anthropic / Gemini provider.
+8. Paste the API key.
+9. Choose a save scope: Platform-wide (default) or This project only.
+10. Click Save.
+11. Close the drawer.
+12. Type a message.
+13. Click Send.
+14. A real provider response should appear in the chat.
+
+Platform-wide saves as `secret_ref:store:*`. This project only saves as `secret_ref:project:*` and is preferred only for the current project.
+
+## Configuring real calls (developer view)
+
+The host profile must explicitly enable resolvers and live outbound. Example:
+
+```yaml
+# profiles/forge-with-live-models.yaml
+secret_resolver:
+  store_enabled: true              # resolves secret_ref:store:* / project:*
+  env_allowlist:                   # allowlist for secret_ref:env:*
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GEMINI_API_KEY
+
+outbound:
+  execute:
+    enabled: true
+    https_only: true
+    executor: live                 # real HTTPS
+    allowed_hosts:
+      - api.openai.com
+      - api.anthropic.com
+      - generativelanguage.googleapis.com
+      # Add OpenRouter / DeepSeek / xAI / Fireworks as needed.
+
+surface_dev_paths:
+  ydltavern: /workspace/Yggdrasil/YdlTavern/packages/ydltavern-surface/dist
+```
+
+Three gates must all pass:
+
+1. the profile permits the outbound executor to use the network;
+2. the engine package manifest declares the target host;
+3. the engine package manifest declares the `secret_ref` it uses.
+
+Any missing gate fails closed. Default conformance does not use the network.
+
+## Semantics of the three `secret_ref` forms
+
+| Ref shape | Resolution path | Use case |
+|---|---|---|
+| `secret_ref:env:NAME` | `EnvSecretResolver` (allowlist) | Development / CI / Docker |
+| `secret_ref:store:NAME` | `StoreSecretResolver` (local encrypted store) | Desktop users, platform-wide sharing |
+| `secret_ref:project:NAME` | `ProjectStoreSecretResolver` | Project isolation with optional platform fallback |
+
+See [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md).
+
+## Where `session_id` comes from
+
+Each running project has a kernel session, created by the host during `project.start`:
+
+```text
+session.id = ksess_xxx
+session.metadata.project_id = "youzini-afk__YdlTavern__d2a47e5c"
+session.labels = ["project:youzini-afk__YdlTavern__d2a47e5c"]
+```
+
+The `clients/web` main thread receives `session_id` from `kernel.v1.project.start`. It then calls `kernel.v1.surface.resolve_bundle` to get the surface bundle URL and uses `mountSurface` to create the iframe.
+
+The iframe `initialProps` include:
+
+```json
+{
+  "projectId": "youzini-afk__YdlTavern__d2a47e5c",
+  "sessionId": "ksess_xxx"
+}
+```
+
+Inside the surface, `callHostRpc` / `invokeCapability` automatically carries this `session_id`. When the host receives an RPC with `session_id`, it sets `ProtocolContext.session_id` and carries it to outbound dispatch.
+
+There, the runtime reads `project_id` from session metadata, sets the `ACTIVE_PROJECT_SCOPE` task-local, and resolves `secret_ref:project:*` within that scope.
+
+See [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
+
+## How project scope affects secrets
+
+Project scope is not decided by a string the surface claims. It is decided by the session the host created:
+
+1. `project.start` creates or reuses a project session.
+2. Session metadata stores `project_id`.
+3. Later RPCs carry `session_id`.
+4. `dispatch_outbound_execute` finds the session from `ProtocolContext.session_id`.
+5. The runtime sets `ProjectScopeContext`.
+6. `ProjectStoreSecretResolver` reads the matching project store.
+
+This prevents a surface from reading another project's secrets by forging `projectId`. The current model is still soft isolation; stronger multi-tenant project identity in `ProtocolContext` is Round 11+.
+
+## Permission and audit boundaries
+
+A real model call must pass all of these boundaries:
+
+- `kernel.v1.capability.invoke` checks caller context and capability handles.
+- The engine package manifest declares `ydltavern/engine/model.live_call`.
+- The engine package manifest declares `permissions.network.declarations`.
+- The engine package manifest declares `permissions.secret_refs`.
+- The host profile enables a live executor and allowlists the target host.
+- The secret resolver successfully resolves the reference.
+
+Audit records store only the target host, method, package/capability, redaction state, executor kind, `secret_ref` references, and related metadata. They do not store raw API keys, prompt bodies, or provider responses.
+
+## Troubleshooting
+
+### `no project resolver configured`
+
+The host profile has `secret_resolver.store_enabled: false`, but the user attempted `secret_ref:project:*`. Set it to true or use `secret_ref:env:*`.
+
+### `session has no metadata.project_id`
+
+Starting through `yg project start` or Home Play sets this automatically. If the surface bypasses the project flow, create a session with `metadata.project_id` manually or avoid project refs.
+
+### `host '...' not in outbound.allowed_hosts`
+
+The profile's `outbound.execute.allowed_hosts` is missing this provider host. Add it and restart the host.
+
+### `secret_ref '...' not declared in package permissions`
+
+The engine package manifest did not declare the ref in `permissions.secret_refs`. Edit the manifest and reload the package.
+
+### `401 Unauthorized` from provider
+
+The secret store value is usually wrong, or the provider changed the auth header format. Paste the API key again and verify that the provider/profile matches the key type.
+
+### The surface receives no reply
+
+Check that Play returned `session_id`, iframe `initialProps.sessionId` is non-empty, `callHostRpc` carries `session_id`, and the host outbound executor is `live` rather than the default deny/fake path.
+
+## Implementation locations
+
+- [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — resolver chain and project fallback.
+- [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — project + session pairing.
+- `/workspace/Yggdrasil/YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
+- `/workspace/Yggdrasil/YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
+- `crates/ygg-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
+- `crates/ygg-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
+- the `clients/web` surface-host iframe bridge and `mountSurface`.
+
+## Deferred items
+
+- Streaming response UX: the current v1 surface path updates non-streaming text; the engine and outbound layer already have streaming primitives, but surface consumption is a Wave 3.6+ follow-up.
+- Concurrent active projects: current host scope flows through project sessions; stronger multi-tenant `project_id` in `ProtocolContext` is Round 11+.
+- Real paths and managed host lifecycle in the Tauri shell: Round 11+.
+- Production cross-origin surface-bundle allowlists and CSP hardening.

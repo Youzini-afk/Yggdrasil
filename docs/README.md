@@ -25,6 +25,7 @@
 - [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) — `yg install`、lockfile、内容寻址 store 与同意提示
 - [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) — Home 项目架、`project.yaml`、项目 lifecycle 与项目级 secrets
 - [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 store 与 API key 管理
+- [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.md) — YdlTavern Send 到真实 provider 响应的端到端链路
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.md) — `entry.contract: "none"` 自包含路径
 - [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.md) — `clients/web` iframe SurfaceHost 与第三方 Web surface bundle 托管
 
@@ -44,6 +45,7 @@
 | 写第一个能力包 | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 安装能力包/项目 | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) |
 | 管理 API key / secret | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) |
+| 跑真实模型端到端调用 | [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.md) |
 | 挂载第三方 Web surface | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.md) |
 | 构建 Web / Desktop / Release | [`../BUILDING.md`](../BUILDING.md) |
 | 看当前状态 | [`ALPHA_STATUS.md`](ALPHA_STATUS.md) |

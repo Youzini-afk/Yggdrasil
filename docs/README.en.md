@@ -25,6 +25,7 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 - [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — `yg install`, lockfiles, content-addressed store, and consent prompts
 - [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) — Home project shelf, `project.yaml`, project lifecycle, and project-level secrets
 - [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted store, and API key management
+- [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) — end-to-end path from YdlTavern Send to a real provider response
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.en.md) — `entry.contract: "none"` self-contained path
 - [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) — `clients/web` iframe SurfaceHost and third-party web surface bundle hosting
 
@@ -44,6 +45,7 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 | Write your first package | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Install capability packages/projects | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) |
 | Manage API keys / secrets | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) |
+| Run real model calls end to end | [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) |
 | Host third-party web surfaces | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) |
 | Build web / desktop / release | [`../BUILDING.md`](../BUILDING.md) |
 | See current status | [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) |

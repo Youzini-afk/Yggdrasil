@@ -179,6 +179,23 @@ Status indicators:
 
 Clicking Play calls `kernel.v1.project.start`, then navigates to the project's `entry_surface`.
 
+## Play flow
+
+After a user clicks Play on a Home card, the web shell and host follow a fixed public-protocol sequence:
+
+1. The user clicks Play on a project card.
+2. `clients/web` calls `kernel.v1.project.start`.
+3. The host transitions the project to Running and creates or reuses a project session.
+4. The session stores `metadata.project_id` and gets a `project:<id>` label.
+5. `project.start` returns `session_id` and `already_running`.
+6. `clients/web` calls `kernel.v1.surface.resolve_bundle` to resolve the project's `entry_surface_id` to a surface bundle URL.
+7. `mountSurface` mounts a sandboxed iframe.
+8. The iframe `initialProps` include `sessionId` and `projectId`.
+9. Inside the surface, `callHostRpc` / `invokeCapability` automatically carries `session_id`.
+10. The host carries `ProtocolContext.session_id` into later capability and outbound dispatch.
+
+This chain lets project-level secret resolution find the project scope from session metadata, and it keeps real model calls in the same project session. For the end-to-end path, see [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md).
+
 ## Protocol
 
 Host project-management methods are HostAdmin/HostDev only; ordinary packages cannot call them:

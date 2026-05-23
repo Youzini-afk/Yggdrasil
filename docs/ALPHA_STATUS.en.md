@@ -8,7 +8,7 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 418 named CLI cases pass, plus crate and service unit tests; 114 v1 schemas validate (62 methods + 45 events + 7 top-level).
+- **Conformance:** 427 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
@@ -22,7 +22,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Human and assistant principals get scoped grants.
 - Audit events: `kernel/v1/permission.granted|revoked|denied`, `kernel/v1/package.*` lifecycle, `kernel/v1/proposal.*` lifecycle.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 62 protocol methods, 45 event kinds, and 114 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 63 protocol methods, 45 event kinds, and 115 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
@@ -130,7 +130,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 62 methods, 45 events, 7 top-level schemas, 114 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 63 methods, 45 events, 7 top-level schemas, 115 total.
 - `sdk/typescript/kernel-sdk/` and `sdk/rust/yg-kernel-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `yg conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -200,6 +200,26 @@ After Round 10A.1, install defaults are relaxed: HTTPS-only, content hashing, an
 | Multi-tenant project_id in ProtocolContext | deferred (Round 11+) |
 | Project archive auto-cleanup beyond 30 days | deferred |
 
+## Round 10A.3 — End-to-End Real Path
+
+| Capability | Status |
+|---|---|
+| huggingface-fetcher tests passing | implemented (Wave 1) |
+| Surface bundle resolution metadata-driven | implemented (Wave 2) |
+| kernel.v1.surface.resolve_bundle | implemented |
+| host /surface-bundles/<prefix>/<file> route | implemented |
+| /surface-bundles/projects/<id>/<file> route | implemented |
+| project.start opens project session + sets metadata.project_id | implemented (Wave 3A) |
+| project.start returns session_id + already_running | implemented |
+| project.get/status return running_session_id | implemented |
+| project.stop emits + closes project session | implemented |
+| Surface receives session_id via initialProps | implemented (Wave 3B) |
+| TavernProvider.sendMessage invokes engine model.live_call | implemented |
+| API Connections drawer scope toggle (platform/project) | implemented |
+| Engine manifest declares secret_ref:project:* | implemented |
+| Streaming response UX in surface | deferred (Wave 3.6+) |
+| Multi-tenant project_id in ProtocolContext | deferred (Round 11+) |
+
 ## Completed (S-track shell / release)
 
 - **Web client (S1):** `clients/web` now uses Vite for dev/build while remaining a plain TypeScript SPA. Home / Play, Forge, and Assist still use only HTTP `/rpc` and SSE; the iframe-based SurfaceHost can mount third-party surface bundles and communicate with the host through an explicit `postMessage` RPC bridge. See [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
@@ -240,7 +260,7 @@ The split doesn't change behavior — it keeps the codebase reviewable as more p
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 418 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 427 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

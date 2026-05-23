@@ -184,6 +184,23 @@ yg uninstall <id> --delete-data  # 立即删除
 
 点 Play 调用 `kernel.v1.project.start`，启动后导航到项目的 `entry_surface`。
 
+## Play 流程
+
+Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
+
+1. 用户点项目卡上的 Play。
+2. `clients/web` 调 `kernel.v1.project.start`。
+3. host 把项目状态转为 Running，创建或复用项目 session。
+4. session 写入 `metadata.project_id`，并加上 `project:<id>` label。
+5. `project.start` 返回 `session_id` 与 `already_running`。
+6. `clients/web` 调 `kernel.v1.surface.resolve_bundle`，用项目的 `entry_surface_id` 拿 surface 包 URL。
+7. `mountSurface` 挂载 sandboxed iframe。
+8. iframe `initialProps` 注入 `sessionId` 与 `projectId`。
+9. surface 内的 `callHostRpc` / `invokeCapability` 自动带 `session_id`。
+10. host 后续把 `ProtocolContext.session_id` 传到 capability 与 outbound dispatch。
+
+这条链路让项目级 secret 解析能从 session metadata 找到项目范围，也让真实模型调用回到同一个项目 session。端到端说明见 [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md)。
+
 ## 协议
 
 宿主管理项目的协议（HostAdmin/HostDev only，普通包不能调）：

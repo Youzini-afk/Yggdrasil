@@ -127,10 +127,10 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | Method | Status | Contract |
 |---|---:|---|
 | `kernel.v1.project.list` | implemented | HostAdmin/HostDev only; list installed projects and state. |
-| `kernel.v1.project.get` | implemented | HostAdmin/HostDev only; return one project's full descriptor and registry record. |
-| `kernel.v1.project.start` | implemented | HostAdmin/HostDev only; transition an Installed/Stopped project to Running and emit lifecycle events. |
+| `kernel.v1.project.get` | implemented | HostAdmin/HostDev only; return one project's full descriptor and registry record; includes `running_session_id` when running. |
+| `kernel.v1.project.start` | implemented | HostAdmin/HostDev only; transition an Installed/Stopped project to Running, open a project session, return `session_id` and `already_running`, and emit lifecycle events. |
 | `kernel.v1.project.stop` | implemented | HostAdmin/HostDev only; stop a Running project and emit lifecycle events. |
-| `kernel.v1.project.status` | implemented | HostAdmin/HostDev only; return project state and last error. |
+| `kernel.v1.project.status` | implemented | HostAdmin/HostDev only; return project state and last error; includes `running_session_id` when running. |
 
 ### `kernel.v1.host.*` (4)
 
@@ -147,12 +147,13 @@ Git installation is not a kernel transport; future support belongs in the ordina
 |---|---:|---|
 | `kernel.v1.audit.package` | implemented | Report declared vs used authority for `yg audit --package <id>`. |
 
-### Surface / extension point / hook (5)
+### Surface / extension point / hook (6)
 
 | Method | Status | Contract |
 |---|---:|---|
 | `kernel.v1.surface.contribution.list` | partial | List typed package-declared surface contributions. |
 | `kernel.v1.surface.contribution.describe` | partial | Describe one contribution. |
+| `kernel.v1.surface.resolve_bundle` | implemented | HostAdmin/HostDev only; resolve a mountable bundle URL from a surface contribution, project dev path, or installed project. |
 | `kernel.v1.extension_point.list` | implemented | List extension points. |
 | `kernel.v1.extension_point.describe` | planned | Describe one extension point. |
 | `kernel.v1.hook.list` | partial | List hook subscriptions. |
@@ -252,13 +253,13 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 
 ## Schemas and error codes
 
-- Method schemas: `docs/spec/v1/schemas/methods/` (62).
+- Method schemas: `docs/spec/v1/schemas/methods/` (63).
 - Event schemas: `docs/spec/v1/schemas/events/` (45).
 - Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (7).
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 114 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 115 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -428,7 +429,7 @@ Official and third-party surfaces use the same descriptors, permission declarati
 
 A v1 implementation must at least prove:
 
-1. 62 method schemas export.
+1. 63 method schemas export.
 2. 45 event schemas validate.
 3. 7 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
@@ -470,7 +471,7 @@ The old alpha contract has been replaced by this file. Long-term references shou
 | `kernel.v1.project.*` | 5 |
 | `kernel.v1.host.*` | 4 |
 | `kernel.v1.audit.*` | 1 |
-| `kernel.v1.surface.*` | 2 |
+| `kernel.v1.surface.*` | 3 |
 | `kernel.v1.extension_point.*` | 2 |
 | `kernel.v1.hook.*` | 1 |
 

@@ -10,6 +10,7 @@
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.md) — 包/项目安装、lockfile、`~/.yggdrasil` 布局、签名/完整性与同意提示
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — `project.yaml`、Home 项目卡、项目 lifecycle、项目级 secret policy
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 secret store 与 API key 管理
+- [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md) — 从 YdlTavern Send 到真实模型 provider 响应的完整链路
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md) — 内核 v1 能力句柄模型、衰减、撤销、bindings 与 effect audit
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.md) — 第三方包本地验证 v1 contract compliance
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.md) — 自包含 Path B 包（`entry.contract: "none"`）

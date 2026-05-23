@@ -10,6 +10,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install, lockfiles, `~/.yggdrasil` layout, signatures/integrity, and consent prompts
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — `project.yaml`, Home project cards, project lifecycle, and project-level secret policy
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management
+- [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md) — complete path from YdlTavern Send to a real model provider response
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md) — kernel v1 capability handles, attenuation, revoke, bindings, and effect audit
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.en.md) — local v1 contract compliance validation for third-party packages
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.en.md) — self-contained Path B packages (`entry.contract: "none"`)

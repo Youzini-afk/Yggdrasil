@@ -14,8 +14,8 @@
 - 多 provider 模型接入、真实出网调用、transport-neutral 推理接缝、Agentic Forge Beta——全部完成。
 - 外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——全部完成。
 - Web shell 的 Vite 构建、iframe SurfaceHost、Tauri 2.x desktop wrapper、tag 触发的跨平台 release pipeline——全部完成。
-- Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成已落地；Round 10A.2 后共有 114 schemas。
-- 418 个具名 conformance 用例 + crate / service 单元测试通过。
+- Round 9 Contract Foundation 已完成：Contract V1、能力句柄、bindings 注入、Path B、effect audit、conformance kit、SDK 生成已落地；Round 10A.3 后共有 115 schemas。
+- 427 个具名 conformance 用例 + crate / service 单元测试通过。
 
 下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -33,7 +33,8 @@
 
 下面这些项目不构成新阶段，但是已知该做、也会真实推进：
 
-- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
+- 包安装的基础层已完成；Round 10A.1 已完成默认值简化和本地加密 secret store；Round 10A.2 已完成 Home 项目架、项目生命周期、项目级 secret fallback 和 YdlTavern project.yaml；Round 10A.3 已打通 YdlTavern Send → engine `model.live_call` → live outbound → provider response 的真实路径；后续只保留 Sigstore、Tauri UI、`yg gc`、自动更新守护等 distribution polish。
+- Wave 3.6 可作为 Round 10B 前的小型 follow-up：surface 消费 engine/outbound 流式响应，补齐 streaming response UX，而不扩大内核表面积。
 - OS keyring 集成延后，等 CI / 跨平台构建环境具备稳定系统依赖时再恢复。
 - 包持有的 projection 执行。
 - 能力包身份的 `event.subscribe` 权限，以及更广的流式传输一致性。
@@ -82,11 +83,21 @@
 - Home 屏幕现在是项目货架；YdlTavern 声明为 `yggdrasil_native` 项目。
 - 多租户级 `ProtocolContext.project_id` / 基于 session 的项目范围强隔离推迟到 Round 11+。
 
-## Round 10B — Contract Frontier（待开始）
+## Round 10A.3 — End-to-End Real Path（完成）
+
+- Surface bundle resolution 已由 metadata 驱动，并新增 `kernel.v1.surface.resolve_bundle`。
+- `project.start` 会打开项目 session、写 `metadata.project_id`，并返回 `session_id` / `already_running`。
+- `project.get` / `status` 在 Running 时返回 `running_session_id`，`project.stop` 会关闭项目 session。
+- `clients/web` 将 `sessionId` / `projectId` 注入 surface initialProps，surface RPC 自动带 `session_id`。
+- YdlTavern `SendForm` 已接到 engine `model.live_call`，API Connections 支持 platform/project 保存范围，engine manifest 声明 `secret_ref:project:*`。
+- 文档收敛见 [`../guides/REAL_MODEL_END_TO_END.md`](../guides/REAL_MODEL_END_TO_END.md)。
+
+## Round 10B — WIT/WASM Contract Frontier（下一焦点）
 
 - WIT worlds + WASM entry form（从 scaffold 推进 partial）。
 - Powerbox late-bound provider 选择。
 - Cap'n Proto / Biscuit 实验。
+- 10A.3 已落地；Round 10B 继续保持现有 Contract Frontier 描述，不再扩展模型/聊天语义进内核。
 
 ## Round 11 — Distribution polish（待开始）
 
