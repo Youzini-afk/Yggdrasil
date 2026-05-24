@@ -2052,7 +2052,7 @@ paths:
                         description: Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
                         type: string
                       timestamp:
-                        default: 2026-05-23T16:35:57.510580645Z
+                        default: 2026-05-24T12:19:22.308909808Z
                         description: Timestamp of frame emission.
                         format: date-time
                         type: string
@@ -4684,6 +4684,47 @@ paths:
                           - id
                           - source
                           type: object
+                        PackageFailureSummary:
+                          properties:
+                            exit_code:
+                              type:
+                              - string
+                              - 'null'
+                            failed_at:
+                              format: date-time
+                              type: string
+                            log_tail_redacted:
+                              items:
+                                $ref: '#/$defs/SubprocessLogLine'
+                              type: array
+                            package_id:
+                              type: string
+                            reason:
+                              type: string
+                            redaction_state:
+                              $ref: '#/$defs/RedactionState'
+                            signal:
+                              type:
+                              - string
+                              - 'null'
+                            state:
+                              $ref: '#/$defs/PackageState'
+                            stderr_tail_redacted:
+                              items:
+                                type: string
+                              type: array
+                            stderr_truncated:
+                              type: boolean
+                          required:
+                          - failed_at
+                          - log_tail_redacted
+                          - package_id
+                          - reason
+                          - redaction_state
+                          - state
+                          - stderr_tail_redacted
+                          - stderr_truncated
+                          type: object
                         PackageManifest:
                           properties:
                             author:
@@ -4840,6 +4881,32 @@ paths:
                                 type: string
                               type: array
                           type: object
+                        RedactionState:
+                          description: |-
+                            Redaction state for an outbound audit record.
+
+                            Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
+                          oneOf:
+                          - description: Raw data was not captured (default).
+                            enum:
+                            - not_captured
+                            type: string
+                          - description: Raw data was redacted before recording.
+                            enum:
+                            - redacted
+                            type: string
+                          - description: Only a policy reference is stored; no data captured.
+                            enum:
+                            - policy_ref
+                            type: string
+                          - description: Request was blocked as unsafe; no data recorded.
+                            enum:
+                            - unsafe_blocked
+                            type: string
+                          - description: Explicit user/host approval to capture raw data (rare).
+                            enum:
+                            - explicitly_approved
+                            type: string
                         RemoteAuth:
                           properties:
                             config:
@@ -4875,6 +4942,19 @@ paths:
                           required:
                           - id
                           - schema
+                          type: object
+                        SubprocessLogLine:
+                          properties:
+                            line:
+                              type: string
+                            package_id:
+                              type: string
+                            stream:
+                              type: string
+                          required:
+                          - line
+                          - package_id
+                          - stream
                           type: object
                         SubprocessTransport:
                           enum:
@@ -5005,6 +5085,10 @@ paths:
                           type: integer
                         id:
                           type: string
+                        last_failure:
+                          anyOf:
+                          - $ref: '#/$defs/PackageFailureSummary'
+                          - type: 'null'
                         loaded_at:
                           format: date-time
                           type: string
@@ -6044,6 +6128,47 @@ paths:
                         - id
                         - source
                         type: object
+                      PackageFailureSummary:
+                        properties:
+                          exit_code:
+                            type:
+                            - string
+                            - 'null'
+                          failed_at:
+                            format: date-time
+                            type: string
+                          log_tail_redacted:
+                            items:
+                              $ref: '#/$defs/SubprocessLogLine'
+                            type: array
+                          package_id:
+                            type: string
+                          reason:
+                            type: string
+                          redaction_state:
+                            $ref: '#/$defs/RedactionState'
+                          signal:
+                            type:
+                            - string
+                            - 'null'
+                          state:
+                            $ref: '#/$defs/PackageState'
+                          stderr_tail_redacted:
+                            items:
+                              type: string
+                            type: array
+                          stderr_truncated:
+                            type: boolean
+                        required:
+                        - failed_at
+                        - log_tail_redacted
+                        - package_id
+                        - reason
+                        - redaction_state
+                        - state
+                        - stderr_tail_redacted
+                        - stderr_truncated
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -6200,6 +6325,32 @@ paths:
                               type: string
                             type: array
                         type: object
+                      RedactionState:
+                        description: |-
+                          Redaction state for an outbound audit record.
+
+                          Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
+                        oneOf:
+                        - description: Raw data was not captured (default).
+                          enum:
+                          - not_captured
+                          type: string
+                        - description: Raw data was redacted before recording.
+                          enum:
+                          - redacted
+                          type: string
+                        - description: Only a policy reference is stored; no data captured.
+                          enum:
+                          - policy_ref
+                          type: string
+                        - description: Request was blocked as unsafe; no data recorded.
+                          enum:
+                          - unsafe_blocked
+                          type: string
+                        - description: Explicit user/host approval to capture raw data (rare).
+                          enum:
+                          - explicitly_approved
+                          type: string
                       RemoteAuth:
                         properties:
                           config:
@@ -6235,6 +6386,19 @@ paths:
                         required:
                         - id
                         - schema
+                        type: object
+                      SubprocessLogLine:
+                        properties:
+                          line:
+                            type: string
+                          package_id:
+                            type: string
+                          stream:
+                            type: string
+                        required:
+                        - line
+                        - package_id
+                        - stream
                         type: object
                       SubprocessTransport:
                         enum:
@@ -6365,6 +6529,10 @@ paths:
                         type: integer
                       id:
                         type: string
+                      last_failure:
+                        anyOf:
+                        - $ref: '#/$defs/PackageFailureSummary'
+                        - type: 'null'
                       loaded_at:
                         format: date-time
                         type: string
@@ -6874,6 +7042,47 @@ paths:
                         - id
                         - source
                         type: object
+                      PackageFailureSummary:
+                        properties:
+                          exit_code:
+                            type:
+                            - string
+                            - 'null'
+                          failed_at:
+                            format: date-time
+                            type: string
+                          log_tail_redacted:
+                            items:
+                              $ref: '#/$defs/SubprocessLogLine'
+                            type: array
+                          package_id:
+                            type: string
+                          reason:
+                            type: string
+                          redaction_state:
+                            $ref: '#/$defs/RedactionState'
+                          signal:
+                            type:
+                            - string
+                            - 'null'
+                          state:
+                            $ref: '#/$defs/PackageState'
+                          stderr_tail_redacted:
+                            items:
+                              type: string
+                            type: array
+                          stderr_truncated:
+                            type: boolean
+                        required:
+                        - failed_at
+                        - log_tail_redacted
+                        - package_id
+                        - reason
+                        - redaction_state
+                        - state
+                        - stderr_tail_redacted
+                        - stderr_truncated
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -7030,6 +7239,32 @@ paths:
                               type: string
                             type: array
                         type: object
+                      RedactionState:
+                        description: |-
+                          Redaction state for an outbound audit record.
+
+                          Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
+                        oneOf:
+                        - description: Raw data was not captured (default).
+                          enum:
+                          - not_captured
+                          type: string
+                        - description: Raw data was redacted before recording.
+                          enum:
+                          - redacted
+                          type: string
+                        - description: Only a policy reference is stored; no data captured.
+                          enum:
+                          - policy_ref
+                          type: string
+                        - description: Request was blocked as unsafe; no data recorded.
+                          enum:
+                          - unsafe_blocked
+                          type: string
+                        - description: Explicit user/host approval to capture raw data (rare).
+                          enum:
+                          - explicitly_approved
+                          type: string
                       RemoteAuth:
                         properties:
                           config:
@@ -7065,6 +7300,19 @@ paths:
                         required:
                         - id
                         - schema
+                        type: object
+                      SubprocessLogLine:
+                        properties:
+                          line:
+                            type: string
+                          package_id:
+                            type: string
+                          stream:
+                            type: string
+                        required:
+                        - line
+                        - package_id
+                        - stream
                         type: object
                       SubprocessTransport:
                         enum:
@@ -7195,6 +7443,10 @@ paths:
                         type: integer
                       id:
                         type: string
+                      last_failure:
+                        anyOf:
+                        - $ref: '#/$defs/PackageFailureSummary'
+                        - type: 'null'
                       loaded_at:
                         format: date-time
                         type: string
@@ -7622,6 +7874,47 @@ paths:
                         - id
                         - source
                         type: object
+                      PackageFailureSummary:
+                        properties:
+                          exit_code:
+                            type:
+                            - string
+                            - 'null'
+                          failed_at:
+                            format: date-time
+                            type: string
+                          log_tail_redacted:
+                            items:
+                              $ref: '#/$defs/SubprocessLogLine'
+                            type: array
+                          package_id:
+                            type: string
+                          reason:
+                            type: string
+                          redaction_state:
+                            $ref: '#/$defs/RedactionState'
+                          signal:
+                            type:
+                            - string
+                            - 'null'
+                          state:
+                            $ref: '#/$defs/PackageState'
+                          stderr_tail_redacted:
+                            items:
+                              type: string
+                            type: array
+                          stderr_truncated:
+                            type: boolean
+                        required:
+                        - failed_at
+                        - log_tail_redacted
+                        - package_id
+                        - reason
+                        - redaction_state
+                        - state
+                        - stderr_tail_redacted
+                        - stderr_truncated
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -7778,6 +8071,32 @@ paths:
                               type: string
                             type: array
                         type: object
+                      RedactionState:
+                        description: |-
+                          Redaction state for an outbound audit record.
+
+                          Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
+                        oneOf:
+                        - description: Raw data was not captured (default).
+                          enum:
+                          - not_captured
+                          type: string
+                        - description: Raw data was redacted before recording.
+                          enum:
+                          - redacted
+                          type: string
+                        - description: Only a policy reference is stored; no data captured.
+                          enum:
+                          - policy_ref
+                          type: string
+                        - description: Request was blocked as unsafe; no data recorded.
+                          enum:
+                          - unsafe_blocked
+                          type: string
+                        - description: Explicit user/host approval to capture raw data (rare).
+                          enum:
+                          - explicitly_approved
+                          type: string
                       RemoteAuth:
                         properties:
                           config:
@@ -7813,6 +8132,19 @@ paths:
                         required:
                         - id
                         - schema
+                        type: object
+                      SubprocessLogLine:
+                        properties:
+                          line:
+                            type: string
+                          package_id:
+                            type: string
+                          stream:
+                            type: string
+                        required:
+                        - line
+                        - package_id
+                        - stream
                         type: object
                       SubprocessTransport:
                         enum:
@@ -7943,6 +8275,10 @@ paths:
                         type: integer
                       id:
                         type: string
+                      last_failure:
+                        anyOf:
+                        - $ref: '#/$defs/PackageFailureSummary'
+                        - type: 'null'
                       loaded_at:
                         format: date-time
                         type: string
@@ -8370,6 +8706,47 @@ paths:
                         - id
                         - source
                         type: object
+                      PackageFailureSummary:
+                        properties:
+                          exit_code:
+                            type:
+                            - string
+                            - 'null'
+                          failed_at:
+                            format: date-time
+                            type: string
+                          log_tail_redacted:
+                            items:
+                              $ref: '#/$defs/SubprocessLogLine'
+                            type: array
+                          package_id:
+                            type: string
+                          reason:
+                            type: string
+                          redaction_state:
+                            $ref: '#/$defs/RedactionState'
+                          signal:
+                            type:
+                            - string
+                            - 'null'
+                          state:
+                            $ref: '#/$defs/PackageState'
+                          stderr_tail_redacted:
+                            items:
+                              type: string
+                            type: array
+                          stderr_truncated:
+                            type: boolean
+                        required:
+                        - failed_at
+                        - log_tail_redacted
+                        - package_id
+                        - reason
+                        - redaction_state
+                        - state
+                        - stderr_tail_redacted
+                        - stderr_truncated
+                        type: object
                       PackageManifest:
                         properties:
                           author:
@@ -8526,6 +8903,32 @@ paths:
                               type: string
                             type: array
                         type: object
+                      RedactionState:
+                        description: |-
+                          Redaction state for an outbound audit record.
+
+                          Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
+                        oneOf:
+                        - description: Raw data was not captured (default).
+                          enum:
+                          - not_captured
+                          type: string
+                        - description: Raw data was redacted before recording.
+                          enum:
+                          - redacted
+                          type: string
+                        - description: Only a policy reference is stored; no data captured.
+                          enum:
+                          - policy_ref
+                          type: string
+                        - description: Request was blocked as unsafe; no data recorded.
+                          enum:
+                          - unsafe_blocked
+                          type: string
+                        - description: Explicit user/host approval to capture raw data (rare).
+                          enum:
+                          - explicitly_approved
+                          type: string
                       RemoteAuth:
                         properties:
                           config:
@@ -8561,6 +8964,19 @@ paths:
                         required:
                         - id
                         - schema
+                        type: object
+                      SubprocessLogLine:
+                        properties:
+                          line:
+                            type: string
+                          package_id:
+                            type: string
+                          stream:
+                            type: string
+                        required:
+                        - line
+                        - package_id
+                        - stream
                         type: object
                       SubprocessTransport:
                         enum:
@@ -8691,6 +9107,10 @@ paths:
                         type: integer
                       id:
                         type: string
+                      last_failure:
+                        anyOf:
+                        - $ref: '#/$defs/PackageFailureSummary'
+                        - type: 'null'
                       loaded_at:
                         format: date-time
                         type: string
@@ -9657,8 +10077,6 @@ paths:
                       title: ProjectDescriptor
                       type: object
                     properties:
-                      paths:
-                        type: object
                       running_session_id:
                         description: Session id when project state is running; absent otherwise
                         type: string
@@ -9695,6 +10113,56 @@ paths:
                           - archived
                           type: string
                         title: ProjectState
+                      storage_summary:
+                        $defs:
+                          StorageMeasurementStateSchema:
+                            enum:
+                            - measured
+                            - unknown
+                            type: string
+                        $schema: https://json-schema.org/draft/2020-12/schema
+                        properties:
+                          bundle_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          cache_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          data_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          log_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          measured_at:
+                            format: date-time
+                            type:
+                            - string
+                            - 'null'
+                          measurement_state:
+                            $ref: '#/$defs/StorageMeasurementStateSchema'
+                          total_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        required:
+                        - measurement_state
+                        title: ProjectStorageSummarySchema
+                        type: object
                 required:
                 - jsonrpc
                 - id
@@ -9793,13 +10261,142 @@ paths:
                   jsonrpc:
                     const: '2.0'
                   result:
+                    $defs:
+                      ProjectListItemSchema:
+                        properties:
+                          description:
+                            type: string
+                          entry_surface_id:
+                            type:
+                            - string
+                            - 'null'
+                          icon:
+                            type:
+                            - string
+                            - 'null'
+                          id:
+                            type: string
+                          running_session_id:
+                            type: string
+                          state:
+                            $ref: '#/$defs/ProjectState'
+                          storage_summary:
+                            anyOf:
+                            - $ref: '#/$defs/ProjectStorageSummarySchema'
+                            - type: 'null'
+                          title:
+                            type: string
+                          type:
+                            $ref: '#/$defs/ProjectType'
+                        required:
+                        - description
+                        - id
+                        - running_session_id
+                        - state
+                        - title
+                        - type
+                        type: object
+                      ProjectState:
+                        description: Runtime project state. Not serialized to project.yaml; tracked by registry.
+                        oneOf:
+                        - description: Installed but not running.
+                          enum:
+                          - installed
+                          type: string
+                        - description: Stopped after running.
+                          enum:
+                          - stopped
+                          type: string
+                        - description: Currently transitioning to running.
+                          enum:
+                          - starting
+                          type: string
+                        - description: Currently running and serving.
+                          enum:
+                          - running
+                          type: string
+                        - description: Currently transitioning to stopped.
+                          enum:
+                          - stopping
+                          type: string
+                        - description: Failed to start or crashed.
+                          enum:
+                          - failed
+                          type: string
+                        - description: Soft-deleted, awaiting cleanup.
+                          enum:
+                          - archived
+                          type: string
+                      ProjectStorageSummarySchema:
+                        properties:
+                          bundle_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          cache_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          data_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          log_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          measured_at:
+                            format: date-time
+                            type:
+                            - string
+                            - 'null'
+                          measurement_state:
+                            $ref: '#/$defs/StorageMeasurementStateSchema'
+                          total_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        required:
+                        - measurement_state
+                        type: object
+                      ProjectType:
+                        oneOf:
+                        - description: 'Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.'
+                          enum:
+                          - yggdrasil_native
+                          type: string
+                        - description: External project wrapped by an adapter package.
+                          enum:
+                          - external_wrapped
+                          type: string
+                        - description: External project running in an agent workspace (no wrapping).
+                          enum:
+                          - external_workspace
+                          type: string
+                      StorageMeasurementStateSchema:
+                        enum:
+                        - measured
+                        - unknown
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
                       projects:
                         items:
-                          type: object
+                          $ref: '#/$defs/ProjectListItemSchema'
                         type: array
                     required:
                     - projects
+                    title: ProjectListResultSchema
                     type: object
                 required:
                 - jsonrpc
@@ -10017,6 +10614,53 @@ paths:
                           enum:
                           - archived
                           type: string
+                      ProjectStorageSummarySchema:
+                        properties:
+                          bundle_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          cache_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          data_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          log_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          measured_at:
+                            format: date-time
+                            type:
+                            - string
+                            - 'null'
+                          measurement_state:
+                            $ref: '#/$defs/StorageMeasurementStateSchema'
+                          total_bytes:
+                            format: uint64
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        required:
+                        - measurement_state
+                        type: object
+                      StorageMeasurementStateSchema:
+                        enum:
+                        - measured
+                        - unknown
+                        type: string
                     $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
                       project_id:
@@ -10033,6 +10677,10 @@ paths:
                         type: integer
                       state:
                         $ref: '#/$defs/ProjectState'
+                      storage_summary:
+                        anyOf:
+                        - $ref: '#/$defs/ProjectStorageSummarySchema'
+                        - type: 'null'
                     required:
                     - project_id
                     - running_session_id
@@ -10675,7 +11323,6 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T16:35:57.519954412Z
                         format: date-time
                         type: string
                       created_by:
@@ -10896,7 +11543,6 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T16:35:57.518409744Z
                         format: date-time
                         type: string
                       created_by:
@@ -11072,7 +11718,6 @@ paths:
                       - type: 'null'
                       default: null
                     created_at:
-                      default: 2026-05-23T16:35:57.516131100Z
                       format: date-time
                       type: string
                     created_by:
@@ -11256,7 +11901,6 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T16:35:57.516297770Z
                         format: date-time
                         type: string
                       created_by:
@@ -11473,7 +12117,6 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T16:35:57.517153985Z
                         format: date-time
                         type: string
                       created_by:
@@ -11686,7 +12329,6 @@ paths:
                           - type: 'null'
                           default: null
                         created_at:
-                          default: 2026-05-23T16:35:57.517713838Z
                           format: date-time
                           type: string
                         created_by:
@@ -11908,7 +12550,6 @@ paths:
                         - type: 'null'
                         default: null
                       created_at:
-                        default: 2026-05-23T16:35:57.519131729Z
                         format: date-time
                         type: string
                       created_by:

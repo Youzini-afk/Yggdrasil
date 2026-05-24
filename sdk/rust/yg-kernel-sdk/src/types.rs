@@ -14409,6 +14409,411 @@ impl ::std::convert::From<()> for PackageDescribeResult {
         Self(value)
     }
 }
+///`PackageFailureSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "failed_at",
+///    "log_tail_redacted",
+///    "package_id",
+///    "reason",
+///    "redaction_state",
+///    "state",
+///    "stderr_tail_redacted",
+///    "stderr_truncated"
+///  ],
+///  "properties": {
+///    "exit_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "failed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "log_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/SubprocessLogLine"
+///      }
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "redaction_state": {
+///      "$ref": "#/definitions/RedactionState"
+///    },
+///    "signal": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "state": {
+///      "$ref": "#/definitions/PackageState"
+///    },
+///    "stderr_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "stderr_truncated": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageFailureSummary {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<::std::string::String>,
+    pub failed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub log_tail_redacted: ::std::vec::Vec<SubprocessLogLine>,
+    pub package_id: ::std::string::String,
+    pub reason: ::std::string::String,
+    pub redaction_state: RedactionState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub signal: ::std::option::Option<::std::string::String>,
+    pub state: PackageState,
+    pub stderr_tail_redacted: ::std::vec::Vec<::std::string::String>,
+    pub stderr_truncated: bool,
+}
+///`PackageFailureSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "failed_at",
+///    "log_tail_redacted",
+///    "package_id",
+///    "reason",
+///    "redaction_state",
+///    "state",
+///    "stderr_tail_redacted",
+///    "stderr_truncated"
+///  ],
+///  "properties": {
+///    "exit_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "failed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "log_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/SubprocessLogLine"
+///      }
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "redaction_state": {
+///      "$ref": "#/definitions/RedactionState"
+///    },
+///    "signal": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "state": {
+///      "$ref": "#/definitions/PackageState"
+///    },
+///    "stderr_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "stderr_truncated": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageFailureSummary {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<::std::string::String>,
+    pub failed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub log_tail_redacted: ::std::vec::Vec<SubprocessLogLine>,
+    pub package_id: ::std::string::String,
+    pub reason: ::std::string::String,
+    pub redaction_state: RedactionState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub signal: ::std::option::Option<::std::string::String>,
+    pub state: PackageState,
+    pub stderr_tail_redacted: ::std::vec::Vec<::std::string::String>,
+    pub stderr_truncated: bool,
+}
+///`PackageFailureSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "failed_at",
+///    "log_tail_redacted",
+///    "package_id",
+///    "reason",
+///    "redaction_state",
+///    "state",
+///    "stderr_tail_redacted",
+///    "stderr_truncated"
+///  ],
+///  "properties": {
+///    "exit_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "failed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "log_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/SubprocessLogLine"
+///      }
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "redaction_state": {
+///      "$ref": "#/definitions/RedactionState"
+///    },
+///    "signal": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "state": {
+///      "$ref": "#/definitions/PackageState"
+///    },
+///    "stderr_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "stderr_truncated": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageFailureSummary {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<::std::string::String>,
+    pub failed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub log_tail_redacted: ::std::vec::Vec<SubprocessLogLine>,
+    pub package_id: ::std::string::String,
+    pub reason: ::std::string::String,
+    pub redaction_state: RedactionState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub signal: ::std::option::Option<::std::string::String>,
+    pub state: PackageState,
+    pub stderr_tail_redacted: ::std::vec::Vec<::std::string::String>,
+    pub stderr_truncated: bool,
+}
+///`PackageFailureSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "failed_at",
+///    "log_tail_redacted",
+///    "package_id",
+///    "reason",
+///    "redaction_state",
+///    "state",
+///    "stderr_tail_redacted",
+///    "stderr_truncated"
+///  ],
+///  "properties": {
+///    "exit_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "failed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "log_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/SubprocessLogLine"
+///      }
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "redaction_state": {
+///      "$ref": "#/definitions/RedactionState"
+///    },
+///    "signal": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "state": {
+///      "$ref": "#/definitions/PackageState"
+///    },
+///    "stderr_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "stderr_truncated": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageFailureSummary {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<::std::string::String>,
+    pub failed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub log_tail_redacted: ::std::vec::Vec<SubprocessLogLine>,
+    pub package_id: ::std::string::String,
+    pub reason: ::std::string::String,
+    pub redaction_state: RedactionState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub signal: ::std::option::Option<::std::string::String>,
+    pub state: PackageState,
+    pub stderr_tail_redacted: ::std::vec::Vec<::std::string::String>,
+    pub stderr_truncated: bool,
+}
+///`PackageFailureSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "failed_at",
+///    "log_tail_redacted",
+///    "package_id",
+///    "reason",
+///    "redaction_state",
+///    "state",
+///    "stderr_tail_redacted",
+///    "stderr_truncated"
+///  ],
+///  "properties": {
+///    "exit_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "failed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "log_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/SubprocessLogLine"
+///      }
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "redaction_state": {
+///      "$ref": "#/definitions/RedactionState"
+///    },
+///    "signal": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "state": {
+///      "$ref": "#/definitions/PackageState"
+///    },
+///    "stderr_tail_redacted": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "stderr_truncated": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageFailureSummary {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<::std::string::String>,
+    pub failed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub log_tail_redacted: ::std::vec::Vec<SubprocessLogLine>,
+    pub package_id: ::std::string::String,
+    pub reason: ::std::string::String,
+    pub redaction_state: RedactionState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub signal: ::std::option::Option<::std::string::String>,
+    pub state: PackageState,
+    pub stderr_tail_redacted: ::std::vec::Vec<::std::string::String>,
+    pub stderr_truncated: bool,
+}
 ///`PackageIdParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -15191,6 +15596,16 @@ pub struct PackageLifecyclePayload {
 ///      "id": {
 ///        "type": "string"
 ///      },
+///      "last_failure": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/PackageFailureSummary"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
 ///      "loaded_at": {
 ///        "type": "string",
 ///        "format": "date-time"
@@ -15707,6 +16122,64 @@ pub struct PackageLifecyclePayload {
 ///        ],
 ///        "type": "object"
 ///      },
+///      "PackageFailureSummary": {
+///        "properties": {
+///          "exit_code": {
+///            "type": [
+///              "string",
+///              "null"
+///            ]
+///          },
+///          "failed_at": {
+///            "format": "date-time",
+///            "type": "string"
+///          },
+///          "log_tail_redacted": {
+///            "items": {
+///              "$ref": "#/definitions/SubprocessLogLine"
+///            },
+///            "type": "array"
+///          },
+///          "package_id": {
+///            "type": "string"
+///          },
+///          "reason": {
+///            "type": "string"
+///          },
+///          "redaction_state": {
+///            "$ref": "#/definitions/RedactionState"
+///          },
+///          "signal": {
+///            "type": [
+///              "string",
+///              "null"
+///            ]
+///          },
+///          "state": {
+///            "$ref": "#/definitions/PackageState"
+///          },
+///          "stderr_tail_redacted": {
+///            "items": {
+///              "type": "string"
+///            },
+///            "type": "array"
+///          },
+///          "stderr_truncated": {
+///            "type": "boolean"
+///          }
+///        },
+///        "required": [
+///          "failed_at",
+///          "log_tail_redacted",
+///          "package_id",
+///          "reason",
+///          "redaction_state",
+///          "state",
+///          "stderr_tail_redacted",
+///          "stderr_truncated"
+///        ],
+///        "type": "object"
+///      },
 ///      "PackageManifest": {
 ///        "properties": {
 ///          "author": {
@@ -15940,6 +16413,46 @@ pub struct PackageLifecyclePayload {
 ///        },
 ///        "type": "object"
 ///      },
+///      "RedactionState": {
+///        "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///        "oneOf": [
+///          {
+///            "description": "Raw data was not captured (default).",
+///            "enum": [
+///              "not_captured"
+///            ],
+///            "type": "string"
+///          },
+///          {
+///            "description": "Raw data was redacted before recording.",
+///            "enum": [
+///              "redacted"
+///            ],
+///            "type": "string"
+///          },
+///          {
+///            "description": "Only a policy reference is stored; no data captured.",
+///            "enum": [
+///              "policy_ref"
+///            ],
+///            "type": "string"
+///          },
+///          {
+///            "description": "Request was blocked as unsafe; no data recorded.",
+///            "enum": [
+///              "unsafe_blocked"
+///            ],
+///            "type": "string"
+///          },
+///          {
+///            "description": "Explicit user/host approval to capture raw data (rare).",
+///            "enum": [
+///              "explicitly_approved"
+///            ],
+///            "type": "string"
+///          }
+///        ]
+///      },
 ///      "RemoteAuth": {
 ///        "properties": {
 ///          "config": {
@@ -15987,6 +16500,25 @@ pub struct PackageLifecyclePayload {
 ///        "required": [
 ///          "id",
 ///          "schema"
+///        ],
+///        "type": "object"
+///      },
+///      "SubprocessLogLine": {
+///        "properties": {
+///          "line": {
+///            "type": "string"
+///          },
+///          "package_id": {
+///            "type": "string"
+///          },
+///          "stream": {
+///            "type": "string"
+///          }
+///        },
+///        "required": [
+///          "line",
+///          "package_id",
+///          "stream"
 ///        ],
 ///        "type": "object"
 ///      },
@@ -17685,6 +18217,16 @@ impl ::std::default::Default for PackagePermissions {
 ///    "id": {
 ///      "type": "string"
 ///    },
+///    "last_failure": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageFailureSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "loaded_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -18201,6 +18743,64 @@ impl ::std::default::Default for PackagePermissions {
 ///      ],
 ///      "type": "object"
 ///    },
+///    "PackageFailureSummary": {
+///      "properties": {
+///        "exit_code": {
+///          "type": [
+///            "string",
+///            "null"
+///          ]
+///        },
+///        "failed_at": {
+///          "format": "date-time",
+///          "type": "string"
+///        },
+///        "log_tail_redacted": {
+///          "items": {
+///            "$ref": "#/definitions/SubprocessLogLine"
+///          },
+///          "type": "array"
+///        },
+///        "package_id": {
+///          "type": "string"
+///        },
+///        "reason": {
+///          "type": "string"
+///        },
+///        "redaction_state": {
+///          "$ref": "#/definitions/RedactionState"
+///        },
+///        "signal": {
+///          "type": [
+///            "string",
+///            "null"
+///          ]
+///        },
+///        "state": {
+///          "$ref": "#/definitions/PackageState"
+///        },
+///        "stderr_tail_redacted": {
+///          "items": {
+///            "type": "string"
+///          },
+///          "type": "array"
+///        },
+///        "stderr_truncated": {
+///          "type": "boolean"
+///        }
+///      },
+///      "required": [
+///        "failed_at",
+///        "log_tail_redacted",
+///        "package_id",
+///        "reason",
+///        "redaction_state",
+///        "state",
+///        "stderr_tail_redacted",
+///        "stderr_truncated"
+///      ],
+///      "type": "object"
+///    },
 ///    "PackageManifest": {
 ///      "properties": {
 ///        "author": {
@@ -18434,6 +19034,46 @@ impl ::std::default::Default for PackagePermissions {
 ///      },
 ///      "type": "object"
 ///    },
+///    "RedactionState": {
+///      "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///      "oneOf": [
+///        {
+///          "description": "Raw data was not captured (default).",
+///          "enum": [
+///            "not_captured"
+///          ],
+///          "type": "string"
+///        },
+///        {
+///          "description": "Raw data was redacted before recording.",
+///          "enum": [
+///            "redacted"
+///          ],
+///          "type": "string"
+///        },
+///        {
+///          "description": "Only a policy reference is stored; no data captured.",
+///          "enum": [
+///            "policy_ref"
+///          ],
+///          "type": "string"
+///        },
+///        {
+///          "description": "Request was blocked as unsafe; no data recorded.",
+///          "enum": [
+///            "unsafe_blocked"
+///          ],
+///          "type": "string"
+///        },
+///        {
+///          "description": "Explicit user/host approval to capture raw data (rare).",
+///          "enum": [
+///            "explicitly_approved"
+///          ],
+///          "type": "string"
+///        }
+///      ]
+///    },
 ///    "RemoteAuth": {
 ///      "properties": {
 ///        "config": {
@@ -18481,6 +19121,25 @@ impl ::std::default::Default for PackagePermissions {
 ///      "required": [
 ///        "id",
 ///        "schema"
+///      ],
+///      "type": "object"
+///    },
+///    "SubprocessLogLine": {
+///      "properties": {
+///        "line": {
+///          "type": "string"
+///        },
+///        "package_id": {
+///          "type": "string"
+///        },
+///        "stream": {
+///          "type": "string"
+///        }
+///      },
+///      "required": [
+///        "line",
+///        "package_id",
+///        "stream"
 ///      ],
 ///      "type": "object"
 ///    },
@@ -18660,6 +19319,8 @@ pub struct PackageRecord {
     pub extension_point_count: u32,
     pub hook_count: u32,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
     pub state: PackageState,
@@ -18710,6 +19371,16 @@ pub struct PackageRecord {
 ///    "id": {
 ///      "type": "string"
 ///    },
+///    "last_failure": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageFailureSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "loaded_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -18742,6 +19413,8 @@ pub struct PackageRecord {
     pub extension_point_count: u32,
     pub hook_count: u32,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
     pub state: PackageState,
@@ -18792,6 +19465,16 @@ pub struct PackageRecord {
 ///    "id": {
 ///      "type": "string"
 ///    },
+///    "last_failure": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageFailureSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "loaded_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -18824,6 +19507,8 @@ pub struct PackageRecord {
     pub extension_point_count: u32,
     pub hook_count: u32,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
     pub state: PackageState,
@@ -18874,6 +19559,16 @@ pub struct PackageRecord {
 ///    "id": {
 ///      "type": "string"
 ///    },
+///    "last_failure": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageFailureSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "loaded_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -18906,6 +19601,8 @@ pub struct PackageRecord {
     pub extension_point_count: u32,
     pub hook_count: u32,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
     pub state: PackageState,
@@ -18956,6 +19653,16 @@ pub struct PackageRecord {
 ///    "id": {
 ///      "type": "string"
 ///    },
+///    "last_failure": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageFailureSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "loaded_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -18988,6 +19695,8 @@ pub struct PackageRecord {
     pub extension_point_count: u32,
     pub hook_count: u32,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
     pub state: PackageState,
@@ -21389,9 +22098,6 @@ impl ::std::default::Default for PermissionSet {
 ///    }
 ///  ],
 ///  "properties": {
-///    "paths": {
-///      "type": "object"
-///    },
 ///    "running_session_id": {
 ///      "description": "Session id when project state is running; absent otherwise",
 ///      "type": "string"
@@ -21451,6 +22157,75 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ],
 ///      "$schema": "https://json-schema.org/draft/2020-12/schema"
+///    },
+///    "storage_summary": {
+///      "title": "ProjectStorageSummarySchema",
+///      "type": "object",
+///      "required": [
+///        "measurement_state"
+///      ],
+///      "properties": {
+///        "bundle_bytes": {
+///          "type": [
+///            "integer",
+///            "null"
+///          ],
+///          "format": "uint64",
+///          "minimum": 0.0
+///        },
+///        "cache_bytes": {
+///          "type": [
+///            "integer",
+///            "null"
+///          ],
+///          "format": "uint64",
+///          "minimum": 0.0
+///        },
+///        "data_bytes": {
+///          "type": [
+///            "integer",
+///            "null"
+///          ],
+///          "format": "uint64",
+///          "minimum": 0.0
+///        },
+///        "log_bytes": {
+///          "type": [
+///            "integer",
+///            "null"
+///          ],
+///          "format": "uint64",
+///          "minimum": 0.0
+///        },
+///        "measured_at": {
+///          "type": [
+///            "string",
+///            "null"
+///          ],
+///          "format": "date-time"
+///        },
+///        "measurement_state": {
+///          "$ref": "#/definitions/StorageMeasurementStateSchema"
+///        },
+///        "total_bytes": {
+///          "type": [
+///            "integer",
+///            "null"
+///          ],
+///          "format": "uint64",
+///          "minimum": 0.0
+///        }
+///      },
+///      "$schema": "https://json-schema.org/draft/2020-12/schema",
+///      "definitions": {
+///        "StorageMeasurementStateSchema": {
+///          "enum": [
+///            "measured",
+///            "unknown"
+///          ],
+///          "type": "string"
+///        }
+///      }
 ///    }
 ///  }
 ///}
@@ -21459,8 +22234,6 @@ impl ::std::default::Default for PermissionSet {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ProjectGetResult {
-    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
-    pub paths: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
     ///The actual project content.
     pub project: ProjectInner,
     ///Session id when project state is running; absent otherwise
@@ -21471,6 +22244,8 @@ pub struct ProjectGetResult {
     ///Runtime project state. Not serialized to project.yaml; tracked by registry.
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub state: ::std::option::Option<ProjectState>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub storage_summary: ::std::option::Option<ProjectStorageSummarySchema>,
 }
 ///`ProjectIdParams`
 ///
@@ -21930,6 +22705,83 @@ pub struct ProjectLifecyclePayloadSchema {
     #[serde(rename = "type")]
     pub type_: ProjectType,
 }
+///`ProjectListItemSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "description",
+///    "id",
+///    "running_session_id",
+///    "state",
+///    "title",
+///    "type"
+///  ],
+///  "properties": {
+///    "description": {
+///      "type": "string"
+///    },
+///    "entry_surface_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "icon": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "running_session_id": {
+///      "type": "string"
+///    },
+///    "state": {
+///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "storage_summary": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectStorageSummarySchema"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "type": {
+///      "$ref": "#/definitions/ProjectType"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectListItemSchema {
+    pub description: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub entry_surface_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub icon: ::std::option::Option<::std::string::String>,
+    pub id: ::std::string::String,
+    pub running_session_id: ::std::string::String,
+    pub state: ProjectState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub storage_summary: ::std::option::Option<ProjectStorageSummarySchema>,
+    pub title: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ProjectType,
+}
 ///`ProjectListParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -21966,13 +22818,13 @@ impl ::std::default::Default for ProjectListParams {
         }
     }
 }
-///`ProjectListResult`
+///`ProjectListResultSchema`
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
-///  "title": "ProjectListResult",
+///  "title": "ProjectListResultSchema",
 ///  "type": "object",
 ///  "required": [
 ///    "projects"
@@ -21981,7 +22833,7 @@ impl ::std::default::Default for ProjectListParams {
 ///    "projects": {
 ///      "type": "array",
 ///      "items": {
-///        "type": "object"
+///        "$ref": "#/definitions/ProjectListItemSchema"
 ///      }
 ///    }
 ///  }
@@ -21990,10 +22842,8 @@ impl ::std::default::Default for ProjectListParams {
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct ProjectListResult {
-    pub projects: ::std::vec::Vec<
-        ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    >,
+pub struct ProjectListResultSchema {
+    pub projects: ::std::vec::Vec<ProjectListItemSchema>,
 }
 ///`ProjectStartResult`
 ///
@@ -23400,6 +24250,157 @@ impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
         value.parse()
     }
 }
+///Runtime project state. Not serialized to project.yaml; tracked by registry.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+///  "oneOf": [
+///    {
+///      "description": "Installed but not running.",
+///      "type": "string",
+///      "enum": [
+///        "installed"
+///      ]
+///    },
+///    {
+///      "description": "Stopped after running.",
+///      "type": "string",
+///      "enum": [
+///        "stopped"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to running.",
+///      "type": "string",
+///      "enum": [
+///        "starting"
+///      ]
+///    },
+///    {
+///      "description": "Currently running and serving.",
+///      "type": "string",
+///      "enum": [
+///        "running"
+///      ]
+///    },
+///    {
+///      "description": "Currently transitioning to stopped.",
+///      "type": "string",
+///      "enum": [
+///        "stopping"
+///      ]
+///    },
+///    {
+///      "description": "Failed to start or crashed.",
+///      "type": "string",
+///      "enum": [
+///        "failed"
+///      ]
+///    },
+///    {
+///      "description": "Soft-deleted, awaiting cleanup.",
+///      "type": "string",
+///      "enum": [
+///        "archived"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectState {
+    ///Installed but not running.
+    #[serde(rename = "installed")]
+    Installed,
+    ///Stopped after running.
+    #[serde(rename = "stopped")]
+    Stopped,
+    ///Currently transitioning to running.
+    #[serde(rename = "starting")]
+    Starting,
+    ///Currently running and serving.
+    #[serde(rename = "running")]
+    Running,
+    ///Currently transitioning to stopped.
+    #[serde(rename = "stopping")]
+    Stopping,
+    ///Failed to start or crashed.
+    #[serde(rename = "failed")]
+    Failed,
+    ///Soft-deleted, awaiting cleanup.
+    #[serde(rename = "archived")]
+    Archived,
+}
+impl ::std::fmt::Display for ProjectState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Installed => f.write_str("installed"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Failed => f.write_str("failed"),
+            Self::Archived => f.write_str("archived"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "installed" => Ok(Self::Installed),
+            "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "stopping" => Ok(Self::Stopping),
+            "failed" => Ok(Self::Failed),
+            "archived" => Ok(Self::Archived),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`ProjectStatusResult`
 ///
 /// <details><summary>JSON schema</summary>
@@ -23434,6 +24435,16 @@ impl ::std::convert::TryFrom<::std::string::String> for ProjectState {
 ///    },
 ///    "state": {
 ///      "$ref": "#/definitions/ProjectState"
+///    },
+///    "storage_summary": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProjectStorageSummarySchema"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
 ///    }
 ///  }
 ///}
@@ -23447,6 +24458,8 @@ pub struct ProjectStatusResult {
     pub secrets_count: u32,
     pub sessions_count: u32,
     pub state: ProjectState,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub storage_summary: ::std::option::Option<ProjectStorageSummarySchema>,
 }
 ///`ProjectStopResult`
 ///
@@ -23486,6 +24499,365 @@ pub struct ProjectStopResult {
     pub previous_state: ProjectState,
     pub project_id: ::std::string::String,
     pub session_id: ::std::string::String,
+}
+///`ProjectStorageSummarySchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProjectStorageSummarySchema",
+///  "type": "object",
+///  "required": [
+///    "measurement_state"
+///  ],
+///  "properties": {
+///    "bundle_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "cache_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "data_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "log_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "measured_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "measurement_state": {
+///      "$ref": "#/definitions/StorageMeasurementStateSchema"
+///    },
+///    "total_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema",
+///  "definitions": {
+///    "StorageMeasurementStateSchema": {
+///      "enum": [
+///        "measured",
+///        "unknown"
+///      ],
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectStorageSummarySchema {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub bundle_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub cache_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub data_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub log_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub measured_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub measurement_state: StorageMeasurementStateSchema,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub total_bytes: ::std::option::Option<u64>,
+}
+///`ProjectStorageSummarySchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "measurement_state"
+///  ],
+///  "properties": {
+///    "bundle_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "cache_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "data_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "log_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "measured_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "measurement_state": {
+///      "$ref": "#/definitions/StorageMeasurementStateSchema"
+///    },
+///    "total_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectStorageSummarySchema {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub bundle_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub cache_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub data_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub log_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub measured_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub measurement_state: StorageMeasurementStateSchema,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub total_bytes: ::std::option::Option<u64>,
+}
+///`ProjectStorageSummarySchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "measurement_state"
+///  ],
+///  "properties": {
+///    "bundle_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "cache_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "data_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "log_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "measured_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "measurement_state": {
+///      "$ref": "#/definitions/StorageMeasurementStateSchema"
+///    },
+///    "total_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProjectStorageSummarySchema {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub bundle_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub cache_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub data_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub log_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub measured_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub measurement_state: StorageMeasurementStateSchema,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub total_bytes: ::std::option::Option<u64>,
+}
+///`ProjectType`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "oneOf": [
+///    {
+///      "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+///      "type": "string",
+///      "enum": [
+///        "yggdrasil_native"
+///      ]
+///    },
+///    {
+///      "description": "External project wrapped by an adapter package.",
+///      "type": "string",
+///      "enum": [
+///        "external_wrapped"
+///      ]
+///    },
+///    {
+///      "description": "External project running in an agent workspace (no wrapping).",
+///      "type": "string",
+///      "enum": [
+///        "external_workspace"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProjectType {
+    ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
+    #[serde(rename = "yggdrasil_native")]
+    YggdrasilNative,
+    ///External project wrapped by an adapter package.
+    #[serde(rename = "external_wrapped")]
+    ExternalWrapped,
+    ///External project running in an agent workspace (no wrapping).
+    #[serde(rename = "external_workspace")]
+    ExternalWorkspace,
+}
+impl ::std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::YggdrasilNative => f.write_str("yggdrasil_native"),
+            Self::ExternalWrapped => f.write_str("external_wrapped"),
+            Self::ExternalWorkspace => f.write_str("external_workspace"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProjectType {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "yggdrasil_native" => Ok(Self::YggdrasilNative),
+            "external_wrapped" => Ok(Self::ExternalWrapped),
+            "external_workspace" => Ok(Self::ExternalWorkspace),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProjectType {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`ProjectType`
 ///
@@ -24912,7 +26284,6 @@ pub struct ProposalIdParams {
 ///        ]
 ///      },
 ///      "created_at": {
-///        "default": "2026-05-23T16:35:57.517713838Z",
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
@@ -25625,7 +26996,6 @@ pub struct ProposalOperation {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.519954412Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25694,8 +27064,8 @@ pub struct ProposalOperation {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -25719,7 +27089,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -25753,7 +27123,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.518409744Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25822,8 +27191,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -25847,7 +27216,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -25881,7 +27250,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.516131100Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -25950,8 +27318,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -25975,7 +27343,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26009,7 +27377,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.516297770Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26078,8 +27445,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26103,7 +27470,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26137,7 +27504,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.517153985Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26206,8 +27572,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26231,7 +27597,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26265,7 +27631,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.519131729Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26334,8 +27699,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26359,7 +27724,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26393,7 +27758,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.527747105Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26462,8 +27826,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26487,7 +27851,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26521,7 +27885,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.527368976Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26590,8 +27953,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26615,7 +27978,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26649,7 +28012,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.527153239Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26718,8 +28080,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26743,7 +28105,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26777,7 +28139,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.527960578Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26846,8 +28207,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26871,7 +28232,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -26905,7 +28266,6 @@ impl ::std::default::Default for ProposalRecord {
 ///      ]
 ///    },
 ///    "created_at": {
-///      "default": "2026-05-23T16:35:57.527557941Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
@@ -26974,8 +28334,8 @@ impl ::std::default::Default for ProposalRecord {
 pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
-    #[serde(default = "defaults::proposal_record_created_at")]
-    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
     #[serde(default = "defaults::proposal_record_expected_effects")]
@@ -26999,7 +28359,7 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
-            created_at: defaults::proposal_record_created_at(),
+            created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
@@ -32565,6 +33925,651 @@ impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
         value.parse()
     }
 }
+/**Redaction state for an outbound audit record.
+
+Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///  "oneOf": [
+///    {
+///      "description": "Raw data was not captured (default).",
+///      "type": "string",
+///      "enum": [
+///        "not_captured"
+///      ]
+///    },
+///    {
+///      "description": "Raw data was redacted before recording.",
+///      "type": "string",
+///      "enum": [
+///        "redacted"
+///      ]
+///    },
+///    {
+///      "description": "Only a policy reference is stored; no data captured.",
+///      "type": "string",
+///      "enum": [
+///        "policy_ref"
+///      ]
+///    },
+///    {
+///      "description": "Request was blocked as unsafe; no data recorded.",
+///      "type": "string",
+///      "enum": [
+///        "unsafe_blocked"
+///      ]
+///    },
+///    {
+///      "description": "Explicit user/host approval to capture raw data (rare).",
+///      "type": "string",
+///      "enum": [
+///        "explicitly_approved"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum RedactionState {
+    ///Raw data was not captured (default).
+    #[serde(rename = "not_captured")]
+    NotCaptured,
+    ///Raw data was redacted before recording.
+    #[serde(rename = "redacted")]
+    Redacted,
+    ///Only a policy reference is stored; no data captured.
+    #[serde(rename = "policy_ref")]
+    PolicyRef,
+    ///Request was blocked as unsafe; no data recorded.
+    #[serde(rename = "unsafe_blocked")]
+    UnsafeBlocked,
+    ///Explicit user/host approval to capture raw data (rare).
+    #[serde(rename = "explicitly_approved")]
+    ExplicitlyApproved,
+}
+impl ::std::fmt::Display for RedactionState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::NotCaptured => f.write_str("not_captured"),
+            Self::Redacted => f.write_str("redacted"),
+            Self::PolicyRef => f.write_str("policy_ref"),
+            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
+            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
+        }
+    }
+}
+impl ::std::str::FromStr for RedactionState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "not_captured" => Ok(Self::NotCaptured),
+            "redacted" => Ok(Self::Redacted),
+            "policy_ref" => Ok(Self::PolicyRef),
+            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
+            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+/**Redaction state for an outbound audit record.
+
+Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///  "oneOf": [
+///    {
+///      "description": "Raw data was not captured (default).",
+///      "type": "string",
+///      "enum": [
+///        "not_captured"
+///      ]
+///    },
+///    {
+///      "description": "Raw data was redacted before recording.",
+///      "type": "string",
+///      "enum": [
+///        "redacted"
+///      ]
+///    },
+///    {
+///      "description": "Only a policy reference is stored; no data captured.",
+///      "type": "string",
+///      "enum": [
+///        "policy_ref"
+///      ]
+///    },
+///    {
+///      "description": "Request was blocked as unsafe; no data recorded.",
+///      "type": "string",
+///      "enum": [
+///        "unsafe_blocked"
+///      ]
+///    },
+///    {
+///      "description": "Explicit user/host approval to capture raw data (rare).",
+///      "type": "string",
+///      "enum": [
+///        "explicitly_approved"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum RedactionState {
+    ///Raw data was not captured (default).
+    #[serde(rename = "not_captured")]
+    NotCaptured,
+    ///Raw data was redacted before recording.
+    #[serde(rename = "redacted")]
+    Redacted,
+    ///Only a policy reference is stored; no data captured.
+    #[serde(rename = "policy_ref")]
+    PolicyRef,
+    ///Request was blocked as unsafe; no data recorded.
+    #[serde(rename = "unsafe_blocked")]
+    UnsafeBlocked,
+    ///Explicit user/host approval to capture raw data (rare).
+    #[serde(rename = "explicitly_approved")]
+    ExplicitlyApproved,
+}
+impl ::std::fmt::Display for RedactionState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::NotCaptured => f.write_str("not_captured"),
+            Self::Redacted => f.write_str("redacted"),
+            Self::PolicyRef => f.write_str("policy_ref"),
+            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
+            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
+        }
+    }
+}
+impl ::std::str::FromStr for RedactionState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "not_captured" => Ok(Self::NotCaptured),
+            "redacted" => Ok(Self::Redacted),
+            "policy_ref" => Ok(Self::PolicyRef),
+            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
+            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+/**Redaction state for an outbound audit record.
+
+Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///  "oneOf": [
+///    {
+///      "description": "Raw data was not captured (default).",
+///      "type": "string",
+///      "enum": [
+///        "not_captured"
+///      ]
+///    },
+///    {
+///      "description": "Raw data was redacted before recording.",
+///      "type": "string",
+///      "enum": [
+///        "redacted"
+///      ]
+///    },
+///    {
+///      "description": "Only a policy reference is stored; no data captured.",
+///      "type": "string",
+///      "enum": [
+///        "policy_ref"
+///      ]
+///    },
+///    {
+///      "description": "Request was blocked as unsafe; no data recorded.",
+///      "type": "string",
+///      "enum": [
+///        "unsafe_blocked"
+///      ]
+///    },
+///    {
+///      "description": "Explicit user/host approval to capture raw data (rare).",
+///      "type": "string",
+///      "enum": [
+///        "explicitly_approved"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum RedactionState {
+    ///Raw data was not captured (default).
+    #[serde(rename = "not_captured")]
+    NotCaptured,
+    ///Raw data was redacted before recording.
+    #[serde(rename = "redacted")]
+    Redacted,
+    ///Only a policy reference is stored; no data captured.
+    #[serde(rename = "policy_ref")]
+    PolicyRef,
+    ///Request was blocked as unsafe; no data recorded.
+    #[serde(rename = "unsafe_blocked")]
+    UnsafeBlocked,
+    ///Explicit user/host approval to capture raw data (rare).
+    #[serde(rename = "explicitly_approved")]
+    ExplicitlyApproved,
+}
+impl ::std::fmt::Display for RedactionState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::NotCaptured => f.write_str("not_captured"),
+            Self::Redacted => f.write_str("redacted"),
+            Self::PolicyRef => f.write_str("policy_ref"),
+            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
+            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
+        }
+    }
+}
+impl ::std::str::FromStr for RedactionState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "not_captured" => Ok(Self::NotCaptured),
+            "redacted" => Ok(Self::Redacted),
+            "policy_ref" => Ok(Self::PolicyRef),
+            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
+            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+/**Redaction state for an outbound audit record.
+
+Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///  "oneOf": [
+///    {
+///      "description": "Raw data was not captured (default).",
+///      "type": "string",
+///      "enum": [
+///        "not_captured"
+///      ]
+///    },
+///    {
+///      "description": "Raw data was redacted before recording.",
+///      "type": "string",
+///      "enum": [
+///        "redacted"
+///      ]
+///    },
+///    {
+///      "description": "Only a policy reference is stored; no data captured.",
+///      "type": "string",
+///      "enum": [
+///        "policy_ref"
+///      ]
+///    },
+///    {
+///      "description": "Request was blocked as unsafe; no data recorded.",
+///      "type": "string",
+///      "enum": [
+///        "unsafe_blocked"
+///      ]
+///    },
+///    {
+///      "description": "Explicit user/host approval to capture raw data (rare).",
+///      "type": "string",
+///      "enum": [
+///        "explicitly_approved"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum RedactionState {
+    ///Raw data was not captured (default).
+    #[serde(rename = "not_captured")]
+    NotCaptured,
+    ///Raw data was redacted before recording.
+    #[serde(rename = "redacted")]
+    Redacted,
+    ///Only a policy reference is stored; no data captured.
+    #[serde(rename = "policy_ref")]
+    PolicyRef,
+    ///Request was blocked as unsafe; no data recorded.
+    #[serde(rename = "unsafe_blocked")]
+    UnsafeBlocked,
+    ///Explicit user/host approval to capture raw data (rare).
+    #[serde(rename = "explicitly_approved")]
+    ExplicitlyApproved,
+}
+impl ::std::fmt::Display for RedactionState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::NotCaptured => f.write_str("not_captured"),
+            Self::Redacted => f.write_str("redacted"),
+            Self::PolicyRef => f.write_str("policy_ref"),
+            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
+            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
+        }
+    }
+}
+impl ::std::str::FromStr for RedactionState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "not_captured" => Ok(Self::NotCaptured),
+            "redacted" => Ok(Self::Redacted),
+            "policy_ref" => Ok(Self::PolicyRef),
+            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
+            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+/**Redaction state for an outbound audit record.
+
+Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+///  "oneOf": [
+///    {
+///      "description": "Raw data was not captured (default).",
+///      "type": "string",
+///      "enum": [
+///        "not_captured"
+///      ]
+///    },
+///    {
+///      "description": "Raw data was redacted before recording.",
+///      "type": "string",
+///      "enum": [
+///        "redacted"
+///      ]
+///    },
+///    {
+///      "description": "Only a policy reference is stored; no data captured.",
+///      "type": "string",
+///      "enum": [
+///        "policy_ref"
+///      ]
+///    },
+///    {
+///      "description": "Request was blocked as unsafe; no data recorded.",
+///      "type": "string",
+///      "enum": [
+///        "unsafe_blocked"
+///      ]
+///    },
+///    {
+///      "description": "Explicit user/host approval to capture raw data (rare).",
+///      "type": "string",
+///      "enum": [
+///        "explicitly_approved"
+///      ]
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum RedactionState {
+    ///Raw data was not captured (default).
+    #[serde(rename = "not_captured")]
+    NotCaptured,
+    ///Raw data was redacted before recording.
+    #[serde(rename = "redacted")]
+    Redacted,
+    ///Only a policy reference is stored; no data captured.
+    #[serde(rename = "policy_ref")]
+    PolicyRef,
+    ///Request was blocked as unsafe; no data recorded.
+    #[serde(rename = "unsafe_blocked")]
+    UnsafeBlocked,
+    ///Explicit user/host approval to capture raw data (rare).
+    #[serde(rename = "explicitly_approved")]
+    ExplicitlyApproved,
+}
+impl ::std::fmt::Display for RedactionState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::NotCaptured => f.write_str("not_captured"),
+            Self::Redacted => f.write_str("redacted"),
+            Self::PolicyRef => f.write_str("policy_ref"),
+            Self::UnsafeBlocked => f.write_str("unsafe_blocked"),
+            Self::ExplicitlyApproved => f.write_str("explicitly_approved"),
+        }
+    }
+}
+impl ::std::str::FromStr for RedactionState {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "not_captured" => Ok(Self::NotCaptured),
+            "redacted" => Ok(Self::Redacted),
+            "policy_ref" => Ok(Self::PolicyRef),
+            "unsafe_blocked" => Ok(Self::UnsafeBlocked),
+            "explicitly_approved" => Ok(Self::ExplicitlyApproved),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RedactionState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`RegisteredCapability`
 ///
 /// <details><summary>JSON schema</summary>
@@ -33894,6 +35899,237 @@ impl ::std::convert::TryFrom<::std::string::String> for SessionStatus {
         value.parse()
     }
 }
+///`StorageMeasurementStateSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "measured",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum StorageMeasurementStateSchema {
+    #[serde(rename = "measured")]
+    Measured,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for StorageMeasurementStateSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Measured => f.write_str("measured"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for StorageMeasurementStateSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "measured" => Ok(Self::Measured),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StorageMeasurementStateSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "measured",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum StorageMeasurementStateSchema {
+    #[serde(rename = "measured")]
+    Measured,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for StorageMeasurementStateSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Measured => f.write_str("measured"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for StorageMeasurementStateSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "measured" => Ok(Self::Measured),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StorageMeasurementStateSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "measured",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum StorageMeasurementStateSchema {
+    #[serde(rename = "measured")]
+    Measured,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for StorageMeasurementStateSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Measured => f.write_str("measured"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for StorageMeasurementStateSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "measured" => Ok(Self::Measured),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StorageMeasurementStateSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///The format of a streaming response for `kernel.v1.outbound.stream`.
 ///
 /// <details><summary>JSON schema</summary>
@@ -34056,7 +36292,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.510580645Z",
+///      "default": "2026-05-24T12:19:22.308909808Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34147,7 +36383,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.529289641Z",
+///      "default": "2026-05-24T12:19:22.337354281Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34238,7 +36474,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.528836324Z",
+///      "default": "2026-05-24T12:19:22.337091541Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34329,7 +36565,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.529031327Z",
+///      "default": "2026-05-24T12:19:22.337227303Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34420,7 +36656,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.529170966Z",
+///      "default": "2026-05-24T12:19:22.337291452Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34511,7 +36747,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.528938283Z",
+///      "default": "2026-05-24T12:19:22.337163172Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -34602,7 +36838,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-23T16:35:57.529383448Z",
+///      "default": "2026-05-24T12:19:22.337417098Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -35837,7 +38073,6 @@ for StreamStartedPayload {
 ///
 /// ```json
 ///{
-///  "title": "SubprocessLogLine",
 ///  "type": "object",
 ///  "required": [
 ///    "line",
@@ -35854,8 +38089,139 @@ for StreamStartedPayload {
 ///    "stream": {
 ///      "type": "string"
 ///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SubprocessLogLine {
+    pub line: ::std::string::String,
+    pub package_id: ::std::string::String,
+    pub stream: ::std::string::String,
+}
+///`SubprocessLogLine`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "line",
+///    "package_id",
+///    "stream"
+///  ],
+///  "properties": {
+///    "line": {
+///      "type": "string"
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "stream": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SubprocessLogLine {
+    pub line: ::std::string::String,
+    pub package_id: ::std::string::String,
+    pub stream: ::std::string::String,
+}
+///`SubprocessLogLine`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "line",
+///    "package_id",
+///    "stream"
+///  ],
+///  "properties": {
+///    "line": {
+///      "type": "string"
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "stream": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SubprocessLogLine {
+    pub line: ::std::string::String,
+    pub package_id: ::std::string::String,
+    pub stream: ::std::string::String,
+}
+///`SubprocessLogLine`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "line",
+///    "package_id",
+///    "stream"
+///  ],
+///  "properties": {
+///    "line": {
+///      "type": "string"
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "stream": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SubprocessLogLine {
+    pub line: ::std::string::String,
+    pub package_id: ::std::string::String,
+    pub stream: ::std::string::String,
+}
+///`SubprocessLogLine`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "line",
+///    "package_id",
+///    "stream"
+///  ],
+///  "properties": {
+///    "line": {
+///      "type": "string"
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "stream": {
+///      "type": "string"
+///    }
+///  }
 ///}
 /// ```
 /// </details>
@@ -41402,13 +43768,17 @@ pub mod defaults {
     pub(super) fn proposal_operation_payload() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.519954412Z\"")
-            .unwrap()
+    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
+        super::ProtocolPrincipal::Anonymous
+    }
+    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_result() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_status() -> super::ProposalStatus {
+        super::ProposalStatus::Created
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
@@ -41422,13 +43792,17 @@ pub mod defaults {
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
     }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.518409744Z\"")
-            .unwrap()
+    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
+        super::ProtocolPrincipal::Anonymous
+    }
+    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_result() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_status() -> super::ProposalStatus {
+        super::ProposalStatus::Created
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
@@ -41442,13 +43816,17 @@ pub mod defaults {
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
     }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.516131100Z\"")
-            .unwrap()
+    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
+        super::ProtocolPrincipal::Anonymous
+    }
+    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_result() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_status() -> super::ProposalStatus {
+        super::ProposalStatus::Created
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
@@ -41462,13 +43840,17 @@ pub mod defaults {
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
     }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.516297770Z\"")
-            .unwrap()
+    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
+        super::ProtocolPrincipal::Anonymous
+    }
+    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_result() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proposal_record_status() -> super::ProposalStatus {
+        super::ProposalStatus::Created
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
@@ -41482,14 +43864,6 @@ pub mod defaults {
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
     }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.517153985Z\"")
-            .unwrap()
-    }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
     }
@@ -41502,14 +43876,6 @@ pub mod defaults {
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
     }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.519131729Z\"")
-            .unwrap()
-    }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
     }
@@ -41521,94 +43887,6 @@ pub mod defaults {
     }
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
-    }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.527747105Z\"")
-            .unwrap()
-    }
-    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
-        super::ProtocolPrincipal::Anonymous
-    }
-    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_result() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_status() -> super::ProposalStatus {
-        super::ProposalStatus::Created
-    }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.527368976Z\"")
-            .unwrap()
-    }
-    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
-        super::ProtocolPrincipal::Anonymous
-    }
-    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_result() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_status() -> super::ProposalStatus {
-        super::ProposalStatus::Created
-    }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.527153239Z\"")
-            .unwrap()
-    }
-    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
-        super::ProtocolPrincipal::Anonymous
-    }
-    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_result() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_status() -> super::ProposalStatus {
-        super::ProposalStatus::Created
-    }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.527960578Z\"")
-            .unwrap()
-    }
-    pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
-        super::ProtocolPrincipal::Anonymous
-    }
-    pub(super) fn proposal_record_expected_effects() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_result() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn proposal_record_status() -> super::ProposalStatus {
-        super::ProposalStatus::Created
-    }
-    pub(super) fn proposal_record_created_at() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.527557941Z\"")
-            .unwrap()
     }
     pub(super) fn proposal_record_created_by() -> super::ProtocolPrincipal {
         super::ProtocolPrincipal::Anonymous
@@ -41657,7 +43935,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.510580645Z\"")
+        >("\"2026-05-24T12:19:22.308909808Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41674,7 +43952,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.529289641Z\"")
+        >("\"2026-05-24T12:19:22.337354281Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41691,7 +43969,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.528836324Z\"")
+        >("\"2026-05-24T12:19:22.337091541Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41708,7 +43986,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.529031327Z\"")
+        >("\"2026-05-24T12:19:22.337227303Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41725,7 +44003,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.529170966Z\"")
+        >("\"2026-05-24T12:19:22.337291452Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41742,7 +44020,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.528938283Z\"")
+        >("\"2026-05-24T12:19:22.337163172Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -41759,7 +44037,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-23T16:35:57.529383448Z\"")
+        >("\"2026-05-24T12:19:22.337417098Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

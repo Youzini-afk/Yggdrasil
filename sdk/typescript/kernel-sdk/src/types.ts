@@ -775,6 +775,19 @@ export interface PackageDependency {
 
 export type PackageDescribeResult = null;
 
+export interface PackageFailureSummary {
+  "exit_code"?: null | string;
+  "failed_at": string;
+  "log_tail_redacted": Array<SubprocessLogLine>;
+  "package_id": string;
+  "reason": string;
+  "redaction_state": RedactionState;
+  "signal"?: null | string;
+  "state": PackageState;
+  "stderr_tail_redacted": Array<string>;
+  "stderr_truncated": boolean;
+}
+
 export interface PackageIdParams {
   "package_id": string;
 }
@@ -800,6 +813,7 @@ export type PackageListResult = Array<{
   "extension_point_count": number;
   "hook_count": number;
   "id": string;
+  "last_failure"?: PackageFailureSummary | null;
   "loaded_at": string;
   "manifest": PackageManifest;
   "state": PackageState;
@@ -864,6 +878,7 @@ export interface PackageRecord {
   "extension_point_count": number;
   "hook_count": number;
   "id": string;
+  "last_failure"?: PackageFailureSummary | null;
   "loaded_at": string;
   "manifest": PackageManifest;
   "state": PackageState;
@@ -983,12 +998,24 @@ export interface ProjectLifecyclePayloadSchema {
   "type": ProjectType;
 }
 
+export interface ProjectListItemSchema {
+  "description": string;
+  "entry_surface_id"?: null | string;
+  "icon"?: null | string;
+  "id": string;
+  "running_session_id": string;
+  "state": ProjectState;
+  "storage_summary"?: ProjectStorageSummarySchema | null;
+  "title": string;
+  "type": ProjectType;
+}
+
 export interface ProjectListParams {
   "filter_state"?: ProjectState | null;
 }
 
-export interface ProjectListResult {
-  "projects": Array<Record<string, unknown>>;
+export interface ProjectListResultSchema {
+  "projects": Array<ProjectListItemSchema>;
 }
 
 export interface ProjectStartResult {
@@ -1010,6 +1037,7 @@ export interface ProjectStatusResult {
   "secrets_count": number;
   "sessions_count": number;
   "state": ProjectState;
+  "storage_summary"?: ProjectStorageSummarySchema | null;
 }
 
 export interface ProjectStopResult {
@@ -1017,6 +1045,16 @@ export interface ProjectStopResult {
   "previous_state": ProjectState;
   "project_id": string;
   "session_id": string;
+}
+
+export interface ProjectStorageSummarySchema {
+  "bundle_bytes"?: null | number;
+  "cache_bytes"?: null | number;
+  "data_bytes"?: null | number;
+  "log_bytes"?: null | number;
+  "measured_at"?: null | string;
+  "measurement_state": StorageMeasurementStateSchema;
+  "total_bytes"?: null | number;
 }
 
 export type ProjectType = "external_workspace" | "external_wrapped" | "yggdrasil_native";
@@ -1075,146 +1113,6 @@ export interface ProposalOperation {
 }
 
 export interface ProposalRecord {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord10 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord11 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord2 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord3 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord4 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord5 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord6 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord7 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord8 {
-  "approval"?: ProposalApproval | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "operations"?: Array<ProposalOperation>;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}
-
-export interface ProposalRecord9 {
   "approval"?: ProposalApproval | null;
   "created_at"?: string;
   "created_by"?: ProtocolPrincipal;
@@ -1322,6 +1220,8 @@ export type SessionListResult = null;
 export type SessionOpenedPayload = Record<string, unknown>;
 
 export type SessionStatus = "open" | "closed";
+
+export type StorageMeasurementStateSchema = "measured" | "unknown";
 
 /**
  * The format of a streaming response for `kernel.v1.outbound.stream`.

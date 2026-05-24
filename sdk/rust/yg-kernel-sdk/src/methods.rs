@@ -377,7 +377,7 @@ impl KernelClient {
     pub async fn project_list(
         &self,
         params: ProjectListParams,
-    ) -> Result<ProjectListResult> {
+    ) -> Result<ProjectListResultSchema> {
         let raw = self
             .transport
             .invoke("kernel.v1.project.list", serde_json::to_value(params)?)
