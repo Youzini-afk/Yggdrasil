@@ -231,6 +231,6 @@ import {
 ## 延伸阅读
 
 - `docs/CHARTER.md` — 不可变根本原则
-- `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` — 体验牵引平台方向
+- `docs/product/PLAY_CREATION_MODEL.md` — 游创一体的产品立场
 - `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md` — Agentic Forge 创作指南
 - `docs/roadmap/NEXT_STEPS.md` — 路线图

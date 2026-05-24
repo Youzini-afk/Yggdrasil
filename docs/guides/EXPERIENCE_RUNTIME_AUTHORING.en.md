@@ -231,6 +231,6 @@ import {
 ## Further Reading
 
 - `docs/CHARTER.md` — Immutable founding principles
-- `docs/product/EXPERIENCE_LED_PLATFORM_BETA.md` — Experience-led platform direction
+- `docs/product/PLAY_CREATION_MODEL.md` — Play-creation product stance
 - `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md` — Agentic Forge authoring guide
 - `docs/roadmap/NEXT_STEPS.md` — Roadmap

@@ -21,13 +21,13 @@ The next stage isn't more substrate sprawl. Real AI-native playable experiences 
 
 ## Long-term direction: experience-led
 
-See [`../product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.en.md).
+The platform stance lives in [`../product/PLAY_CREATION_MODEL.md`](../product/PLAY_CREATION_MODEL.en.md).
 
 The shape:
 
 - one or two real playable experiences become the pressure source that surfaces the remaining substrate work;
 - every new piece of infrastructure has to answer "which real player or creator loop got stuck here";
-- no more "Alpha + Beta + Phase" stacks planned in advance.
+- no more pre-planned multi-stage roadmaps stacked in advance.
 
 ## Background work that doesn't block the main line
 

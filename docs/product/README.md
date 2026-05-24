@@ -2,7 +2,6 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-Yggdrasil 的产品立场：游创一体平台，从 foundation-first 收敛到由真实 playable experience 牵引的下一阶段。
+Yggdrasil 的产品立场：游创一体平台。玩家与创作者是同一份底座上的不同行为，由真实可玩体验牵引下一阶段的工作。
 
-- [`PLAY_CREATION_MODEL.md`](PLAY_CREATION_MODEL.md) — 游创一体的产品立场（玩家与创作者是同一份底座下的不同行为）
-- [`EXPERIENCE_LED_PLATFORM_BETA.md`](EXPERIENCE_LED_PLATFORM_BETA.md) — Agentic Forge 之后的体验牵引平台路线
+- [`PLAY_CREATION_MODEL.md`](PLAY_CREATION_MODEL.md) — 游创一体的产品立场与三个 surface（Home/Play/Forge/Assist）的协作模型

@@ -21,13 +21,13 @@
 
 ## 长期方向：体验牵引
 
-详见 [`../product/EXPERIENCE_LED_PLATFORM_BETA.md`](../product/EXPERIENCE_LED_PLATFORM_BETA.md)。
+平台立场见 [`../product/PLAY_CREATION_MODEL.md`](../product/PLAY_CREATION_MODEL.md)。
 
 要点：
 
 - 用一两个真实的可玩体验作为压力源，倒逼底座剩下的工作浮现出来；
 - 任何新增基础设施都要回答「哪个真实的玩家或创作者循环卡住了」；
-- 不再凭计划堆「Alpha + Beta + Phase」。
+- 不再按计划预先堆叠多层路标。
 
 ## 近期会推进的底座工作
 
