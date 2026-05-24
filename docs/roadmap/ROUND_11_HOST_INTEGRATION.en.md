@@ -13,11 +13,11 @@ content-shaped `kernel.v1.install/crash/disk` ontology.
 ```
 ✗ no kernel.v1.install.*       (install is an ordinary capability package)
 ✗ no kernel.v1.crash.*         (failure is project lifecycle → project.failed)
-✗ no kernel.v1.disk.*          (disk is package metadata → PackageRecord field)
+✗ no kernel.v1.disk.*          (disk is a project summary → project list/get/status field)
 
-✓ install-lab emits package-namespaced progress events on existing protocol
+✓ install-lab emits package-namespaced progress events on existing protocol (official/install-lab/install.*)
 ✓ project failure uses kernel/v1/project.failed (existing project.* namespace)
-✓ size_bytes lives on PackageRecord, returned by kernel.v1.package.list
+✓ storage_summary lives on ProjectRecord, returned by project list/get/status
 ```
 
 ## Phase A — Real install pipeline
@@ -40,25 +40,25 @@ content-shaped `kernel.v1.install/crash/disk` ontology.
    principal, runs through schema validation, and never bypasses permissions.
 2. install-lab's `resolve_plan` / `execute_plan` emit package-namespaced events
    at key points:
-   * `package/install-lab/install.plan.resolving`
-   * `package/install-lab/install.plan.resolved` (package count / permissions /
+   * `official/install-lab/install.plan.resolving`
+   * `official/install-lab/install.plan.resolved` (package count / permissions /
      signatures summary)
-   * `package/install-lab/install.execute.started`
-   * `package/install-lab/install.execute.package.fetching`
-   * `package/install-lab/install.execute.package.fetched`
-   * `package/install-lab/install.execute.package.verified`
-   * `package/install-lab/install.execute.completed`
-   * `package/install-lab/install.execute.failed`
-3. Write JSON Schemas for these payloads under
-   `docs/spec/v1/schemas/event/package.install-lab.*.schema.json` and register
-   them in `EVENT_KIND_REGISTRY`.
+   * `official/install-lab/install.execute.started`
+   * `official/install-lab/install.execute.package.fetching`
+   * `official/install-lab/install.execute.package.fetched`
+   * `official/install-lab/install.execute.package.verified`
+   * `official/install-lab/install.execute.completed`
+   * `official/install-lab/install.execute.failed`
+3. Write package-owned JSON Schemas / manifests for these payloads under
+   `docs/spec/v1/schemas/event/official.install-lab.*.schema.json`; do not
+   register them in the kernel `EVENT_KIND_REGISTRY`.
 4. Rework Web `InstallModal`:
    * Step 1 submits URL → opens session (`kernel.v1.session.open`) → invokes
      `official/install-lab/resolve_plan` → renders real package count /
      permissions / signature summary.
    * Step 2 user reviews, hits Install → invokes
      `official/install-lab/execute_plan` while subscribing to the session's
-     `package/install-lab/install.*` event stream over SSE.
+     `official/install-lab/install.*` event stream over SSE.
    * Step 3 progress is driven by real events (clone X / verify Y / wrote
      lockfile).
    * Failure / cancel branches off real events.
@@ -128,24 +128,23 @@ content-shaped `kernel.v1.install/crash/disk` ontology.
 * No persisted crash history (only last failure; full history lives in the
   event log via `list_events`).
 
-## Phase C — Per-package disk usage
+## Phase C — Project storage-summary disk usage
 
 ### Problem
 
-* `PackageRecord` has no `size_bytes` field.
+* Project list/get/status have no `storage_summary` field.
 * Web Disk Usage always shows zero bytes.
 
 ### Solution
 
-1. New `crates/ygg-runtime/src/disk_usage.rs`:
-   * `pub fn directory_size(path: &Path) -> std::io::Result<u64>`
-   * `pub fn package_disk_usage(store_dir: &Path, tree_hash: &str) -> std::io::Result<u64>`
-2. Add `size_bytes: Option<u64>` to `PackageRecord` (Optional because not all
-   packages live in store).
-3. `runtime/packages.rs` computes and caches `size_bytes` at load time (5-minute
-   cache TTL to avoid repeated walks on hot paths).
-4. Web `WorkshopUtilities`'s `DiskSegment.bytes` reads `PackageRecord.size_bytes`.
-5. New conformance case `package_record_includes_size_bytes`.
+1. Add `storage_summary` to runtime project list/get/status results. It only
+   includes byte counts, `measured_at`, and `measurement_state`; it never exposes
+   host paths or filesystem trees.
+2. Measure `ygg_core::paths::project_dir(id)` by recursively summing file sizes
+   without following symlinks; read failures return `unknown` / `null`.
+3. Web `WorkshopUtilities`'s `DiskSegment.bytes` reads
+   `ProjectRecord.storage_summary.total_bytes`.
+4. New conformance case `project_record_includes_storage_summary`.
 
 ### Out of scope
 
@@ -171,6 +170,5 @@ A introduces `InprocCapabilityInvoker.append_event`, which Phase B also needs
 * Update `docs/ALPHA_STATUS.{md,en.md}` Web shell + project + install sections.
 * Update `docs/roadmap/NEXT_STEPS.{md,en.md}` to move these three items from
   "deferred" to "done".
-* Update `docs/spec/v1/EVENT_KIND_REGISTRY.{md,en.md}` to register new event
-  types.
+* Update install-lab package-owned event schema / manifest docs.
 * Update `clients/web/README.md` Install / Failure / Storage data wiring notes.

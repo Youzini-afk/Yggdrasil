@@ -9,11 +9,11 @@
 ```
 ✗ 不加 kernel.v1.install.*       (install 是普通能力包, 不属于 kernel)
 ✗ 不加 kernel.v1.crash.*         (失败是 project 生命周期, 用 project.failed 事件)
-✗ 不加 kernel.v1.disk.*          (磁盘是包元数据, 加在 PackageRecord)
+✗ 不加 kernel.v1.disk.*          (磁盘是 project 摘要, 加在 project list/get/status 返回字段)
 
-✓ install-lab 在已有协议上发"包命名空间"的进度事件 (package/install-lab/install.*)
+✓ install-lab 在已有协议上发"包命名空间"的进度事件 (official/install-lab/install.*)
 ✓ project 失败用 kernel/v1/project.failed (生命周期事件, 已有 project.* 命名空间)
-✓ size_bytes 作为 PackageRecord 的一个字段, kernel.v1.package.list 返回时附带
+✓ storage_summary 作为 ProjectRecord 的一个摘要字段, project list/get/status 返回时附带
 ```
 
 ## Phase A — Install 真实管线接通
@@ -28,18 +28,18 @@
 
 1. 在 `InprocCapabilityInvoker` trait 加 `append_event`，对称于已有的 `invoke_capability` / `project_registry`。这给所有 inproc 包一个统一的"反向写事件"通道（带 principal、走 schema 校验、不绕过权限）。
 2. install-lab 的 `resolve_plan` / `execute_plan` 在关键节点 emit 包命名空间事件：
-   * `package/install-lab/install.plan.resolving`（开始解析）
-   * `package/install-lab/install.plan.resolved`（解析完成，载荷含包数 / 权限摘要 / 签名摘要）
-   * `package/install-lab/install.execute.started`（开始落盘）
-   * `package/install-lab/install.execute.package.fetching`（per-package 拉取开始）
-   * `package/install-lab/install.execute.package.fetched`（per-package 拉取完成）
-   * `package/install-lab/install.execute.package.verified`（per-package 哈希/签名校验完成）
-   * `package/install-lab/install.execute.completed`（写完 lockfile + profile + project）
-   * `package/install-lab/install.execute.failed`（任意阶段失败，含原因）
-3. 为这些事件 payload 写 JSON Schema 落 `docs/spec/v1/schemas/event/package.install-lab.*.schema.json`，并把它们登记进 `EVENT_KIND_REGISTRY`。
+   * `official/install-lab/install.plan.resolving`（开始解析）
+   * `official/install-lab/install.plan.resolved`（解析完成，载荷含包数 / 权限摘要 / 签名摘要）
+   * `official/install-lab/install.execute.started`（开始落盘）
+   * `official/install-lab/install.execute.package.fetching`（per-package 拉取开始）
+   * `official/install-lab/install.execute.package.fetched`（per-package 拉取完成）
+   * `official/install-lab/install.execute.package.verified`（per-package 哈希/签名校验完成）
+   * `official/install-lab/install.execute.completed`（写完 lockfile + profile + project）
+   * `official/install-lab/install.execute.failed`（任意阶段失败，含原因）
+3. 为这些事件 payload 写 package-owned JSON Schema / manifest，落 `docs/spec/v1/schemas/event/official.install-lab.*.schema.json`；不登记进 kernel `EVENT_KIND_REGISTRY`。
 4. Web `InstallModal` 改造：
    * 步骤 1 提交 URL → 打开 session（kernel.v1.session.open）→ 调 `official/install-lab/resolve_plan` → 渲染真实包数 / 权限 / 签名摘要。
-   * 步骤 2 用户审阅，按 Install → 调 `official/install-lab/execute_plan`，同时在另一根 SSE 上订阅 session 的 `package/install-lab/install.*` 事件流。
+   * 步骤 2 用户审阅，按 Install → 调 `official/install-lab/execute_plan`，同时在另一根 SSE 上订阅 session 的 `official/install-lab/install.*` 事件流。
    * 步骤 3 进度由真实事件驱动（"clone X" / "verify Y" / "wrote lockfile"）。
    * 失败/取消按事件分支处理。
 5. conformance 加用例：
@@ -97,22 +97,19 @@
 * 不加自动重启逻辑（用户手动决定）。
 * 不持久化崩溃历史（only last failure；历史记录在 event log 里通过 list_events 查）。
 
-## Phase C — Per-Package 磁盘占用
+## Phase C — Project Storage Summary 磁盘占用
 
 ### 问题
 
-* `PackageRecord` 没有 size_bytes 字段。
+* Project list/get/status 没有 storage_summary 字段。
 * Web Disk Usage 总是显示 0 字节。
 
 ### 解决方案
 
-1. 新建 `crates/ygg-runtime/src/disk_usage.rs`：
-   * `pub fn directory_size(path: &Path) -> std::io::Result<u64>` — 递归求和文件 size，软链不跟随
-   * `pub fn package_disk_usage(store_dir: &Path, tree_hash: &str) -> std::io::Result<u64>`
-2. `PackageRecord` 加 `size_bytes: Option<u64>` 字段（Optional 因为非 store 加载的包没有 store path）。
-3. `runtime/packages.rs` 在 load 包时计算并缓存 size_bytes（cache 5 分钟，避免热路径反复 walk）。
-4. Web `WorkshopUtilities` 的 `DiskSegment.bytes` 接 `PackageRecord.size_bytes`。
-5. conformance 加 `package_record_includes_size_bytes`。
+1. 在 runtime project list/get/status 返回中增加 `storage_summary`：只包含 bytes、`measured_at`、`measurement_state` 等摘要，不暴露 host path / filesystem tree。
+2. 统计目标为 `ygg_core::paths::project_dir(id)`：递归求和文件 size，软链不跟随；读取失败返回 `unknown` / `null`。
+3. Web `WorkshopUtilities` 的 `DiskSegment.bytes` 接 `ProjectRecord.storage_summary.total_bytes`。
+4. conformance 加 `project_record_includes_storage_summary`。
 
 ### 不做
 
@@ -134,5 +131,5 @@ A 引入的 `InprocCapabilityInvoker.append_event` 是 B 的前置依赖（B 也
 * 删除 `docs/roadmap/ROUND_11_HOST_INTEGRATION.{md,en.md}`（计划文档完工即弃）
 * 更新 `docs/ALPHA_STATUS.{md,en.md}` Web shell + project + install 部分
 * 更新 `docs/roadmap/NEXT_STEPS.{md,en.md}` 把这三件事从"deferred"移到"done"
-* 更新 `docs/spec/v1/EVENT_KIND_REGISTRY.{md,en.md}` 登记新事件类型
+* 更新 install-lab package-owned event schema / manifest 文档
 * `clients/web/README.md` 更新 Install/Failure/Storage 数据接线说明

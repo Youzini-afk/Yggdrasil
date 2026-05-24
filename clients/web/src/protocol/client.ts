@@ -91,6 +91,16 @@ export interface ProposalRecord {
   result?: unknown;
 }
 
+export interface ProjectStorageSummary {
+  data_bytes: number | null;
+  cache_bytes: number | null;
+  bundle_bytes: number | null;
+  log_bytes: number | null;
+  total_bytes: number | null;
+  measured_at: string | null;
+  measurement_state: "measured" | "unknown" | string;
+}
+
 export interface ProjectRecord {
   id: string;
   title: string;
@@ -100,6 +110,7 @@ export interface ProjectRecord {
   icon?: string;
   entry_surface_id?: string;
   running_session_id?: string;
+  storage_summary?: ProjectStorageSummary;
 }
 
 export class YggProtocolClient {
@@ -183,16 +194,18 @@ export class YggProtocolClient {
   async getProject(projectId: string): Promise<ProjectRecord & { state_details?: Record<string, unknown>; paths?: Record<string, unknown> }> {
     const result = await this.invoke("kernel.v1.project.get", { project_id: projectId });
     const descriptor = result as {
-      project?: Omit<ProjectRecord, "type" | "state"> & { type?: ProjectRecord["type"] };
+      project?: Omit<ProjectRecord, "type" | "state" | "storage_summary"> & { type?: ProjectRecord["type"] };
       state?: ProjectRecord["state"];
       paths?: Record<string, unknown>;
       running_session_id?: string;
+      storage_summary?: ProjectStorageSummary;
     };
     return {
       ...(descriptor.project as ProjectRecord),
       state: descriptor.state ?? "installed",
       paths: descriptor.paths,
       running_session_id: descriptor.running_session_id,
+      storage_summary: descriptor.storage_summary,
     };
   }
 
@@ -221,12 +234,14 @@ export class YggProtocolClient {
     state: string;
     sessions_count: number;
     secrets_count: number;
+    storage_summary?: ProjectStorageSummary;
   }> {
     return await this.invoke("kernel.v1.project.status", { project_id: projectId }) as {
       project_id: string;
       state: string;
       sessions_count: number;
       secrets_count: number;
+      storage_summary?: ProjectStorageSummary;
     };
   }
 

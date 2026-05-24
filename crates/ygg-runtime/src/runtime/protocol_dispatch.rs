@@ -4,6 +4,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 use ygg_core::{
@@ -412,6 +413,7 @@ where
     }
 
     fn project_summary(entry: &crate::ProjectEntry) -> anyhow::Result<Value> {
+        let storage_summary = Self::project_storage_summary(&entry.descriptor.project.id);
         let mut summary = json!({
             "id": entry.descriptor.project.id.as_str(),
             "title": entry.descriptor.project.title,
@@ -420,6 +422,7 @@ where
             "state": serde_json::to_value(entry.state)?,
             "icon": entry.descriptor.project.icon,
             "entry_surface_id": entry.descriptor.project.entry_surface_id,
+            "storage_summary": storage_summary,
         });
         if let Value::Object(map) = &mut summary {
             if let Some(session_id) = entry
@@ -433,6 +436,54 @@ where
             }
         }
         Ok(summary)
+    }
+
+    fn project_storage_summary(id: &ProjectId) -> Value {
+        match ygg_core::paths::project_dir(id)
+            .map_err(anyhow::Error::from)
+            .and_then(|path| Self::directory_size_no_follow(&path))
+        {
+            Ok(total_bytes) => json!({
+                "data_bytes": total_bytes,
+                "cache_bytes": 0,
+                "bundle_bytes": 0,
+                "log_bytes": 0,
+                "total_bytes": total_bytes,
+                "measured_at": chrono::Utc::now().to_rfc3339(),
+                "measurement_state": "measured",
+            }),
+            Err(_) => json!({
+                "data_bytes": null,
+                "cache_bytes": null,
+                "bundle_bytes": null,
+                "log_bytes": null,
+                "total_bytes": null,
+                "measured_at": null,
+                "measurement_state": "unknown",
+            }),
+        }
+    }
+
+    fn directory_size_no_follow(path: &Path) -> anyhow::Result<u64> {
+        let metadata = fs::symlink_metadata(path)?;
+        let file_type = metadata.file_type();
+
+        if file_type.is_symlink() {
+            return Ok(0);
+        }
+        if file_type.is_file() {
+            return Ok(metadata.len());
+        }
+        if !file_type.is_dir() {
+            return Ok(0);
+        }
+
+        let mut total = 0_u64;
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            total = total.saturating_add(Self::directory_size_no_follow(&entry.path())?);
+        }
+        Ok(total)
     }
 
     fn count_dir_entries(path: &std::path::Path) -> usize {
@@ -495,6 +546,10 @@ where
         if let Value::Object(map) = &mut value {
             map.insert("state".to_string(), serde_json::to_value(entry.state)?);
             map.insert("paths".to_string(), Self::project_paths_and_counts(&id));
+            map.insert(
+                "storage_summary".to_string(),
+                Self::project_storage_summary(&id),
+            );
             if matches!(entry.state, ProjectState::Running | ProjectState::Starting) {
                 if let Some(session_id) = self.find_session_for_project(&id).await {
                     map.insert("running_session_id".to_string(), json!(session_id));
@@ -522,6 +577,7 @@ where
             "state": serde_json::to_value(entry.state)?,
             "sessions_count": details.get("sessions_count").and_then(Value::as_u64).unwrap_or(0),
             "secrets_count": details.get("secrets_count").and_then(Value::as_u64).unwrap_or(0),
+            "storage_summary": Self::project_storage_summary(&id),
         });
         if matches!(entry.state, ProjectState::Running | ProjectState::Starting) {
             if let Some(session_id) = self.find_session_for_project(&id).await {

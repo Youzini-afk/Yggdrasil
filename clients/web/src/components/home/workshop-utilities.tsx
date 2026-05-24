@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Eyebrow, EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
+import { formatBytes } from "@/lib/format";
 
 export interface UpdateEntry {
   id: string;
@@ -15,7 +16,8 @@ export interface UpdateEntry {
 export interface DiskSegment {
   id: string;
   label: string;
-  bytes: number;
+  bytes: number | null;
+  measurementState?: string;
   toneClass: string;
 }
 
@@ -37,8 +39,13 @@ export interface WorkshopUtilitiesProps {
   onManageStorage?: () => void;
 }
 
-function formatMB(bytes: number): string {
-  return `${(bytes / 1_048_576).toFixed(1)} MB`;
+function isMeasured(segment: DiskSegment): segment is DiskSegment & { bytes: number } {
+  return typeof segment.bytes === "number" && Number.isFinite(segment.bytes);
+}
+
+function formatSegmentBytes(segment: DiskSegment): string {
+  if (isMeasured(segment)) return formatBytes(segment.bytes);
+  return segment.measurementState === "measuring" ? "Measuring" : "Unknown";
 }
 
 export function WorkshopUtilities({
@@ -50,6 +57,10 @@ export function WorkshopUtilities({
   onUpdateAll,
   onManageStorage,
 }: WorkshopUtilitiesProps) {
+  const measuredSegments = diskSegments.filter(isMeasured);
+  const hasMeasuredStorage = measuredSegments.length > 0;
+  const hasPositiveStorage = totalDisk > 0 && measuredSegments.some((segment) => segment.bytes > 0);
+
   return (
     <section className="flex flex-col gap-3">
       <Eyebrow>Workshop</Eyebrow>
@@ -96,26 +107,38 @@ export function WorkshopUtilities({
         <div className="flex flex-col gap-2 p-5">
           <div className="flex items-center justify-between">
             <EyebrowSm>Disk usage</EyebrowSm>
-            <span className="font-mono text-[10px] text-charcoal-ink">{formatMB(totalDisk)} used</span>
+            <span className="font-mono text-[10px] text-charcoal-ink">
+              {hasMeasuredStorage ? `${formatBytes(totalDisk)} used` : "Unknown"}
+            </span>
           </div>
           <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-whisper-border-strong/40">
-            {diskSegments.map((segment) => (
-              <span
-                key={segment.id}
-                className={cn("h-full", segment.toneClass)}
-                style={{ width: `${Math.min(100, (segment.bytes / diskCapacity) * 100)}%` }}
-                title={`${segment.label} · ${formatMB(segment.bytes)}`}
-              />
-            ))}
+            {hasPositiveStorage
+              ? measuredSegments
+                  .filter((segment) => segment.bytes > 0)
+                  .map((segment) => (
+                    <span
+                      key={segment.id}
+                      className={cn("h-full", segment.toneClass)}
+                      style={{ width: `${Math.min(100, (segment.bytes / Math.max(diskCapacity, 1)) * 100)}%` }}
+                      title={`${segment.label} · ${formatBytes(segment.bytes)}`}
+                    />
+                  ))
+              : null}
           </div>
-          <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-tone">
-            {diskSegments.map((segment) => (
-              <li key={segment.id} className="flex items-center gap-1">
-                <span className={cn("size-1.5 rounded-full", segment.toneClass)} aria-hidden />
-                {segment.label} · {formatMB(segment.bytes)}
-              </li>
-            ))}
-          </ul>
+          {diskSegments.length === 0 ? (
+            <p className="text-[12px] text-muted-tone">No project storage measured.</p>
+          ) : hasMeasuredStorage ? (
+            <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-tone">
+              {diskSegments.map((segment) => (
+                <li key={segment.id} className="flex items-center gap-1">
+                  <span className={cn("size-1.5 rounded-full", segment.toneClass)} aria-hidden />
+                  {segment.label} · {formatSegmentBytes(segment)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12px] text-muted-tone">No project storage measured.</p>
+          )}
           <button
             type="button"
             onClick={onManageStorage}

@@ -22,7 +22,7 @@ import { formatGreetingTime, formatRelativeAge } from "@/lib/format";
 import { InstallModal } from "@/components/install/install-modal";
 import { FailureModal } from "@/components/install/failure-modal";
 import { projectStateTone, type StatusTone } from "@/components/ui/status-pill";
-import type { KernelEvent, PackageRecord, ProjectRecord } from "@/protocol/client";
+import type { KernelEvent, ProjectRecord } from "@/protocol/client";
 
 const FILTER_OPTIONS: FilterChip[] = [
   { id: "all", label: "All", count: 0 },
@@ -60,7 +60,6 @@ export function HomePage() {
   const [, navigate] = useRoute();
 
   const projects = useAsync(() => client.listProjects(), [client]);
-  const packages = useAsync(() => client.packages().catch<PackageRecord[]>(() => []), [client]);
   const lifecycleEvents = useAsync(
     () => client.listEvents(TIMELINE_SESSION).catch<KernelEvent[]>(() => []),
     [client],
@@ -110,23 +109,22 @@ export function HomePage() {
     });
   }, [projectList, activeFilter, search]);
 
-  // Disk usage from real package metadata (no mock byte counts).
+  // Disk usage from project storage summaries supplied by the runtime.
   const diskSegments: DiskSegment[] = useMemo(() => {
-    const projectIds = new Set(projectList.map((p) => p.id));
-    return (packages.data ?? [])
-      .filter((p) => projectIds.has(p.id))
-      .map((p) => ({
-        id: p.id,
-        label: projectList.find((proj) => proj.id === p.id)?.title ?? p.id,
-        // Per-package size_bytes is not currently exposed; default 0 so the bar
-        // shows zero rather than a fabricated number. Future: wire a real disk
-        // capability once the host exposes it.
-        bytes: 0,
-        toneClass:
-          TONE_TO_DISK_CLASS[projectList.find((proj) => proj.id === p.id)?.state ?? ""] ??
-          "bg-steel-secondary",
-      }));
-  }, [packages.data, projectList]);
+    return projectList.map((project) => ({
+      id: project.id,
+      label: project.title,
+      bytes: project.storage_summary?.total_bytes ?? null,
+      measurementState: project.storage_summary?.measurement_state ?? "unknown",
+      toneClass: TONE_TO_DISK_CLASS[project.state] ?? "bg-steel-secondary",
+    }));
+  }, [projectList]);
+
+  const totalDisk = useMemo(
+    () => diskSegments.reduce((sum, segment) => sum + (segment.bytes ?? 0), 0),
+    [diskSegments],
+  );
+  const diskCapacity = Math.max(totalDisk, 1);
 
   const recentActivity: ActivityRow[] = useMemo(
     () =>
@@ -299,8 +297,8 @@ export function HomePage() {
           />
           <WorkshopUtilities
             updates={[]}
-            totalDisk={0}
-            diskCapacity={0}
+            totalDisk={totalDisk}
+            diskCapacity={diskCapacity}
             diskSegments={diskSegments}
             quickActions={[
               {

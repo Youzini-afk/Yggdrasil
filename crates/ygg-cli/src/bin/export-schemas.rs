@@ -53,6 +53,40 @@ struct ProjectListParams {
     filter_state: Option<ygg_core::project::ProjectState>,
 }
 #[derive(JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum StorageMeasurementStateSchema {
+    Measured,
+    Unknown,
+}
+#[derive(JsonSchema)]
+struct ProjectStorageSummarySchema {
+    data_bytes: Option<u64>,
+    cache_bytes: Option<u64>,
+    bundle_bytes: Option<u64>,
+    log_bytes: Option<u64>,
+    total_bytes: Option<u64>,
+    measured_at: Option<chrono::DateTime<chrono::Utc>>,
+    measurement_state: StorageMeasurementStateSchema,
+}
+#[derive(JsonSchema)]
+struct ProjectListItemSchema {
+    id: ygg_core::project::ProjectId,
+    title: String,
+    description: String,
+    #[serde(rename = "type")]
+    project_type: ygg_core::project::ProjectType,
+    state: ygg_core::project::ProjectState,
+    icon: Option<String>,
+    entry_surface_id: Option<String>,
+    storage_summary: Option<ProjectStorageSummarySchema>,
+    #[schemars(schema_with = "string_schema")]
+    running_session_id: Option<String>,
+}
+#[derive(JsonSchema)]
+struct ProjectListResultSchema {
+    projects: Vec<ProjectListItemSchema>,
+}
+#[derive(JsonSchema)]
 struct ProjectStartResult {
     project_id: ygg_core::project::ProjectId,
     previous_state: ygg_core::project::ProjectState,
@@ -76,6 +110,7 @@ struct ProjectStatusResult {
     secrets_count: usize,
     #[schemars(schema_with = "string_schema")]
     running_session_id: Option<String>,
+    storage_summary: Option<ProjectStorageSummarySchema>,
 }
 #[derive(JsonSchema)]
 struct ProjectLifecyclePayloadSchema {
@@ -436,11 +471,11 @@ fn main() -> anyhow::Result<()> {
             ),
             KernelMethod::ProjectList => (
                 schema_value::<ProjectListParams>(),
-                json!({"type":"object","required":["projects"],"properties":{"projects":{"type":"array","items":{"type":"object"}}}}),
+                schema_value::<ProjectListResultSchema>(),
             ),
             KernelMethod::ProjectGet => (
                 schema_value::<ProjectIdParams>(),
-                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"paths":{"type":"object"},"running_session_id":{"type":"string","description":"Session id when project state is running; absent otherwise"}}}),
+                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"paths":{"type":"object"},"storage_summary":schema_value::<ProjectStorageSummarySchema>(),"running_session_id":{"type":"string","description":"Session id when project state is running; absent otherwise"}}}),
             ),
             KernelMethod::ProjectStart => (
                 schema_value::<ProjectIdParams>(),

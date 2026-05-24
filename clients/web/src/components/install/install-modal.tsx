@@ -39,11 +39,12 @@ const RECENT: Array<{ url: string; tag: string }> = [
 ];
 
 /**
- * The install flow is a UX prototype on top of the eventual install protocol.
- * The host does not yet expose `kernel.v1.install.*` plan / dependency / progress
- * methods, so the wizard runs against deterministic mock data and a simulated
- * progress interval. The plan step shows a `PROTOTYPE` chip so users know to
- * use `yg install` on the CLI for real installs until the protocol lands.
+ * Temporary install UX shell.
+ *
+ * Install remains an ordinary capability-package flow, not a kernel method
+ * family. Until the modal is wired to `official/install-lab` through
+ * `kernel.v1.capability.invoke`, this component stays visibly simulated and
+ * must not imply a kernel-owned install method family exists.
  */
 export function InstallModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const toast = useToast();
