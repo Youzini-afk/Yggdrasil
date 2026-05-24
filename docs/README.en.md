@@ -2,20 +2,29 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-Topic-grouped navigation for the developer docs. Every doc has both English and Simplified Chinese versions; the bilingual blockquote at the top of each file switches between them.
+Topic-grouped navigation for the developer docs. Every doc has both English and Simplified Chinese versions; the bilingual blockquote at the top of each file switches between them. When writing docs, follow [`STYLE.md`](STYLE.en.md).
+
+## Newcomer 1 / 2 / 3 path
+
+1. Read [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) → [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.en.md) for the platform stance.
+2. Read [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) for the three-tier architecture and its boundaries.
+3. Walk through [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) to ship a first capability package.
+
+After that, hop into the relevant guide / spec / roadmap on demand.
 
 ## Stance and status
 
 - [`CHARTER.md`](CHARTER.en.md) — permanent principles
 - [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) — living snapshot of done / partial / deferred
+- [`STYLE.md`](STYLE.en.md) — documentation conventions and red lines
 - [`../BUILDING.md`](../BUILDING.md) — Rust, web, Tauri desktop, and release build notes
-- [`product/`](product/README.en.md) — play-creation product stance and experience-led platform direction
+- [`product/`](product/README.en.md) — play-creation product stance
 
 ## Architecture and protocol
 
 - [`architecture/`](architecture/README.en.md) — kernel + packages + projects layering, capability contract, extension points, event model, lifecycles
 - [`protocol/`](protocol/README.en.md) — public protocol spec
-- [`spec/`](spec/README.en.md) — executable v1 contract matrix, hostile conformance roadmap, schemas
+- [`spec/`](spec/README.en.md) — executable v1 contract matrix, conformance roadmap, schemas
 
 ## Authoring
 
@@ -32,7 +41,7 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 ## Performance and roadmap
 
 - [`performance/`](performance/README.en.md) — performance baseline, conformance feedback loop, code health
-- [`roadmap/`](roadmap/README.en.md) — current and upcoming phases, model inference prerequisites
+- [`roadmap/`](roadmap/README.en.md) — current and upcoming work, model inference prerequisites
 - [`tavern/`](tavern/README.en.md) — how Yggdrasil relates to YdlTavern, the SillyTavern-compatible integration project
 
 ## Shortest path by intent
@@ -50,3 +59,4 @@ Topic-grouped navigation for the developer docs. Every doc has both English and 
 | Build web / desktop / release | [`../BUILDING.md`](../BUILDING.md) |
 | See current status | [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) |
 | See what's next | [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) |
+| Write docs | [`STYLE.md`](STYLE.en.md) |

@@ -9,7 +9,7 @@ api_version = "0.0.7"
 date = "2026-05-17"
 node = "22.22.2"
 typescript = "6.0.3"
-purpose = "Text Surface Proof Alpha / Phase T1–T3 client-side UI proof"
+purpose = "Optional client-side text-engine reference"
 
 [public_boundary]
 prepare = "src/layout.ts prepare()"

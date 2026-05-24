@@ -48,7 +48,7 @@ yg conformance package --contract v1 --path <package> --static-only
 
 ### 3. Entry support
 
-确认 entry kind 被当前 host 支持。`subprocess` 与 `rust_inproc` 是当前主要执行路径；`wasm` 与 `remote` 是一等 manifest 形式但执行仍属于后续 Round 10。若 host policy 不允许某 entry，检查失败。
+确认 entry kind 被当前 host 支持。`subprocess` 与 `rust_inproc` 是当前主要执行路径；`wasm` 与 `remote` 是一等 manifest 形式但执行留待后续。若 host policy 不允许某 entry，检查失败。
 
 ### 4. Bindings / handshake
 
@@ -105,7 +105,7 @@ PR gate 应在以下情况失败：
 
 ## 自定义检查
 
-Round 10 会把 kit 提取为可嵌入 library。当前建议把自定义检查作为 CI 中的独立步骤运行，并把 conformance JSON 作为输入。例如：要求所有网络声明必须带 `purpose`，或要求 package id 匹配组织前缀。
+后续会把 kit 提取为可嵌入 library。当前建议把自定义检查作为 CI 中的独立步骤运行，并把 conformance JSON 作为输入。例如：要求所有网络声明必须带 `purpose`，或要求 package id 匹配组织前缀。
 
 自定义检查不应替代官方 kit。它们只能收紧项目规则，不能放宽 v1 契约。
 

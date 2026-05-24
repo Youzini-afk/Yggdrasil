@@ -9,7 +9,7 @@ api_version = "0.2.0-beta.3"
 date = "2026-05-17"
 node = "22.22.2"
 pnpm = "9"
-purpose = "Creative Capability Kit Alpha reference extraction"
+purpose = "Creative capability reference extraction"
 
 [public_boundary]
 sdk = "packages/official-integration-kit/sdk"

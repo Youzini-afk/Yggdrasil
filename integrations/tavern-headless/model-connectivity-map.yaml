@@ -2,7 +2,7 @@ reference: TavernHeadless
 policy: >-
   Use TavernHeadless model provider work as reference for provider/profile and route-planning edge cases.
   Adapt metadata, validation, secret masking, discovery planning, and route resolution into Yggdrasil-native packages.
-  Do not introduce tavern-* product packages, live network calls, or inference behavior in Alpha.
+  Do not introduce tavern-* product packages, live network calls, or inference behavior in the current scope.
 
 subsystems:
   packages/core/src/llm/provider-registry.ts:
@@ -16,7 +16,7 @@ subsystems:
   apps/api/src/lib/llm-provider-discovery.ts:
     yggdrasil_package: official/model-connector-lab
     status: adapted
-    notes: Live probes become no-network discovery plans and compatibility reports in Alpha.
+    notes: Live probes become no-network discovery plans and compatibility reports in the current scope.
   apps/api/src/routes/llm-profiles.ts:
     yggdrasil_package: official/model-connector-lab
     status: adapted

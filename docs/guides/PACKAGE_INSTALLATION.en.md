@@ -367,7 +367,7 @@ Non-zero exit codes are for CI: drift means failure.
 
 ## Conformance coverage
 
-Round 10A covers:
+The current install foundation covers:
 
 - git URL and path rejection;
 - signed-tag fixture;
@@ -384,7 +384,7 @@ The real GitHub smoke requires explicit opt-in:
 YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.real_github_smoke
 ```
 
-## Limits (Round 10A)
+## Limits
 
 - Sigstore keyless verification: deferred (no git-tag convention yet).
 - Tauri UI install flow: deferred (CLI only).
@@ -392,7 +392,7 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - Auto-update daemon: deferred (`yg update` remains manual).
 - Binary package distribution: deferred (source/git only).
 - Cross-profile package sharing semantics: deferred.
-- `yg gc` orphaned-store cleanup: Round 11+.
+- `yg gc` orphaned-store cleanup: planned.
 
 ## Recommended practice
 

@@ -369,7 +369,7 @@ yg lockfile --check
 
 ## Conformance 覆盖
 
-Round 10A 覆盖：
+当前的安装基础层覆盖：
 
 - git URL 与路径拒绝；
 - signed tag fixture；
@@ -386,7 +386,7 @@ Round 10A 覆盖：
 YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.real_github_smoke
 ```
 
-## 限制（Round 10A）
+## 限制
 
 - Sigstore keyless 验签：推迟（无 git 标签约定）。
 - Tauri UI 安装：推迟（仅 CLI）。
@@ -394,7 +394,7 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - 自动更新守护进程：推迟（`yg update` 手动）。
 - 二进制包分发：推迟（仅源/git）。
 - 跨 profile 包共享语义：推迟。
-- `yg gc` 孤立 store 回收：Round 11+。
+- `yg gc` 孤立 store 回收：planned。
 
 ## 推荐实践
 

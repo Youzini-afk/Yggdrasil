@@ -2,20 +2,29 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-按主题分组的开发文档导航。每篇都同时提供英文与简体中文版本，文件顶部的双语导航 blockquote 可在两种语言间切换。
+按主题分组的开发文档导航。每篇都同时提供英文与简体中文版本，文件顶部的双语 blockquote 可在两种语言间切换。写文档时请遵循 [`STYLE.md`](STYLE.md)。
+
+## 新人 1 / 2 / 3 路径
+
+1. 读 [`CHARTER.md`](CHARTER.md) → [`architecture/VISION.md`](architecture/VISION.md) → [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.md)，理解平台立场。
+2. 读 [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md)，理解三层架构与边界。
+3. 读 [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) 跑通第一个能力包。
+
+随后按需要查相应的 guide / spec / roadmap。
 
 ## 立场与现状
 
 - [`CHARTER.md`](CHARTER.md) — 不变的根本原则
-- [`ALPHA_STATUS.md`](ALPHA_STATUS.md) — 已完成 / 部分完成 / 延后内容的活快照
+- [`ALPHA_STATUS.md`](ALPHA_STATUS.md) — 当前状态、partial、deferred 的活快照
+- [`STYLE.md`](STYLE.md) — 文档体例与红线
 - [`../BUILDING.md`](../BUILDING.md) — Rust、Web、Tauri desktop 与 release 构建说明
-- [`product/`](product/README.md) — 游创一体产品立场与体验牵引平台路线
+- [`product/`](product/README.md) — 游创一体产品立场
 
 ## 架构与协议
 
 - [`architecture/`](architecture/README.md) — kernel + packages + projects 三层架构、能力包契约、扩展点、事件模型、生命周期
 - [`protocol/`](protocol/README.md) — 公开协议规范
-- [`spec/`](spec/README.md) — 可执行 v1 契约矩阵、hostile conformance 路线图、schemas
+- [`spec/`](spec/README.md) — 可执行 v1 契约矩阵、conformance 路线图、schemas
 
 ## 创作
 
@@ -33,7 +42,7 @@
 
 - [`performance/`](performance/README.md) — 性能基线、conformance 反馈环、代码健康
 - [`roadmap/`](roadmap/README.md) — 当前与下一阶段、模型推理前置条件
-- [`tavern/`](tavern/README.md) —— Yggdrasil 与 SillyTavern 兼容接入项目 YdlTavern 的关系
+- [`tavern/`](tavern/README.md) — Yggdrasil 与 SillyTavern 兼容接入项目 YdlTavern 的关系
 
 ## 最短读路径
 
@@ -50,3 +59,4 @@
 | 构建 Web / Desktop / Release | [`../BUILDING.md`](../BUILDING.md) |
 | 看当前状态 | [`ALPHA_STATUS.md`](ALPHA_STATUS.md) |
 | 看下一步 | [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md) |
+| 写文档 | [`STYLE.md`](STYLE.md) |

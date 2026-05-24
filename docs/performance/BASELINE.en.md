@@ -4,7 +4,7 @@
 
 This document records usage, measurement scenarios, sample limits, metric definitions, and compare mode for `ygg perf baseline`. The current baseline is only a developer-machine reference, not a CI budget.
 
-The repository commits a reference baseline at [`perf/baseline.json`](../../perf/baseline.json). It was produced on a Linux developer machine and is useful as a before/after reference for Phase B optimization; do not treat it as a CI budget.
+The repository commits a reference baseline at [`perf/baseline.json`](../../perf/baseline.json). It was produced on a Linux developer machine and is useful as a before/after reference for future optimizations; do not treat it as a CI budget.
 
 Performance/code-health guide: [`PERFORMANCE_AND_CODE_HEALTH.en.md`](./PERFORMANCE_AND_CODE_HEALTH.en.md).
 

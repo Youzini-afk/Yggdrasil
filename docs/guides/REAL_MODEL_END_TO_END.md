@@ -241,7 +241,7 @@ surface 内的 `callHostRpc` / `invokeCapability` 会自动带这个 `session_id
 5. runtime 设置 `ProjectScopeContext`。
 6. `ProjectStoreSecretResolver` 读取对应项目 store。
 
-这样 surface 不能通过伪造 `projectId` 读取别的项目 secret。当前仍是软隔离；更强的多租户项目身份进入 `ProtocolContext` 是 Round 11+。
+这样 surface 不能通过伪造 `projectId` 读取别的项目 secret。当前仍是软隔离；更强的多租户项目身份进入 `ProtocolContext` 是 planned。
 
 ## 权限与审计边界
 
@@ -294,6 +294,6 @@ engine 包 manifest 的 `permissions.secret_refs` 没声明这个 ref。编辑 m
 
 ## 推迟事项
 
-- 多并发活跃项目：当前 host 以项目 session 传递 scope；更强的 multi-tenant `project_id` in `ProtocolContext` 是 Round 11+。
-- Tauri shell 中的真实路径与 managed host lifecycle：Round 11+。
+- 多并发活跃项目：当前 host 以项目 session 传递 scope；更强的 multi-tenant `project_id` in `ProtocolContext` 是 planned。
+- Tauri shell 中的真实路径与 managed host lifecycle：planned。
 - 生产级跨源 surface bundle allowlist 与 CSP 加固。

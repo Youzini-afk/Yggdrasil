@@ -103,7 +103,7 @@ See [`../guides/CAPABILITY_HANDLES.md`](../guides/CAPABILITY_HANDLES.en.md).
 
 ### Binding injection
 
-Path A packages (`entry.contract: "v1"`) receive bindings at startup. Subprocess packages receive a bindings dictionary during `package.handshake`; Rust in-process packages initialize through `KernelEnv`; WASM and remote will be completed in Round 10 through WIT resource imports and SPIFFE/Biscuit token exchange. Bindings contain only the package's least granted authority.
+Path A packages (`entry.contract: "v1"`) receive bindings at startup. Subprocess packages receive a bindings dictionary during `package.handshake`; Rust in-process packages initialize through `KernelEnv`; WASM and remote are planned to be completed through WIT resource imports and SPIFFE/Biscuit token exchange. Bindings contain only the package's least granted authority.
 
 ### Path B
 
@@ -155,7 +155,7 @@ The current release pipeline does not include signing, notarization, or auto-upd
 
 ## Repository map
 
-The Yggdrasil Foundation Alpha workspace:
+The Yggdrasil Foundation workspace:
 
 ```text
 crates/ygg-core      Kernel types: ids, schemas, manifests, principals, opaque events

@@ -206,8 +206,8 @@ Each entry form receives bindings at startup:
 |---|---|---:|
 | `subprocess` | `package.handshake` receives/returns a `bindings` dictionary; SDK exposes `kernelClient` and handles. | implemented |
 | `rust_inproc` | `KernelEnv` is passed to `InprocPackage::init` with runtime bindings. | implemented |
-| `wasm` | WIT resource imports. | planned for Round 10 |
-| `remote` | SPIFFE + Biscuit token exchange. | planned for Round 10 |
+| `wasm` | WIT resource imports. | planned |
+| `remote` | SPIFFE + Biscuit token exchange. | planned |
 
 Bindings must contain only the caller's granted authority. Path B packages do not receive v1 capability bindings.
 
@@ -385,7 +385,7 @@ In-process packages do not gain official privilege. They still participate in v1
 
 ## WASM and remote reservations
 
-WASM and remote are first-class manifest entry forms, with execution completed in Round 10. v1 reserves their contract shape:
+WASM and remote are first-class manifest entry forms, with execution to be completed. v1 reserves their contract shape:
 
 - WASM uses WIT resources to express handles.
 - Remote uses mTLS/SPIFFE identity and Biscuit tokens for attenuated authority.

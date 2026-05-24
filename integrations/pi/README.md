@@ -57,7 +57,7 @@
 
 ### Rejected
 
-这些明确不进入 Ygg Agent Infrastructure Alpha：
+这些明确不进入 Ygg agent infrastructure：
 
 - `pi-coding-agent` 作为 Ygg 产品壳。
 - 默认 bash/read/write/edit tools。
@@ -82,7 +82,7 @@
 
 ## 验证纪律
 
-每个 agent infrastructure phase 都要证明：
+每次 agent infrastructure 更新都要证明：
 
 - 没有新增 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.memory.*`、`kernel.v1.turn.*`。
 - official agent/reference packages 没有优先级。

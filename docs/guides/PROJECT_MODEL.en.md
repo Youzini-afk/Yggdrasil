@@ -247,6 +247,6 @@ Without a TTY and without explicit flags, an external project defaults to `exter
 
 - Multi-user project membership / access control
 - Project import/export bundles (sharing-lab already has bundle formats)
-- Concurrent multi-tenancy (`project_id` in `ProtocolContext`) — Round 11+
+- Concurrent multi-tenancy (`project_id` in `ProtocolContext`) — deferred / planned
 - Automatic project archive cleanup (manual for now)
 - Project marketplace (against the platform's open principle)

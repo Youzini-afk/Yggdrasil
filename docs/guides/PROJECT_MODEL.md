@@ -253,6 +253,6 @@ kernel/v1/project.uninstalled
 
 - 多用户/项目成员/access control
 - 项目导入/导出 bundle (sharing-lab 已有 bundle 格式)
-- 多并发租户 (`project_id` 进 `ProtocolContext`) — Round 11+
+- 多并发租户 (`project_id` 进 `ProtocolContext`) — 延后 / 计划中
 - 项目自动归档清理 (留给用户手动)
 - 项目市场/marketplace (违反平台开放原则)

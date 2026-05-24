@@ -36,11 +36,11 @@ cargo run -p ygg-cli -- conformance --slowest 3
 
 ## Current conformance coverage
 
-### Round 10A.2 project model conformance additions
+### Project model conformance cases
 
-Round 10A.2 adds 20 cases, bringing CLI conformance from 398 to 418. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"`.
+The current matrix includes the following project-model cases. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"`.
 
-| Wave | Case id | Coverage | Status |
+| Group | Case id | Coverage | Status |
 |---|---|---|---|
 | Wave 1 | `secret_store_resolver.host_profile_installs_composite_resolver` | host profile installs env+store/project composite resolver | implemented |
 | Wave 2 | `project_secret.put_then_resolve_via_project_ref` | `secret_ref:project:*` reads project store | implemented |
@@ -63,11 +63,11 @@ Round 10A.2 adds 20 cases, bringing CLI conformance from 398 to 418. Verify the 
 | Wave 4 | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
 | Wave 4 | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
 
-### Round 10A.3 end-to-end real path conformance additions
+### End-to-end real-path conformance cases
 
-Round 10A.3 adds 9 cases, bringing CLI conformance from 418 to 427. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"`.
+The current matrix includes the following end-to-end-real-path cases. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"`.
 
-| Wave | Case id | Coverage | Status |
+| Group | Case id | Coverage | Status |
 |---|---|---|---|
 | Wave 2 | `surface.resolve_via_dev_path` | dev-path surface bundle resolution | implemented |
 | Wave 2 | `surface.resolve_via_installed_project` | installed-project surface bundle resolution | implemented |
@@ -349,22 +349,22 @@ Round 10A.3 adds 9 cases, bringing CLI conformance from 418 to 427. Verify the a
 
 ## Required rejection conformance for the host
 
-| Area | Required case | Target phase |
+| Area | Required case | Target status |
 |---|---|---|
 | package execution | `rust_inproc` capability executes through package ABI, not hardcoded id logic | implemented |
-| package execution | subprocess package completes JSON-RPC stdio handshake | Platform Host Alpha |
-| package execution | subprocess timeout/crash/degraded behavior is enforced | Platform Host Alpha |
+| package execution | subprocess package completes JSON-RPC stdio handshake | current host baseline |
+| package execution | subprocess timeout/crash/degraded behavior is enforced | current host baseline |
 | package execution | package load goes through loading/starting/ready states | implemented |
-| capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | Platform Host Alpha |
-| capability | package caller without declared invoke permission is denied | Platform Host Alpha |
+| capability | anonymous/dev caller behavior is explicitly marked host-only, not package privilege | current host baseline |
+| capability | package caller without declared invoke permission is denied | current host baseline |
 | capability | version mismatch fails | partial |
 | capability | duplicate providers produce ambiguous route unless caller selects provider | implemented |
 | capability | unloaded provider cannot be invoked | implemented |
 | events | package without `events.read` cannot list events | implemented |
 | events | closed session rejects append | implemented |
 | events | sequence-range replay works | implemented |
-| protocol | HTTP `/rpc` and in-process runtime share authorization behavior | Platform Host Alpha |
-| protocol | host JSON-RPC stdio transport passes core conformance | Platform Host Alpha |
+| protocol | HTTP `/rpc` and in-process runtime share authorization behavior | current host baseline |
+| protocol | host JSON-RPC stdio transport passes core conformance | current host baseline |
 | hooks | hook ordering is stable | implemented |
 | hooks | unload removes hook subscribers | implemented |
 | hooks | before/after lifecycle hooks are dispatched by kernel operations | partial |

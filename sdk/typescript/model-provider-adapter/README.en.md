@@ -7,8 +7,7 @@ Pure TypeScript adapter for normalizing model provider API differences across Op
 ## References
 
 - [`integrations/model-providers/provider-matrix.yaml`](../../../integrations/model-providers/provider-matrix.yaml) — provider API matrix
-- [`integrations/model-providers/stream-compatibility.md`](../../../integrations/model-providers/stream-compatibility.md) — stream protocol families
-- [`integrations/model-providers/error-taxonomy.md`](../../../integrations/model-providers/error-taxonomy.md) — error taxonomy
+- [`integrations/model-providers/README.en.md`](../../../integrations/model-providers/README.en.md) — stream protocol families and error taxonomy
 
 ## Usage
 

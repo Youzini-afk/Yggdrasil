@@ -4,7 +4,7 @@
 
 本文档记录 `ygg perf baseline` 的用法、测量场景、样本限制、指标定义和比较模式。当前基线只作为开发机参考，不是 CI 预算。
 
-仓库已提交参考基线：[`perf/baseline.json`](../../perf/baseline.json)。它来自一台 Linux 开发机，可作为 Phase B 优化的前后对比起点；不要把它当成 CI 合规预算。
+仓库已提交参考基线：[`perf/baseline.json`](../../perf/baseline.json)。它来自一台 Linux 开发机，可作为未来优化的前后对比起点；不要把它当成 CI 合规预算。
 
 性能与代码健康指南见 [`PERFORMANCE_AND_CODE_HEALTH.md`](./PERFORMANCE_AND_CODE_HEALTH.md)。
 

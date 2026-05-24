@@ -7,8 +7,7 @@
 ## 参考
 
 - [`integrations/model-providers/provider-matrix.yaml`](../../../integrations/model-providers/provider-matrix.yaml) — provider API 矩阵
-- [`integrations/model-providers/stream-compatibility.md`](../../../integrations/model-providers/stream-compatibility.md) — 流协议族说明
-- [`integrations/model-providers/error-taxonomy.md`](../../../integrations/model-providers/error-taxonomy.md) — 错误分类
+- [`integrations/model-providers/README.md`](../../../integrations/model-providers/README.md) — 流协议族说明与错误分类
 
 ## 用法
 

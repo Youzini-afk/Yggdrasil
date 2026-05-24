@@ -241,7 +241,7 @@ Project scope is not decided by a string the surface claims. It is decided by th
 5. The runtime sets `ProjectScopeContext`.
 6. `ProjectStoreSecretResolver` reads the matching project store.
 
-This prevents a surface from reading another project's secrets by forging `projectId`. The current model is still soft isolation; stronger multi-tenant project identity in `ProtocolContext` is Round 11+.
+This prevents a surface from reading another project's secrets by forging `projectId`. The current model is still soft isolation; stronger multi-tenant project identity in `ProtocolContext` is planned.
 
 ## Permission and audit boundaries
 
@@ -294,6 +294,6 @@ Check that Play returned `session_id`, iframe `initialProps.sessionId` is non-em
 
 ## Deferred items
 
-- Concurrent active projects: current host scope flows through project sessions; stronger multi-tenant `project_id` in `ProtocolContext` is Round 11+.
-- Real paths and managed host lifecycle in the Tauri shell: Round 11+.
+- Concurrent active projects: current host scope flows through project sessions; stronger multi-tenant `project_id` in `ProtocolContext` is planned.
+- Real paths and managed host lifecycle in the Tauri shell: planned.
 - Production cross-origin surface-bundle allowlists and CSP hardening.

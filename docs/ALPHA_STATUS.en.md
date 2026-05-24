@@ -1,18 +1,18 @@
-# Alpha status
+# Platform status
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-A snapshot of where Yggdrasil is right now. Updated whenever a milestone closes. Every line below has code and a conformance case behind it, unless explicitly marked partial or deferred.
+A snapshot of where Yggdrasil is right now, refreshed whenever a milestone closes. Every line below has code and a conformance case behind it, unless explicitly marked partial or deferred.
 
 For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VISION.md`](architecture/VISION.en.md), and [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.en.md). For what's next, see [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md).
 
 ## Summary
 
 - **Conformance:** 427 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
-- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS git fetch uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
+- **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 
-The platform foundation is in place. From here, real AI-native playable experiences pull the remaining substrate work.
+The platform substrate is in place. From here, real AI-native playable experiences pull the remaining substrate work.
 
 ## Kernel
 
@@ -63,6 +63,77 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
+## Package installation and project model
+
+| Capability | Status |
+|---|---|
+| `manifest.requires` field | implemented |
+| Lockfile schema (`yggdrasil.lock.v1`) | implemented |
+| `official/git-tools-lab` (gix-based) | implemented |
+| `official/integrity-lab` (sequoia GPG + sha256) | implemented |
+| `official/install-lab` orchestrator | implemented |
+| `yg install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
+| `~/.yggdrasil` filesystem convention | implemented |
+| Interactive consent prompt | implemented |
+| Static conformance integration (warning by default; `--strict` blocks) | implemented |
+| GPG signature verification (off by default; `--require-signed` enables) | implemented |
+| Cycle detection | implemented |
+| Real GitHub smoke (opt-in) | implemented |
+| `official/secret-store-lab` encrypted storage | implemented |
+| `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
+| age (X25519) encryption + 0600 file permissions | implemented |
+| OS keyring integration | deferred (libdbus-sys system dep) |
+| `yg secret put / list / delete` CLI | deferred |
+| Sigstore verification | deferred |
+| Tauri UI install path | deferred |
+| Auto-update daemon | deferred |
+| Binary package distribution | deferred |
+| `yg gc` orphaned-store cleanup | deferred |
+| Project as first-class runtime concept | implemented |
+| `ProjectDescriptor` + `ProjectId` + `ProjectType` + `SecretPolicy` | implemented |
+| `~/.yggdrasil/projects/<id>/` filesystem layout | implemented |
+| `secret_ref:project:NAME` with platform fallback | implemented |
+| `ProjectRegistry` (in-memory + disk scan) | implemented |
+| `ProtocolContext.session_id` propagation | implemented |
+| Install detection (native vs external) | implemented |
+| External project wizard (wrap / workspace) | implemented |
+| `yg project list/info/status/start/stop` | implemented |
+| `yg uninstall` archival prompt | implemented |
+| `kernel.v1.project.list/get/start/stop/status` | implemented |
+| `kernel/v1/project.installed/started/stopped/uninstalled` | implemented |
+| Home surface project cards | implemented |
+| YdlTavern `project.yaml` | implemented |
+| Multi-tenant `project_id` in `ProtocolContext` | deferred |
+| Project archive auto-cleanup beyond 30 days | deferred |
+
+Install defaults are relaxed to the cargo / npm / pip technical baseline: HTTPS-only, content hashing, and atomic writes are always on; signature verification and conformance blocking are opt-in through `--require-signed` / `--strict`.
+
+## Real model end-to-end path
+
+| Capability | Status |
+|---|---|
+| `huggingface-fetcher` tests passing | implemented |
+| Surface bundle resolution metadata-driven | implemented |
+| `kernel.v1.surface.resolve_bundle` | implemented |
+| host `/surface-bundles/<prefix>/<file>` route | implemented |
+| `/surface-bundles/projects/<id>/<file>` route | implemented |
+| `project.start` opens project session + sets `metadata.project_id` | implemented |
+| `project.start` returns `session_id` + `already_running` | implemented |
+| `project.get` / `status` return `running_session_id` | implemented |
+| `project.stop` emits + closes project session | implemented |
+| Surface receives `session_id` via `initialProps` | implemented |
+| `TavernProvider.sendMessage` invokes engine `model.live_call` | implemented |
+| API Connections drawer scope toggle (platform / project) | implemented |
+| Engine manifest declares `secret_ref:project:*` | implemented |
+| Surface streaming response UX | implemented |
+| Surface-host stream postMessage protocol | implemented |
+| `streamCapability` helper (YdlTavern host-rpc) | implemented |
+| `AsyncIterable<StreamFrame>` consumption + iterator early-return cleanup | implemented |
+| `cancelGeneration` action + Stop button | implemented |
+| Multi-concurrent generation in single chat | deferred |
+| Token-rate UI | deferred |
+| Realtime / WebSocket streaming UX | deferred |
+
 ## Official capability packages
 
 All ordinary packages, no kernel privilege. They live in `packages/official/` and load through ordinary manifests.
@@ -70,7 +141,7 @@ All ordinary packages, no kernel privilege. They live in `packages/official/` an
 **Platform foundation**
 
 - `package-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
-- Package installation foundation is implemented by ordinary capability packages: `official/git-tools-lab`, `official/integrity-lab`, and `official/install-lab`; the CLI exposes `yg install` / `uninstall` / `list-installed` / `update` / `lockfile`.
+- Package installation foundation: `official/git-tools-lab`, `official/integrity-lab`, and `official/install-lab`.
 
 **Creative capability families**
 
@@ -85,8 +156,8 @@ All ordinary packages, no kernel privilege. They live in `packages/official/` an
 **Agents and inference**
 
 - `pi-agent-runtime-lab` — a reference agent package: deterministic, no-network run plan, trace summary, proposal draft, and echo.
-- `capability-tool-bridge-lab` — capability discovery, permission preview, explicit provider selection, invocation / streaming plans. Phase D adds `explain_tool_call`, `record_tool_observation`, `summarize_tool_risk`, `replay_tool_plan`, `plan_toolchain`, covering nested delegation, target-branch writes, prompt injection, secret exfiltration, outbound expansion, and large-output redaction.
-- `agentic-forge-lab` — the core of Agentic Forge Beta: package-owned run lifecycle, working state, plan graph, scratch branch / candidate / compare / promote, inference nodes (deterministic / recorded / cloud-adapter plan / local fake), replay, output validation, and a 9-class failure taxonomy.
+- `capability-tool-bridge-lab` — capability discovery, permission preview, explicit provider selection, invocation / streaming plans, covering nested delegation, target-branch writes, prompt injection, secret exfiltration, outbound expansion, and large-output redaction.
+- `agentic-forge-lab` — the core of Agentic Forge: package-owned run lifecycle, working state, plan graph, scratch branch / candidate / compare / promote, inference nodes (deterministic / recorded / cloud-adapter plan / local fake), replay, output validation, and a 9-class failure taxonomy.
 - `inference-local-lab` — a local fake inference provider that proves the inference seam doesn't depend on cloud APIs, HTTP, or bearer tokens.
 - `inference-playtest-lab` — the Ygg-native "inference → proposal → inspect → approve / reject → apply → fork" vertical slice.
 
@@ -138,121 +209,13 @@ Under `sdk/typescript/`:
 
 `ygg init-package --template <name>`: `basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`, `networked`, `streaming`, `agent-runtime`, `experience-runtime`, `playable-board`, `playable-experience`. Generated packages are safe by default — no raw secrets, no implicit network.
 
-## Package Installation (new, Round 10A)
-
-| Capability | Status |
-|---|---|
-| manifest.requires field | implemented |
-| Lockfile schema (`yggdrasil.lock.v1`) | implemented |
-| official/git-tools-lab (gix) | implemented |
-| official/integrity-lab (sequoia GPG + sha256) | implemented |
-| official/install-lab orchestrator | implemented |
-| yg install / uninstall / list-installed / update / lockfile CLI | implemented |
-| ~/.yggdrasil filesystem convention | implemented |
-| Interactive consent prompt | implemented |
-| Static conformance integration | implemented |
-| GPG signature verification | implemented |
-| Cycle detection | implemented |
-| Real GitHub smoke (opt-in) | implemented |
-| Sigstore verification | deferred |
-| Tauri UI install | deferred |
-| Auto-update daemon | deferred |
-| Binary package distribution | deferred |
-| yg gc orphaned-store cleanup | deferred |
-
-After Round 10A.1, install defaults are relaxed: HTTPS-only, content hashing, and atomic writes are always on; signature verification and conformance blocking are opt-in through `--require-signed` / `--strict`.
-
-## Round 10A.1 — Install Simplification + Secret Store
-
-| Capability | Status |
-|---|---|
-| Install defaults relaxed (cargo/npm/pip baseline) | implemented |
-| --require-signed / --strict opt-in flags | implemented |
-| Single-line consent prompt | implemented |
-| official/secret-store-lab encrypted storage | implemented |
-| StoreSecretResolver | implemented |
-| CompositeSecretResolver (env + store) | implemented |
-| age encryption (X25519) + 0600 file permissions | implemented |
-| OS keyring integration | deferred (libdbus-sys system dep) |
-| YdlTavern API Connections wired | implemented |
-| `yg secret put / list / delete` CLI | deferred |
-
-
-## Round 10A.2 — Steam-Game Project Concept
-
-| Capability | Status |
-|---|---|
-| P0 Wave 1: secret resolver host-profile wiring | implemented |
-| Project as first-class runtime concept | implemented |
-| ProjectDescriptor + ProjectId + ProjectType + SecretPolicy | implemented |
-| ~/.yggdrasil/projects/<id>/ filesystem layout | implemented |
-| secret_ref:project:NAME with platform fallback | implemented |
-| ProjectRegistry (in-memory + disk scan) | implemented |
-| ProtocolContext.session_id propagation | implemented |
-| Install detection (native vs external) | implemented |
-| External project wizard (wrap / workspace) | implemented |
-| yg project list/info/status/start/stop | implemented |
-| yg uninstall with archival prompt | implemented |
-| kernel.v1.project.list/get/start/stop/status | implemented |
-| kernel/v1/project.installed/started/stopped/uninstalled | implemented |
-| Home surface project cards | implemented |
-| YdlTavern project.yaml | implemented |
-| Multi-tenant project_id in ProtocolContext | deferred (Round 11+) |
-| Project archive auto-cleanup beyond 30 days | deferred |
-
-## Round 10A.3 — End-to-End Real Path
-
-| Capability | Status |
-|---|---|
-| huggingface-fetcher tests passing | implemented (Wave 1) |
-| Surface bundle resolution metadata-driven | implemented (Wave 2) |
-| kernel.v1.surface.resolve_bundle | implemented |
-| host /surface-bundles/<prefix>/<file> route | implemented |
-| /surface-bundles/projects/<id>/<file> route | implemented |
-| project.start opens project session + sets metadata.project_id | implemented (Wave 3A) |
-| project.start returns session_id + already_running | implemented |
-| project.get/status return running_session_id | implemented |
-| project.stop emits + closes project session | implemented |
-| Surface receives session_id via initialProps | implemented (Wave 3B) |
-| TavernProvider.sendMessage invokes engine model.live_call | implemented |
-| API Connections drawer scope toggle (platform/project) | implemented |
-| Engine manifest declares secret_ref:project:* | implemented |
-| Streaming response UX in surface | implemented (Round 10A.4) |
-| Multi-tenant project_id in ProtocolContext | deferred (Round 11+) |
-
-## Round 10A.4 — Streaming UX
-
-| Capability | Status |
-|---|---|
-| Surface-host stream postMessage protocol | implemented |
-| stream.subscribe / stream.frame / stream.ended / stream.error / stream.unsubscribe | implemented |
-| Host bridge taps client.subscribeEvents, filters by stream_id | implemented |
-| streamCapability helper in YdlTavern host-rpc | implemented |
-| AsyncIterable<StreamFrame> consumption + iterator early-return cleanup | implemented |
-| TavernProvider.sendMessage streaming branch | implemented |
-| Progressive assistant message updates (chunk delta accumulation) | implemented |
-| Engine `final` frame defensive handling | implemented |
-| cancelGeneration action | implemented |
-| Stop button swap in SendForm when isGenerating | implemented |
-| Multi-concurrent generation in single chat | deferred |
-| Stream rate / token-rate indicator UI | deferred |
-| Realtime/WebSocket streaming UX | deferred (separate capability path) |
-
-Round 10A.4 does not change conformance or schema counts: 427 conformance cases and 115 v1 schemas remain current. YdlTavern test summary: surface 110/4 (94/4 in Round 10A.3, +16 from Wave 1B + Wave 2 streaming tests), engine 90/2, engine-core 307/0, and golden harness 20/20 perfect.
-
-## Completed (S-track shell / release)
-
-- **Web client (S1):** `clients/web` is a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA built by Vite. Home, Settings, Install flow, Project frame, and the toast system all consume the public protocol exclusively (HTTP `/rpc`, SSE, plus an optional `postMessage` stream bridge for surfaces). The iframe-based SurfaceHost mounts third-party surface bundles and communicates with the host through an explicit `postMessage` RPC bridge. See [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md), [`../clients/web/README.md`](../clients/web/README.md), and [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md).
-- **Desktop wrapper (S2):** `clients/desktop` provides a Tauri 2.x wrapper. Production embeds `clients/web/dist`; development points at the Vite dev server. v0 does not start `ygg-cli host serve`; users still run the host separately.
-- **Release pipeline (S3):** GitHub Actions CI and the `v*` tag release workflow are in place, building cross-platform Tauri installers and creating a draft release. `scripts/release-version.sh` synchronizes Cargo, the web package, the desktop package, and Tauri config. Build notes are in [`../BUILDING.md`](../BUILDING.md); changes are in [`../CHANGELOG.md`](../CHANGELOG.md). Signing, notarization, and auto-update are not enabled.
-
 ## Web shell (`clients/web`)
 
-The platform user-facing chrome — Home, Settings, Install flow, Project frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
+The platform user-facing chrome — Home, Settings, Install flow, Project frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite with route- and modal-level lazy splitting. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
 
 - **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `kernel.v1.project.list`; disk usage comes from project `storage_summary`. `⌘N` opens the Install modal.
 - **Settings:** five panels, all wired to real data.
-  - API Connections — `official/secret-store-lab/{list,put,delete}_secret` plus health. The UI never reads raw secret values.
+  - API Connections — `official/secret-store-lab/{list,put,delete}_secret` plus health. The UI never reads raw secret values; secret-edit modals wipe their input state on close.
   - Installed Packages — `kernel.v1.package.list` plus the project flag, with Cmd/Ctrl+F focus.
   - Profiles — `kernel.v1.host.diagnostics` (active profile, packages_loaded, network allowlist).
   - Storage — storage-area summary plus the live event-store kind (sqlite / postgres / memory), without exposing host absolute paths in the Web UI.
@@ -264,6 +227,12 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
 - **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes; no kernel access by default; only host-configured bridge methods reach the public protocol. Streaming subscription bridges `kernel/v1/stream.*` through postMessage.
 - **No hardcoded official packages — the shell is a public-protocol client like any other.**
+
+## Desktop and releases
+
+- `clients/desktop` provides a Tauri 2.x wrapper. Production embeds `clients/web/dist`; development points at the Vite dev server. v0 does not start `ygg-cli host serve`; users still run the host separately.
+- GitHub Actions CI and the `v*` tag release workflow are in place, building cross-platform Tauri installers and creating a draft release. `scripts/release-version.sh` synchronizes Cargo, the web package, the desktop package, and Tauri config.
+- Build notes are in [`../BUILDING.md`](../BUILDING.md); changes are in [`../CHANGELOG.md`](../CHANGELOG.md). Signing, notarization, and auto-update are not enabled.
 
 ## Authoring flow
 
@@ -347,8 +316,8 @@ If anything fails, the code is the source of truth — update this document.
 
 - [`CHARTER.md`](CHARTER.en.md) — principles that don't change.
 - [`architecture/`](architecture/README.en.md) — architecture, kernel, package contract, extension points, events, lifecycles.
-- [`product/`](product/README.en.md) — play-creation stance and the experience-led platform direction.
+- [`product/`](product/README.en.md) — play-creation stance.
 - [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) — public protocol.
 - [`spec/`](spec/README.en.md) — executable contract matrix and conformance roadmap.
 - [`guides/`](guides/README.en.md) — capability-package authoring guides.
-- [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) — current and upcoming phases.
+- [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) — what's next.

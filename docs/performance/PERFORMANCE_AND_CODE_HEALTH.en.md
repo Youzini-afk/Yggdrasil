@@ -50,7 +50,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 - Profile YAML load.
 - B2 subprocess / outbound scenarios: cold start, handshake, 1/10/100 KiB steady invoke, fake outbound execute throughput, fake stream TTFT, and a steady-stream slot documented as skipped.
 
-The output envelope now includes `schema`, `created_at`, `git`, and `env`; each scenario includes p50/p95/p99, RSS delta, and `iterations_capped` when applicable. The committed [`../../perf/baseline.json`](../../perf/baseline.json) is a Linux developer-machine reference, not a CI budget; Phase B optimizations should use it as the regression reference.
+The output envelope now includes `schema`, `created_at`, `git`, and `env`; each scenario includes p50/p95/p99, RSS delta, and `iterations_capped` when applicable. The committed [`../../perf/baseline.json`](../../perf/baseline.json) is a Linux developer-machine reference, not a CI budget; future optimizations should use it as the regression reference.
 
 The frontend side provides a pure TypeScript Forge render diagnostics helper at `clients/web/src/performance/render-diagnostics.ts`. It uses mock public-protocol events to record HTML bytes and elapsed_ms for 50/500 events. It does not connect to a host and does not read SQLite or runtime internals. The independent YdlTavern repository's benchmark convention is documented in [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.en.md).
 

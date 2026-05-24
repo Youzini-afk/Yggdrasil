@@ -48,7 +48,7 @@ Check `entry.contract`. `"v1"` means Path A: the package accepts capability hand
 
 ### 3. Entry support
 
-Confirm the entry kind is supported by the current host. `subprocess` and `rust_inproc` are the main current execution paths. `wasm` and `remote` are first-class manifest forms, but execution belongs to later Round 10 work. If host policy denies the entry, the check fails.
+Confirm the entry kind is supported by the current host. `subprocess` and `rust_inproc` are the main current execution paths. `wasm` and `remote` are first-class manifest forms, but execution remains to be completed in a later iteration. If host policy denies the entry, the check fails.
 
 ### 4. Bindings / handshake
 
@@ -105,7 +105,7 @@ In a monorepo, run the command for every package manifest. For Path B packages, 
 
 ## Custom checks
 
-Round 10 will extract the kit as an embeddable library. For now, run custom checks as separate CI steps and use conformance JSON as input. Examples: require every network declaration to include `purpose`, or require package ids to match an organization prefix.
+A future iteration will extract the kit as an embeddable library. For now, run custom checks as separate CI steps and use conformance JSON as input. Examples: require every network declaration to include `purpose`, or require package ids to match an organization prefix.
 
 Custom checks must not replace the official kit. They may tighten project rules, never loosen the v1 contract.
 

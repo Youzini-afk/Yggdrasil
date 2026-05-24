@@ -48,7 +48,7 @@ Layout:
 
 The store is treated as append-only: `yg uninstall` removes references from
 profiles and lockfiles but does not delete from the store. Old store entries
-become orphaned and can be garbage-collected by `yg gc` (Round 11+).
+become orphaned and can be garbage-collected by `yg gc` (planned).
 
 Permissions: data directory is created with 0700 on Unix.
 

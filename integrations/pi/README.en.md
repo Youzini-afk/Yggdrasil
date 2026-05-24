@@ -57,7 +57,7 @@ These are deferred until dedicated packages and host policy are ready:
 
 ### Rejected
 
-These are explicitly out of Agent Infrastructure Alpha:
+These are explicitly out of Ygg agent infrastructure:
 
 - `pi-coding-agent` as the Ygg product shell;
 - default bash/read/write/edit tools;
@@ -82,7 +82,7 @@ These are explicitly out of Agent Infrastructure Alpha:
 
 ## Verification discipline
 
-Every agent infrastructure phase must prove:
+Every agent infrastructure update must prove:
 
 - no new `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.memory.*`, or `kernel.v1.turn.*`;
 - official agent/reference packages have no priority;

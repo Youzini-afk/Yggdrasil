@@ -35,4 +35,4 @@ The goal is not bit-for-bit parity. The goal is to avoid forgetting useful edge 
 
 ## Model connectivity note
 
-`model-connectivity-map.yaml` tracks provider/profile and instance-routing lessons from TavernHeadless. Model Connectivity Kit Alpha remains no-network and no-inference: discovery outputs are plans, profile validation is structural, and secrets are represented by references only.
+`model-connectivity-map.yaml` tracks provider/profile and instance-routing lessons from TavernHeadless. The current model-connectivity ledger remains no-network and no-inference: discovery outputs are plans, profile validation is structural, and secrets are represented by references only.

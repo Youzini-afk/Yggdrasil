@@ -228,7 +228,7 @@ A host enforces authentication at the transport layer. Each connection is associ
 
 The kernel does not ship an identity provider. Hosts plug one in.
 
-Alpha principal kinds:
+The v0 principal model includes:
 
 ```text
 host_admin
