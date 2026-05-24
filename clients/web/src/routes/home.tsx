@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Hero } from "@/components/home/hero";
 import { UtilityStrip, type FilterChip } from "@/components/home/utility-strip";
 import { ProjectCard } from "@/components/home/project-card";
@@ -19,10 +19,16 @@ import { useAsync, useKernel } from "@/lib/kernel-client";
 import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime, formatRelativeAge } from "@/lib/format";
-import { InstallModal } from "@/components/install/install-modal";
-import { FailureModal } from "@/components/install/failure-modal";
+import type { FailureDetail } from "@/components/install/failure-modal";
 import { projectStateTone, type StatusTone } from "@/components/ui/status-pill";
 import type { KernelEvent, PackageRecord, ProjectRecord, SubprocessLogLine } from "@/protocol/client";
+
+const InstallModal = lazy(() =>
+  import("@/components/install/install-modal").then((module) => ({ default: module.InstallModal })),
+);
+const FailureModal = lazy(() =>
+  import("@/components/install/failure-modal").then((module) => ({ default: module.FailureModal })),
+);
 
 const FILTER_OPTIONS: FilterChip[] = [
   { id: "all", label: "All", count: 0 },
@@ -69,7 +75,7 @@ export function HomePage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [showInstall, setShowInstall] = useState(false);
   const [failureProjectId, setFailureProjectId] = useState<string | null>(null);
-  const [failureDetail, setFailureDetail] = useState<ComponentProps<typeof FailureModal>["detail"]>();
+  const [failureDetail, setFailureDetail] = useState<FailureDetail>();
 
   // Cmd/Ctrl + N opens the install modal.
   useEffect(() => {
@@ -369,23 +375,31 @@ export function HomePage() {
         </div>
       </div>
 
-      <InstallModal open={showInstall} onClose={() => setShowInstall(false)} onInstalled={projects.refresh} />
-      <FailureModal
-        open={failureProjectId !== null}
-        onClose={() => setFailureProjectId(null)}
-        onRestart={() => {
-          if (failureProjectId) navigate({ kind: "project", projectId: failureProjectId });
-        }}
-        onUninstall={() => {
-          if (failureProjectId) onUninstall(failureProjectId);
-        }}
-        detail={failureDetail}
-      />
+      {showInstall ? (
+        <Suspense fallback={null}>
+          <InstallModal open={showInstall} onClose={() => setShowInstall(false)} onInstalled={projects.refresh} />
+        </Suspense>
+      ) : null}
+      {failureProjectId !== null ? (
+        <Suspense fallback={null}>
+          <FailureModal
+            open={failureProjectId !== null}
+            onClose={() => setFailureProjectId(null)}
+            onRestart={() => {
+              if (failureProjectId) navigate({ kind: "project", projectId: failureProjectId });
+            }}
+            onUninstall={() => {
+              if (failureProjectId) onUninstall(failureProjectId);
+            }}
+            detail={failureDetail}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
 
-function noFailureDiagnostic(projectName: string, reason: string): ComponentProps<typeof FailureModal>["detail"] {
+function noFailureDiagnostic(projectName: string, reason: string): FailureDetail {
   return {
     projectName,
     title: "No diagnostic available",
@@ -399,7 +413,7 @@ function failureDetailFromPackage(
   projectName: string,
   record: PackageRecord,
   logs: SubprocessLogLine[],
-): ComponentProps<typeof FailureModal>["detail"] {
+): FailureDetail {
   const failure = record.last_failure;
   const stderrLines = tail(
     failure?.stderr_tail_redacted.length
