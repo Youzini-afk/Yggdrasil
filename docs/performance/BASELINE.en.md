@@ -2,7 +2,7 @@
 
 > [English](./BASELINE.en.md) · [中文](./BASELINE.md)
 
-This document records usage, measurement scenarios, sample limits, metric definitions, and compare mode for `ygg perf baseline`. The current baseline is only a developer-machine reference, not a CI budget.
+This document records usage, measurement scenarios, sample limits, metric definitions, and compare mode for `cargo run -p ygg-cli -- perf baseline`. The current baseline is only a developer-machine reference, not a CI budget.
 
 The repository commits a reference baseline at [`perf/baseline.json`](../../perf/baseline.json). It was produced on a Linux developer machine and is useful as a before/after reference for future optimizations; do not treat it as a CI budget.
 
@@ -47,20 +47,20 @@ All scenarios avoid real network or provider dependencies. Inputs are fixed so d
 | `inproc_echo_invoke` | Rust inproc package echo capability invocation. Uses `examples/packages/echo-rust-inproc/manifest.yaml`. |
 | `official_capability_invoke` | Official package capability invocation. Uses `official/composition-lab/describe`. |
 | `event_store_append_list_range` | In-memory event store batch append (100 events), full list, range query. |
-| `event_store_append_list_range_1k` | In-memory event store atomic append (1,000 events), full list, kind-prefix query. Added in P3. |
-| `event_store_append_list_range_10k` | In-memory event store atomic append (10,000 events), full list, kind-prefix query. Added in P3. |
-| `event_store_append_list_range_100k` | In-memory event store atomic append (100,000 events), full list, kind-prefix query. Auto-capped to 1 iteration when iterations > 1. Added in P3. |
+| `event_store_append_list_range_1k` | In-memory event store atomic append (1,000 events), full list, kind-prefix query. |
+| `event_store_append_list_range_10k` | In-memory event store atomic append (10,000 events), full list, kind-prefix query. |
+| `event_store_append_list_range_100k` | In-memory event store atomic append (100,000 events), full list, kind-prefix query. Auto-capped to 1 iteration when iterations > 1. |
 | `composition_check` | Composition descriptor validation and package loading. Uses `examples/compositions/playable-seed-replacement/`. |
 | `profile_load` | Profile YAML parsing. Uses `profiles/forge-alpha.yaml`. |
 | `subprocess_echo_invoke` | Subprocess echo capability invocation (requires Python; status=skipped if unavailable). |
-| `subprocess_cold_start_ms` | Fresh subprocess package per iteration, measuring `load_package` handshake plus first invoke. Added in B2. |
-| `subprocess_handshake_ms` | Subprocess spawn + handshake; there is no separate spawn-only API yet. Added in B2. |
-| `subprocess_invoke_steady_1kb` | Steady invoke on an already loaded subprocess echo package with a 1 KiB payload. Added in B2. |
-| `subprocess_invoke_steady_10kb` | Steady invoke on an already loaded subprocess echo package with a 10 KiB payload. Added in B2. |
-| `subprocess_invoke_steady_100kb` | Steady invoke on an already loaded subprocess echo package with a 100 KiB payload. Added in B2. |
-| `outbound_execute_fake_throughput_req_s` | Throughput for 1,000 `execute_outbound_with_policy` calls on `FakeOutboundExecutor`. Added in B2. |
-| `outbound_stream_fake_ttft_ms` | Fake SSE stream first-event latency, drained to completion. Added in B2. |
-| `outbound_stream_fake_steady_events_s` | Planned 100-event steady stream measurement; currently `skipped` because the fake executor has no public N-frame fixture API. Added in B2. |
+| `subprocess_cold_start_ms` | Fresh subprocess package per iteration, measuring `load_package` handshake plus first invoke. |
+| `subprocess_handshake_ms` | Subprocess spawn + handshake; there is no separate spawn-only API yet. |
+| `subprocess_invoke_steady_1kb` | Steady invoke on an already loaded subprocess echo package with a 1 KiB payload. |
+| `subprocess_invoke_steady_10kb` | Steady invoke on an already loaded subprocess echo package with a 10 KiB payload. |
+| `subprocess_invoke_steady_100kb` | Steady invoke on an already loaded subprocess echo package with a 100 KiB payload. |
+| `outbound_execute_fake_throughput_req_s` | Throughput for 1,000 `execute_outbound_with_policy` calls on `FakeOutboundExecutor`. |
+| `outbound_stream_fake_ttft_ms` | Fake SSE stream first-event latency, drained to completion. |
+| `outbound_stream_fake_steady_events_s` | Planned 100-event steady stream measurement; currently `skipped` because the fake executor has no public N-frame fixture API. |
 
 ## Output fields
 
@@ -135,6 +135,8 @@ Use these metrics for before/after comparisons during later optimization:
 6. Subprocess invoke latency — Re-measure with a stable subprocess environment.
 7. Fake outbound executor and fake streams — Use them as the no-network reference for outbound audit/policy paths.
 8. Future UI optimization should use frontend diagnostics to compare HTML bytes and elapsed_ms.
+
+The current pre-human-testing baseline should also pay attention to install/profile/surface/security-bridge paths so project install, profile loading, static bundle serving, and bridge safety boundaries do not regress noticeably.
 
 ## Sample reference output
 

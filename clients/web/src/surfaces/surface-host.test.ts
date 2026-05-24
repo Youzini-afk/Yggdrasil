@@ -37,6 +37,15 @@ await callSurfaceBridgeForTest(bridge, {
 assert.equal(calls.at(-1)?.method, "kernel.v1.capability.invoke");
 assert.equal((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");
 
+await rejectsWithCode(
+  callSurfaceBridgeForTest(bridge, {
+    id: "2b",
+    method: "kernel.v1.capability.invoke",
+    params: { capability_id: "pkg/unrelated", input: {} },
+  }),
+  "capability_denied",
+);
+
 const state = createSurfaceBridgeState();
 await callSurfaceBridgeForTest(
   bridge,

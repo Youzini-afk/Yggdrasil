@@ -6,7 +6,7 @@ This is the long-term guide for performance and code health. It replaces the tem
 
 ## Principles
 
-1. Measure before optimizing. Use `ygg perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
+1. Measure before optimizing. Use `cargo run -p ygg-cli -- perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
 2. Optimization must not change the platform contract. Official and third-party packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
 3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case official packages.
 4. Do not introduce content ontology in the name of performance. Do not add `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.memory.*`, `kernel.v1.experience.*`, `kernel.v1.sharing.*`, or similar product/content namespaces.
@@ -39,20 +39,22 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 ## Baseline scope
 
-`ygg perf baseline` currently covers:
+`cargo run -p ygg-cli -- perf baseline` currently covers:
 
 - Rust in-process capability invocation.
 - Ordinary official package capability invocation.
 - Subprocess echo invocation when Python is available.
 - In-memory event store append/list/range.
-- P3 scale scenarios: 1k / 10k / 100k events.
+- Scale scenarios: 1k / 10k / 100k events.
 - Composition check.
 - Profile YAML load.
-- B2 subprocess / outbound scenarios: cold start, handshake, 1/10/100 KiB steady invoke, fake outbound execute throughput, fake stream TTFT, and a steady-stream slot documented as skipped.
+- Subprocess / outbound scenarios: cold start, handshake, 1/10/100 KiB steady invoke, fake outbound execute throughput, fake stream TTFT, and a steady-stream slot documented as skipped.
 
 The output envelope now includes `schema`, `created_at`, `git`, and `env`; each scenario includes p50/p95/p99, RSS delta, and `iterations_capped` when applicable. The committed [`../../perf/baseline.json`](../../perf/baseline.json) is a Linux developer-machine reference, not a CI budget; future optimizations should use it as the regression reference.
 
-The frontend side provides a pure TypeScript Forge render diagnostics helper at `clients/web/src/performance/render-diagnostics.ts`. It uses mock public-protocol events to record HTML bytes and elapsed_ms for 50/500 events. It does not connect to a host and does not read SQLite or runtime internals. The independent YdlTavern repository's benchmark convention is documented in [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.en.md).
+Frontend performance diagnostics should use existing web checks, browser profilers, or focused tests; do not point to a helper file that is not present. The independent YdlTavern repository's benchmark convention is documented in [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.en.md).
+
+The current pre-human-testing baseline should also watch install/profile/surface/security-bridge paths: project install, profile autoload, static surface-bundle serving, bridge allowlists, stream ownership, redacted diagnostics, and secret-input cleanup.
 
 See [`BASELINE.en.md`](./BASELINE.en.md) for fields and limitations.
 
@@ -146,7 +148,7 @@ Completed:
 - Bounded JSON previews limiting depth, array items, object keys, and string length.
 - Display caps for Forge events/proposals/assets/projections/surfaces.
 - Event/proposal/surface/projection payloads render as preview details by default.
-- Pure TypeScript Forge render diagnostics helper.
+- Web correctness checks and browser profilers as frontend performance diagnostics entrypoints.
 
 Future web optimization priority:
 

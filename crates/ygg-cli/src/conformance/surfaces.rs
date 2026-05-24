@@ -52,6 +52,11 @@ pub(crate) async fn contribution_list() -> anyhow::Result<()> {
             == json!("thirdparty/surface-fixture/start"),
         "entry launch capability missing"
     );
+    anyhow::ensure!(
+        entries[0]["surface"]["allowed_capability_ids"]
+            == json!(["thirdparty/surface-fixture/inspect"]),
+        "typed surface allowed capability ids missing"
+    );
     let described = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),

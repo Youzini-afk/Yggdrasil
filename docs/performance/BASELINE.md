@@ -2,7 +2,7 @@
 
 > [English](./BASELINE.en.md) · [中文](./BASELINE.md)
 
-本文档记录 `ygg perf baseline` 的用法、测量场景、样本限制、指标定义和比较模式。当前基线只作为开发机参考，不是 CI 预算。
+本文档记录 `cargo run -p ygg-cli -- perf baseline` 的用法、测量场景、样本限制、指标定义和比较模式。当前基线只作为开发机参考，不是 CI 预算。
 
 仓库已提交参考基线：[`perf/baseline.json`](../../perf/baseline.json)。它来自一台 Linux 开发机，可作为未来优化的前后对比起点；不要把它当成 CI 合规预算。
 
@@ -47,20 +47,20 @@ cargo run -p ygg-cli -- perf baseline --format json
 | `inproc_echo_invoke` | Rust inproc 包 echo 能力调用。使用 `examples/packages/echo-rust-inproc/manifest.yaml`。 |
 | `official_capability_invoke` | 官方包能力调用。使用 `official/composition-lab/describe`。 |
 | `event_store_append_list_range` | 内存 event store 批量追加（100 events）、全量 list、range 查询。 |
-| `event_store_append_list_range_1k` | 内存 event store 原子追加（1,000 events）、全量 list、kind-prefix 查询。P3 新增。 |
-| `event_store_append_list_range_10k` | 内存 event store 原子追加（10,000 events）、全量 list、kind-prefix 查询。P3 新增。 |
-| `event_store_append_list_range_100k` | 内存 event store 原子追加（100,000 events）、全量 list、kind-prefix 查询。当 iterations > 1 时自动限制为 1 次迭代。P3 新增。 |
+| `event_store_append_list_range_1k` | 内存 event store 原子追加（1,000 events）、全量 list、kind-prefix 查询。 |
+| `event_store_append_list_range_10k` | 内存 event store 原子追加（10,000 events）、全量 list、kind-prefix 查询。 |
+| `event_store_append_list_range_100k` | 内存 event store 原子追加（100,000 events）、全量 list、kind-prefix 查询。当 iterations > 1 时自动限制为 1 次迭代。 |
 | `composition_check` | Composition descriptor 验证与包加载。使用 `examples/compositions/playable-seed-replacement/`。 |
 | `profile_load` | Profile YAML 解析。使用 `profiles/forge-alpha.yaml`。 |
 | `subprocess_echo_invoke` | Subprocess echo 能力调用（需要 Python；不可用时 status=skipped）。 |
-| `subprocess_cold_start_ms` | 每次迭代新建 subprocess 包，测量 `load_package` handshake + 首次 invoke。B2 新增。 |
-| `subprocess_handshake_ms` | 测量 subprocess spawn + handshake；当前没有单独 spawn-only API。B2 新增。 |
-| `subprocess_invoke_steady_1kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 1 KiB。B2 新增。 |
-| `subprocess_invoke_steady_10kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 10 KiB。B2 新增。 |
-| `subprocess_invoke_steady_100kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 100 KiB。B2 新增。 |
-| `outbound_execute_fake_throughput_req_s` | `FakeOutboundExecutor` 上的 1,000 次 `execute_outbound_with_policy` 调用吞吐。B2 新增。 |
-| `outbound_stream_fake_ttft_ms` | fake SSE stream 首事件延迟；drain 到完成。B2 新增。 |
-| `outbound_stream_fake_steady_events_s` | 计划测量 100 events steady stream；当前 fake executor 缺少 N-frame fixture API，已记录为 `skipped`。B2 新增。 |
+| `subprocess_cold_start_ms` | 每次迭代新建 subprocess 包，测量 `load_package` handshake + 首次 invoke。 |
+| `subprocess_handshake_ms` | 测量 subprocess spawn + handshake；当前没有单独 spawn-only API。 |
+| `subprocess_invoke_steady_1kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 1 KiB。 |
+| `subprocess_invoke_steady_10kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 10 KiB。 |
+| `subprocess_invoke_steady_100kb` | 已加载 subprocess echo 包的 steady invoke，payload 为 100 KiB。 |
+| `outbound_execute_fake_throughput_req_s` | `FakeOutboundExecutor` 上的 1,000 次 `execute_outbound_with_policy` 调用吞吐。 |
+| `outbound_stream_fake_ttft_ms` | fake SSE stream 首事件延迟；drain 到完成。 |
+| `outbound_stream_fake_steady_events_s` | 计划测量 100 events steady stream；当前 fake executor 缺少 N-frame fixture API，已记录为 `skipped`。 |
 
 ## 输出字段
 
@@ -135,6 +135,8 @@ JSON 输出使用 envelope：
 6. 子进程调用延迟 — 需要稳定的子进程环境再做比较。
 7. 出站 fake executor 与 fake stream — 作为出站审计/策略路径的无网络参考。
 8. 后续 UI 优化应另用前端诊断比较 HTML bytes 和 elapsed_ms。
+
+当前人测前基线还应特别关注 install/profile/surface/security bridge 路径，确保项目安装、profile 加载、静态 bundle 暴露和 bridge 安全边界没有明显回归。
 
 ## 样本参考输出
 

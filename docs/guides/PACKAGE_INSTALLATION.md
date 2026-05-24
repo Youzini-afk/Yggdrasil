@@ -39,6 +39,9 @@ yg install github.com/user/yggdrasil-package
 # 原生项目（仓库根目录有 project.yaml）
 yg install github.com/Youzini-afk/Yggdrasil-Tavern
 
+# 本地原生项目 dogfood
+yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
+
 # 锁定版本（推荐）
 yg install github.com/user/yggdrasil-package#v1.2.0
 
@@ -101,11 +104,13 @@ yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 
 | 检测结果 | 行为 |
 |---|---|
-| 有有效 `project.yaml` 且 `project.type: yggdrasil_native` | 安装为原生 Yggdrasil 项目，注册到 `ProjectRegistry`，写入 `~/.yggdrasil/projects/<id>/`，Home 显示项目卡片。 |
+| 有有效 `project.yaml` 且 `project.type: yggdrasil_native` | 安装为原生 Yggdrasil 项目，复制 source 到 store，解析嵌套 package manifest，写入 profile autoload，注册到 `ProjectRegistry`，写入 `~/.yggdrasil/projects/<id>/`，复制项目 dist，并在 Home 显示项目卡片。 |
 | 有 `project.yaml` 但无效 | fail-closed，要求修正 descriptor。 |
 | 没有 `project.yaml` | 进入外部项目 wizard。 |
 
 原生项目的 `project.yaml` 引用项目需要的 package manifest，并给出 `entry_surface_id`。该 surface 应由其中一个 package 贡献，通常是 `slot: experience_entry`。
+
+原生项目安装后的实际链路是：source → 内容寻址 store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`。项目 package 的 `surface_bundle` 是 static/non-executing 浏览器入口，只描述 iframe 要加载的 bundle、样式、字体与 mount export；它不走 wasm sentinel，也不会把浏览器 bundle 当作可执行 package entry。
 
 详见 [`PROJECT_MODEL.md`](PROJECT_MODEL.md)。
 
@@ -242,13 +247,17 @@ yg install github.com/user/repo#v1.0
    └─ 无 TTY 且无 --yes：错误
             ↓
 6. install-lab.execute_plan
-   ├─ 验证同意覆盖计划授权
-   ├─ 重新 fetch 到 staging
-   ├─ 原子 rename 到 store
-   ├─ 更新 profile YAML（原子）
-   └─ 写入 lockfile（原子）
+    ├─ 验证同意覆盖计划授权
+    ├─ 重新 fetch 到 staging
+    ├─ 原子 rename 到 store
+    ├─ 对原生项目解析 nested manifests 并复制 project dist
+    ├─ 更新 profile YAML（原子，autoload package manifests）
+    ├─ 写入 ProjectRegistry 记录
+    └─ 写入 lockfile（原子）
             ↓
-7. 完成
+7. host serve 加载 profile 后通过 /surface-bundles/projects/<project_id>/... 暴露静态 bundle
+            ↓
+8. 完成
 ```
 
 ## 安全模型

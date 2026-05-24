@@ -16842,6 +16842,13 @@ pub struct PackageLifecyclePayload {
 ///              "session_template": null
 ///            }
 ///          },
+///          "allowed_capability_ids": {
+///            "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///            "items": {
+///              "type": "string"
+///            },
+///            "type": "array"
+///          },
 ///          "approval_policy": {
 ///            "anyOf": [
 ///              {
@@ -19482,6 +19489,13 @@ impl ::std::default::Default for PackagePermissions {
 ///            "launch_capability_id": null,
 ///            "session_template": null
 ///          }
+///        },
+///        "allowed_capability_ids": {
+///          "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///          "items": {
+///            "type": "string"
+///          },
+///          "type": "array"
 ///        },
 ///        "approval_policy": {
 ///          "anyOf": [
@@ -40076,6 +40090,13 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceBundleSourceSchem
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40133,6 +40154,9 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceBundleSourceSchem
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -40174,6 +40198,13 @@ pub struct SurfaceContribution {
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40231,6 +40262,9 @@ pub struct SurfaceContribution {
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -40272,6 +40306,13 @@ pub struct SurfaceContribution {
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40329,6 +40370,9 @@ pub struct SurfaceContribution {
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -40370,6 +40414,13 @@ pub struct SurfaceContribution {
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40427,6 +40478,9 @@ pub struct SurfaceContribution {
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -40468,6 +40522,13 @@ pub struct SurfaceContribution {
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40525,6 +40586,9 @@ pub struct SurfaceContribution {
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -40566,6 +40630,13 @@ pub struct SurfaceContribution {
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40623,6 +40694,9 @@ pub struct SurfaceContribution {
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -40664,6 +40738,13 @@ pub struct SurfaceContribution {
 ///        }
 ///      ]
 ///    },
+///    "allowed_capability_ids": {
+///      "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "approval_policy": {
 ///      "default": null,
 ///      "anyOf": [
@@ -40721,6 +40802,9 @@ pub struct SurfaceContribution {
 pub struct SurfaceContribution {
     #[serde(default = "defaults::surface_contribution_activation")]
     pub activation: SurfaceActivation,
+    ///Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_capability_ids: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval_policy: ::std::option::Option<SurfaceApprovalPolicy>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]

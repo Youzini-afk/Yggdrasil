@@ -232,6 +232,11 @@ pub struct SurfaceContribution {
     pub description: Option<String>,
     #[serde(default)]
     pub capability_id: Option<CapabilityId>,
+    /// Additional exact capability ids this surface bundle may invoke through
+    /// the web surface bridge. This is a typed declaration; bridge policy must
+    /// not infer invoke authority from opaque metadata.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_capability_ids: Vec<CapabilityId>,
     #[serde(default)]
     pub activation: SurfaceActivation,
     #[serde(default)]
@@ -487,6 +492,9 @@ impl PackageManifest {
             }
             validate_semver_like(&surface.version)?;
             if let Some(capability_id) = &surface.capability_id {
+                validate_namespaced_id(capability_id)?;
+            }
+            for capability_id in &surface.allowed_capability_ids {
                 validate_namespaced_id(capability_id)?;
             }
             if let Some(capability_id) = &surface.activation.launch_capability_id {

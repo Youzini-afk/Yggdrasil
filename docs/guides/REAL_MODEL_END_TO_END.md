@@ -126,25 +126,28 @@ TavernProvider 循环退出, 保留已累积内容, isGenerating: false
 
 ## 配置真实调用（用户视角）
 
-启动 Yggdrasil host 与 Web shell：
+安装 YdlTavern 项目，启动 Yggdrasil host 与 Web shell：
 
 ```bash
-# 1. 启动 host
-ygg host serve --profile profiles/forge-alpha.yaml --http 127.0.0.1:8787 &
+# 1. 安装本地原生项目到测试 data dir/profile
+yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
 
-# 2. 启动 clients/web
-cd clients/web && npm run dev
+# 2. 启动 host，加载安装后 profile
+ygg host serve --profile <data-dir>/profiles/<profile>.yaml --http 127.0.0.1:8787 &
 
-# 3. 浏览器打开 http://localhost:5173
+# 3. 启动 clients/web
+npm run dev --prefix clients/web
+
+# 4. 浏览器打开 http://localhost:1420
 ```
 
 然后在 UI 内：
 
-1. Home 屏幕显示 YdlTavern 卡片（如果已 `yg install`）。
+1. Home 屏幕显示已安装的 YdlTavern 项目卡片。
 2. 点 Play。
 3. 项目状态变成 Running。
 4. host 创建项目 session。
-5. surface bundle 被解析并挂载到 iframe。
+5. `kernel.v1.surface.resolve_bundle` 返回 `/surface-bundles/projects/<project_id>/bundle.mjs`，surface bundle 被挂载到 iframe。
 6. 打开 API Connections 抽屉。
 7. 选 OpenAI / Anthropic / Gemini provider。
 8. 粘贴 API key。
@@ -182,8 +185,10 @@ outbound:
       # OpenRouter / DeepSeek / xAI / Fireworks 等按需添加
 
 surface_dev_paths:
-  ydltavern: /workspace/Yggdrasil/YdlTavern/packages/ydltavern-surface/dist
+  ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 ```
+
+`surface_dev_paths` 只用于开发期直接挂载本地构建产物。安装后的项目路径不需要该设置；host 会从 project dist 提供 `/surface-bundles/projects/<project_id>/...`。Web dev server 的端口是 `localhost:1420`。CLI 的 `yg project start/status/stop` 是项目状态命令；Home 的 Play/session flow 通过 Web public protocol 调用 `kernel.v1.project.start`、接收 `session_id`，再解析并挂载 surface，二者不要当作等价入口。
 
 三道门必须同时通过：
 
@@ -264,7 +269,7 @@ host profile 的 `secret_resolver.store_enabled` 为 false，但用户尝试 `se
 
 ### `session has no metadata.project_id`
 
-项目通过 `yg project start` 或 Home Play 启动时会自动设置。如果 surface 走的不是项目流程，需要手动开 session 并设 `metadata.project_id`，或不要使用 project ref。
+项目通过 Home Play 的 public protocol start/session flow 启动时会自动设置。CLI `yg project start` 可用于状态/诊断，但不等同于 Web 的 Play → session → surface mount 流程；如果 surface 走的不是项目流程，需要手动开 session 并设 `metadata.project_id`，或不要使用 project ref。
 
 ### `host '...' not in outbound.allowed_hosts`
 
@@ -286,8 +291,8 @@ engine 包 manifest 的 `permissions.secret_refs` 没声明这个 ref。编辑 m
 
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — resolver 链与 project fallback。
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — 项目 + session 配对。
-- `/workspace/Yggdrasil/YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
-- `/workspace/Yggdrasil/YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
+- `../YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
+- `../YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
 - `crates/ygg-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
 - `crates/ygg-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
 - `clients/web` 的 surface-host iframe bridge 与 `mountSurface`。

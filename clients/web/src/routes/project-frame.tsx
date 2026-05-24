@@ -161,5 +161,6 @@ export function allowedSurfaceCapabilityIdsForTest(record: SurfaceContributionRe
   const surface = record?.surface;
   if (surface?.capability_id) ids.add(surface.capability_id);
   if (surface?.activation.launch_capability_id) ids.add(surface.activation.launch_capability_id);
+  for (const capabilityId of surface?.allowed_capability_ids ?? []) ids.add(capabilityId);
   return ids;
 }

@@ -39,6 +39,9 @@ yg install github.com/user/yggdrasil-package
 # Native project (repository root has project.yaml)
 yg install github.com/Youzini-afk/Yggdrasil-Tavern
 
+# Local native-project dogfood
+yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
+
 # Pinned version (recommended)
 yg install github.com/user/yggdrasil-package#v1.2.0
 
@@ -101,11 +104,13 @@ Install-related flags:
 
 | Detection result | Behavior |
 |---|---|
-| Valid `project.yaml` with `project.type: yggdrasil_native` | Install as a native Yggdrasil project, register in `ProjectRegistry`, write `~/.yggdrasil/projects/<id>/`, and show a Home project card. |
+| Valid `project.yaml` with `project.type: yggdrasil_native` | Install as a native Yggdrasil project, copy the source into the store, resolve nested package manifests, write profile autoload entries, register in `ProjectRegistry`, write `~/.yggdrasil/projects/<id>/`, copy project dist, and show a Home project card. |
 | Present but invalid `project.yaml` | Fail closed and require descriptor fixes. |
 | No `project.yaml` | Enter the external-project wizard. |
 
 A native project's `project.yaml` references the package manifests it needs and declares `entry_surface_id`. That surface should be contributed by one of those packages, usually with `slot: experience_entry`.
+
+The installed native-project path is: source → content-addressed store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`. A package `surface_bundle` is a static/non-executing browser entry that describes the bundle, styles, fonts, and mount export for the iframe. It does not use the wasm sentinel and is not treated as an executable package entry.
 
 See [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
 
@@ -242,13 +247,17 @@ yg install github.com/user/repo#v1.0
    └─ no TTY and no --yes: error
             ↓
 6. install-lab.execute_plan
-   ├─ verify consent covers planned authority
-   ├─ fetch again into staging
-   ├─ atomic rename into store
-   ├─ update profile YAML (atomic)
-   └─ write lockfile (atomic)
+    ├─ verify consent covers planned authority
+    ├─ fetch again into staging
+    ├─ atomic rename into store
+    ├─ for native projects, resolve nested manifests and copy project dist
+    ├─ update profile YAML (atomic, autoloading package manifests)
+    ├─ write the ProjectRegistry record
+    └─ write lockfile (atomic)
             ↓
-7. Done
+7. after host serve loads the profile, expose static bundle files under /surface-bundles/projects/<project_id>/...
+            ↓
+8. Done
 ```
 
 ## Security model

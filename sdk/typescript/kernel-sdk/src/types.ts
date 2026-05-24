@@ -1303,6 +1303,10 @@ export type SurfaceBundleSourceSchema = "installed_project" | "dev_path";
 
 export interface SurfaceContribution {
   "activation"?: SurfaceActivation;
+  /**
+   * Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.
+   */
+  "allowed_capability_ids"?: Array<string>;
   "approval_policy"?: SurfaceApprovalPolicy | null;
   "capability_id"?: null | string;
   "description"?: null | string;

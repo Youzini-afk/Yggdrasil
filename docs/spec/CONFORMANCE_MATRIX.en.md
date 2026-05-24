@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **427**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **428**.
 
 ## Conformance Feedback Loop
 
@@ -42,26 +42,26 @@ The current matrix includes the following project-model cases. Verify the actual
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
-| Wave 1 | `secret_store_resolver.host_profile_installs_composite_resolver` | host profile installs env+store/project composite resolver | implemented |
-| Wave 2 | `project_secret.put_then_resolve_via_project_ref` | `secret_ref:project:*` reads project store | implemented |
-| Wave 2 | `project_secret.fallback_to_platform_when_missing` | project miss falls back to platform store by policy | implemented |
-| Wave 2 | `project_secret.no_fallback_when_disabled` | disabled fallback fails closed | implemented |
-| Wave 2 | `project_secret.require_per_project_blocks_fallback` | `require_per_project` blocks platform fallback | implemented |
-| Wave 2 | `project_secret.isolation_between_projects` | project secret stores are softly isolated | implemented |
-| Wave 2 | `project_secret.no_session_context_fails_closed` | missing project/session context fails closed | implemented |
-| Wave 2 | `project_secret.list_returns_names_not_values` | project secret list returns names, not values | implemented |
-| Wave 3 | `project.detect_native_yaml` | detects native `project.yaml` | implemented |
-| Wave 3 | `project.detect_no_yaml` | no `project.yaml` enters external-project path | implemented |
-| Wave 3 | `project.detect_invalid_yaml_rejected` | invalid descriptor rejected | implemented |
-| Wave 3 | `project.register_creates_project_dir` | project registration creates data directory | implemented |
-| Wave 3 | `project.list_returns_registered` | registry/list returns registered projects | implemented |
-| Wave 3 | `project.state_transitions` | start/stop state transitions | implemented |
-| Wave 3 | `project.archive_keeps_data` | uninstall keep-data archives project directory | implemented |
-| Wave 4 | `protocol.project_list_returns_registered_projects` | `kernel.v1.project.list` returns projects | implemented |
-| Wave 4 | `protocol.project_get_returns_full_descriptor` | `kernel.v1.project.get` returns full descriptor | implemented |
-| Wave 4 | `protocol.project_start_transitions_state` | `kernel.v1.project.start` transitions state | implemented |
-| Wave 4 | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
-| Wave 4 | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
+| secret resolver | `secret_store_resolver.host_profile_installs_composite_resolver` | host profile installs env+store/project composite resolver | implemented |
+| project secrets | `project_secret.put_then_resolve_via_project_ref` | `secret_ref:project:*` reads project store | implemented |
+| project secrets | `project_secret.fallback_to_platform_when_missing` | project miss falls back to platform store by policy | implemented |
+| project secrets | `project_secret.no_fallback_when_disabled` | disabled fallback fails closed | implemented |
+| project secrets | `project_secret.require_per_project_blocks_fallback` | `require_per_project` blocks platform fallback | implemented |
+| project secrets | `project_secret.isolation_between_projects` | project secret stores are softly isolated | implemented |
+| project secrets | `project_secret.no_session_context_fails_closed` | missing project/session context fails closed | implemented |
+| project secrets | `project_secret.list_returns_names_not_values` | project secret list returns names, not values | implemented |
+| project install | `project.detect_native_yaml` | detects native `project.yaml` | implemented |
+| project install | `project.detect_no_yaml` | no `project.yaml` enters external-project path | implemented |
+| project install | `project.detect_invalid_yaml_rejected` | invalid descriptor rejected | implemented |
+| project install | `project.register_creates_project_dir` | project registration creates data directory | implemented |
+| project registry | `project.list_returns_registered` | registry/list returns registered projects | implemented |
+| project runtime | `project.state_transitions` | start/stop state transitions | implemented |
+| project uninstall | `project.archive_keeps_data` | uninstall keep-data archives project directory | implemented |
+| project protocol | `protocol.project_list_returns_registered_projects` | `kernel.v1.project.list` returns projects | implemented |
+| project protocol | `protocol.project_get_returns_full_descriptor` | `kernel.v1.project.get` returns full descriptor | implemented |
+| project protocol | `protocol.project_start_transitions_state` | `kernel.v1.project.start` transitions state | implemented |
+| project protocol | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
+| project protocol | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
 
 ### End-to-end real-path conformance cases
 
@@ -69,15 +69,28 @@ The current matrix includes the following end-to-end-real-path cases. Verify the
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
-| Wave 2 | `surface.resolve_via_dev_path` | dev-path surface bundle resolution | implemented |
-| Wave 2 | `surface.resolve_via_installed_project` | installed-project surface bundle resolution | implemented |
-| Wave 2 | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
-| Wave 2 | `surface.resolve_admin_principal_required` | resolve_bundle restricted to HostAdmin/HostDev | implemented |
-| Wave 3A | `project.start_returns_session_id` | `project.start` returns a project session id | implemented |
-| Wave 3A | `project.start_idempotent_returns_existing_session` | repeated start returns the existing session | implemented |
-| Wave 3A | `project.session_metadata_carries_project_id` | session metadata carries project_id | implemented |
-| Wave 3A | `project.stop_closes_session` | stop closes the project session | implemented |
-| Wave 3A | `project.get_returns_running_session_id` | get/status return running_session_id while Running | implemented |
+| dev bundle | `surface.resolve_via_dev_path` | dev-path surface bundle resolution | implemented |
+| installed bundle | `surface.resolve_via_installed_project` | installed-project surface bundle resolution | implemented |
+| bundle rejection | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
+| bundle authority | `surface.resolve_admin_principal_required` | resolve_bundle restricted to HostAdmin/HostDev | implemented |
+| project session | `project.start_returns_session_id` | `project.start` returns a project session id | implemented |
+| project session | `project.start_idempotent_returns_existing_session` | repeated start returns the existing session | implemented |
+| project session | `project.session_metadata_carries_project_id` | session metadata carries project_id | implemented |
+| project session | `project.stop_closes_session` | stop closes the project session | implemented |
+| project session | `project.get_returns_running_session_id` | get/status return running_session_id while Running | implemented |
+
+Surface/static bundle and bridge coverage also includes these stable assertions:
+
+| Assertion | Coverage | Status |
+|---|---|---|
+| static surface bundle | `surface_bundle` is a static browser entry and does not use the wasm sentinel or package execution | implemented |
+| project-root install surface dist | native project dist is served from the project root/project dist at `/surface-bundles/projects/<project_id>/...` | implemented |
+| bridge allowlist | typed `allowed_capability_ids` precisely constrains callable surface-bridge capabilities | implemented |
+| metadata not authority | surface metadata describes entries only and does not grant authority | implemented |
+| stream ownership | stream subscribe/unsubscribe is bound to the owning surface and session | implemented |
+| redacted diagnostics | bridge diagnostics, errors, and logs do not leak raw secrets or host absolute paths | implemented |
+| uncontrolled secret input | secret inputs remain uncontrolled/short-lived and are cleared on close | implemented |
+| schema timestamp stability | schema/export timestamps are stable and avoid nondeterministic generated timestamps | implemented |
 
 
 | Area | Case | Status |
@@ -203,7 +216,7 @@ The current matrix includes the following end-to-end-real-path cases. Verify the
 | outbound | allowlisted fake executor returns network_performed:false, executor_kind:fake, redacted audit | implemented |
 | outbound | raw body_shape not persisted in audit; audit redaction_state redacted/not_captured | implemented |
 | outbound | secret_refs stored as references only; raw secrets rejected/not echoed | implemented |
-| outbound | host mismatch redirect denied; redirect_target check deferred to M4 | implemented |
+| outbound | host mismatch redirect denied; redirect_target check reserved for later hardening | implemented |
 | stream | normal lifecycle emits ordered frames/events | implemented |
 | stream | cancel marks invocation cancelled and blocks further chunks | implemented |
 | stream | timeout marks invocation timeout and blocks further chunks | implemented |

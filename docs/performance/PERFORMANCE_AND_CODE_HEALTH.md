@@ -6,7 +6,7 @@
 
 ## 原则
 
-1. 先测量，再优化。使用 `ygg perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试证明热点。不要凭感觉替换架构。
+1. 先测量，再优化。使用 `cargo run -p ygg-cli -- perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试证明热点。不要凭感觉替换架构。
 2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
 3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case official packages。
 4. 不要用性能名义引入内容本体。不要新增 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.memory.*`、`kernel.v1.experience.*`、`kernel.v1.sharing.*` 等内容或产品命名空间。
@@ -39,20 +39,22 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 ## Baseline 范围
 
-`ygg perf baseline` 当前覆盖：
+`cargo run -p ygg-cli -- perf baseline` 当前覆盖：
 
 - Rust in-process capability invoke。
 - 官方包普通 capability invoke。
 - subprocess echo invoke（Python 可用时）。
 - in-memory event store append/list/range。
-- P3 scale scenarios：1k / 10k / 100k events。
+- scale scenarios：1k / 10k / 100k events。
 - composition check。
 - profile YAML load。
-- B2 subprocess / outbound scenarios：cold start、handshake、1/10/100 KiB steady invoke、fake outbound execute throughput、fake stream TTFT，以及一个记录为 skipped 的 steady-stream slot。
+- subprocess / outbound scenarios：cold start、handshake、1/10/100 KiB steady invoke、fake outbound execute throughput、fake stream TTFT，以及一个记录为 skipped 的 steady-stream slot。
 
 输出 envelope 现在包含 `schema`、`created_at`、`git`、`env`；每个场景包含 p50/p95/p99、RSS delta 和必要时的 `iterations_capped`。已提交 [`../../perf/baseline.json`](../../perf/baseline.json) 作为 Linux 开发机参考，不是 CI 预算；后续优化应把它作为 regression reference。
 
-前端侧由 `clients/web/src/performance/render-diagnostics.ts` 提供纯 TypeScript Forge 渲染诊断 helper。它使用 mock public-protocol events 记录 50/500 个事件的 HTML bytes 与 elapsed_ms。它不连接 host，也不读取 SQLite 或 runtime internals。YdlTavern 独立仓库的 benchmark 约定见 [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.md)。
+前端侧性能诊断应使用实际存在的 Web 检查、浏览器 profiler 或针对性测试，不指向不存在的 helper 文件。YdlTavern 独立仓库的 benchmark 约定见 [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.md)。
+
+当前人测前基线还应关注 install/profile/surface/security bridge 路径：项目安装、profile autoload、静态 surface bundle 暴露、bridge allowlist、stream ownership、诊断脱敏与 secret 输入清理。
 
 详细字段见 [`BASELINE.md`](./BASELINE.md)。
 
@@ -146,7 +148,7 @@ Retrieval/vector/multimodal provider 契约证明新增：
 - 有界 JSON preview，限制 depth、array items、object keys 和 string length。
 - Forge events/proposals/assets/projections/surfaces 显示 cap。
 - event/proposal/surface/projection payload 默认显示 preview details。
-- 纯 TypeScript Forge 渲染诊断 helper。
+- Web 正确性检查与浏览器 profiler 作为前端性能诊断入口。
 
 后续 Web 优化优先级：
 

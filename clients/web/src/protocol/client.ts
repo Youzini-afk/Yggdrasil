@@ -176,6 +176,7 @@ export interface SurfaceContribution {
   title: string;
   description?: string;
   capability_id?: string;
+  allowed_capability_ids?: string[];
   activation: SurfaceActivation;
   required_permissions: SurfacePermissionRequirement[];
   approval_policy?: "none" | "user_approval" | "fork_then_approve";

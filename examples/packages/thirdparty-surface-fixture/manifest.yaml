@@ -39,6 +39,8 @@ contributes:
       title: Third-Party Blank Entry
       description: Launchable entry declared by a non-official package.
       capability_id: thirdparty/surface-fixture/start
+      allowed_capability_ids:
+        - thirdparty/surface-fixture/inspect
       activation:
         launch_capability_id: thirdparty/surface-fixture/start
         session_template:

@@ -8,9 +8,10 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 427 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
+- **Conformance:** 428 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
+- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`; `surface_bundle` is a static, non-executing entry; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`.
 
 The platform substrate is in place. From here, real AI-native playable experiences pull the remaining substrate work.
 
@@ -61,6 +62,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
 - Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `yg project list/info/status/start/stop` are implemented.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
+- Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry; installed project bundles are served by the host as same-origin static files under `/surface-bundles/projects/<project_id>/...`.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
 ## Package installation and project model
@@ -103,6 +105,9 @@ The platform substrate is in place. From here, real AI-native playable experienc
 | `kernel/v1/project.installed/started/stopped/uninstalled` | implemented |
 | Home surface project cards | implemented |
 | YdlTavern `project.yaml` | implemented |
+| Native project install into profile, project registry, and project dist | implemented |
+| `surface_bundle` static entry and installed project bundle route | implemented |
+| typed `allowed_capability_ids` bridge declaration | implemented |
 | Multi-tenant `project_id` in `ProtocolContext` | deferred |
 | Project archive auto-cleanup beyond 30 days | deferred |
 
@@ -127,6 +132,7 @@ Install defaults are relaxed to the cargo / npm / pip technical baseline: HTTPS-
 | Engine manifest declares `secret_ref:project:*` | implemented |
 | Surface streaming response UX | implemented |
 | Surface-host stream postMessage protocol | implemented |
+| Surface bridge allowlist / stream ownership / diagnostics redaction / secret input cleanup / CSP/CORS hardening | implemented |
 | `streamCapability` helper (YdlTavern host-rpc) | implemented |
 | `AsyncIterable<StreamFrame>` consumption + iterator early-return cleanup | implemented |
 | `cancelGeneration` action + Stop button | implemented |
@@ -225,7 +231,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 - **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `kernel.v1.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
-- **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes; no kernel access by default; only host-configured bridge methods reach the public protocol. Streaming subscription bridges `kernel/v1/stream.*` through postMessage.
+- **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes; no kernel access by default; only host-configured bridge methods reach the public protocol. The bridge limits callable authority with typed `allowed_capability_ids` and method allowlists, binds stream subscriptions to the owning surface, redacts diagnostics/logs, clears secret input state on close, and keeps same-origin static bundle boundaries through CSP/CORS. Streaming subscription bridges `kernel/v1/stream.*` through postMessage.
 - **No hardcoded official packages — the shell is a public-protocol client like any other.**
 
 ## Desktop and releases
@@ -247,7 +253,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Code organization
 
-- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 427 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 428 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/ygg-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`KernelMethod`), with a registry / dispatch consistency unit test.
@@ -258,7 +264,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 427 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 428 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

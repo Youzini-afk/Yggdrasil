@@ -126,25 +126,28 @@ Queueing may come later, but it is out of scope for v1.
 
 ## Configuring real calls (user view)
 
-Start the Yggdrasil host and web shell:
+Install the YdlTavern project, then start the Yggdrasil host and web shell:
 
 ```bash
-# 1. Start the host
-ygg host serve --profile profiles/forge-alpha.yaml --http 127.0.0.1:8787 &
+# 1. Install the local native project into a test data dir/profile
+yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
 
-# 2. Start clients/web
-cd clients/web && npm run dev
+# 2. Start the host with the installed profile
+ygg host serve --profile <data-dir>/profiles/<profile>.yaml --http 127.0.0.1:8787 &
 
-# 3. Open http://localhost:5173 in a browser
+# 3. Start clients/web
+npm run dev --prefix clients/web
+
+# 4. Open http://localhost:1420 in a browser
 ```
 
 Then in the UI:
 
-1. The Home screen shows the YdlTavern card if it has been installed with `yg install`.
+1. The Home screen shows the installed YdlTavern project card.
 2. Click Play.
 3. The project becomes Running.
 4. The host creates a project session.
-5. The surface bundle is resolved and mounted in an iframe.
+5. `kernel.v1.surface.resolve_bundle` returns `/surface-bundles/projects/<project_id>/bundle.mjs`, and the surface bundle is mounted in an iframe.
 6. Open the API Connections drawer.
 7. Choose an OpenAI / Anthropic / Gemini provider.
 8. Paste the API key.
@@ -182,8 +185,10 @@ outbound:
       # Add OpenRouter / DeepSeek / xAI / Fireworks as needed.
 
 surface_dev_paths:
-  ydltavern: /workspace/Yggdrasil/YdlTavern/packages/ydltavern-surface/dist
+  ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 ```
+
+`surface_dev_paths` is only for development-time mounting of local build output. Installed projects do not need it; the host serves project dist files under `/surface-bundles/projects/<project_id>/...`. The web dev server port is `localhost:1420`. CLI `yg project start/status/stop` commands are project-state commands; Home's Play/session flow uses the Web public protocol to call `kernel.v1.project.start`, receive a `session_id`, resolve the surface, and mount it. Do not treat the CLI command path and the Web Play/session flow as equivalent entrypoints.
 
 Three gates must all pass:
 
@@ -264,7 +269,7 @@ The host profile has `secret_resolver.store_enabled: false`, but the user attemp
 
 ### `session has no metadata.project_id`
 
-Starting through `yg project start` or Home Play sets this automatically. If the surface bypasses the project flow, create a session with `metadata.project_id` manually or avoid project refs.
+Starting through Home Play's public-protocol start/session flow sets this automatically. CLI `yg project start` is useful for state/diagnostics but is not the same as the Web Play → session → surface mount flow. If the surface bypasses the project flow, create a session with `metadata.project_id` manually or avoid project refs.
 
 ### `host '...' not in outbound.allowed_hosts`
 
@@ -286,8 +291,8 @@ Check that Play returned `session_id`, iframe `initialProps.sessionId` is non-em
 
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — resolver chain and project fallback.
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — project + session pairing.
-- `/workspace/Yggdrasil/YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
-- `/workspace/Yggdrasil/YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
+- `../YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
+- `../YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
 - `crates/ygg-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
 - `crates/ygg-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
 - the `clients/web` surface-host iframe bridge and `mountSurface`.

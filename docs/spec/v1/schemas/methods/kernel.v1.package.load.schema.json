@@ -722,6 +722,13 @@
                 "session_template": null
               }
             },
+            "allowed_capability_ids": {
+              "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "approval_policy": {
               "anyOf": [
                 {
@@ -1923,6 +1930,13 @@
                 "launch_capability_id": null,
                 "session_template": null
               }
+            },
+            "allowed_capability_ids": {
+              "description": "Additional exact capability ids this surface bundle may invoke through the web surface bridge. This is a typed declaration; bridge policy must not infer invoke authority from opaque metadata.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "approval_policy": {
               "anyOf": [

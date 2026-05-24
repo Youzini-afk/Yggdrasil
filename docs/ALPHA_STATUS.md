@@ -8,9 +8,10 @@
 
 ## 概要
 
-- **Conformance：** 427 个具名 CLI 用例通过，外加 crate / service 单元测试；115 个 v1 schema（63 methods + 45 events + 7 top-level）通过校验。
+- **Conformance：** 428 个具名 CLI 用例通过，外加 crate / service 单元测试；115 个 v1 schema（63 methods + 45 events + 7 top-level）通过校验。
 - **章程纪律：** 内核对内容无意见；官方包没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
+- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`；`surface_bundle` 是 static、non-executing 入口；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`。
 
 平台底座已就位。下一阶段不再继续摊大表面积，而是由真实的 AI 原生可玩体验来牵引剩下的工作。
 
@@ -61,6 +62,7 @@
 - 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `kernel/v1/projection.updated`。包持有的 projection 执行留待后续。
 - 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.yggdrasil/projects/<id>/` 布局、项目级 secret policy、Home 项目卡、项目级 storage summary、redacted package failure summary，以及 `yg project list/info/status/start/stop` 已落地。
 - Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。通过 `kernel.v1.surface.contribution.list` 与 `.describe` 发现。
+- Surface bundle：`surface_bundle` 是清单里的静态浏览器 bundle 入口，不是可执行 package entry；安装后的项目 bundle 由 host 以 same-origin 静态文件服务暴露到 `/surface-bundles/projects/<project_id>/...`。
 - 提案生命周期：`kernel.v1.proposal.create|get|list|approve|reject|apply`。当前 `apply` 只跑通用操作 `asset.put` 与 `projection.rebuild`。更广泛的事务和回滚留待后续。
 
 ## 包安装与项目模型
@@ -103,6 +105,9 @@
 | `kernel/v1/project.installed/started/stopped/uninstalled` | implemented |
 | Home 项目卡 | implemented |
 | YdlTavern `project.yaml` | implemented |
+| 原生项目安装到 profile、project registry 与 project dist | implemented |
+| `surface_bundle` 静态入口与 installed project bundle route | implemented |
+| typed `allowed_capability_ids` bridge 声明 | implemented |
 | 多租户级 `project_id` 进入 `ProtocolContext` | deferred |
 | 项目归档超过 30 天自动清理 | deferred |
 
@@ -127,6 +132,7 @@
 | Engine manifest 声明 `secret_ref:project:*` | implemented |
 | Surface 流式响应 UX | implemented |
 | Surface-host stream postMessage 协议 | implemented |
+| Surface bridge allowlist / stream ownership / diagnostics redaction / secret input cleanup / CSP/CORS hardening | implemented |
 | `streamCapability` helper（YdlTavern host-rpc） | implemented |
 | `AsyncIterable<StreamFrame>` 消费 + iterator early-return 清理 | implemented |
 | `cancelGeneration` action + Stop 按钮 | implemented |
@@ -225,7 +231,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - **Failure Modal：** Deep Rust accent stripe、诊断 / 影响双列、redacted stderr 日志面板（含 Copy log）、Restart / Stop-and-uninstall / Close 三选项；数据来自 `kernel.v1.package.list/status/logs`，不复制 raw log。
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，`prefers-reduced-motion` 自动收敛。
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
-- **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。流式订阅通过 postMessage 桥接 `kernel/v1/stream.*`。
+- **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。Bridge 以 typed `allowed_capability_ids` 和方法 allowlist 限定可调用能力，stream 订阅归属绑定到发起 surface，诊断与日志脱敏，secret 输入态在关闭时清理，并通过 CSP/CORS 保持 same-origin 静态 bundle 边界。流式订阅通过 postMessage 桥接 `kernel/v1/stream.*`。
 - **没有官方包特权通道——shell 和别的客户端一样是公开协议的客户端；调用平台工具包时也走普通 `kernel.v1.capability.invoke`。**
 
 ## 桌面与发布
@@ -247,7 +253,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## 代码组织
 
-- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 427 个 `ConformanceCase { id, tags, run }`。
+- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 428 个 `ConformanceCase { id, tags, run }`。
 - `crates/ygg-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `KernelMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
@@ -258,7 +264,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` 跑 427 个具名 CLI 用例。支持：
+`cargo run -p ygg-cli -- conformance` 跑 428 个具名 CLI 用例。支持：
 
 - `--list` 列出 id 与 tag；
 - `--case <pattern>` 子串过滤；
