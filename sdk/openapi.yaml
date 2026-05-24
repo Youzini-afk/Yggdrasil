@@ -2052,7 +2052,7 @@ paths:
                         description: Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
                         type: string
                       timestamp:
-                        default: 2026-05-24T12:19:22.308909808Z
+                        default: 2026-05-24T14:04:39.493824948Z
                         description: Timestamp of frame emission.
                         format: date-time
                         type: string

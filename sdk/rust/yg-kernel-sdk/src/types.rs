@@ -36292,7 +36292,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.308909808Z",
+///      "default": "2026-05-24T14:04:39.493824948Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36383,7 +36383,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.337354281Z",
+///      "default": "2026-05-24T14:04:39.524816277Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36474,7 +36474,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.337091541Z",
+///      "default": "2026-05-24T14:04:39.524530643Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36565,7 +36565,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.337227303Z",
+///      "default": "2026-05-24T14:04:39.524669749Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36656,7 +36656,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.337291452Z",
+///      "default": "2026-05-24T14:04:39.524736643Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36747,7 +36747,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.337163172Z",
+///      "default": "2026-05-24T14:04:39.524604017Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36838,7 +36838,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T12:19:22.337417098Z",
+///      "default": "2026-05-24T14:04:39.524889813Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -43935,7 +43935,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.308909808Z\"")
+        >("\"2026-05-24T14:04:39.493824948Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -43952,7 +43952,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.337354281Z\"")
+        >("\"2026-05-24T14:04:39.524816277Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -43969,7 +43969,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.337091541Z\"")
+        >("\"2026-05-24T14:04:39.524530643Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -43986,7 +43986,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.337227303Z\"")
+        >("\"2026-05-24T14:04:39.524669749Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -44003,7 +44003,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.337291452Z\"")
+        >("\"2026-05-24T14:04:39.524736643Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -44020,7 +44020,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.337163172Z\"")
+        >("\"2026-05-24T14:04:39.524604017Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -44037,7 +44037,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T12:19:22.337417098Z\"")
+        >("\"2026-05-24T14:04:39.524889813Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

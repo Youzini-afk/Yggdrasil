@@ -210,7 +210,7 @@ pub struct StreamFrameEnvelope {
     #[serde(default)]
     pub redaction_state: RedactionState,
     /// Timestamp of frame emission.
-    #[serde(default = "default_timestamp")]
+    #[serde(default = "default_timestamp", skip_serializing_if = "never_skip_timestamp")]
     pub timestamp: DateTime<Utc>,
     /// Opaque payload — capability-provider-defined; no kernel content
     /// semantics. May be `Null` for progress/end/cancelled/timeout frames.
@@ -223,6 +223,10 @@ pub struct StreamFrameEnvelope {
 
 fn default_timestamp() -> DateTime<Utc> {
     Utc::now()
+}
+
+fn never_skip_timestamp(_: &DateTime<Utc>) -> bool {
+    false
 }
 
 // ---------------------------------------------------------------------------

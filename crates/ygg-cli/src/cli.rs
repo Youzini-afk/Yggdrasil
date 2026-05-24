@@ -43,7 +43,7 @@ pub enum PackageTemplate {
 #[command(about = "Yggdrasil kernel CLI")]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub(crate) command: Command,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -106,7 +106,7 @@ pub enum ConformanceCommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum Command {
+pub(crate) enum Command {
     /// Run a content-free kernel event demo.
     Demo,
     /// Run a durable SQLite-backed kernel event demo.

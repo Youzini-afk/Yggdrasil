@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Args;
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::commands::install::{
     invoke_install_lab, load_install_runtime, lockfile_path, print_plan_human,
