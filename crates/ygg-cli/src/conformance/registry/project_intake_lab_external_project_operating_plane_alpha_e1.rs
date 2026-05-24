@@ -1,0 +1,96 @@
+use super::{case, ConformanceCase};
+
+pub(super) fn cases() -> Vec<ConformanceCase> {
+    macro_rules! c {
+        ($id:expr, [$($tag:expr),*], $func:path) => {
+            case($id, &[$($tag),*], || Box::pin($func()))
+        };
+    }
+
+    vec![
+        // --- project-intake-lab (External Project Operating Plane Alpha E1) ---
+        c!(
+            "project_intake.contract_shape",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution"
+            ],
+            crate::conformance::project_intake_lab::project_intake_contract
+        ),
+        c!(
+            "project_intake.source_classification",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution"
+            ],
+            crate::conformance::project_intake_lab::project_intake_source_classification
+        ),
+        c!(
+            "project_intake.stack_detection_npm_lifecycle",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution"
+            ],
+            crate::conformance::project_intake_lab::project_intake_stack_detection
+        ),
+        c!(
+            "project_intake.workspace_plan_no_execution",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution"
+            ],
+            crate::conformance::project_intake_lab::project_intake_workspace_plan
+        ),
+        c!(
+            "project_intake.local_path_rejection",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution",
+                "secret"
+            ],
+            crate::conformance::project_intake_lab::project_intake_local_path_rejection
+        ),
+        c!(
+            "project_intake.adapter_plan_no_execution",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution"
+            ],
+            crate::conformance::project_intake_lab::project_intake_adapter_plan
+        ),
+        c!(
+            "project_intake.no_forbidden_namespace",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution",
+                "protocol"
+            ],
+            crate::conformance::project_intake_lab::project_intake_no_forbidden_namespace
+        ),
+        c!(
+            "project_intake.no_raw_secrets",
+            [
+                "official",
+                "external_project",
+                "project_intake",
+                "no_execution",
+                "secret"
+            ],
+            crate::conformance::project_intake_lab::project_intake_no_raw_secrets
+        ),
+    ]
+}

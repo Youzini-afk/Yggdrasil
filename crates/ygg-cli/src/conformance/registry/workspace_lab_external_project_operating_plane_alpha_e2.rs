@@ -1,0 +1,92 @@
+use super::{case, ConformanceCase};
+
+pub(super) fn cases() -> Vec<ConformanceCase> {
+    macro_rules! c {
+        ($id:expr, [$($tag:expr),*], $func:path) => {
+            case($id, &[$($tag),*], || Box::pin($func()))
+        };
+    }
+
+    vec![
+        // --- workspace-lab (External Project Operating Plane Alpha E2) ---
+        c!(
+            "workspace_lab.contract_shape",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_contract
+        ),
+        c!(
+            "workspace_lab.action_taxonomy_deny_default",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_action_deny_default
+        ),
+        c!(
+            "workspace_lab.policy_mismatch_fail_closed",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_policy_mismatch
+        ),
+        c!(
+            "workspace_lab.raw_secret_blocked",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution",
+                "secret"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_raw_secret_blocked
+        ),
+        c!(
+            "workspace_lab.audit_redacted",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_audit_redacted
+        ),
+        c!(
+            "workspace_lab.no_forbidden_namespace",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution",
+                "protocol"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_no_forbidden_namespace
+        ),
+        c!(
+            "workspace_lab.no_execution",
+            [
+                "official",
+                "external_project",
+                "workspace_lab",
+                "policy",
+                "no_execution"
+            ],
+            crate::conformance::workspace_lab::workspace_lab_no_execution
+        ),
+    ]
+}
