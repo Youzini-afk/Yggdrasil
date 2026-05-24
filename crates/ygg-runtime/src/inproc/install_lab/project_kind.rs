@@ -11,7 +11,7 @@ use crate::inproc::project_registry_from_inproc;
 use super::executor::invoke_package_capability;
 use super::layout::atomic_write;
 use super::source::{parse_root_descriptor, value_str};
-use super::types::{DetectedProjectKind, DetectKindInput, SourceDescriptor};
+use super::types::{DetectKindInput, DetectedProjectKind, SourceDescriptor};
 
 pub(super) async fn detect_kind(input: Value) -> Result<Value> {
     let input: DetectKindInput = serde_json::from_value(input)?;
@@ -99,7 +99,9 @@ pub(super) fn ensure_project_initialized_for(
     data_dir_override: Option<&str>,
 ) -> Result<PathBuf> {
     if let Some(dir) = data_dir_override {
-        let project_dir = PathBuf::from(dir).join("projects").join(project_id.as_str());
+        let project_dir = PathBuf::from(dir)
+            .join("projects")
+            .join(project_id.as_str());
         fs::create_dir_all(project_dir.join("sessions"))?;
         fs::create_dir_all(project_dir.join("state"))?;
         #[cfg(unix)]

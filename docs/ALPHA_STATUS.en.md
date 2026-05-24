@@ -278,12 +278,14 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Code organization
 
-- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, package templates under `templates/`, and conformance cases by domain under `conformance/`. The conformance registry uses `ConformanceCase { id, tags, run }` and supports `--list`, `--case`, `--tag`, `--fail-fast`, `--slowest`, with per-case timing and a slowest-N report.
-- `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, proposals, and protocol-dispatch modules. `runtime/mod.rs` keeps the public `Runtime<S>` API.
+- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 427 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/ygg-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
+- `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`KernelMethod`), with a registry / dispatch consistency unit test.
-- `crates/ygg-runtime/src/inproc/` splits official-package behavior by domain. The shared helper routes by provider package plus local capability name, not suffix-only fallback.
+- `crates/ygg-runtime/src/inproc/` splits official-package behavior by domain; `official/install-lab` is split into `install_lab/` modules (types/source/planner/executor/layout/project_kind/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
+- `clients/web` Home and Install flow are split into page shells plus hooks/helpers/step components. The UI still uses public protocol only and does not read the local filesystem or private runtime state.
 
-The split doesn't change behavior — it keeps the codebase reviewable as more packages, conformance cases, and handlers land.
+These splits don't change behavior — they keep the codebase reviewable as more packages, conformance cases, handlers, and UI flows land.
 
 ## Conformance
 

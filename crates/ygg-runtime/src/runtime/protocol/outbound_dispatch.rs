@@ -468,7 +468,8 @@ where
                 crate::runtime::outbound::ExecutorKind::Real
             }
         };
-        let network_performed = matches!(executor_kind, crate::runtime::outbound::ExecutorKind::Real);
+        let network_performed =
+            matches!(executor_kind, crate::runtime::outbound::ExecutorKind::Real);
 
         // Create a StreamEmitter that feeds into the kernel stream lifecycle
         let emitter = Arc::new(StreamEmitterAdapter {
@@ -958,7 +959,10 @@ where
         Ok(response_value)
     }
 
-    pub(crate) async fn dispatch_outbound_websocket_send(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_outbound_websocket_send(
+        &self,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let connection_id = params
             .get("connection_id")
             .and_then(Value::as_str)
@@ -973,7 +977,10 @@ where
         Ok(json!({"status": status}))
     }
 
-    pub(crate) async fn dispatch_outbound_websocket_close(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_outbound_websocket_close(
+        &self,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let connection_id = params
             .get("connection_id")
             .and_then(Value::as_str)
@@ -1298,7 +1305,9 @@ fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Valu
 /// an optional scheme prefix (e.g. "bearer" → "Bearer <value>").
 /// The host resolves these at execution time; raw values are never
 /// returned to the caller, persisted in audit, or echoed in errors.
-fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<crate::runtime::outbound::SecretHeaderSpec>> {
+fn parse_secret_headers(
+    params: &Value,
+) -> anyhow::Result<Vec<crate::runtime::outbound::SecretHeaderSpec>> {
     let secret_headers_value = match params.get("secret_headers") {
         Some(v) => v,
         None => return Ok(Vec::new()),
@@ -1357,7 +1366,9 @@ fn parse_secret_headers(params: &Value) -> anyhow::Result<Vec<crate::runtime::ou
 /// This allows provider-specific version headers (e.g. Anthropic's
 /// `anthropic-version`) without requiring secret resolution, while
 /// preventing `static_headers` from becoming a secret bypass path.
-fn parse_static_headers(params: &Value) -> anyhow::Result<Vec<crate::runtime::outbound::StaticHeader>> {
+fn parse_static_headers(
+    params: &Value,
+) -> anyhow::Result<Vec<crate::runtime::outbound::StaticHeader>> {
     let static_headers_value = match params.get("static_headers") {
         Some(v) => v,
         None => return Ok(Vec::new()),

@@ -38,10 +38,7 @@ pub(super) fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn verify_installed_hashes(
-    pkg: &PlannedPackage,
-    store_path: &Path,
-) -> Result<()> {
+pub(super) async fn verify_installed_hashes(pkg: &PlannedPackage, store_path: &Path) -> Result<()> {
     let manifest_hash = compute_manifest_hash(&manifest_path_in(store_path)?).await?;
     if manifest_hash != pkg.manifest_hash {
         anyhow::bail!("manifest hash mismatch for {}", pkg.id);

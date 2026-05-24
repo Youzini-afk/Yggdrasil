@@ -1,0 +1,69 @@
+#![allow(dead_code)]
+
+use std::fs;
+use std::path::PathBuf;
+
+use ygg_core::*;
+use ygg_runtime::*;
+
+mod defs;
+mod events;
+mod methods;
+mod write;
+
+pub(crate) const SCHEMA: &str = "https://json-schema.org/draft/2020-12/schema";
+pub(crate) const BASE: &str = "https://yggdrasil.dev/spec/v1";
+
+use defs::schema_value;
+use events::{event_schema, event_schemas};
+use methods::method_schemas;
+use write::{filename, write_json, write_method};
+
+pub fn export_all() -> anyhow::Result<()> {
+    let out = PathBuf::from("docs/spec/v1/schemas");
+    fs::create_dir_all(out.join("methods"))?;
+    fs::create_dir_all(out.join("events"))?;
+
+    write_json(
+        out.join("manifest.schema.json"),
+        &schema_value::<PackageManifest>(),
+    )?;
+    write_json(
+        out.join("capability-descriptor.schema.json"),
+        &schema_value::<CapabilityDescriptor>(),
+    )?;
+    write_json(
+        out.join("permission-set.schema.json"),
+        &schema_value::<PermissionSet>(),
+    )?;
+    write_json(
+        out.join("event-envelope.schema.json"),
+        &schema_value::<EventEnvelope>(),
+    )?;
+    write_json(
+        out.join("protocol-context.schema.json"),
+        &schema_value::<ProtocolContext>(),
+    )?;
+    write_json(
+        out.join("capability-invocation-request.schema.json"),
+        &schema_value::<CapabilityInvocationRequest>(),
+    )?;
+    write_json(
+        out.join("capability-invocation-result.schema.json"),
+        &schema_value::<CapabilityInvocationResult>(),
+    )?;
+
+    for (method, params, result) in method_schemas() {
+        write_method(&out, method, params, result)?;
+    }
+
+    for (kind, payload) in event_schemas() {
+        write_json(
+            out.join("events")
+                .join(format!("{}.schema.json", filename(kind))),
+            &event_schema(kind, payload),
+        )?;
+    }
+
+    Ok(())
+}

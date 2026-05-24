@@ -263,7 +263,7 @@ Round 10A.4 不改变 conformance 与 schema 数量：仍为 427 个 conformance
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，prefers-reduced-motion 自动收敛。
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
 - **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。流式订阅通过 postMessage 桥接 `kernel/v1/stream.*`。
-- **没有官方包硬编码——shell 和别的客户端一样是公开协议的客户端。**
+- **没有官方包特权通道——shell 和别的客户端一样是公开协议的客户端；调用平台工具包时也走普通 `kernel.v1.capability.invoke`。**
 
 ## 创作流程
 
@@ -278,12 +278,14 @@ Round 10A.4 不改变 conformance 与 schema 数量：仍为 427 个 conformance
 
 ## 代码组织
 
-- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`，conformance 用例按域分模块在 `conformance/`，使用结构化的 `ConformanceCase { id, tags, run }` 注册表，支持 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，附带 per-case 用时和最慢 N 报告。
-- `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals、protocol dispatch 分模块；`runtime/mod.rs` 保持公开 `Runtime<S>` API。
+- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 427 个 `ConformanceCase { id, tags, run }`。
+- `crates/ygg-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
+- `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `KernelMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
-- `crates/ygg-runtime/src/inproc/` 把官方包行为按域拆开，公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+- `crates/ygg-runtime/src/inproc/` 把官方包行为按域拆开；`official/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+- `clients/web` 的 Home 与 Install flow 已拆成 page shell + hooks/helpers/step components；UI 继续只走公开协议，不读本地文件系统或 runtime 私有状态。
 
-这次拆分不改变行为，只是让后续新增能力包、conformance、handler 时仍然可审查。
+这些拆分不改变行为，只是让后续新增能力包、conformance、handler 与 UI flow 时仍然可审查。
 
 ## Conformance
 

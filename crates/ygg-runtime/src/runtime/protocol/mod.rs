@@ -18,16 +18,16 @@ use crate::{
     ProtocolContext, ProtocolPrincipal, StreamEmitter, StreamRegistry, WebSocketEvent,
 };
 
-mod surface;
-mod projects;
-mod outbound_dispatch;
+mod assets_projections;
 mod audit;
+mod capabilities;
+mod outbound_dispatch;
+mod packages;
 mod permissions;
+mod projects;
 mod proposals;
 mod sessions_events;
-mod packages;
-mod capabilities;
-mod assets_projections;
+mod surface;
 
 #[cfg(test)]
 mod tests;

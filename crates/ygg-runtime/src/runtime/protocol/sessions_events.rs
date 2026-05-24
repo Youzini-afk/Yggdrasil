@@ -46,7 +46,10 @@ where
         )?)
     }
 
-    pub(crate) async fn dispatch_session_branch_list(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_session_branch_list(
+        &self,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)

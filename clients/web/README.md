@@ -71,7 +71,7 @@ src/
 │   ├── router.ts               # Hash router — home / settings / project
 │   ├── kernel-client.tsx       # KernelProvider, useKernel, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
-│   ├── home-data.ts            # Mock fallbacks used when host unavailable
+│   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
 │   └── cn.ts                   # clsx + tailwind-merge composer
 ├── components/
 │   ├── icons.tsx               # Phosphor re-exports with semantic names
@@ -100,10 +100,16 @@ src/
 │   │   ├── activity-timeline.tsx
 │   │   └── workshop-utilities.tsx
 │   └── install/
-│       ├── install-modal.tsx   # install-lab wizard + external project branch
+│       ├── install-modal.tsx   # modal shell around install-lab flow
+│       ├── use-install-flow.ts # state machine + public capability calls
+│       ├── url-step.tsx
+│       ├── plan-step.tsx
+│       ├── progress-step.tsx
+│       ├── external-wizard-step.tsx
 │       └── failure-modal.tsx   # redacted failure diagnostics with deep-rust accent
 ├── routes/
 │   ├── home.tsx
+│   ├── home/                   # Home hooks/helpers (projects, disk, timeline, failure diagnostics)
 │   ├── project-frame.tsx       # iframe wrapper around mounted surface
 │   └── settings/
 │       ├── index.tsx           # Tab dispatcher

@@ -16,7 +16,10 @@ where
 
     // --- Projection ---
 
-    pub(crate) async fn dispatch_projection_rebuild(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_projection_rebuild(
+        &self,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let projection_id = params
             .get("projection_id")
             .and_then(Value::as_str)

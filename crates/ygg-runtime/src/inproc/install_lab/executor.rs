@@ -141,7 +141,11 @@ pub(super) async fn uninstall(input: Value) -> Result<Value> {
     if lockfile_path.exists() {
         let raw = fs::read_to_string(&lockfile_path)?;
         let mut lock: Lockfile = toml::from_str(&raw)?;
-        if let Some(entry) = lock.package.iter().find(|entry| entry.id == input.package_id) {
+        if let Some(entry) = lock
+            .package
+            .iter()
+            .find(|entry| entry.id == input.package_id)
+        {
             orphaned = Some(entry.installed_at_store.clone());
         }
         let before = lock.package.len();
