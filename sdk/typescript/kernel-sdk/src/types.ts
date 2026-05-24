@@ -216,6 +216,9 @@ export type EntryDescriptor = {
   "endpoint": string;
   "kind": "remote";
 } | {
+  "bundle": string;
+  "kind": "surface_bundle";
+} | {
   "command": Array<string>;
   "kind": "subprocess";
   "transport"?: SubprocessTransport;
@@ -1594,7 +1597,7 @@ export interface TighteningSuggestion {
   "target": string;
 }
 
-export type TrustLevel = "trusted_inproc" | "process_isolated" | "wasm_sandbox" | "remote_boundary";
+export type TrustLevel = "trusted_inproc" | "process_isolated" | "wasm_sandbox" | "remote_boundary" | "static_surface";
 
 export interface UnusedAuthority {
   "capabilities_unused": Array<string>;

@@ -13,9 +13,9 @@ use ygg_core::{
 };
 use ygg_runtime::{
     CapabilityInvocationRequest, CompositeSecretResolver, FakeOutboundExecutor, InMemoryEventStore,
-    OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutorConfig, ProjectStoreSecretResolver,
-    ProtocolContext, Runtime, RuntimeConfig, SecretResolverConfig, StoreSecretResolver,
-    ACTIVE_PROJECT_SCOPE,
+    OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutorConfig,
+    ProjectStoreSecretResolver, ProtocolContext, Runtime, RuntimeConfig, SecretResolverConfig,
+    StoreSecretResolver, ACTIVE_PROJECT_SCOPE,
 };
 
 use crate::commands::manifest;

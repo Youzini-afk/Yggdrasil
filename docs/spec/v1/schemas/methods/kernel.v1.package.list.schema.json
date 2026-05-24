@@ -299,6 +299,25 @@
                   "kind"
                 ],
                 "type": "object"
+              },
+              {
+                "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+                "properties": {
+                  "bundle": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "surface_bundle"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "bundle",
+                  "kind"
+                ],
+                "type": "object"
               }
             ],
             "properties": {
@@ -1083,7 +1102,8 @@
               "trusted_inproc",
               "process_isolated",
               "wasm_sandbox",
-              "remote_boundary"
+              "remote_boundary",
+              "static_surface"
             ],
             "type": "string"
           }

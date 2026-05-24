@@ -34,12 +34,14 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         PackageEntry::Subprocess { .. } => "subprocess",
         PackageEntry::Wasm { .. } => "wasm",
         PackageEntry::Remote { .. } => "remote",
+        PackageEntry::SurfaceBundle { .. } => "surface_bundle",
     };
     let trust_level = match &manifest.entry.kind {
         PackageEntry::RustInproc { .. } => "trusted_inproc",
         PackageEntry::Subprocess { .. } => "process_isolated",
         PackageEntry::Wasm { .. } => "wasm_sandbox",
         PackageEntry::Remote { .. } => "remote_boundary",
+        PackageEntry::SurfaceBundle { .. } => "static_surface",
     };
 
     let cap_count = manifest.provides.len();
@@ -386,6 +388,7 @@ pub(crate) async fn package_reload(path: PathBuf) -> Result<()> {
         PackageEntry::Subprocess { .. } => "subprocess",
         PackageEntry::Wasm { .. } => "wasm",
         PackageEntry::Remote { .. } => "remote",
+        PackageEntry::SurfaceBundle { .. } => "surface_bundle",
     };
     let can_restart = matches!(manifest.entry.kind, PackageEntry::Subprocess { .. });
     let package_id = manifest.id.clone();

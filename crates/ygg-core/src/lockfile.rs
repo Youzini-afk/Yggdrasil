@@ -53,6 +53,12 @@ pub struct LockEntry {
     /// SHA-256 of the canonicalized manifest
     pub manifest_hash: String,
 
+    /// SHA-256 of the referenced static surface bundle artifact when this is a
+    /// surface_bundle package. Covers browser JS that is intentionally excluded
+    /// from the package tree hash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_bundle_hash: Option<String>,
+
     /// Whether the source was GPG-signed and verified
     pub signed: bool,
 
@@ -62,6 +68,11 @@ pub struct LockEntry {
 
     /// Path in the immutable store
     pub installed_at_store: String,
+
+    /// Manifest path relative to installed_at_store when the package was
+    /// installed as part of a larger project tree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest_relative_path: Option<String>,
 
     /// Capabilities the user granted at install time
     #[serde(default)]
@@ -145,9 +156,11 @@ mod tests {
             commit: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
             tree_hash: "sha256:tree".to_string(),
             manifest_hash: "sha256:manifest".to_string(),
+            surface_bundle_hash: None,
             signed: true,
             signed_by: Some("0123456789ABCDEF0123456789ABCDEF01234567".to_string()),
             installed_at_store: "/nix/store/ygg/vendor-tool".to_string(),
+            manifest_relative_path: None,
             granted_capabilities: vec!["model/live_call".to_string()],
             granted_network: vec!["api.example.com".to_string()],
             granted_secrets: vec!["secret_ref:env:API_KEY".to_string()],

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{paths, ProjectDescriptor, ProjectType};
@@ -10,7 +10,7 @@ use crate::inproc::project_registry_from_inproc;
 
 use super::executor::invoke_package_capability;
 use super::layout::atomic_write;
-use super::source::{parse_root_descriptor, value_str};
+use super::source::{parse_project_descriptor_at, parse_root_descriptor, value_str};
 use super::types::{DetectKindInput, DetectedProjectKind, SourceDescriptor};
 
 pub(super) async fn detect_kind(input: Value) -> Result<Value> {
@@ -69,12 +69,7 @@ pub(super) fn detect_project_kind(staging_dir: &Path) -> Result<DetectedProjectK
 }
 
 pub(super) fn read_project_descriptor(path: &Path) -> Result<ProjectDescriptor> {
-    let yaml = fs::read_to_string(path)
-        .with_context(|| format!("failed to read project descriptor {}", path.display()))?;
-    let descriptor: ProjectDescriptor =
-        serde_yaml::from_str(&yaml).map_err(|e| anyhow::anyhow!("invalid project.yaml: {e}"))?;
-    descriptor.validate()?;
-    Ok(descriptor)
+    parse_project_descriptor_at(path)
 }
 
 pub(super) fn write_and_register_project(

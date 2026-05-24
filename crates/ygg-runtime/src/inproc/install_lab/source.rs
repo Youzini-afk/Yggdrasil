@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde_json::Value;
-use ygg_core::{DependencySource, PackageManifest};
+use ygg_core::{DependencySource, PackageManifest, ProjectDescriptor};
 
 use super::types::{PackageDescriptor, PlannedRequirement, SourceDescriptor};
 
@@ -69,6 +69,15 @@ pub(super) fn parse_manifest_at(path: &Path) -> Result<PackageManifest> {
         _ => serde_yaml::from_str(&raw)?,
     };
     Ok(manifest)
+}
+
+pub(super) fn parse_project_descriptor_at(path: &Path) -> Result<ProjectDescriptor> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read project descriptor {}", path.display()))?;
+    let descriptor: ProjectDescriptor = serde_yaml::from_str(&raw)
+        .map_err(|error| anyhow::anyhow!("invalid project.yaml: {error}"))?;
+    descriptor.validate()?;
+    Ok(descriptor)
 }
 
 pub(super) fn manifest_path_in(dir: &Path) -> Result<PathBuf> {

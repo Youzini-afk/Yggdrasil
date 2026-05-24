@@ -591,6 +591,17 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
             crate::conformance::install_lab::resolve_plan_local_source
         ),
         c!(
+            "install_lab.project_root_install_registers_surface_dist",
+            [
+                "official",
+                "install",
+                "package_install",
+                "project",
+                "surface"
+            ],
+            crate::conformance::install_lab::project_root_install_registers_surface_dist
+        ),
+        c!(
             "install_lab.resolve_plan_runs_conformance",
             ["official", "install", "package_install", "fixture"],
             crate::conformance::install_lab::resolve_plan_runs_conformance

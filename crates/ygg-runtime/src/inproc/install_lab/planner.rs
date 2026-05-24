@@ -7,10 +7,12 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{DependencySource, Lockfile, PackageDependency, PackageManifest, PermissionSet};
 
-use super::executor::{compute_manifest_hash, compute_tree_hash, invoke_package_capability};
+use super::executor::{
+    compute_file_hash, compute_manifest_hash, compute_tree_hash, invoke_package_capability,
+};
 use super::source::{
-    block_on_current, manifest_path_in, parse_manifest_at, parse_root_descriptor, resolve_dep,
-    sorted_vec, value_str,
+    block_on_current, manifest_path_in, parse_manifest_at, parse_project_descriptor_at,
+    parse_root_descriptor, resolve_dep, sorted_vec, value_str,
 };
 use super::types::{
     Consent, InstallPlan, IntegritySummary, PackageDescriptor, PermissionsSummary, PlannedPackage,
@@ -26,19 +28,52 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
     let input: ResolvePlanInput = serde_json::from_value(input)?;
     let root = parse_root_descriptor(&input.root_url, &input.root_ref)?;
     let mut packages = Vec::new();
+    let mut project_descriptor = None;
     let mut visited = HashSet::new();
     let mut stack = Vec::new();
     let mut resolving = HashSet::new();
-    resolve_transitive(
-        root,
-        input.require_signed,
-        input.strict_conformance,
-        &mut visited,
-        &mut resolving,
-        &mut stack,
-        &mut packages,
-        MAX_DEPTH,
-    )?;
+    match &root.source {
+        SourceDescriptor::Local { path } => {
+            let canonical = fs::canonicalize(path).with_context(|| {
+                format!("failed to canonicalize local package {}", path.display())
+            })?;
+            let project_yaml = canonical.join("project.yaml");
+            if project_yaml.is_file() {
+                let descriptor = parse_project_descriptor_at(&project_yaml)?;
+                project_descriptor = Some(descriptor.clone());
+                resolve_project_packages(
+                    &canonical,
+                    &descriptor,
+                    input.strict_conformance,
+                    &mut visited,
+                    &mut resolving,
+                    &mut stack,
+                    &mut packages,
+                )?;
+            } else {
+                resolve_transitive(
+                    root,
+                    input.require_signed,
+                    input.strict_conformance,
+                    &mut visited,
+                    &mut resolving,
+                    &mut stack,
+                    &mut packages,
+                    MAX_DEPTH,
+                )?;
+            }
+        }
+        _ => resolve_transitive(
+            root,
+            input.require_signed,
+            input.strict_conformance,
+            &mut visited,
+            &mut resolving,
+            &mut stack,
+            &mut packages,
+            MAX_DEPTH,
+        )?,
+    }
 
     let mut lock_map = HashMap::new();
     if let Some(lockfile) = input.lockfile.as_deref() {
@@ -74,6 +109,7 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
     let plan = InstallPlan {
         root_id,
         packages,
+        project_descriptor,
         permissions_summary,
         signature_summary: SignatureSummary {
             all_signed: unsigned_packages.is_empty(),
@@ -85,6 +121,57 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
         },
     };
     Ok(json!({ "plan": plan }))
+}
+
+fn resolve_project_packages(
+    project_root: &Path,
+    descriptor: &ygg_core::ProjectDescriptor,
+    strict_conformance: bool,
+    visited: &mut HashSet<String>,
+    resolving: &mut HashSet<String>,
+    stack: &mut Vec<String>,
+    plan: &mut Vec<PlannedPackage>,
+) -> Result<()> {
+    let tree_hash = block_on_current(compute_tree_hash(project_root))?;
+    for manifest_ref in &descriptor.project.packages {
+        let relative = normalize_relative_manifest_path(manifest_ref)?;
+        let manifest_path = project_root.join(&relative);
+        if !manifest_path.is_file() {
+            anyhow::bail!(
+                "project package manifest does not exist: {}",
+                manifest_path.display()
+            );
+        }
+        let manifest = parse_manifest_at(&manifest_path)?;
+        let manifest_hash = block_on_current(compute_manifest_hash(&manifest_path))?;
+        let package_root = manifest_path.parent().unwrap_or(project_root);
+        let mut planned = planned_from_manifest(
+            &manifest,
+            package_root,
+            "local".to_string(),
+            None,
+            None,
+            Some(project_root.to_string_lossy().to_string()),
+            None,
+            manifest_hash,
+            tree_hash.clone(),
+            Some(relative),
+            false,
+            None,
+        );
+        attach_conformance(&mut planned, package_root, strict_conformance)?;
+        push_resolved_package(
+            planned,
+            false,
+            strict_conformance,
+            visited,
+            resolving,
+            stack,
+            plan,
+            MAX_DEPTH,
+        )?;
+    }
+    Ok(())
 }
 
 fn resolve_transitive(
@@ -112,6 +199,28 @@ fn resolve_transitive(
     }
 
     let resolved = resolve_one(root, require_signed, strict_conformance)?;
+    push_resolved_package(
+        resolved,
+        require_signed,
+        strict_conformance,
+        visited,
+        resolving,
+        stack,
+        plan,
+        max_depth,
+    )
+}
+
+fn push_resolved_package(
+    resolved: PlannedPackage,
+    require_signed: bool,
+    strict_conformance: bool,
+    visited: &mut HashSet<String>,
+    resolving: &mut HashSet<String>,
+    stack: &mut Vec<String>,
+    plan: &mut Vec<PlannedPackage>,
+    max_depth: usize,
+) -> Result<()> {
     if let Some(pos) = stack.iter().position(|id| id == &resolved.id) {
         let mut cycle = stack[pos..].to_vec();
         cycle.push(resolved.id.clone());
@@ -184,6 +293,7 @@ fn resolve_local_package(path: PathBuf, strict_conformance: bool) -> Result<Plan
         None,
         manifest_hash,
         tree_hash,
+        None,
         false,
         None,
     );
@@ -240,6 +350,7 @@ async fn resolve_git_package(
             Some(commit_sha),
             manifest_hash,
             tree_hash,
+            None,
             signed,
             None,
         );
@@ -261,9 +372,11 @@ fn planned_from_manifest(
     commit_sha: Option<String>,
     manifest_hash: String,
     tree_hash: String,
+    manifest_relative_path: Option<String>,
     signed: bool,
     signed_by: Option<String>,
 ) -> PlannedPackage {
+    let surface_bundle_hash = compute_surface_bundle_hash(manifest, base_dir);
     PlannedPackage {
         id: manifest.id.clone(),
         version: manifest.version.clone(),
@@ -274,6 +387,8 @@ fn planned_from_manifest(
         commit_sha,
         manifest_hash,
         tree_hash,
+        surface_bundle_hash,
+        manifest_relative_path,
         signed,
         signed_by,
         permissions: permissions_from_manifest(&manifest.permissions),
@@ -284,6 +399,42 @@ fn planned_from_manifest(
             .collect(),
         conformance: None,
     }
+}
+
+fn compute_surface_bundle_hash(manifest: &PackageManifest, base_dir: &Path) -> Option<String> {
+    let ygg_core::PackageEntry::SurfaceBundle { bundle } = &manifest.entry.kind else {
+        return None;
+    };
+    let path = normalize_relative_manifest_path(bundle)
+        .ok()
+        .map(|relative| base_dir.join(relative))?;
+    compute_file_hash(&path).ok()
+}
+
+fn normalize_relative_manifest_path(path: &str) -> Result<String> {
+    let path = Path::new(path);
+    if path.is_absolute() {
+        anyhow::bail!(
+            "project package manifest path must be relative: {}",
+            path.display()
+        );
+    }
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(part) => normalized.push(part),
+            std::path::Component::CurDir => {}
+            _ => anyhow::bail!("project package manifest path must stay inside project root"),
+        }
+    }
+    if normalized.as_os_str().is_empty() {
+        anyhow::bail!("project package manifest path must not be empty");
+    }
+    Ok(normalized
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/"))
 }
 
 fn attach_conformance(

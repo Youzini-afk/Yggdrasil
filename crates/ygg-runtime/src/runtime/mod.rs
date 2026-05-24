@@ -1,14 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 use std::future::Future;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
-use ygg_core::project::ProjectId;
 use ygg_core::{
-    AssetRecord, EventEnvelope, KernelSession, SessionId, SessionStatus, EVENT_ASSET_PUT,
-    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PROJECTION_UPDATED,
-    EVENT_SESSION_FORKED,
+    project::ProjectId, AssetRecord, EventEnvelope, KernelSession, PackageId, SessionId,
+    SessionStatus, EVENT_ASSET_PUT, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
+    EVENT_PROJECTION_UPDATED, EVENT_SESSION_FORKED,
 };
 
 use crate::{
@@ -100,6 +100,11 @@ pub struct RuntimeConfig {
     /// Development-mode surface bundle path overrides. Maps a surface_id prefix
     /// to a filesystem directory containing built bundles.
     pub surface_dev_paths: BTreeMap<String, String>,
+    /// Host-local package root hints keyed by package id. Used only when a host
+    /// profile loads manifests from disk so relative subprocess commands run
+    /// from the manifest's package directory without adding local paths to
+    /// protocol manifest payloads.
+    pub package_roots: BTreeMap<PackageId, PathBuf>,
 }
 
 impl Default for RuntimeConfig {
@@ -114,6 +119,7 @@ impl Default for RuntimeConfig {
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
             surface_dev_paths: BTreeMap::new(),
+            package_roots: BTreeMap::new(),
         }
     }
 }

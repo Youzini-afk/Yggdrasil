@@ -1,6 +1,6 @@
 use std::fs;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -61,15 +61,16 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
     if let Some(profile_path) = profile {
         let raw = fs::read_to_string(&profile_path)?;
         let profile: HostProfile = serde_yaml::from_str(&raw)?;
-        let runtime_config = runtime_config_from_profile(&profile)?;
+        let mut runtime_config = runtime_config_from_profile(&profile)?;
+        register_profile_package_roots(&mut runtime_config, &profile, Some(&profile_path)).await?;
         match &profile.event_store {
             HostEventStoreProfile::Memory => {
                 let runtime = Arc::new(Runtime::new(
                     Arc::new(InMemoryEventStore::default()),
                     runtime_config,
                 ));
-                load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                serve_runtime(http, runtime, "memory").await
+                load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
+                serve_runtime(http, runtime, "memory", Some(&profile_path)).await
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
@@ -77,8 +78,8 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
                     Arc::new(SqliteEventStore::open(resolved)?),
                     runtime_config,
                 ));
-                load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                serve_runtime(http, runtime, "sqlite").await
+                load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
+                serve_runtime(http, runtime, "sqlite", Some(&profile_path)).await
             }
             HostEventStoreProfile::Postgres { env } => {
                 #[cfg(feature = "postgres")]
@@ -91,7 +92,7 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
                     let store = ygg_runtime::PostgresEventStore::connect(&url).await?;
                     let runtime = Arc::new(Runtime::new(Arc::new(store), runtime_config));
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                    serve_runtime(http, runtime, "postgres").await
+                    serve_runtime(http, runtime, "postgres", Some(&profile_path)).await
                 }
                 #[cfg(not(feature = "postgres"))]
                 {
@@ -105,7 +106,7 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         ));
-        serve_runtime(http, runtime, "memory").await
+        serve_runtime(http, runtime, "memory", None).await
     }
 }
 
@@ -133,6 +134,30 @@ pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfi
     config.surface_dev_paths = profile.surface_dev_paths.clone();
 
     Ok(config)
+}
+
+async fn register_profile_package_roots(
+    config: &mut RuntimeConfig,
+    profile: &HostProfile,
+    profile_path: Option<&Path>,
+) -> Result<()> {
+    let base = profile_path
+        .and_then(Path::parent)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
+    for manifest_path in &profile.autoload {
+        let resolved = if manifest_path.is_absolute() {
+            manifest_path.clone()
+        } else {
+            base.join(manifest_path)
+        };
+        let manifest = read_manifest(resolved.clone()).await?;
+        if let Some(parent) = resolved.parent() {
+            let root = std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
+            config.package_roots.insert(manifest.id.clone(), root);
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn build_secret_resolver(
@@ -361,11 +386,24 @@ async fn serve_runtime<S>(
     http: SocketAddr,
     runtime: Arc<Runtime<S>>,
     backend_kind: &'static str,
+    profile_path: Option<&Path>,
 ) -> Result<()>
 where
     S: EventStore,
 {
-    let count = runtime.config().project_registry.load_from_disk()?;
+    let count = if let Some(profile_path) = profile_path {
+        let data_dir = profile_path
+            .parent()
+            .and_then(Path::parent)
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        runtime
+            .config()
+            .project_registry
+            .load_from_projects_dir(&data_dir.join("projects"))?
+    } else {
+        runtime.config().project_registry.load_from_disk()?
+    };
     println!("  projects loaded: {count}");
     let listener = tokio::net::TcpListener::bind(http).await?;
     println!("Yggdrasil host serving http://{http}");

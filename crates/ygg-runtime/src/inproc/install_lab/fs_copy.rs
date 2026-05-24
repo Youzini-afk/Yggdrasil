@@ -33,13 +33,29 @@ pub(super) fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<()> {
             copy_dir_recursive(&from, &to)?;
         } else if meta.is_file() {
             fs::copy(&from, &to)?;
+        } else if meta.file_type().is_symlink() {
+            let target = fs::read_link(&from)?;
+            if let Some(parent) = to.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&target, &to)?;
+            #[cfg(windows)]
+            {
+                let resolved = from.parent().unwrap_or(src).join(&target);
+                if resolved.is_dir() {
+                    std::os::windows::fs::symlink_dir(&target, &to)?;
+                } else {
+                    std::os::windows::fs::symlink_file(&target, &to)?;
+                }
+            }
         }
     }
     Ok(())
 }
 
 pub(super) async fn verify_installed_hashes(pkg: &PlannedPackage, store_path: &Path) -> Result<()> {
-    let manifest_hash = compute_manifest_hash(&manifest_path_in(store_path)?).await?;
+    let manifest_hash = compute_manifest_hash(&installed_manifest_path(pkg, store_path)?).await?;
     if manifest_hash != pkg.manifest_hash {
         anyhow::bail!("manifest hash mismatch for {}", pkg.id);
     }
@@ -48,4 +64,33 @@ pub(super) async fn verify_installed_hashes(pkg: &PlannedPackage, store_path: &P
         anyhow::bail!("tree hash mismatch for {}", pkg.id);
     }
     Ok(())
+}
+
+pub(super) fn installed_manifest_path(
+    pkg: &PlannedPackage,
+    store_path: &Path,
+) -> Result<std::path::PathBuf> {
+    if let Some(relative) = &pkg.manifest_relative_path {
+        return Ok(store_path.join(safe_relative_path(relative)?));
+    }
+    manifest_path_in(store_path)
+}
+
+pub(super) fn safe_relative_path(path: &str) -> Result<std::path::PathBuf> {
+    let path = Path::new(path);
+    if path.is_absolute() {
+        anyhow::bail!("relative path must not be absolute");
+    }
+    let mut out = std::path::PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(part) => out.push(part),
+            std::path::Component::CurDir => {}
+            _ => anyhow::bail!("relative path must stay inside root"),
+        }
+    }
+    if out.as_os_str().is_empty() {
+        anyhow::bail!("relative path must not be empty");
+    }
+    Ok(out)
 }

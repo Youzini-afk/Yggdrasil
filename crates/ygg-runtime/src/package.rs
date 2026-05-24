@@ -79,6 +79,7 @@ pub enum TrustLevel {
     ProcessIsolated,
     WasmSandbox,
     RemoteBoundary,
+    StaticSurface,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -95,6 +96,7 @@ impl Default for HostPolicy {
                 "subprocess".to_string(),
                 "wasm".to_string(),
                 "remote".to_string(),
+                "surface_bundle".to_string(),
             ],
             max_memory_mb: 512,
         }
@@ -216,6 +218,7 @@ pub fn entry_kind(entry: &PackageEntry) -> &'static str {
         PackageEntry::Subprocess { .. } => "subprocess",
         PackageEntry::Wasm { .. } => "wasm",
         PackageEntry::Remote { .. } => "remote",
+        PackageEntry::SurfaceBundle { .. } => "surface_bundle",
     }
 }
 
@@ -225,6 +228,7 @@ pub fn trust_level(entry: &PackageEntry) -> TrustLevel {
         PackageEntry::Subprocess { .. } => TrustLevel::ProcessIsolated,
         PackageEntry::Wasm { .. } => TrustLevel::WasmSandbox,
         PackageEntry::Remote { .. } => TrustLevel::RemoteBoundary,
+        PackageEntry::SurfaceBundle { .. } => TrustLevel::StaticSurface,
     }
 }
 
@@ -297,5 +301,11 @@ mod tests {
         };
         assert_eq!(entry_kind(&entry), "remote");
         assert_eq!(trust_level(&entry), TrustLevel::RemoteBoundary);
+
+        let surface = PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        };
+        assert_eq!(entry_kind(&surface), "surface_bundle");
+        assert_eq!(trust_level(&surface), TrustLevel::StaticSurface);
     }
 }

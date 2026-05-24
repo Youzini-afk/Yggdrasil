@@ -65,12 +65,16 @@ impl SubprocessSupervisor {
             .split_first()
             .ok_or_else(|| anyhow::anyhow!("subprocess command must not be empty"))?;
 
-        let mut child = Command::new(program)
+        let mut command_builder = Command::new(program);
+        command_builder
             .args(args)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()?;
+            .stderr(std::process::Stdio::piped());
+        if let Some(package_root) = runtime.config().package_roots.get(&manifest.id) {
+            command_builder.current_dir(package_root);
+        }
+        let mut child = command_builder.spawn()?;
         let stdin = child
             .stdin
             .take()

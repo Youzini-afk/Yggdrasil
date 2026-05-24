@@ -83,6 +83,8 @@ pub(super) struct Consent {
 pub(super) struct InstallPlan {
     pub(super) root_id: String,
     pub(super) packages: Vec<PlannedPackage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) project_descriptor: Option<ProjectDescriptor>,
     pub(super) permissions_summary: PermissionsSummary,
     pub(super) signature_summary: SignatureSummary,
     pub(super) integrity_summary: IntegritySummary,
@@ -114,6 +116,10 @@ pub(super) struct PlannedPackage {
     pub(super) commit_sha: Option<String>,
     pub(super) manifest_hash: String,
     pub(super) tree_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) surface_bundle_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) manifest_relative_path: Option<String>,
     pub(super) signed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) signed_by: Option<String>,

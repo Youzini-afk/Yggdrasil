@@ -27,6 +27,7 @@ where
     }
 
     pub async fn load_package(&self, manifest: PackageManifest) -> anyhow::Result<PackageRecord> {
+        manifest.validate_basic()?;
         if let PackageEntry::RustInproc {
             crate_ref, symbol, ..
         } = &manifest.entry.kind
@@ -56,13 +57,23 @@ where
             .unwrap_or(record);
         self.append_package_lifecycle_event(&record, EVENT_PACKAGE_LOADING, None)
             .await?;
-        self.capabilities
-            .register_package(&record.id, &record.manifest.provides)
-            .await;
-        self.extensions
-            .register_package(&record.id, &record.manifest.contributes.hooks)
-            .await;
-        let bindings = self.mint_package_bindings(&record.manifest).await;
+        let is_surface_bundle = matches!(
+            record.manifest.entry.kind,
+            PackageEntry::SurfaceBundle { .. }
+        );
+        if !is_surface_bundle {
+            self.capabilities
+                .register_package(&record.id, &record.manifest.provides)
+                .await;
+            self.extensions
+                .register_package(&record.id, &record.manifest.contributes.hooks)
+                .await;
+        }
+        let bindings = if is_surface_bundle {
+            HashMap::new()
+        } else {
+            self.mint_package_bindings(&record.manifest).await
+        };
         match &record.manifest.entry.kind {
             PackageEntry::Subprocess { .. } => {
                 record = self
@@ -133,6 +144,11 @@ where
                         .await?;
                     return Err(error);
                 }
+            }
+            PackageEntry::SurfaceBundle { .. } => {
+                // Static surface bundles are not executable entrypoints. The
+                // manifest contributes surfaces and assets; no runtime process,
+                // wasm module, or remote endpoint is started.
             }
         }
         if !matches!(record.state, PackageState::Ready) {
@@ -565,6 +581,95 @@ mod tests {
             .await;
 
         assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn surface_bundle_loads_ready_without_executable_placeholder() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+
+        let record = runtime
+            .load_package(ygg_core::PackageManifest {
+                schema_version: 1,
+                id: "example/surface".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+                    bundle: "dist/bundle.mjs".to_string(),
+                }),
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                requires: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        assert_eq!(record.state, PackageState::Ready);
+        assert_eq!(record.entry_kind, "surface_bundle");
+        assert_eq!(record.trust_level, crate::TrustLevel::StaticSurface);
+        let events = store
+            .list_session(&"kernel_package_example_surface".to_string())
+            .await?;
+        assert!(events.iter().any(|event| event.kind == EVENT_PACKAGE_READY));
+        assert!(!events
+            .iter()
+            .any(|event| event.kind == EVENT_PACKAGE_DEGRADED));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn subprocess_uses_configured_package_root_as_working_directory() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let script = tmp.path().join("server.py");
+        std::fs::write(
+            &script,
+            r#"import json, sys
+for line in sys.stdin:
+    msg = json.loads(line)
+    if msg.get("method") == "package.handshake":
+        print(json.dumps({"jsonrpc":"2.0","id":msg.get("id"),"result":{"ready":True}}), flush=True)
+    elif msg.get("method") == "capability.invoke":
+        print(json.dumps({"jsonrpc":"2.0","id":msg.get("id"),"result":{"output":{"ok":True}}}), flush=True)
+"#,
+        )?;
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let mut config = RuntimeConfig::default();
+        config
+            .package_roots
+            .insert("example/cwd".to_string(), tmp.path().to_path_buf());
+        let runtime = Runtime::new(store, config);
+
+        let record = runtime
+            .load_package(ygg_core::PackageManifest {
+                schema_version: 1,
+                id: "example/cwd".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: EntryDescriptor::v1(PackageEntry::Subprocess {
+                    command: vec!["python3".to_string(), "server.py".to_string()],
+                    transport: ygg_core::SubprocessTransport::JsonRpcStdio,
+                }),
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                requires: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        assert_eq!(record.state, PackageState::Ready);
+        runtime.unload_package(&"example/cwd".to_string()).await?;
         Ok(())
     }
 

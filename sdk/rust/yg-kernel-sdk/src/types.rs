@@ -5920,6 +5920,25 @@ for EmptyParams {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -5974,6 +5993,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptor`
@@ -6092,6 +6118,25 @@ pub enum EntryDescriptor {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -6146,6 +6191,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptor`
@@ -6264,6 +6316,25 @@ pub enum EntryDescriptor {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -6318,6 +6389,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptor`
@@ -6436,6 +6514,25 @@ pub enum EntryDescriptor {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -6490,6 +6587,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptor`
@@ -6608,6 +6712,25 @@ pub enum EntryDescriptor {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -6662,6 +6785,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptor`
@@ -6780,6 +6910,25 @@ pub enum EntryDescriptor {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -6834,6 +6983,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptor`
@@ -6952,6 +7108,25 @@ pub enum EntryDescriptor {
 ///          ]
 ///        }
 ///      }
+///    },
+///    {
+///      "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///      "type": "object",
+///      "required": [
+///        "bundle",
+///        "kind"
+///      ],
+///      "properties": {
+///        "bundle": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface_bundle"
+///          ]
+///        }
+///      }
 ///    }
 ///  ],
 ///  "properties": {
@@ -7006,6 +7181,13 @@ pub enum EntryDescriptor {
         contract: ContractMode,
         endpoint: ::std::string::String,
         kind: EntryDescriptorVariant3Kind,
+    },
+    Variant4 {
+        bundle: ::std::string::String,
+        ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+        #[serde(default = "defaults::entry_descriptor_variant4_contract")]
+        contract: ContractMode,
+        kind: EntryDescriptorVariant4Kind,
     },
 }
 ///`EntryDescriptorVariant0Kind`
@@ -7289,6 +7471,78 @@ impl ::std::convert::TryFrom<&::std::string::String> for EntryDescriptorVariant3
     }
 }
 impl ::std::convert::TryFrom<::std::string::String> for EntryDescriptorVariant3Kind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`EntryDescriptorVariant4Kind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "surface_bundle"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum EntryDescriptorVariant4Kind {
+    #[serde(rename = "surface_bundle")]
+    SurfaceBundle,
+}
+impl ::std::fmt::Display for EntryDescriptorVariant4Kind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::SurfaceBundle => f.write_str("surface_bundle"),
+        }
+    }
+}
+impl ::std::str::FromStr for EntryDescriptorVariant4Kind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "surface_bundle" => Ok(Self::SurfaceBundle),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for EntryDescriptorVariant4Kind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for EntryDescriptorVariant4Kind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for EntryDescriptorVariant4Kind {
     type Error = self::error::ConversionError;
     fn try_from(
         value: ::std::string::String,
@@ -15898,6 +16152,25 @@ pub struct PackageLifecyclePayload {
 ///              "kind"
 ///            ],
 ///            "type": "object"
+///          },
+///          {
+///            "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///            "properties": {
+///              "bundle": {
+///                "type": "string"
+///              },
+///              "kind": {
+///                "enum": [
+///                  "surface_bundle"
+///                ],
+///                "type": "string"
+///              }
+///            },
+///            "required": [
+///              "bundle",
+///              "kind"
+///            ],
+///            "type": "object"
 ///          }
 ///        ],
 ///        "properties": {
@@ -16682,7 +16955,8 @@ pub struct PackageLifecyclePayload {
 ///          "trusted_inproc",
 ///          "process_isolated",
 ///          "wasm_sandbox",
-///          "remote_boundary"
+///          "remote_boundary",
+///          "static_surface"
 ///        ],
 ///        "type": "string"
 ///      }
@@ -18519,6 +18793,25 @@ impl ::std::default::Default for PackagePermissions {
 ///            "kind"
 ///          ],
 ///          "type": "object"
+///        },
+///        {
+///          "description": "Static surface bundle package. This entry is not executed by the host; it contributes surfaces and optional static assets only.",
+///          "properties": {
+///            "bundle": {
+///              "type": "string"
+///            },
+///            "kind": {
+///              "enum": [
+///                "surface_bundle"
+///              ],
+///              "type": "string"
+///            }
+///          },
+///          "required": [
+///            "bundle",
+///            "kind"
+///          ],
+///          "type": "object"
 ///        }
 ///      ],
 ///      "properties": {
@@ -19303,7 +19596,8 @@ impl ::std::default::Default for PackagePermissions {
 ///        "trusted_inproc",
 ///        "process_isolated",
 ///        "wasm_sandbox",
-///        "remote_boundary"
+///        "remote_boundary",
+///        "static_surface"
 ///      ],
 ///      "type": "string"
 ///    }
@@ -36292,7 +36586,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.493824948Z",
+///      "default": "2026-05-24T15:16:09.808299752Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36383,7 +36677,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.524816277Z",
+///      "default": "2026-05-24T15:16:09.836321909Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36474,7 +36768,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.524530643Z",
+///      "default": "2026-05-24T15:16:09.836042844Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36565,7 +36859,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.524669749Z",
+///      "default": "2026-05-24T15:16:09.836190574Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36656,7 +36950,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.524736643Z",
+///      "default": "2026-05-24T15:16:09.836256386Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36747,7 +37041,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.524604017Z",
+///      "default": "2026-05-24T15:16:09.836112542Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36838,7 +37132,7 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T14:04:39.524889813Z",
+///      "default": "2026-05-24T15:16:09.836386489Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -42315,7 +42609,8 @@ pub struct TighteningSuggestion {
 ///    "trusted_inproc",
 ///    "process_isolated",
 ///    "wasm_sandbox",
-///    "remote_boundary"
+///    "remote_boundary",
+///    "static_surface"
 ///  ]
 ///}
 /// ```
@@ -42342,6 +42637,8 @@ pub enum TrustLevel {
     WasmSandbox,
     #[serde(rename = "remote_boundary")]
     RemoteBoundary,
+    #[serde(rename = "static_surface")]
+    StaticSurface,
 }
 impl ::std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -42350,6 +42647,7 @@ impl ::std::fmt::Display for TrustLevel {
             Self::ProcessIsolated => f.write_str("process_isolated"),
             Self::WasmSandbox => f.write_str("wasm_sandbox"),
             Self::RemoteBoundary => f.write_str("remote_boundary"),
+            Self::StaticSurface => f.write_str("static_surface"),
         }
     }
 }
@@ -42363,6 +42661,7 @@ impl ::std::str::FromStr for TrustLevel {
             "process_isolated" => Ok(Self::ProcessIsolated),
             "wasm_sandbox" => Ok(Self::WasmSandbox),
             "remote_boundary" => Ok(Self::RemoteBoundary),
+            "static_surface" => Ok(Self::StaticSurface),
             _ => Err("invalid value".into()),
         }
     }
@@ -42402,7 +42701,8 @@ impl ::std::convert::TryFrom<::std::string::String> for TrustLevel {
 ///    "trusted_inproc",
 ///    "process_isolated",
 ///    "wasm_sandbox",
-///    "remote_boundary"
+///    "remote_boundary",
+///    "static_surface"
 ///  ]
 ///}
 /// ```
@@ -42429,6 +42729,8 @@ pub enum TrustLevel {
     WasmSandbox,
     #[serde(rename = "remote_boundary")]
     RemoteBoundary,
+    #[serde(rename = "static_surface")]
+    StaticSurface,
 }
 impl ::std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -42437,6 +42739,7 @@ impl ::std::fmt::Display for TrustLevel {
             Self::ProcessIsolated => f.write_str("process_isolated"),
             Self::WasmSandbox => f.write_str("wasm_sandbox"),
             Self::RemoteBoundary => f.write_str("remote_boundary"),
+            Self::StaticSurface => f.write_str("static_surface"),
         }
     }
 }
@@ -42450,6 +42753,7 @@ impl ::std::str::FromStr for TrustLevel {
             "process_isolated" => Ok(Self::ProcessIsolated),
             "wasm_sandbox" => Ok(Self::WasmSandbox),
             "remote_boundary" => Ok(Self::RemoteBoundary),
+            "static_surface" => Ok(Self::StaticSurface),
             _ => Err("invalid value".into()),
         }
     }
@@ -42489,7 +42793,8 @@ impl ::std::convert::TryFrom<::std::string::String> for TrustLevel {
 ///    "trusted_inproc",
 ///    "process_isolated",
 ///    "wasm_sandbox",
-///    "remote_boundary"
+///    "remote_boundary",
+///    "static_surface"
 ///  ]
 ///}
 /// ```
@@ -42516,6 +42821,8 @@ pub enum TrustLevel {
     WasmSandbox,
     #[serde(rename = "remote_boundary")]
     RemoteBoundary,
+    #[serde(rename = "static_surface")]
+    StaticSurface,
 }
 impl ::std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -42524,6 +42831,7 @@ impl ::std::fmt::Display for TrustLevel {
             Self::ProcessIsolated => f.write_str("process_isolated"),
             Self::WasmSandbox => f.write_str("wasm_sandbox"),
             Self::RemoteBoundary => f.write_str("remote_boundary"),
+            Self::StaticSurface => f.write_str("static_surface"),
         }
     }
 }
@@ -42537,6 +42845,7 @@ impl ::std::str::FromStr for TrustLevel {
             "process_isolated" => Ok(Self::ProcessIsolated),
             "wasm_sandbox" => Ok(Self::WasmSandbox),
             "remote_boundary" => Ok(Self::RemoteBoundary),
+            "static_surface" => Ok(Self::StaticSurface),
             _ => Err("invalid value".into()),
         }
     }
@@ -42576,7 +42885,8 @@ impl ::std::convert::TryFrom<::std::string::String> for TrustLevel {
 ///    "trusted_inproc",
 ///    "process_isolated",
 ///    "wasm_sandbox",
-///    "remote_boundary"
+///    "remote_boundary",
+///    "static_surface"
 ///  ]
 ///}
 /// ```
@@ -42603,6 +42913,8 @@ pub enum TrustLevel {
     WasmSandbox,
     #[serde(rename = "remote_boundary")]
     RemoteBoundary,
+    #[serde(rename = "static_surface")]
+    StaticSurface,
 }
 impl ::std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -42611,6 +42923,7 @@ impl ::std::fmt::Display for TrustLevel {
             Self::ProcessIsolated => f.write_str("process_isolated"),
             Self::WasmSandbox => f.write_str("wasm_sandbox"),
             Self::RemoteBoundary => f.write_str("remote_boundary"),
+            Self::StaticSurface => f.write_str("static_surface"),
         }
     }
 }
@@ -42624,6 +42937,7 @@ impl ::std::str::FromStr for TrustLevel {
             "process_isolated" => Ok(Self::ProcessIsolated),
             "wasm_sandbox" => Ok(Self::WasmSandbox),
             "remote_boundary" => Ok(Self::RemoteBoundary),
+            "static_surface" => Ok(Self::StaticSurface),
             _ => Err("invalid value".into()),
         }
     }
@@ -42663,7 +42977,8 @@ impl ::std::convert::TryFrom<::std::string::String> for TrustLevel {
 ///    "trusted_inproc",
 ///    "process_isolated",
 ///    "wasm_sandbox",
-///    "remote_boundary"
+///    "remote_boundary",
+///    "static_surface"
 ///  ]
 ///}
 /// ```
@@ -42690,6 +43005,8 @@ pub enum TrustLevel {
     WasmSandbox,
     #[serde(rename = "remote_boundary")]
     RemoteBoundary,
+    #[serde(rename = "static_surface")]
+    StaticSurface,
 }
 impl ::std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -42698,6 +43015,7 @@ impl ::std::fmt::Display for TrustLevel {
             Self::ProcessIsolated => f.write_str("process_isolated"),
             Self::WasmSandbox => f.write_str("wasm_sandbox"),
             Self::RemoteBoundary => f.write_str("remote_boundary"),
+            Self::StaticSurface => f.write_str("static_surface"),
         }
     }
 }
@@ -42711,6 +43029,7 @@ impl ::std::str::FromStr for TrustLevel {
             "process_isolated" => Ok(Self::ProcessIsolated),
             "wasm_sandbox" => Ok(Self::WasmSandbox),
             "remote_boundary" => Ok(Self::RemoteBoundary),
+            "static_surface" => Ok(Self::StaticSurface),
             _ => Err("invalid value".into()),
         }
     }
@@ -43053,6 +43372,27 @@ pub mod defaults {
         super::ContractMode::V1
     }
     pub(super) fn entry_descriptor_variant3_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
+        super::ContractMode::V1
+    }
+    pub(super) fn entry_descriptor_variant4_contract() -> super::ContractMode {
         super::ContractMode::V1
     }
     pub(super) fn event_envelope_metadata() -> ::serde_json::Value {
@@ -43935,7 +44275,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.493824948Z\"")
+        >("\"2026-05-24T15:16:09.808299752Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -43952,7 +44292,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.524816277Z\"")
+        >("\"2026-05-24T15:16:09.836321909Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -43969,7 +44309,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.524530643Z\"")
+        >("\"2026-05-24T15:16:09.836042844Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -43986,7 +44326,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.524669749Z\"")
+        >("\"2026-05-24T15:16:09.836190574Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -44003,7 +44343,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.524736643Z\"")
+        >("\"2026-05-24T15:16:09.836256386Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -44020,7 +44360,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.524604017Z\"")
+        >("\"2026-05-24T15:16:09.836112542Z\"")
             .unwrap()
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
@@ -44037,7 +44377,7 @@ pub mod defaults {
     > {
         ::serde_json::from_str::<
             ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T14:04:39.524889813Z\"")
+        >("\"2026-05-24T15:16:09.836386489Z\"")
             .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

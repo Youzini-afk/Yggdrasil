@@ -135,16 +135,18 @@ pub async fn run(args: InstallArgs) -> Result<()> {
         prompt_for_consent(&plan, existing_lockfile.as_deref())?
     };
 
-    let result = invoke_install_lab(
-        &runtime,
-        "official/install-lab/execute_plan",
-        json!({
-            "plan": plan,
-            "consent": consent,
-            "profile": args.profile,
-            "data_dir": data_dir.display().to_string(),
-        }),
-    )
+    let result = invoke_install_lab(&runtime, "official/install-lab/execute_plan", {
+        let mut input = json!({
+        "plan": plan,
+        "consent": consent,
+        "profile": args.profile,
+        "data_dir": data_dir.display().to_string(),
+        });
+        if let Some(descriptor) = project_descriptor.clone() {
+            input["project_descriptor"] = descriptor;
+        }
+        input
+    })
     .await?
     .output;
 
@@ -161,20 +163,11 @@ pub async fn run(args: InstallArgs) -> Result<()> {
         result["profile_path"].as_str().unwrap_or("(unknown)")
     );
 
-    if let Some(descriptor) = project_descriptor {
-        let registered = invoke_install_lab(
-            &runtime,
-            "official/install-lab/register_project",
-            json!({
-                "descriptor": descriptor,
-                "data_dir": data_dir.display().to_string(),
-            }),
-        )
-        .await?
-        .output;
-        if let Some(project_id) = registered["project_id"].as_str() {
-            println!("Project registered: {project_id}");
-        }
+    if let Some(project_id) = result
+        .pointer("/project/project_id")
+        .and_then(Value::as_str)
+    {
+        println!("Project registered: {project_id}");
     }
 
     Ok(())

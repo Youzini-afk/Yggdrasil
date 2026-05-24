@@ -216,6 +216,79 @@ pub(crate) async fn resolve_plan_cycle_detection() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": fixture_path("project-root") }),
+    )
+    .await?;
+    let plan = out.output["plan"].clone();
+    let packages = plan["packages"].as_array().context("packages")?;
+    anyhow::ensure!(packages.len() == 2);
+    anyhow::ensure!(packages.iter().any(|pkg| {
+        pkg["id"] == json!("fixture/project-engine")
+            && pkg["manifest_relative_path"] == json!("packages/engine/manifest.yaml")
+    }));
+    anyhow::ensure!(packages.iter().any(|pkg| {
+        pkg["id"] == json!("fixture/project-surface")
+            && pkg["manifest_relative_path"] == json!("packages/surface/manifest.yaml")
+    }));
+    anyhow::ensure!(
+        plan["project_descriptor"]["project"]["id"] == json!("fixture-project__abc12345")
+    );
+
+    let executed = execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    anyhow::ensure!(executed.output["project"]["project_id"] == json!("fixture-project__abc12345"));
+    anyhow::ensure!(tmp
+        .path()
+        .join("projects/fixture-project__abc12345/project.yaml")
+        .is_file());
+    anyhow::ensure!(tmp
+        .path()
+        .join("projects/fixture-project__abc12345/dist/bundle.mjs")
+        .is_file());
+    let profile = fs::read_to_string(tmp.path().join("profiles/default.yaml"))?;
+    anyhow::ensure!(profile.contains("packages/engine/manifest.yaml"));
+    anyhow::ensure!(profile.contains("packages/surface/manifest.yaml"));
+    let checked = invoke(
+        &rt,
+        "official/install-lab/check_lockfile",
+        json!({ "data_dir": tmp.path() }),
+    )
+    .await?;
+    anyhow::ensure!(checked.output["ok"] == json!(true));
+
+    let lockfile = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
+    let surface_store = lockfile
+        .lines()
+        .skip_while(|line| !line.trim().starts_with("id = \"fixture/project-surface\""))
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("installed_at_store = ")
+                .and_then(|value| value.trim().trim_matches('"').parse::<String>().ok())
+        })
+        .context("surface installed_at_store in lockfile")?;
+    fs::write(
+        Path::new(&surface_store).join("packages/surface/dist/bundle.mjs"),
+        "tampered",
+    )?;
+    let checked = invoke(
+        &rt,
+        "official/install-lab/check_lockfile",
+        json!({ "data_dir": tmp.path() }),
+    )
+    .await?;
+    anyhow::ensure!(checked.output["ok"] == json!(false));
+    let drift = checked.output["drift"].as_array().context("drift array")?;
+    anyhow::ensure!(drift
+        .iter()
+        .any(|entry| entry["kind"] == json!("surface_bundle_hash")));
+    Ok(())
+}
+
 pub(crate) async fn execute_plan_local() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let tmp = TempDir::new()?;

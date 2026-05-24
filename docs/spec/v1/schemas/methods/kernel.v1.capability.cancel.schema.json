@@ -187,7 +187,7 @@
           "type": "string"
         },
         "timestamp": {
-          "default": "2026-05-24T14:05:22.332017241Z",
+          "default": "2026-05-24T15:16:09.808299752Z",
           "description": "Timestamp of frame emission.",
           "format": "date-time",
           "type": "string"

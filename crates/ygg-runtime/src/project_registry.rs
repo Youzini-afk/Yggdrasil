@@ -78,6 +78,11 @@ impl ProjectRegistry {
     /// Discover and load all projects under <data_dir>/projects/.
     pub fn load_from_disk(&self) -> anyhow::Result<usize> {
         let projects_dir = ygg_core::paths::projects_dir()?;
+        self.load_from_projects_dir(&projects_dir)
+    }
+
+    /// Discover and load all projects under an explicit projects directory.
+    pub fn load_from_projects_dir(&self, projects_dir: &std::path::Path) -> anyhow::Result<usize> {
         if !projects_dir.exists() {
             return Ok(0);
         }

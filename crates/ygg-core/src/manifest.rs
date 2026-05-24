@@ -122,6 +122,11 @@ pub enum PackageEntry {
         endpoint: String,
         auth: RemoteAuth,
     },
+    /// Static surface bundle package. This entry is not executed by the host;
+    /// it contributes surfaces and optional static assets only.
+    SurfaceBundle {
+        bundle: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -512,7 +517,9 @@ impl PackageManifest {
         }
         if self.entry.contract == ContractMode::None {
             match self.entry.kind {
-                PackageEntry::Wasm { .. } | PackageEntry::Remote { .. } => {
+                PackageEntry::Wasm { .. }
+                | PackageEntry::Remote { .. }
+                | PackageEntry::SurfaceBundle { .. } => {
                     return Err(ManifestError::InvalidContractMode {
                         kind: self.entry_kind().to_string(),
                         contract: self.entry.contract.clone(),
@@ -520,6 +527,32 @@ impl PackageManifest {
                 }
                 PackageEntry::RustInproc { .. } | PackageEntry::Subprocess { .. } => {}
             }
+        }
+        if matches!(self.entry.kind, PackageEntry::SurfaceBundle { .. }) {
+            self.validate_static_surface_bundle()?;
+        }
+        Ok(())
+    }
+
+    fn validate_static_surface_bundle(&self) -> Result<(), ManifestError> {
+        let invalid = !self.provides.is_empty()
+            || !self.contributes.hooks.is_empty()
+            || !self.contributes.extension_points.is_empty()
+            || self.permissions.events.read
+            || self.permissions.events.append
+            || !self.permissions.capabilities.invoke.is_empty()
+            || !self.permissions.packages.call.is_empty()
+            || self.permissions.assets.read
+            || self.permissions.assets.write
+            || !self.permissions.network.hosts.is_empty()
+            || !self.permissions.network.declarations.is_empty()
+            || !self.permissions.filesystem.read.is_empty()
+            || !self.permissions.filesystem.write.is_empty()
+            || !self.permissions.secret_refs.is_empty();
+        if invalid {
+            return Err(ManifestError::InvalidSurfaceBundleAuthority(
+                self.id.clone(),
+            ));
         }
         Ok(())
     }
@@ -530,6 +563,7 @@ impl PackageManifest {
             PackageEntry::Subprocess { .. } => "subprocess",
             PackageEntry::Wasm { .. } => "wasm",
             PackageEntry::Remote { .. } => "remote",
+            PackageEntry::SurfaceBundle { .. } => "surface_bundle",
         }
     }
 }
@@ -585,6 +619,8 @@ pub enum ManifestError {
         kind: String,
         contract: ContractMode,
     },
+    #[error("surface_bundle package must be static and cannot declare executable authority: {0}")]
+    InvalidSurfaceBundleAuthority(String),
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -1043,6 +1079,60 @@ entry:
         });
         assert!(matches!(
             remote.validate_basic(),
+            Err(ManifestError::InvalidContractMode { .. })
+        ));
+    }
+
+    #[test]
+    fn surface_bundle_entry_is_valid_and_non_executing() {
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        assert_eq!(manifest.entry_kind(), "surface_bundle");
+        assert_eq!(manifest.validate_basic(), Ok(()));
+    }
+
+    #[test]
+    fn surface_bundle_rejects_executable_authority_and_contract_none() {
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        manifest.provides = vec![CapabilityDescriptor {
+            id: "org/test/run".to_string(),
+            version: "0.1.0".to_string(),
+            input_schema: Value::Null,
+            output_schema: Value::Null,
+            streaming: false,
+            side_effects: Vec::new(),
+            description: None,
+        }];
+        assert!(matches!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidSurfaceBundleAuthority(_))
+        ));
+
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        manifest.permissions.network.hosts = vec!["example.com".to_string()];
+        assert!(matches!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidSurfaceBundleAuthority(_))
+        ));
+
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::contract_none(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        assert!(matches!(
+            manifest.validate_basic(),
             Err(ManifestError::InvalidContractMode { .. })
         ));
     }
