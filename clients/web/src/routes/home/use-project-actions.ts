@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import type { FailureDetail } from "@/components/install/failure-modal";
 import type { ToastInput } from "@/components/ui/toast";
-import type { YggProtocolClient, PackageRecord, ProjectRecord, SubprocessLogLine } from "@/protocol/client";
+import type { YggProtocolClient, PackageRecord, ProjectRecord } from "@/protocol/client";
 import {
   failureDetailFromPackage,
   noFailureDiagnostic,
@@ -49,7 +49,7 @@ export function useProjectActions({
         pushToast({
           variant: "error",
           title: "Stop failed",
-          body: err instanceof Error ? err.message : String(err),
+          body: "The project could not be stopped. Check the local host and try again.",
         });
       }
     },
@@ -94,15 +94,9 @@ export function useProjectActions({
           setFailureDetail(noFailureDiagnostic(project.title, "No associated package status was available."));
           return;
         }
-        let logs: SubprocessLogLine[] = [];
-        try {
-          logs = await client.packageLogs(failed.id);
-        } catch {
-          logs = [];
-        }
-        setFailureDetail(failureDetailFromPackage(project.title, failed, logs));
+        setFailureDetail(failureDetailFromPackage(project.title, failed, []));
       } catch (err) {
-        setFailureDetail(noFailureDiagnostic(project.title, err instanceof Error ? err.message : String(err)));
+        setFailureDetail(noFailureDiagnostic(project.title, "Diagnostics are unavailable. Try again from the local UI."));
       }
     },
     [client, setFailureDetail, setFailureProjectId],

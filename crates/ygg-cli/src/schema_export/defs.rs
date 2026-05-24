@@ -311,7 +311,7 @@ fn normalize_schema_with_key(parent_key: Option<&str>, value: &mut Value) {
             if let Some(defs) = map.remove("definitions") {
                 map.insert("$defs".to_string(), defs);
             }
-            if parent_key == Some("created_at")
+            if matches!(parent_key, Some("created_at" | "timestamp"))
                 && map.get("format").and_then(Value::as_str) == Some("date-time")
             {
                 map.remove("default");

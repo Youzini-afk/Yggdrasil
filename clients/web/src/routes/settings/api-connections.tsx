@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { motion } from "motion/react";
 import { Copy, DotsThree, Eye, EyeSlash, Key, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,6 @@ import { cn } from "@/lib/cn";
 interface DraftSecret {
   name: string;
   value: string;
-  scope: string;
-  provider: string;
 }
 
 interface SecretView {
@@ -83,7 +81,7 @@ export function ApiConnectionsPanel() {
       toast.push({
         variant: "error",
         title: "Delete failed",
-        body: err instanceof Error ? err.message : String(err),
+        body: "The secret could not be removed. Check the local host and try again.",
       });
     }
   };
@@ -105,7 +103,7 @@ export function ApiConnectionsPanel() {
       toast.push({
         variant: "error",
         title: "Save failed",
-        body: err instanceof Error ? err.message : String(err),
+        body: "The secret could not be stored. Check the local host and try again.",
       });
     }
   };
@@ -139,7 +137,7 @@ export function ApiConnectionsPanel() {
               <EmptyState
                 icon={<Key />}
                 title="Couldn't load secrets"
-                body={platform.error.message}
+                body="Secret metadata is unavailable. Try again from the local UI."
                 action={{ label: "Retry", onClick: () => platform.refresh() }}
               />
             ) : platform.loading ? (
@@ -330,27 +328,34 @@ function AddSecretModal({
   onSave: (entry: DraftSecret) => void;
 }) {
   const [name, setName] = useState("");
-  const [value, setValue] = useState("");
   const [provider, setProvider] = useState("OpenAI");
   const [scope, setScope] = useState<string>("platform");
+  const valueRef = useRef<HTMLInputElement>(null);
+
+  const wipeValueInput = () => {
+    if (valueRef.current) valueRef.current.value = "";
+  };
 
   // Always wipe the raw secret from React memory when the modal closes —
   // success path, cancel path, esc path, anywhere. The host has the
   // encrypted copy; the UI must never retain raw values past submission.
   useEffect(() => {
     if (!open) {
+      wipeValueInput();
       setName("");
-      setValue("");
       setProvider("OpenAI");
       setScope("platform");
     }
   }, [open]);
 
-  const handleSave = () => {
+  const handleSave = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const value = String(data.get("secret-value") ?? "");
     if (!name || !value) return;
-    onSave({ name, value, scope, provider });
+    onSave({ name, value });
     // Wipe immediately on submit; do not wait for the close effect.
-    setValue("");
+    wipeValueInput();
     setName("");
   };
 
@@ -361,7 +366,7 @@ function AddSecretModal({
         title="Store a new key"
         description="Yggdrasil encrypts the value with your platform key and never sends raw keys to any project."
       />
-      <div className="flex flex-col gap-4">
+      <form onSubmit={handleSave} className="flex flex-col gap-4">
         <Field label="Provider" required>
           <select
             value={provider}
@@ -388,8 +393,8 @@ function AddSecretModal({
         <Field label="Value" helper="The raw key never leaves this machine." required>
           <Input
             type="password"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
+            ref={valueRef}
+            name="secret-value"
             placeholder="sk-…"
             autoComplete="new-password"
           />
@@ -417,15 +422,15 @@ function AddSecretModal({
             ))}
           </div>
         </Field>
-      </div>
-      <ModalFooter className="justify-end">
-        <Button tone="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button tone="primary" onClick={handleSave} disabled={!name || !value}>
-          Save key
-        </Button>
-      </ModalFooter>
+        <ModalFooter className="justify-end">
+          <Button tone="secondary" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button tone="primary" type="submit" disabled={!name}>
+            Save key
+          </Button>
+        </ModalFooter>
+      </form>
     </Modal>
   );
 }

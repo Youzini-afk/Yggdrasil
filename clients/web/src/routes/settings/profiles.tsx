@@ -103,7 +103,7 @@ export function ProfilesPanel() {
               <EmptyState
                 icon={<GitBranch />}
                 title="Couldn't read host diagnostics"
-                body={diagnostics.error.message}
+                body="Host diagnostics are unavailable. Try again from the local UI."
                 action={{ label: "Retry", onClick: () => diagnostics.refresh() }}
               />
             </Card>

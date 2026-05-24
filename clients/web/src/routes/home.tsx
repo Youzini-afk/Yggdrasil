@@ -101,7 +101,7 @@ export function HomePage() {
             <EmptyState
               icon={<Warning />}
               title="Couldn't reach the host"
-              body={projects.error.message}
+              body="Project inventory is unavailable. Try again from the local UI."
               action={{ label: "Retry", onClick: () => projects.refresh() }}
             />
           ) : projects.loading ? (

@@ -15,16 +15,11 @@ export function noFailureDiagnostic(projectName: string, reason: string): Failur
 export function failureDetailFromPackage(
   projectName: string,
   record: PackageRecord,
-  logs: SubprocessLogLine[],
+  _logs: SubprocessLogLine[],
 ): FailureDetail {
   const failure = record.last_failure;
-  const stderrLines = tail(
-    failure?.stderr_tail_redacted.length
-      ? failure.stderr_tail_redacted
-      : logs.filter((log) => log.stream === "stderr").map((log) => log.line),
-    8,
-  );
-  const fallbackLines = tail(logs.map((log) => `[${log.stream}] ${log.line}`), 20);
+  const redactionSafe = failure?.redaction_state === "redacted" || failure?.redaction_state === "safe";
+  const stderrLines = redactionSafe ? tail(failure?.stderr_tail_redacted ?? [], 8) : [];
   return {
     projectName,
     title: `Package ${record.id} ${record.state}`,
@@ -33,7 +28,8 @@ export function failureDetailFromPackage(
     exitCode: failure?.exit_code ?? "—",
     failedAt: failure?.failed_at ? formatRelativeAge(failure.failed_at) : undefined,
     redactionState: failure?.redaction_state,
-    log: stderrLines.length > 0 ? stderrLines : fallbackLines,
+    log: stderrLines,
+    logRedacted: redactionSafe,
   };
 }
 

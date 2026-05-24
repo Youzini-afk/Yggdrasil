@@ -8,7 +8,7 @@ import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle } from "@/surfaces/bundle-resolver";
-import type { ProjectRecord } from "@/protocol/client";
+import type { ProjectRecord, SurfaceContributionRecord } from "@/protocol/client";
 
 const FRAME_CONTAINER_ID = "ygg-project-frame";
 
@@ -44,8 +44,12 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
         setProject({ ...detail, state: runtimeState, running_session_id: sessionId });
 
         if (!detail.entry_surface_id) return;
-        const bundle = await resolveSurfaceBundle(client, detail.entry_surface_id);
+        const [bundle, contribution] = await Promise.all([
+          resolveSurfaceBundle(client, detail.entry_surface_id),
+          client.describeSurface(detail.entry_surface_id).catch<SurfaceContributionRecord | null>(() => null),
+        ]);
         if (cancelled) return;
+        const allowedCapabilityIds = allowedSurfaceCapabilityIdsForTest(contribution);
         const handle = await mountSurface({
           containerId: FRAME_CONTAINER_ID,
           surfaceId: bundle.surfaceId,
@@ -55,9 +59,11 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           wrapperClass: bundle.wrapperClass,
           initialProps: { sessionId, projectId },
           hostBridge: {
-            callRpc: (method, params) => client.invoke(method, params),
-            subscribeEvents: (subSessionId, cb) =>
-              client.subscribeEvents(subSessionId, (event) => cb(event)),
+            currentSessionId: sessionId,
+            allowedCapabilityIds,
+            callRpc: (method, params) => client.invokeWithSession(method, params, sessionId),
+            subscribeEvents: (cb) =>
+              client.subscribeEvents(sessionId, (event) => cb(event)),
           },
         });
         if (cancelled) {
@@ -69,7 +75,7 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
         toast.push({
           variant: "error",
           title: "Failed to start project",
-          body: err instanceof Error ? err.message : String(err),
+          body: "The project frame could not be started. Check the local host and try again.",
         });
       }
     })();
@@ -91,7 +97,7 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       toast.push({
         variant: "error",
         title: "Stop failed",
-        body: err instanceof Error ? err.message : String(err),
+        body: "The project could not be stopped. Check the local host and try again.",
       });
     } finally {
       setStopping(false);
@@ -148,4 +154,12 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       />
     </div>
   );
+}
+
+export function allowedSurfaceCapabilityIdsForTest(record: SurfaceContributionRecord | null): Set<string> {
+  const ids = new Set<string>();
+  const surface = record?.surface;
+  if (surface?.capability_id) ids.add(surface.capability_id);
+  if (surface?.activation.launch_capability_id) ids.add(surface.activation.launch_capability_id);
+  return ids;
 }

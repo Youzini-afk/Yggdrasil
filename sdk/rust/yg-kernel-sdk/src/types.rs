@@ -36586,7 +36586,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.808299752Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36615,8 +36614,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 /**Generic stream frame envelope — the unit of streaming capability output.
 
@@ -36677,7 +36676,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.836321909Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36706,8 +36704,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 /**Generic stream frame envelope — the unit of streaming capability output.
 
@@ -36768,7 +36766,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.836042844Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36797,8 +36794,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 /**Generic stream frame envelope — the unit of streaming capability output.
 
@@ -36859,7 +36856,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.836190574Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36888,8 +36884,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 /**Generic stream frame envelope — the unit of streaming capability output.
 
@@ -36950,7 +36946,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.836256386Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -36979,8 +36974,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 /**Generic stream frame envelope — the unit of streaming capability output.
 
@@ -37041,7 +37036,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.836112542Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -37070,8 +37064,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 /**Generic stream frame envelope — the unit of streaming capability output.
 
@@ -37132,7 +37126,6 @@ This is a content-free protocol shape. It carries invocation/stream identifiers,
 ///    },
 ///    "timestamp": {
 ///      "description": "Timestamp of frame emission.",
-///      "default": "2026-05-24T15:16:09.836386489Z",
 ///      "type": "string",
 ///      "format": "date-time"
 ///    }
@@ -37161,8 +37154,8 @@ pub struct StreamFrameEnvelope {
     ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
     pub stream_id: ::std::string::String,
     ///Timestamp of frame emission.
-    #[serde(default = "defaults::stream_frame_envelope_timestamp")]
-    pub timestamp: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
 ///The type of a stream frame — content-free, no model/prompt semantics.
 ///
@@ -44270,13 +44263,14 @@ pub mod defaults {
     pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.808299752Z\"")
-            .unwrap()
+    pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn stream_frame_envelope_payload() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
+        super::RedactionState::NotCaptured
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
@@ -44287,13 +44281,14 @@ pub mod defaults {
     pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.836321909Z\"")
-            .unwrap()
+    pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn stream_frame_envelope_payload() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
+        super::RedactionState::NotCaptured
     }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
@@ -44304,14 +44299,6 @@ pub mod defaults {
     pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.836042844Z\"")
-            .unwrap()
-    }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -44321,14 +44308,6 @@ pub mod defaults {
     pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.836190574Z\"")
-            .unwrap()
-    }
     pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -44337,48 +44316,6 @@ pub mod defaults {
     }
     pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
-    }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.836256386Z\"")
-            .unwrap()
-    }
-    pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn stream_frame_envelope_payload() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
-        super::RedactionState::NotCaptured
-    }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.836112542Z\"")
-            .unwrap()
-    }
-    pub(super) fn stream_frame_envelope_metadata() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn stream_frame_envelope_payload() -> ::serde_json::Value {
-        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
-    }
-    pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
-        super::RedactionState::NotCaptured
-    }
-    pub(super) fn stream_frame_envelope_timestamp() -> ::chrono::DateTime<
-        ::chrono::offset::Utc,
-    > {
-        ::serde_json::from_str::<
-            ::chrono::DateTime<::chrono::offset::Utc>,
-        >("\"2026-05-24T15:16:09.836386489Z\"")
-            .unwrap()
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()

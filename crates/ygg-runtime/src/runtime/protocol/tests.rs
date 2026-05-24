@@ -280,6 +280,68 @@ mod y2_tests {
 }
 
 #[cfg(test)]
+mod surface_tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use crate::{InMemoryEventStore, ProjectRegistry, ProtocolContext, Runtime, RuntimeConfig};
+    use ygg_core::project::{ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy};
+
+    #[tokio::test]
+    async fn resolve_bundle_does_not_return_project_metadata() {
+        let registry = Arc::new(ProjectRegistry::new());
+        let mut metadata = BTreeMap::new();
+        metadata.insert(
+            "requested_capabilities".to_string(),
+            serde_json::json!(["attacker/metadata_grant"]),
+        );
+        metadata.insert("host_path".to_string(), serde_json::json!("/secret/path"));
+
+        registry
+            .register(ProjectDescriptor {
+                schema_version: 1,
+                project: ProjectInner {
+                    id: ProjectId::new("surface_meta_test__abc12345").unwrap(),
+                    title: "Surface metadata test".to_string(),
+                    description: String::new(),
+                    project_type: ProjectType::YggdrasilNative,
+                    icon: None,
+                    entry_surface_id: Some("pkg/surface/entry".to_string()),
+                    packages: vec!["packages/pkg/manifest.yaml".to_string()],
+                    optional_packages: Vec::new(),
+                    required_surfaces: Vec::new(),
+                    required_capabilities: Vec::new(),
+                    secret_policy: SecretPolicy::default(),
+                    external: None,
+                    metadata,
+                },
+            })
+            .expect("register project");
+
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig {
+                project_registry: registry,
+                ..RuntimeConfig::default()
+            },
+        );
+        let value = runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("test"),
+                "kernel.v1.surface.resolve_bundle",
+                serde_json::json!({ "surface_id": "pkg/surface/entry" }),
+            )
+            .await
+            .expect("resolve bundle");
+
+        assert!(
+            value.get("metadata").is_none(),
+            "resolve_bundle must not expose arbitrary project metadata: {value:?}"
+        );
+    }
+}
+
+#[cfg(test)]
 mod z_websocket_tests {
     use std::sync::Arc;
 

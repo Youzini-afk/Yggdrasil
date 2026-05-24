@@ -12,7 +12,6 @@ use axum::{Json, Router};
 use futures::Stream;
 use serde::Deserialize;
 use serde_json::Value;
-use tower_http::cors::CorsLayer;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
     host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
@@ -118,7 +117,6 @@ where
             get(surface_bundle_file::<S>),
         )
         .route("/rpc", post(rpc::<S>))
-        .layer(CorsLayer::permissive())
         .with_state(state)
 }
 

@@ -16,6 +16,7 @@ export interface FailureDetail {
   lastCheckpoint?: string;
   failedAt?: string;
   redactionState?: string;
+  logRedacted?: boolean;
 }
 
 export interface FailureModalProps {
@@ -31,10 +32,10 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
 
   const projectName = detail?.projectName ?? "Project";
   const log = detail?.log ?? [];
-  const hasLog = log.length > 0;
+  const canCopyLog = detail?.logRedacted === true && log.length > 0;
 
   const copy = () => {
-    if (!hasLog) return;
+    if (!canCopyLog) return;
     navigator.clipboard?.writeText(log.join("\n"));
     toast.push({ variant: "success", title: "Log copied", duration: 2400 });
   };
@@ -90,10 +91,11 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
             <button
               type="button"
               onClick={copy}
+              disabled={!canCopyLog}
               className="inline-flex items-center gap-1 text-[11px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
             >
               <Copy size={12} />
-              {hasLog ? "Copy log" : "No log available"}
+              {canCopyLog ? "Copy log" : "No redacted log"}
             </button>
           </div>
         </div>
@@ -101,7 +103,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
           className="mt-2 space-y-0.5 rounded-[10px] p-3 font-mono text-[11px] leading-relaxed text-charcoal-ink"
           style={{ background: "var(--color-inset-surface)" }}
         >
-          {hasLog ? (
+          {log.length > 0 ? (
             log.map((line, idx) => (
               <p key={idx} className={idx === log.length - 1 ? "text-deep-rust" : ""}>
                 {line}

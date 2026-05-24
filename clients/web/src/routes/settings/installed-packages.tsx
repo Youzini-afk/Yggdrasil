@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAsync, useKernel } from "@/lib/kernel-client";
 import { classifyPackageKind } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import type { PackageRecord, ProjectRecord, SubprocessLogLine } from "@/protocol/client";
+import type { PackageRecord, ProjectRecord } from "@/protocol/client";
 
 interface RowEntry {
   id: string;
@@ -117,14 +117,10 @@ export function InstalledPackagesPanel() {
 
   const onViewLogs = async (packageId: string) => {
     try {
-      const [status, logs] = await Promise.all([
-        client.packageStatus(packageId).catch<PackageRecord | null>(() => null),
-        client.packageLogs(packageId).catch<SubprocessLogLine[]>(() => []),
-      ]);
+      const status = await client.packageStatus(packageId).catch<PackageRecord | null>(() => null);
       const failure = status?.last_failure;
-      const lines = failure?.stderr_tail_redacted.length
-        ? failure.stderr_tail_redacted
-        : logs.map((log) => `[${log.stream}] ${log.line}`).slice(-20);
+      const redactionSafe = failure?.redaction_state === "redacted" || failure?.redaction_state === "safe";
+      const lines = redactionSafe ? failure?.stderr_tail_redacted ?? [] : [];
       toast.push({
         variant: lines.length > 0 ? "info" : "warning",
         title: lines.length > 0 ? `Redacted logs for ${packageId}` : "No logs available",
@@ -136,7 +132,7 @@ export function InstalledPackagesPanel() {
       toast.push({
         variant: "error",
         title: "Couldn't load logs",
-        body: err instanceof Error ? err.message : String(err),
+        body: "Diagnostics are unavailable. Try again or inspect the local CLI logs.",
       });
     }
   };
@@ -216,7 +212,7 @@ export function InstalledPackagesPanel() {
         <EmptyState
           icon={<Package />}
           title="Couldn't load packages"
-          body={packages.error.message}
+          body="Package inventory is unavailable. Try again from the local UI."
           action={{ label: "Retry", onClick: () => packages.refresh() }}
         />
       ) : packages.loading ? (

@@ -128,7 +128,7 @@ export interface PackageFailureSummary {
   stderr_tail_redacted: string[];
   log_tail_redacted: SubprocessLogLine[];
   stderr_truncated: boolean;
-  redaction_state: "redacted" | "not_captured" | "policy_ref" | "unsafe_blocked";
+  redaction_state: "redacted" | "safe" | "not_captured" | "policy_ref" | "unsafe_blocked";
   state: string;
 }
 
