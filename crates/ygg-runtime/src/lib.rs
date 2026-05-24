@@ -24,7 +24,8 @@ pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog, KernelEnv};
 pub use package::{
-    entry_kind, trust_level, HostPolicy, PackageRecord, PackageRegistry, PackageState, TrustLevel,
+    entry_kind, trust_level, HostPolicy, PackageFailureSummary, PackageRecord, PackageRegistry,
+    PackageState, TrustLevel,
 };
 pub use pi::PI_INTEGRATION_DEFERRED;
 pub use project_registry::{ProjectEntry, ProjectRegistry};

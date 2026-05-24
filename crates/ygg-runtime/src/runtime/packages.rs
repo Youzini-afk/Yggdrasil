@@ -3,13 +3,16 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 use ygg_core::{
     CapHandle, CapHandleId, ContractMode, HandleLease, HandleProvenance, HandleScope, PackageEntry,
-    PackageId, PackageManifest, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED,
+    PackageId, PackageManifest, RedactionState, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED,
     EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG, EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING,
     EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING, EVENT_PACKAGE_UNLOADED, KERNEL_PACKAGE_ID,
 };
 
 use super::Runtime;
-use crate::{EventStore, PackageRecord, PackageState};
+use crate::{EventStore, PackageFailureSummary, PackageRecord, PackageState};
+
+const FAILURE_STDERR_TAIL_LIMIT: usize = 8;
+const FAILURE_LOG_TAIL_LIMIT: usize = 20;
 
 impl<S> Runtime<S>
 where
@@ -256,7 +259,13 @@ where
     }
 
     pub async fn package_logs(&self, package_id: &PackageId) -> Vec<crate::SubprocessLogLine> {
-        let logs = self.subprocesses.drain_logs(package_id).await;
+        let logs = self
+            .subprocesses
+            .drain_logs(package_id)
+            .await
+            .into_iter()
+            .map(redact_log_line)
+            .collect::<Vec<_>>();
         for log in &logs {
             let _ = self
                 .append_package_log_event(package_id, &log.stream, &log.line)
@@ -329,7 +338,51 @@ where
         record: &PackageRecord,
         reason: &str,
     ) -> anyhow::Result<ygg_core::EventEnvelope> {
-        self.append_package_lifecycle_event(record, EVENT_PACKAGE_DEGRADED, Some(reason))
+        let drained_logs = self.subprocesses.drain_logs(&record.id).await;
+        let raw_log_count = drained_logs.len();
+        let log_tail = tail_vec(
+            drained_logs
+                .into_iter()
+                .map(redact_log_line)
+                .collect::<Vec<_>>(),
+            FAILURE_LOG_TAIL_LIMIT,
+        );
+        let stderr_tail_redacted = tail_vec(
+            log_tail
+                .iter()
+                .filter(|log| log.stream == "stderr")
+                .map(|log| log.line.clone())
+                .collect::<Vec<_>>(),
+            FAILURE_STDERR_TAIL_LIMIT,
+        );
+        for log in &log_tail {
+            let _ = self
+                .append_package_log_event(&record.id, &log.stream, &log.line)
+                .await;
+        }
+        let failed_at = chrono::Utc::now();
+        let failure = PackageFailureSummary {
+            package_id: record.id.clone(),
+            reason: redact_line(reason),
+            exit_code: None,
+            signal: None,
+            failed_at,
+            stderr_tail_redacted,
+            log_tail_redacted: log_tail,
+            stderr_truncated: raw_log_count > FAILURE_LOG_TAIL_LIMIT,
+            redaction_state: RedactionState::Redacted,
+            state: record.state.clone(),
+        };
+        let updated = self
+            .packages
+            .set_last_failure(&record.id, failure.clone())
+            .await
+            .unwrap_or_else(|| {
+                let mut fallback = record.clone();
+                fallback.last_failure = Some(failure.clone());
+                fallback
+            });
+        self.append_package_lifecycle_event(&updated, EVENT_PACKAGE_DEGRADED, Some(reason))
             .await
     }
 
@@ -354,7 +407,13 @@ where
             "extension_point_count": record.extension_point_count,
         });
         if let Some(reason) = reason {
-            payload["reason"] = json!(reason);
+            payload["reason"] = json!(redact_line(reason));
+        }
+        if let Some(last_failure) = &record.last_failure {
+            payload["last_failure"] = serde_json::to_value(last_failure)?;
+            payload["stderr_tail_redacted"] = json!(last_failure.stderr_tail_redacted);
+            payload["log_tail_redacted"] = json!(last_failure.log_tail_redacted);
+            payload["redaction_state"] = json!(last_failure.redaction_state);
         }
         self.append_kernel_event(&session_id, kind, payload).await
     }
@@ -369,10 +428,49 @@ where
         self.append_kernel_event(
             &session_id,
             EVENT_PACKAGE_LOG,
-            json!({"package_id": package_id, "stream": stream, "line": line}),
+            json!({
+                "package_id": package_id,
+                "stream": stream,
+                "line": redact_line(line),
+                "redaction_state": RedactionState::Redacted,
+            }),
         )
         .await
     }
+}
+
+fn redact_log_line(mut log: crate::SubprocessLogLine) -> crate::SubprocessLogLine {
+    log.line = redact_line(&log.line);
+    log
+}
+
+fn redact_line(line: &str) -> String {
+    let mut out = Vec::new();
+    let mut redact_next = false;
+    for token in line.split_whitespace() {
+        let stripped = token
+            .trim_matches(|c: char| matches!(c, ',' | ';' | ')' | '(' | '[' | ']' | '"' | '\''));
+        let lower = stripped.to_ascii_lowercase();
+        let redacted = redact_next
+            || lower.starts_with("sk-")
+            || lower.starts_with("rk_")
+            || lower.starts_with("xai-")
+            || lower.starts_with("ghp_")
+            || lower.starts_with("github_pat_")
+            || lower.starts_with("secret_ref:")
+            || lower.contains("authorization:")
+            || lower.contains("api_key=")
+            || lower.contains("apikey=")
+            || lower.contains("bearer");
+        out.push(if redacted { "<secret:redacted>" } else { token });
+        redact_next = lower == "bearer" || lower.ends_with("authorization:");
+    }
+    out.join(" ")
+}
+
+fn tail_vec<T>(items: Vec<T>, limit: usize) -> Vec<T> {
+    let len = items.len();
+    items.into_iter().skip(len.saturating_sub(limit)).collect()
 }
 
 #[cfg(test)]
@@ -468,6 +566,84 @@ mod tests {
 
         assert!(result.is_err());
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn degraded_package_records_bounded_failure_summary() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+        let package_id = "example/failing".to_string();
+
+        runtime
+            .load_package(ygg_core::PackageManifest {
+                schema_version: 1,
+                id: package_id.clone(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: EntryDescriptor::v1(PackageEntry::RustInproc {
+                    crate_ref: "example-echo-rust-inproc".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                }),
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                requires: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet::default(),
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+
+        let degraded = runtime
+            .packages
+            .set_state(&package_id, PackageState::Degraded)
+            .await
+            .expect("package should exist");
+        runtime
+            .append_package_degraded_event(&degraded, "startup failed")
+            .await?;
+
+        let status = runtime
+            .package_status(&package_id)
+            .await
+            .expect("package status should exist");
+        let failure = status
+            .last_failure
+            .expect("degraded package should record failure summary");
+        assert_eq!(failure.package_id, package_id);
+        assert_eq!(failure.reason, "startup failed");
+        assert!(failure.exit_code.is_none());
+        assert!(failure.signal.is_none());
+        assert!(failure.stderr_tail_redacted.len() <= FAILURE_STDERR_TAIL_LIMIT);
+        assert!(failure.log_tail_redacted.len() <= FAILURE_LOG_TAIL_LIMIT);
+        assert_eq!(failure.redaction_state, ygg_core::RedactionState::Redacted);
+
+        let events = store
+            .list_session(&"kernel_package_example_failing".to_string())
+            .await?;
+        let event = events
+            .iter()
+            .find(|event| event.kind == EVENT_PACKAGE_DEGRADED)
+            .expect("degraded event should be recorded");
+        assert_eq!(event.payload["reason"], json!("startup failed"));
+        assert!(event.payload.get("last_failure").is_some());
+        assert!(event.payload.get("stderr_tail_redacted").is_some());
+        assert!(event.payload.get("redaction_state").is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn package_failure_redacts_secret_like_log_lines() {
+        let line = redact_line(
+            "Authorization: Bearer sk-test-redacted-example api_key=sk-also-redacted normal",
+        );
+        assert!(!line.contains("sk-test-redacted-example"));
+        assert!(!line.contains("sk-also-redacted"));
+        assert!(line.contains("normal"));
+        assert!(line.contains("<secret:redacted>"));
     }
 }
 

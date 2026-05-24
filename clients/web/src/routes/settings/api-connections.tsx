@@ -186,7 +186,7 @@ export function ApiConnectionsPanel() {
                 {[
                   ["Encryption", "age (X25519)"],
                   ["Master key", health.data?.key_source ?? "—"],
-                  ["Path", health.data?.store_path ?? "—"],
+                  ["Storage", health.data?.exists ? "configured" : "not created"],
                   [
                     "Total",
                     health.data

@@ -42,7 +42,6 @@ interface ShortcutEntry {
 
 const SHORTCUTS: ShortcutEntry[] = [
   { url: "https://github.com/Youzini-afk/Yggdrasil-Tavern", tag: "native" },
-  { url: "/absolute/path/to/local-project", tag: "local" },
 ];
 
 export function InstallModal({
@@ -310,14 +309,14 @@ function UrlStep({
           leftIcon={<LinkSimple size={16} />}
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
-          placeholder="github.com/user/repo  or  /absolute/path/to/local-folder"
+          placeholder="github.com/user/repo"
           spellCheck={false}
           disabled={loading}
           autoFocus
         />
       </Field>
       <p className="mt-1 text-[12px] text-steel-secondary">
-        HTTPS Git only · absolute local paths
+        Public HTTPS Git only in the web shell. Local folders use the CLI or a native file picker flow.
       </p>
 
       <section className="mt-5 flex flex-col gap-2">
@@ -773,7 +772,7 @@ function ProgressStep({
           {phases.includes("reviewed") ? <p>requested permissions approved</p> : null}
           {phases.includes("executing") ? <p className={cn("border-l-2 pl-2", failed ? "border-deep-rust text-deep-rust" : "border-aged-brass text-charcoal-ink")}>execute_plan {failed ? "failed" : phases.includes("completed") ? "completed" : "running"}</p> : null}
           {result?.project?.project_id ? <p>registered project {result.project.project_id}</p> : null}
-          {result ? <p>wrote profile {result.profile_path}</p> : null}
+          {result ? <p>profile updated · lockfile refreshed</p> : null}
           {error ? <p className="whitespace-pre-wrap text-deep-rust">{error}</p> : null}
         </div>
       </section>

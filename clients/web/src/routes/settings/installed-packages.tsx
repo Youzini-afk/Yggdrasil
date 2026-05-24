@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAsync, useKernel } from "@/lib/kernel-client";
 import { classifyPackageKind } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import type { PackageRecord, ProjectRecord } from "@/protocol/client";
+import type { PackageRecord, ProjectRecord, SubprocessLogLine } from "@/protocol/client";
 
 interface RowEntry {
   id: string;
@@ -114,6 +114,32 @@ export function InstalledPackagesPanel() {
   }, []);
 
   const total = rows.length;
+
+  const onViewLogs = async (packageId: string) => {
+    try {
+      const [status, logs] = await Promise.all([
+        client.packageStatus(packageId).catch<PackageRecord | null>(() => null),
+        client.packageLogs(packageId).catch<SubprocessLogLine[]>(() => []),
+      ]);
+      const failure = status?.last_failure;
+      const lines = failure?.stderr_tail_redacted.length
+        ? failure.stderr_tail_redacted
+        : logs.map((log) => `[${log.stream}] ${log.line}`).slice(-20);
+      toast.push({
+        variant: lines.length > 0 ? "info" : "warning",
+        title: lines.length > 0 ? `Redacted logs for ${packageId}` : "No logs available",
+        body: lines.length > 0 ? lines.slice(-3).join("\n") : "The kernel did not return a bounded redacted log tail for this package.",
+        duration: lines.length > 0 ? 0 : undefined,
+        action: lines.length > 0 ? { label: "Copy", onClick: () => navigator.clipboard?.writeText(lines.join("\n")) } : undefined,
+      });
+    } catch (err) {
+      toast.push({
+        variant: "error",
+        title: "Couldn't load logs",
+        body: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
 
   return (
     <>
@@ -282,7 +308,7 @@ export function InstalledPackagesPanel() {
                       Copy package id
                     </DropdownItem>
                     <DropdownItem>View permissions</DropdownItem>
-                    <DropdownItem>View logs</DropdownItem>
+                    <DropdownItem onSelect={() => void onViewLogs(entry.packageId)}>View logs</DropdownItem>
                     <DropdownSeparator />
                     <DropdownItem destructive>Uninstall…</DropdownItem>
                   </DropdownMenu>

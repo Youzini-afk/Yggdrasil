@@ -85,11 +85,9 @@ export interface InstallConsent {
 }
 
 export interface InstallExecuteResult {
-  installed: Array<{ id: string; store_path: string; manifest_path: string }>;
-  lockfile_path: string;
-  profile_path: string;
+  installed: Array<{ id: string }>;
   lockfile: string;
-  project?: { project_id?: string; project_dir?: string } | null;
+  project?: { project_id?: string } | null;
 }
 
 const INSTALL_LAB_PROVIDER = "official/install-lab";
@@ -118,6 +116,26 @@ export interface PackageRecord {
   entry_kind: string;
   capability_count: number;
   hook_count: number;
+  last_failure?: PackageFailureSummary;
+}
+
+export interface PackageFailureSummary {
+  package_id: string;
+  reason: string;
+  exit_code?: string | null;
+  signal?: string | null;
+  failed_at: string;
+  stderr_tail_redacted: string[];
+  log_tail_redacted: SubprocessLogLine[];
+  stderr_truncated: boolean;
+  redaction_state: "redacted" | "not_captured" | "policy_ref" | "unsafe_blocked";
+  state: string;
+}
+
+export interface SubprocessLogLine {
+  package_id: string;
+  stream: string;
+  line: string;
 }
 
 export interface RegisteredCapability {
@@ -218,6 +236,7 @@ export interface ProjectRecord {
   entry_surface_id?: string;
   running_session_id?: string;
   storage_summary?: ProjectStorageSummary;
+  packages?: string[];
 }
 
 export class YggProtocolClient {
@@ -255,6 +274,14 @@ export class YggProtocolClient {
 
   packages() {
     return this.call<PackageRecord[]>("kernel.v1.package.list");
+  }
+
+  packageStatus(packageId: string) {
+    return this.call<PackageRecord>("kernel.v1.package.status", { package_id: packageId });
+  }
+
+  packageLogs(packageId: string) {
+    return this.call<SubprocessLogLine[]>("kernel.v1.package.logs", { package_id: packageId });
   }
 
   capabilities() {
@@ -298,21 +325,20 @@ export class YggProtocolClient {
     return (result as { projects: ProjectRecord[] }).projects;
   }
 
-  async getProject(projectId: string): Promise<ProjectRecord & { state_details?: Record<string, unknown>; paths?: Record<string, unknown> }> {
+  async getProject(projectId: string): Promise<ProjectRecord & { state_details?: Record<string, unknown>; packages?: string[] }> {
     const result = await this.invoke("kernel.v1.project.get", { project_id: projectId });
     const descriptor = result as {
-      project?: Omit<ProjectRecord, "type" | "state" | "storage_summary"> & { type?: ProjectRecord["type"] };
+      project?: Omit<ProjectRecord, "type" | "state" | "storage_summary"> & { type?: ProjectRecord["type"]; packages?: string[] };
       state?: ProjectRecord["state"];
-      paths?: Record<string, unknown>;
       running_session_id?: string;
       storage_summary?: ProjectStorageSummary;
     };
     return {
       ...(descriptor.project as ProjectRecord),
       state: descriptor.state ?? "installed",
-      paths: descriptor.paths,
       running_session_id: descriptor.running_session_id,
       storage_summary: descriptor.storage_summary,
+      packages: descriptor.project?.packages,
     };
   }
 
@@ -389,6 +415,9 @@ export class YggProtocolClient {
 
   async resolveInstallPlan(source: InstallSource): Promise<InstallPlan> {
     const rootUrl = normalizeInstallRootUrl(source.root_url);
+    if (!/^https:\/\//i.test(rootUrl)) {
+      throw new Error("The web install flow accepts public HTTPS Git URLs only. Use the CLI for local folders.");
+    }
     const output = await this.invokeInstallLab<{ plan: InstallPlan }>(INSTALL_LAB_CAPABILITIES.resolvePlan, {
       root_url: rootUrl,
       root_ref: source.root_ref ?? "HEAD",
@@ -401,7 +430,10 @@ export class YggProtocolClient {
 
   async detectInstallKind(source: Pick<InstallSource, "root_url" | "root_ref">): Promise<InstallDetectedKind> {
     const rootUrl = normalizeInstallRootUrl(source.root_url);
-    const isLocalSource = /^(file:\/\/|local:|\/|\.)/.test(rootUrl);
+    if (!/^https:\/\//i.test(rootUrl)) {
+      throw new Error("The web install flow accepts public HTTPS Git URLs only. Use the CLI for local folders.");
+    }
+    const isLocalSource = false;
     return await this.invokeInstallLab<InstallDetectedKind>(INSTALL_LAB_CAPABILITIES.detectKind, {
       [isLocalSource ? "path" : "url"]: rootUrl,
       root_ref: source.root_ref ?? "HEAD",
@@ -442,13 +474,11 @@ export class YggProtocolClient {
      ──────────────────────────────────────────────────────────────── */
 
   async secretsHealth(): Promise<{
-    store_path: string;
     exists: boolean;
     secret_count: number;
     key_source: string;
   }> {
     return (await this.invokeCapability<{
-      store_path: string;
       exists: boolean;
       secret_count: number;
       key_source: string;

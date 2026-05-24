@@ -14,7 +14,8 @@ export interface FailureDetail {
   cause?: string;
   uptime?: string;
   lastCheckpoint?: string;
-  crashedAt?: string;
+  failedAt?: string;
+  redactionState?: string;
 }
 
 export interface FailureModalProps {
@@ -29,19 +30,17 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
   const toast = useToast();
 
   const projectName = detail?.projectName ?? "Project";
-  // No demo crash log — show a placeholder until real stderr is wired.
-  const log = detail?.log ?? [
-    "Live stderr will appear here once the failure protocol is wired.",
-    "Run `yg project status <id>` on the CLI for the current crash log.",
-  ];
+  const log = detail?.log ?? [];
+  const hasLog = log.length > 0;
 
   const copy = () => {
+    if (!hasLog) return;
     navigator.clipboard?.writeText(log.join("\n"));
     toast.push({ variant: "success", title: "Log copied", duration: 2400 });
   };
 
   return (
-    <Modal open={open} onOpenChange={onClose} accent="rust" size="lg" contentLabel={`${projectName} crash details`}>
+    <Modal open={open} onOpenChange={onClose} accent="rust" size="lg" contentLabel={`${projectName} failure details`}>
       <ModalHeader
         eyebrow={`Failure — ${projectName.toUpperCase()}`}
         title={detail?.title ?? "Project failed"}
@@ -55,8 +54,8 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
         {detail?.icon ?? <Warning size={20} className="text-deep-rust" />}
         <span className="font-display text-[14px] font-bold text-charcoal-ink">{projectName}</span>
         <GithubLogo size={14} className="ml-2 text-steel-secondary" />
-        {detail?.crashedAt ? (
-          <span className="ml-auto font-mono text-[11px] text-muted-tone">{detail.crashedAt}</span>
+        {detail?.failedAt ? (
+          <span className="ml-auto font-mono text-[11px] text-muted-tone">{detail.failedAt}</span>
         ) : null}
       </div>
 
@@ -85,7 +84,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
       <section>
         <div className="flex items-center justify-between">
           <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">
-            Stderr · last {log.length} lines
+            Redacted stderr · last {log.length} lines
           </p>
           <div className="flex items-center gap-3">
             <button
@@ -94,7 +93,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
               className="inline-flex items-center gap-1 text-[11px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
             >
               <Copy size={12} />
-              Copy log
+              {hasLog ? "Copy log" : "No log available"}
             </button>
           </div>
         </div>
@@ -102,16 +101,20 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
           className="mt-2 space-y-0.5 rounded-[10px] p-3 font-mono text-[11px] leading-relaxed text-charcoal-ink"
           style={{ background: "var(--color-inset-surface)" }}
         >
-          {log.map((line, idx) => (
-            <p key={idx} className={idx === log.length - 1 ? "text-deep-rust" : ""}>
-              {line}
-            </p>
-          ))}
+          {hasLog ? (
+            log.map((line, idx) => (
+              <p key={idx} className={idx === log.length - 1 ? "text-deep-rust" : ""}>
+                {line}
+              </p>
+            ))
+          ) : (
+            <p className="text-muted-tone">No diagnostic log tail is available for this package.</p>
+          )}
         </div>
       </section>
 
       <ModalFooter className="justify-end">
-        {/* No telemetry promise on About page; do not offer crash-report opt-in
+        {/* No telemetry promise on About page; do not offer report opt-in
             until a real, audited reporting capability lands. */}
         <div className="flex items-center gap-3">
           <Button tone="tertiary" onClick={onClose}>

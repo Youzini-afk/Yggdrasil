@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { Hero } from "@/components/home/hero";
 import { UtilityStrip, type FilterChip } from "@/components/home/utility-strip";
 import { ProjectCard } from "@/components/home/project-card";
@@ -22,7 +22,7 @@ import { formatGreetingTime, formatRelativeAge } from "@/lib/format";
 import { InstallModal } from "@/components/install/install-modal";
 import { FailureModal } from "@/components/install/failure-modal";
 import { projectStateTone, type StatusTone } from "@/components/ui/status-pill";
-import type { KernelEvent, ProjectRecord } from "@/protocol/client";
+import type { KernelEvent, PackageRecord, ProjectRecord, SubprocessLogLine } from "@/protocol/client";
 
 const FILTER_OPTIONS: FilterChip[] = [
   { id: "all", label: "All", count: 0 },
@@ -45,7 +45,7 @@ const TIMELINE_SESSION = "kernel_project_lifecycle";
  */
 function iconKindFor(event: KernelEvent): TimelineRow["iconKind"] {
   const kind = event.kind.toLowerCase();
-  if (kind.includes("crash") || kind.includes("fail")) return "crash";
+  if (kind.includes("fail")) return "failure";
   if (kind.includes("install")) return "package";
   if (kind.includes("checkpoint")) return "checkpoint";
   if (kind.includes("retry")) return "retry";
@@ -69,6 +69,7 @@ export function HomePage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [showInstall, setShowInstall] = useState(false);
   const [failureProjectId, setFailureProjectId] = useState<string | null>(null);
+  const [failureDetail, setFailureDetail] = useState<ComponentProps<typeof FailureModal>["detail"]>();
 
   // Cmd/Ctrl + N opens the install modal.
   useEffect(() => {
@@ -192,11 +193,45 @@ export function HomePage() {
 
   const onInstallClick = () => setShowInstall(true);
 
-  const onShowFailure = (projectId: string) => setFailureProjectId(projectId);
+  const onShowFailure = async (project: ProjectRecord) => {
+    setFailureProjectId(project.id);
+    setFailureDetail({
+      projectName: project.title,
+      title: "Loading diagnostics…",
+      summary: "Reading bounded package failure details from the kernel.",
+    });
+    try {
+      const descriptor = await client.getProject(project.id);
+      const packageIds = descriptor.packages ?? [];
+      const knownPackages = await client.packages().catch<PackageRecord[]>(() => []);
+      const packageLookup = new Map(knownPackages.map((record) => [record.id, record]));
+      if (packageIds.length === 0) {
+        setFailureDetail(noFailureDiagnostic(project.title, "Project descriptor does not list packages."));
+        return;
+      }
+      const records = (
+        await Promise.all(packageIds.map((packageId) => resolvePackageStatus(client, packageId, packageLookup)))
+      ).filter((record): record is PackageRecord => Boolean(record));
+      const failed = records.find((record) => record.last_failure) ?? records.find((record) => record.state === "degraded") ?? records[0];
+      if (!failed) {
+        setFailureDetail(noFailureDiagnostic(project.title, "No associated package status was available."));
+        return;
+      }
+      let logs: SubprocessLogLine[] = [];
+      try {
+        logs = await client.packageLogs(failed.id);
+      } catch {
+        logs = [];
+      }
+      setFailureDetail(failureDetailFromPackage(project.title, failed, logs));
+    } catch (err) {
+      setFailureDetail(noFailureDiagnostic(project.title, err instanceof Error ? err.message : String(err)));
+    }
+  };
 
   const onCardLaunch = (project: ProjectRecord) => {
     if (project.state === "failed") {
-      onShowFailure(project.id);
+      void onShowFailure(project);
       return;
     }
     onLaunch(project.id);
@@ -280,7 +315,7 @@ export function HomePage() {
                     onUninstall: () => onUninstall(project.title),
                     onConfigure: () => navigate({ kind: "settings", tab: "installed-packages" }),
                     onViewLogs:
-                      project.state === "failed" ? () => onShowFailure(project.id) : undefined,
+                      project.state === "failed" ? () => void onShowFailure(project) : undefined,
                   }}
                 />
               ))}
@@ -344,15 +379,68 @@ export function HomePage() {
         onUninstall={() => {
           if (failureProjectId) onUninstall(failureProjectId);
         }}
-        detail={
-          failureProjectId
-            ? {
-                projectName:
-                  projectList.find((p) => p.id === failureProjectId)?.title ?? failureProjectId,
-              }
-            : undefined
-        }
+        detail={failureDetail}
       />
     </div>
   );
+}
+
+function noFailureDiagnostic(projectName: string, reason: string): ComponentProps<typeof FailureModal>["detail"] {
+  return {
+    projectName,
+    title: "No diagnostic available",
+    summary: reason,
+    cause: "unavailable",
+    log: [],
+  };
+}
+
+function failureDetailFromPackage(
+  projectName: string,
+  record: PackageRecord,
+  logs: SubprocessLogLine[],
+): ComponentProps<typeof FailureModal>["detail"] {
+  const failure = record.last_failure;
+  const stderrLines = tail(
+    failure?.stderr_tail_redacted.length
+      ? failure.stderr_tail_redacted
+      : logs.filter((log) => log.stream === "stderr").map((log) => log.line),
+    8,
+  );
+  const fallbackLines = tail(logs.map((log) => `[${log.stream}] ${log.line}`), 20);
+  return {
+    projectName,
+    title: `Package ${record.id} ${record.state}`,
+    summary: failure?.reason ?? "Package status is degraded, but no failure summary was reported.",
+    cause: failure?.reason ?? record.state,
+    exitCode: failure?.exit_code ?? "—",
+    failedAt: failure?.failed_at ? formatRelativeAge(failure.failed_at) : undefined,
+    redactionState: failure?.redaction_state,
+    log: stderrLines.length > 0 ? stderrLines : fallbackLines,
+  };
+}
+
+async function resolvePackageStatus(
+  client: ReturnType<typeof useKernel>,
+  packageRef: string,
+  packageLookup: Map<string, PackageRecord>,
+): Promise<PackageRecord | null> {
+  const direct = await client.packageStatus(packageRef).catch<PackageRecord | null>(() => null);
+  if (direct) return direct;
+
+  const fileName = packageRef.split(/[\\/]/).pop();
+  const packageDir = fileName?.match(/^manifest\.ya?ml$/i)
+    ? packageRef.split(/[\\/]/).slice(-2, -1)[0]
+    : undefined;
+  const candidates = [packageRef, packageDir].filter(Boolean) as string[];
+  return (
+    candidates
+      .flatMap((candidate) => [candidate, ...Array.from(packageLookup.values()).filter((record) => record.id.endsWith(`/${candidate}`)).map((record) => record.id)])
+      .map((candidate) => packageLookup.get(candidate))
+      .find(Boolean) ?? null
+  );
+}
+
+function tail<T>(items: T[], limit: number): T[] {
+  return items.slice(Math.max(0, items.length - limit));
 }

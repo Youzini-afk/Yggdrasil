@@ -19,7 +19,7 @@ const eventIconMap: Record<string, typeof Globe> = {
   outbound: Globe,
   secret: Key,
   package: Package,
-  crash: Warning,
+  failure: Warning,
   checkpoint: CheckCircle,
   retry: ArrowsClockwise,
   install: Cloud,

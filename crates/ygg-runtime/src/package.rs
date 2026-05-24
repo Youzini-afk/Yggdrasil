@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use ygg_core::{PackageEntry, PackageId, PackageManifest};
+use ygg_core::{PackageEntry, PackageId, PackageManifest, RedactionState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -31,7 +31,25 @@ pub struct PackageRecord {
     pub extension_point_count: usize,
     pub loaded_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure: Option<PackageFailureSummary>,
     pub manifest: PackageManifest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PackageFailureSummary {
+    pub package_id: PackageId,
+    pub reason: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+    pub failed_at: DateTime<Utc>,
+    pub stderr_tail_redacted: Vec<String>,
+    pub log_tail_redacted: Vec<crate::SubprocessLogLine>,
+    pub stderr_truncated: bool,
+    pub redaction_state: RedactionState,
+    pub state: PackageState,
 }
 
 impl PackageRecord {
@@ -48,6 +66,7 @@ impl PackageRecord {
             extension_point_count: manifest.contributes.extension_points.len(),
             loaded_at: now,
             updated_at: now,
+            last_failure: None,
             manifest,
         }
     }
@@ -155,6 +174,21 @@ impl PackageRegistry {
         let mut packages = self.packages.write().await;
         let record = packages.get_mut(package_id)?;
         record.state = state;
+        record.updated_at = Utc::now();
+        if matches!(record.state, PackageState::Ready) {
+            record.last_failure = None;
+        }
+        Some(record.clone())
+    }
+
+    pub async fn set_last_failure(
+        &self,
+        package_id: &PackageId,
+        failure: PackageFailureSummary,
+    ) -> Option<PackageRecord> {
+        let mut packages = self.packages.write().await;
+        let record = packages.get_mut(package_id)?;
+        record.last_failure = Some(failure);
         record.updated_at = Utc::now();
         Some(record.clone())
     }

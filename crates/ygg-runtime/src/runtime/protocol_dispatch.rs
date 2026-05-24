@@ -545,7 +545,6 @@ where
         let mut value = serde_json::to_value(&entry.descriptor)?;
         if let Value::Object(map) = &mut value {
             map.insert("state".to_string(), serde_json::to_value(entry.state)?);
-            map.insert("paths".to_string(), Self::project_paths_and_counts(&id));
             map.insert(
                 "storage_summary".to_string(),
                 Self::project_storage_summary(&id),
