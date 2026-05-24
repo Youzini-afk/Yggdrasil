@@ -345,10 +345,10 @@ export function HomePage() {
               },
               {
                 id: "open-folder",
-                label: "Open folder",
+                label: "Data folder",
                 shortcut: "⌘O",
                 icon: QUICK_ACTION_ICONS.Folder,
-                onClick: () => toast.push({ variant: "info", title: "Open ~/.yggdrasil" }),
+                onClick: () => toast.push({ variant: "info", title: "Use the CLI to open the local platform data directory." }),
               },
               {
                 id: "settings",

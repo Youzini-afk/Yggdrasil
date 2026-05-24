@@ -1,46 +1,25 @@
-import { useMemo } from "react";
 import { Folder } from "@/components/icons";
 import { Card, CardSection } from "@/components/ui/card";
 import { Eyebrow, EyebrowSm, PageTitle } from "@/components/ui/typography";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsync, useKernel } from "@/lib/kernel-client";
 
-interface PathEntry {
+interface StorageArea {
   label: string;
-  path: string;
+  description: string;
 }
 
-const FALLBACK_PATHS: PathEntry[] = [
-  { label: "Root", path: "~/.yggdrasil" },
-  { label: "Package store", path: "~/.yggdrasil/store" },
-  { label: "Profiles", path: "~/.yggdrasil/profiles" },
-  { label: "Trusted keys", path: "~/.yggdrasil/keys" },
-  { label: "Cache", path: "~/.yggdrasil/cache" },
-  { label: "Project secrets", path: "~/.yggdrasil/projects/<id>/secrets.dat" },
+const STORAGE_AREAS: StorageArea[] = [
+  { label: "Project data", description: "Project metadata, checkpoints, package state, and run records." },
+  { label: "Package store", description: "Installed package sources and lockfile-managed revisions." },
+  { label: "Profiles", description: "Host profiles passed to yg host serve --profile." },
+  { label: "Secrets", description: "Encrypted platform and project secret stores. Raw values are never shown here." },
+  { label: "Cache", description: "Generated bundles, tokenizer caches, and other rebuildable data." },
 ];
 
 export function StoragePanel() {
   const client = useKernel();
   const diagnostics = useAsync(() => client.diagnostics().catch(() => null), [client]);
-
-  const paths = useMemo<PathEntry[]>(() => {
-    const d = diagnostics.data as {
-      data_dir?: string;
-      paths?: Record<string, string>;
-    } | null;
-    if (!d) return FALLBACK_PATHS;
-
-    const root = d.data_dir ?? "~/.yggdrasil";
-    const join = (sub: string) => (d.paths?.[sub] ?? `${root}/${sub}`);
-    return [
-      { label: "Root", path: root },
-      { label: "Package store", path: join("store") },
-      { label: "Profiles", path: join("profiles") },
-      { label: "Trusted keys", path: join("keys") },
-      { label: "Cache", path: join("cache") },
-      { label: "Projects", path: join("projects") },
-    ];
-  }, [diagnostics.data]);
 
   const eventStoreKind =
     (diagnostics.data as { event_store?: { kind?: string } } | null)?.event_store?.kind ?? "sqlite";
@@ -51,14 +30,14 @@ export function StoragePanel() {
         <Eyebrow>Storage</Eyebrow>
         <PageTitle className="mt-2">Where your data lives</PageTitle>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-steel-secondary">
-          Yggdrasil keeps everything on this machine by default. Open these paths in your file
-          manager to inspect, back up, or relocate.
+          Yggdrasil keeps data on this machine by default. The UI summarizes storage areas without
+          exposing host-specific absolute paths.
         </p>
       </header>
 
       <Card>
         <CardSection>
-          <EyebrowSm>Paths</EyebrowSm>
+          <EyebrowSm>Storage areas</EyebrowSm>
           {diagnostics.loading ? (
             <ul className="mt-3 space-y-2">
               {Array.from({ length: 6 }).map((_, idx) => (
@@ -70,15 +49,15 @@ export function StoragePanel() {
             </ul>
           ) : (
             <ul className="mt-3 divide-y divide-whisper-border">
-              {paths.map((entry) => (
+              {STORAGE_AREAS.map((entry) => (
                 <li
                   key={entry.label}
-                  className="flex items-center justify-between gap-4 py-2.5 text-[13px]"
+                  className="flex items-start justify-between gap-4 py-2.5 text-[13px]"
                 >
                   <span className="text-steel-secondary">{entry.label}</span>
-                  <span className="flex min-w-0 items-center gap-2 truncate font-mono text-charcoal-ink">
+                  <span className="flex min-w-0 max-w-[42ch] items-start gap-2 text-right text-charcoal-ink">
                     <Folder size={12} className="shrink-0 text-steel-secondary" />
-                    <span className="truncate">{entry.path}</span>
+                    <span>{entry.description}</span>
                   </span>
                 </li>
               ))}

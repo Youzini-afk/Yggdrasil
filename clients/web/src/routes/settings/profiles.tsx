@@ -73,9 +73,8 @@ export function ProfilesPanel() {
         <PageTitle className="mt-2">Workshop profiles</PageTitle>
         <p className="mt-2 max-w-[64ch] text-[13px] leading-relaxed text-steel-secondary">
           A profile bundles host configuration: which packages autoload, which outbound hosts are
-          allowed, secret resolver settings. Profiles live as YAML files in{" "}
-          <span className="font-mono text-charcoal-ink">~/.yggdrasil/profiles</span> and are passed
-          to <span className="font-mono text-charcoal-ink">yg host serve --profile</span>.
+          allowed, secret resolver settings. Profiles are YAML files passed to{" "}
+          <span className="font-mono text-charcoal-ink">yg host serve --profile</span>.
         </p>
       </header>
 
@@ -90,7 +89,7 @@ export function ProfilesPanel() {
                 toast.push({
                   variant: "info",
                   title: "Create a profile",
-                  body: "Drop a YAML file into ~/.yggdrasil/profiles to add it.",
+                  body: "Create a YAML profile and start the host with --profile <path>.",
                   duration: 4000,
                 })
               }

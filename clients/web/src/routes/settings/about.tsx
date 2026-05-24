@@ -44,9 +44,8 @@ export function AboutPanel() {
                 </p>
                 <p>
                   It runs on your machine, with your keys, your files, your network. There is no
-                  SaaS account, no central registry, no telemetry. Projects you install live in
-                  <code className="mx-1 font-mono text-[13px] text-charcoal-ink">~/.yggdrasil</code>
-                  and stay there until you remove them.
+                  SaaS account, no central registry, no telemetry. Projects you install live in the
+                  local platform data directory and stay there until you remove them.
                 </p>
                 <p className="text-steel-secondary">
                   The shell you are looking at right now is one of many possible UIs. Anyone can

@@ -69,7 +69,8 @@ export function PlatformTopbar({ route }: { route: Route }) {
             tone="icon"
             size="icon"
             onClick={cycleTheme}
-            aria-label="Toggle theme"
+            aria-label={`Theme preference: ${preference}`}
+            aria-pressed={preference === "dark"}
           >
             {/* Cycle indicator: filled icon for explicit choice, outline for system. */}
             {preference === "system" ? (

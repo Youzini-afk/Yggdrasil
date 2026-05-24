@@ -1,4 +1,4 @@
-import { Folder, GearSix, GitBranch, Info, Package, Plug } from "@/components/icons";
+import { Folder, GitBranch, Info, Package, Plug } from "@/components/icons";
 import { useRoute } from "@/lib/router";
 import type { SettingsTab } from "@/lib/router";
 import { cn } from "@/lib/cn";
@@ -19,9 +19,9 @@ export function SettingsNavRail({ active }: { active: SettingsTab }) {
   const [, navigate] = useRoute();
 
   return (
-    <aside className="w-[240px] shrink-0 border-r border-whisper-border pr-6">
-      <p className="eyebrow mb-6 px-3">Settings</p>
-      <nav className="flex flex-col gap-1">
+    <aside className="shrink-0 border-whisper-border lg:w-[240px] lg:border-r lg:pr-6">
+      <p className="eyebrow mb-3 px-1 lg:mb-6 lg:px-3">Settings</p>
+      <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
         {NAV_ITEMS.map(({ id, label, Icon }) => {
           const isActive = active === id;
           return (
@@ -29,11 +29,12 @@ export function SettingsNavRail({ active }: { active: SettingsTab }) {
               key={id}
               type="button"
               onClick={() => navigate({ kind: "settings", tab: id })}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 // Structural left border (transparent when inactive) keeps the
                 // content offset stable so hovering doesn't shift label
                 // position by 2px.
-                "flex items-center gap-2 rounded-[8px] py-2 pr-3 pl-[10px] text-left text-[13px] font-medium transition border-l-2",
+                "flex shrink-0 items-center gap-2 rounded-[8px] py-2 pr-3 pl-[10px] text-left text-[13px] font-medium transition border-l-2",
                 isActive
                   ? "border-l-aged-brass bg-aged-brass-surface text-charcoal-ink [&_svg]:text-aged-brass"
                   : "border-l-transparent text-charcoal-ink hover:bg-whisper-border-strong/30 [&_svg]:text-steel-secondary",
@@ -45,12 +46,8 @@ export function SettingsNavRail({ active }: { active: SettingsTab }) {
           );
         })}
       </nav>
-      <div className="mt-8 px-3 text-[11px] text-muted-tone">
+      <div className="mt-4 px-1 text-[11px] text-muted-tone lg:mt-8 lg:px-3">
         Settings live on this machine. No SaaS sync.
-      </div>
-      <div className="mt-2 px-3 text-[11px] text-muted-tone flex items-center gap-1.5">
-        <GearSix size={11} />
-        <span className="font-mono">~/.yggdrasil</span>
       </div>
     </aside>
   );

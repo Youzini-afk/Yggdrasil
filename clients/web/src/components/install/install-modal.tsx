@@ -910,7 +910,7 @@ function ExternalChoiceCard({
       className={cn(
         "group flex w-full items-start gap-4 rounded-[16px] border bg-pure-surface p-5 text-left transition",
         selected
-          ? "border-l-[3px] border-l-aged-brass border-aged-brass-border bg-aged-brass-surface-soft"
+          ? "border-l-4 border-l-aged-brass border-aged-brass-border bg-aged-brass-surface-soft"
           : "border-whisper-border hover:bg-whisper-border-strong/20",
       )}
     >
