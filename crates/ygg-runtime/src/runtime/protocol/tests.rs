@@ -1,0 +1,743 @@
+// ---------------------------------------------------------------------------
+// Y2: Dispatch enforcement unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod y2_tests {
+    use std::sync::Arc;
+
+    use crate::{
+        FakeOutboundExecutor, InMemoryEventStore, OutboundExecutorConfig, ProtocolContext, Runtime,
+        RuntimeConfig,
+    };
+    use ygg_core::{
+        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
+        PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    };
+
+    /// Helper: create a runtime with a FakeOutboundExecutor.
+    fn runtime_with_fake() -> (
+        Arc<InMemoryEventStore>,
+        Runtime<InMemoryEventStore>,
+        Arc<FakeOutboundExecutor>,
+    ) {
+        let store = Arc::new(InMemoryEventStore::default());
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let config = RuntimeConfig {
+            outbound_executor: OutboundExecutorConfig::Custom(fake.clone()),
+            ..RuntimeConfig::default()
+        };
+        let runtime = Runtime::new(store.clone(), config);
+        (store, runtime, fake)
+    }
+
+    /// Helper: create a package manifest with network and secret_refs permissions.
+    fn package_with_secret_refs(id: &str, secret_refs: Vec<String>) -> PackageManifest {
+        PackageManifest {
+            schema_version: 1,
+            id: id.to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
+                crate_ref: "example-echo-rust-inproc".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            }),
+            provides: vec![CapabilityDescriptor {
+                id: format!("{id}/fetch"),
+                version: "0.1.0".to_string(),
+                input_schema: serde_json::Value::Null,
+                output_schema: serde_json::Value::Null,
+                streaming: false,
+                side_effects: vec!["network".to_string()],
+                description: None,
+            }],
+            consumes: Vec::new(),
+            requires: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                network: NetworkPermissions {
+                    declarations: vec![NetworkDeclaration {
+                        host: "api.openai.com".to_string(),
+                        methods: vec!["POST".to_string()],
+                        purpose: Some("test".to_string()),
+                    }],
+                    hosts: vec![],
+                },
+                secret_refs,
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        }
+    }
+
+    /// Y2: Undeclared secret_ref in secret_headers is rejected.
+    #[tokio::test]
+    async fn outbound_execute_secret_ref_undeclared_fails() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        // Package declares one secret_ref but request uses a different one
+        runtime
+            .load_package(package_with_secret_refs(
+                "example/y2-undeclared",
+                vec!["secret_ref:env:DECLARED_KEY".to_string()],
+            ))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-undeclared", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-undeclared/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_headers": {
+                        "Authorization": {
+                            "secret_ref": "secret_ref:env:UNDECLARED_KEY",
+                            "scheme": "bearer"
+                        }
+                    }
+                }),
+            )
+            .await;
+
+        assert!(result.is_err(), "undeclared secret_ref should be denied");
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("not declared"),
+            "error should mention undeclared secret_ref, got: {err_msg}"
+        );
+        assert_eq!(
+            fake.call_count(),
+            0,
+            "executor should not be called for undeclared secret_ref"
+        );
+    }
+
+    /// Y2: Declared secret_ref is allowed to proceed.
+    #[tokio::test]
+    async fn outbound_execute_secret_ref_declared_resolves() {
+        let (_store, runtime, _fake) = runtime_with_fake();
+        runtime
+            .load_package(package_with_secret_refs(
+                "example/y2-declared",
+                vec!["secret_ref:env:MY_API_KEY".to_string()],
+            ))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-declared", "in_process");
+
+        // Note: secret resolution will fail (no resolver configured), but
+        // the Y2 check happens BEFORE resolution. The error should be from
+        // the resolver, not from the undeclared check.
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-declared/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_headers": {
+                        "Authorization": {
+                            "secret_ref": "secret_ref:env:MY_API_KEY",
+                            "scheme": "bearer"
+                        }
+                    }
+                }),
+            )
+            .await;
+
+        // The Y2 declaration check passes, but secret resolution may fail
+        // (DenyAllSecretResolver is the default). The key point is we
+        // should NOT get the "not declared" error.
+        if let Err(e) = &result {
+            let err_msg = format!("{:?}", e);
+            assert!(
+                !err_msg.contains("not declared"),
+                "declared secret_ref should not produce 'not declared' error, got: {err_msg}"
+            );
+        }
+        // Executor may or may not be called depending on resolver success,
+        // but the Y2 check should not block it.
+    }
+
+    /// Y2: Request without secret_headers skips the manifest check.
+    #[tokio::test]
+    async fn outbound_execute_no_secret_headers_no_check_required() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        // Package has no secret_refs declared, but also doesn't use any
+        runtime
+            .load_package(package_with_secret_refs("example/y2-no-secret", vec![]))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-no-secret", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-no-secret/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                }),
+            )
+            .await;
+
+        // Should succeed (fake executor returns ok)
+        assert!(
+            result.is_ok(),
+            "request without secret_headers should succeed, got: {:?}",
+            result.err()
+        );
+        assert_eq!(fake.call_count(), 1, "executor should be called");
+    }
+
+    /// Y2: Multiple secret_refs must all be declared.
+    #[tokio::test]
+    async fn outbound_execute_multiple_secret_refs_all_must_be_declared() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        // Declare only one of two needed refs
+        runtime
+            .load_package(package_with_secret_refs(
+                "example/y2-multi",
+                vec!["secret_ref:env:KEY_A".to_string()],
+            ))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-multi", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-multi/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_refs": ["secret_ref:env:KEY_A", "secret_ref:env:KEY_B"],
+                }),
+            )
+            .await;
+
+        assert!(
+            result.is_err(),
+            "undeclared second secret_ref should be denied"
+        );
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("not declared"),
+            "error should mention undeclared secret_ref, got: {err_msg}"
+        );
+        assert_eq!(
+            fake.call_count(),
+            0,
+            "executor should not be called when any secret_ref is undeclared"
+        );
+    }
+
+    /// Y2: Top-level secret_refs also require manifest declaration.
+    #[tokio::test]
+    async fn outbound_execute_top_level_secret_ref_undeclared_fails() {
+        let (_store, runtime, fake) = runtime_with_fake();
+        runtime
+            .load_package(package_with_secret_refs("example/y2-toplevel", vec![]))
+            .await
+            .expect("load package");
+
+        let context = ProtocolContext::package("example/y2-toplevel", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/y2-toplevel/fetch",
+                    "destination_host": "api.openai.com",
+                    "method": "POST",
+                    "secret_refs": ["secret_ref:env:UNDECLARED"],
+                }),
+            )
+            .await;
+
+        assert!(
+            result.is_err(),
+            "top-level undeclared secret_ref should be denied"
+        );
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("not declared"),
+            "error should mention undeclared, got: {err_msg}"
+        );
+        assert_eq!(fake.call_count(), 0, "executor should not be called");
+    }
+}
+
+#[cfg(test)]
+mod z_websocket_tests {
+    use std::sync::Arc;
+
+    use crate::{
+        EventStore, FakeOutboundExecutor, FakeWebSocketExecutor, InMemoryEventStore,
+        OutboundExecutePolicyConfig, OutboundExecutorConfig, OutboundExecutorResponse,
+        ProtocolContext, Runtime, RuntimeConfig,
+    };
+    use ygg_core::{
+        CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
+        PackageContributions, PackageEntry, PackageManifest, PermissionSet, SandboxPolicy,
+    };
+
+    fn runtime_with_fake_ws() -> (
+        Arc<InMemoryEventStore>,
+        Runtime<InMemoryEventStore>,
+        Arc<FakeWebSocketExecutor>,
+    ) {
+        let store = Arc::new(InMemoryEventStore::default());
+        let fake = Arc::new(FakeWebSocketExecutor::new());
+        let config = RuntimeConfig {
+            outbound_websocket_executor: fake.clone(),
+            ..RuntimeConfig::default()
+        };
+        let runtime = Runtime::new(store.clone(), config);
+        (store, runtime, fake)
+    }
+
+    fn package_ws(id: &str, secret_refs: Vec<String>) -> PackageManifest {
+        PackageManifest {
+            schema_version: 1,
+            id: id.to_string(),
+            version: "0.1.0".to_string(),
+            display_name: None,
+            description: None,
+            author: None,
+            license: None,
+            entry: EntryDescriptor::v1(PackageEntry::RustInproc {
+                crate_ref: "example-echo-rust-inproc".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            }),
+            provides: vec![CapabilityDescriptor {
+                id: format!("{id}/ws"),
+                version: "0.1.0".to_string(),
+                input_schema: serde_json::Value::Null,
+                output_schema: serde_json::Value::Null,
+                streaming: true,
+                side_effects: vec!["network".to_string()],
+                description: None,
+            }],
+            consumes: Vec::new(),
+            requires: Vec::new(),
+            contributes: PackageContributions::default(),
+            permissions: PermissionSet {
+                network: NetworkPermissions {
+                    declarations: vec![NetworkDeclaration {
+                        host: "api.example.com".to_string(),
+                        methods: vec!["WEBSOCKET".to_string()],
+                        purpose: Some("test websocket".to_string()),
+                    }],
+                    hosts: vec![],
+                },
+                secret_refs,
+                ..PermissionSet::default()
+            },
+            sandbox_policy: SandboxPolicy::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn dispatch_outbound_websocket_open_namespace_enforced() {
+        let (_store, runtime, _fake) = runtime_with_fake_ws();
+        runtime
+            .load_package(package_ws("example/ws-ns", vec![]))
+            .await
+            .expect("load package");
+        let context = ProtocolContext::package("example/ws-ns", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "other/pkg/ws",
+                    "destination_host": "api.example.com"
+                }),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("namespace"));
+    }
+
+    #[tokio::test]
+    async fn dispatch_outbound_websocket_open_secret_ref_undeclared_fails() {
+        let (_store, runtime, _fake) = runtime_with_fake_ws();
+        runtime
+            .load_package(package_ws("example/ws-secret", vec![]))
+            .await
+            .expect("load package");
+        let context = ProtocolContext::package("example/ws-secret", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/ws-secret/ws",
+                    "destination_host": "api.example.com",
+                    "secret_refs": ["secret_ref:env:MISSING"]
+                }),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("not declared"));
+    }
+
+    #[tokio::test]
+    async fn dispatch_outbound_websocket_open_with_fake_executor_emits_opened() {
+        let (store, runtime, _fake) = runtime_with_fake_ws();
+        runtime
+            .load_package(package_ws("example/ws-ok", vec![]))
+            .await
+            .expect("load package");
+        let context = ProtocolContext::package("example/ws-ok", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/ws-ok/ws",
+                    "destination_host": "api.example.com",
+                    "subprotocols": ["json"]
+                }),
+            )
+            .await
+            .expect("open websocket");
+        let connection_id = result
+            .get("connection_id")
+            .and_then(serde_json::Value::as_str)
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        let events = store
+            .list_kind_prefix(ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED)
+            .await
+            .unwrap();
+        assert!(events.iter().any(|event| event
+            .payload
+            .get("connection_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(connection_id)));
+    }
+
+    fn runtime_with_fake_execute(
+        fake: Arc<FakeOutboundExecutor>,
+    ) -> (Arc<InMemoryEventStore>, Runtime<InMemoryEventStore>) {
+        let store = Arc::new(InMemoryEventStore::default());
+        let config = RuntimeConfig {
+            outbound_executor: OutboundExecutorConfig::Custom(fake),
+            outbound_execute_policy: OutboundExecutePolicyConfig {
+                enabled: true,
+                allowed_hosts: vec!["api.example.com".to_string()],
+                https_only: true,
+                timeout_ms: 30_000,
+                allow_redirects: false,
+                allow_insecure_loopback_for_tests: false,
+            },
+            ..RuntimeConfig::default()
+        };
+        (store.clone(), Runtime::new(store, config))
+    }
+
+    async fn wait_for_event(store: &InMemoryEventStore, kind: &str) -> serde_json::Value {
+        for _ in 0..40 {
+            let events = store.list_kind_prefix(kind).await.unwrap();
+            if let Some(event) = events.last() {
+                return event.payload.clone();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("event {kind} not found");
+    }
+
+    #[tokio::test]
+    async fn outbound_execute_emits_completed_event_on_success() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime
+            .load_package(package_ws("example/z6-exec-ok", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-exec-ok", "in_process");
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/z6-exec-ok/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET"
+                }),
+            )
+            .await
+            .unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        assert_eq!(payload["status"], "ok");
+        assert_eq!(payload["executor_kind"], "fake");
+    }
+
+    #[tokio::test]
+    async fn outbound_execute_emits_completed_event_on_error() {
+        let fake = Arc::new(FakeOutboundExecutor::with_fixture(
+            "api.example.com",
+            "WEBSOCKET",
+            None,
+            OutboundExecutorResponse {
+                status: "error".to_string(),
+                status_code: Some(500),
+                headers_shape: None,
+                body_shape: None,
+                provider_request_id: None,
+                usage: serde_json::Value::Null,
+                cost: serde_json::Value::Null,
+                redaction_state: ygg_core::RedactionState::Redacted,
+                network_performed: false,
+                executor_kind: crate::ExecutorKind::Fake,
+            },
+        ));
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime
+            .load_package(package_ws("example/z6-exec-error", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-exec-error", "in_process");
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/z6-exec-error/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET"
+                }),
+            )
+            .await
+            .unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        assert_eq!(payload["status"], "error");
+    }
+
+    #[tokio::test]
+    async fn outbound_execute_emits_completed_event_on_denied() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime
+            .load_package(package_ws("example/z6-exec-denied", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-exec-denied", "in_process");
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.execute",
+                serde_json::json!({
+                    "capability_id": "example/z6-exec-denied/ws",
+                    "destination_host": "denied.example.com",
+                    "method": "WEBSOCKET"
+                }),
+            )
+            .await;
+        assert!(result.is_err());
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        assert_eq!(payload["status"], "denied");
+    }
+
+    #[tokio::test]
+    async fn outbound_stream_emits_completed_event_on_ended() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime
+            .load_package(package_ws("example/z6-stream-ended", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-stream-ended", "in_process");
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.stream",
+                serde_json::json!({
+                    "capability_id": "example/z6-stream-ended/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET",
+                    "stream_format": "sse"
+                }),
+            )
+            .await
+            .unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED).await;
+        assert_eq!(payload["status"], "ok");
+        assert_eq!(payload["final_termination"], "ended");
+    }
+
+    #[tokio::test]
+    async fn outbound_stream_emits_completed_event_on_cancelled() {
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let (store, runtime) = runtime_with_fake_execute(fake);
+        runtime
+            .load_package(package_ws("example/z6-stream-cancel", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-stream-cancel", "in_process");
+        let response = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.stream",
+                serde_json::json!({
+                    "capability_id": "example/z6-stream-cancel/ws",
+                    "destination_host": "api.example.com",
+                    "method": "WEBSOCKET",
+                    "stream_format": "sse"
+                }),
+            )
+            .await
+            .unwrap();
+        let stream_id = response["stream_id"].as_str().unwrap();
+        runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.capability.cancel",
+                serde_json::json!({
+                    "stream_id": stream_id,
+                    "session_id": "kernel_outbound_stream_example_z6-stream-cancel"
+                }),
+            )
+            .await
+            .unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED).await;
+        assert_eq!(payload["status"], "cancelled");
+        assert_eq!(payload["final_termination"], "cancelled");
+    }
+
+    #[tokio::test]
+    async fn outbound_websocket_emits_completed_event_on_close() {
+        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![
+            crate::OutboundWebSocketFrame::Text("hello".to_string()),
+        ]));
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                outbound_websocket_executor: fake,
+                ..RuntimeConfig::default()
+            },
+        );
+        runtime
+            .load_package(package_ws("example/z6-ws-close", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-ws-close", "in_process");
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/z6-ws-close/ws",
+                    "destination_host": "api.example.com"
+                }),
+            )
+            .await
+            .unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await;
+        assert_eq!(payload["package_id"], "example/z6-ws-close");
+        assert_eq!(payload["total_frames_in"], 1);
+    }
+
+    #[tokio::test]
+    async fn outbound_completion_event_has_no_secrets_and_redaction_state_set() {
+        let env_name = format!("YGG_Z6_SECRET_{}", std::process::id());
+        std::env::set_var(&env_name, "super-secret-value");
+        struct Guard(String);
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                std::env::remove_var(&self.0);
+            }
+        }
+        let _guard = Guard(env_name.clone());
+        let fake = Arc::new(FakeOutboundExecutor::new());
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                outbound_executor: OutboundExecutorConfig::Custom(fake),
+                outbound_execute_policy: OutboundExecutePolicyConfig {
+                    enabled: true,
+                    allowed_hosts: vec!["api.example.com".to_string()],
+                    https_only: true,
+                    timeout_ms: 30_000,
+                    allow_redirects: false,
+                    allow_insecure_loopback_for_tests: false,
+                },
+                secret_resolver: crate::SecretResolverConfig::with_resolver(Arc::new(
+                    crate::EnvSecretResolver::from_iter(vec![env_name.clone()]),
+                )),
+                ..RuntimeConfig::default()
+            },
+        );
+        let secret_ref = format!("secret_ref:env:{env_name}");
+        runtime
+            .load_package(package_ws("example/z6-secret", vec![secret_ref.clone()]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-secret", "in_process");
+        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
+            "capability_id": "example/z6-secret/ws",
+            "destination_host": "api.example.com",
+            "method": "WEBSOCKET",
+            "secret_headers": {"Authorization": {"secret_ref": secret_ref, "scheme": "bearer"}}
+        })).await.unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_EXECUTE_COMPLETED).await;
+        let text = serde_json::to_string(&payload).unwrap();
+        assert!(text.contains("secret_ref:env:"));
+        assert!(!text.contains("super-secret-value"));
+        assert_eq!(payload["redaction_state"], "redacted");
+    }
+
+    #[tokio::test]
+    async fn outbound_completion_event_no_payload_in_websocket() {
+        let fake = Arc::new(FakeWebSocketExecutor::with_canned_inbound_frames(vec![
+            crate::OutboundWebSocketFrame::Text("raw-frame-payload".to_string()),
+        ]));
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                outbound_websocket_executor: fake,
+                ..RuntimeConfig::default()
+            },
+        );
+        runtime
+            .load_package(package_ws("example/z6-ws-scrub", vec![]))
+            .await
+            .unwrap();
+        let context = ProtocolContext::package("example/z6-ws-scrub", "in_process");
+        let _ = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.outbound.websocket.open",
+                serde_json::json!({
+                    "capability_id": "example/z6-ws-scrub/ws",
+                    "destination_host": "api.example.com"
+                }),
+            )
+            .await
+            .unwrap();
+        let payload = wait_for_event(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await;
+        assert!(payload.get("payload").is_none());
+        assert!(payload.get("body").is_none());
+        assert!(payload.get("data").is_none());
+        assert!(!serde_json::to_string(&payload)
+            .unwrap()
+            .contains("raw-frame-payload"));
+    }
+}

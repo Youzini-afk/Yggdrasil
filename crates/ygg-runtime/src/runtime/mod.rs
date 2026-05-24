@@ -31,6 +31,7 @@ mod packages;
 mod permissions;
 mod projections;
 mod proposals;
+mod protocol;
 mod protocol_dispatch;
 mod remote;
 mod session;
