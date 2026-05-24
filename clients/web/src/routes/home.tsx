@@ -334,7 +334,7 @@ export function HomePage() {
         </div>
       </div>
 
-      <InstallModal open={showInstall} onClose={() => setShowInstall(false)} />
+      <InstallModal open={showInstall} onClose={() => setShowInstall(false)} onInstalled={projects.refresh} />
       <FailureModal
         open={failureProjectId !== null}
         onClose={() => setFailureProjectId(null)}

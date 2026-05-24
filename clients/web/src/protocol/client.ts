@@ -4,6 +4,113 @@ export interface ProtocolResponse<T = unknown> {
   error?: { code: string; message: string; details?: unknown };
 }
 
+export interface CapabilityInvocationResult<TOutput = unknown> {
+  capability_id: string;
+  correlation_id: string;
+  duration_ms: number;
+  output: TOutput;
+  provider_package_id: string;
+}
+
+export interface InstallSource {
+  root_url: string;
+  root_ref?: string;
+  lockfile?: string;
+  require_signed?: boolean;
+  strict_conformance?: boolean;
+}
+
+export interface InstallPlan {
+  root_id: string;
+  packages: InstallPlannedPackage[];
+  permissions_summary: InstallPermissionsSummary;
+  signature_summary: InstallSignatureSummary;
+  integrity_summary: InstallIntegritySummary;
+}
+
+export interface InstallPlannedPackage {
+  id: string;
+  version: string;
+  source: string;
+  url?: string;
+  ref?: string;
+  path?: string;
+  commit_sha?: string;
+  manifest_hash: string;
+  tree_hash: string;
+  signed: boolean;
+  signed_by?: string;
+  permissions: {
+    capabilities_invoke?: string[];
+    network_hosts?: string[];
+    secret_refs?: string[];
+  };
+  requires?: Array<{ id: string; source: unknown; version?: string }>;
+  conformance?: InstallConformanceReport;
+}
+
+export interface InstallConformanceReport {
+  passed?: boolean;
+  checks?: Array<{ id?: string; status?: string; passed?: boolean; message?: string }>;
+  failures?: unknown[];
+  warnings?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface InstallPermissionsSummary {
+  new_capabilities: string[];
+  new_network_hosts: string[];
+  new_secret_refs: string[];
+}
+
+export interface InstallSignatureSummary {
+  all_signed: boolean;
+  unsigned_packages: string[];
+}
+
+export interface InstallIntegritySummary {
+  manifest_hashes_match_lockfile: boolean;
+  drift_detected: unknown[];
+}
+
+export type InstallDetectedKind =
+  | { kind: "native"; descriptor?: unknown }
+  | { kind: "declared_external"; descriptor?: unknown }
+  | { kind: "external"; has_manifest_yaml?: boolean };
+
+export interface InstallConsent {
+  approved_capabilities: string[];
+  approved_network_hosts: string[];
+  approved_secret_refs: string[];
+}
+
+export interface InstallExecuteResult {
+  installed: Array<{ id: string; store_path: string; manifest_path: string }>;
+  lockfile_path: string;
+  profile_path: string;
+  lockfile: string;
+  project?: { project_id?: string; project_dir?: string } | null;
+}
+
+const INSTALL_LAB_PROVIDER = "official/install-lab";
+const INSTALL_LAB_CAPABILITIES = {
+  resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
+  detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
+  executePlan: `${INSTALL_LAB_PROVIDER}/execute_plan`,
+} as const;
+
+function normalizeInstallRootUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith("~")) {
+    throw new Error("Home-relative paths are not accepted from the web UI. Use an absolute path or HTTPS Git URL.");
+  }
+  if (/^[\w.-]+\/[\w./-]+(?:\.git)?(?:#.+)?$/.test(trimmed) && !trimmed.includes("://")) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
 export interface PackageRecord {
   id: string;
   version: string;
@@ -257,11 +364,63 @@ export class YggProtocolClient {
     });
   }
 
-  invokeCapability(capabilityId: string, input: unknown, providerPackageId?: string) {
+  invokeCapability<TOutput = unknown>(
+    capabilityId: string,
+    input: unknown,
+    providerPackageId?: string,
+    sessionId?: string,
+  ): Promise<CapabilityInvocationResult<TOutput>> {
     return this.call("kernel.v1.capability.invoke", {
       capability_id: capabilityId,
       input,
       ...(providerPackageId ? { provider_package_id: providerPackageId } : {}),
+      ...(sessionId ? { session_id: sessionId } : {}),
+    });
+  }
+
+  private async invokeInstallLab<TOutput>(capabilityId: string, input: unknown): Promise<TOutput> {
+    const session = await this.openSession(["install", "official/install-lab"], {
+      source: "clients/web",
+      capability_id: capabilityId,
+    });
+    const result = await this.invokeCapability<TOutput>(capabilityId, input, INSTALL_LAB_PROVIDER, session.id);
+    return result.output;
+  }
+
+  async resolveInstallPlan(source: InstallSource): Promise<InstallPlan> {
+    const rootUrl = normalizeInstallRootUrl(source.root_url);
+    const output = await this.invokeInstallLab<{ plan: InstallPlan }>(INSTALL_LAB_CAPABILITIES.resolvePlan, {
+      root_url: rootUrl,
+      root_ref: source.root_ref ?? "HEAD",
+      ...(source.lockfile ? { lockfile: source.lockfile } : {}),
+      ...(source.require_signed !== undefined ? { require_signed: source.require_signed } : {}),
+      ...(source.strict_conformance !== undefined ? { strict_conformance: source.strict_conformance } : {}),
+    });
+    return output.plan;
+  }
+
+  async detectInstallKind(source: Pick<InstallSource, "root_url" | "root_ref">): Promise<InstallDetectedKind> {
+    const rootUrl = normalizeInstallRootUrl(source.root_url);
+    const isLocalSource = /^(file:\/\/|local:|\/|\.)/.test(rootUrl);
+    return await this.invokeInstallLab<InstallDetectedKind>(INSTALL_LAB_CAPABILITIES.detectKind, {
+      [isLocalSource ? "path" : "url"]: rootUrl,
+      root_ref: source.root_ref ?? "HEAD",
+    });
+  }
+
+  async executeInstallPlan(
+    plan: InstallPlan,
+    consent: InstallConsent = {
+      approved_capabilities: plan.permissions_summary.new_capabilities,
+      approved_network_hosts: plan.permissions_summary.new_network_hosts,
+      approved_secret_refs: plan.permissions_summary.new_secret_refs,
+    },
+    profile = "default",
+  ): Promise<InstallExecuteResult> {
+    return await this.invokeInstallLab<InstallExecuteResult>(INSTALL_LAB_CAPABILITIES.executePlan, {
+      plan,
+      consent,
+      profile,
     });
   }
 
@@ -288,24 +447,22 @@ export class YggProtocolClient {
     secret_count: number;
     key_source: string;
   }> {
-    return (await this.invokeCapability("official/secret-store-lab/health", {})) as {
+    return (await this.invokeCapability<{
       store_path: string;
       exists: boolean;
       secret_count: number;
       key_source: string;
-    };
+    }>("official/secret-store-lab/health", {})).output;
   }
 
   async listSecrets(projectId?: string): Promise<string[]> {
     if (projectId) {
-      const result = (await this.invokeCapability("official/secret-store-lab/list_project_secrets", {
+      const result = (await this.invokeCapability<{ names: string[] }>("official/secret-store-lab/list_project_secrets", {
         project_id: projectId,
-      })) as { names: string[] };
+      })).output;
       return result.names ?? [];
     }
-    const result = (await this.invokeCapability("official/secret-store-lab/list_secrets", {})) as {
-      names: string[];
-    };
+    const result = (await this.invokeCapability<{ names: string[] }>("official/secret-store-lab/list_secrets", {})).output;
     return result.names ?? [];
   }
 
@@ -314,7 +471,7 @@ export class YggProtocolClient {
       ? "official/secret-store-lab/put_project_secret"
       : "official/secret-store-lab/put_secret";
     const params = projectId ? { project_id: projectId, name, value } : { name, value };
-    const result = (await this.invokeCapability(capability, params)) as { created: boolean };
+    const result = (await this.invokeCapability<{ created: boolean }>(capability, params)).output;
     return { created: result.created };
   }
 
@@ -323,7 +480,7 @@ export class YggProtocolClient {
       ? "official/secret-store-lab/delete_project_secret"
       : "official/secret-store-lab/delete_secret";
     const params = projectId ? { project_id: projectId, name } : { name };
-    const result = (await this.invokeCapability(capability, params)) as { removed: boolean };
+    const result = (await this.invokeCapability<{ removed: boolean }>(capability, params)).output;
     return { removed: result.removed };
   }
 }
