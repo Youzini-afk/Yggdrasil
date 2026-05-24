@@ -90,6 +90,71 @@
               "type": "string"
             }
           ]
+        },
+        "ProjectStorageSummarySchema": {
+          "properties": {
+            "bundle_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "cache_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "data_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "log_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "measured_at": {
+              "format": "date-time",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_state": {
+              "$ref": "#/definitions/StorageMeasurementStateSchema"
+            },
+            "total_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "measurement_state"
+          ],
+          "type": "object"
+        },
+        "StorageMeasurementStateSchema": {
+          "enum": [
+            "measured",
+            "unknown"
+          ],
+          "type": "string"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -112,6 +177,16 @@
         },
         "state": {
           "$ref": "#/definitions/ProjectState"
+        },
+        "storage_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProjectStorageSummarySchema"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

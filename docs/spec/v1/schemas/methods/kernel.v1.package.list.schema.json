@@ -523,6 +523,64 @@
             ],
             "type": "object"
           },
+          "PackageFailureSummary": {
+            "properties": {
+              "exit_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failed_at": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "log_tail_redacted": {
+                "items": {
+                  "$ref": "#/definitions/SubprocessLogLine"
+                },
+                "type": "array"
+              },
+              "package_id": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "redaction_state": {
+                "$ref": "#/definitions/RedactionState"
+              },
+              "signal": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "state": {
+                "$ref": "#/definitions/PackageState"
+              },
+              "stderr_tail_redacted": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "stderr_truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "failed_at",
+              "log_tail_redacted",
+              "package_id",
+              "reason",
+              "redaction_state",
+              "state",
+              "stderr_tail_redacted",
+              "stderr_truncated"
+            ],
+            "type": "object"
+          },
           "PackageManifest": {
             "properties": {
               "author": {
@@ -756,6 +814,46 @@
             },
             "type": "object"
           },
+          "RedactionState": {
+            "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+            "oneOf": [
+              {
+                "description": "Raw data was not captured (default).",
+                "enum": [
+                  "not_captured"
+                ],
+                "type": "string"
+              },
+              {
+                "description": "Raw data was redacted before recording.",
+                "enum": [
+                  "redacted"
+                ],
+                "type": "string"
+              },
+              {
+                "description": "Only a policy reference is stored; no data captured.",
+                "enum": [
+                  "policy_ref"
+                ],
+                "type": "string"
+              },
+              {
+                "description": "Request was blocked as unsafe; no data recorded.",
+                "enum": [
+                  "unsafe_blocked"
+                ],
+                "type": "string"
+              },
+              {
+                "description": "Explicit user/host approval to capture raw data (rare).",
+                "enum": [
+                  "explicitly_approved"
+                ],
+                "type": "string"
+              }
+            ]
+          },
           "RemoteAuth": {
             "properties": {
               "config": {
@@ -803,6 +901,25 @@
             "required": [
               "id",
               "schema"
+            ],
+            "type": "object"
+          },
+          "SubprocessLogLine": {
+            "properties": {
+              "line": {
+                "type": "string"
+              },
+              "package_id": {
+                "type": "string"
+              },
+              "stream": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "line",
+              "package_id",
+              "stream"
             ],
             "type": "object"
           },
@@ -993,6 +1110,16 @@
           },
           "id": {
             "type": "string"
+          },
+          "last_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/PackageFailureSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "loaded_at": {
             "format": "date-time",

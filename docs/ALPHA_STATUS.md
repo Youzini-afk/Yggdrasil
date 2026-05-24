@@ -59,7 +59,7 @@
 - 资产注册表：不透明的 `id`/`mime`/`hash`/`size`/`origin_package_id`/`metadata`，可从 SQLite 重新水化。权限执行与内容寻址 blob 存储留待后续。
 - 会话 fork / 分支沿革，可从事件日志重新水化。
 - 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `kernel/v1/projection.updated`。包持有的 projection 执行留待后续。
-- 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.yggdrasil/projects/<id>/` 布局、项目级 secret policy、Home 项目卡和 `yg project list/info/status/start/stop` 已落地。
+- 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.yggdrasil/projects/<id>/` 布局、项目级 secret policy、Home 项目卡、项目级 storage summary、redacted package failure summary，以及 `yg project list/info/status/start/stop` 已落地。
 - Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。通过 `kernel.v1.surface.contribution.list` 与 `.describe` 发现。
 - 提案生命周期：`kernel.v1.proposal.create|get|list|approve|reject|apply`。当前只 apply 通用操作 `asset.put` 和 `projection.rebuild`。更广泛的事务和回滚留待后续。
 
@@ -250,16 +250,16 @@ Round 10A.4 不改变 conformance 与 schema 数量：仍为 427 个 conformance
 
 平台用户面 chrome——Home、Settings、Install 流程、Project frame、Toast 系统。基于 React 19 + Tailwind v4 + Motion + Radix + Phosphor 的 SPA，由 Vite 构建。视觉规则与设计系统见 [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md)；shell 详细文档见 [`../clients/web/README.md`](../clients/web/README.md)。
 
-- **Home：** 项目货架（卡片网格 + 状态 pill + Hero + utility strip + 活动 timeline + 工坊工具 bento），数据来自 `kernel.v1.project.list`，不可达时回落到 mock。`⌘N` 打开 Install 模态。
+- **Home：** 项目货架（卡片网格 + 状态 pill + Hero + utility strip + 活动 timeline + 工坊工具 bento），数据来自 `kernel.v1.project.list`，磁盘用量来自项目 `storage_summary`。`⌘N` 打开 Install 模态。
 - **Settings：** 五个面板都接真实数据。
   - API Connections — `official/secret-store-lab/{list,put,delete}_secret` + health。UI 永远不读 raw secret 值。
   - Installed Packages — `kernel.v1.package.list` + 项目标记 + Cmd/Ctrl+F focus。
   - Profiles — `kernel.v1.host.diagnostics`（active profile、packages_loaded、network allowlist）。
-  - Storage — `data_dir` + paths + 真实 event store kind（sqlite/postgres/memory）。
+  - Storage — storage area summary + 真实 event store kind（sqlite/postgres/memory），不在 Web UI 暴露 host 绝对路径。
   - About — 平台身份、license、links、致谢。
-- **Install 流程：** 三步 modal（URL 输入含自动补全 → 计划审查含权限/依赖/conformance → 进度条），原生项目走快速通道，外部项目走 wrap-vs-workspace wizard。
+- **Install 流程：** 三步 modal 通过 `kernel.v1.capability.invoke` 调用 `official/install-lab` 的 `resolve_plan` / `detect_kind` / `execute_plan`；原生项目走快速通道，外部项目进入 wrap-vs-workspace wizard。没有 `kernel.v1.install.*`。
 - **Project Frame：** 60px 平台 topbar + 40px 项目 topbar（项目名/状态 pill/Stop/Audit log）+ iframe SurfaceHost 挂载项目自有前端。
-- **Failure Modal：** Deep Rust accent stripe、诊断/影响双列、stderr 日志面板（含 Copy log）、Restart/Stop-and-uninstall/Close 三选项。
+- **Failure Modal：** Deep Rust accent stripe、诊断/影响双列、redacted stderr 日志面板（含 Copy log）、Restart/Stop-and-uninstall/Close 三选项；数据来自 `kernel.v1.package.list/status/logs`，不复制 raw log。
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，prefers-reduced-motion 自动收敛。
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
 - **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。流式订阅通过 postMessage 桥接 `kernel/v1/stream.*`。
@@ -307,7 +307,7 @@ Round 10A.4 不改变 conformance 与 schema 数量：仍为 427 个 conformance
 - 更丰富的资源策略（filesystem 强制矩阵）。
 - 内容寻址的资产 blob 存储与能力包身份的资产权限：稳定的 content-address helper 与元数据约定已完成；完整 blob 存储与运行时权限执行未完成。
 - 包持有的 projection 执行。
-- 更丰富的崩溃监控与健康检查。
+- 更丰富的失败监控与健康检查。
 - 更广的传输一致性覆盖。
 - Desktop release code signing / notarization、auto-updater、真实应用图标、桌面 wrapper 管理 host 子进程。
 - Surface lifecycle callback（如 `onClose`、`onProposalDraft`）与跨源 surface bundle allowlist。

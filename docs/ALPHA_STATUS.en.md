@@ -59,7 +59,7 @@ The platform foundation is in place. From here, real AI-native playable experien
 - Asset registry: opaque `id`, `mime`, `hash`, `size`, `origin_package_id`, `metadata`. Rehydrates from SQLite. Permission enforcement and content-addressed blob storage are next.
 - Session fork / branch lineage rehydrates from the event log.
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
-- Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, and `yg project list/info/status/start/stop` are implemented.
+- Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `yg project list/info/status/start/stop` are implemented.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
@@ -250,16 +250,16 @@ Round 10A.4 does not change conformance or schema counts: 427 conformance cases 
 
 The platform user-facing chrome — Home, Settings, Install flow, Project frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
 
-- **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `kernel.v1.project.list` and falling back to mocks when the host is unreachable. `⌘N` opens the Install modal.
+- **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `kernel.v1.project.list`; disk usage comes from project `storage_summary`. `⌘N` opens the Install modal.
 - **Settings:** five panels, all wired to real data.
   - API Connections — `official/secret-store-lab/{list,put,delete}_secret` plus health. The UI never reads raw secret values.
   - Installed Packages — `kernel.v1.package.list` plus the project flag, with Cmd/Ctrl+F focus.
   - Profiles — `kernel.v1.host.diagnostics` (active profile, packages_loaded, network allowlist).
-  - Storage — `data_dir`, paths, and the live event-store kind (sqlite / postgres / memory).
+  - Storage — storage-area summary plus the live event-store kind (sqlite / postgres / memory), without exposing host absolute paths in the Web UI.
   - About — platform identity, license, links, gratitude.
-- **Install flow:** three-step modal (URL input with autocomplete → plan review with permissions / dependencies / conformance → progress bar). Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard.
+- **Install flow:** three-step modal calls `official/install-lab` (`resolve_plan` / `detect_kind` / `execute_plan`) through `kernel.v1.capability.invoke`. Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard. There is no `kernel.v1.install.*`.
 - **Project Frame:** 60px platform topbar plus 40px project topbar (project name / status pill / Stop / Audit log) plus the iframe SurfaceHost that mounts the project's own UI.
-- **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, stderr log panel (with Copy log), and Restart / Stop-and-uninstall / Close actions.
+- **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `kernel.v1.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
 - **SurfaceHost:** mounts third-party web surface bundles through sandboxed iframes; no kernel access by default; only host-configured bridge methods reach the public protocol. Streaming subscription bridges `kernel/v1/stream.*` through postMessage.
@@ -307,7 +307,7 @@ Plus crate and service unit tests via `cargo test --workspace`, and `npm run che
 - Richer resource policy (filesystem enforcement matrix).
 - Content-addressed asset blob storage and package-principal asset permissions: stable content-address helpers and metadata conventions are done; full blob storage and runtime enforcement aren't.
 - Package-owned projection execution.
-- Richer crash monitoring and health checks.
+- Richer failure monitoring and health checks.
 - Broader transport consistency coverage.
 - Desktop release code signing / notarization, auto-updater, real app icons, and desktop-wrapper management of the host subprocess.
 - Surface lifecycle callbacks such as `onClose` and `onProposalDraft`, plus a cross-origin surface-bundle allowlist.

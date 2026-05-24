@@ -53,8 +53,9 @@ The shell talks to the host exclusively through public protocol:
 - `GET /kernel/v1/event.subscribe/:session_id` (SSE) for event tails.
 - `postMessage` bridge for surfaces mounted in sandboxed iframes.
 
-There is no SQLite access, no private runtime call, and no hardcoded official
-package id.
+There is no SQLite access and no private runtime call. Shell-owned features that
+call platform utility packages still go through ordinary `kernel.v1.capability.invoke`
+paths; no official package receives a privileged side channel.
 
 ---
 
@@ -99,8 +100,8 @@ src/
 │   │   ├── activity-timeline.tsx
 │   │   └── workshop-utilities.tsx
 │   └── install/
-│       ├── install-modal.tsx   # 3-step wizard + external project branch
-│       └── failure-modal.tsx   # Crash diagnostics with deep-rust accent
+│       ├── install-modal.tsx   # install-lab wizard + external project branch
+│       └── failure-modal.tsx   # redacted failure diagnostics with deep-rust accent
 ├── routes/
 │   ├── home.tsx
 │   ├── project-frame.tsx       # iframe wrapper around mounted surface
@@ -109,7 +110,7 @@ src/
 │       ├── api-connections.tsx # secret-store-lab wired
 │       ├── installed-packages.tsx # kernel.v1.package.list wired
 │       ├── profiles.tsx        # kernel.v1.host.diagnostics wired
-│       ├── storage.tsx         # data_dir / event store kind wired
+│       ├── storage.tsx         # storage areas + event store kind wired
 │       └── about.tsx
 ├── protocol/
 │   └── client.ts               # YggProtocolClient — typed RPC + SSE wrappers
@@ -162,12 +163,14 @@ mode for legibility on bark backgrounds.
 
 | Page | Source |
 | ---- | ------ |
-| Home — projects | `kernel.v1.project.list` (falls back to `MOCK_PROJECTS` when host unreachable) |
+| Home — projects | `kernel.v1.project.list` + per-project `storage_summary` |
 | Settings — API Connections | `official/secret-store-lab/{list,put,delete}_secret` + `health` |
 | Settings — Installed Packages | `kernel.v1.package.list` + `kernel.v1.project.list` (project flag) |
 | Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
-| Settings — Storage | `kernel.v1.host.diagnostics.data_dir` + event store kind |
+| Settings — Storage | storage-area summary + event store kind |
 | Project Frame | `kernel.v1.project.get/start/stop` + `kernel.v1.surface.resolve_bundle` |
+| Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `kernel.v1.capability.invoke` |
+| Failure Modal | `kernel.v1.package.list/status/logs` redacted failure summaries |
 
 All async views show a shimmer skeleton during load and an `EmptyState` with a
 retry action when the call fails. Mutating actions (delete secret, stop
@@ -238,7 +241,8 @@ Production hosting still needs a static fileserver route (deferred).
 - It is not a Studio. There are no privileged tools that bypass public protocol.
 - It is not a chat UI. Project surfaces own conversational behavior.
 - It is not a marketplace. Settings → Installed Packages shows local
-  inventory only; install flow accepts URLs/paths, never a curated catalog.
+  inventory only; the web install flow accepts public HTTPS Git URLs, never a
+  curated catalog.
 - It is not a content runtime. All experience-level state lives in projects.
 
 ---

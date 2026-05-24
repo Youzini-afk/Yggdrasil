@@ -475,7 +475,7 @@ fn main() -> anyhow::Result<()> {
             ),
             KernelMethod::ProjectGet => (
                 schema_value::<ProjectIdParams>(),
-                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"paths":{"type":"object"},"storage_summary":schema_value::<ProjectStorageSummarySchema>(),"running_session_id":{"type":"string","description":"Session id when project state is running; absent otherwise"}}}),
+                json!({"allOf":[schema_value::<ygg_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<ygg_core::project::ProjectState>(),"storage_summary":schema_value::<ProjectStorageSummarySchema>(),"running_session_id":{"type":"string","description":"Session id when project state is running; absent otherwise"}}}),
             ),
             KernelMethod::ProjectStart => (
                 schema_value::<ProjectIdParams>(),

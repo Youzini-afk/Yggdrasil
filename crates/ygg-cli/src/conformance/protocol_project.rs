@@ -104,7 +104,10 @@ pub(crate) async fn project_get_returns_full_descriptor() -> anyhow::Result<()> 
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(value["project"]["id"] == json!("proto-get__abc12345"));
     anyhow::ensure!(value["state"] == json!("installed"));
-    anyhow::ensure!(value["paths"].is_object());
+    anyhow::ensure!(!value.get("paths").is_some_and(|paths| paths.is_object()));
+    anyhow::ensure!(value["storage_summary"].is_object());
+    anyhow::ensure!(value["storage_summary"].get("total_bytes").is_some());
+    anyhow::ensure!(value["storage_summary"].get("measured_at").is_some());
     Ok(())
 }
 

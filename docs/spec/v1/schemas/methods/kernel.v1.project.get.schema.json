@@ -248,9 +248,6 @@
         }
       ],
       "properties": {
-        "paths": {
-          "type": "object"
-        },
         "running_session_id": {
           "description": "Session id when project state is running; absent otherwise",
           "type": "string"
@@ -310,6 +307,75 @@
             }
           ],
           "title": "ProjectState"
+        },
+        "storage_summary": {
+          "$defs": {
+            "StorageMeasurementStateSchema": {
+              "enum": [
+                "measured",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "bundle_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "cache_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "data_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "log_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "measured_at": {
+              "format": "date-time",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_state": {
+              "$ref": "#/definitions/StorageMeasurementStateSchema"
+            },
+            "total_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "measurement_state"
+          ],
+          "title": "ProjectStorageSummarySchema",
+          "type": "object"
         }
       }
     }
