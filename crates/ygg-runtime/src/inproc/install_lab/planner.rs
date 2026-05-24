@@ -1,0 +1,388 @@
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use anyhow::{Context, Result};
+use serde_json::{json, Value};
+use uuid::Uuid;
+use ygg_core::{DependencySource, Lockfile, PackageDependency, PackageManifest, PermissionSet};
+
+use super::executor::{compute_manifest_hash, compute_tree_hash, invoke_package_capability};
+use super::source::{
+    block_on_current, manifest_path_in, parse_manifest_at, parse_root_descriptor, resolve_dep,
+    sorted_vec, value_str,
+};
+use super::types::{
+    Consent, InstallPlan, IntegritySummary, PackageDescriptor, PermissionsSummary, PlannedPackage,
+    PlannedPermissions, PlannedRequirement, ResolvePlanInput, SignatureSummary, SourceDescriptor,
+};
+
+const MAX_DEPTH: usize = 32;
+
+pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
+    if input.as_object().is_some_and(|object| object.is_empty()) {
+        anyhow::bail!("unsupported smoke input: missing root_url");
+    }
+    let input: ResolvePlanInput = serde_json::from_value(input)?;
+    let root = parse_root_descriptor(&input.root_url, &input.root_ref)?;
+    let mut packages = Vec::new();
+    let mut visited = HashSet::new();
+    let mut stack = Vec::new();
+    let mut resolving = HashSet::new();
+    resolve_transitive(
+        root,
+        input.require_signed,
+        input.strict_conformance,
+        &mut visited,
+        &mut resolving,
+        &mut stack,
+        &mut packages,
+        MAX_DEPTH,
+    )?;
+
+    let mut lock_map = HashMap::new();
+    if let Some(lockfile) = input.lockfile.as_deref() {
+        let lock: Lockfile = toml::from_str(lockfile).context("failed to parse lockfile TOML")?;
+        for entry in lock.package {
+            lock_map.insert(entry.id, entry.manifest_hash);
+        }
+    }
+    let mut drift = Vec::new();
+    for pkg in &packages {
+        if let Some(expected) = lock_map.get(&pkg.id) {
+            if expected != &pkg.manifest_hash {
+                drift.push(json!({
+                    "id": pkg.id,
+                    "kind": "manifest_hash",
+                    "expected": expected,
+                    "actual": pkg.manifest_hash,
+                }));
+            }
+        }
+    }
+
+    let permissions_summary = aggregate_permissions(&packages);
+    let unsigned_packages = packages
+        .iter()
+        .filter(|pkg| !pkg.signed)
+        .map(|pkg| pkg.id.clone())
+        .collect::<Vec<_>>();
+    let root_id = packages
+        .first()
+        .map(|pkg| pkg.id.clone())
+        .unwrap_or_default();
+    let plan = InstallPlan {
+        root_id,
+        packages,
+        permissions_summary,
+        signature_summary: SignatureSummary {
+            all_signed: unsigned_packages.is_empty(),
+            unsigned_packages,
+        },
+        integrity_summary: IntegritySummary {
+            manifest_hashes_match_lockfile: drift.is_empty(),
+            drift_detected: drift,
+        },
+    };
+    Ok(json!({ "plan": plan }))
+}
+
+fn resolve_transitive(
+    root: PackageDescriptor,
+    require_signed: bool,
+    strict_conformance: bool,
+    visited: &mut HashSet<String>,
+    resolving: &mut HashSet<String>,
+    stack: &mut Vec<String>,
+    plan: &mut Vec<PlannedPackage>,
+    max_depth: usize,
+) -> Result<()> {
+    if max_depth == 0 {
+        anyhow::bail!("dependency depth exceeded {MAX_DEPTH} (possible cycle)");
+    }
+
+    match &root.source {
+        SourceDescriptor::Internal => return Ok(()),
+        SourceDescriptor::Local { path } => {
+            if !path.exists() {
+                anyhow::bail!("local dependency path does not exist: {}", path.display());
+            }
+        }
+        SourceDescriptor::Git { .. } => {}
+    }
+
+    let resolved = resolve_one(root, require_signed, strict_conformance)?;
+    if let Some(pos) = stack.iter().position(|id| id == &resolved.id) {
+        let mut cycle = stack[pos..].to_vec();
+        cycle.push(resolved.id.clone());
+        anyhow::bail!("dependency cycle detected: {}", cycle.join(" -> "));
+    }
+    if visited.contains(&resolved.id) {
+        return Ok(());
+    }
+    if !resolving.insert(resolved.id.clone()) {
+        anyhow::bail!("dependency cycle detected at {}", resolved.id);
+    }
+    visited.insert(resolved.id.clone());
+    stack.push(resolved.id.clone());
+
+    let requires = resolved.requires.clone();
+    plan.push(resolved);
+    for req in requires {
+        let next = resolve_dep(&req)?;
+        resolve_transitive(
+            next,
+            require_signed,
+            strict_conformance,
+            visited,
+            resolving,
+            stack,
+            plan,
+            max_depth - 1,
+        )?;
+    }
+    let done = stack.pop();
+    if let Some(done) = done {
+        resolving.remove(&done);
+    }
+    Ok(())
+}
+
+fn resolve_one(
+    desc: PackageDescriptor,
+    require_signed: bool,
+    strict_conformance: bool,
+) -> Result<PlannedPackage> {
+    match desc.source {
+        SourceDescriptor::Local { path } => resolve_local_package(path, strict_conformance),
+        SourceDescriptor::Git { url, ref_name } => block_on_current(resolve_git_package(
+            url,
+            ref_name,
+            require_signed,
+            strict_conformance,
+        )),
+        SourceDescriptor::Internal => {
+            anyhow::bail!("internal packages do not require installation")
+        }
+    }
+}
+
+fn resolve_local_package(path: PathBuf, strict_conformance: bool) -> Result<PlannedPackage> {
+    let path = fs::canonicalize(&path)
+        .with_context(|| format!("failed to canonicalize local package {}", path.display()))?;
+    let manifest_path = manifest_path_in(&path)?;
+    let manifest = parse_manifest_at(&manifest_path)?;
+    let manifest_hash = block_on_current(compute_manifest_hash(&manifest_path))?;
+    let tree_hash = block_on_current(compute_tree_hash(&path))?;
+    let mut planned = planned_from_manifest(
+        &manifest,
+        manifest_path.parent().unwrap_or(&path),
+        "local".to_string(),
+        None,
+        None,
+        Some(path.to_string_lossy().to_string()),
+        None,
+        manifest_hash,
+        tree_hash,
+        false,
+        None,
+    );
+    attach_conformance(&mut planned, &path, strict_conformance)?;
+    Ok(planned)
+}
+
+async fn resolve_git_package(
+    url: String,
+    ref_name: String,
+    require_signed: bool,
+    strict_conformance: bool,
+) -> Result<PlannedPackage> {
+    let resolved = invoke_package_capability(
+        "official/git-tools-lab",
+        "official/git-tools-lab/resolve_ref",
+        json!({ "remote_url": url, "ref": ref_name }),
+    )
+    .await?;
+    let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
+    let tmp = std::env::temp_dir().join(format!("yggdrasil-git-install-{}", Uuid::new_v4()));
+    let fetch = invoke_package_capability(
+        "official/git-tools-lab",
+        "official/git-tools-lab/fetch_tree",
+        json!({ "remote_url": url, "commit_sha": commit_sha, "dest_dir": tmp.to_string_lossy() }),
+    )
+    .await?;
+    let _git_tree_hash = value_str(&fetch, "tree_hash")?.to_string();
+    let result = async {
+        let manifest_path = manifest_path_in(&tmp)?;
+        let manifest = parse_manifest_at(&manifest_path)?;
+        let manifest_hash = compute_manifest_hash(&manifest_path).await?;
+        let tree_hash = compute_tree_hash(&tmp).await?;
+        let mut signed = false;
+        if require_signed {
+            let tag = invoke_package_capability(
+                "official/git-tools-lab",
+                "official/git-tools-lab/read_signed_tag",
+                json!({ "remote_url": url, "tag": ref_name }),
+            )
+            .await?;
+            if tag.get("pgp_signature").and_then(Value::as_str).is_none() {
+                anyhow::bail!("git source {}@{} is unsigned", url, ref_name);
+            }
+            signed = true;
+        }
+        let mut planned = planned_from_manifest(
+            &manifest,
+            manifest_path.parent().unwrap_or(&tmp),
+            "git".to_string(),
+            Some(url),
+            Some(ref_name),
+            None,
+            Some(commit_sha),
+            manifest_hash,
+            tree_hash,
+            signed,
+            None,
+        );
+        attach_conformance(&mut planned, &tmp, strict_conformance)?;
+        Ok(planned)
+    }
+    .await;
+    fs::remove_dir_all(&tmp).ok();
+    result
+}
+
+fn planned_from_manifest(
+    manifest: &PackageManifest,
+    base_dir: &Path,
+    source: String,
+    url: Option<String>,
+    ref_name: Option<String>,
+    path: Option<String>,
+    commit_sha: Option<String>,
+    manifest_hash: String,
+    tree_hash: String,
+    signed: bool,
+    signed_by: Option<String>,
+) -> PlannedPackage {
+    PlannedPackage {
+        id: manifest.id.clone(),
+        version: manifest.version.clone(),
+        source,
+        url,
+        ref_name,
+        path,
+        commit_sha,
+        manifest_hash,
+        tree_hash,
+        signed,
+        signed_by,
+        permissions: permissions_from_manifest(&manifest.permissions),
+        requires: manifest
+            .requires
+            .iter()
+            .map(|req| planned_requirement(req, base_dir))
+            .collect(),
+        conformance: None,
+    }
+}
+
+fn attach_conformance(
+    planned: &mut PlannedPackage,
+    package_path: &Path,
+    strict_conformance: bool,
+) -> Result<()> {
+    let report = block_on_current(ygg_core::conformance::run_checks(package_path, "v1", true))?;
+    if !report.summary.passed_all_blocking() && strict_conformance {
+        let errors = report.failed_checks().join("; ");
+        anyhow::bail!("package {} fails v1 conformance: {errors}", planned.id);
+    }
+    planned.conformance = Some(report);
+    Ok(())
+}
+
+fn planned_requirement(req: &PackageDependency, base_dir: &Path) -> PlannedRequirement {
+    let source = match &req.source {
+        DependencySource::Local { path } => {
+            let dep_path = PathBuf::from(path);
+            let absolute = if dep_path.is_absolute() {
+                dep_path
+            } else {
+                base_dir.join(dep_path)
+            };
+            serde_json::to_value(DependencySource::Local {
+                path: absolute.to_string_lossy().to_string(),
+            })
+            .unwrap_or(Value::Null)
+        }
+        other => serde_json::to_value(other).unwrap_or(Value::Null),
+    };
+    PlannedRequirement {
+        id: req.id.clone(),
+        source,
+        version: req.version.clone(),
+    }
+}
+
+fn permissions_from_manifest(permissions: &PermissionSet) -> PlannedPermissions {
+    let mut network_hosts = permissions.network.hosts.clone();
+    network_hosts.extend(
+        permissions
+            .network
+            .declarations
+            .iter()
+            .map(|d| d.host.clone()),
+    );
+    PlannedPermissions {
+        capabilities_invoke: sorted_vec(permissions.capabilities.invoke.iter().cloned()),
+        network_hosts: sorted_vec(network_hosts),
+        secret_refs: sorted_vec(permissions.secret_refs.iter().cloned()),
+    }
+}
+
+fn aggregate_permissions(packages: &[PlannedPackage]) -> PermissionsSummary {
+    PermissionsSummary {
+        new_capabilities: sorted_vec(
+            packages
+                .iter()
+                .flat_map(|pkg| pkg.permissions.capabilities_invoke.clone()),
+        ),
+        new_network_hosts: sorted_vec(
+            packages
+                .iter()
+                .flat_map(|pkg| pkg.permissions.network_hosts.clone()),
+        ),
+        new_secret_refs: sorted_vec(
+            packages
+                .iter()
+                .flat_map(|pkg| pkg.permissions.secret_refs.clone()),
+        ),
+    }
+}
+
+pub(super) fn verify_consent(plan: &InstallPlan, consent: &Consent) -> Result<()> {
+    ensure_subset(
+        &plan.permissions_summary.new_capabilities,
+        &consent.approved_capabilities,
+        "capability",
+    )?;
+    ensure_subset(
+        &plan.permissions_summary.new_network_hosts,
+        &consent.approved_network_hosts,
+        "network host",
+    )?;
+    ensure_subset(
+        &plan.permissions_summary.new_secret_refs,
+        &consent.approved_secret_refs,
+        "secret ref",
+    )?;
+    Ok(())
+}
+
+fn ensure_subset(required: &[String], approved: &[String], kind: &str) -> Result<()> {
+    for item in required {
+        if !approved.iter().any(|approved| approved == item) {
+            anyhow::bail!("consent missing required {kind}: {item}");
+        }
+    }
+    Ok(())
+}
