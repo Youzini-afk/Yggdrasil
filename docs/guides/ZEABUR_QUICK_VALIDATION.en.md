@@ -25,7 +25,7 @@ The same HTTP service exposes:
 - `GET /surface-bundles/...` (public read-only browser artifacts)
 - `GET /healthz`
 
-When `YGG_HTTP_ACCESS_TOKEN` is set, `/rpc` and `/kernel/...` routes require `Authorization: Bearer <token>`. Browser SSE uses `?access_token=<token>` because EventSource cannot send custom headers. The web client reads `?ygg_token=<token>` from the page URL once, stores it in `localStorage`, scrubs it from the address bar, and sends it on future RPC/SSE calls.
+When `YGG_HTTP_ACCESS_TOKEN` is set, `/rpc` and `/kernel/...` routes require `Authorization: Bearer <token>`. Browser SSE uses `?access_token=<token>` because EventSource cannot send custom headers. Normally, open the web URL directly and paste the token into the login screen; the web client validates it, stores it in `localStorage`, and sends it on future RPC/SSE calls. As an optional bootstrap path, you can also visit once with `?ygg_token=<token>` or `?access_token=<token>`; the web client reads it once and scrubs it from the address bar.
 
 Surface bundles under `/surface-bundles/...` are public frontend artifacts in this quick-validation deployment so sandboxed iframe dynamic imports, stylesheets, fonts, and images can load reliably. Do not put secrets in bundles or assets. The security boundary is the host RPC/kernel token plus the SurfaceHost bridge capability policy, not hiding frontend JavaScript or CSS.
 
@@ -49,7 +49,7 @@ Recommended environment variables:
 
 If `/data/profiles/$YGG_PROFILE.yaml` does not exist, the entrypoint creates a small SQLite-backed profile. You can replace it by mounting or writing your own profile into the same path.
 
-For Zeabur/public validation, set a random token and visit the app once with `?ygg_token=<token>`. Do not reuse production credentials and do not store real provider secrets in this validation instance.
+For Zeabur/public validation, set a random token, open the app URL, and enter that token on the login screen. Do not reuse production credentials and do not store real provider secrets in this validation instance. URL tokens (`?ygg_token=<token>` or `?access_token=<token>`) remain available as an optional one-time bootstrap path.
 
 ## Local smoke test
 

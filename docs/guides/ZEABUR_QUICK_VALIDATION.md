@@ -25,7 +25,7 @@ ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/de
 - `GET /surface-bundles/...`（公开只读浏览器 artifact）
 - `GET /healthz`
 
-设置 `YGG_HTTP_ACCESS_TOKEN` 后，`/rpc` 与 `/kernel/...` 路由需要 `Authorization: Bearer <token>`。浏览器 SSE 使用 `?access_token=<token>`，因为 EventSource 不能发送自定义 header。Web client 会从页面 URL 的 `?ygg_token=<token>` 读取一次，保存到 `localStorage`，从地址栏移除该参数，之后自动用于 RPC/SSE。
+设置 `YGG_HTTP_ACCESS_TOKEN` 后，`/rpc` 与 `/kernel/...` 路由需要 `Authorization: Bearer <token>`。浏览器 SSE 使用 `?access_token=<token>`，因为 EventSource 不能发送自定义 header。正常使用时，直接打开 Web URL，在登录页粘贴 token；Web client 会验证 token、保存到 `localStorage`，之后自动用于 RPC/SSE。作为可选 bootstrap，也可以第一次访问时在 URL 加上 `?ygg_token=<token>` 或 `?access_token=<token>`；Web client 会读取一次并从地址栏移除该参数。
 
 `/surface-bundles/...` 在该 quick-validation 部署中是公开前端 artifact，这样 sandboxed iframe 的 dynamic import、stylesheet、font、image 能稳定加载。不要把 secret 放进 bundle 或 asset。安全边界是 host RPC/kernel token 加 SurfaceHost bridge capability policy，而不是隐藏前端 JavaScript/CSS。
 
@@ -49,7 +49,7 @@ ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/de
 
 如果 `/data/profiles/$YGG_PROFILE.yaml` 不存在，entrypoint 会创建一个轻量 SQLite profile。也可以通过挂载或写入同一路径来替换为自定义 profile。
 
-在 Zeabur/公网验证时，请设置随机 token，并第一次访问时在 URL 加上 `?ygg_token=<token>`。不要复用生产凭据，也不要在该验证实例中保存真实 provider secret。
+在 Zeabur/公网验证时，请设置随机 token，打开应用 URL 后在登录页输入该 token。不要复用生产凭据，也不要在该验证实例中保存真实 provider secret。URL token（`?ygg_token=<token>` 或 `?access_token=<token>`）仍可作为可选的一次性 bootstrap 路径使用。
 
 ## 本地 smoke test
 

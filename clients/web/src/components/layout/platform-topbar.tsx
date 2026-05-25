@@ -1,7 +1,8 @@
-import { Bell, GearSix, Moon, Sun } from "@/components/icons";
+import { Bell, GearSix, Moon, SignOut, Sun } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useTheme } from "@/lib/theme";
+import { useAuth } from "@/lib/auth-gate";
 import { useRoute, type Route } from "@/lib/router";
 import { cn } from "@/lib/cn";
 
@@ -18,6 +19,7 @@ const breadcrumbForRoute = (route: Route): string => {
 
 export function PlatformTopbar({ route }: { route: Route }) {
   const { theme, preference, setPreference } = useTheme();
+  const { token, logout } = useAuth();
   const [, navigate] = useRoute();
 
   // Cycle: system → light → dark → system. Preserves the user's choice to
@@ -92,6 +94,19 @@ export function PlatformTopbar({ route }: { route: Route }) {
             <GearSix size={18} />
           </Button>
         </Tooltip>
+        {token ? (
+          <Tooltip label="Log out">
+            <Button
+              tone="icon"
+              size="icon"
+              aria-label="Log out"
+              onClick={logout}
+              className="text-deep-rust hover:bg-deep-rust-surface"
+            >
+              <SignOut size={18} />
+            </Button>
+          </Tooltip>
+        ) : null}
       </div>
     </header>
   );

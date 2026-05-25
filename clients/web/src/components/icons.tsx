@@ -55,6 +55,7 @@ export {
   PlusIcon as Plus,
   QuestionIcon as Question,
   ShieldCheckIcon as ShieldCheck,
+  SignOutIcon as SignOut,
   StackIcon as Stack,
   StopCircleIcon as StopCircle,
   SunIcon as Sun,

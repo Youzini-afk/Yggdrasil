@@ -20,12 +20,20 @@ interface KernelContextValue {
 
 const KernelContext = createContext<KernelContextValue | null>(null);
 
-export function KernelProvider({ children, baseUrl }: { children: ReactNode; baseUrl?: string }) {
+export function KernelProvider({
+  children,
+  baseUrl,
+  accessToken,
+}: {
+  children: ReactNode;
+  baseUrl?: string;
+  accessToken?: string | null;
+}) {
   const client = useMemo(() => {
     const url = baseUrl
       ?? (typeof location !== "undefined" && location.origin !== "null" ? location.origin : "http://127.0.0.1:8787");
-    return new YggProtocolClient(url);
-  }, [baseUrl]);
+    return new YggProtocolClient(url, accessToken);
+  }, [baseUrl, accessToken]);
 
   return <KernelContext.Provider value={{ client }}>{children}</KernelContext.Provider>;
 }

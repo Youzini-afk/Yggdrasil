@@ -4,6 +4,69 @@ export interface ProtocolResponse<T = unknown> {
   error?: { code: string; message: string; details?: unknown };
 }
 
+export const BROWSER_ACCESS_TOKEN_STORAGE_KEY = "ygg_http_access_token";
+
+export class ProtocolHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(`${status}: ${body || "HTTP error"}`);
+    this.name = "ProtocolHttpError";
+  }
+
+  get isAuthError(): boolean {
+    return this.status === 401;
+  }
+}
+
+export function readBrowserAccessToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+
+  try {
+    return window.localStorage.getItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function storeBrowserAccessToken(token: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // Storage can be disabled in locked-down browsers; auth still works in memory.
+  }
+}
+
+export function clearBrowserAccessToken(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    // Best effort only.
+  }
+}
+
+export function resolveBrowserAccessToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get("ygg_token") ?? params.get("access_token");
+    if (fromQuery) {
+      scrubTokenFromBrowserUrl(params);
+      return fromQuery;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return readBrowserAccessToken();
+}
+
 export interface CapabilityInvocationResult<TOutput = unknown> {
   capability_id: string;
   correlation_id: string;
@@ -243,8 +306,8 @@ export interface ProjectRecord {
 export class YggProtocolClient {
   private readonly accessToken?: string;
 
-  constructor(private readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string) {
-    this.accessToken = accessToken ?? resolveBrowserAccessToken();
+  constructor(private readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string | null) {
+    this.accessToken = accessToken === undefined ? resolveBrowserAccessToken() : accessToken || undefined;
   }
 
   invoke(method: string, params: unknown = {}) {
@@ -257,6 +320,7 @@ export class YggProtocolClient {
       headers: this.rpcHeaders(),
       body: JSON.stringify({ id: crypto.randomUUID(), method, params, session_id: sessionId }),
     });
+    await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
@@ -270,6 +334,7 @@ export class YggProtocolClient {
       headers: this.rpcHeaders(),
       body: JSON.stringify({ id: crypto.randomUUID(), method, params }),
     });
+    await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<T>;
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
@@ -535,21 +600,11 @@ export class YggProtocolClient {
   }
 }
 
-function resolveBrowserAccessToken(): string | undefined {
-  if (typeof window === "undefined") return undefined;
+async function throwForHttpError(response: Response): Promise<void> {
+  if (response.ok) return;
 
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = params.get("ygg_token") ?? params.get("access_token");
-    if (fromQuery) {
-      window.localStorage.setItem("ygg_http_access_token", fromQuery);
-      scrubTokenFromBrowserUrl(params);
-      return fromQuery;
-    }
-    return window.localStorage.getItem("ygg_http_access_token") ?? undefined;
-  } catch {
-    return undefined;
-  }
+  const body = await response.text().catch(() => response.statusText || "HTTP error");
+  throw new ProtocolHttpError(response.status, body);
 }
 
 function scrubTokenFromBrowserUrl(params: URLSearchParams) {
