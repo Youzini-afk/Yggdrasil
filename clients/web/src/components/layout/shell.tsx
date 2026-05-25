@@ -26,10 +26,10 @@ export function Shell() {
 
 function RouteSkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+    <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 2xl:px-12">
       <Skeleton className="h-5 w-32" />
       <Skeleton className="h-16 w-full max-w-[760px] rounded-[18px]" />
-      <div className="grid gap-6 lg:grid-cols-[60fr_40fr]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
         <Skeleton className="h-[420px] rounded-[24px]" />
         <Skeleton className="h-[420px] rounded-[24px]" />
       </div>

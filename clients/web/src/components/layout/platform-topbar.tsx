@@ -33,10 +33,10 @@ export function PlatformTopbar({ route }: { route: Route }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-whisper-border bg-warm-bone/85 px-4 backdrop-blur-[20px] sm:px-6 lg:px-8",
+        "sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-whisper-border bg-warm-bone/85 px-3 backdrop-blur-[20px] sm:px-6 lg:px-8",
       )}
     >
-      <nav className="flex min-w-0 items-center gap-3 text-[14px]">
+      <nav className="flex min-w-0 items-center gap-2 text-[14px] sm:gap-3">
         <button
           type="button"
           onClick={() => navigate({ kind: "home" })}
@@ -52,7 +52,7 @@ export function PlatformTopbar({ route }: { route: Route }) {
         </span>
       </nav>
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
         <Tooltip label="Notifications">
           <Button tone="icon" size="icon" aria-label="Notifications" className="relative">
             <Bell size={18} />
@@ -84,16 +84,18 @@ export function PlatformTopbar({ route }: { route: Route }) {
             )}
           </Button>
         </Tooltip>
-        <Tooltip label="Settings">
-          <Button
-            tone="icon"
-            size="icon"
-            aria-label="Settings"
-            onClick={() => navigate({ kind: "settings", tab: "api-connections" })}
-          >
-            <GearSix size={18} />
-          </Button>
-        </Tooltip>
+        <div className="hidden sm:inline">
+          <Tooltip label="Settings">
+            <Button
+              tone="icon"
+              size="icon"
+              aria-label="Settings"
+              onClick={() => navigate({ kind: "settings", tab: "api-connections" })}
+            >
+              <GearSix size={18} />
+            </Button>
+          </Tooltip>
+        </div>
         {token ? (
           <Tooltip label="Log out">
             <Button

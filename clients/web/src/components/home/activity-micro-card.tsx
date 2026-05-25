@@ -21,14 +21,14 @@ const dotClass: Record<StatusTone, string> = {
 export function ActivityMicroCard({ rows }: { rows: ActivityRow[] }) {
   if (rows.length === 0) {
     return (
-      <div className="flex max-w-[360px] flex-col gap-2 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
+      <div className="flex w-full max-w-[420px] flex-col gap-2 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
         <EyebrowSm>Recent activity</EyebrowSm>
         <p className="text-[12px] text-muted-tone">Nothing yet — open a project to start.</p>
       </div>
     );
   }
   return (
-    <div className="flex w-full max-w-[360px] flex-col gap-3 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
+    <div className="flex w-full max-w-[420px] flex-col gap-3 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
       <EyebrowSm>Recent activity</EyebrowSm>
       <ul className="divide-y divide-whisper-border">
         {rows.map((row) => (

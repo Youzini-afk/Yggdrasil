@@ -8,9 +8,9 @@ import { AboutPanel } from "./about";
 
 export function SettingsPage({ tab }: { tab: SettingsTab }) {
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:gap-8 lg:px-8 lg:py-10">
+    <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:gap-8 lg:px-8 lg:py-10 2xl:px-12">
       <SettingsNavRail active={tab} />
-      <section className="flex-1 min-w-0">{renderTab(tab)}</section>
+      <section className="min-w-0 flex-1">{renderTab(tab)}</section>
     </div>
   );
 }

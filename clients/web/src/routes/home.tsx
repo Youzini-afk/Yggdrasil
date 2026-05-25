@@ -67,7 +67,7 @@ export function HomePage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-8 py-10">
+    <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 2xl:px-12">
       <Hero
         meta={formatGreetingTime()}
         greeting="Welcome back"
@@ -83,7 +83,7 @@ export function HomePage() {
         recentActivity={recentActivity}
       />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[60fr_40fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
         <div className="flex flex-col gap-5">
           <UtilityStrip
             search={search}

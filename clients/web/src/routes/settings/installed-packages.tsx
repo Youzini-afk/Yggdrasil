@@ -153,7 +153,7 @@ export function InstalledPackagesPanel() {
       </header>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="w-[280px]">
+        <div className="min-w-0 flex-1 sm:flex-initial">
           <InputGroup
             data-pkg-search
             leftIcon={<MagnifyingGlass size={16} />}
@@ -161,10 +161,11 @@ export function InstalledPackagesPanel() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             rightSlot={
-              <span className="rounded-[4px] border border-whisper-border bg-warm-bone px-1.5 py-0.5 font-mono text-[10px] text-muted-tone">
+              <span className="hidden rounded-[4px] border border-whisper-border bg-warm-bone px-1.5 py-0.5 font-mono text-[10px] text-muted-tone sm:inline">
                 ⌘F
               </span>
             }
+            className="w-full sm:w-[260px] lg:w-[300px]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -246,89 +247,91 @@ export function InstalledPackagesPanel() {
         </Card>
       ) : (
         <Card>
-          <div
-            className="grid items-center gap-4 border-b border-whisper-border bg-aged-brass-surface-soft px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-steel-secondary"
-            style={{ gridTemplateColumns: "32px 2.4fr 0.8fr 0.9fr 1fr 1fr 32px" }}
-          >
-            <span />
-            <span>Package</span>
-            <span>Version</span>
-            <span>Kind</span>
-            <span>Capabilities</span>
-            <span>State</span>
-            <span />
-          </div>
-          <ul className="divide-y divide-whisper-border">
-            {filtered.map((entry) => (
-              <li
-                key={entry.id}
-                className="grid items-center gap-4 px-5 py-3"
-                style={{ gridTemplateColumns: "32px 2.4fr 0.8fr 0.9fr 1fr 1fr 32px" }}
-              >
-                <Package
-                  size={18}
-                  className={
-                    entry.kind === "PROJECT"
-                      ? "text-aged-brass"
-                      : entry.kind === "OFFICIAL"
-                        ? "text-steel-secondary"
-                        : "text-muted-tone"
-                  }
-                />
-                <div className="min-w-0">
-                  <p className="truncate font-display text-[13px] font-bold text-charcoal-ink">
-                    {entry.name}
-                  </p>
-                  <p className="truncate font-mono text-[11px] text-muted-tone">
-                    {entry.packageId}
-                  </p>
-                </div>
-                <span className="font-mono text-[12px] text-charcoal-ink">{entry.version}</span>
-                <StatusPill
-                  tone={entry.kind === "PROJECT" ? "accent" : "neutral"}
-                  label={entry.kind}
-                  showDot={false}
-                />
-                <span className="font-mono text-[11px] text-steel-secondary">
-                  {entry.capabilityCount} cap · {entry.hookCount} hook · {entry.entryKind}
-                </span>
-                <StatusPill tone={pillTone(entry.state)} label={entry.state.toUpperCase()} />
-                <Dropdown>
-                  <DropdownTrigger asChild>
-                    <Button tone="icon" size="icon-sm" aria-label="More">
-                      <DotsThree size={16} />
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu>
-                    <DropdownItem onSelect={() => copyId(entry.packageId, toast)}>
-                      Copy package id
-                    </DropdownItem>
-                    <DropdownItem>View permissions</DropdownItem>
-                    <DropdownItem onSelect={() => void onViewLogs(entry.packageId)}>View logs</DropdownItem>
-                    <DropdownSeparator />
-                    <DropdownItem destructive>Uninstall…</DropdownItem>
-                  </DropdownMenu>
-                </Dropdown>
-              </li>
-            ))}
-          </ul>
-          {filtered.length < total ? (
-            <div className="flex items-center justify-between border-t border-whisper-border px-5 py-3">
-              <span className="font-mono text-[11px] text-muted-tone">
-                Showing {filtered.length} of {total}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setFilter("all");
-                  setSearch("");
-                }}
-                className="text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
-              >
-                Show all →
-              </button>
+          <div className="overflow-x-auto">
+            <div
+              className="grid min-w-[720px] items-center gap-4 border-b border-whisper-border bg-aged-brass-surface-soft px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-steel-secondary"
+              style={{ gridTemplateColumns: "32px 2.4fr 0.8fr 0.9fr 1fr 1fr 32px" }}
+            >
+              <span />
+              <span>Package</span>
+              <span>Version</span>
+              <span>Kind</span>
+              <span>Capabilities</span>
+              <span>State</span>
+              <span />
             </div>
-          ) : null}
+            <ul className="min-w-[720px] divide-y divide-whisper-border">
+              {filtered.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="grid items-center gap-4 px-5 py-3"
+                  style={{ gridTemplateColumns: "32px 2.4fr 0.8fr 0.9fr 1fr 1fr 32px" }}
+                >
+                  <Package
+                    size={18}
+                    className={
+                      entry.kind === "PROJECT"
+                        ? "text-aged-brass"
+                        : entry.kind === "OFFICIAL"
+                          ? "text-steel-secondary"
+                          : "text-muted-tone"
+                    }
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-[13px] font-bold text-charcoal-ink">
+                      {entry.name}
+                    </p>
+                    <p className="truncate font-mono text-[11px] text-muted-tone">
+                      {entry.packageId}
+                    </p>
+                  </div>
+                  <span className="font-mono text-[12px] text-charcoal-ink">{entry.version}</span>
+                  <StatusPill
+                    tone={entry.kind === "PROJECT" ? "accent" : "neutral"}
+                    label={entry.kind}
+                    showDot={false}
+                  />
+                  <span className="font-mono text-[11px] text-steel-secondary">
+                    {entry.capabilityCount} cap · {entry.hookCount} hook · {entry.entryKind}
+                  </span>
+                  <StatusPill tone={pillTone(entry.state)} label={entry.state.toUpperCase()} />
+                  <Dropdown>
+                    <DropdownTrigger asChild>
+                      <Button tone="icon" size="icon-sm" aria-label="More">
+                        <DotsThree size={16} />
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu>
+                      <DropdownItem onSelect={() => copyId(entry.packageId, toast)}>
+                        Copy package id
+                      </DropdownItem>
+                      <DropdownItem>View permissions</DropdownItem>
+                      <DropdownItem onSelect={() => void onViewLogs(entry.packageId)}>View logs</DropdownItem>
+                      <DropdownSeparator />
+                      <DropdownItem destructive>Uninstall…</DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
+                </li>
+              ))}
+            </ul>
+            {filtered.length < total ? (
+              <div className="flex min-w-[720px] items-center justify-between border-t border-whisper-border px-5 py-3">
+                <span className="font-mono text-[11px] text-muted-tone">
+                  Showing {filtered.length} of {total}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter("all");
+                    setSearch("");
+                  }}
+                  className="text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
+                >
+                  Show all →
+                </button>
+              </div>
+            ) : null}
+          </div>
         </Card>
       )}
     </>

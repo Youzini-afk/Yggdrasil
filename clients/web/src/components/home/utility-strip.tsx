@@ -32,17 +32,18 @@ export function UtilityStrip({
 }: UtilityStripProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="w-[280px]">
+      <div className="min-w-0 flex-1 sm:flex-initial">
         <InputGroup
           leftIcon={<MagnifyingGlass size={16} />}
           rightSlot={
-            <span className="rounded-[4px] border border-whisper-border bg-pure-surface px-1.5 py-0.5 font-mono text-[10px] text-muted-tone">
+            <span className="hidden rounded-[4px] border border-whisper-border bg-pure-surface px-1.5 py-0.5 font-mono text-[10px] text-muted-tone sm:inline">
               ⌘K
             </span>
           }
-          placeholder="Search projects, packages…"
+          placeholder="Search projects, packages..."
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
+          className="w-full sm:w-[260px] lg:w-[300px]"
         />
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
