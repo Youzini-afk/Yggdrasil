@@ -156,11 +156,6 @@ export function InstalledPackagesPanel() {
             placeholder={t("packagesFilterPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            rightSlot={
-              <span className="hidden rounded-[4px] border border-whisper-border bg-warm-bone px-1.5 py-0.5 font-mono text-[10px] text-muted-tone sm:inline">
-                ⌘F
-              </span>
-            }
             className="w-full sm:w-[260px] lg:w-[300px]"
           />
         </div>

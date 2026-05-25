@@ -48,13 +48,15 @@ Input.displayName = "Input";
 export interface InputGroupProps extends React.InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: ReactNode;
   rightSlot?: ReactNode;
+  inputClassName?: string;
 }
 
 export const InputGroup = forwardRef<HTMLInputElement, InputGroupProps>(
-  ({ className, leftIcon, rightSlot, ...props }, ref) => (
+  ({ className, inputClassName, leftIcon, rightSlot, ...props }, ref) => (
     <div
       className={cn(
-        "flex h-10 items-center gap-2 rounded-[10px] border border-whisper-border bg-transparent px-3 transition focus-within:border-aged-brass focus-within:ring-2 focus-within:ring-aged-brass/40",
+        "flex h-10 items-center gap-2 rounded-[10px] border border-whisper-border bg-transparent px-3 transition focus-within:border-aged-brass focus-within:bg-pure-surface focus-within:shadow-[0_0_0_1px_var(--color-aged-brass)]",
+        className,
       )}
     >
       {leftIcon ? <span className="text-steel-secondary shrink-0">{leftIcon}</span> : null}
@@ -62,7 +64,7 @@ export const InputGroup = forwardRef<HTMLInputElement, InputGroupProps>(
         ref={ref}
         className={cn(
           "min-w-0 flex-1 bg-transparent text-[13px] text-charcoal-ink placeholder:text-muted-tone outline-none",
-          className,
+          inputClassName,
         )}
         {...props}
       />

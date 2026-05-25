@@ -39,11 +39,6 @@ export function UtilityStrip({
       <div className="min-w-0 flex-1 sm:flex-initial">
         <InputGroup
           leftIcon={<MagnifyingGlass size={16} />}
-          rightSlot={
-            <span className="hidden rounded-[4px] border border-whisper-border bg-pure-surface px-1.5 py-0.5 font-mono text-[10px] text-muted-tone sm:inline">
-              ⌘K
-            </span>
-          }
           placeholder={searchPlaceholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
