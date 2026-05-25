@@ -1,6 +1,17 @@
-import { strict as assert } from "node:assert";
 import { failureDetailFromPackage } from "./failure-diagnostics";
 import type { PackageRecord, SubprocessLogLine } from "@/protocol/client";
+
+function assertEqual<T>(actual: T, expected: T) {
+  if (actual !== expected) {
+    throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
+  }
+}
+
+function assertDeepEqual(actual: unknown, expected: unknown) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
 
 const base: PackageRecord = {
   id: "pkg/demo",
@@ -16,8 +27,8 @@ const rawLogs: SubprocessLogLine[] = [
 ];
 
 const withoutRedacted = failureDetailFromPackage("Demo", base, rawLogs);
-assert.deepEqual(withoutRedacted.log, []);
-assert.equal(withoutRedacted.logRedacted, false);
+assertDeepEqual(withoutRedacted.log, []);
+assertEqual(withoutRedacted.logRedacted, false);
 
 const withUnsafeFailure = failureDetailFromPackage(
   "Demo",
@@ -36,7 +47,7 @@ const withUnsafeFailure = failureDetailFromPackage(
   },
   rawLogs,
 );
-assert.deepEqual(withUnsafeFailure.log, []);
+assertDeepEqual(withUnsafeFailure.log, []);
 
 const withRedacted = failureDetailFromPackage(
   "Demo",
@@ -55,5 +66,5 @@ const withRedacted = failureDetailFromPackage(
   },
   rawLogs,
 );
-assert.deepEqual(withRedacted.log, ["[REDACTED]"]);
-assert.equal(withRedacted.logRedacted, true);
+assertDeepEqual(withRedacted.log, ["[REDACTED]"]);
+assertEqual(withRedacted.logRedacted, true);

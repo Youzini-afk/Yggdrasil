@@ -1,4 +1,3 @@
-import { strict as assert } from "node:assert";
 import {
   callSurfaceBridgeForTest,
   canSubscribeSurfaceStreamForTest,
@@ -7,8 +6,28 @@ import {
   type SurfaceHostBridge,
 } from "./surface-host";
 
+function assertEqual<T>(actual: T, expected: T) {
+  if (actual !== expected) {
+    throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
+  }
+}
+
+function assertDeepEqual(actual: unknown, expected: unknown) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
 async function rejectsWithCode(promise: Promise<unknown>, code: string) {
-  await assert.rejects(promise, (err) => err instanceof SurfaceBridgeError && err.code === code);
+  try {
+    await promise;
+  } catch (err: unknown) {
+    if (err instanceof SurfaceBridgeError && err.code === code) {
+      return;
+    }
+    throw err;
+  }
+  throw new Error(`expected rejection with code ${code}`);
 }
 
 const calls: Array<{ method: string; params: unknown }> = [];
@@ -34,8 +53,8 @@ await callSurfaceBridgeForTest(bridge, {
   method: "kernel.v1.capability.invoke",
   params: { capability_id: "pkg/cap", session_id: "attacker-session", input: { hello: "world" } },
 });
-assert.equal(calls.at(-1)?.method, "kernel.v1.capability.invoke");
-assert.equal((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");
+assertEqual(calls.at(-1)?.method, "kernel.v1.capability.invoke");
+assertEqual((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");
 
 await rejectsWithCode(
   callSurfaceBridgeForTest(bridge, {
@@ -52,11 +71,11 @@ await callSurfaceBridgeForTest(
   { id: "3", method: "kernel.v1.capability.stream", params: { capability_id: "pkg/cap", session_id: "other" } },
   state,
 );
-assert.deepEqual(canSubscribeSurfaceStreamForTest("sub-1", "stream-unknown", [], ["stream-1"]), {
+assertDeepEqual(canSubscribeSurfaceStreamForTest("sub-1", "stream-unknown", [], ["stream-1"]), {
   ok: false,
   code: "not_owned",
 });
-assert.deepEqual(canSubscribeSurfaceStreamForTest("sub-1", "stream-1", ["sub-1"], ["stream-1"]), {
+assertDeepEqual(canSubscribeSurfaceStreamForTest("sub-1", "stream-1", ["sub-1"], ["stream-1"]), {
   ok: false,
   code: "duplicate_subscription",
 });
@@ -75,4 +94,4 @@ await callSurfaceBridgeForTest(
   { id: "5", method: "kernel.v1.capability.cancel", params: { stream_id: "stream-1" } },
   state,
 );
-assert.equal((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");
+assertEqual((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");
