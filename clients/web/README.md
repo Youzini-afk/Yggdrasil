@@ -93,7 +93,7 @@ src/
 │   │   └── typography.tsx      # Eyebrow, HeroTitle, PageTitle, CardTitle, Mono
 │   ├── home/                   # Home-page composition
 │   │   ├── hero.tsx
-│   │   ├── activity-micro-card.tsx
+│   │   ├── continue-card.tsx
 │   │   ├── utility-strip.tsx
 │   │   ├── project-card.tsx
 │   │   ├── install-card.tsx

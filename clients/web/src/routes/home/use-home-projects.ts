@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { ActivityRow } from "@/components/home/activity-micro-card";
 import type { TimelineRow } from "@/components/home/activity-timeline";
 import type { DiskSegment } from "@/components/home/workshop-utilities";
 import { projectStateTone, type StatusTone } from "@/components/ui/status-pill";
@@ -9,26 +8,22 @@ import type { KernelEvent, ProjectRecord, YggProtocolClient } from "@/protocol/c
 import { TIMELINE_SESSION, TONE_TO_DISK_CLASS } from "./home-constants";
 import { countsForProjects, filterProjects, filtersWithCounts } from "./home-filtering";
 import { iconKindFor } from "./timeline";
+import { useRecentlyOpened } from "./use-recently-opened";
 
 export function useHomeProjects({
   client,
   search,
   activeFilter,
-  onLaunch,
   labels,
 }: {
   client: YggProtocolClient;
   search: string;
   activeFilter: string;
-  onLaunch: (projectId: string) => void;
   labels: {
     all: string;
     running: string;
     stopped: string;
     failed: string;
-    now: string;
-    resume: string;
-    open: string;
   };
 }) {
   const projects = useAsync(() => client.listProjects(), [client]);
@@ -36,6 +31,7 @@ export function useHomeProjects({
     () => client.listEvents(TIMELINE_SESSION).catch<KernelEvent[]>(() => []),
     [client],
   );
+  const { list: recentList } = useRecentlyOpened();
 
   const projectList = projects.data ?? [];
   const counts = useMemo(() => countsForProjects(projectList), [projectList]);
@@ -62,23 +58,19 @@ export function useHomeProjects({
   );
   const diskCapacity = Math.max(totalDisk, 1);
 
-  const recentActivity: ActivityRow[] = useMemo(
-    () =>
-      projectList
-        .filter((p) => p.state === "running" || p.state === "stopped")
-        .slice(0, 2)
-        .map((project) => ({
-          id: project.id,
-          projectName: project.title,
-          toneDot: projectStateTone(project.state),
-          age: project.state === "running" ? labels.now : "—",
-          action: {
-            label: project.state === "running" ? labels.resume : labels.open,
-            onClick: () => onLaunch(project.id),
-          },
-        })),
-    [labels, onLaunch, projectList],
-  );
+  const continueEntry = useMemo(() => {
+    for (const entry of recentList) {
+      const project = projectList.find((p) => p.id === entry.projectId);
+      if (!project) continue;
+      return {
+        projectId: project.id,
+        title: project.title,
+        state: project.state,
+        openedAt: entry.openedAt,
+      };
+    }
+    return null;
+  }, [recentList, projectList]);
 
   // Build timeline from real lifecycle events. Empty when there are none.
   const timelineRows: TimelineRow[] = useMemo(() => {
@@ -109,7 +101,7 @@ export function useHomeProjects({
     diskSegments,
     totalDisk,
     diskCapacity,
-    recentActivity,
+    continueEntry,
     timelineRows,
   };
 }

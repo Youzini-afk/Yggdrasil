@@ -54,21 +54,17 @@ export function HomePage() {
     diskSegments,
     totalDisk,
     diskCapacity,
-    recentActivity,
+    continueEntry,
     timelineRows,
   } = useHomeProjects({
     client,
     search,
     activeFilter,
-    onLaunch: launchProject,
     labels: {
       all: t("homeFilterAll"),
       running: t("homeFilterRunning"),
       stopped: t("homeFilterStopped"),
       failed: t("homeFilterFailed"),
-      now: t("homeNow"),
-      resume: t("homeActionResume"),
-      open: t("homeActionOpen"),
     },
   });
 
@@ -94,6 +90,25 @@ export function HomePage() {
     },
   });
 
+  const onContinue = useCallback(
+    (projectId: string) => {
+      const project = projectList.find((p) => p.id === projectId);
+      if (project) {
+        onCardLaunch(project);
+      }
+    },
+    [projectList, onCardLaunch],
+  );
+
+  const onBrowseProjects = useCallback(() => {
+    const el = document.getElementById("home-projects");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const hasInstalledProjects = projectList.length > 0;
+
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[1920px] flex-col gap-7 px-4 pt-6 pb-8 sm:px-6 sm:pb-10 lg:gap-8 lg:px-8 lg:pt-8 lg:pb-12 2xl:px-12 2xl:pb-14">
       <Hero
@@ -106,12 +121,30 @@ export function HomePage() {
               ? t("homeShelfSummary", counts.all, counts.running, counts.stopped, counts.failed)
               : t("homeEmptyWorkshop")
         }
-        recentActivity={recentActivity}
-        activityLabels={{ title: t("homeActivityRecent"), empty: t("homeActivityEmpty") }}
+        continueEntry={continueEntry}
+        continueLabels={{
+          title: t("homeContinueTitle"),
+          running: t("homeContinueRunning"),
+          stopped: t("homeContinueStopped"),
+          failed: t("homeContinueFailed"),
+          continueAction: t("homeContinueResumeAction"),
+          openAction: t("homeContinueOpenAction"),
+          diagnoseAction: t("homeContinueDiagnoseAction"),
+          ageNow: t("homeContinueAgeNow"),
+          emptyTitle: t("homeContinueEmptyTitle"),
+          emptyBody: t("homeContinueEmptyBody"),
+          emptyInstall: t("homeContinueEmptyInstall"),
+          emptyTryYdltavern: t("homeContinueEmptyTryYdltavern"),
+          pickInstalled: t("homeContinuePickInstalled"),
+        }}
+        hasInstalledProjects={hasInstalledProjects}
+        onContinue={onContinue}
+        onInstall={onInstallClick}
+        onBrowseProjects={onBrowseProjects}
       />
 
       <div className="grid flex-1 grid-cols-1 gap-8 lg:min-h-0 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
-        <div className="flex min-h-0 flex-col gap-5">
+        <div id="home-projects" className="flex min-h-0 flex-col gap-5">
           <UtilityStrip
             search={search}
             onSearchChange={setSearch}

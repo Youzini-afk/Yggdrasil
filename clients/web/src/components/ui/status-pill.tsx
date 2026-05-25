@@ -54,7 +54,7 @@ export type StatusTone = NonNullable<VariantProps<typeof pillVariants>["tone"]>;
 
 /**
  * Centralized dot-color mapping. Imported by activity-timeline /
- * activity-micro-card / utility-strip / project-card so the four files
+ * continue-card / utility-strip / project-card so the four files
  * cannot drift out of sync.
  */
 export const STATUS_DOT_CLASS: Record<StatusTone, string> = {

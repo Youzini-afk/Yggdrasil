@@ -7,6 +7,7 @@ import {
   noFailureDiagnostic,
   resolvePackageStatus,
 } from "./failure-diagnostics";
+import { recordOpen } from "./use-recently-opened";
 
 interface UseProjectActionsArgs {
   client: YggProtocolClient;
@@ -117,13 +118,14 @@ export function useProjectActions({
 
   const onCardLaunch = useCallback(
     (project: ProjectRecord) => {
+      recordOpen(project.id);
       if (project.state === "failed") {
         void onShowFailure(project);
         return;
       }
       onLaunch(project.id);
     },
-    [onLaunch, onShowFailure],
+    [onLaunch, onShowFailure, recordOpen],
   );
 
   return { onStop, onUninstall, onInstallClick, onShowFailure, onCardLaunch };

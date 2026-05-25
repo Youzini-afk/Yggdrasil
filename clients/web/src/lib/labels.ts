@@ -49,8 +49,6 @@ export interface LocaleDictionary {
   homeFilterRunning: string;
   homeFilterStopped: string;
   homeFilterFailed: string;
-  homeActivityRecent: string;
-  homeActivityEmpty: string;
   homeActivityLast24h: string;
   homeActivityNo24h: string;
   homeViewFullAuditLog: string;
@@ -81,8 +79,7 @@ export interface LocaleDictionary {
   homeActionViewLogs: string;
   homeActionUninstall: string;
   homeMore: string;
-  homeActionsAria: (title: string) => string;
-  homeNow: string;
+
   homeStoppedToast: (title: string) => string;
   homeStopFailedTitle: string;
   homeStopFailedBody: string;
@@ -93,6 +90,22 @@ export interface LocaleDictionary {
   homeDescriptorNoPackages: string;
   homeNoPackageStatus: string;
   homeDiagnosticsUnavailable: string;
+  homeNow: string;
+  homeActionsAria: (title: string) => string;
+
+  homeContinueTitle: string;
+  homeContinueRunning: string;
+  homeContinueStopped: string;
+  homeContinueFailed: string;
+  homeContinueOpenAction: string;
+  homeContinueResumeAction: string;
+  homeContinueDiagnoseAction: string;
+  homeContinueAgeNow: string;
+  homeContinueEmptyTitle: string;
+  homeContinueEmptyBody: string;
+  homeContinueEmptyInstall: string;
+  homeContinueEmptyTryYdltavern: string;
+  homeContinuePickInstalled: string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -320,8 +333,6 @@ export const labels = {
     homeFilterRunning: "Running",
     homeFilterStopped: "Stopped",
     homeFilterFailed: "Failed",
-    homeActivityRecent: "Recent activity",
-    homeActivityEmpty: "Nothing yet — open a project to start.",
     homeActivityLast24h: "Activity — last 24h",
     homeActivityNo24h: "No activity in the last 24 hours.",
     homeViewFullAuditLog: "View full audit log →",
@@ -352,8 +363,7 @@ export const labels = {
     homeActionViewLogs: "View logs",
     homeActionUninstall: "Uninstall…",
     homeMore: "More",
-    homeActionsAria: (title) => `${title} actions`,
-    homeNow: "now",
+
     homeStoppedToast: (title) => `Stopped ${title}`,
     homeStopFailedTitle: "Stop failed",
     homeStopFailedBody: "The project could not be stopped. Check the local host and try again.",
@@ -364,6 +374,22 @@ export const labels = {
     homeDescriptorNoPackages: "Project descriptor does not list packages.",
     homeNoPackageStatus: "No associated package status was available.",
     homeDiagnosticsUnavailable: "Diagnostics are unavailable. Try again from the local UI.",
+    homeNow: "now",
+    homeActionsAria: (title) => `${title} actions`,
+
+    homeContinueTitle: "Continue",
+    homeContinueRunning: "Running",
+    homeContinueStopped: "Stopped",
+    homeContinueFailed: "Failed",
+    homeContinueOpenAction: "Open",
+    homeContinueResumeAction: "Continue",
+    homeContinueDiagnoseAction: "View diagnostics",
+    homeContinueAgeNow: "just now",
+    homeContinueEmptyTitle: "No project opened yet",
+    homeContinueEmptyBody: "Install a project to continue from here.",
+    homeContinueEmptyInstall: "Install project",
+    homeContinueEmptyTryYdltavern: "Try YdlTavern",
+    homeContinuePickInstalled: "Pick one of your installed projects",
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -601,8 +627,6 @@ export const labels = {
     homeFilterRunning: "运行中",
     homeFilterStopped: "已停止",
     homeFilterFailed: "失败",
-    homeActivityRecent: "最近活动",
-    homeActivityEmpty: "还没有活动——打开一个项目开始。",
     homeActivityLast24h: "活动 — 最近 24 小时",
     homeActivityNo24h: "最近 24 小时没有活动。",
     homeViewFullAuditLog: "查看完整审计日志 →",
@@ -633,8 +657,7 @@ export const labels = {
     homeActionViewLogs: "查看日志",
     homeActionUninstall: "卸载…",
     homeMore: "更多",
-    homeActionsAria: (title) => `${title} 操作`,
-    homeNow: "现在",
+
     homeStoppedToast: (title) => `已停止 ${title}`,
     homeStopFailedTitle: "停止失败",
     homeStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
@@ -645,6 +668,22 @@ export const labels = {
     homeDescriptorNoPackages: "项目描述符没有列出包。",
     homeNoPackageStatus: "没有可用的关联包状态。",
     homeDiagnosticsUnavailable: "诊断暂不可用。请从本地 UI 重试。",
+    homeNow: "现在",
+    homeActionsAria: (title) => `${title} 操作`,
+
+    homeContinueTitle: "继续上次",
+    homeContinueRunning: "运行中",
+    homeContinueStopped: "已停止",
+    homeContinueFailed: "启动失败",
+    homeContinueOpenAction: "打开",
+    homeContinueResumeAction: "继续",
+    homeContinueDiagnoseAction: "查看诊断",
+    homeContinueAgeNow: "刚刚",
+    homeContinueEmptyTitle: "还没打开过项目",
+    homeContinueEmptyBody: "安装一个项目就可以从这里继续。",
+    homeContinueEmptyInstall: "安装项目",
+    homeContinueEmptyTryYdltavern: "试试 YdlTavern",
+    homeContinuePickInstalled: "从已安装的项目里选一个开始",
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",
