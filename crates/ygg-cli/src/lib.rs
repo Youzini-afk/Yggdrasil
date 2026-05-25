@@ -21,7 +21,13 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
         Command::SqliteDemo { path } => demo::sqlite_demo(path).await,
         Command::Serve { bind } => demo::serve(bind).await,
         Command::Host { command } => match command {
-            HostCommand::Serve { http, profile } => host::host_serve(http, profile).await,
+            HostCommand::Serve {
+                http,
+                profile,
+                static_dir,
+                data_dir,
+                access_token,
+            } => host::host_serve(http, profile, static_dir, data_dir, access_token).await,
         },
         Command::HostStdio => host::host_stdio().await,
         Command::Manifest { command } => match command {

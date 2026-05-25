@@ -15,6 +15,7 @@
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.md) — 第三方包本地验证 v1 contract compliance
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.md) — 自包含 Path B 包（`entry.contract: "none"`）
 - [`SURFACE_HOSTING.md`](SURFACE_HOSTING.md) — iframe SurfaceHost、第三方 Web surface bundle 约定与 host bridge
+- [`ZEABUR_QUICK_VALIDATION.md`](ZEABUR_QUICK_VALIDATION.md) — 面向 Zeabur 的单容器 Web 快速验证部署
 
 ## 创作能力族
 

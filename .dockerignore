@@ -1,0 +1,14 @@
+.git
+.github
+**/target
+**/node_modules
+**/dist
+!clients/web/dist
+**/.DS_Store
+**/*.log
+clients/desktop/src-tauri/target
+integrations/tdb/rust-adapter-real-crate/target
+integrations/tdb/rust-adapter/target
+tmp
+.env
+.env.*

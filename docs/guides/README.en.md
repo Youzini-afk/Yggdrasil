@@ -15,6 +15,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.en.md) — local v1 contract compliance validation for third-party packages
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.en.md) — self-contained Path B packages (`entry.contract: "none"`)
 - [`SURFACE_HOSTING.md`](SURFACE_HOSTING.en.md) — iframe SurfaceHost, third-party web surface bundle contract, and host bridge
+- [`ZEABUR_QUICK_VALIDATION.md`](ZEABUR_QUICK_VALIDATION.en.md) — single-container web quick-validation deployment for Zeabur
 
 ## Creative capability families
 

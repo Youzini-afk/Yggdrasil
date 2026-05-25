@@ -241,7 +241,11 @@ export interface ProjectRecord {
 }
 
 export class YggProtocolClient {
-  constructor(private readonly baseUrl = "http://127.0.0.1:8787") {}
+  private readonly accessToken?: string;
+
+  constructor(private readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string) {
+    this.accessToken = accessToken ?? resolveBrowserAccessToken();
+  }
 
   invoke(method: string, params: unknown = {}) {
     return this.call(method, params);
@@ -250,7 +254,7 @@ export class YggProtocolClient {
   async invokeWithSession(method: string, params: unknown = {}, sessionId: string): Promise<unknown> {
     const response = await fetch(`${this.baseUrl}/rpc`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.rpcHeaders(),
       body: JSON.stringify({ id: crypto.randomUUID(), method, params, session_id: sessionId }),
     });
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
@@ -263,7 +267,7 @@ export class YggProtocolClient {
   async call<T>(method: string, params: unknown = {}): Promise<T> {
     const response = await fetch(`${this.baseUrl}/rpc`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.rpcHeaders(),
       body: JSON.stringify({ id: crypto.randomUUID(), method, params }),
     });
     const envelope = (await response.json()) as ProtocolResponse<T>;
@@ -463,9 +467,24 @@ export class YggProtocolClient {
 
   subscribeEvents(sessionId: string | undefined, onEvent: (event: KernelEvent) => void) {
     const targetSession = sessionId ?? "kernel_project_lifecycle";
-    const source = new EventSource(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(targetSession)}`);
+    const source = new EventSource(this.eventSubscribeUrl(targetSession));
     source.addEventListener("kernel.v1.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
     return () => source.close();
+  }
+
+  private rpcHeaders(): Record<string, string> {
+    return {
+      "content-type": "application/json",
+      ...(this.accessToken ? { authorization: `Bearer ${this.accessToken}` } : {}),
+    };
+  }
+
+  private eventSubscribeUrl(sessionId: string): string {
+    const url = new URL(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(sessionId)}`);
+    if (this.accessToken) {
+      url.searchParams.set("access_token", this.accessToken);
+    }
+    return url.toString();
   }
 
   /* ────────────────────────────────────────────────────────────────
@@ -514,4 +533,32 @@ export class YggProtocolClient {
     const result = (await this.invokeCapability<{ removed: boolean }>(capability, params)).output;
     return { removed: result.removed };
   }
+}
+
+function resolveBrowserAccessToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get("ygg_token") ?? params.get("access_token");
+    if (fromQuery) {
+      window.localStorage.setItem("ygg_http_access_token", fromQuery);
+      scrubTokenFromBrowserUrl(params);
+      return fromQuery;
+    }
+    return window.localStorage.getItem("ygg_http_access_token") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function scrubTokenFromBrowserUrl(params: URLSearchParams) {
+  if (typeof window === "undefined" || !window.history?.replaceState) return;
+  if (!params.has("ygg_token") && !params.has("access_token")) return;
+
+  params.delete("ygg_token");
+  params.delete("access_token");
+  const search = params.toString();
+  const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
 }

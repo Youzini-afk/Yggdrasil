@@ -3,10 +3,12 @@ use std::convert::Infallible;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
-use axum::extract::{Path, Query, State};
-use axum::http::{header, StatusCode};
+use axum::extract::{OriginalUri, Path, Query, Request, State};
+use axum::http::{header, Method, StatusCode};
+use axum::middleware::{self, Next};
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
 use axum::response::IntoResponse;
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::Stream;
@@ -29,6 +31,8 @@ where
     S: EventStore,
 {
     pub runtime: Arc<Runtime<S>>,
+    pub static_dir: Option<PathBuf>,
+    pub access_token: Option<String>,
 }
 
 impl<S> Clone for AppState<S>
@@ -38,6 +42,8 @@ where
     fn clone(&self) -> Self {
         Self {
             runtime: self.runtime.clone(),
+            static_dir: self.static_dir.clone(),
+            access_token: self.access_token.clone(),
         }
     }
 }
@@ -77,15 +83,18 @@ pub struct EventListQuery {
 pub fn app() -> Router {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
-    app_with_state(AppState { runtime })
+    app_with_state(AppState {
+        runtime,
+        static_dir: None,
+        access_token: None,
+    })
 }
 
 pub fn app_with_state<S>(state: AppState<S>) -> Router
 where
     S: EventStore,
 {
-    Router::new()
-        .route("/health", get(health))
+    let protected = Router::new()
         .route("/kernel/v1/session.open", post(open_session::<S>))
         .route(
             "/kernel/v1/event.append/:session_id",
@@ -112,16 +121,64 @@ where
         )
         .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
         .route("/kernel/v1/host.info", get(host_info))
+        .route("/rpc", post(rpc::<S>))
+        .route_layer(middleware::from_fn_with_state(
+            state.access_token.clone(),
+            require_access_token,
+        ));
+
+    Router::new()
+        .route("/health", get(health))
+        .route("/healthz", get(health))
         .route(
             "/surface-bundles/:prefix/*file",
             get(surface_bundle_file::<S>),
         )
-        .route("/rpc", post(rpc::<S>))
+        .merge(protected)
+        .fallback(static_fallback::<S>)
         .with_state(state)
 }
 
 async fn health() -> &'static str {
     "ok"
+}
+
+async fn require_access_token(
+    State(access_token): State<Option<String>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let Some(expected) = access_token.as_deref().filter(|token| !token.is_empty()) else {
+        return next.run(request).await;
+    };
+
+    if request_access_token_matches(&request, expected) {
+        return next.run(request).await;
+    }
+
+    (StatusCode::UNAUTHORIZED, "missing or invalid access token").into_response()
+}
+
+fn request_access_token_matches(request: &Request, expected: &str) -> bool {
+    if request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .is_some_and(|token| token == expected)
+    {
+        return true;
+    }
+
+    request
+        .uri()
+        .query()
+        .and_then(|query| {
+            url::form_urlencoded::parse(query.as_bytes())
+                .find(|(key, _)| key == "access_token")
+                .map(|(_, value)| value.into_owned())
+        })
+        .is_some_and(|token| token == expected)
 }
 
 async fn open_session<S>(
@@ -353,6 +410,97 @@ where
     }
 }
 
+async fn static_fallback<S>(
+    State(state): State<AppState<S>>,
+    method: Method,
+    OriginalUri(uri): OriginalUri,
+) -> impl IntoResponse
+where
+    S: EventStore,
+{
+    if method != Method::GET && method != Method::HEAD {
+        return (StatusCode::NOT_FOUND, "not found").into_response();
+    }
+
+    let Some(static_dir) = state.static_dir.as_ref() else {
+        return (StatusCode::NOT_FOUND, "not found").into_response();
+    };
+
+    let Ok(static_root) = std::fs::canonicalize(static_dir) else {
+        return (StatusCode::NOT_FOUND, "static root not found").into_response();
+    };
+
+    let request_path = uri.path();
+    if is_reserved_service_path(request_path) {
+        return (StatusCode::NOT_FOUND, "not found").into_response();
+    }
+
+    let candidate = if request_path == "/" {
+        static_root.join("index.html")
+    } else {
+        let Some(relative) = safe_relative_path(request_path.trim_start_matches('/')) else {
+            return (StatusCode::NOT_FOUND, "not found").into_response();
+        };
+        static_root.join(relative)
+    };
+
+    let path = if candidate.is_dir() {
+        candidate.join("index.html")
+    } else {
+        candidate
+    };
+
+    match read_static_file(&static_root, &path).await {
+        StaticRead::Served(response) => return response,
+        StaticRead::Forbidden => {
+            return (StatusCode::NOT_FOUND, "static file not found").into_response()
+        }
+        StaticRead::Missing => {}
+    }
+
+    let index = static_root.join("index.html");
+    match read_static_file(&static_root, &index).await {
+        StaticRead::Served(response) => response,
+        StaticRead::Missing | StaticRead::Forbidden => {
+            (StatusCode::NOT_FOUND, "static file not found").into_response()
+        }
+    }
+}
+
+fn is_reserved_service_path(path: &str) -> bool {
+    path == "/rpc"
+        || path.starts_with("/rpc/")
+        || path.starts_with("/kernel")
+        || path.starts_with("/surface-bundles")
+}
+
+enum StaticRead {
+    Served(Response),
+    Missing,
+    Forbidden,
+}
+
+async fn read_static_file(static_root: &std::path::Path, path: &std::path::Path) -> StaticRead {
+    let canonical = match std::fs::canonicalize(path) {
+        Ok(path) => path,
+        Err(_) => return StaticRead::Missing,
+    };
+    if !canonical.starts_with(static_root) || !canonical.is_file() {
+        return StaticRead::Forbidden;
+    }
+    let bytes = match tokio::fs::read(&canonical).await {
+        Ok(bytes) => bytes,
+        Err(_) => return StaticRead::Missing,
+    };
+    StaticRead::Served(
+        (
+            [(header::CONTENT_TYPE, content_type_for(&canonical))],
+            bytes,
+        )
+            .into_response(),
+    )
+}
+
 fn surface_bundle_path<S>(state: AppState<S>, prefix: &str, file: &str) -> Option<PathBuf>
 where
     S: EventStore,
@@ -398,6 +546,7 @@ fn safe_relative_path(path: &str) -> Option<PathBuf> {
 
 fn content_type_for(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|ext| ext.to_str()) {
+        Some("html") => "text/html; charset=utf-8",
         Some("mjs") | Some("js") => "application/javascript",
         Some("css") => "text/css",
         Some("json") | Some("map") => "application/json",
@@ -515,6 +664,220 @@ mod tests {
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let value: serde_json::Value = serde_json::from_slice(&bytes)?;
         assert_eq!(value["error"]["code"], "kernel/v1/error/internal");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn healthz_returns_ok() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(Request::builder().uri("/healthz").body(Body::empty())?)
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn serves_static_files_when_configured() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("index.html"), "<main>Ygg web</main>")?;
+        std::fs::create_dir_all(dir.path().join("assets"))?;
+        std::fs::write(dir.path().join("assets/app.js"), "console.log('ygg');")?;
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: Some(dir.path().to_path_buf()),
+            access_token: None,
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/app.js")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/javascript"
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        assert_eq!(&bytes[..], b"console.log('ygg');");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn token_gate_protects_rpc_but_not_healthz_or_static() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("index.html"), "public")?;
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: Some(dir.path().to_path_buf()),
+            access_token: Some("secret-token".to_string()),
+        });
+
+        let health = app
+            .clone()
+            .oneshot(Request::builder().uri("/healthz").body(Body::empty())?)
+            .await?;
+        assert_eq!(health.status(), StatusCode::OK);
+
+        let static_response = app
+            .clone()
+            .oneshot(Request::builder().uri("/").body(Body::empty())?)
+            .await?;
+        assert_eq!(static_response.status(), StatusCode::OK);
+
+        let denied = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({"id":"1","method":"kernel.v1.host.info","params":{}}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+
+        let allowed = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc")
+                    .header("content-type", "application/json")
+                    .header(header::AUTHORIZATION, "Bearer secret-token")
+                    .body(Body::from(
+                        json!({"id":"1","method":"kernel.v1.host.info","params":{}}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(allowed.status(), StatusCode::OK);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn token_gate_accepts_query_token_for_sse() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("event-token".to_string()),
+        });
+
+        let denied = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/kernel/v1/event.subscribe/session-1")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+
+        let allowed = app
+            .oneshot(
+                Request::builder()
+                    .uri("/kernel/v1/event.subscribe/session-1?access_token=event-token")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(allowed.status(), StatusCode::OK);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn surface_bundles_are_public_static_artifacts_when_token_gate_enabled(
+    ) -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let bundle_dir = dir.path().join("surface");
+        std::fs::create_dir_all(&bundle_dir)?;
+        std::fs::write(bundle_dir.join("main.mjs"), "export const ok = true;")?;
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let mut config = RuntimeConfig::default();
+        config
+            .surface_dev_paths
+            .insert("test".to_string(), bundle_dir.to_string_lossy().to_string());
+        let runtime = Arc::new(Runtime::new(store, config));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("bundle-token".to_string()),
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/surface-bundles/test/main.mjs")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        assert_eq!(&bytes[..], b"export const ok = true;");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reserved_paths_do_not_fallback_to_static_index() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("index.html"), "public")?;
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: Some(dir.path().to_path_buf()),
+            access_token: None,
+        });
+
+        for path in ["/rpc/anything", "/kernelx", "/surface-bundlesx"] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty())?)
+                .await?;
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "path {path}");
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn static_serving_rejects_symlink_escape() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("index.html"), "public")?;
+        std::fs::write(outside.path().join("secret.txt"), "do-not-serve")?;
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(
+            outside.path().join("secret.txt"),
+            dir.path().join("leak.txt"),
+        )?;
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(
+            outside.path().join("secret.txt"),
+            dir.path().join("leak.txt"),
+        )?;
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: Some(dir.path().to_path_buf()),
+            access_token: None,
+        });
+
+        let response = app
+            .oneshot(Request::builder().uri("/leak.txt").body(Body::empty())?)
+            .await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
         Ok(())
     }
 }

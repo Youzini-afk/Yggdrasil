@@ -229,6 +229,15 @@ pub enum HostCommand {
         http: SocketAddr,
         #[arg(long)]
         profile: Option<PathBuf>,
+        /// Serve built web static files from this directory on the same HTTP port.
+        #[arg(long)]
+        static_dir: Option<PathBuf>,
+        /// Data directory for profile/project/secret state (sets YGG_DATA_DIR for this process).
+        #[arg(long, env = "YGG_DATA_DIR")]
+        data_dir: Option<PathBuf>,
+        /// Optional HTTP access token. When set, RPC/SSE/service routes require it.
+        #[arg(long, env = "YGG_HTTP_ACCESS_TOKEN")]
+        access_token: Option<String>,
     },
 }
 

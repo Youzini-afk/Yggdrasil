@@ -57,7 +57,17 @@ impl LiveWebSocketProfile for HostWebSocketOutboundProfile {
     }
 }
 
-pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Result<()> {
+pub(crate) async fn host_serve(
+    http: SocketAddr,
+    profile: Option<PathBuf>,
+    static_dir: Option<PathBuf>,
+    data_dir: Option<PathBuf>,
+    access_token: Option<String>,
+) -> Result<()> {
+    if let Some(data_dir) = data_dir.as_ref() {
+        std::env::set_var("YGG_DATA_DIR", data_dir);
+        ygg_core::paths::ensure_initialized()?;
+    }
     if let Some(profile_path) = profile {
         let raw = fs::read_to_string(&profile_path)?;
         let profile: HostProfile = serde_yaml::from_str(&raw)?;
@@ -70,7 +80,15 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(http, runtime, "memory", Some(&profile_path)).await
+                serve_runtime(
+                    http,
+                    runtime,
+                    "memory",
+                    Some(&profile_path),
+                    static_dir,
+                    access_token,
+                )
+                .await
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
@@ -79,7 +97,15 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(http, runtime, "sqlite", Some(&profile_path)).await
+                serve_runtime(
+                    http,
+                    runtime,
+                    "sqlite",
+                    Some(&profile_path),
+                    static_dir,
+                    access_token,
+                )
+                .await
             }
             HostEventStoreProfile::Postgres { env } => {
                 #[cfg(feature = "postgres")]
@@ -92,7 +118,15 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
                     let store = ygg_runtime::PostgresEventStore::connect(&url).await?;
                     let runtime = Arc::new(Runtime::new(Arc::new(store), runtime_config));
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                    serve_runtime(http, runtime, "postgres", Some(&profile_path)).await
+                    serve_runtime(
+                        http,
+                        runtime,
+                        "postgres",
+                        Some(&profile_path),
+                        static_dir,
+                        access_token,
+                    )
+                    .await
                 }
                 #[cfg(not(feature = "postgres"))]
                 {
@@ -106,7 +140,7 @@ pub(crate) async fn host_serve(http: SocketAddr, profile: Option<PathBuf>) -> Re
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         ));
-        serve_runtime(http, runtime, "memory", None).await
+        serve_runtime(http, runtime, "memory", None, static_dir, access_token).await
     }
 }
 
@@ -352,7 +386,11 @@ pub(crate) fn validate_websocket_outbound_profile(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::{HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile};
+    use clap::Parser;
+
+    use crate::cli::{
+        Cli, Command, HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
+    };
 
     #[test]
     fn validate_websocket_outbound_profile_fails_closed_on_live_with_empty_allowed_hosts() {
@@ -380,6 +418,46 @@ mod tests {
             .expect_err("non-wss websocket without test flag should fail");
         assert!(err.to_string().contains("wss_only=false"));
     }
+
+    #[test]
+    fn parses_host_serve_paas_args() {
+        let cli = Cli::try_parse_from([
+            "ygg",
+            "host",
+            "serve",
+            "--http",
+            "0.0.0.0:8080",
+            "--profile",
+            "/data/profiles/zeabur.yaml",
+            "--static-dir",
+            "/app/public",
+            "--data-dir",
+            "/data",
+            "--access-token",
+            "token",
+        ])
+        .unwrap();
+
+        match cli.command {
+            Command::Host {
+                command:
+                    crate::cli::HostCommand::Serve {
+                        http,
+                        profile,
+                        static_dir,
+                        data_dir,
+                        access_token,
+                    },
+            } => {
+                assert_eq!(http, "0.0.0.0:8080".parse().unwrap());
+                assert_eq!(profile, Some(PathBuf::from("/data/profiles/zeabur.yaml")));
+                assert_eq!(static_dir, Some(PathBuf::from("/app/public")));
+                assert_eq!(data_dir, Some(PathBuf::from("/data")));
+                assert_eq!(access_token, Some("token".to_string()));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
 }
 
 async fn serve_runtime<S>(
@@ -387,6 +465,8 @@ async fn serve_runtime<S>(
     runtime: Arc<Runtime<S>>,
     backend_kind: &'static str,
     profile_path: Option<&Path>,
+    static_dir: Option<PathBuf>,
+    access_token: Option<String>,
 ) -> Result<()>
 where
     S: EventStore,
@@ -410,7 +490,22 @@ where
     println!("  event store: {backend_kind} (config redacted)");
     println!("  RPC: POST http://{http}/rpc");
     println!("  SSE: GET  http://{http}/kernel/v1/event.subscribe/:session_id");
-    let app = ygg_service::app_with_state(ygg_service::AppState { runtime });
+    if let Some(static_dir) = &static_dir {
+        println!("  static: GET http://{http}/ -> {}", static_dir.display());
+    }
+    if access_token
+        .as_deref()
+        .is_some_and(|token| !token.is_empty())
+    {
+        println!("  access token: enabled (value redacted)");
+    } else {
+        println!("  access token: disabled (local/dev only)");
+    }
+    let app = ygg_service::app_with_state(ygg_service::AppState {
+        runtime,
+        static_dir,
+        access_token,
+    });
     axum::serve(listener, app).await?;
     Ok(())
 }
