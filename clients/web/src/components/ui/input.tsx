@@ -55,7 +55,7 @@ export const InputGroup = forwardRef<HTMLInputElement, InputGroupProps>(
   ({ className, inputClassName, leftIcon, rightSlot, ...props }, ref) => (
     <div
       className={cn(
-        "flex h-10 items-center gap-2 rounded-[10px] border border-whisper-border bg-transparent px-3 transition focus-within:border-aged-brass focus-within:bg-pure-surface focus-within:shadow-[0_0_0_1px_var(--color-aged-brass)]",
+        "ygg-input-group flex h-10 items-center gap-2 rounded-[10px] border border-whisper-border bg-transparent px-3 transition focus-within:border-aged-brass focus-within:bg-pure-surface focus-within:shadow-[0_0_0_1px_var(--color-aged-brass)]",
         className,
       )}
     >
@@ -63,9 +63,7 @@ export const InputGroup = forwardRef<HTMLInputElement, InputGroupProps>(
       <input
         ref={ref}
         className={cn(
-          "min-w-0 flex-1 bg-transparent text-[13px] text-charcoal-ink placeholder:text-muted-tone outline-none",
-          "focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
-          "appearance-none border-0 shadow-none",
+          "min-w-0 flex-1 bg-transparent text-[13px] text-charcoal-ink placeholder:text-muted-tone",
           inputClassName,
         )}
         {...props}

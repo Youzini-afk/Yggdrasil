@@ -159,6 +159,13 @@ select {
   border-radius: 6px;
 }
 
+/* InputGroup: the outer shell owns the focus ring.
+   Suppress the inner input's native/global focus-visible outline. */
+.ygg-input-group input:focus,
+.ygg-input-group input:focus-visible {
+  outline: none;
+}
+
 /* Honor reduced-motion: keep layout, drop transitions/animations. */
 @media (prefers-reduced-motion: reduce) {
   *,
