@@ -95,7 +95,7 @@ export function HomePage() {
   });
 
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[1920px] flex-col gap-7 px-4 py-6 sm:px-6 lg:gap-8 lg:px-8 lg:py-8 2xl:px-12">
+    <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[1920px] flex-col gap-7 px-4 pt-6 pb-8 sm:px-6 sm:pb-10 lg:gap-8 lg:px-8 lg:pt-8 lg:pb-12 2xl:px-12 2xl:pb-14">
       <Hero
         meta={formatGreetingTime(locale)}
         greeting={t("homeGreeting")}
