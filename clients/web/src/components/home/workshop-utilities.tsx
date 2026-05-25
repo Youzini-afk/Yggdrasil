@@ -37,15 +37,48 @@ export interface WorkshopUtilitiesProps {
   quickActions: QuickAction[];
   onUpdateAll?: () => void;
   onManageStorage?: () => void;
+  labels?: Partial<WorkshopUtilitiesLabels>;
 }
+
+export interface WorkshopUtilitiesLabels {
+  workshop: string;
+  updates: string;
+  updatesAvailable: (count: number) => string;
+  everythingUpToDate: string;
+  update: string;
+  updateAll: string;
+  diskUsage: string;
+  diskUsed: (value: string) => string;
+  unknown: string;
+  measuring: string;
+  noStorageMeasured: string;
+  manageStorage: string;
+  quickActions: string;
+}
+
+const DEFAULT_LABELS: WorkshopUtilitiesLabels = {
+  workshop: "Workshop",
+  updates: "Updates",
+  updatesAvailable: (count) => `${count} available`,
+  everythingUpToDate: "Everything is up to date.",
+  update: "Update",
+  updateAll: "Update all →",
+  diskUsage: "Disk usage",
+  diskUsed: (value) => `${value} used`,
+  unknown: "Unknown",
+  measuring: "Measuring",
+  noStorageMeasured: "No project storage measured.",
+  manageStorage: "Manage storage →",
+  quickActions: "Quick actions",
+};
 
 function isMeasured(segment: DiskSegment): segment is DiskSegment & { bytes: number } {
   return typeof segment.bytes === "number" && Number.isFinite(segment.bytes);
 }
 
-function formatSegmentBytes(segment: DiskSegment): string {
+function formatSegmentBytes(segment: DiskSegment, labels: WorkshopUtilitiesLabels): string {
   if (isMeasured(segment)) return formatBytes(segment.bytes);
-  return segment.measurementState === "measuring" ? "Measuring" : "Unknown";
+  return segment.measurementState === "measuring" ? labels.measuring : labels.unknown;
 }
 
 export function WorkshopUtilities({
@@ -56,25 +89,27 @@ export function WorkshopUtilities({
   quickActions,
   onUpdateAll,
   onManageStorage,
+  labels: labelOverrides,
 }: WorkshopUtilitiesProps) {
+  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
   const measuredSegments = diskSegments.filter(isMeasured);
   const hasMeasuredStorage = measuredSegments.length > 0;
   const hasPositiveStorage = totalDisk > 0 && measuredSegments.some((segment) => segment.bytes > 0);
 
   return (
     <section className="flex flex-col gap-3">
-      <Eyebrow>Workshop</Eyebrow>
+      <Eyebrow>{labels.workshop}</Eyebrow>
       <Card className="divide-y divide-whisper-border">
         {/* Updates */}
         <div className="flex flex-col gap-3 p-5">
           <div className="flex items-center justify-between">
-            <EyebrowSm>Updates</EyebrowSm>
+            <EyebrowSm>{labels.updates}</EyebrowSm>
             <span className="font-mono text-[10px] text-aged-brass">
-              {updates.length} available
+              {labels.updatesAvailable(updates.length)}
             </span>
           </div>
           {updates.length === 0 ? (
-            <p className="text-[12px] text-muted-tone">Everything is up to date.</p>
+            <p className="text-[12px] text-muted-tone">{labels.everythingUpToDate}</p>
           ) : (
             <ul className="space-y-2">
               {updates.map((update) => (
@@ -86,7 +121,7 @@ export function WorkshopUtilities({
                     </p>
                   </div>
                   <Button tone="secondary" size="sm" onClick={update.onUpdate} className="h-7 px-2 text-[11px]">
-                    Update
+                    {labels.update}
                   </Button>
                 </li>
               ))}
@@ -98,7 +133,7 @@ export function WorkshopUtilities({
               onClick={onUpdateAll}
               className="self-start text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
             >
-              Update all →
+              {labels.updateAll}
             </button>
           ) : null}
         </div>
@@ -106,9 +141,9 @@ export function WorkshopUtilities({
         {/* Disk */}
         <div className="flex flex-col gap-2 p-5">
           <div className="flex items-center justify-between">
-            <EyebrowSm>Disk usage</EyebrowSm>
+            <EyebrowSm>{labels.diskUsage}</EyebrowSm>
             <span className="font-mono text-[10px] text-charcoal-ink">
-              {hasMeasuredStorage ? `${formatBytes(totalDisk)} used` : "Unknown"}
+              {hasMeasuredStorage ? labels.diskUsed(formatBytes(totalDisk)) : labels.unknown}
             </span>
           </div>
           <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-whisper-border-strong/40">
@@ -126,31 +161,31 @@ export function WorkshopUtilities({
               : null}
           </div>
           {diskSegments.length === 0 ? (
-            <p className="text-[12px] text-muted-tone">No project storage measured.</p>
+            <p className="text-[12px] text-muted-tone">{labels.noStorageMeasured}</p>
           ) : hasMeasuredStorage ? (
             <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-tone">
               {diskSegments.map((segment) => (
                 <li key={segment.id} className="flex items-center gap-1">
                   <span className={cn("size-1.5 rounded-full", segment.toneClass)} aria-hidden />
-                  {segment.label} · {formatSegmentBytes(segment)}
+                  {segment.label} · {formatSegmentBytes(segment, labels)}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-[12px] text-muted-tone">No project storage measured.</p>
+            <p className="text-[12px] text-muted-tone">{labels.noStorageMeasured}</p>
           )}
           <button
             type="button"
             onClick={onManageStorage}
             className="self-start text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
           >
-            Manage storage →
+            {labels.manageStorage}
           </button>
         </div>
 
         {/* Quick actions */}
         <div className="flex flex-col gap-2 p-5">
-          <EyebrowSm>Quick actions</EyebrowSm>
+          <EyebrowSm>{labels.quickActions}</EyebrowSm>
           <ul className="grid grid-cols-2 gap-1.5">
             {quickActions.map((action) => {
               const Icon = action.icon;

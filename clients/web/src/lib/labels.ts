@@ -1,0 +1,829 @@
+import type { SupportedLocale } from "@/lib/locale";
+
+export interface LocaleDictionary {
+  languageName: string;
+  languageShort: string;
+  languageMenuLabel: string;
+  languageAria: (label: string) => string;
+
+  authEyebrow: string;
+  authTitle: string;
+  authBody: string;
+  authTokenLabel: string;
+  authHideToken: string;
+  authShowToken: string;
+  authPlaceholder: string;
+  authCheckingButton: string;
+  authSubmitButton: string;
+  authStoredLocally: string;
+  authCheckingAccess: string;
+  authInvalidToken: string;
+  authConnectionFailed: (message: string) => string;
+
+  topbarHome: string;
+  topbarSettings: string;
+  topbarProject: (projectId: string) => string;
+  topbarNotifications: string;
+  topbarThemeSystem: (theme: string) => string;
+  topbarThemeLight: string;
+  topbarThemeDark: string;
+  topbarThemeAria: (preference: string) => string;
+  topbarLogout: string;
+
+  homeGreeting: string;
+  homeEmptyWorkshop: string;
+  homeReading: string;
+  homeShelfSummary: (all: number, running: number, stopped: number, failed: number) => string;
+  homeInstalledEyebrow: (count: number) => string;
+  homeEmptyTitle: string;
+  homeEmptyBody: string;
+  homeInstallLabel: string;
+  homeInstallHint: string;
+  homeErrorTitle: string;
+  homeErrorBody: string;
+  retry: string;
+  homeSearchPlaceholder: string;
+  homeSortPrefix: string;
+  homeSortRecent: string;
+  homeFilterAll: string;
+  homeFilterRunning: string;
+  homeFilterStopped: string;
+  homeFilterFailed: string;
+  homeActivityRecent: string;
+  homeActivityEmpty: string;
+  homeActivityLast24h: string;
+  homeActivityNo24h: string;
+  homeViewFullAuditLog: string;
+  homeWorkshop: string;
+  homeUpdates: string;
+  homeUpdatesAvailable: (count: number) => string;
+  homeEverythingUpToDate: string;
+  homeUpdate: string;
+  homeUpdateAll: string;
+  homeDiskUsage: string;
+  homeDiskUsed: (value: string) => string;
+  homeUnknown: string;
+  homeMeasuring: string;
+  homeNoStorageMeasured: string;
+  homeManageStorage: string;
+  homeQuickActions: string;
+  homeQuickInstallUrl: string;
+  homeQuickDataFolder: string;
+  homeQuickSettings: string;
+  homeQuickSwitchProfile: string;
+  homeOpenDataFolderToast: string;
+  homeActionResume: string;
+  homeActionOpen: string;
+  homeActionRestart: string;
+  homeActionPlay: string;
+  homeActionStop: string;
+  homeActionConfigure: string;
+  homeActionViewLogs: string;
+  homeActionUninstall: string;
+  homeMore: string;
+  homeActionsAria: (title: string) => string;
+  homeNow: string;
+  homeStoppedToast: (title: string) => string;
+  homeStopFailedTitle: string;
+  homeStopFailedBody: string;
+  homeUninstallTitle: (title: string) => string;
+  homeUninstallBody: (title: string) => string;
+  homeLoadingDiagnostics: string;
+  homeLoadingDiagnosticsSummary: string;
+  homeDescriptorNoPackages: string;
+  homeNoPackageStatus: string;
+  homeDiagnosticsUnavailable: string;
+
+  settingsTitle: string;
+  settingsHelper: string;
+  settingsApiConnections: string;
+  settingsInstalledPackages: string;
+  settingsProfiles: string;
+  settingsStorage: string;
+  settingsAbout: string;
+
+  apiEyebrowLoading: string;
+  apiEyebrowCount: (count: number) => string;
+  apiTitle: string;
+  apiDescription: string;
+  apiStoredSecrets: string;
+  apiAddSecret: string;
+  apiLoadErrorTitle: string;
+  apiLoadErrorBody: string;
+  apiEmptyTitle: string;
+  apiEmptyBody: string;
+  apiStoreStatus: string;
+  apiEncryption: string;
+  apiMasterKey: string;
+  apiStorage: string;
+  apiTotal: string;
+  apiConfigured: string;
+  apiNotCreated: string;
+  apiSecretsCount: (count: number) => string;
+  apiHowUsed: string;
+  apiHowUsedBody: string;
+  apiOpenAuditLog: string;
+  apiBackup: string;
+  apiExportFile: string;
+  apiImportFile: string;
+  apiExportToast: string;
+  apiImportToast: string;
+  apiRemoved: (name: string) => string;
+  apiDeleteFailedTitle: string;
+  apiDeleteFailedBody: string;
+  apiCopiedSecretName: string;
+  apiStored: (name: string) => string;
+  apiSaveFailedTitle: string;
+  apiSaveFailedBody: string;
+  apiHideName: string;
+  apiRevealName: string;
+  apiToggleReveal: string;
+  apiCopyName: string;
+  apiCopy: string;
+  apiMore: string;
+  apiRotate: string;
+  apiDelete: string;
+  apiAddContentLabel: string;
+  apiAddEyebrow: string;
+  apiAddTitle: string;
+  apiAddDescription: string;
+  apiProvider: string;
+  apiSecretName: string;
+  apiSecretNameHelper: string;
+  apiValue: string;
+  apiValueHelper: string;
+  apiScope: string;
+  apiScopePlatform: string;
+  apiScopeProject: string;
+  cancel: string;
+  apiSaveKey: string;
+
+  packagesEyebrowLoading: string;
+  packagesEyebrowCount: (count: number) => string;
+  packagesTitle: string;
+  packagesDescription: string;
+  packagesFilterPlaceholder: string;
+  packagesFilterAll: string;
+  packagesFilterProjects: string;
+  packagesFilterOfficial: string;
+  packagesFilterThirdParty: string;
+  packagesRefreshing: string;
+  packagesRefresh: string;
+  packagesLoadErrorTitle: string;
+  packagesLoadErrorBody: string;
+  packagesEmptyTitle: string;
+  packagesNoMatchTitle: string;
+  packagesEmptyBody: string;
+  packagesNoMatchBody: string;
+  packagesTablePackage: string;
+  packagesTableVersion: string;
+  packagesTableKind: string;
+  packagesTableCapabilities: string;
+  packagesTableState: string;
+  packagesCopyId: string;
+  packagesViewPermissions: string;
+  packagesViewLogs: string;
+  packagesUninstall: string;
+  packagesShowing: (visible: number, total: number) => string;
+  packagesShowAll: string;
+  packagesCopiedId: string;
+  packagesLogsTitle: (packageId: string) => string;
+  packagesNoLogsTitle: string;
+  packagesNoLogsBody: string;
+  packagesLogsLoadErrorTitle: string;
+  packagesLogsLoadErrorBody: string;
+
+  profilesEyebrowLoading: string;
+  profilesEyebrowActive: (name: string) => string;
+  profilesEyebrowNone: string;
+  profilesTitle: string;
+  profilesDescriptionPrefix: string;
+  profilesDescriptionSuffix: string;
+  profilesOnMachine: string;
+  profilesNew: string;
+  profilesCreateTitle: string;
+  profilesCreateBody: string;
+  profilesDiagnosticsErrorTitle: string;
+  profilesDiagnosticsErrorBody: string;
+  profilesEmptyTitle: string;
+  profilesEmptyBody: string;
+  profilesActive: string;
+  profilesLoadedPackages: string;
+  profilesLoadedPackagesHint: string;
+  profilesNetworkAllowlist: string;
+  profilesOutboundBlocked: string;
+  profilesSwitch: string;
+  profilesSwitchHint: string;
+  profilesSwitchRequiresRestart: string;
+  profilesSwitchBody: (id: string) => string;
+  profilesSwitchViaCli: string;
+  profilesDefaultDescription: (packages: number, hosts: number) => string;
+
+  storageTitleEyebrow: string;
+  storageTitle: string;
+  storageDescription: string;
+  storageAreas: string;
+  storageAreaProjectData: string;
+  storageAreaProjectDataDesc: string;
+  storageAreaPackageStore: string;
+  storageAreaPackageStoreDesc: string;
+  storageAreaProfiles: string;
+  storageAreaProfilesDesc: string;
+  storageAreaSecrets: string;
+  storageAreaSecretsDesc: string;
+  storageAreaCache: string;
+  storageAreaCacheDesc: string;
+  storageEventStore: string;
+  storageSqliteDesc: string;
+  storagePostgresDesc: string;
+  storageMemoryDesc: string;
+  storageCustomDesc: string;
+  storageBackendNeutrality: string;
+  storageBackendBody: string;
+
+  aboutEyebrow: string;
+  aboutSubtitle: string;
+  aboutVersion: string;
+  aboutBuild: string;
+  aboutReleased: string;
+  aboutChannel: string;
+  aboutWhat: string;
+  aboutPara1: string;
+  aboutPara2: string;
+  aboutPara3: string;
+  aboutCredits: string;
+  aboutBuiltOn: string;
+  aboutFonts: string;
+  aboutIcons: string;
+  aboutLicense: string;
+  aboutLicenseBody: string;
+  aboutReadLicense: string;
+  aboutLinks: string;
+  aboutSourceCode: string;
+  aboutDocumentation: string;
+  aboutReportIssue: string;
+  aboutCommunity: string;
+  aboutChangelog: string;
+  aboutGratitude: string;
+  aboutGratitudeBody: string;
+}
+
+export const labels = {
+  en: {
+    languageName: "English",
+    languageShort: "EN",
+    languageMenuLabel: "Language",
+    languageAria: (label) => `Language: ${label}`,
+
+    authEyebrow: "Authentication",
+    authTitle: "Access token required",
+    authBody: "The Yggdrasil host requires an access token. Paste your token to continue.",
+    authTokenLabel: "Access token",
+    authHideToken: "Hide token",
+    authShowToken: "Show token",
+    authPlaceholder: "Paste your access token…",
+    authCheckingButton: "Checking…",
+    authSubmitButton: "Authenticate",
+    authStoredLocally: "Your token is stored locally in this browser.",
+    authCheckingAccess: "Checking access…",
+    authInvalidToken: "Invalid access token. Please check your token and try again.",
+    authConnectionFailed: (message) => `Connection failed: ${message}`,
+
+    topbarHome: "Home",
+    topbarSettings: "Settings",
+    topbarProject: (projectId) => `Projects / ${projectId}`,
+    topbarNotifications: "Notifications",
+    topbarThemeSystem: (theme) => `System (${theme === "dark" ? "Dark" : "Light"})`,
+    topbarThemeLight: "Light mode",
+    topbarThemeDark: "Dark mode",
+    topbarThemeAria: (preference) => `Theme preference: ${preference}`,
+    topbarLogout: "Log out",
+
+    homeGreeting: "Welcome back",
+    homeEmptyWorkshop: "Your workshop is empty. Install a project to begin.",
+    homeReading: "Reading your workshop…",
+    homeShelfSummary: (all, running, stopped, failed) =>
+      `${all} projects on the shelf. ${running} running, ${stopped} idle. ${failed > 0 ? `${failed} need attention.` : "No pending updates."}`,
+    homeInstalledEyebrow: (count) => `Projects — ${count.toString().padStart(2, "0")} installed`,
+    homeEmptyTitle: "No projects installed yet",
+    homeEmptyBody:
+      "Yggdrasil is your workshop. Install a project to begin — projects can be a Yggdrasil-native source like YdlTavern, or any external git/local repo.",
+    homeInstallLabel: "Install a project",
+    homeInstallHint: "Paste a GitHub URL or local path",
+    homeErrorTitle: "Couldn't reach the host",
+    homeErrorBody: "Project inventory is unavailable. Try again from the local UI.",
+    retry: "Retry",
+    homeSearchPlaceholder: "Search projects, packages...",
+    homeSortPrefix: "Sort",
+    homeSortRecent: "Recent",
+    homeFilterAll: "All",
+    homeFilterRunning: "Running",
+    homeFilterStopped: "Stopped",
+    homeFilterFailed: "Failed",
+    homeActivityRecent: "Recent activity",
+    homeActivityEmpty: "Nothing yet — open a project to start.",
+    homeActivityLast24h: "Activity — last 24h",
+    homeActivityNo24h: "No activity in the last 24 hours.",
+    homeViewFullAuditLog: "View full audit log →",
+    homeWorkshop: "Workshop",
+    homeUpdates: "Updates",
+    homeUpdatesAvailable: (count) => `${count} available`,
+    homeEverythingUpToDate: "Everything is up to date.",
+    homeUpdate: "Update",
+    homeUpdateAll: "Update all →",
+    homeDiskUsage: "Disk usage",
+    homeDiskUsed: (value) => `${value} used`,
+    homeUnknown: "Unknown",
+    homeMeasuring: "Measuring",
+    homeNoStorageMeasured: "No project storage measured.",
+    homeManageStorage: "Manage storage →",
+    homeQuickActions: "Quick actions",
+    homeQuickInstallUrl: "Install URL",
+    homeQuickDataFolder: "Data folder",
+    homeQuickSettings: "Settings",
+    homeQuickSwitchProfile: "Switch profile",
+    homeOpenDataFolderToast: "Use the CLI to open the local platform data directory.",
+    homeActionResume: "Resume",
+    homeActionOpen: "Open",
+    homeActionRestart: "Restart",
+    homeActionPlay: "Play",
+    homeActionStop: "Stop",
+    homeActionConfigure: "Configure…",
+    homeActionViewLogs: "View logs",
+    homeActionUninstall: "Uninstall…",
+    homeMore: "More",
+    homeActionsAria: (title) => `${title} actions`,
+    homeNow: "now",
+    homeStoppedToast: (title) => `Stopped ${title}`,
+    homeStopFailedTitle: "Stop failed",
+    homeStopFailedBody: "The project could not be stopped. Check the local host and try again.",
+    homeUninstallTitle: (title) => `Uninstall ${title}`,
+    homeUninstallBody: (title) => `Confirm in CLI: yg uninstall ${title}`,
+    homeLoadingDiagnostics: "Loading diagnostics…",
+    homeLoadingDiagnosticsSummary: "Reading bounded package failure details from the kernel.",
+    homeDescriptorNoPackages: "Project descriptor does not list packages.",
+    homeNoPackageStatus: "No associated package status was available.",
+    homeDiagnosticsUnavailable: "Diagnostics are unavailable. Try again from the local UI.",
+
+    settingsTitle: "Settings",
+    settingsHelper: "Settings live on this machine. No SaaS sync.",
+    settingsApiConnections: "API Connections",
+    settingsInstalledPackages: "Installed Packages",
+    settingsProfiles: "Profiles",
+    settingsStorage: "Storage",
+    settingsAbout: "About",
+
+    apiEyebrowLoading: "API Connections · loading…",
+    apiEyebrowCount: (count) => `API Connections · ${count} keys stored`,
+    apiTitle: "Local secret store",
+    apiDescription:
+      "Keys stay on this machine, encrypted with your platform key. Yggdrasil never transmits raw keys — projects request them through audited capability calls.",
+    apiStoredSecrets: "Stored secrets",
+    apiAddSecret: "Add secret",
+    apiLoadErrorTitle: "Couldn't load secrets",
+    apiLoadErrorBody: "Secret metadata is unavailable. Try again from the local UI.",
+    apiEmptyTitle: "No secrets stored",
+    apiEmptyBody: "Add your first key. Yggdrasil encrypts it with your platform key.",
+    apiStoreStatus: "Store status",
+    apiEncryption: "Encryption",
+    apiMasterKey: "Master key",
+    apiStorage: "Storage",
+    apiTotal: "Total",
+    apiConfigured: "configured",
+    apiNotCreated: "not created",
+    apiSecretsCount: (count) => `${count} secrets`,
+    apiHowUsed: "How they're used",
+    apiHowUsedBody:
+      "The host injects the raw value into outbound requests on the project's behalf.",
+    apiOpenAuditLog: "Open audit log →",
+    apiBackup: "Backup",
+    apiExportFile: "Export to file",
+    apiImportFile: "Import from file",
+    apiExportToast: "Use yg secrets export on the CLI",
+    apiImportToast: "Use yg secrets import on the CLI",
+    apiRemoved: (name) => `Removed ${name}`,
+    apiDeleteFailedTitle: "Delete failed",
+    apiDeleteFailedBody: "The secret could not be removed. Check the local host and try again.",
+    apiCopiedSecretName: "Copied secret name",
+    apiStored: (name) => `Stored ${name}`,
+    apiSaveFailedTitle: "Save failed",
+    apiSaveFailedBody: "The secret could not be stored. Check the local host and try again.",
+    apiHideName: "Hide name",
+    apiRevealName: "Reveal name",
+    apiToggleReveal: "Toggle reveal",
+    apiCopyName: "Copy name",
+    apiCopy: "Copy",
+    apiMore: "More",
+    apiRotate: "Rotate",
+    apiDelete: "Delete…",
+    apiAddContentLabel: "Add secret",
+    apiAddEyebrow: "API Connections · Add",
+    apiAddTitle: "Store a new key",
+    apiAddDescription:
+      "Yggdrasil encrypts the value with your platform key and never sends raw keys to any project.",
+    apiProvider: "Provider",
+    apiSecretName: "Secret name",
+    apiSecretNameHelper: "Convention: PROVIDER_API_KEY (uppercase, underscores)",
+    apiValue: "Value",
+    apiValueHelper: "The raw key never leaves this machine.",
+    apiScope: "Scope",
+    apiScopePlatform: "Platform-wide",
+    apiScopeProject: "Project-only (configure on Home)",
+    cancel: "Cancel",
+    apiSaveKey: "Save key",
+
+    packagesEyebrowLoading: "Installed packages · loading…",
+    packagesEyebrowCount: (count) => `Installed packages · ${count} packages`,
+    packagesTitle: "Workshop inventory",
+    packagesDescription:
+      "Projects, official packages, and dependencies installed in this workshop. Refresh checks upstream sources.",
+    packagesFilterPlaceholder: "Filter packages…",
+    packagesFilterAll: "All",
+    packagesFilterProjects: "Projects",
+    packagesFilterOfficial: "Official",
+    packagesFilterThirdParty: "Third-party",
+    packagesRefreshing: "Refreshing inventory…",
+    packagesRefresh: "Refresh",
+    packagesLoadErrorTitle: "Couldn't load packages",
+    packagesLoadErrorBody: "Package inventory is unavailable. Try again from the local UI.",
+    packagesEmptyTitle: "No packages installed yet",
+    packagesNoMatchTitle: "No packages match this filter",
+    packagesEmptyBody: "Install a project from Home or run yg install on the CLI.",
+    packagesNoMatchBody: "Try a different filter or clear the search.",
+    packagesTablePackage: "Package",
+    packagesTableVersion: "Version",
+    packagesTableKind: "Kind",
+    packagesTableCapabilities: "Capabilities",
+    packagesTableState: "State",
+    packagesCopyId: "Copy package id",
+    packagesViewPermissions: "View permissions",
+    packagesViewLogs: "View logs",
+    packagesUninstall: "Uninstall…",
+    packagesShowing: (visible, total) => `Showing ${visible} of ${total}`,
+    packagesShowAll: "Show all →",
+    packagesCopiedId: "Package id copied",
+    packagesLogsTitle: (packageId) => `Redacted logs for ${packageId}`,
+    packagesNoLogsTitle: "No logs available",
+    packagesNoLogsBody: "The kernel did not return a bounded redacted log tail for this package.",
+    packagesLogsLoadErrorTitle: "Couldn't load logs",
+    packagesLogsLoadErrorBody: "Diagnostics are unavailable. Try again or inspect the local CLI logs.",
+
+    profilesEyebrowLoading: "Profiles · loading…",
+    profilesEyebrowActive: (name) => `Profiles · Active: ${name}`,
+    profilesEyebrowNone: "Profiles · No active profile",
+    profilesTitle: "Workshop profiles",
+    profilesDescriptionPrefix:
+      "A profile bundles host configuration: which packages autoload, which outbound hosts are allowed, secret resolver settings. Profiles are YAML files passed to",
+    profilesDescriptionSuffix: ".",
+    profilesOnMachine: "Profiles on this machine",
+    profilesNew: "New profile",
+    profilesCreateTitle: "Create a profile",
+    profilesCreateBody: "Create a YAML profile and start the host with --profile <path>.",
+    profilesDiagnosticsErrorTitle: "Couldn't read host diagnostics",
+    profilesDiagnosticsErrorBody: "Host diagnostics are unavailable. Try again from the local UI.",
+    profilesEmptyTitle: "No profile in use",
+    profilesEmptyBody: "Start the host with --profile <path> to enable profile-aware features.",
+    profilesActive: "ACTIVE",
+    profilesLoadedPackages: "Loaded packages",
+    profilesLoadedPackagesHint: "Defined in the profile's packages list.",
+    profilesNetworkAllowlist: "Network allowlist",
+    profilesOutboundBlocked: "All outbound blocked.",
+    profilesSwitch: "Switch profile…",
+    profilesSwitchHint: "Switching restarts the host. Project state is preserved.",
+    profilesSwitchRequiresRestart: "Profile switch requires restart",
+    profilesSwitchBody: (id) => `Use yg host serve --profile profiles/${id}.yaml on the CLI to activate.`,
+    profilesSwitchViaCli: "Switch profile via CLI",
+    profilesDefaultDescription: (packages, hosts) =>
+      `Active profile · ${packages} packages loaded · ${hosts} hosts allowed`,
+
+    storageTitleEyebrow: "Storage",
+    storageTitle: "Where your data lives",
+    storageDescription:
+      "Yggdrasil keeps data on this machine by default. The UI summarizes storage areas without exposing host-specific absolute paths.",
+    storageAreas: "Storage areas",
+    storageAreaProjectData: "Project data",
+    storageAreaProjectDataDesc: "Project metadata, checkpoints, package state, and run records.",
+    storageAreaPackageStore: "Package store",
+    storageAreaPackageStoreDesc: "Installed package sources and lockfile-managed revisions.",
+    storageAreaProfiles: "Profiles",
+    storageAreaProfilesDesc: "Host profiles passed to yg host serve --profile.",
+    storageAreaSecrets: "Secrets",
+    storageAreaSecretsDesc: "Encrypted platform and project secret stores. Raw values are never shown here.",
+    storageAreaCache: "Cache",
+    storageAreaCacheDesc: "Generated bundles, tokenizer caches, and other rebuildable data.",
+    storageEventStore: "Event store",
+    storageSqliteDesc: "Local file backend, default for single-host workshops.",
+    storagePostgresDesc: "PostgreSQL backend, suitable for shared/team hosts.",
+    storageMemoryDesc: "In-memory backend, no persistence between restarts.",
+    storageCustomDesc: "Custom backend.",
+    storageBackendNeutrality: "Backend neutrality",
+    storageBackendBody:
+      "Yggdrasil's storage layer is backend-neutral. SQLite is the default for local single-host workshops. PostgreSQL is reserved for shared/team hosts. Multimodal retrieval providers (TDB, pgvector, others) are exposed as ordinary capability packages, never as kernel primitives.",
+
+    aboutEyebrow: "About",
+    aboutSubtitle: "Open platform for play and creation.",
+    aboutVersion: "Version",
+    aboutBuild: "Build",
+    aboutReleased: "Released",
+    aboutChannel: "Channel",
+    aboutWhat: "What Yggdrasil is",
+    aboutPara1:
+      "Yggdrasil is a kernel and a contract. The kernel hosts your projects in sandboxes. The contract lets any project — official, community, or self-built — participate as a first-class citizen.",
+    aboutPara2:
+      "It runs on your machine, with your keys, your files, your network. There is no SaaS account, no central registry, no telemetry. Projects you install live in the local platform data directory and stay there until you remove them.",
+    aboutPara3:
+      "The shell you are looking at right now is one of many possible UIs. Anyone can write another. The platform is the contract — not this window.",
+    aboutCredits: "Credits",
+    aboutBuiltOn: "Built on",
+    aboutFonts: "Fonts",
+    aboutIcons: "Icons",
+    aboutLicense: "License",
+    aboutLicenseBody: "Free to use, modify, run. Network use requires source disclosure.",
+    aboutReadLicense: "Read full license →",
+    aboutLinks: "Links",
+    aboutSourceCode: "Source code",
+    aboutDocumentation: "Documentation",
+    aboutReportIssue: "Report an issue",
+    aboutCommunity: "Community",
+    aboutChangelog: "Changelog",
+    aboutGratitude: "Gratitude",
+    aboutGratitudeBody:
+      "SillyTavern community for the asset formats and extension API patterns referenced in YdlTavern compatibility work.",
+  },
+  "zh-CN": {
+    languageName: "简体中文",
+    languageShort: "中",
+    languageMenuLabel: "语言",
+    languageAria: (label) => `语言：${label}`,
+
+    authEyebrow: "身份验证",
+    authTitle: "需要访问令牌",
+    authBody: "Yggdrasil 主机需要访问令牌。粘贴令牌后继续。",
+    authTokenLabel: "访问令牌",
+    authHideToken: "隐藏令牌",
+    authShowToken: "显示令牌",
+    authPlaceholder: "粘贴访问令牌…",
+    authCheckingButton: "正在检查…",
+    authSubmitButton: "验证",
+    authStoredLocally: "令牌仅保存在此浏览器本地。",
+    authCheckingAccess: "正在检查访问权限…",
+    authInvalidToken: "访问令牌无效。请检查令牌后重试。",
+    authConnectionFailed: (message) => `连接失败：${message}`,
+
+    topbarHome: "首页",
+    topbarSettings: "设置",
+    topbarProject: (projectId) => `项目 / ${projectId}`,
+    topbarNotifications: "通知",
+    topbarThemeSystem: (theme) => `跟随系统（${theme === "dark" ? "深色" : "浅色"}）`,
+    topbarThemeLight: "浅色模式",
+    topbarThemeDark: "深色模式",
+    topbarThemeAria: (preference) => `主题偏好：${preference}`,
+    topbarLogout: "退出登录",
+
+    homeGreeting: "欢迎回来",
+    homeEmptyWorkshop: "工作台还是空的。安装一个项目开始吧。",
+    homeReading: "正在读取工作台…",
+    homeShelfSummary: (all, running, stopped, failed) =>
+      `架上共有 ${all} 个项目。${running} 个运行中，${stopped} 个空闲。${failed > 0 ? `${failed} 个需要处理。` : "没有待处理更新。"}`,
+    homeInstalledEyebrow: (count) => `项目 — 已安装 ${count.toString().padStart(2, "0")} 个`,
+    homeEmptyTitle: "还没有安装项目",
+    homeEmptyBody:
+      "Yggdrasil 是你的工作台。安装一个项目开始吧——项目可以是 Yggdrasil 原生源（如 YdlTavern），也可以是任意外部 git/本地仓库。",
+    homeInstallLabel: "安装项目",
+    homeInstallHint: "粘贴 GitHub URL 或本地路径",
+    homeErrorTitle: "无法连接主机",
+    homeErrorBody: "项目清单暂不可用。请从本地 UI 重试。",
+    retry: "重试",
+    homeSearchPlaceholder: "搜索项目、包…",
+    homeSortPrefix: "排序",
+    homeSortRecent: "最近",
+    homeFilterAll: "全部",
+    homeFilterRunning: "运行中",
+    homeFilterStopped: "已停止",
+    homeFilterFailed: "失败",
+    homeActivityRecent: "最近活动",
+    homeActivityEmpty: "还没有活动——打开一个项目开始。",
+    homeActivityLast24h: "活动 — 最近 24 小时",
+    homeActivityNo24h: "最近 24 小时没有活动。",
+    homeViewFullAuditLog: "查看完整审计日志 →",
+    homeWorkshop: "工作台",
+    homeUpdates: "更新",
+    homeUpdatesAvailable: (count) => `${count} 个可用`,
+    homeEverythingUpToDate: "所有内容都是最新的。",
+    homeUpdate: "更新",
+    homeUpdateAll: "全部更新 →",
+    homeDiskUsage: "磁盘用量",
+    homeDiskUsed: (value) => `已用 ${value}`,
+    homeUnknown: "未知",
+    homeMeasuring: "测量中",
+    homeNoStorageMeasured: "尚未测量项目存储。",
+    homeManageStorage: "管理存储 →",
+    homeQuickActions: "快捷操作",
+    homeQuickInstallUrl: "安装 URL",
+    homeQuickDataFolder: "数据文件夹",
+    homeQuickSettings: "设置",
+    homeQuickSwitchProfile: "切换配置",
+    homeOpenDataFolderToast: "请使用 CLI 打开本地平台数据目录。",
+    homeActionResume: "继续",
+    homeActionOpen: "打开",
+    homeActionRestart: "重启",
+    homeActionPlay: "启动",
+    homeActionStop: "停止",
+    homeActionConfigure: "配置…",
+    homeActionViewLogs: "查看日志",
+    homeActionUninstall: "卸载…",
+    homeMore: "更多",
+    homeActionsAria: (title) => `${title} 操作`,
+    homeNow: "现在",
+    homeStoppedToast: (title) => `已停止 ${title}`,
+    homeStopFailedTitle: "停止失败",
+    homeStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
+    homeUninstallTitle: (title) => `卸载 ${title}`,
+    homeUninstallBody: (title) => `在 CLI 中确认：yg uninstall ${title}`,
+    homeLoadingDiagnostics: "正在加载诊断…",
+    homeLoadingDiagnosticsSummary: "正在从内核读取限定的包失败详情。",
+    homeDescriptorNoPackages: "项目描述符没有列出包。",
+    homeNoPackageStatus: "没有可用的关联包状态。",
+    homeDiagnosticsUnavailable: "诊断暂不可用。请从本地 UI 重试。",
+
+    settingsTitle: "设置",
+    settingsHelper: "设置保存在本机。无 SaaS 同步。",
+    settingsApiConnections: "API 连接",
+    settingsInstalledPackages: "已安装包",
+    settingsProfiles: "配置档",
+    settingsStorage: "存储",
+    settingsAbout: "关于",
+
+    apiEyebrowLoading: "API 连接 · 加载中…",
+    apiEyebrowCount: (count) => `API 连接 · 已存储 ${count} 个密钥`,
+    apiTitle: "本地密钥存储",
+    apiDescription:
+      "密钥保留在本机，并使用平台密钥加密。Yggdrasil 不会传输原始密钥——项目通过可审计的能力调用请求它们。",
+    apiStoredSecrets: "已存密钥",
+    apiAddSecret: "添加密钥",
+    apiLoadErrorTitle: "无法加载密钥",
+    apiLoadErrorBody: "密钥元数据暂不可用。请从本地 UI 重试。",
+    apiEmptyTitle: "尚未存储密钥",
+    apiEmptyBody: "添加第一个密钥。Yggdrasil 会使用平台密钥加密它。",
+    apiStoreStatus: "存储状态",
+    apiEncryption: "加密",
+    apiMasterKey: "主密钥",
+    apiStorage: "存储",
+    apiTotal: "总计",
+    apiConfigured: "已配置",
+    apiNotCreated: "未创建",
+    apiSecretsCount: (count) => `${count} 个密钥`,
+    apiHowUsed: "使用方式",
+    apiHowUsedBody: "主机会代表项目把原始值注入到外部请求中。",
+    apiOpenAuditLog: "打开审计日志 →",
+    apiBackup: "备份",
+    apiExportFile: "导出到文件",
+    apiImportFile: "从文件导入",
+    apiExportToast: "请在 CLI 使用 yg secrets export",
+    apiImportToast: "请在 CLI 使用 yg secrets import",
+    apiRemoved: (name) => `已移除 ${name}`,
+    apiDeleteFailedTitle: "删除失败",
+    apiDeleteFailedBody: "无法移除该密钥。请检查本地主机后重试。",
+    apiCopiedSecretName: "已复制密钥名称",
+    apiStored: (name) => `已存储 ${name}`,
+    apiSaveFailedTitle: "保存失败",
+    apiSaveFailedBody: "无法存储该密钥。请检查本地主机后重试。",
+    apiHideName: "隐藏名称",
+    apiRevealName: "显示名称",
+    apiToggleReveal: "切换显示",
+    apiCopyName: "复制名称",
+    apiCopy: "复制",
+    apiMore: "更多",
+    apiRotate: "轮换",
+    apiDelete: "删除…",
+    apiAddContentLabel: "添加密钥",
+    apiAddEyebrow: "API 连接 · 添加",
+    apiAddTitle: "存储新密钥",
+    apiAddDescription: "Yggdrasil 会使用平台密钥加密该值，且永远不会把原始密钥发送给任何项目。",
+    apiProvider: "提供商",
+    apiSecretName: "密钥名称",
+    apiSecretNameHelper: "约定：PROVIDER_API_KEY（大写，下划线）",
+    apiValue: "值",
+    apiValueHelper: "原始密钥永远不会离开本机。",
+    apiScope: "作用域",
+    apiScopePlatform: "全平台",
+    apiScopeProject: "仅项目（在首页配置）",
+    cancel: "取消",
+    apiSaveKey: "保存密钥",
+
+    packagesEyebrowLoading: "已安装包 · 加载中…",
+    packagesEyebrowCount: (count) => `已安装包 · ${count} 个包`,
+    packagesTitle: "工作台清单",
+    packagesDescription: "此工作台中安装的项目、官方包和依赖。刷新会检查上游来源。",
+    packagesFilterPlaceholder: "筛选包…",
+    packagesFilterAll: "全部",
+    packagesFilterProjects: "项目",
+    packagesFilterOfficial: "官方",
+    packagesFilterThirdParty: "第三方",
+    packagesRefreshing: "正在刷新清单…",
+    packagesRefresh: "刷新",
+    packagesLoadErrorTitle: "无法加载包",
+    packagesLoadErrorBody: "包清单暂不可用。请从本地 UI 重试。",
+    packagesEmptyTitle: "尚未安装包",
+    packagesNoMatchTitle: "没有包匹配此筛选",
+    packagesEmptyBody: "从首页安装项目，或在 CLI 运行 yg install。",
+    packagesNoMatchBody: "尝试其他筛选，或清空搜索。",
+    packagesTablePackage: "包",
+    packagesTableVersion: "版本",
+    packagesTableKind: "类型",
+    packagesTableCapabilities: "能力",
+    packagesTableState: "状态",
+    packagesCopyId: "复制包 ID",
+    packagesViewPermissions: "查看权限",
+    packagesViewLogs: "查看日志",
+    packagesUninstall: "卸载…",
+    packagesShowing: (visible, total) => `正在显示 ${visible} / ${total}`,
+    packagesShowAll: "显示全部 →",
+    packagesCopiedId: "已复制包 ID",
+    packagesLogsTitle: (packageId) => `${packageId} 的脱敏日志`,
+    packagesNoLogsTitle: "没有可用日志",
+    packagesNoLogsBody: "内核没有返回该包的限定脱敏日志尾部。",
+    packagesLogsLoadErrorTitle: "无法加载日志",
+    packagesLogsLoadErrorBody: "诊断暂不可用。请重试或检查本地 CLI 日志。",
+
+    profilesEyebrowLoading: "配置档 · 加载中…",
+    profilesEyebrowActive: (name) => `配置档 · 当前：${name}`,
+    profilesEyebrowNone: "配置档 · 没有当前配置档",
+    profilesTitle: "工作台配置档",
+    profilesDescriptionPrefix: "配置档会打包主机配置：自动加载哪些包、允许哪些外部主机、密钥解析设置。配置档是传给",
+    profilesDescriptionSuffix: "的 YAML 文件。",
+    profilesOnMachine: "本机配置档",
+    profilesNew: "新建配置档",
+    profilesCreateTitle: "创建配置档",
+    profilesCreateBody: "创建一个 YAML 配置档，并用 --profile <path> 启动主机。",
+    profilesDiagnosticsErrorTitle: "无法读取主机诊断",
+    profilesDiagnosticsErrorBody: "主机诊断暂不可用。请从本地 UI 重试。",
+    profilesEmptyTitle: "没有使用配置档",
+    profilesEmptyBody: "用 --profile <path> 启动主机以启用配置档相关功能。",
+    profilesActive: "当前",
+    profilesLoadedPackages: "已加载包",
+    profilesLoadedPackagesHint: "定义在配置档的 packages 列表中。",
+    profilesNetworkAllowlist: "网络允许列表",
+    profilesOutboundBlocked: "所有外联均被阻止。",
+    profilesSwitch: "切换配置档…",
+    profilesSwitchHint: "切换会重启主机。项目状态会保留。",
+    profilesSwitchRequiresRestart: "切换配置档需要重启",
+    profilesSwitchBody: (id) => `请在 CLI 使用 yg host serve --profile profiles/${id}.yaml 激活。`,
+    profilesSwitchViaCli: "通过 CLI 切换配置档",
+    profilesDefaultDescription: (packages, hosts) =>
+      `当前配置档 · 已加载 ${packages} 个包 · 允许 ${hosts} 个主机`,
+
+    storageTitleEyebrow: "存储",
+    storageTitle: "数据存放位置",
+    storageDescription: "Yggdrasil 默认把数据保存在本机。UI 会概述存储区域，但不暴露主机特定的绝对路径。",
+    storageAreas: "存储区域",
+    storageAreaProjectData: "项目数据",
+    storageAreaProjectDataDesc: "项目元数据、检查点、包状态和运行记录。",
+    storageAreaPackageStore: "包存储",
+    storageAreaPackageStoreDesc: "已安装包源码和由锁文件管理的修订版本。",
+    storageAreaProfiles: "配置档",
+    storageAreaProfilesDesc: "传给 yg host serve --profile 的主机配置档。",
+    storageAreaSecrets: "密钥",
+    storageAreaSecretsDesc: "加密的平台和项目密钥存储。这里永远不会显示原始值。",
+    storageAreaCache: "缓存",
+    storageAreaCacheDesc: "生成的 bundle、分词器缓存和其他可重建数据。",
+    storageEventStore: "事件存储",
+    storageSqliteDesc: "本地文件后端，单主机工作台的默认选项。",
+    storagePostgresDesc: "PostgreSQL 后端，适合共享/团队主机。",
+    storageMemoryDesc: "内存后端，重启后不持久化。",
+    storageCustomDesc: "自定义后端。",
+    storageBackendNeutrality: "后端中立",
+    storageBackendBody:
+      "Yggdrasil 的存储层保持后端中立。SQLite 是本地单主机工作台的默认选项。PostgreSQL 保留给共享/团队主机。多模态检索提供方（TDB、pgvector 等）会作为普通能力包暴露，而不是内核原语。",
+
+    aboutEyebrow: "关于",
+    aboutSubtitle: "面向游玩与创作的开放平台。",
+    aboutVersion: "版本",
+    aboutBuild: "构建",
+    aboutReleased: "发布日期",
+    aboutChannel: "通道",
+    aboutWhat: "Yggdrasil 是什么",
+    aboutPara1:
+      "Yggdrasil 是一个内核，也是一份契约。内核在沙盒中托管你的项目；契约让任何项目——官方、社区或自建——都能成为一等公民。",
+    aboutPara2:
+      "它运行在你的机器上，使用你的密钥、你的文件和你的网络。没有 SaaS 账号、没有中心注册表、没有遥测。你安装的项目保存在本地平台数据目录中，直到你移除它们。",
+    aboutPara3: "你现在看到的 shell 只是众多可能 UI 之一。任何人都可以编写另一个。平台是契约，而不是这个窗口。",
+    aboutCredits: "致谢",
+    aboutBuiltOn: "构建于",
+    aboutFonts: "字体",
+    aboutIcons: "图标",
+    aboutLicense: "许可证",
+    aboutLicenseBody: "可自由使用、修改和运行。网络使用需要披露源码。",
+    aboutReadLicense: "阅读完整许可证 →",
+    aboutLinks: "链接",
+    aboutSourceCode: "源代码",
+    aboutDocumentation: "文档",
+    aboutReportIssue: "报告问题",
+    aboutCommunity: "社区",
+    aboutChangelog: "变更日志",
+    aboutGratitude: "感谢",
+    aboutGratitudeBody: "感谢 SillyTavern 社区，其资产格式和扩展 API 模式为 YdlTavern 兼容工作提供了参考。",
+  },
+} satisfies Record<SupportedLocale, LocaleDictionary>;
+
+export type LabelKey = keyof LocaleDictionary;

@@ -3,41 +3,37 @@ import { Card, CardSection } from "@/components/ui/card";
 import { Eyebrow, EyebrowSm, PageTitle } from "@/components/ui/typography";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsync, useKernel } from "@/lib/kernel-client";
-
-interface StorageArea {
-  label: string;
-  description: string;
-}
-
-const STORAGE_AREAS: StorageArea[] = [
-  { label: "Project data", description: "Project metadata, checkpoints, package state, and run records." },
-  { label: "Package store", description: "Installed package sources and lockfile-managed revisions." },
-  { label: "Profiles", description: "Host profiles passed to yg host serve --profile." },
-  { label: "Secrets", description: "Encrypted platform and project secret stores. Raw values are never shown here." },
-  { label: "Cache", description: "Generated bundles, tokenizer caches, and other rebuildable data." },
-];
+import { useT } from "@/lib/locale";
 
 export function StoragePanel() {
   const client = useKernel();
+  const t = useT();
   const diagnostics = useAsync(() => client.diagnostics().catch(() => null), [client]);
 
   const eventStoreKind =
     (diagnostics.data as { event_store?: { kind?: string } } | null)?.event_store?.kind ?? "sqlite";
 
+  const storageAreas = [
+    { label: t("storageAreaProjectData"), description: t("storageAreaProjectDataDesc") },
+    { label: t("storageAreaPackageStore"), description: t("storageAreaPackageStoreDesc") },
+    { label: t("storageAreaProfiles"), description: t("storageAreaProfilesDesc") },
+    { label: t("storageAreaSecrets"), description: t("storageAreaSecretsDesc") },
+    { label: t("storageAreaCache"), description: t("storageAreaCacheDesc") },
+  ];
+
   return (
     <>
       <header className="mb-8">
-        <Eyebrow>Storage</Eyebrow>
-        <PageTitle className="mt-2">Where your data lives</PageTitle>
+        <Eyebrow>{t("storageTitleEyebrow")}</Eyebrow>
+        <PageTitle className="mt-2">{t("storageTitle")}</PageTitle>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-steel-secondary">
-          Yggdrasil keeps data on this machine by default. The UI summarizes storage areas without
-          exposing host-specific absolute paths.
+          {t("storageDescription")}
         </p>
       </header>
 
       <Card>
         <CardSection>
-          <EyebrowSm>Storage areas</EyebrowSm>
+          <EyebrowSm>{t("storageAreas")}</EyebrowSm>
           {diagnostics.loading ? (
             <ul className="mt-3 space-y-2">
               {Array.from({ length: 6 }).map((_, idx) => (
@@ -49,7 +45,7 @@ export function StoragePanel() {
             </ul>
           ) : (
             <ul className="mt-3 divide-y divide-whisper-border">
-              {STORAGE_AREAS.map((entry) => (
+              {storageAreas.map((entry) => (
                 <li
                   key={entry.label}
                   className="flex items-start justify-between gap-4 py-2.5 text-[13px]"
@@ -65,28 +61,25 @@ export function StoragePanel() {
           )}
         </CardSection>
         <CardSection divided>
-          <EyebrowSm>Event store</EyebrowSm>
+          <EyebrowSm>{t("storageEventStore")}</EyebrowSm>
           <p className="mt-2 text-[13px] text-charcoal-ink">
             <span className="font-mono">{eventStoreKind}</span>
             <span className="mx-2 text-muted-tone">·</span>
             <span className="text-steel-secondary">
               {eventStoreKind === "sqlite"
-                ? "Local file backend, default for single-host workshops."
+                ? t("storageSqliteDesc")
                 : eventStoreKind === "postgres"
-                  ? "PostgreSQL backend, suitable for shared/team hosts."
+                  ? t("storagePostgresDesc")
                   : eventStoreKind === "memory"
-                    ? "In-memory backend, no persistence between restarts."
-                    : "Custom backend."}
+                    ? t("storageMemoryDesc")
+                    : t("storageCustomDesc")}
             </span>
           </p>
         </CardSection>
         <CardSection divided>
-          <EyebrowSm>Backend neutrality</EyebrowSm>
+          <EyebrowSm>{t("storageBackendNeutrality")}</EyebrowSm>
           <p className="mt-2 text-[12px] leading-relaxed text-steel-secondary">
-            Yggdrasil's storage layer is backend-neutral. SQLite is the default for local single-host
-            workshops. PostgreSQL is reserved for shared/team hosts. Multimodal retrieval providers
-            (TDB, pgvector, others) are exposed as ordinary capability packages, never as kernel
-            primitives.
+            {t("storageBackendBody")}
           </p>
         </CardSection>
       </Card>

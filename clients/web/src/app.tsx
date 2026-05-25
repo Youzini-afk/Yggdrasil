@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
 import { IconContext } from "@phosphor-icons/react";
 import { ThemeProvider } from "@/lib/theme";
+import { LocaleProvider } from "@/lib/locale";
 import { AuthProvider, useAuth } from "@/lib/auth-gate";
 import { KernelProvider } from "@/lib/kernel-client";
 import { ToastProvider } from "@/components/ui/toast";
@@ -19,11 +20,13 @@ const iconDefaults = {
 export function App({ children }: { children?: ReactNode }) {
   return (
     <ThemeProvider>
-      <IconContext.Provider value={iconDefaults}>
-        <AuthProvider>
-          <AppInner>{children}</AppInner>
-        </AuthProvider>
-      </IconContext.Provider>
+      <LocaleProvider>
+        <IconContext.Provider value={iconDefaults}>
+          <AuthProvider>
+            <AppInner>{children}</AppInner>
+          </AuthProvider>
+        </IconContext.Provider>
+      </LocaleProvider>
     </ThemeProvider>
   );
 }

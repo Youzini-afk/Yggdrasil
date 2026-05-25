@@ -37,6 +37,32 @@ export interface ProjectCardActions {
   onConfigure?: () => void;
 }
 
+export interface ProjectCardLabels {
+  restart: string;
+  resume: string;
+  play: string;
+  more: string;
+  actionsAria: (title: string) => string;
+  stop: string;
+  open: string;
+  configure: string;
+  viewLogs: string;
+  uninstall: string;
+}
+
+const DEFAULT_LABELS: ProjectCardLabels = {
+  restart: "Restart",
+  resume: "Resume",
+  play: "Play",
+  more: "More",
+  actionsAria: (title) => `${title} actions`,
+  stop: "Stop",
+  open: "Open",
+  configure: "Configure…",
+  viewLogs: "View logs",
+  uninstall: "Uninstall…",
+};
+
 const iconToneClass: Record<StatusTone, string> = {
   running: "text-aged-brass",
   stopped: "text-steel-secondary",
@@ -51,17 +77,20 @@ export function ProjectCard({
   data,
   actions,
   index = 0,
+  labels: labelOverrides,
 }: {
   data: ProjectCardData;
   actions: ProjectCardActions;
   index?: number;
+  labels?: Partial<ProjectCardLabels>;
 }) {
+  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
   const tone = projectStateTone(data.state);
   const Icon = projectIcon(data);
   const isFailed = data.state === "failed";
   const isRunning = data.state === "running";
 
-  const primaryLabel = isFailed ? "Restart" : isRunning ? "Resume" : "Play";
+  const primaryLabel = isFailed ? labels.restart : isRunning ? labels.resume : labels.play;
   const onPrimary = isFailed ? actions.onRestart ?? actions.onLaunch : actions.onLaunch;
   const PrimaryIcon = isFailed ? ArrowsClockwise : Play;
 
@@ -114,28 +143,28 @@ export function ProjectCard({
         <Dropdown>
           {/* Tooltip wraps DropdownTrigger (not the other way around) so Radix
               gets a real button child for asChild forwarding. */}
-          <Tooltip label="More">
+          <Tooltip label={labels.more}>
             <DropdownTrigger asChild>
-              <Button tone="icon" size="icon-sm" aria-label={`${data.title} actions`}>
+              <Button tone="icon" size="icon-sm" aria-label={labels.actionsAria(data.title)}>
                 <DotsThree size={16} />
               </Button>
             </DropdownTrigger>
           </Tooltip>
           <DropdownMenu>
             {isRunning ? (
-              <DropdownItem onSelect={actions.onStop ?? (() => {})}>Stop</DropdownItem>
+              <DropdownItem onSelect={actions.onStop ?? (() => {})}>{labels.stop}</DropdownItem>
             ) : (
-              <DropdownItem onSelect={actions.onLaunch}>Open</DropdownItem>
+              <DropdownItem onSelect={actions.onLaunch}>{labels.open}</DropdownItem>
             )}
             {actions.onConfigure ? (
-              <DropdownItem onSelect={actions.onConfigure}>Configure…</DropdownItem>
+              <DropdownItem onSelect={actions.onConfigure}>{labels.configure}</DropdownItem>
             ) : null}
             {actions.onViewLogs ? (
-              <DropdownItem onSelect={actions.onViewLogs}>View logs</DropdownItem>
+              <DropdownItem onSelect={actions.onViewLogs}>{labels.viewLogs}</DropdownItem>
             ) : null}
             <DropdownSeparator />
             <DropdownItem destructive onSelect={actions.onUninstall}>
-              Uninstall…
+              {labels.uninstall}
             </DropdownItem>
           </DropdownMenu>
         </Dropdown>

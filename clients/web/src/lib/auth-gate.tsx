@@ -7,6 +7,7 @@ import {
   storeBrowserAccessToken,
   YggProtocolClient,
 } from "@/protocol/client";
+import { useT } from "@/lib/locale";
 
 export type AuthStatus = "checking" | "optional" | "required" | "authenticated" | "invalid";
 
@@ -39,6 +40,7 @@ async function probeServer(client: YggProtocolClient): Promise<{ authError: bool
 type ProbeResult = "ok" | "auth-error";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [status, setStatus] = useState<AuthStatus>("checking");
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,18 +65,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           clearBrowserAccessToken();
           setToken(null);
-          setError("Invalid access token. Please check your token and try again.");
+          setError(t("authInvalidToken"));
           setStatus("invalid");
         }
       } catch (err) {
         if (probeIdRef.current !== probeId) return;
         const msg = err instanceof Error ? err.message : String(err);
         setToken(null);
-        setError(`Connection failed: ${msg}`);
+        setError(t("authConnectionFailed", msg));
         setStatus("invalid");
       }
     },
-    [validateToken],
+    [t, validateToken],
   );
 
   const runStartupProbe = useCallback(async () => {
@@ -101,11 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       if (probeIdRef.current !== probeId) return;
       const msg = err instanceof Error ? err.message : String(err);
-      setError(`Connection failed: ${msg}`);
+      setError(t("authConnectionFailed", msg));
       setToken(null);
       setStatus("required");
     }
-  }, [authenticateCandidate]);
+  }, [authenticateCandidate, t]);
 
   const runLoginProbe = useCallback(
     async (candidateToken: string) => {

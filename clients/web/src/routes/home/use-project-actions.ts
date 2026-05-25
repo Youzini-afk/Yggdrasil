@@ -16,6 +16,18 @@ interface UseProjectActionsArgs {
   setShowInstall: (show: boolean) => void;
   setFailureProjectId: (projectId: string | null) => void;
   setFailureDetail: (detail: FailureDetail | undefined) => void;
+  labels: {
+    stoppedToast: (title: string) => string;
+    stopFailedTitle: string;
+    stopFailedBody: string;
+    uninstallTitle: (title: string) => string;
+    uninstallBody: (title: string) => string;
+    loadingDiagnostics: string;
+    loadingDiagnosticsSummary: string;
+    descriptorNoPackages: string;
+    noPackageStatus: string;
+    diagnosticsUnavailable: string;
+  };
 }
 
 export function useProjectActions({
@@ -26,6 +38,7 @@ export function useProjectActions({
   setShowInstall,
   setFailureProjectId,
   setFailureDetail,
+  labels,
 }: UseProjectActionsArgs) {
   // Cmd/Ctrl + N opens the install modal.
   useEffect(() => {
@@ -43,28 +56,28 @@ export function useProjectActions({
     async (projectId: string, title: string) => {
       try {
         await client.stopProject(projectId);
-        pushToast({ variant: "success", title: `Stopped ${title}` });
+        pushToast({ variant: "success", title: labels.stoppedToast(title) });
         refreshProjects();
       } catch (err) {
         pushToast({
           variant: "error",
-          title: "Stop failed",
-          body: "The project could not be stopped. Check the local host and try again.",
+          title: labels.stopFailedTitle,
+          body: labels.stopFailedBody,
         });
       }
     },
-    [client, pushToast, refreshProjects],
+    [client, labels, pushToast, refreshProjects],
   );
 
   const onUninstall = useCallback(
     (title: string) => {
       pushToast({
         variant: "info",
-        title: `Uninstall ${title}`,
-        body: `Confirm in CLI: yg uninstall ${title}`,
+        title: labels.uninstallTitle(title),
+        body: labels.uninstallBody(title),
       });
     },
-    [pushToast],
+    [labels, pushToast],
   );
 
   const onInstallClick = useCallback(() => setShowInstall(true), [setShowInstall]);
@@ -74,8 +87,8 @@ export function useProjectActions({
       setFailureProjectId(project.id);
       setFailureDetail({
         projectName: project.title,
-        title: "Loading diagnostics…",
-        summary: "Reading bounded package failure details from the kernel.",
+        title: labels.loadingDiagnostics,
+        summary: labels.loadingDiagnosticsSummary,
       });
       try {
         const descriptor = await client.getProject(project.id);
@@ -83,7 +96,7 @@ export function useProjectActions({
         const knownPackages = await client.packages().catch<PackageRecord[]>(() => []);
         const packageLookup = new Map(knownPackages.map((record) => [record.id, record]));
         if (packageIds.length === 0) {
-          setFailureDetail(noFailureDiagnostic(project.title, "Project descriptor does not list packages."));
+          setFailureDetail(noFailureDiagnostic(project.title, labels.descriptorNoPackages));
           return;
         }
         const records = (
@@ -91,15 +104,15 @@ export function useProjectActions({
         ).filter((record): record is PackageRecord => Boolean(record));
         const failed = records.find((record) => record.last_failure) ?? records.find((record) => record.state === "degraded") ?? records[0];
         if (!failed) {
-          setFailureDetail(noFailureDiagnostic(project.title, "No associated package status was available."));
+          setFailureDetail(noFailureDiagnostic(project.title, labels.noPackageStatus));
           return;
         }
         setFailureDetail(failureDetailFromPackage(project.title, failed, []));
       } catch (err) {
-        setFailureDetail(noFailureDiagnostic(project.title, "Diagnostics are unavailable. Try again from the local UI."));
+        setFailureDetail(noFailureDiagnostic(project.title, labels.diagnosticsUnavailable));
       }
     },
-    [client, setFailureDetail, setFailureProjectId],
+    [client, labels, setFailureDetail, setFailureProjectId],
   );
 
   const onCardLaunch = useCallback(

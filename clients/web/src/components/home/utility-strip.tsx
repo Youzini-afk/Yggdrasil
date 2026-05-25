@@ -18,6 +18,8 @@ export interface UtilityStripProps {
   activeFilter: string;
   onFilterChange: (id: string) => void;
   sortLabel?: string;
+  sortPrefix?: string;
+  searchPlaceholder?: string;
   onSortClick?: () => void;
 }
 
@@ -28,6 +30,8 @@ export function UtilityStrip({
   activeFilter,
   onFilterChange,
   sortLabel = "Recent",
+  sortPrefix = "Sort",
+  searchPlaceholder = "Search projects, packages...",
   onSortClick,
 }: UtilityStripProps) {
   return (
@@ -40,7 +44,7 @@ export function UtilityStrip({
               ⌘K
             </span>
           }
-          placeholder="Search projects, packages..."
+          placeholder={searchPlaceholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           className="w-full sm:w-[260px] lg:w-[300px]"
@@ -72,7 +76,7 @@ export function UtilityStrip({
       </div>
       <div className="ml-auto">
         <Button tone="secondary" size="sm" onClick={onSortClick}>
-          Sort: {sortLabel}
+          {sortPrefix}: {sortLabel}
           <CaretDown size={12} className="text-muted-tone" />
         </Button>
       </div>

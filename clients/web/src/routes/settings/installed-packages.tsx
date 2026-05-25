@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { useAsync, useKernel } from "@/lib/kernel-client";
 import { classifyPackageKind } from "@/lib/format";
+import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
 import type { PackageRecord, ProjectRecord } from "@/protocol/client";
 
@@ -33,14 +34,9 @@ interface RowEntry {
   isProject: boolean;
 }
 
-const FILTER_TABS = [
-  { id: "all", label: "All" },
-  { id: "PROJECT", label: "Projects" },
-  { id: "OFFICIAL", label: "Official" },
-  { id: "THIRD-PARTY", label: "Third-party" },
-] as const;
+const FILTER_TABS = ["all", "PROJECT", "OFFICIAL", "THIRD-PARTY"] as const;
 
-type FilterId = (typeof FILTER_TABS)[number]["id"];
+type FilterId = (typeof FILTER_TABS)[number];
 
 function pillTone(state: string): StatusTone {
   if (state === "running" || state === "ready") return "running";
@@ -52,6 +48,7 @@ function pillTone(state: string): StatusTone {
 export function InstalledPackagesPanel() {
   const client = useKernel();
   const toast = useToast();
+  const t = useT();
   const [filter, setFilter] = useState<FilterId>("all");
   const [search, setSearch] = useState("");
 
@@ -123,16 +120,16 @@ export function InstalledPackagesPanel() {
       const lines = redactionSafe ? failure?.stderr_tail_redacted ?? [] : [];
       toast.push({
         variant: lines.length > 0 ? "info" : "warning",
-        title: lines.length > 0 ? `Redacted logs for ${packageId}` : "No logs available",
-        body: lines.length > 0 ? lines.slice(-3).join("\n") : "The kernel did not return a bounded redacted log tail for this package.",
+        title: lines.length > 0 ? t("packagesLogsTitle", packageId) : t("packagesNoLogsTitle"),
+        body: lines.length > 0 ? lines.slice(-3).join("\n") : t("packagesNoLogsBody"),
         duration: lines.length > 0 ? 0 : undefined,
         action: lines.length > 0 ? { label: "Copy", onClick: () => navigator.clipboard?.writeText(lines.join("\n")) } : undefined,
       });
     } catch (err) {
       toast.push({
         variant: "error",
-        title: "Couldn't load logs",
-        body: "Diagnostics are unavailable. Try again or inspect the local CLI logs.",
+        title: t("packagesLogsLoadErrorTitle"),
+        body: t("packagesLogsLoadErrorBody"),
       });
     }
   };
@@ -142,13 +139,12 @@ export function InstalledPackagesPanel() {
       <header className="mb-8">
         <Eyebrow>
           {packages.loading
-            ? "Installed packages · loading…"
-            : `Installed packages · ${total} packages`}
+            ? t("packagesEyebrowLoading")
+            : t("packagesEyebrowCount", total)}
         </Eyebrow>
-        <PageTitle className="mt-2">Workshop inventory</PageTitle>
+        <PageTitle className="mt-2">{t("packagesTitle")}</PageTitle>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-steel-secondary">
-          Projects, official packages, and dependencies installed in this workshop. Refresh checks
-          upstream sources.
+          {t("packagesDescription")}
         </p>
       </header>
 
@@ -157,7 +153,7 @@ export function InstalledPackagesPanel() {
           <InputGroup
             data-pkg-search
             leftIcon={<MagnifyingGlass size={16} />}
-            placeholder="Filter packages…"
+            placeholder={t("packagesFilterPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             rightSlot={
@@ -170,13 +166,21 @@ export function InstalledPackagesPanel() {
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {FILTER_TABS.map((tab) => {
-            const count = tab.id === "all" ? total : counts[tab.id] ?? 0;
-            const isActive = filter === tab.id;
+            const count = tab === "all" ? total : counts[tab] ?? 0;
+            const isActive = filter === tab;
+            const tabLabel =
+              tab === "all"
+                ? t("packagesFilterAll")
+                : tab === "PROJECT"
+                  ? t("packagesFilterProjects")
+                  : tab === "OFFICIAL"
+                    ? t("packagesFilterOfficial")
+                    : t("packagesFilterThirdParty");
             return (
               <button
-                key={tab.id}
+                key={tab}
                 type="button"
-                onClick={() => setFilter(tab.id)}
+                onClick={() => setFilter(tab)}
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition",
                   isActive
@@ -184,7 +188,7 @@ export function InstalledPackagesPanel() {
                     : "border-whisper-border text-charcoal-ink hover:bg-whisper-border-strong/30",
                 )}
               >
-                {tab.label}
+                {tabLabel}
                 <span className="font-mono text-[10px] text-muted-tone">
                   ·{String(count).padStart(2, "0")}
                 </span>
@@ -199,12 +203,12 @@ export function InstalledPackagesPanel() {
             onClick={() => {
               packages.refresh();
               projects.refresh();
-              toast.push({ variant: "info", title: "Refreshing inventory…", duration: 2400 });
+              toast.push({ variant: "info", title: t("packagesRefreshing"), duration: 2400 });
             }}
             disabled={packages.loading}
           >
             <ArrowsClockwise size={14} />
-            Refresh
+            {t("packagesRefresh")}
           </Button>
         </div>
       </div>
@@ -212,9 +216,9 @@ export function InstalledPackagesPanel() {
       {packages.error ? (
         <EmptyState
           icon={<Package />}
-          title="Couldn't load packages"
-          body="Package inventory is unavailable. Try again from the local UI."
-          action={{ label: "Retry", onClick: () => packages.refresh() }}
+          title={t("packagesLoadErrorTitle")}
+          body={t("packagesLoadErrorBody")}
+          action={{ label: t("retry"), onClick: () => packages.refresh() }}
         />
       ) : packages.loading ? (
         <Card>
@@ -237,11 +241,11 @@ export function InstalledPackagesPanel() {
         <Card>
           <EmptyState
             icon={<Package />}
-            title={total === 0 ? "No packages installed yet" : "No packages match this filter"}
+            title={total === 0 ? t("packagesEmptyTitle") : t("packagesNoMatchTitle")}
             body={
               total === 0
-                ? "Install a project from Home or run yg install on the CLI."
-                : "Try a different filter or clear the search."
+                ? t("packagesEmptyBody")
+                : t("packagesNoMatchBody")
             }
           />
         </Card>
@@ -253,11 +257,11 @@ export function InstalledPackagesPanel() {
               style={{ gridTemplateColumns: "32px 2.4fr 0.8fr 0.9fr 1fr 1fr 32px" }}
             >
               <span />
-              <span>Package</span>
-              <span>Version</span>
-              <span>Kind</span>
-              <span>Capabilities</span>
-              <span>State</span>
+              <span>{t("packagesTablePackage")}</span>
+              <span>{t("packagesTableVersion")}</span>
+              <span>{t("packagesTableKind")}</span>
+              <span>{t("packagesTableCapabilities")}</span>
+              <span>{t("packagesTableState")}</span>
               <span />
             </div>
             <ul className="min-w-[720px] divide-y divide-whisper-border">
@@ -297,18 +301,18 @@ export function InstalledPackagesPanel() {
                   <StatusPill tone={pillTone(entry.state)} label={entry.state.toUpperCase()} />
                   <Dropdown>
                     <DropdownTrigger asChild>
-                      <Button tone="icon" size="icon-sm" aria-label="More">
+                      <Button tone="icon" size="icon-sm" aria-label={t("apiMore")}>
                         <DotsThree size={16} />
                       </Button>
                     </DropdownTrigger>
                     <DropdownMenu>
-                      <DropdownItem onSelect={() => copyId(entry.packageId, toast)}>
-                        Copy package id
+                      <DropdownItem onSelect={() => copyId(entry.packageId, toast, t("packagesCopiedId"))}>
+                        {t("packagesCopyId")}
                       </DropdownItem>
-                      <DropdownItem>View permissions</DropdownItem>
-                      <DropdownItem onSelect={() => void onViewLogs(entry.packageId)}>View logs</DropdownItem>
+                      <DropdownItem>{t("packagesViewPermissions")}</DropdownItem>
+                      <DropdownItem onSelect={() => void onViewLogs(entry.packageId)}>{t("packagesViewLogs")}</DropdownItem>
                       <DropdownSeparator />
-                      <DropdownItem destructive>Uninstall…</DropdownItem>
+                      <DropdownItem destructive>{t("packagesUninstall")}</DropdownItem>
                     </DropdownMenu>
                   </Dropdown>
                 </li>
@@ -317,7 +321,7 @@ export function InstalledPackagesPanel() {
             {filtered.length < total ? (
               <div className="flex min-w-[720px] items-center justify-between border-t border-whisper-border px-5 py-3">
                 <span className="font-mono text-[11px] text-muted-tone">
-                  Showing {filtered.length} of {total}
+                  {t("packagesShowing", filtered.length, total)}
                 </span>
                 <button
                   type="button"
@@ -327,7 +331,7 @@ export function InstalledPackagesPanel() {
                   }}
                   className="text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
                 >
-                  Show all →
+                  {t("packagesShowAll")}
                 </button>
               </div>
             ) : null}
@@ -344,7 +348,7 @@ function deriveName(packageId: string): string {
   return packageId;
 }
 
-function copyId(id: string, toast: ReturnType<typeof useToast>) {
+function copyId(id: string, toast: ReturnType<typeof useToast>, title: string) {
   navigator.clipboard?.writeText(id);
-  toast.push({ variant: "success", title: "Package id copied", duration: 2000 });
+  toast.push({ variant: "success", title, duration: 2000 });
 }

@@ -10,6 +10,11 @@ export interface ActivityRow {
   action: { label: string; onClick: () => void };
 }
 
+export interface ActivityMicroCardLabels {
+  title: string;
+  empty: string;
+}
+
 // Local override: running tones in this micro-card should pulse to draw the eye
 // to the running project. The shared map is the same color but without the
 // animation, so we extend it for this specific surface.
@@ -18,18 +23,18 @@ const dotClass: Record<StatusTone, string> = {
   running: "bg-aged-brass animate-[pulse-dot_2.4s_ease-in-out_infinite]",
 };
 
-export function ActivityMicroCard({ rows }: { rows: ActivityRow[] }) {
+export function ActivityMicroCard({ rows, labels }: { rows: ActivityRow[]; labels: ActivityMicroCardLabels }) {
   if (rows.length === 0) {
     return (
       <div className="flex w-full max-w-[420px] flex-col gap-2 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
-        <EyebrowSm>Recent activity</EyebrowSm>
-        <p className="text-[12px] text-muted-tone">Nothing yet — open a project to start.</p>
+        <EyebrowSm>{labels.title}</EyebrowSm>
+        <p className="text-[12px] text-muted-tone">{labels.empty}</p>
       </div>
     );
   }
   return (
     <div className="flex w-full max-w-[420px] flex-col gap-3 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
-      <EyebrowSm>Recent activity</EyebrowSm>
+      <EyebrowSm>{labels.title}</EyebrowSm>
       <ul className="divide-y divide-whisper-border">
         {rows.map((row) => (
           <li key={row.id} className="flex items-center gap-2 py-2 text-[13px] first:pt-0 last:pb-0">

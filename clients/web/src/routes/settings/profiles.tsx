@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { useAsync, useKernel } from "@/lib/kernel-client";
+import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
 
 interface ProfileView {
@@ -22,6 +23,7 @@ interface ProfileView {
 export function ProfilesPanel() {
   const client = useKernel();
   const toast = useToast();
+  const t = useT();
 
   const diagnostics = useAsync(() => client.diagnostics().catch(() => null), [client]);
 
@@ -40,13 +42,13 @@ export function ProfilesPanel() {
         name: activeName,
         description:
           d.profile_description ??
-          `Active profile · ${d.packages_loaded ?? 0} packages loaded · ${d.network_allowlist?.hosts?.length ?? 0} hosts allowed`,
+          t("profilesDefaultDescription", d.packages_loaded ?? 0, d.network_allowlist?.hosts?.length ?? 0),
         active: true,
         packagesAutoload: d.packages_loaded ?? 0,
         hostsAllowed: d.network_allowlist?.hosts?.length ?? 0,
       },
     ];
-  }, [diagnostics.data]);
+  }, [diagnostics.data, t]);
 
   const active = profiles.find((p) => p.active) ?? profiles[0];
 
@@ -54,8 +56,8 @@ export function ProfilesPanel() {
     if (active?.id === id) return;
     toast.push({
       variant: "warning",
-      title: "Profile switch requires restart",
-      body: `Use yg host serve --profile profiles/${id}.yaml on the CLI to activate.`,
+      title: t("profilesSwitchRequiresRestart"),
+      body: t("profilesSwitchBody", id),
       duration: 6000,
     });
   };
@@ -65,46 +67,46 @@ export function ProfilesPanel() {
       <header className="mb-8">
         <Eyebrow>
           {diagnostics.loading
-            ? "Profiles · loading…"
+            ? t("profilesEyebrowLoading")
             : active
-              ? `Profiles · Active: ${active.name}`
-              : "Profiles · No active profile"}
+              ? t("profilesEyebrowActive", active.name)
+              : t("profilesEyebrowNone")}
         </Eyebrow>
-        <PageTitle className="mt-2">Workshop profiles</PageTitle>
+        <PageTitle className="mt-2">{t("profilesTitle")}</PageTitle>
         <p className="mt-2 max-w-[64ch] text-[13px] leading-relaxed text-steel-secondary">
-          A profile bundles host configuration: which packages autoload, which outbound hosts are
-          allowed, secret resolver settings. Profiles are YAML files passed to{" "}
-          <span className="font-mono text-charcoal-ink">yg host serve --profile</span>.
+          {t("profilesDescriptionPrefix")} {" "}
+          <span className="font-mono text-charcoal-ink">yg host serve --profile</span>
+          {t("profilesDescriptionSuffix")}
         </p>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[7fr_4fr]">
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <Eyebrow>Profiles on this machine</Eyebrow>
+            <Eyebrow>{t("profilesOnMachine")}</Eyebrow>
             <Button
               tone="tertiary"
               size="sm"
               onClick={() =>
                 toast.push({
                   variant: "info",
-                  title: "Create a profile",
-                  body: "Create a YAML profile and start the host with --profile <path>.",
+                  title: t("profilesCreateTitle"),
+                  body: t("profilesCreateBody"),
                   duration: 4000,
                 })
               }
             >
               <Plus size={14} />
-              New profile
+              {t("profilesNew")}
             </Button>
           </div>
           {diagnostics.error ? (
             <Card>
               <EmptyState
                 icon={<GitBranch />}
-                title="Couldn't read host diagnostics"
-                body="Host diagnostics are unavailable. Try again from the local UI."
-                action={{ label: "Retry", onClick: () => diagnostics.refresh() }}
+                title={t("profilesDiagnosticsErrorTitle")}
+                body={t("profilesDiagnosticsErrorBody")}
+                action={{ label: t("retry"), onClick: () => diagnostics.refresh() }}
               />
             </Card>
           ) : diagnostics.loading ? (
@@ -126,8 +128,8 @@ export function ProfilesPanel() {
             <Card>
               <EmptyState
                 icon={<GitBranch />}
-                title="No profile in use"
-                body="Start the host with --profile <path> to enable profile-aware features."
+                title={t("profilesEmptyTitle")}
+                body={t("profilesEmptyBody")}
               />
             </Card>
           ) : (
@@ -154,7 +156,7 @@ export function ProfilesPanel() {
                           {profile.name}
                         </span>
                         {profile.active ? (
-                          <StatusPill tone="accent" label="ACTIVE" showDot={false} />
+                          <StatusPill tone="accent" label={t("profilesActive")} showDot={false} />
                         ) : null}
                       </div>
                       <p className="mt-1 text-[12px] leading-snug text-steel-secondary">
@@ -171,7 +173,7 @@ export function ProfilesPanel() {
         {active ? (
           <Card>
             <CardSection>
-              <EyebrowSm>Active profile</EyebrowSm>
+              <EyebrowSm>{t("profilesActive")}</EyebrowSm>
               <h3 className="mt-3 font-display text-[20px] font-bold text-charcoal-ink">
                 {active.name}
               </h3>
@@ -179,17 +181,17 @@ export function ProfilesPanel() {
             </CardSection>
 
             <CardSection divided>
-              <EyebrowSm>Loaded packages</EyebrowSm>
+              <EyebrowSm>{t("profilesLoadedPackages")}</EyebrowSm>
               <p className="mt-2 font-mono text-[13px] text-charcoal-ink">
                 {active.packagesAutoload}
               </p>
               <p className="mt-1 text-[11px] text-steel-secondary">
-                Defined in the profile's <span className="font-mono">packages</span> list.
+                {t("profilesLoadedPackagesHint")}
               </p>
             </CardSection>
 
             <CardSection divided>
-              <EyebrowSm>Network allowlist</EyebrowSm>
+              <EyebrowSm>{t("profilesNetworkAllowlist")}</EyebrowSm>
               {(diagnostics.data as { network_allowlist?: { hosts?: string[] } } | null)
                 ?.network_allowlist?.hosts?.length ? (
                 <ul className="mt-3 space-y-1.5">
@@ -209,7 +211,7 @@ export function ProfilesPanel() {
                     ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-[12px] text-muted-tone">All outbound blocked.</p>
+                <p className="mt-2 text-[12px] text-muted-tone">{t("profilesOutboundBlocked")}</p>
               )}
             </CardSection>
 
@@ -220,16 +222,16 @@ export function ProfilesPanel() {
                 onClick={() =>
                   toast.push({
                     variant: "info",
-                    title: "Switch profile via CLI",
+                    title: t("profilesSwitchViaCli"),
                     body: "yg host serve --profile <path>",
                   })
                 }
               >
                 <ArrowsLeftRight size={14} />
-                Switch profile…
+                {t("profilesSwitch")}
               </Button>
               <p className="mt-2 text-center text-[11px] text-muted-tone">
-                Switching restarts the host. Project state is preserved.
+                {t("profilesSwitchHint")}
               </p>
             </CardSection>
           </Card>

@@ -4,10 +4,12 @@ import { Key, Eye, EyeSlash } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { InputGroup } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-gate";
+import { useT } from "@/lib/locale";
 import { SPRING } from "@/lib/motion";
 
 export function AuthGateScreen() {
   const { login, status, error } = useAuth();
+  const t = useT();
   const [value, setValue] = useState("");
   const [show, setShow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -40,12 +42,12 @@ export function AuthGateScreen() {
           transition={{ ...SPRING.soft, delay: 0.06 }}
           className="flex flex-col items-center gap-1 text-center"
         >
-          <span className="eyebrow mb-2">Authentication</span>
+          <span className="eyebrow mb-2">{t("authEyebrow")}</span>
           <h1 className="font-display text-[22px] font-bold tracking-[-0.015em] text-charcoal-ink">
-            Access token required
+            {t("authTitle")}
           </h1>
           <p className="mt-1 max-w-[32ch] text-[13px] leading-relaxed text-steel-secondary">
-            The Yggdrasil host requires an access token. Paste your token to continue.
+            {t("authBody")}
           </p>
         </motion.div>
 
@@ -57,20 +59,20 @@ export function AuthGateScreen() {
           className="mt-6 flex flex-col gap-3"
         >
           <InputGroup
-            aria-label="Access token"
+            aria-label={t("authTokenLabel")}
             leftIcon={<Key size={16} />}
             rightSlot={
               <button
                 type="button"
                 onClick={() => setShow((s) => !s)}
                 className="text-muted-tone hover:text-charcoal-ink"
-                aria-label={show ? "Hide token" : "Show token"}
+                aria-label={show ? t("authHideToken") : t("authShowToken")}
               >
                 {show ? <EyeSlash size={16} /> : <Eye size={16} />}
               </button>
             }
             type={show ? "text" : "password"}
-            placeholder="Paste your access token…"
+            placeholder={t("authPlaceholder")}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             spellCheck={false}
@@ -95,7 +97,7 @@ export function AuthGateScreen() {
             disabled={submitting || !value.trim()}
             className="mt-1 w-full"
           >
-            {submitting ? "Checking…" : "Authenticate"}
+            {submitting ? t("authCheckingButton") : t("authSubmitButton")}
           </Button>
         </motion.form>
 
@@ -105,7 +107,7 @@ export function AuthGateScreen() {
           transition={{ ...SPRING.soft, delay: 0.18 }}
           className="mt-4 text-center text-[11px] text-muted-tone"
         >
-          Your token is stored locally in this browser.
+          {t("authStoredLocally")}
         </motion.p>
       </motion.div>
     </div>
@@ -113,11 +115,12 @@ export function AuthGateScreen() {
 }
 
 export function AuthChecking() {
+  const t = useT();
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-warm-bone dark:bg-deep-bark">
       <div className="flex flex-col items-center gap-3">
         <span className="font-display text-[24px] font-bold tracking-[-0.015em] text-charcoal-ink">Yggdrasil</span>
-        <span className="pulse-dot text-[12px] text-muted-tone">Checking access…</span>
+        <span className="pulse-dot text-[12px] text-muted-tone">{t("authCheckingAccess")}</span>
       </div>
     </div>
   );

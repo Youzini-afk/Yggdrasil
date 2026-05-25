@@ -1,14 +1,16 @@
 import { Bug, ChatCircle, GithubLogo, BookOpen, Newspaper } from "@/components/icons";
 import { Card, CardSection } from "@/components/ui/card";
 import { Eyebrow, EyebrowSm, PageTitle } from "@/components/ui/typography";
+import { useT } from "@/lib/locale";
 
 export function AboutPanel() {
+  const t = useT();
   return (
     <>
       <header className="mb-8">
-        <Eyebrow>About</Eyebrow>
+        <Eyebrow>{t("aboutEyebrow")}</Eyebrow>
         <PageTitle className="mt-3">Yggdrasil</PageTitle>
-        <p className="mt-3 text-[15px] text-steel-secondary">Open platform for play and creation.</p>
+        <p className="mt-3 text-[15px] text-steel-secondary">{t("aboutSubtitle")}</p>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
@@ -17,10 +19,10 @@ export function AboutPanel() {
             <CardSection>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
                 {[
-                  ["Version", "v0.1.0-alpha"],
-                  ["Build", "2a47e5c"],
-                  ["Released", "2026-05-14"],
-                  ["Channel", "alpha"],
+                  [t("aboutVersion"), "v0.1.0-alpha"],
+                  [t("aboutBuild"), "2a47e5c"],
+                  [t("aboutReleased"), "2026-05-14"],
+                  [t("aboutChannel"), "alpha"],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">
@@ -35,21 +37,16 @@ export function AboutPanel() {
 
           <Card>
             <CardSection>
-              <EyebrowSm>What Yggdrasil is</EyebrowSm>
+              <EyebrowSm>{t("aboutWhat")}</EyebrowSm>
               <div className="mt-3 max-w-[60ch] space-y-3 text-[14px] leading-relaxed text-charcoal-ink">
                 <p>
-                  Yggdrasil is a kernel and a contract. The kernel hosts your projects in sandboxes.
-                  The contract lets any project — official, community, or self-built — participate
-                  as a first-class citizen.
+                  {t("aboutPara1")}
                 </p>
                 <p>
-                  It runs on your machine, with your keys, your files, your network. There is no
-                  SaaS account, no central registry, no telemetry. Projects you install live in the
-                  local platform data directory and stay there until you remove them.
+                  {t("aboutPara2")}
                 </p>
                 <p className="text-steel-secondary">
-                  The shell you are looking at right now is one of many possible UIs. Anyone can
-                  write another. The platform is the contract — not this window.
+                  {t("aboutPara3")}
                 </p>
               </div>
             </CardSection>
@@ -57,12 +54,12 @@ export function AboutPanel() {
 
           <Card>
             <CardSection>
-              <EyebrowSm>Credits</EyebrowSm>
+              <EyebrowSm>{t("aboutCredits")}</EyebrowSm>
               <ul className="mt-3 divide-y divide-whisper-border text-[12px]">
                 {[
-                  ["Built on", "Rust 1.84 · TypeScript 5.7 · Tauri 2.x", "mono"],
-                  ["Fonts", "Bricolage Grotesque · Geist · JetBrains Mono"],
-                  ["Icons", "Phosphor Icons (1.4 · MIT)"],
+                  [t("aboutBuiltOn"), "Rust 1.84 · TypeScript 5.7 · Tauri 2.x", "mono"],
+                  [t("aboutFonts"), "Bricolage Grotesque · Geist · JetBrains Mono"],
+                  [t("aboutIcons"), "Phosphor Icons (1.4 · MIT)"],
                 ].map(([label, value, font]) => (
                   <li key={label} className="flex items-center justify-between gap-4 py-2.5">
                     <span className="text-steel-secondary">{label}</span>
@@ -85,12 +82,12 @@ export function AboutPanel() {
         <div className="flex flex-col gap-4">
           <Card>
             <CardSection>
-              <EyebrowSm>License</EyebrowSm>
+              <EyebrowSm>{t("aboutLicense")}</EyebrowSm>
               <h3 className="mt-2 font-display text-[17px] font-bold text-charcoal-ink">
                 AGPL-3.0-or-later
               </h3>
               <p className="mt-2 max-w-[32ch] text-[12px] leading-relaxed text-steel-secondary">
-                Free to use, modify, run. Network use requires source disclosure.
+                {t("aboutLicenseBody")}
               </p>
               <a
                 href="https://github.com/Youzini-afk/Yggdrasil/blob/main/LICENSE"
@@ -98,21 +95,21 @@ export function AboutPanel() {
                 rel="noopener noreferrer"
                 className="mt-3 inline-block text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
               >
-                Read full license →
+                {t("aboutReadLicense")}
               </a>
             </CardSection>
           </Card>
 
           <Card>
             <CardSection>
-              <EyebrowSm>Links</EyebrowSm>
+              <EyebrowSm>{t("aboutLinks")}</EyebrowSm>
               <ul className="mt-3 divide-y divide-whisper-border">
                 {[
-                  { Icon: GithubLogo, label: "Source code", href: "https://github.com/Youzini-afk/Yggdrasil" },
-                  { Icon: BookOpen, label: "Documentation", href: "https://github.com/Youzini-afk/Yggdrasil/tree/main/docs" },
-                  { Icon: Bug, label: "Report an issue", href: "https://github.com/Youzini-afk/Yggdrasil/issues" },
-                  { Icon: ChatCircle, label: "Community", href: "#" },
-                  { Icon: Newspaper, label: "Changelog", href: "https://github.com/Youzini-afk/Yggdrasil/blob/main/CHANGELOG.md" },
+                  { Icon: GithubLogo, label: t("aboutSourceCode"), href: "https://github.com/Youzini-afk/Yggdrasil" },
+                  { Icon: BookOpen, label: t("aboutDocumentation"), href: "https://github.com/Youzini-afk/Yggdrasil/tree/main/docs" },
+                  { Icon: Bug, label: t("aboutReportIssue"), href: "https://github.com/Youzini-afk/Yggdrasil/issues" },
+                  { Icon: ChatCircle, label: t("aboutCommunity"), href: "#" },
+                  { Icon: Newspaper, label: t("aboutChangelog"), href: "https://github.com/Youzini-afk/Yggdrasil/blob/main/CHANGELOG.md" },
                 ].map(({ Icon, label, href }) => (
                   <li key={label}>
                     <a
@@ -135,10 +132,9 @@ export function AboutPanel() {
 
           <Card>
             <CardSection>
-              <EyebrowSm>Gratitude</EyebrowSm>
+              <EyebrowSm>{t("aboutGratitude")}</EyebrowSm>
               <p className="mt-3 max-w-[36ch] text-[12px] leading-relaxed text-steel-secondary">
-                SillyTavern community for the asset formats and extension API patterns referenced in
-                YdlTavern compatibility work.
+                {t("aboutGratitudeBody")}
               </p>
             </CardSection>
           </Card>

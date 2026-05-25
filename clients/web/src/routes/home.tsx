@@ -13,6 +13,7 @@ import { useKernel } from "@/lib/kernel-client";
 import { useRoute, type Route } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime } from "@/lib/format";
+import { useLocale } from "@/lib/locale";
 import type { FailureDetail } from "@/components/install/failure-modal";
 import { useHomeProjects } from "./home/use-home-projects";
 import { useProjectActions } from "./home/use-project-actions";
@@ -28,6 +29,7 @@ export function HomePage() {
   const client = useKernel();
   const toast = useToast();
   const [, navigate] = useRoute();
+  const { locale, t } = useLocale();
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -54,7 +56,21 @@ export function HomePage() {
     diskCapacity,
     recentActivity,
     timelineRows,
-  } = useHomeProjects({ client, search, activeFilter, onLaunch: launchProject });
+  } = useHomeProjects({
+    client,
+    search,
+    activeFilter,
+    onLaunch: launchProject,
+    labels: {
+      all: t("homeFilterAll"),
+      running: t("homeFilterRunning"),
+      stopped: t("homeFilterStopped"),
+      failed: t("homeFilterFailed"),
+      now: t("homeNow"),
+      resume: t("homeActionResume"),
+      open: t("homeActionOpen"),
+    },
+  });
 
   const { onStop, onUninstall, onInstallClick, onShowFailure, onCardLaunch } = useProjectActions({
     client,
@@ -64,23 +80,34 @@ export function HomePage() {
     setShowInstall,
     setFailureProjectId,
     setFailureDetail,
+    labels: {
+      stoppedToast: (title) => t("homeStoppedToast", title),
+      stopFailedTitle: t("homeStopFailedTitle"),
+      stopFailedBody: t("homeStopFailedBody"),
+      uninstallTitle: (title) => t("homeUninstallTitle", title),
+      uninstallBody: (title) => t("homeUninstallBody", title),
+      loadingDiagnostics: t("homeLoadingDiagnostics"),
+      loadingDiagnosticsSummary: t("homeLoadingDiagnosticsSummary"),
+      descriptorNoPackages: t("homeDescriptorNoPackages"),
+      noPackageStatus: t("homeNoPackageStatus"),
+      diagnosticsUnavailable: t("homeDiagnosticsUnavailable"),
+    },
   });
 
   return (
     <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 2xl:px-12">
       <Hero
-        meta={formatGreetingTime()}
-        greeting="Welcome back"
+        meta={formatGreetingTime(locale)}
+        greeting={t("homeGreeting")}
         summary={
           projects.loading
-            ? "Reading your workshop…"
+            ? t("homeReading")
             : counts.all > 0
-              ? `${counts.all} projects on the shelf. ${counts.running} running, ${counts.stopped} idle. ${
-                  counts.failed > 0 ? `${counts.failed} need attention.` : "No pending updates."
-                }`
-              : "Your workshop is empty. Install a project to begin."
+              ? t("homeShelfSummary", counts.all, counts.running, counts.stopped, counts.failed)
+              : t("homeEmptyWorkshop")
         }
         recentActivity={recentActivity}
+        activityLabels={{ title: t("homeActivityRecent"), empty: t("homeActivityEmpty") }}
       />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
@@ -91,18 +118,21 @@ export function HomePage() {
             filters={filters}
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
+            sortLabel={t("homeSortRecent")}
+            sortPrefix={t("homeSortPrefix")}
+            searchPlaceholder={t("homeSearchPlaceholder")}
           />
 
           <div className="flex items-center justify-between">
-            <Eyebrow>Projects — {counts.all.toString().padStart(2, "0")} installed</Eyebrow>
+            <Eyebrow>{t("homeInstalledEyebrow", counts.all)}</Eyebrow>
           </div>
 
           {projects.error ? (
             <EmptyState
               icon={<Warning />}
-              title="Couldn't reach the host"
-              body="Project inventory is unavailable. Try again from the local UI."
-              action={{ label: "Retry", onClick: () => projects.refresh() }}
+              title={t("homeErrorTitle")}
+              body={t("homeErrorBody")}
+              action={{ label: t("retry"), onClick: () => projects.refresh() }}
             />
           ) : projects.loading ? (
             <div
@@ -116,9 +146,9 @@ export function HomePage() {
           ) : projectList.length === 0 ? (
             <EmptyState
               icon={<Plus />}
-              title="No projects installed yet"
-              body="Yggdrasil is your workshop. Install a project to begin — projects can be a Yggdrasil-native source like YdlTavern, or any external git/local repo."
-              action={{ label: "Install a project", onClick: onInstallClick }}
+              title={t("homeEmptyTitle")}
+              body={t("homeEmptyBody")}
+              action={{ label: t("homeInstallLabel"), onClick: onInstallClick }}
             />
           ) : (
             <div
@@ -146,9 +176,26 @@ export function HomePage() {
                     onViewLogs:
                       project.state === "failed" ? () => void onShowFailure(project) : undefined,
                   }}
+                  labels={{
+                    restart: t("homeActionRestart"),
+                    resume: t("homeActionResume"),
+                    play: t("homeActionPlay"),
+                    more: t("homeMore"),
+                    actionsAria: (title) => t("homeActionsAria", title),
+                    stop: t("homeActionStop"),
+                    open: t("homeActionOpen"),
+                    configure: t("homeActionConfigure"),
+                    viewLogs: t("homeActionViewLogs"),
+                    uninstall: t("homeActionUninstall"),
+                  }}
                 />
               ))}
-              <InstallCard onClick={onInstallClick} index={filtered.length} />
+              <InstallCard
+                onClick={onInstallClick}
+                index={filtered.length}
+                title={t("homeInstallLabel")}
+                hint={t("homeInstallHint")}
+              />
             </div>
           )}
         </div>
@@ -158,37 +205,55 @@ export function HomePage() {
             rows={timelineRows.slice(0, 6)}
             loading={lifecycleEvents.loading && timelineRows.length === 0}
             onViewAll={() => navigateTo({ kind: "settings", tab: "installed-packages" })}
+            title={t("homeActivityLast24h")}
+            emptyLabel={t("homeActivityNo24h")}
+            viewAllLabel={t("homeViewFullAuditLog")}
           />
           <WorkshopUtilities
             updates={[]}
             totalDisk={totalDisk}
             diskCapacity={diskCapacity}
             diskSegments={diskSegments}
+            labels={{
+              workshop: t("homeWorkshop"),
+              updates: t("homeUpdates"),
+              updatesAvailable: (count) => t("homeUpdatesAvailable", count),
+              everythingUpToDate: t("homeEverythingUpToDate"),
+              update: t("homeUpdate"),
+              updateAll: t("homeUpdateAll"),
+              diskUsage: t("homeDiskUsage"),
+              diskUsed: (value) => t("homeDiskUsed", value),
+              unknown: t("homeUnknown"),
+              measuring: t("homeMeasuring"),
+              noStorageMeasured: t("homeNoStorageMeasured"),
+              manageStorage: t("homeManageStorage"),
+              quickActions: t("homeQuickActions"),
+            }}
             quickActions={[
               {
                 id: "install",
-                label: "Install URL",
+                label: t("homeQuickInstallUrl"),
                 shortcut: "⌘N",
                 icon: QUICK_ACTION_ICONS.Plus,
                 onClick: onInstallClick,
               },
               {
                 id: "open-folder",
-                label: "Data folder",
+                label: t("homeQuickDataFolder"),
                 shortcut: "⌘O",
                 icon: QUICK_ACTION_ICONS.Folder,
-                onClick: () => toast.push({ variant: "info", title: "Use the CLI to open the local platform data directory." }),
+                onClick: () => toast.push({ variant: "info", title: t("homeOpenDataFolderToast") }),
               },
               {
                 id: "settings",
-                label: "Settings",
+                label: t("homeQuickSettings"),
                 shortcut: "⌘,",
                 icon: QUICK_ACTION_ICONS.GearSix,
                 onClick: () => navigateTo({ kind: "settings", tab: "api-connections" }),
               },
               {
                 id: "switch-profile",
-                label: "Switch profile",
+                label: t("homeQuickSwitchProfile"),
                 shortcut: "⌘P",
                 icon: QUICK_ACTION_ICONS.Terminal,
                 onClick: () => navigateTo({ kind: "settings", tab: "profiles" }),

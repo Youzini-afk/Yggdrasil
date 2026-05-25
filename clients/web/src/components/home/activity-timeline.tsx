@@ -39,14 +39,20 @@ export function ActivityTimeline({
   rows,
   loading = false,
   onViewAll,
+  title = "Activity — last 24h",
+  emptyLabel = "No activity in the last 24 hours.",
+  viewAllLabel = "View full audit log →",
 }: {
   rows: TimelineRow[];
   loading?: boolean;
   onViewAll?: () => void;
+  title?: string;
+  emptyLabel?: string;
+  viewAllLabel?: string;
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <Eyebrow>Activity — last 24h</Eyebrow>
+      <Eyebrow>{title}</Eyebrow>
       <Card>
         {loading ? (
           <ul className="divide-y divide-whisper-border">
@@ -63,7 +69,7 @@ export function ActivityTimeline({
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
             <Stack size={20} className="text-muted-tone" />
-            <p className="text-[13px] text-muted-tone">No activity in the last 24 hours.</p>
+            <p className="text-[13px] text-muted-tone">{emptyLabel}</p>
           </div>
         ) : (
           <ul className="divide-y divide-whisper-border">
@@ -108,7 +114,7 @@ export function ActivityTimeline({
               onClick={onViewAll}
               className="text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
             >
-              View full audit log →
+              {viewAllLabel}
             </button>
           </div>
         ) : null}

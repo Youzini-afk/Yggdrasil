@@ -16,9 +16,13 @@ export function countsForProjects(projectList: ProjectRecord[]): ProjectCounts {
   return { all: projectList.length, running, stopped, failed };
 }
 
-export function filtersWithCounts(counts: ProjectCounts): FilterChip[] {
+export function filtersWithCounts(
+  counts: ProjectCounts,
+  labels: { all: string; running: string; stopped: string; failed: string },
+): FilterChip[] {
   return FILTER_OPTIONS.map((option) => ({
     ...option,
+    label: labels[option.id as keyof typeof labels] ?? option.label,
     count: counts[option.id as keyof ProjectCounts] ?? 0,
   }));
 }

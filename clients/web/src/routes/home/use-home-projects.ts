@@ -15,11 +15,21 @@ export function useHomeProjects({
   search,
   activeFilter,
   onLaunch,
+  labels,
 }: {
   client: YggProtocolClient;
   search: string;
   activeFilter: string;
   onLaunch: (projectId: string) => void;
+  labels: {
+    all: string;
+    running: string;
+    stopped: string;
+    failed: string;
+    now: string;
+    resume: string;
+    open: string;
+  };
 }) {
   const projects = useAsync(() => client.listProjects(), [client]);
   const lifecycleEvents = useAsync(
@@ -29,7 +39,7 @@ export function useHomeProjects({
 
   const projectList = projects.data ?? [];
   const counts = useMemo(() => countsForProjects(projectList), [projectList]);
-  const filters = useMemo(() => filtersWithCounts(counts), [counts]);
+  const filters = useMemo(() => filtersWithCounts(counts, labels), [counts, labels]);
   const filtered = useMemo(
     () => filterProjects(projectList, activeFilter, search),
     [projectList, activeFilter, search],
@@ -61,13 +71,13 @@ export function useHomeProjects({
           id: project.id,
           projectName: project.title,
           toneDot: projectStateTone(project.state),
-          age: project.state === "running" ? "now" : "—",
+          age: project.state === "running" ? labels.now : "—",
           action: {
-            label: project.state === "running" ? "Resume" : "Open",
+            label: project.state === "running" ? labels.resume : labels.open,
             onClick: () => onLaunch(project.id),
           },
         })),
-    [onLaunch, projectList],
+    [labels, onLaunch, projectList],
   );
 
   // Build timeline from real lifecycle events. Empty when there are none.

@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { useAsync, useKernel } from "@/lib/kernel-client";
+import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
 
 interface DraftSecret {
@@ -57,6 +58,7 @@ const PROVIDER_HINTS: Record<string, string> = {
 export function ApiConnectionsPanel() {
   const client = useKernel();
   const toast = useToast();
+  const t = useT();
 
   const platform = useAsync(() => client.listSecrets(), [client]);
   const health = useAsync(() => client.secretsHealth().catch(() => null), [client]);
@@ -76,19 +78,19 @@ export function ApiConnectionsPanel() {
       await client.deleteSecret(name);
       platform.refresh();
       health.refresh();
-      toast.push({ variant: "info", title: `Removed ${name}` });
+      toast.push({ variant: "info", title: t("apiRemoved", name) });
     } catch (err) {
       toast.push({
         variant: "error",
-        title: "Delete failed",
-        body: "The secret could not be removed. Check the local host and try again.",
+        title: t("apiDeleteFailedTitle"),
+        body: t("apiDeleteFailedBody"),
       });
     }
   };
 
   const handleCopy = (name: string) => {
     navigator.clipboard?.writeText(name);
-    toast.push({ variant: "success", title: "Copied secret name", duration: 2000 });
+    toast.push({ variant: "success", title: t("apiCopiedSecretName"), duration: 2000 });
   };
 
   const handleSave = async (entry: DraftSecret) => {
@@ -98,12 +100,12 @@ export function ApiConnectionsPanel() {
       platform.refresh();
       health.refresh();
       setShowAdd(false);
-      toast.push({ variant: "success", title: `Stored ${entry.name}` });
+      toast.push({ variant: "success", title: t("apiStored", entry.name) });
     } catch (err) {
       toast.push({
         variant: "error",
-        title: "Save failed",
-        body: "The secret could not be stored. Check the local host and try again.",
+        title: t("apiSaveFailedTitle"),
+        body: t("apiSaveFailedBody"),
       });
     }
   };
@@ -113,32 +115,31 @@ export function ApiConnectionsPanel() {
       <header className="mb-8">
         <Eyebrow>
           {platform.loading
-            ? "API Connections · loading…"
-            : `API Connections · ${secrets.length} keys stored`}
+            ? t("apiEyebrowLoading")
+            : t("apiEyebrowCount", secrets.length)}
         </Eyebrow>
-        <PageTitle className="mt-2">Local secret store</PageTitle>
+        <PageTitle className="mt-2">{t("apiTitle")}</PageTitle>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-steel-secondary">
-          Keys stay on this machine, encrypted with your platform key. Yggdrasil never transmits raw
-          keys — projects request them through audited capability calls.
+          {t("apiDescription")}
         </p>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[7fr_3fr]">
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <Eyebrow>Stored secrets</Eyebrow>
+            <Eyebrow>{t("apiStoredSecrets")}</Eyebrow>
             <Button tone="tertiary" size="sm" onClick={() => setShowAdd(true)}>
               <Plus size={14} />
-              Add secret
+              {t("apiAddSecret")}
             </Button>
           </div>
           <Card>
             {platform.error ? (
               <EmptyState
                 icon={<Key />}
-                title="Couldn't load secrets"
-                body="Secret metadata is unavailable. Try again from the local UI."
-                action={{ label: "Retry", onClick: () => platform.refresh() }}
+                title={t("apiLoadErrorTitle")}
+                body={t("apiLoadErrorBody")}
+                action={{ label: t("retry"), onClick: () => platform.refresh() }}
               />
             ) : platform.loading ? (
               <ul className="divide-y divide-whisper-border">
@@ -157,9 +158,9 @@ export function ApiConnectionsPanel() {
             ) : secrets.length === 0 ? (
               <EmptyState
                 icon={<Key />}
-                title="No secrets stored"
-                body="Add your first key. Yggdrasil encrypts it with your platform key."
-                action={{ label: "Add secret", onClick: () => setShowAdd(true) }}
+                title={t("apiEmptyTitle")}
+                body={t("apiEmptyBody")}
+                action={{ label: t("apiAddSecret"), onClick: () => setShowAdd(true) }}
               />
             ) : (
               <ul className="divide-y divide-whisper-border">
@@ -169,6 +170,16 @@ export function ApiConnectionsPanel() {
                     secret={secret}
                     onCopy={() => handleCopy(secret.name)}
                     onDelete={() => handleDelete(secret.name)}
+                    labels={{
+                      hideName: t("apiHideName"),
+                      revealName: t("apiRevealName"),
+                      toggleReveal: t("apiToggleReveal"),
+                      copyName: t("apiCopyName"),
+                      copy: t("apiCopy"),
+                      more: t("apiMore"),
+                      rotate: t("apiRotate"),
+                      delete: t("apiDelete"),
+                    }}
                   />
                 ))}
               </ul>
@@ -179,19 +190,19 @@ export function ApiConnectionsPanel() {
         <aside className="flex flex-col gap-4">
           <Card>
             <CardSection>
-              <EyebrowSm>Store status</EyebrowSm>
+              <EyebrowSm>{t("apiStoreStatus")}</EyebrowSm>
               <dl className="mt-3 space-y-2 text-[12px]">
                 {[
-                  ["Encryption", "age (X25519)"],
-                  ["Master key", health.data?.key_source ?? "—"],
-                  ["Storage", health.data?.exists ? "configured" : "not created"],
+                  [t("apiEncryption"), "age (X25519)"],
+                  [t("apiMasterKey"), health.data?.key_source ?? "—"],
+                  [t("apiStorage"), health.data?.exists ? t("apiConfigured") : t("apiNotCreated")],
                   [
-                    "Total",
+                    t("apiTotal"),
                     health.data
-                      ? `${health.data.secret_count} secrets`
+                      ? t("apiSecretsCount", health.data.secret_count)
                       : platform.loading
                         ? "—"
-                        : `${secrets.length} secrets`,
+                        : t("apiSecretsCount", secrets.length),
                   ],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between gap-3">
@@ -204,43 +215,42 @@ export function ApiConnectionsPanel() {
           </Card>
           <Card>
             <CardSection>
-              <EyebrowSm>How they're used</EyebrowSm>
+              <EyebrowSm>{t("apiHowUsed")}</EyebrowSm>
               <p className="mt-3 text-[12px] leading-relaxed text-steel-secondary">
                 Projects reference keys with{" "}
-                <span className="font-mono text-charcoal-ink">secret_ref:store:NAME</span>. The host
-                injects the raw value into outbound requests on the project's behalf.
+                <span className="font-mono text-charcoal-ink">secret_ref:store:NAME</span>. {t("apiHowUsedBody")}
               </p>
               <button
                 type="button"
                 className="mt-3 text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
               >
-                Open audit log →
+                {t("apiOpenAuditLog")}
               </button>
             </CardSection>
           </Card>
           <Card>
             <CardSection>
-              <EyebrowSm>Backup</EyebrowSm>
+              <EyebrowSm>{t("apiBackup")}</EyebrowSm>
               <div className="mt-3 flex flex-col gap-1.5">
                 <Button
                   tone="secondary"
                   size="sm"
                   className="justify-start"
                   onClick={() =>
-                    toast.push({ variant: "info", title: "Use yg secrets export on the CLI" })
+                    toast.push({ variant: "info", title: t("apiExportToast") })
                   }
                 >
-                  Export to file
+                  {t("apiExportFile")}
                 </Button>
                 <Button
                   tone="secondary"
                   size="sm"
                   className="justify-start"
                   onClick={() =>
-                    toast.push({ variant: "info", title: "Use yg secrets import on the CLI" })
+                    toast.push({ variant: "info", title: t("apiImportToast") })
                   }
                 >
-                  Import from file
+                  {t("apiImportFile")}
                 </Button>
               </div>
             </CardSection>
@@ -257,10 +267,21 @@ function SecretRow({
   secret,
   onCopy,
   onDelete,
+  labels,
 }: {
   secret: SecretView;
   onCopy: () => void;
   onDelete: () => void;
+  labels: {
+    hideName: string;
+    revealName: string;
+    toggleReveal: string;
+    copyName: string;
+    copy: string;
+    more: string;
+    rotate: string;
+    delete: string;
+  };
 }) {
   const [revealed, setRevealed] = useState(false);
   return (
@@ -285,32 +306,32 @@ function SecretRow({
           <span className="font-mono text-muted-tone">secret_ref:store:{secret.name}</span>
         </p>
       </div>
-      <Tooltip label={revealed ? "Hide name" : "Reveal name"}>
+      <Tooltip label={revealed ? labels.hideName : labels.revealName}>
         <Button
           tone="icon"
           size="icon-sm"
           onClick={() => setRevealed((v) => !v)}
-          aria-label="Toggle reveal"
+          aria-label={labels.toggleReveal}
         >
           {revealed ? <EyeSlash size={14} /> : <Eye size={14} />}
         </Button>
       </Tooltip>
-      <Tooltip label="Copy name">
-        <Button tone="icon" size="icon-sm" onClick={onCopy} aria-label="Copy">
+      <Tooltip label={labels.copyName}>
+        <Button tone="icon" size="icon-sm" onClick={onCopy} aria-label={labels.copy}>
           <Copy size={14} />
         </Button>
       </Tooltip>
       <Dropdown>
         <DropdownTrigger asChild>
-          <Button tone="icon" size="icon-sm" aria-label="More">
+          <Button tone="icon" size="icon-sm" aria-label={labels.more}>
             <DotsThree size={16} />
           </Button>
         </DropdownTrigger>
         <DropdownMenu>
-          <DropdownItem>Rotate</DropdownItem>
+          <DropdownItem>{labels.rotate}</DropdownItem>
           <DropdownSeparator />
           <DropdownItem destructive onSelect={onDelete}>
-            Delete…
+            {labels.delete}
           </DropdownItem>
         </DropdownMenu>
       </Dropdown>
@@ -327,6 +348,7 @@ function AddSecretModal({
   onClose: () => void;
   onSave: (entry: DraftSecret) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("OpenAI");
   const [scope, setScope] = useState<string>("platform");
@@ -360,14 +382,14 @@ function AddSecretModal({
   };
 
   return (
-    <Modal open={open} onOpenChange={onClose} contentLabel="Add secret">
+    <Modal open={open} onOpenChange={onClose} contentLabel={t("apiAddContentLabel")}>
       <ModalHeader
-        eyebrow="API Connections · Add"
-        title="Store a new key"
-        description="Yggdrasil encrypts the value with your platform key and never sends raw keys to any project."
+        eyebrow={t("apiAddEyebrow")}
+        title={t("apiAddTitle")}
+        description={t("apiAddDescription")}
       />
       <form onSubmit={handleSave} className="flex flex-col gap-4">
-        <Field label="Provider" required>
+        <Field label={t("apiProvider")} required>
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
@@ -379,8 +401,8 @@ function AddSecretModal({
           </select>
         </Field>
         <Field
-          label="Secret name"
-          helper="Convention: PROVIDER_API_KEY (uppercase, underscores)"
+          label={t("apiSecretName")}
+          helper={t("apiSecretNameHelper")}
           required
         >
           <Input
@@ -390,7 +412,7 @@ function AddSecretModal({
             spellCheck={false}
           />
         </Field>
-        <Field label="Value" helper="The raw key never leaves this machine." required>
+        <Field label={t("apiValue")} helper={t("apiValueHelper")} required>
           <Input
             type="password"
             ref={valueRef}
@@ -399,11 +421,11 @@ function AddSecretModal({
             autoComplete="new-password"
           />
         </Field>
-        <Field label="Scope">
+        <Field label={t("apiScope")}>
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "platform", label: "Platform-wide" },
-              { id: "project", label: "Project-only (configure on Home)" },
+              { id: "platform", label: t("apiScopePlatform") },
+              { id: "project", label: t("apiScopeProject") },
             ].map((option) => (
               <button
                 key={option.id}
@@ -424,10 +446,10 @@ function AddSecretModal({
         </Field>
         <ModalFooter className="justify-end">
           <Button tone="secondary" type="button" onClick={onClose}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button tone="primary" type="submit" disabled={!name}>
-            Save key
+            {t("apiSaveKey")}
           </Button>
         </ModalFooter>
       </form>

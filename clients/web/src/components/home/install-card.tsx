@@ -3,7 +3,17 @@ import { Plus } from "@/components/icons";
 import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
-export function InstallCard({ onClick, index = 0 }: { onClick: () => void; index?: number }) {
+export function InstallCard({
+  onClick,
+  index = 0,
+  title = "Install a project",
+  hint = "Paste a GitHub URL or local path",
+}: {
+  onClick: () => void;
+  index?: number;
+  title?: string;
+  hint?: string;
+}) {
   return (
     <motion.button
       type="button"
@@ -20,8 +30,8 @@ export function InstallCard({ onClick, index = 0 }: { onClick: () => void; index
         <Plus size={20} />
       </span>
       <div className="space-y-1">
-        <p className="font-display text-[16px] font-bold text-charcoal-ink">Install a project</p>
-        <p className="text-[12px] text-muted-tone">Paste a GitHub URL or local path</p>
+        <p className="font-display text-[16px] font-bold text-charcoal-ink">{title}</p>
+        <p className="text-[12px] text-muted-tone">{hint}</p>
       </div>
       <span className="font-mono text-[10px] text-muted-tone">⌘ N</span>
     </motion.button>

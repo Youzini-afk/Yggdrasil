@@ -36,9 +36,9 @@ export function formatBytes(bytes: number | undefined, fractionDigits = 1): stri
   return `${(bytes / 1_073_741_824).toFixed(fractionDigits)} GB`;
 }
 
-export function formatGreetingTime(now = new Date()): string {
-  const day = now.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase();
-  const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+export function formatGreetingTime(locale: string = "en", now = new Date()): string {
+  const day = now.toLocaleDateString([locale, "en"], { weekday: "short" }).toUpperCase();
+  const time = now.toLocaleTimeString([locale, "en"], { hour: "2-digit", minute: "2-digit", hour12: false });
   return `WORKSHOP · ${day} ${time}`;
 }
 

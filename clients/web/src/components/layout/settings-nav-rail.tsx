@@ -2,28 +2,38 @@ import { Folder, GitBranch, Info, Package, Plug } from "@/components/icons";
 import { useRoute } from "@/lib/router";
 import type { SettingsTab } from "@/lib/router";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/locale";
 
 const NAV_ITEMS: Array<{
   id: SettingsTab;
-  label: string;
   Icon: typeof Plug;
 }> = [
-  { id: "api-connections", label: "API Connections", Icon: Plug },
-  { id: "installed-packages", label: "Installed Packages", Icon: Package },
-  { id: "profiles", label: "Profiles", Icon: GitBranch },
-  { id: "storage", label: "Storage", Icon: Folder },
-  { id: "about", label: "About", Icon: Info },
+  { id: "api-connections", Icon: Plug },
+  { id: "installed-packages", Icon: Package },
+  { id: "profiles", Icon: GitBranch },
+  { id: "storage", Icon: Folder },
+  { id: "about", Icon: Info },
 ];
+
+const navLabelKey: Record<SettingsTab, "settingsApiConnections" | "settingsInstalledPackages" | "settingsProfiles" | "settingsStorage" | "settingsAbout"> = {
+  "api-connections": "settingsApiConnections",
+  "installed-packages": "settingsInstalledPackages",
+  profiles: "settingsProfiles",
+  storage: "settingsStorage",
+  about: "settingsAbout",
+};
 
 export function SettingsNavRail({ active }: { active: SettingsTab }) {
   const [, navigate] = useRoute();
+  const t = useT();
 
   return (
     <aside className="shrink-0 border-whisper-border lg:w-[240px] lg:border-r lg:pr-6">
-      <p className="eyebrow mb-3 px-1 lg:mb-6 lg:px-3">Settings</p>
+      <p className="eyebrow mb-3 px-1 lg:mb-6 lg:px-3">{t("settingsTitle")}</p>
       <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-        {NAV_ITEMS.map(({ id, label, Icon }) => {
+        {NAV_ITEMS.map(({ id, Icon }) => {
           const isActive = active === id;
+          const label = t(navLabelKey[id]);
           return (
             <button
               key={id}
@@ -47,7 +57,7 @@ export function SettingsNavRail({ active }: { active: SettingsTab }) {
         })}
       </nav>
       <div className="mt-4 px-1 text-[11px] text-muted-tone lg:mt-8 lg:px-3">
-        Settings live on this machine. No SaaS sync.
+        {t("settingsHelper")}
       </div>
     </aside>
   );
