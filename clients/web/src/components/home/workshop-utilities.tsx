@@ -97,9 +97,9 @@ export function WorkshopUtilities({
   const hasPositiveStorage = totalDisk > 0 && measuredSegments.some((segment) => segment.bytes > 0);
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3 lg:flex-[1.15]">
       <Eyebrow>{labels.workshop}</Eyebrow>
-      <Card className="divide-y divide-whisper-border">
+      <Card className="flex flex-1 flex-col divide-y divide-whisper-border">
         {/* Updates */}
         <div className="flex flex-col gap-3 p-5">
           <div className="flex items-center justify-between">
@@ -139,7 +139,7 @@ export function WorkshopUtilities({
         </div>
 
         {/* Disk */}
-        <div className="flex flex-col gap-2 p-5">
+        <div className="flex flex-1 flex-col gap-2 p-5">
           <div className="flex items-center justify-between">
             <EyebrowSm>{labels.diskUsage}</EyebrowSm>
             <span className="font-mono text-[10px] text-charcoal-ink">

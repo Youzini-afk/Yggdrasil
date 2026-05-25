@@ -51,9 +51,9 @@ export function ActivityTimeline({
   viewAllLabel?: string;
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex min-h-0 flex-col gap-3 lg:flex-1">
       <Eyebrow>{title}</Eyebrow>
-      <Card>
+      <Card className="flex min-h-[160px] flex-1 flex-col">
         {loading ? (
           <ul className="divide-y divide-whisper-border">
             {Array.from({ length: 4 }).map((_, idx) => (
@@ -67,7 +67,7 @@ export function ActivityTimeline({
             ))}
           </ul>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
             <Stack size={20} className="text-muted-tone" />
             <p className="text-[13px] text-muted-tone">{emptyLabel}</p>
           </div>

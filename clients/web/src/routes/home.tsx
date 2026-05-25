@@ -95,7 +95,7 @@ export function HomePage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 2xl:px-12">
+    <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[1920px] flex-col gap-7 px-4 py-6 sm:px-6 lg:gap-8 lg:px-8 lg:py-8 2xl:px-12">
       <Hero
         meta={formatGreetingTime(locale)}
         greeting={t("homeGreeting")}
@@ -110,8 +110,8 @@ export function HomePage() {
         activityLabels={{ title: t("homeActivityRecent"), empty: t("homeActivityEmpty") }}
       />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
-        <div className="flex flex-col gap-5">
+      <div className="grid flex-1 grid-cols-1 gap-8 lg:min-h-0 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
+        <div className="flex min-h-0 flex-col gap-5">
           <UtilityStrip
             search={search}
             onSearchChange={setSearch}
@@ -144,12 +144,15 @@ export function HomePage() {
               ))}
             </div>
           ) : projectList.length === 0 ? (
-            <EmptyState
-              icon={<Plus />}
-              title={t("homeEmptyTitle")}
-              body={t("homeEmptyBody")}
-              action={{ label: t("homeInstallLabel"), onClick: onInstallClick }}
-            />
+            <div className="flex min-h-[320px] flex-1 items-center justify-center rounded-[24px] border border-dashed border-whisper-border/50 bg-pure-surface/20 px-4 py-8 lg:min-h-[clamp(360px,42vh,620px)]">
+              <EmptyState
+                icon={<Plus />}
+                title={t("homeEmptyTitle")}
+                body={t("homeEmptyBody")}
+                action={{ label: t("homeInstallLabel"), onClick: onInstallClick }}
+                className="border-0 bg-transparent py-8 shadow-none"
+              />
+            </div>
           ) : (
             <div
               className="grid gap-5"
@@ -200,7 +203,7 @@ export function HomePage() {
           )}
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-h-0 flex-col gap-6 lg:h-full">
           <ActivityTimeline
             rows={timelineRows.slice(0, 6)}
             loading={lifecycleEvents.loading && timelineRows.length === 0}
