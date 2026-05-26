@@ -52,7 +52,9 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
         ]);
         if (cancelled) return;
         const allowedCapabilityIds = allowedSurfaceCapabilityIdsForTest(contribution);
-        const handle = await mountSurface({
+        let handle: SurfaceHostHandle;
+        try {
+          handle = await mountSurface({
           containerId: FRAME_CONTAINER_ID,
           surfaceId: bundle.surfaceId,
           bundleUrl: bundle.bundleUrl,
@@ -67,7 +69,15 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
             subscribeEvents: (cb) =>
               client.subscribeEvents(sessionId, (event) => cb(event)),
           },
-        });
+          });
+        } catch (err) {
+          toast.push({
+            variant: "error",
+            title: t("projectFrameMountFailedTitle"),
+            body: t("projectFrameMountFailedBody"),
+          });
+          return;
+        }
         if (cancelled) {
           await handle.unmount();
           return;

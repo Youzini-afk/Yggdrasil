@@ -94,6 +94,13 @@ interface ReadyMessage {
   type: 'ready';
 }
 
+interface MountErrorMessage {
+  type: 'mount.error';
+  bridge_token?: string;
+  code?: string;
+  message?: string;
+}
+
 interface StreamSubscribeMessage {
   type: 'stream.subscribe';
   bridge_token?: string;
@@ -139,6 +146,7 @@ type SurfaceMessage =
   | RpcCallMessage
   | RpcResultMessage
   | ReadyMessage
+  | MountErrorMessage
   | StreamSubscribeMessage
   | StreamUnsubscribeMessage
   | StreamFrameMessage
@@ -205,6 +213,7 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
   await ready;
 
   // Send mount instruction
+  const mountError = waitForSurfaceMountError(iframe, bridgeToken, 1000);
   iframe.contentWindow!.postMessage({
     type: 'mount',
     bridge_token: bridgeToken,
@@ -214,6 +223,7 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
     initialProps,
     stylesheets: options.stylesheets,
   } satisfies MountMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
+  await mountError;
 
   const bridgeState = createSurfaceBridgeState();
 
@@ -286,6 +296,32 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
       iframe.remove();
     },
   };
+}
+
+function waitForSurfaceMountError(
+  iframe: HTMLIFrameElement,
+  bridgeToken: string,
+  graceMs: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      window.removeEventListener('message', onMessage);
+      resolve();
+    }, graceMs);
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== iframe.contentWindow) return;
+      const msg = e.data as SurfaceMessage;
+      if (msg.type !== 'mount.error') return;
+      if (msg.bridge_token !== bridgeToken) return;
+      window.removeEventListener('message', onMessage);
+      clearTimeout(timer);
+      reject(new SurfaceBridgeError(
+        isBoundedString(msg.code, 64) ? msg.code : 'mount_failed',
+        isBoundedString(msg.message, 160) ? msg.message : 'Surface mount failed',
+      ));
+    };
+    window.addEventListener('message', onMessage);
+  });
 }
 
 export function createSurfaceBridgeState(): SurfaceBridgeState {

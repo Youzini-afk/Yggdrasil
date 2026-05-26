@@ -11,13 +11,22 @@ const root = document.getElementById('root');
 
 let nextRpcId = 0;
 const pendingRpc = new Map();
+let bridgeToken = '';
+let targetOrigin = '*';
+
+function postToHost(message) {
+  window.parent.postMessage(
+    bridgeToken ? { ...message, bridge_token: bridgeToken } : message,
+    targetOrigin,
+  );
+}
 
 window.yggHost = {
   async callRpc(method, params) {
     const id = String(++nextRpcId);
     return new Promise((resolve, reject) => {
       pendingRpc.set(id, { resolve, reject });
-      window.parent.postMessage({ type: 'rpc.call', id, method, params }, '*');
+      postToHost({ type: 'rpc.call', id, method, params });
     });
   },
 };
@@ -32,6 +41,7 @@ window.addEventListener('message', async (e) => {
     const pending = pendingRpc.get(msg.id);
     if (!pending) return;
     pendingRpc.delete(msg.id);
+    if (bridgeToken && msg.bridge_token !== bridgeToken) return;
     if (msg.error) pending.reject(new Error(`${msg.error.code}: ${msg.error.message}`));
     else pending.resolve(msg.result);
     return;
@@ -39,6 +49,11 @@ window.addEventListener('message', async (e) => {
 
   if (msg.type === 'mount') {
     try {
+      bridgeToken = typeof msg.bridge_token === 'string' ? msg.bridge_token : '';
+      targetOrigin =
+        msg.initialProps && typeof msg.initialProps.targetOrigin === 'string'
+          ? msg.initialProps.targetOrigin
+          : '*';
       // Inject stylesheets if provided
       if (msg.stylesheets && Array.isArray(msg.stylesheets)) {
         for (const href of msg.stylesheets) {
@@ -53,6 +68,7 @@ window.addEventListener('message', async (e) => {
       const mounter = mod[msg.exportName];
       if (!mounter) {
         root.textContent = `Surface bundle missing export ${msg.exportName}`;
+        postToHost({ type: 'mount.error', code: 'missing_export', message: 'Surface bundle missing requested export' });
         return;
       }
       if (msg.wrapperClass) {
@@ -62,15 +78,19 @@ window.addEventListener('message', async (e) => {
       unmountFn = mounter(root, msg.initialProps ?? {});
     } catch (err) {
       root.textContent = `Surface bundle failed to load: ${err && err.message || err}`;
+      postToHost({ type: 'mount.error', code: 'bundle_load_failed', message: 'Surface bundle failed to load' });
     }
   }
 
   if (msg.type === 'unmount') {
+    if (bridgeToken && msg.bridge_token !== bridgeToken) return;
     if (typeof unmountFn === 'function') {
       try { unmountFn(); } catch { /* noop */ }
       unmountFn = null;
     }
     root.innerHTML = '';
+    bridgeToken = '';
+    targetOrigin = '*';
   }
 });
 

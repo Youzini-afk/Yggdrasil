@@ -4,7 +4,7 @@ use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
 use axum::extract::{OriginalUri, Path, Query, Request, State};
-use axum::http::{header, Method, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
 use axum::response::IntoResponse;
@@ -404,7 +404,7 @@ where
     match tokio::fs::read(&path).await {
         Ok(bytes) => {
             let content_type = content_type_for(&path);
-            ([(header::CONTENT_TYPE, content_type)], bytes).into_response()
+            (public_static_headers(content_type), bytes).into_response()
         }
         Err(_) => (StatusCode::NOT_FOUND, "surface bundle file not found").into_response(),
     }
@@ -492,13 +492,22 @@ async fn read_static_file(static_root: &std::path::Path, path: &std::path::Path)
         Ok(bytes) => bytes,
         Err(_) => return StaticRead::Missing,
     };
-    StaticRead::Served(
-        (
-            [(header::CONTENT_TYPE, content_type_for(&canonical))],
-            bytes,
-        )
-            .into_response(),
-    )
+    StaticRead::Served((public_static_headers(content_type_for(&canonical)), bytes).into_response())
+}
+
+fn public_static_headers(content_type: &'static str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    // Surface frames are sandboxed without `allow-same-origin`; browser module
+    // loading treats the frame as an opaque origin. Public browser assets must be
+    // CORS-readable so `/surface-frame-bootstrap.js` and installed surface
+    // bundles can load inside that sandbox while RPC/kernel routes remain token
+    // gated separately.
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    headers
 }
 
 fn surface_bundle_path<S>(state: AppState<S>, prefix: &str, file: &str) -> Option<PathBuf>
@@ -821,8 +830,43 @@ mod tests {
             )
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static("*"))
+        );
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"export const ok = true;");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn static_js_is_cors_readable_for_sandboxed_surface_frame() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(
+            dir.path().join("surface-frame-bootstrap.js"),
+            "export const ok = true;",
+        )?;
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: Some(dir.path().to_path_buf()),
+            access_token: Some("static-token".to_string()),
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/surface-frame-bootstrap.js")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static("*"))
+        );
         Ok(())
     }
 

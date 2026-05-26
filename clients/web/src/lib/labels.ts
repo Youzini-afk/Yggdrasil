@@ -251,6 +251,8 @@ export interface LocaleDictionary {
 
   projectFrameStartFailedTitle: string;
   projectFrameStartFailedBody: string;
+  projectFrameMountFailedTitle: string;
+  projectFrameMountFailedBody: string;
   projectFrameStopped: (title: string) => string;
   projectFrameStopFailedTitle: string;
   projectFrameStopFailedBody: string;
@@ -702,6 +704,8 @@ export const labels = {
 
     projectFrameStartFailedTitle: "Failed to start project",
     projectFrameStartFailedBody: "The project frame could not be started. Check the local host and try again.",
+    projectFrameMountFailedTitle: "Project surface failed to mount",
+    projectFrameMountFailedBody: "The project is running, but its browser surface could not be loaded. Check the local host and surface bundle.",
     projectFrameStopped: (title) => `Stopped ${title}`,
     projectFrameStopFailedTitle: "Stop failed",
     projectFrameStopFailedBody: "The project could not be stopped. Check the local host and try again.",
@@ -1154,6 +1158,8 @@ export const labels = {
 
     projectFrameStartFailedTitle: "启动项目失败",
     projectFrameStartFailedBody: "无法启动项目框架。请检查本地主机后重试。",
+    projectFrameMountFailedTitle: "项目界面挂载失败",
+    projectFrameMountFailedBody: "项目已经运行，但浏览器界面未能加载。请检查本地主机和 surface bundle。",
     projectFrameStopped: (title) => `已停止 ${title}`,
     projectFrameStopFailedTitle: "停止失败",
     projectFrameStopFailedBody: "无法停止该项目。请检查本地主机后重试。",

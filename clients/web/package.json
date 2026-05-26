@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "test": "node --loader ./test/ts-loader.mjs src/surfaces/surface-host.test.ts && node --loader ./test/ts-loader.mjs src/routes/home/failure-diagnostics.test.ts && node --loader ./test/ts-loader.mjs src/routes/home/use-recently-opened.test.ts && node --loader ./test/ts-loader.mjs src/routes/project-frame.policy.test.ts && node --loader ./test/ts-loader.mjs src/protocol/client.auth.test.ts && node --loader ./test/ts-loader.mjs src/lib/locale.test.ts"
+    "test": "node --loader ./test/ts-loader.mjs src/surfaces/surface-host.test.ts && node --loader ./test/ts-loader.mjs src/surfaces/surface-frame-bootstrap.test.ts && node --loader ./test/ts-loader.mjs src/routes/home/failure-diagnostics.test.ts && node --loader ./test/ts-loader.mjs src/routes/home/use-recently-opened.test.ts && node --loader ./test/ts-loader.mjs src/routes/project-frame.policy.test.ts && node --loader ./test/ts-loader.mjs src/protocol/client.auth.test.ts && node --loader ./test/ts-loader.mjs src/lib/locale.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",
