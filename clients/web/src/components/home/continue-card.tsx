@@ -21,6 +21,9 @@ export interface ContinueCardLabels {
   openAction: string;
   diagnoseAction: string;
   ageNow: string;
+  ageMinutes: (count: number) => string;
+  ageHours: (count: number) => string;
+  ageDays: (count: number) => string;
   emptyTitle: string;
   emptyBody: string;
   emptyInstall: string;
@@ -47,19 +50,19 @@ const dotClassOverride: Record<StatusTone, string> = {
   accent: "bg-aged-brass",
 };
 
-function ageLabel(openedAt: number, ageNow: string): string {
+function ageLabel(openedAt: number, labels: Pick<ContinueCardLabels, "ageNow" | "ageMinutes" | "ageHours" | "ageDays">): string {
   const diff = Date.now() - openedAt;
-  if (diff < 60_000) return ageNow;
+  if (diff < 60_000) return labels.ageNow;
   if (diff < 3_600_000) {
     const m = Math.floor(diff / 60_000);
-    return `${m} min${m > 1 ? "s" : ""} ago`;
+    return labels.ageMinutes(m);
   }
   if (diff < 86_400_000) {
     const h = Math.floor(diff / 3_600_000);
-    return `${h} hour${h > 1 ? "s" : ""} ago`;
+    return labels.ageHours(h);
   }
   const d = Math.floor(diff / 86_400_000);
-  return `${d} day${d > 1 ? "s" : ""} ago`;
+  return labels.ageDays(d);
 }
 
 export function ContinueCard({
@@ -143,7 +146,7 @@ export function ContinueCard({
         <div className="flex min-w-0 items-center gap-2">
           <StatusPill tone={tone} label={stateLabel} />
           <span className="font-mono text-[11px] text-muted-tone">
-            {ageLabel(entry.openedAt, labels.ageNow)}
+            {ageLabel(entry.openedAt, labels)}
           </span>
         </div>
         <Button tone="primary" size="sm" onClick={() => onContinue(entry.projectId)}>

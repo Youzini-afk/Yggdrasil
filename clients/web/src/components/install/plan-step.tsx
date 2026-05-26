@@ -15,6 +15,7 @@ import { ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { StatusPill } from "@/components/ui/status-pill";
 import { EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/locale";
 import type { InstallDetectedKind, InstallPlan } from "@/protocol/client";
 import { formatDetectedKind, formatList, shortHash, summarizeConformance } from "./install-format";
 
@@ -39,41 +40,45 @@ export function PlanStep({
   onConfirm: () => void;
   installing: boolean;
 }) {
+  const t = useT();
   const rootPackage = plan.packages.find((pkg) => pkg.id === plan.root_id) ?? plan.packages[0];
   const permissionGroups = [
     {
-      label: "Capabilities",
-      detail: formatList(plan.permissions_summary.new_capabilities, "No new capability invokes"),
+      id: "capabilities",
+      label: t("installPermissionCapabilities"),
+      detail: formatList(plan.permissions_summary.new_capabilities, t("installNoNewCapabilityInvokes"), (count) => t("installListMore", count)),
       count: plan.permissions_summary.new_capabilities.length,
     },
     {
-      label: "Network",
-      detail: formatList(plan.permissions_summary.new_network_hosts, "No new network hosts"),
+      id: "network",
+      label: t("installPermissionNetwork"),
+      detail: formatList(plan.permissions_summary.new_network_hosts, t("installNoNewNetworkHosts"), (count) => t("installListMore", count)),
       count: plan.permissions_summary.new_network_hosts.length,
     },
     {
-      label: "Secrets",
-      detail: formatList(plan.permissions_summary.new_secret_refs, "No new secret refs"),
+      id: "secrets",
+      label: t("installPermissionSecrets"),
+      detail: formatList(plan.permissions_summary.new_secret_refs, t("installNoNewSecretRefs"), (count) => t("installListMore", count)),
       count: plan.permissions_summary.new_secret_refs.length,
     },
   ];
-  const conformance = summarizeConformance(plan);
+  const conformance = summarizeConformance(plan, t);
   const isExternal = detectedKind?.kind === "external";
 
   return (
     <>
       <ModalHeader
-        eyebrow="Install — Step 2 of 3"
-        title="Review the install plan"
-        description="Install Lab resolved this plan. Approve requested permissions to begin installation."
+        eyebrow={t("installPlanEyebrow")}
+        title={t("installPlanTitle")}
+        description={t("installPlanDescription")}
       />
 
       {/* Project identity */}
       <div className="flex items-center gap-3 rounded-[12px] border border-whisper-border bg-aged-brass-surface-soft px-4 py-3">
         <GithubLogo size={20} className="text-charcoal-ink shrink-0" />
         <span className="flex-1 truncate font-mono text-[13px] text-charcoal-ink">{url}</span>
-        <StatusPill tone="accent" label="RESOLVED" />
-        <span className="font-mono text-[11px] text-muted-tone">root: {plan.root_id}</span>
+        <StatusPill tone="accent" label={t("installResolved")} />
+        <span className="font-mono text-[11px] text-muted-tone">{t("installRootPrefix")} {plan.root_id}</span>
       </div>
 
       {isExternal ? (
@@ -81,9 +86,9 @@ export function PlanStep({
           <div className="flex items-start gap-2">
             <Warning size={15} className="mt-0.5 shrink-0 text-aged-brass-deep" />
             <div>
-              <p className="font-medium">External adapter generation is CLI-only in this build.</p>
+              <p className="font-medium">{t("installExternalCliOnlyTitle")}</p>
               <p className="mt-1 text-steel-secondary">
-                The package plan is real, but the web UI will not execute it without a project descriptor.
+                {t("installExternalCliOnlyBody")}
               </p>
             </div>
           </div>
@@ -92,15 +97,15 @@ export function PlanStep({
 
       {/* Project metadata */}
       <section className="mt-6">
-        <EyebrowSm>Project</EyebrowSm>
+        <EyebrowSm>{t("installProjectSection")}</EyebrowSm>
         <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-[12px]">
           {[
-            ["Kind", formatDetectedKind(detectedKind), "accent"],
-            ["Root package", plan.root_id, "mono"],
-            ["Version", rootPackage?.version ?? "—", "mono"],
-            ["Source", rootPackage?.source ?? "—"],
-            ["Commit", rootPackage?.commit_sha ? shortHash(rootPackage.commit_sha) : "—", "mono"],
-            ["Signed", plan.signature_summary.all_signed ? "All signed" : "Unsigned packages", plan.signature_summary.all_signed ? "accent" : "neutral"],
+            [t("installKindLabel"), formatDetectedKind(detectedKind, t), "accent"],
+            [t("installRootPackageLabel"), plan.root_id, "mono"],
+            [t("installVersionLabel"), rootPackage?.version ?? "—", "mono"],
+            [t("installSourceMetaLabel"), rootPackage?.source ?? "—"],
+            [t("installCommitLabel"), rootPackage?.commit_sha ? shortHash(rootPackage.commit_sha) : "—", "mono"],
+            [t("installSignedLabel"), plan.signature_summary.all_signed ? t("installAllSigned") : t("installUnsignedPackages"), plan.signature_summary.all_signed ? "accent" : "neutral"],
           ].map(([label, value, hint]) => (
             <div key={label as string} className="flex justify-between">
               <dt className="font-medium text-steel-secondary">{label}</dt>
@@ -129,9 +134,9 @@ export function PlanStep({
       {/* Dependencies */}
       <section>
         <div className="flex items-center justify-between">
-          <EyebrowSm>Packages</EyebrowSm>
+          <EyebrowSm>{t("installPackagesSection")}</EyebrowSm>
           <span className="text-[11px] text-steel-secondary">
-            {plan.packages.length} package{plan.packages.length === 1 ? "" : "s"} will be installed
+            {t("installPackagesWillInstall", plan.packages.length)}
           </span>
         </div>
         <ul className="mt-3 divide-y divide-whisper-border">
@@ -151,16 +156,16 @@ export function PlanStep({
       {/* Permissions */}
       <section>
         <div className="flex items-center justify-between">
-          <EyebrowSm>Permissions requested</EyebrowSm>
+          <EyebrowSm>{t("installPermissionsRequested")}</EyebrowSm>
           <span className="text-[11px] text-steel-secondary">
-            {permissionGroups.reduce((sum, group) => sum + group.count, 0)} total entries
+            {t("installTotalEntries", permissionGroups.reduce((sum, group) => sum + group.count, 0))}
           </span>
         </div>
         <ul className="mt-3 divide-y divide-whisper-border">
           {permissionGroups.map((p) => (
-            <li key={p.label} className="flex gap-3 py-3">
+            <li key={p.id} className="flex gap-3 py-3">
               <span className="rounded-full bg-aged-brass-surface-soft p-2 text-aged-brass shrink-0">
-                <PermissionIcon label={p.label} />
+                <PermissionIcon id={p.id} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-medium text-charcoal-ink">{p.label}</p>
@@ -176,25 +181,25 @@ export function PlanStep({
       <section className="grid gap-3 text-[12px] md:grid-cols-3">
         <SummaryCard
           icon={<CheckCircle size={16} className="text-aged-brass" />}
-          title="Signatures"
+          title={t("installSignaturesTitle")}
           body={
             plan.signature_summary.all_signed
-              ? "All packages signed"
-              : `Unsigned: ${formatList(plan.signature_summary.unsigned_packages, "none")}`
+              ? t("installAllSigned")
+              : `${t("installUnsignedPrefix")} ${formatList(plan.signature_summary.unsigned_packages, t("installNone"), (count) => t("installListMore", count))}`
           }
         />
         <SummaryCard
           icon={plan.integrity_summary.manifest_hashes_match_lockfile ? <CheckCircle size={16} className="text-aged-brass" /> : <Warning size={16} className="text-aged-brass-deep" />}
-          title="Integrity"
+          title={t("installIntegrityTitle")}
           body={
             plan.integrity_summary.manifest_hashes_match_lockfile
-              ? "No lockfile drift detected"
-              : `${plan.integrity_summary.drift_detected.length} drift item${plan.integrity_summary.drift_detected.length === 1 ? "" : "s"}`
+              ? t("installNoLockfileDrift")
+              : t("installDriftItems", plan.integrity_summary.drift_detected.length)
           }
         />
         <SummaryCard
           icon={conformance.hasFailures ? <Warning size={16} className="text-aged-brass-deep" /> : <CheckCircle size={16} className="text-aged-brass" />}
-          title="Conformance"
+          title={t("installConformanceTitle")}
           body={conformance.label}
         />
       </section>
@@ -203,18 +208,18 @@ export function PlanStep({
         <Checkbox
           checked={approvedPermissions}
           onCheckedChange={onApprovalChange}
-          label="Approve requested permissions"
+          label={t("installApprovePermissions")}
         />
         <div className="flex items-center gap-3">
           <Button tone="tertiary" onClick={onBack} disabled={installing}>
-            Back
+            {t("back")}
           </Button>
           <Button tone="secondary" onClick={onCancel} disabled={installing}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button tone="primary" onClick={onConfirm} disabled={!approvedPermissions || installing || isExternal}>
             <Download size={14} />
-            {installing ? "Installing…" : "Install"}
+            {installing ? t("installInstalling") : t("installInstallButton")}
           </Button>
         </div>
       </ModalFooter>
@@ -222,13 +227,13 @@ export function PlanStep({
   );
 }
 
-function PermissionIcon({ label }: { label: string }) {
-  switch (label) {
-    case "Network":
+function PermissionIcon({ id }: { id: string }) {
+  switch (id) {
+    case "network":
       return <PIconGlobe size={16} />;
-    case "Secrets":
+    case "secrets":
       return <PIconKey size={16} />;
-    case "Filesystem":
+    case "filesystem":
       return <PIconFolder size={16} />;
     default:
       return <PIconGit size={16} />;

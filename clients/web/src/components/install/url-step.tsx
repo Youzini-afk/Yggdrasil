@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field, InputGroup } from "@/components/ui/input";
 import { ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { EyebrowSm } from "@/components/ui/typography";
+import { useT } from "@/lib/locale";
 import type { ShortcutEntry } from "./install-types";
 
 export function UrlStep({
@@ -25,6 +26,7 @@ export function UrlStep({
   loading: boolean;
   error: string | null;
 }) {
+  const t = useT();
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     onContinue();
@@ -33,12 +35,12 @@ export function UrlStep({
   return (
     <form onSubmit={onSubmit}>
       <ModalHeader
-        eyebrow="Install — Step 1 of 3"
-        title="Where is the project?"
-        description="Yggdrasil installs from public Git repositories or local folders. We'll review the project before anything runs."
+        eyebrow={t("installUrlEyebrow")}
+        title={t("installUrlTitle")}
+        description={t("installUrlDescription")}
       />
 
-      <Field label="Source URL or path" required>
+      <Field label={t("installSourceLabel")} required>
         <InputGroup
           leftIcon={<LinkSimple size={16} />}
           value={url}
@@ -50,11 +52,11 @@ export function UrlStep({
         />
       </Field>
       <p className="mt-1 text-[12px] text-steel-secondary">
-        Public HTTPS Git only in the web shell. Local folders use the CLI or a native file picker flow.
+        {t("installSourceHelper")}
       </p>
 
       <section className="mt-5 flex flex-col gap-2">
-        <EyebrowSm>Shortcuts</EyebrowSm>
+        <EyebrowSm>{t("installShortcuts")}</EyebrowSm>
         <div className="flex flex-wrap gap-2">
           {shortcuts.map((entry) => (
             <button
@@ -77,7 +79,7 @@ export function UrlStep({
           <div className="flex items-start gap-2">
             <XCircle size={15} className="mt-0.5 shrink-0" />
             <div>
-              <p className="font-medium">Could not resolve install plan</p>
+              <p className="font-medium">{t("installResolveErrorTitle")}</p>
               <p className="mt-1 font-mono text-[11px] leading-snug">{error}</p>
             </div>
           </div>
@@ -87,14 +89,14 @@ export function UrlStep({
       <ModalFooter className="justify-between">
         <p className="flex items-center gap-1.5 text-[11px] text-muted-tone">
           <Lightning size={11} className="text-muted-tone" />
-          Press ⌘V to paste · ↵ to continue · Esc to cancel
+          {t("installKeyboardHint")}
         </p>
         <div className="flex items-center gap-3">
           <Button type="button" tone="secondary" onClick={onCancel} disabled={loading}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button type="submit" tone="primary" disabled={!url.trim() || loading}>
-            {loading ? "Resolving…" : "Continue"}
+            {loading ? t("installResolving") : t("continue")}
             {loading ? null : <ArrowRight size={14} />}
           </Button>
         </div>

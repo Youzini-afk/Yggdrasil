@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle, Cloud, Info, Warning, X, XCircle } from "@/components/icons";
 import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/locale";
 
 export type ToastVariant = "info" | "success" | "warning" | "error" | "progress";
 
@@ -107,6 +108,7 @@ function ToastViewport({
   toasts: ToastInternal[];
   dismiss: (id: string) => void;
 }) {
+  const t = useT();
   return (
     <ol
       role="status"
@@ -136,7 +138,7 @@ function ToastViewport({
                     <p className="text-[13px] font-medium leading-snug">{toast.title}</p>
                     <button
                       type="button"
-                      aria-label="Dismiss"
+                      aria-label={t("uiToastDismiss")}
                       onClick={() => dismiss(toast.id)}
                       className="-mr-1 -mt-1 shrink-0 rounded p-1 text-muted-tone hover:text-charcoal-ink"
                     >

@@ -2,6 +2,7 @@ import { ArrowsClockwise, Copy, GithubLogo, Warning } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalHeader, ModalFooter } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/locale";
 
 export interface FailureDetail {
   projectName: string;
@@ -29,24 +30,25 @@ export interface FailureModalProps {
 
 export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: FailureModalProps) {
   const toast = useToast();
+  const t = useT();
 
-  const projectName = detail?.projectName ?? "Project";
+  const projectName = detail?.projectName ?? t("failureProjectFallback");
   const log = detail?.log ?? [];
   const canCopyLog = detail?.logRedacted === true && log.length > 0;
 
   const copy = () => {
     if (!canCopyLog) return;
     navigator.clipboard?.writeText(log.join("\n"));
-    toast.push({ variant: "success", title: "Log copied", duration: 2400 });
+    toast.push({ variant: "success", title: t("failureLogCopied"), duration: 2400 });
   };
 
   return (
-    <Modal open={open} onOpenChange={onClose} accent="rust" size="lg" contentLabel={`${projectName} failure details`}>
+    <Modal open={open} onOpenChange={onClose} accent="rust" size="lg" contentLabel={t("failureContentLabel", projectName)}>
       <ModalHeader
-        eyebrow={`Failure — ${projectName.toUpperCase()}`}
-        title={detail?.title ?? "Project failed"}
+        eyebrow={t("failureEyebrow", projectName)}
+        title={detail?.title ?? t("failureTitle")}
         description={
-          detail?.summary ?? "Project state is preserved. See the log below for the failure."
+          detail?.summary ?? t("failureDescription")
         }
       />
 
@@ -63,18 +65,18 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
       {/* Diagnosis & impact */}
       <div className="mt-6 grid grid-cols-2 gap-6">
         <DiagnosisColumn
-          eyebrow="Diagnosis"
+          eyebrow={t("failureDiagnosis")}
           rows={[
-            ["Exit code", detail?.exitCode ?? "—"],
-            ["Cause", detail?.cause ?? "—"],
-            ["Uptime", detail?.uptime ?? "—"],
+            [t("failureExitCode"), detail?.exitCode ?? "—"],
+            [t("failureCause"), detail?.cause ?? "—"],
+            [t("failureUptime"), detail?.uptime ?? "—"],
           ]}
         />
         <DiagnosisColumn
-          eyebrow="Impact"
+          eyebrow={t("failureImpact")}
           rows={[
-            ["Last checkpoint", detail?.lastCheckpoint ?? "—"],
-            ["Sessions", "preserved"],
+            [t("failureLastCheckpoint"), detail?.lastCheckpoint ?? "—"],
+            [t("failureSessions"), t("failureSessionsPreserved")],
           ]}
         />
       </div>
@@ -85,7 +87,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
       <section>
         <div className="flex items-center justify-between">
           <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">
-            Redacted stderr · last {log.length} lines
+            {t("failureRedactedStderr", log.length)}
           </p>
           <div className="flex items-center gap-3">
             <button
@@ -95,7 +97,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
               className="inline-flex items-center gap-1 text-[11px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
             >
               <Copy size={12} />
-              {canCopyLog ? "Copy log" : "No redacted log"}
+              {canCopyLog ? t("failureCopyLog") : t("failureNoRedactedLog")}
             </button>
           </div>
         </div>
@@ -110,7 +112,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
               </p>
             ))
           ) : (
-            <p className="text-muted-tone">No diagnostic log tail is available for this package.</p>
+            <p className="text-muted-tone">{t("failureNoDiagnosticLog")}</p>
           )}
         </div>
       </section>
@@ -120,7 +122,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
             until a real, audited reporting capability lands. */}
         <div className="flex items-center gap-3">
           <Button tone="tertiary" onClick={onClose}>
-            Close
+            {t("close")}
           </Button>
           <Button
             tone="destructive"
@@ -129,7 +131,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
               onClose();
             }}
           >
-            Stop and uninstall
+            {t("failureStopAndUninstall")}
           </Button>
           <Button
             tone="primary"
@@ -139,7 +141,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
             }}
           >
             <ArrowsClockwise size={14} />
-            Restart project
+            {t("failureRestartProject")}
           </Button>
         </div>
       </ModalFooter>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import type { FailureDetail } from "@/components/install/failure-modal";
 import type { ToastInput } from "@/components/ui/toast";
+import type { RelativeAgeLabels } from "@/lib/format";
 import type { YggProtocolClient, PackageRecord, ProjectRecord } from "@/protocol/client";
 import {
   failureDetailFromPackage,
@@ -28,6 +29,11 @@ interface UseProjectActionsArgs {
     descriptorNoPackages: string;
     noPackageStatus: string;
     diagnosticsUnavailable: string;
+    noDiagnosticAvailable: string;
+    diagnosticsUnavailableCause: string;
+    packageFailureTitle: (packageId: string, state: string) => string;
+    packageDegradedSummary: string;
+    relativeAge: RelativeAgeLabels;
   };
 }
 
@@ -97,7 +103,10 @@ export function useProjectActions({
         const knownPackages = await client.packages().catch<PackageRecord[]>(() => []);
         const packageLookup = new Map(knownPackages.map((record) => [record.id, record]));
         if (packageIds.length === 0) {
-          setFailureDetail(noFailureDiagnostic(project.title, labels.descriptorNoPackages));
+          setFailureDetail(noFailureDiagnostic(project.title, labels.descriptorNoPackages, {
+            noDiagnosticAvailable: labels.noDiagnosticAvailable,
+            unavailableCause: labels.diagnosticsUnavailableCause,
+          }));
           return;
         }
         const records = (
@@ -105,12 +114,24 @@ export function useProjectActions({
         ).filter((record): record is PackageRecord => Boolean(record));
         const failed = records.find((record) => record.last_failure) ?? records.find((record) => record.state === "degraded") ?? records[0];
         if (!failed) {
-          setFailureDetail(noFailureDiagnostic(project.title, labels.noPackageStatus));
+          setFailureDetail(noFailureDiagnostic(project.title, labels.noPackageStatus, {
+            noDiagnosticAvailable: labels.noDiagnosticAvailable,
+            unavailableCause: labels.diagnosticsUnavailableCause,
+          }));
           return;
         }
-        setFailureDetail(failureDetailFromPackage(project.title, failed, []));
+        setFailureDetail(failureDetailFromPackage(project.title, failed, [], {
+          noDiagnosticAvailable: labels.noDiagnosticAvailable,
+          unavailableCause: labels.diagnosticsUnavailableCause,
+          packageFailureTitle: labels.packageFailureTitle,
+          packageDegradedSummary: labels.packageDegradedSummary,
+          relativeAge: labels.relativeAge,
+        }));
       } catch (err) {
-        setFailureDetail(noFailureDiagnostic(project.title, labels.diagnosticsUnavailable));
+        setFailureDetail(noFailureDiagnostic(project.title, labels.diagnosticsUnavailable, {
+          noDiagnosticAvailable: labels.noDiagnosticAvailable,
+          unavailableCause: labels.diagnosticsUnavailableCause,
+        }));
       }
     },
     [client, labels, setFailureDetail, setFailureProjectId],

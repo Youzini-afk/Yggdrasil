@@ -6,6 +6,7 @@ import { PlanStep } from "./plan-step";
 import { ProgressStep } from "./progress-step";
 import { UrlStep } from "./url-step";
 import { useInstallFlow } from "./use-install-flow";
+import { useT } from "@/lib/locale";
 
 export function InstallModal({
   open,
@@ -16,10 +17,11 @@ export function InstallModal({
   onClose: () => void;
   onInstalled?: () => void;
 }) {
+  const t = useT();
   const flow = useInstallFlow({ open, onClose, onInstalled });
 
   return (
-    <Modal open={open} onOpenChange={flow.handleClose} size={flow.step === "plan" ? "lg" : "md"} contentLabel="Install project">
+    <Modal open={open} onOpenChange={flow.handleClose} size={flow.step === "plan" ? "lg" : "md"} contentLabel={t("installModalContentLabel")}>
       <AnimatePresence mode="wait">
         {flow.step === "url" ? (
           <motion.div

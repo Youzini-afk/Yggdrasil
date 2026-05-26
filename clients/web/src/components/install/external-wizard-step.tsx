@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/locale";
 import type { InstallPlan } from "@/protocol/client";
 
 export function ExternalWizardStep({
@@ -21,37 +22,36 @@ export function ExternalWizardStep({
   onCancel: () => void;
   onContinue: () => void;
 }) {
+  const t = useT();
   const [choice, setChoice] = useState<"wrap" | "workspace">("wrap");
 
   return (
     <>
       <ModalHeader
-        eyebrow="Install — External project"
-        title="External adapter generation is CLI-only"
-        description="This source does not declare a Yggdrasil project descriptor. The web UI will not execute the package install without one."
+        eyebrow={t("installExternalEyebrow")}
+        title={t("installExternalTitle")}
+        description={t("installExternalDescription")}
       />
 
       <div className="flex items-center gap-3 rounded-[12px] border border-whisper-border px-4 py-3">
         <GithubLogo size={18} className="text-charcoal-ink" />
         <span className="flex-1 truncate font-mono text-[13px] text-charcoal-ink">{url}</span>
-        <StatusPill tone="neutral" label="EXTERNAL" showDot={false} />
+        <StatusPill tone="neutral" label={t("installExternalStatus")} showDot={false} />
       </div>
 
       <div className="mt-5 rounded-[12px] border border-aged-brass-border bg-aged-brass-surface-soft px-4 py-3 text-[12px] text-charcoal-ink">
         <div className="flex items-start gap-2">
           <Info size={15} className="mt-0.5 shrink-0 text-aged-brass-deep" />
-          <p className="leading-snug">
-            Use the CLI to generate a descriptor for wrap/workspace mode, then install the declared project from web.
-          </p>
+          <p className="leading-snug">{t("installExternalInfo")}</p>
         </div>
       </div>
 
       <div className="mt-4 rounded-[12px] border border-whisper-border bg-pure-surface px-4 py-3 text-[12px]">
         <p className="font-medium text-charcoal-ink">
-          {plan ? `${plan.packages.length} package${plan.packages.length === 1 ? "" : "s"} resolved` : "Package plan not available"}
+          {plan ? t("installExternalPackagesResolved", plan.packages.length) : t("installExternalPlanUnavailable")}
         </p>
         {plan ? (
-          <p className="mt-1 font-mono text-[11px] text-steel-secondary">root: {plan.root_id}</p>
+          <p className="mt-1 font-mono text-[11px] text-steel-secondary">{t("installRootPrefix")} {plan.root_id}</p>
         ) : planError ? (
           <p className="mt-1 font-mono text-[11px] leading-snug text-deep-rust">{planError}</p>
         ) : null}
@@ -61,22 +61,23 @@ export function ExternalWizardStep({
         <ExternalChoiceCard
           selected={choice === "wrap"}
           onSelect={() => setChoice("wrap")}
-          title="Wrap with adapter"
+          title={t("installExternalChoiceWrapTitle")}
           recommended
-          description="Requires CLI descriptor generation in this build before web install can execute."
+          recommendedLabel={t("installRecommended")}
+          description={t("installExternalChoiceWrapDescription")}
           chips={[
-            { label: "CLI-only generation", tone: "warn" },
-            { label: "No web execution", tone: "warn" },
+            { label: t("installExternalChipCliOnlyGeneration"), tone: "warn" },
+            { label: t("installExternalChipNoWebExecution"), tone: "warn" },
           ]}
         />
         <ExternalChoiceCard
           selected={choice === "workspace"}
           onSelect={() => setChoice("workspace")}
-          title="Open as workspace"
-          description="Also requires a CLI-generated workspace descriptor before this web install path can continue."
+          title={t("installExternalChoiceWorkspaceTitle")}
+          description={t("installExternalChoiceWorkspaceDescription")}
           chips={[
-            { label: "CLI-only descriptor", tone: "warn" },
-            { label: "Install blocked here", tone: "warn" },
+            { label: t("installExternalChipCliOnlyDescriptor"), tone: "warn" },
+            { label: t("installExternalChipInstallBlocked"), tone: "warn" },
           ]}
         />
       </div>
@@ -86,18 +87,18 @@ export function ExternalWizardStep({
         className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
       >
         <Question size={12} />
-        Generate a project descriptor with the CLI, then return here.
+        {t("installExternalHelp")}
       </button>
 
       <ModalFooter className="justify-end">
         <Button tone="tertiary" onClick={onBack}>
-          Back
+          {t("back")}
         </Button>
         <Button tone="secondary" onClick={onCancel}>
-          Cancel
+          {t("cancel")}
         </Button>
         <Button tone="primary" onClick={onContinue} disabled>
-          Continue disabled
+          {t("installContinueDisabled")}
         </Button>
       </ModalFooter>
     </>
@@ -111,6 +112,7 @@ function ExternalChoiceCard({
   description,
   chips,
   recommended,
+  recommendedLabel,
 }: {
   selected: boolean;
   onSelect: () => void;
@@ -118,6 +120,7 @@ function ExternalChoiceCard({
   description: string;
   chips: Array<{ label: string; tone: "good" | "warn" }>;
   recommended?: boolean;
+  recommendedLabel?: string;
 }) {
   return (
     <button
@@ -141,7 +144,7 @@ function ExternalChoiceCard({
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <h3 className="font-display text-[17px] font-bold text-charcoal-ink">{title}</h3>
-          {recommended ? <StatusPill tone="accent" label="RECOMMENDED" showDot={false} /> : null}
+          {recommended && recommendedLabel ? <StatusPill tone="accent" label={recommendedLabel} showDot={false} /> : null}
         </div>
         <p className="mt-1 text-[13px] leading-snug text-steel-secondary">{description}</p>
         <ul className="mt-3 flex flex-wrap gap-2">

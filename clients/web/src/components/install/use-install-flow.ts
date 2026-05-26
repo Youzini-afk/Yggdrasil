@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { useKernel } from "@/lib/kernel-client";
+import { useT } from "@/lib/locale";
 import type { InstallConsent, InstallDetectedKind, InstallExecuteResult, InstallPlan } from "@/protocol/client";
 import { errorMessage } from "./install-format";
 import type { InstallPhase, InstallStep } from "./install-types";
@@ -16,6 +17,7 @@ export function useInstallFlow({
 }) {
   const client = useKernel();
   const toast = useToast();
+  const t = useT();
   const [step, setStep] = useState<InstallStep>("url");
   const [url, setUrl] = useState("");
   const [approvedPermissions, setApprovedPermissions] = useState(false);
@@ -94,7 +96,7 @@ export function useInstallFlow({
       const message = errorMessage(err);
       setResolveError(message);
       setProgressPhases(["resolving", "failed"]);
-      toast.push({ variant: "error", title: "Install plan failed", body: message });
+      toast.push({ variant: "error", title: t("installPlanFailedTitle"), body: message });
     } finally {
       setIsResolving(false);
     }
@@ -117,10 +119,8 @@ export function useInstallFlow({
       setProgressPhases(["resolving", "detecting", "reviewed", "executing", "completed"]);
       toast.push({
         variant: "success",
-        title: "Install complete",
-        body: `${result.installed.length} package${result.installed.length === 1 ? "" : "s"} installed${
-          result.project?.project_id ? ` · project ${result.project.project_id}` : ""
-        }`,
+        title: t("installCompleteTitle"),
+        body: t("installCompleteBody", result.installed.length, result.project?.project_id),
       });
       onInstalled?.();
       window.setTimeout(handleClose, 700);
@@ -128,7 +128,7 @@ export function useInstallFlow({
       const message = errorMessage(err);
       setProgressError(message);
       setProgressPhases(["resolving", "detecting", "reviewed", "executing", "failed"]);
-      toast.push({ variant: "error", title: "Install failed", body: message });
+      toast.push({ variant: "error", title: t("installFailedTitle"), body: message });
     } finally {
       setIsExecuting(false);
     }

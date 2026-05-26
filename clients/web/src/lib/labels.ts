@@ -91,6 +91,16 @@ export interface LocaleDictionary {
   homeNoPackageStatus: string;
   homeDiagnosticsUnavailable: string;
   homeNow: string;
+  homeTimeMinutesAgo: (count: number) => string;
+  homeTimeHoursAgo: (count: number) => string;
+  homeTimeDaysAgo: (count: number) => string;
+  homeTimeWeeksAgo: (count: number) => string;
+  homeTimeMonthsAgo: (count: number) => string;
+  homeTimeYearsAgo: (count: number) => string;
+  homeNoDiagnosticAvailable: string;
+  homeDiagnosticsUnavailableCause: string;
+  homePackageFailureTitle: (packageId: string, state: string) => string;
+  homePackageDegradedSummary: string;
   homeActionsAria: (title: string) => string;
 
   homeContinueTitle: string;
@@ -106,6 +116,150 @@ export interface LocaleDictionary {
   homeContinueEmptyInstall: string;
   homeContinueEmptyTryYdltavern: string;
   homeContinuePickInstalled: string;
+
+  close: string;
+  back: string;
+  continue: string;
+
+  uiModalClose: string;
+  uiToastDismiss: string;
+
+  installModalContentLabel: string;
+  installUrlEyebrow: string;
+  installUrlTitle: string;
+  installUrlDescription: string;
+  installSourceLabel: string;
+  installSourceHelper: string;
+  installShortcuts: string;
+  installResolveErrorTitle: string;
+  installKeyboardHint: string;
+  installResolving: string;
+  installPlanFailedTitle: string;
+  installCompleteTitle: string;
+  installCompleteBody: (count: number, projectId?: string) => string;
+  installFailedTitle: string;
+  installListMore: (count: number) => string;
+  installKindNative: string;
+  installKindDeclaredExternal: string;
+  installKindExternal: string;
+  installKindDetected: string;
+  installNoConformanceDetails: string;
+  installConformanceSummary: (checks: number, failures: number, warnings: number) => string;
+  installPlanEyebrow: string;
+  installPlanTitle: string;
+  installPlanDescription: string;
+  installResolved: string;
+  installRootPrefix: string;
+  installExternalCliOnlyTitle: string;
+  installExternalCliOnlyBody: string;
+  installProjectSection: string;
+  installKindLabel: string;
+  installRootPackageLabel: string;
+  installVersionLabel: string;
+  installSourceMetaLabel: string;
+  installCommitLabel: string;
+  installSignedLabel: string;
+  installAllSigned: string;
+  installUnsignedPackages: string;
+  installPackagesSection: string;
+  installPackagesWillInstall: (count: number) => string;
+  installPermissionsRequested: string;
+  installTotalEntries: (count: number) => string;
+  installPermissionCapabilities: string;
+  installPermissionNetwork: string;
+  installPermissionSecrets: string;
+  installNoNewCapabilityInvokes: string;
+  installNoNewNetworkHosts: string;
+  installNoNewSecretRefs: string;
+  installSignaturesTitle: string;
+  installIntegrityTitle: string;
+  installConformanceTitle: string;
+  installUnsignedPrefix: string;
+  installNone: string;
+  installNoLockfileDrift: string;
+  installDriftItems: (count: number) => string;
+  installApprovePermissions: string;
+  installInstalling: string;
+  installInstallButton: string;
+  installProgressEyebrow: string;
+  installProgressTitleFailed: string;
+  installProgressTitleComplete: string;
+  installProgressTitleInstalling: string;
+  installPhaseResolvedPlan: string;
+  installPhasePackageCount: (count: number) => string;
+  installPhaseComplete: string;
+  installPhaseDetectedKind: string;
+  installPhasePermissionsApproved: string;
+  installPhaseExecutingPlan: string;
+  installPhaseInProgress: string;
+  installPhaseInstallCompleted: string;
+  installPhaseInstalledCount: (count: number) => string;
+  installPhaseWaiting: string;
+  installStatusFailed: string;
+  installStatusCompleted: string;
+  installStatusExecuting: string;
+  installSeeActivity: string;
+  installActivity: string;
+  installActivityResolvePlan: (target: string) => string;
+  installActivityDetectKind: string;
+  installActivityPermissionsApproved: string;
+  installActivityExecutePlan: (status: string) => string;
+  installActivityStatusFailed: string;
+  installActivityStatusCompleted: string;
+  installActivityStatusRunning: string;
+  installActivityRegisteredProject: (projectId: string) => string;
+  installActivityProfileUpdated: string;
+  installExternalEyebrow: string;
+  installExternalTitle: string;
+  installExternalDescription: string;
+  installExternalStatus: string;
+  installExternalInfo: string;
+  installExternalPackagesResolved: (count: number) => string;
+  installExternalPlanUnavailable: string;
+  installExternalChoiceWrapTitle: string;
+  installExternalChoiceWrapDescription: string;
+  installExternalChoiceWorkspaceTitle: string;
+  installExternalChoiceWorkspaceDescription: string;
+  installExternalChipCliOnlyGeneration: string;
+  installExternalChipNoWebExecution: string;
+  installExternalChipCliOnlyDescriptor: string;
+  installExternalChipInstallBlocked: string;
+  installExternalHelp: string;
+  installRecommended: string;
+  installContinueDisabled: string;
+
+  failureProjectFallback: string;
+  failureContentLabel: (projectName: string) => string;
+  failureEyebrow: (projectName: string) => string;
+  failureTitle: string;
+  failureDescription: string;
+  failureLogCopied: string;
+  failureDiagnosis: string;
+  failureExitCode: string;
+  failureCause: string;
+  failureUptime: string;
+  failureImpact: string;
+  failureLastCheckpoint: string;
+  failureSessions: string;
+  failureSessionsPreserved: string;
+  failureRedactedStderr: (count: number) => string;
+  failureCopyLog: string;
+  failureNoRedactedLog: string;
+  failureNoDiagnosticLog: string;
+  failureStopAndUninstall: string;
+  failureRestartProject: string;
+
+  projectFrameStartFailedTitle: string;
+  projectFrameStartFailedBody: string;
+  projectFrameStopped: (title: string) => string;
+  projectFrameStopFailedTitle: string;
+  projectFrameStopFailedBody: string;
+  projectFrameBackHome: string;
+  projectFrameAuditLog: string;
+  projectFrameStopProject: string;
+  projectFrameStop: string;
+  projectFrameMore: string;
+  projectFrameState: (state: string) => string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -375,6 +529,16 @@ export const labels = {
     homeNoPackageStatus: "No associated package status was available.",
     homeDiagnosticsUnavailable: "Diagnostics are unavailable. Try again from the local UI.",
     homeNow: "now",
+    homeTimeMinutesAgo: (count) => `${count} minute${count === 1 ? "" : "s"} ago`,
+    homeTimeHoursAgo: (count) => `${count} hour${count === 1 ? "" : "s"} ago`,
+    homeTimeDaysAgo: (count) => `${count} day${count === 1 ? "" : "s"} ago`,
+    homeTimeWeeksAgo: (count) => `${count} week${count === 1 ? "" : "s"} ago`,
+    homeTimeMonthsAgo: (count) => `${count} month${count === 1 ? "" : "s"} ago`,
+    homeTimeYearsAgo: (count) => `${count} year${count === 1 ? "" : "s"} ago`,
+    homeNoDiagnosticAvailable: "No diagnostic available",
+    homeDiagnosticsUnavailableCause: "unavailable",
+    homePackageFailureTitle: (packageId, state) => `Package ${packageId} ${state}`,
+    homePackageDegradedSummary: "Package status is degraded, but no failure summary was reported.",
     homeActionsAria: (title) => `${title} actions`,
 
     homeContinueTitle: "Continue",
@@ -390,6 +554,163 @@ export const labels = {
     homeContinueEmptyInstall: "Install project",
     homeContinueEmptyTryYdltavern: "Try YdlTavern",
     homeContinuePickInstalled: "Pick one of your installed projects",
+
+    close: "Close",
+    back: "Back",
+    continue: "Continue",
+
+    uiModalClose: "Close",
+    uiToastDismiss: "Dismiss",
+
+    installModalContentLabel: "Install project",
+    installUrlEyebrow: "Install — Step 1 of 3",
+    installUrlTitle: "Where is the project?",
+    installUrlDescription:
+      "Yggdrasil installs from public Git repositories or local folders. We'll review the project before anything runs.",
+    installSourceLabel: "Source URL or path",
+    installSourceHelper:
+      "Public HTTPS Git only in the web shell. Local folders use the CLI or a native file picker flow.",
+    installShortcuts: "Shortcuts",
+    installResolveErrorTitle: "Could not resolve install plan",
+    installKeyboardHint: "Press ⌘V to paste · ↵ to continue · Esc to cancel",
+    installResolving: "Resolving…",
+    installPlanFailedTitle: "Install plan failed",
+    installCompleteTitle: "Install complete",
+    installCompleteBody: (count, projectId) =>
+      `${count} package${count === 1 ? "" : "s"} installed${projectId ? ` · project ${projectId}` : ""}`,
+    installFailedTitle: "Install failed",
+    installListMore: (count) => `+${count} more`,
+    installKindNative: "Native project",
+    installKindDeclaredExternal: "Declared external",
+    installKindExternal: "External",
+    installKindDetected: "Detected",
+    installNoConformanceDetails: "No conformance details returned",
+    installConformanceSummary: (checks, failures, warnings) =>
+      `${checks} check${checks === 1 ? "" : "s"}, ${failures} failure${failures === 1 ? "" : "s"}, ${warnings} warning${warnings === 1 ? "" : "s"}`,
+
+    installPlanEyebrow: "Install — Step 2 of 3",
+    installPlanTitle: "Review the install plan",
+    installPlanDescription:
+      "Install Lab resolved this plan. Approve requested permissions to begin installation.",
+    installResolved: "RESOLVED",
+    installRootPrefix: "root:",
+    installExternalCliOnlyTitle: "External adapter generation is CLI-only in this build.",
+    installExternalCliOnlyBody:
+      "The package plan is real, but the web UI will not execute it without a project descriptor.",
+    installProjectSection: "Project",
+    installKindLabel: "Kind",
+    installRootPackageLabel: "Root package",
+    installVersionLabel: "Version",
+    installSourceMetaLabel: "Source",
+    installCommitLabel: "Commit",
+    installSignedLabel: "Signed",
+    installAllSigned: "All signed",
+    installUnsignedPackages: "Unsigned packages",
+    installPackagesSection: "Packages",
+    installPackagesWillInstall: (count) => `${count} package${count === 1 ? "" : "s"} will be installed`,
+    installPermissionsRequested: "Permissions requested",
+    installTotalEntries: (count) => `${count} total entries`,
+    installPermissionCapabilities: "Capabilities",
+    installPermissionNetwork: "Network",
+    installPermissionSecrets: "Secrets",
+    installNoNewCapabilityInvokes: "No new capability invokes",
+    installNoNewNetworkHosts: "No new network hosts",
+    installNoNewSecretRefs: "No new secret refs",
+    installSignaturesTitle: "Signatures",
+    installIntegrityTitle: "Integrity",
+    installConformanceTitle: "Conformance",
+    installUnsignedPrefix: "Unsigned:",
+    installNone: "none",
+    installNoLockfileDrift: "No lockfile drift detected",
+    installDriftItems: (count) => `${count} drift item${count === 1 ? "" : "s"}`,
+    installApprovePermissions: "Approve requested permissions",
+    installInstalling: "Installing…",
+    installInstallButton: "Install",
+
+    installProgressEyebrow: "Install — Step 3 of 3",
+    installProgressTitleFailed: "Install failed",
+    installProgressTitleComplete: "Install complete",
+    installProgressTitleInstalling: "Installing project",
+    installPhaseResolvedPlan: "Resolved install plan",
+    installPhasePackageCount: (count) => `${count} package${count === 1 ? "" : "s"}`,
+    installPhaseComplete: "complete",
+    installPhaseDetectedKind: "Detected project kind",
+    installPhasePermissionsApproved: "Permissions approved",
+    installPhaseExecutingPlan: "Executing install plan",
+    installPhaseInProgress: "in progress",
+    installPhaseInstallCompleted: "Install completed",
+    installPhaseInstalledCount: (count) => `${count} installed`,
+    installPhaseWaiting: "waiting",
+    installStatusFailed: "Failed",
+    installStatusCompleted: "Completed",
+    installStatusExecuting: "Executing",
+    installSeeActivity: "see activity",
+    installActivity: "Activity",
+    installActivityResolvePlan: (target) => `resolve_plan completed for ${target}`,
+    installActivityDetectKind: "detect_kind completed",
+    installActivityPermissionsApproved: "requested permissions approved",
+    installActivityExecutePlan: (status) => `execute_plan ${status}`,
+    installActivityStatusFailed: "failed",
+    installActivityStatusCompleted: "completed",
+    installActivityStatusRunning: "running",
+    installActivityRegisteredProject: (projectId) => `registered project ${projectId}`,
+    installActivityProfileUpdated: "profile updated · lockfile refreshed",
+
+    installExternalEyebrow: "Install — External project",
+    installExternalTitle: "External adapter generation is CLI-only",
+    installExternalDescription:
+      "This source does not declare a Yggdrasil project descriptor. The web UI will not execute the package install without one.",
+    installExternalStatus: "EXTERNAL",
+    installExternalInfo:
+      "Use the CLI to generate a descriptor for wrap/workspace mode, then install the declared project from web.",
+    installExternalPackagesResolved: (count) => `${count} package${count === 1 ? "" : "s"} resolved`,
+    installExternalPlanUnavailable: "Package plan not available",
+    installExternalChoiceWrapTitle: "Wrap with adapter",
+    installExternalChoiceWrapDescription:
+      "Requires CLI descriptor generation in this build before web install can execute.",
+    installExternalChoiceWorkspaceTitle: "Open as workspace",
+    installExternalChoiceWorkspaceDescription:
+      "Also requires a CLI-generated workspace descriptor before this web install path can continue.",
+    installExternalChipCliOnlyGeneration: "CLI-only generation",
+    installExternalChipNoWebExecution: "No web execution",
+    installExternalChipCliOnlyDescriptor: "CLI-only descriptor",
+    installExternalChipInstallBlocked: "Install blocked here",
+    installExternalHelp: "Generate a project descriptor with the CLI, then return here.",
+    installRecommended: "RECOMMENDED",
+    installContinueDisabled: "Continue disabled",
+
+    failureProjectFallback: "Project",
+    failureContentLabel: (projectName) => `${projectName} failure details`,
+    failureEyebrow: (projectName) => `Failure — ${projectName.toUpperCase()}`,
+    failureTitle: "Project failed",
+    failureDescription: "Project state is preserved. See the log below for the failure.",
+    failureLogCopied: "Log copied",
+    failureDiagnosis: "Diagnosis",
+    failureExitCode: "Exit code",
+    failureCause: "Cause",
+    failureUptime: "Uptime",
+    failureImpact: "Impact",
+    failureLastCheckpoint: "Last checkpoint",
+    failureSessions: "Sessions",
+    failureSessionsPreserved: "preserved",
+    failureRedactedStderr: (count) => `Redacted stderr · last ${count} lines`,
+    failureCopyLog: "Copy log",
+    failureNoRedactedLog: "No redacted log",
+    failureNoDiagnosticLog: "No diagnostic log tail is available for this package.",
+    failureStopAndUninstall: "Stop and uninstall",
+    failureRestartProject: "Restart project",
+
+    projectFrameStartFailedTitle: "Failed to start project",
+    projectFrameStartFailedBody: "The project frame could not be started. Check the local host and try again.",
+    projectFrameStopped: (title) => `Stopped ${title}`,
+    projectFrameStopFailedTitle: "Stop failed",
+    projectFrameStopFailedBody: "The project could not be stopped. Check the local host and try again.",
+    projectFrameBackHome: "Back to Home",
+    projectFrameAuditLog: "Audit log",
+    projectFrameStopProject: "Stop project",
+    projectFrameStop: "Stop",
+    projectFrameMore: "More",
+    projectFrameState: (state) => state.toUpperCase(),
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -669,6 +990,16 @@ export const labels = {
     homeNoPackageStatus: "没有可用的关联包状态。",
     homeDiagnosticsUnavailable: "诊断暂不可用。请从本地 UI 重试。",
     homeNow: "现在",
+    homeTimeMinutesAgo: (count) => `${count} 分钟前`,
+    homeTimeHoursAgo: (count) => `${count} 小时前`,
+    homeTimeDaysAgo: (count) => `${count} 天前`,
+    homeTimeWeeksAgo: (count) => `${count} 周前`,
+    homeTimeMonthsAgo: (count) => `${count} 个月前`,
+    homeTimeYearsAgo: (count) => `${count} 年前`,
+    homeNoDiagnosticAvailable: "没有可用诊断",
+    homeDiagnosticsUnavailableCause: "不可用",
+    homePackageFailureTitle: (packageId, state) => `包 ${packageId} ${state}`,
+    homePackageDegradedSummary: "包状态已降级，但没有返回失败摘要。",
     homeActionsAria: (title) => `${title} 操作`,
 
     homeContinueTitle: "继续上次",
@@ -684,6 +1015,154 @@ export const labels = {
     homeContinueEmptyInstall: "安装项目",
     homeContinueEmptyTryYdltavern: "试试 YdlTavern",
     homeContinuePickInstalled: "从已安装的项目里选一个开始",
+
+    close: "关闭",
+    back: "返回",
+    continue: "继续",
+
+    uiModalClose: "关闭",
+    uiToastDismiss: "关闭通知",
+
+    installModalContentLabel: "安装项目",
+    installUrlEyebrow: "安装 — 第 1 / 3 步",
+    installUrlTitle: "项目在哪里？",
+    installUrlDescription: "Yggdrasil 可从公开 Git 仓库或本地文件夹安装。运行任何内容前，我们会先让你检查项目。",
+    installSourceLabel: "源 URL 或路径",
+    installSourceHelper: "Web shell 仅支持公开 HTTPS Git。本地文件夹请使用 CLI 或原生文件选择器流程。",
+    installShortcuts: "快捷入口",
+    installResolveErrorTitle: "无法解析安装计划",
+    installKeyboardHint: "按 ⌘V 粘贴 · ↵ 继续 · Esc 取消",
+    installResolving: "正在解析…",
+    installPlanFailedTitle: "安装计划失败",
+    installCompleteTitle: "安装完成",
+    installCompleteBody: (count, projectId) => `已安装 ${count} 个包${projectId ? ` · 项目 ${projectId}` : ""}`,
+    installFailedTitle: "安装失败",
+    installListMore: (count) => `+${count} 项`,
+    installKindNative: "原生项目",
+    installKindDeclaredExternal: "已声明外部项目",
+    installKindExternal: "外部项目",
+    installKindDetected: "已检测",
+    installNoConformanceDetails: "没有返回一致性详情",
+    installConformanceSummary: (checks, failures, warnings) =>
+      `${checks} 项检查，${failures} 项失败，${warnings} 项警告`,
+
+    installPlanEyebrow: "安装 — 第 2 / 3 步",
+    installPlanTitle: "检查安装计划",
+    installPlanDescription: "Install Lab 已解析此计划。批准所请求的权限后即可开始安装。",
+    installResolved: "已解析",
+    installRootPrefix: "root:",
+    installExternalCliOnlyTitle: "此构建中外部适配器生成仅支持 CLI。",
+    installExternalCliOnlyBody: "包计划是真实的，但没有项目描述符时，Web UI 不会执行它。",
+    installProjectSection: "项目",
+    installKindLabel: "类型",
+    installRootPackageLabel: "根包",
+    installVersionLabel: "版本",
+    installSourceMetaLabel: "来源",
+    installCommitLabel: "Commit",
+    installSignedLabel: "签名",
+    installAllSigned: "全部已签名",
+    installUnsignedPackages: "存在未签名包",
+    installPackagesSection: "包",
+    installPackagesWillInstall: (count) => `将安装 ${count} 个包`,
+    installPermissionsRequested: "请求的权限",
+    installTotalEntries: (count) => `共 ${count} 项`,
+    installPermissionCapabilities: "能力",
+    installPermissionNetwork: "网络",
+    installPermissionSecrets: "密钥",
+    installNoNewCapabilityInvokes: "没有新增能力调用",
+    installNoNewNetworkHosts: "没有新增网络主机",
+    installNoNewSecretRefs: "没有新增 secret_ref",
+    installSignaturesTitle: "签名",
+    installIntegrityTitle: "完整性",
+    installConformanceTitle: "一致性",
+    installUnsignedPrefix: "未签名：",
+    installNone: "无",
+    installNoLockfileDrift: "未检测到 lockfile 漂移",
+    installDriftItems: (count) => `${count} 个漂移项`,
+    installApprovePermissions: "批准请求的权限",
+    installInstalling: "正在安装…",
+    installInstallButton: "安装",
+
+    installProgressEyebrow: "安装 — 第 3 / 3 步",
+    installProgressTitleFailed: "安装失败",
+    installProgressTitleComplete: "安装完成",
+    installProgressTitleInstalling: "正在安装项目",
+    installPhaseResolvedPlan: "已解析安装计划",
+    installPhasePackageCount: (count) => `${count} 个包`,
+    installPhaseComplete: "完成",
+    installPhaseDetectedKind: "已检测项目类型",
+    installPhasePermissionsApproved: "权限已批准",
+    installPhaseExecutingPlan: "正在执行安装计划",
+    installPhaseInProgress: "进行中",
+    installPhaseInstallCompleted: "安装已完成",
+    installPhaseInstalledCount: (count) => `已安装 ${count} 个`,
+    installPhaseWaiting: "等待中",
+    installStatusFailed: "失败",
+    installStatusCompleted: "已完成",
+    installStatusExecuting: "执行中",
+    installSeeActivity: "见活动",
+    installActivity: "活动",
+    installActivityResolvePlan: (target) => `resolve_plan 已完成：${target}`,
+    installActivityDetectKind: "detect_kind 已完成",
+    installActivityPermissionsApproved: "请求的权限已批准",
+    installActivityExecutePlan: (status) => `execute_plan ${status}`,
+    installActivityStatusFailed: "失败",
+    installActivityStatusCompleted: "完成",
+    installActivityStatusRunning: "运行中",
+    installActivityRegisteredProject: (projectId) => `已注册项目 ${projectId}`,
+    installActivityProfileUpdated: "profile 已更新 · lockfile 已刷新",
+
+    installExternalEyebrow: "安装 — 外部项目",
+    installExternalTitle: "外部适配器生成仅支持 CLI",
+    installExternalDescription: "此来源没有声明 Yggdrasil 项目描述符。没有描述符时，Web UI 不会执行包安装。",
+    installExternalStatus: "外部",
+    installExternalInfo: "请用 CLI 为 wrap/workspace 模式生成描述符，然后从 Web 安装已声明的项目。",
+    installExternalPackagesResolved: (count) => `已解析 ${count} 个包`,
+    installExternalPlanUnavailable: "包计划不可用",
+    installExternalChoiceWrapTitle: "用适配器包装",
+    installExternalChoiceWrapDescription: "此构建需要先通过 CLI 生成描述符，然后 Web 安装才能执行。",
+    installExternalChoiceWorkspaceTitle: "作为 workspace 打开",
+    installExternalChoiceWorkspaceDescription: "此 Web 安装路径继续前，也需要先由 CLI 生成 workspace 描述符。",
+    installExternalChipCliOnlyGeneration: "仅 CLI 生成",
+    installExternalChipNoWebExecution: "Web 不执行",
+    installExternalChipCliOnlyDescriptor: "仅 CLI 描述符",
+    installExternalChipInstallBlocked: "此处阻止安装",
+    installExternalHelp: "使用 CLI 生成项目描述符后，再回到这里。",
+    installRecommended: "推荐",
+    installContinueDisabled: "继续已禁用",
+
+    failureProjectFallback: "项目",
+    failureContentLabel: (projectName) => `${projectName} 失败详情`,
+    failureEyebrow: (projectName) => `失败 — ${projectName.toUpperCase()}`,
+    failureTitle: "项目失败",
+    failureDescription: "项目状态已保留。请查看下面的日志了解失败原因。",
+    failureLogCopied: "日志已复制",
+    failureDiagnosis: "诊断",
+    failureExitCode: "退出码",
+    failureCause: "原因",
+    failureUptime: "运行时长",
+    failureImpact: "影响",
+    failureLastCheckpoint: "上次检查点",
+    failureSessions: "会话",
+    failureSessionsPreserved: "已保留",
+    failureRedactedStderr: (count) => `已脱敏 stderr · 最近 ${count} 行`,
+    failureCopyLog: "复制日志",
+    failureNoRedactedLog: "没有脱敏日志",
+    failureNoDiagnosticLog: "此包没有可用的诊断日志尾部。",
+    failureStopAndUninstall: "停止并卸载",
+    failureRestartProject: "重启项目",
+
+    projectFrameStartFailedTitle: "启动项目失败",
+    projectFrameStartFailedBody: "无法启动项目框架。请检查本地主机后重试。",
+    projectFrameStopped: (title) => `已停止 ${title}`,
+    projectFrameStopFailedTitle: "停止失败",
+    projectFrameStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
+    projectFrameBackHome: "返回首页",
+    projectFrameAuditLog: "审计日志",
+    projectFrameStopProject: "停止项目",
+    projectFrameStop: "停止",
+    projectFrameMore: "更多",
+    projectFrameState: (state) => state.toUpperCase(),
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",

@@ -43,6 +43,15 @@ export function HomePage() {
     },
     [navigateTo],
   );
+  const relativeAgeLabels = {
+    now: t("homeContinueAgeNow"),
+    minutesAgo: (count: number) => t("homeTimeMinutesAgo", count),
+    hoursAgo: (count: number) => t("homeTimeHoursAgo", count),
+    daysAgo: (count: number) => t("homeTimeDaysAgo", count),
+    weeksAgo: (count: number) => t("homeTimeWeeksAgo", count),
+    monthsAgo: (count: number) => t("homeTimeMonthsAgo", count),
+    yearsAgo: (count: number) => t("homeTimeYearsAgo", count),
+  };
 
   const {
     projects,
@@ -65,6 +74,7 @@ export function HomePage() {
       running: t("homeFilterRunning"),
       stopped: t("homeFilterStopped"),
       failed: t("homeFilterFailed"),
+      relativeAge: relativeAgeLabels,
     },
   });
 
@@ -87,6 +97,11 @@ export function HomePage() {
       descriptorNoPackages: t("homeDescriptorNoPackages"),
       noPackageStatus: t("homeNoPackageStatus"),
       diagnosticsUnavailable: t("homeDiagnosticsUnavailable"),
+      noDiagnosticAvailable: t("homeNoDiagnosticAvailable"),
+      diagnosticsUnavailableCause: t("homeDiagnosticsUnavailableCause"),
+      packageFailureTitle: (packageId, state) => t("homePackageFailureTitle", packageId, state),
+      packageDegradedSummary: t("homePackageDegradedSummary"),
+      relativeAge: relativeAgeLabels,
     },
   });
 
@@ -112,7 +127,7 @@ export function HomePage() {
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[1920px] flex-col gap-7 px-4 pt-6 pb-8 sm:px-6 sm:pb-10 lg:gap-8 lg:px-8 lg:pt-8 lg:pb-12 2xl:px-12 2xl:pb-14">
       <Hero
-        meta={formatGreetingTime(locale)}
+        meta={formatGreetingTime(locale, undefined, t("homeWorkshop"))}
         greeting={t("homeGreeting")}
         summary={
           projects.loading
@@ -131,6 +146,9 @@ export function HomePage() {
           openAction: t("homeContinueOpenAction"),
           diagnoseAction: t("homeContinueDiagnoseAction"),
           ageNow: t("homeContinueAgeNow"),
+          ageMinutes: (count) => t("homeTimeMinutesAgo", count),
+          ageHours: (count) => t("homeTimeHoursAgo", count),
+          ageDays: (count) => t("homeTimeDaysAgo", count),
           emptyTitle: t("homeContinueEmptyTitle"),
           emptyBody: t("homeContinueEmptyBody"),
           emptyInstall: t("homeContinueEmptyInstall"),

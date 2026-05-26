@@ -17,9 +17,9 @@ export interface UtilityStripProps {
   filters: FilterChip[];
   activeFilter: string;
   onFilterChange: (id: string) => void;
-  sortLabel?: string;
-  sortPrefix?: string;
-  searchPlaceholder?: string;
+  sortLabel: string;
+  sortPrefix: string;
+  searchPlaceholder: string;
   onSortClick?: () => void;
 }
 
@@ -29,9 +29,9 @@ export function UtilityStrip({
   filters,
   activeFilter,
   onFilterChange,
-  sortLabel = "Recent",
-  sortPrefix = "Sort",
-  searchPlaceholder = "Search projects, packages...",
+  sortLabel,
+  sortPrefix,
+  searchPlaceholder,
   onSortClick,
 }: UtilityStripProps) {
   return (

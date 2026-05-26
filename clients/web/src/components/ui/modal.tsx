@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { SPRING, FADE } from "@/lib/motion";
 import { X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/locale";
 
 export interface ModalProps {
   open: boolean;
@@ -25,6 +26,7 @@ const sizeWidths: Record<NonNullable<ModalProps["size"]>, string> = {
 };
 
 export function Modal({ open, onOpenChange, children, accent = null, size = "md", className, contentLabel }: ModalProps) {
+  const t = useT();
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>
@@ -61,7 +63,7 @@ export function Modal({ open, onOpenChange, children, accent = null, size = "md"
                       tone="icon"
                       size="icon-sm"
                       className="absolute right-4 top-4"
-                      aria-label="Close"
+                      aria-label={t("uiModalClose")}
                     >
                       <X size={18} />
                     </Button>

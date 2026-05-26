@@ -24,6 +24,7 @@ export function useHomeProjects({
     running: string;
     stopped: string;
     failed: string;
+    relativeAge: Parameters<typeof formatRelativeAge>[1];
   };
 }) {
   const projects = useAsync(() => client.listProjects(), [client]);
@@ -84,12 +85,12 @@ export function useHomeProjects({
           id: event.id,
           projectName: project?.title ?? event.writer_package_id ?? "kernel",
           toneDot: project ? projectStateTone(project.state) : ("neutral" as StatusTone),
-          age: formatRelativeAge(event.created_at),
+          age: formatRelativeAge(event.created_at, labels.relativeAge),
           message: event.kind.replace(/^kernel\/v1\//, ""),
           iconKind: iconKindFor(event),
         } satisfies TimelineRow;
       });
-  }, [lifecycleEvents.data, projectList]);
+  }, [labels.relativeAge, lifecycleEvents.data, projectList]);
 
   return {
     projects,

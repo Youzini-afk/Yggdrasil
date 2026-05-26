@@ -2,30 +2,43 @@
  * Format helpers used across the settings panels and Home.
  */
 
-const RELATIVE_THRESHOLDS: Array<[number, string, number]> = [
-  [60_000, "just now", 0],
-  [3_600_000, "minute", 60_000],
-  [86_400_000, "hour", 3_600_000],
-  [604_800_000, "day", 86_400_000],
-  [2_628_000_000, "week", 604_800_000],
-  [31_536_000_000, "month", 2_628_000_000],
-];
+export interface RelativeAgeLabels {
+  now: string;
+  minutesAgo: (count: number) => string;
+  hoursAgo: (count: number) => string;
+  daysAgo: (count: number) => string;
+  weeksAgo: (count: number) => string;
+  monthsAgo: (count: number) => string;
+  yearsAgo: (count: number) => string;
+}
 
-export function formatRelativeAge(timestamp: string | number | Date | undefined): string {
-  if (!timestamp) return "just now";
+const DEFAULT_RELATIVE_AGE_LABELS: RelativeAgeLabels = {
+  now: "just now",
+  minutesAgo: (count) => `${count} minute${count === 1 ? "" : "s"} ago`,
+  hoursAgo: (count) => `${count} hour${count === 1 ? "" : "s"} ago`,
+  daysAgo: (count) => `${count} day${count === 1 ? "" : "s"} ago`,
+  weeksAgo: (count) => `${count} week${count === 1 ? "" : "s"} ago`,
+  monthsAgo: (count) => `${count} month${count === 1 ? "" : "s"} ago`,
+  yearsAgo: (count) => `${count} year${count === 1 ? "" : "s"} ago`,
+};
+
+export function formatRelativeAge(
+  timestamp: string | number | Date | undefined,
+  labels: RelativeAgeLabels = DEFAULT_RELATIVE_AGE_LABELS,
+): string {
+  if (!timestamp) return labels.now;
   const value = timestamp instanceof Date ? timestamp.getTime() : new Date(timestamp).getTime();
-  if (Number.isNaN(value)) return "just now";
+  if (Number.isNaN(value)) return labels.now;
   const diff = Date.now() - value;
-  if (diff < 0) return "just now";
-  for (const [limit, unit, divisor] of RELATIVE_THRESHOLDS) {
-    if (diff < limit) {
-      if (unit === "just now") return unit;
-      const n = Math.floor(diff / divisor);
-      return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
-    }
-  }
+  if (diff < 0) return labels.now;
+  if (diff < 60_000) return labels.now;
+  if (diff < 3_600_000) return labels.minutesAgo(Math.floor(diff / 60_000));
+  if (diff < 86_400_000) return labels.hoursAgo(Math.floor(diff / 3_600_000));
+  if (diff < 604_800_000) return labels.daysAgo(Math.floor(diff / 86_400_000));
+  if (diff < 2_628_000_000) return labels.weeksAgo(Math.floor(diff / 604_800_000));
+  if (diff < 31_536_000_000) return labels.monthsAgo(Math.floor(diff / 2_628_000_000));
   const years = Math.floor(diff / 31_536_000_000);
-  return `${years} year${years === 1 ? "" : "s"} ago`;
+  return labels.yearsAgo(years);
 }
 
 export function formatBytes(bytes: number | undefined, fractionDigits = 1): string {
@@ -36,10 +49,10 @@ export function formatBytes(bytes: number | undefined, fractionDigits = 1): stri
   return `${(bytes / 1_073_741_824).toFixed(fractionDigits)} GB`;
 }
 
-export function formatGreetingTime(locale: string = "en", now = new Date()): string {
+export function formatGreetingTime(locale: string = "en", now = new Date(), prefix = "WORKSHOP"): string {
   const day = now.toLocaleDateString([locale, "en"], { weekday: "short" }).toUpperCase();
   const time = now.toLocaleTimeString([locale, "en"], { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `WORKSHOP · ${day} ${time}`;
+  return `${prefix} · ${day} ${time}`;
 }
 
 /** Categorize a package_id into one of the inventory kinds for filtering. */

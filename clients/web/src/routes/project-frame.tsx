@@ -6,6 +6,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useKernel } from "@/lib/kernel-client";
 import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/locale";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle } from "@/surfaces/bundle-resolver";
 import type { ProjectRecord, SurfaceContributionRecord } from "@/protocol/client";
@@ -15,6 +16,7 @@ const FRAME_CONTAINER_ID = "ygg-project-frame";
 export function ProjectFrame({ projectId }: { projectId: string }) {
   const client = useKernel();
   const toast = useToast();
+  const t = useT();
   const [, navigate] = useRoute();
   const [project, setProject] = useState<(ProjectRecord & { running_session_id?: string }) | null>(null);
   const [stopping, setStopping] = useState(false);
@@ -74,8 +76,8 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       } catch (err) {
         toast.push({
           variant: "error",
-          title: "Failed to start project",
-          body: "The project frame could not be started. Check the local host and try again.",
+          title: t("projectFrameStartFailedTitle"),
+          body: t("projectFrameStartFailedBody"),
         });
       }
     })();
@@ -85,19 +87,19 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       handleRef.current?.unmount().catch(() => {});
       handleRef.current = null;
     };
-  }, [client, projectId, toast]);
+  }, [client, projectId, toast, t]);
 
   const onStop = async () => {
     setStopping(true);
     try {
       await client.stopProject(projectId);
-      toast.push({ variant: "success", title: `Stopped ${project?.title ?? projectId}` });
+      toast.push({ variant: "success", title: t("projectFrameStopped", project?.title ?? projectId) });
       navigate({ kind: "home" });
     } catch (err) {
       toast.push({
         variant: "error",
-        title: "Stop failed",
-        body: "The project could not be stopped. Check the local host and try again.",
+        title: t("projectFrameStopFailedTitle"),
+        body: t("projectFrameStopFailedBody"),
       });
     } finally {
       setStopping(false);
@@ -109,8 +111,8 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
       {/* Project frame topbar */}
       <div className="flex h-10 items-center justify-between border-b border-whisper-border bg-pure-surface px-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Tooltip label="Back to Home">
-            <Button tone="icon" size="icon-sm" onClick={() => navigate({ kind: "home" })} aria-label="Back to Home">
+          <Tooltip label={t("projectFrameBackHome")}>
+            <Button tone="icon" size="icon-sm" onClick={() => navigate({ kind: "home" })} aria-label={t("projectFrameBackHome")}>
               <ArrowLeft size={16} />
             </Button>
           </Tooltip>
@@ -120,24 +122,24 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           </span>
           <StatusPill
             tone={projectStateTone(project?.state ?? "starting")}
-            label={(project?.state ?? "starting").toUpperCase()}
+            label={t("projectFrameState", project?.state ?? "starting")}
           />
         </div>
         <div className="flex items-center gap-1">
           <Button tone="tertiary" size="sm" className="hidden sm:inline-flex">
             <ListBullets size={14} />
-            Audit log
+            {t("projectFrameAuditLog")}
           </Button>
           <span className="mx-2 hidden h-4 w-px bg-whisper-border sm:inline-block" aria-hidden />
           {project?.state === "running" ? (
-            <Tooltip label="Stop project">
-              <Button tone="icon" size="icon-sm" onClick={onStop} disabled={stopping} aria-label="Stop">
+            <Tooltip label={t("projectFrameStopProject")}>
+              <Button tone="icon" size="icon-sm" onClick={onStop} disabled={stopping} aria-label={t("projectFrameStop")}>
                 <StopCircle size={16} className="text-deep-rust" />
               </Button>
             </Tooltip>
           ) : null}
-          <Tooltip label="More">
-            <Button tone="icon" size="icon-sm" aria-label="More">
+          <Tooltip label={t("projectFrameMore")}>
+            <Button tone="icon" size="icon-sm" aria-label={t("projectFrameMore")}>
               <DotsThree size={16} />
             </Button>
           </Tooltip>

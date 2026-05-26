@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/locale";
 import type { InstallExecuteResult, InstallPlan } from "@/protocol/client";
 import type { InstallPhase } from "./install-types";
 
@@ -22,12 +23,13 @@ export function ProgressStep({
   error: string | null;
   onCancel: () => void;
 }) {
+  const t = useT();
   const phaseOrder: Array<{ id: InstallPhase; label: string; detail: string }> = [
-    { id: "resolving", label: "Resolved install plan", detail: plan ? `${plan.packages.length} package${plan.packages.length === 1 ? "" : "s"}` : "complete" },
-    { id: "detecting", label: "Detected project kind", detail: "complete" },
-    { id: "reviewed", label: "Permissions approved", detail: "complete" },
-    { id: "executing", label: "Executing install plan", detail: phases.includes("completed") ? "complete" : "in progress" },
-    { id: "completed", label: "Install completed", detail: result ? `${result.installed.length} installed` : "waiting" },
+    { id: "resolving", label: t("installPhaseResolvedPlan"), detail: plan ? t("installPhasePackageCount", plan.packages.length) : t("installPhaseComplete") },
+    { id: "detecting", label: t("installPhaseDetectedKind"), detail: t("installPhaseComplete") },
+    { id: "reviewed", label: t("installPhasePermissionsApproved"), detail: t("installPhaseComplete") },
+    { id: "executing", label: t("installPhaseExecutingPlan"), detail: phases.includes("completed") ? t("installPhaseComplete") : t("installPhaseInProgress") },
+    { id: "completed", label: t("installPhaseInstallCompleted"), detail: result ? t("installPhaseInstalledCount", result.installed.length) : t("installPhaseWaiting") },
   ];
   const failed = phases.includes("failed");
   const progress = phases.includes("completed") ? 1 : Math.min(phases.filter((p) => p !== "failed").length / phaseOrder.length, 0.92);
@@ -35,8 +37,8 @@ export function ProgressStep({
   return (
     <>
       <ModalHeader
-        eyebrow="Install — Step 3 of 3"
-        title={failed ? "Install failed" : phases.includes("completed") ? "Install complete" : "Installing project"}
+        eyebrow={t("installProgressEyebrow")}
+        title={failed ? t("installProgressTitleFailed") : phases.includes("completed") ? t("installProgressTitleComplete") : t("installProgressTitleInstalling")}
         description={
           <span className="font-mono text-[11px] text-muted-tone">{url}{plan?.root_id ? ` · ${plan.root_id}` : ""}</span>
         }
@@ -53,7 +55,7 @@ export function ProgressStep({
         </div>
         <div className="flex items-center justify-between text-[11px]">
           <span className="font-medium text-charcoal-ink">
-            {failed ? "Failed" : phases.includes("completed") ? "Completed" : "Executing"}
+            {failed ? t("installStatusFailed") : phases.includes("completed") ? t("installStatusCompleted") : t("installStatusExecuting")}
           </span>
           <span className="font-mono text-steel-secondary">{Math.round(progress * 100)}%</span>
         </div>
@@ -97,28 +99,28 @@ export function ProgressStep({
         {failed ? (
           <li className="flex items-center gap-3 px-4 py-2.5">
             <XCircle size={14} className="shrink-0 text-deep-rust" weight="fill" />
-            <span className="flex-1 text-[13px] font-medium text-deep-rust">Failed</span>
-            <span className="font-mono text-[11px] text-muted-tone">see activity</span>
+            <span className="flex-1 text-[13px] font-medium text-deep-rust">{t("installStatusFailed")}</span>
+            <span className="font-mono text-[11px] text-muted-tone">{t("installSeeActivity")}</span>
           </li>
         ) : null}
       </ul>
 
       <section className="mt-6">
-        <EyebrowSm>Activity</EyebrowSm>
+        <EyebrowSm>{t("installActivity")}</EyebrowSm>
         <div className="mt-2 space-y-0.5 rounded-[10px] bg-warm-bone p-3 font-mono text-[11px] text-steel-secondary">
-          {phases.includes("resolving") ? <p>resolve_plan completed for {plan?.root_id ?? url}</p> : null}
-          {phases.includes("detecting") ? <p>detect_kind completed</p> : null}
-          {phases.includes("reviewed") ? <p>requested permissions approved</p> : null}
-          {phases.includes("executing") ? <p className={cn("border-l-2 pl-2", failed ? "border-deep-rust text-deep-rust" : "border-aged-brass text-charcoal-ink")}>execute_plan {failed ? "failed" : phases.includes("completed") ? "completed" : "running"}</p> : null}
-          {result?.project?.project_id ? <p>registered project {result.project.project_id}</p> : null}
-          {result ? <p>profile updated · lockfile refreshed</p> : null}
+          {phases.includes("resolving") ? <p>{t("installActivityResolvePlan", plan?.root_id ?? url)}</p> : null}
+          {phases.includes("detecting") ? <p>{t("installActivityDetectKind")}</p> : null}
+          {phases.includes("reviewed") ? <p>{t("installActivityPermissionsApproved")}</p> : null}
+          {phases.includes("executing") ? <p className={cn("border-l-2 pl-2", failed ? "border-deep-rust text-deep-rust" : "border-aged-brass text-charcoal-ink")}>{t("installActivityExecutePlan", failed ? t("installActivityStatusFailed") : phases.includes("completed") ? t("installActivityStatusCompleted") : t("installActivityStatusRunning"))}</p> : null}
+          {result?.project?.project_id ? <p>{t("installActivityRegisteredProject", result.project.project_id)}</p> : null}
+          {result ? <p>{t("installActivityProfileUpdated")}</p> : null}
           {error ? <p className="whitespace-pre-wrap text-deep-rust">{error}</p> : null}
         </div>
       </section>
 
       <ModalFooter className="justify-end">
         <Button tone={failed ? "secondary" : "destructive"} onClick={onCancel} disabled={!failed && !phases.includes("completed")}>
-          {failed || phases.includes("completed") ? "Close" : "Installing…"}
+          {failed || phases.includes("completed") ? t("close") : t("installInstalling")}
         </Button>
       </ModalFooter>
     </>

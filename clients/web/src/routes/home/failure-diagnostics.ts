@@ -1,13 +1,25 @@
 import type { FailureDetail } from "@/components/install/failure-modal";
-import { formatRelativeAge } from "@/lib/format";
+import { formatRelativeAge, type RelativeAgeLabels } from "@/lib/format";
 import type { YggProtocolClient, PackageRecord, SubprocessLogLine } from "@/protocol/client";
 
-export function noFailureDiagnostic(projectName: string, reason: string): FailureDetail {
+export interface FailureDiagnosticLabels {
+  noDiagnosticAvailable: string;
+  unavailableCause: string;
+  packageFailureTitle: (packageId: string, state: string) => string;
+  packageDegradedSummary: string;
+  relativeAge: RelativeAgeLabels;
+}
+
+export function noFailureDiagnostic(
+  projectName: string,
+  reason: string,
+  labels?: Pick<FailureDiagnosticLabels, "noDiagnosticAvailable" | "unavailableCause">,
+): FailureDetail {
   return {
     projectName,
-    title: "No diagnostic available",
+    title: labels?.noDiagnosticAvailable ?? "No diagnostic available",
     summary: reason,
-    cause: "unavailable",
+    cause: labels?.unavailableCause ?? "unavailable",
     log: [],
   };
 }
@@ -16,17 +28,18 @@ export function failureDetailFromPackage(
   projectName: string,
   record: PackageRecord,
   _logs: SubprocessLogLine[],
+  labels?: FailureDiagnosticLabels,
 ): FailureDetail {
   const failure = record.last_failure;
   const redactionSafe = failure?.redaction_state === "redacted" || failure?.redaction_state === "safe";
   const stderrLines = redactionSafe ? tail(failure?.stderr_tail_redacted ?? [], 8) : [];
   return {
     projectName,
-    title: `Package ${record.id} ${record.state}`,
-    summary: failure?.reason ?? "Package status is degraded, but no failure summary was reported.",
+    title: labels?.packageFailureTitle(record.id, record.state) ?? `Package ${record.id} ${record.state}`,
+    summary: failure?.reason ?? labels?.packageDegradedSummary ?? "Package status is degraded, but no failure summary was reported.",
     cause: failure?.reason ?? record.state,
     exitCode: failure?.exit_code ?? "—",
-    failedAt: failure?.failed_at ? formatRelativeAge(failure.failed_at) : undefined,
+    failedAt: failure?.failed_at ? formatRelativeAge(failure.failed_at, labels?.relativeAge) : undefined,
     redactionState: failure?.redaction_state,
     log: stderrLines,
     logRedacted: redactionSafe,

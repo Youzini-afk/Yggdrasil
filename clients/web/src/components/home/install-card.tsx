@@ -6,13 +6,13 @@ import { cn } from "@/lib/cn";
 export function InstallCard({
   onClick,
   index = 0,
-  title = "Install a project",
-  hint = "Paste a GitHub URL or local path",
+  title,
+  hint,
 }: {
   onClick: () => void;
   index?: number;
-  title?: string;
-  hint?: string;
+  title: string;
+  hint: string;
 }) {
   return (
     <motion.button

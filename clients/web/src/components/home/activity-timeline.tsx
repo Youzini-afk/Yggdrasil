@@ -39,16 +39,16 @@ export function ActivityTimeline({
   rows,
   loading = false,
   onViewAll,
-  title = "Activity — last 24h",
-  emptyLabel = "No activity in the last 24 hours.",
-  viewAllLabel = "View full audit log →",
+  title,
+  emptyLabel,
+  viewAllLabel,
 }: {
   rows: TimelineRow[];
   loading?: boolean;
   onViewAll?: () => void;
-  title?: string;
-  emptyLabel?: string;
-  viewAllLabel?: string;
+  title: string;
+  emptyLabel: string;
+  viewAllLabel: string;
 }) {
   return (
     <section className="flex min-h-0 flex-col gap-3 lg:flex-1">

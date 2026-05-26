@@ -1,26 +1,32 @@
 import type { InstallDetectedKind, InstallPlan } from "@/protocol/client";
+import type { LocaleDictionary } from "@/lib/labels";
 
-export function formatList(values: string[] | undefined, empty: string, limit = 3) {
+type LabelArgs<K extends keyof LocaleDictionary> = LocaleDictionary[K] extends (...args: infer Args) => string
+  ? Args
+  : [];
+type TFunction = <K extends keyof LocaleDictionary>(key: K, ...args: LabelArgs<K>) => string;
+
+export function formatList(values: string[] | undefined, empty: string, more: (count: number) => string, limit = 3) {
   if (!values || values.length === 0) return empty;
   const shown = values.slice(0, limit).join(" · ");
   const remaining = values.length - limit;
-  return remaining > 0 ? `${shown} · +${remaining} more` : shown;
+  return remaining > 0 ? `${shown} · ${more(remaining)}` : shown;
 }
 
 export function shortHash(hash: string) {
   return hash.length > 12 ? `${hash.slice(0, 12)}…` : hash;
 }
 
-export function formatDetectedKind(kind: InstallDetectedKind | null) {
+export function formatDetectedKind(kind: InstallDetectedKind | null, t: TFunction) {
   switch (kind?.kind) {
     case "native":
-      return "Native project";
+      return t("installKindNative");
     case "declared_external":
-      return "Declared external";
+      return t("installKindDeclaredExternal");
     case "external":
-      return "External";
+      return t("installKindExternal");
     default:
-      return "Detected";
+      return t("installKindDetected");
   }
 }
 
@@ -28,7 +34,7 @@ export function errorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-export function summarizeConformance(plan: InstallPlan) {
+export function summarizeConformance(plan: InstallPlan, t: TFunction) {
   let checks = 0;
   let failures = 0;
   let warnings = 0;
@@ -44,10 +50,10 @@ export function summarizeConformance(plan: InstallPlan) {
     if (report.passed === false && failures === 0) failures += 1;
   }
   if (checks === 0 && failures === 0 && warnings === 0) {
-    return { hasFailures: false, label: "No conformance details returned" };
+    return { hasFailures: false, label: t("installNoConformanceDetails") };
   }
   return {
     hasFailures: failures > 0,
-    label: `${checks} check${checks === 1 ? "" : "s"}, ${failures} failure${failures === 1 ? "" : "s"}, ${warnings} warning${warnings === 1 ? "" : "s"}`,
+    label: t("installConformanceSummary", checks, failures, warnings),
   };
 }
