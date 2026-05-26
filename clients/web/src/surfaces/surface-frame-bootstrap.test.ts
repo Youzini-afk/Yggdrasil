@@ -1,13 +1,11 @@
 export {};
 
-type ProcessLike = { cwd(): string };
-
 const importNode = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<Record<string, unknown>>;
 const { readFileSync } = await importNode("node:fs") as { readFileSync(path: string, encoding: "utf8"): string };
 const { resolve } = await importNode("node:path") as { resolve(...parts: string[]): string };
-const processLike = globalThis.process as ProcessLike;
+const { cwd } = await importNode("node:process") as { cwd(): string };
 
-const bootstrap = readFileSync(resolve(processLike.cwd(), "public/surface-frame-bootstrap.js"), "utf8");
+const bootstrap = readFileSync(resolve(cwd(), "public/surface-frame-bootstrap.js"), "utf8");
 
 function assertContains(fragment: string) {
   if (!bootstrap.includes(fragment)) {
