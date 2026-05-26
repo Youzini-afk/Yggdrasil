@@ -24,6 +24,7 @@ assertEqual(lookupLabel("zh-CN", "installUrlTitle"), "项目在哪里？");
 assertEqual(lookupLabel("zh-CN", "installPlanTitle"), "检查安装计划");
 assertEqual(lookupLabel("zh-CN", "failureRestartProject"), "重启项目");
 assertEqual(lookupLabel("zh-CN", "projectFrameBackHome"), "返回首页");
+assertEqual(lookupLabel("zh-CN", "homeProjectPopupBlockedTitle"), "项目标签页被拦截");
 assertEqual(lookupLabel("zh-CN", "projectFrameLoadingSurface"), "正在加载项目界面…");
 assertEqual(lookupLabel("zh-CN", "homeTimeHoursAgo", 2), "2 小时前");
 assertEqual(lookupLabel("en", "installPackagesWillInstall", 2), "2 packages will be installed");

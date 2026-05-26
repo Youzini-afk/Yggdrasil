@@ -24,7 +24,6 @@ export function openProjectInTab(projectId: string, hostWindow: ProjectTabWindow
     }
     return true;
   }
-  hostWindow.location.assign(url);
   return false;
 }
 

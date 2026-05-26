@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::convert::Infallible;
-use std::path::{Component, PathBuf};
+use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::Arc;
 
 use axum::extract::{OriginalUri, Path, Query, Request, State};
@@ -398,15 +398,14 @@ async fn surface_bundle_file<S>(
 where
     S: EventStore,
 {
-    let Some(path) = surface_bundle_path(state, &prefix, &file) else {
+    let Some((root, path)) = surface_bundle_path(state, &prefix, &file) else {
         return (StatusCode::NOT_FOUND, "surface bundle path not found").into_response();
     };
-    match tokio::fs::read(&path).await {
-        Ok(bytes) => {
-            let content_type = content_type_for(&path);
-            (public_static_headers(content_type), bytes).into_response()
+    match read_static_file(&root, &path).await {
+        StaticRead::Served(response) => response,
+        StaticRead::Missing | StaticRead::Forbidden => {
+            (StatusCode::NOT_FOUND, "surface bundle file not found").into_response()
         }
-        Err(_) => (StatusCode::NOT_FOUND, "surface bundle file not found").into_response(),
     }
 }
 
@@ -462,6 +461,10 @@ where
         return (StatusCode::NOT_FOUND, "static file not found").into_response();
     }
 
+    if !is_spa_fallback_path(request_path) {
+        return (StatusCode::NOT_FOUND, "static file not found").into_response();
+    }
+
     let index = static_root.join("index.html");
     match read_static_file(&static_root, &index).await {
         StaticRead::Served(response) => response,
@@ -474,8 +477,35 @@ where
 fn is_reserved_service_path(path: &str) -> bool {
     path == "/rpc"
         || path.starts_with("/rpc/")
-        || path.starts_with("/kernel")
-        || path.starts_with("/surface-bundles")
+        || path == "/kernel"
+        || path.starts_with("/kernel/")
+        || path == "/surface-bundles"
+        || path.starts_with("/surface-bundles/")
+}
+
+fn is_spa_fallback_path(path: &str) -> bool {
+    path == "/"
+        || path
+            .strip_prefix("/project/")
+            .is_some_and(is_valid_project_path_segment)
+}
+
+fn is_valid_project_path_segment(segment: &str) -> bool {
+    !segment.is_empty()
+        && !segment.contains('/')
+        && segment.len() <= 128
+        && url::form_urlencoded::parse(format!("id={segment}").as_bytes())
+            .next()
+            .is_some_and(|(_, decoded)| {
+                !decoded.contains('/')
+                    && decoded
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_ascii_alphanumeric())
+                    && decoded.chars().all(|c| {
+                        c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '@' | '-')
+                    })
+            })
 }
 
 fn is_static_asset_path(path: &str) -> bool {
@@ -493,7 +523,7 @@ enum StaticRead {
     Forbidden,
 }
 
-async fn read_static_file(static_root: &std::path::Path, path: &std::path::Path) -> StaticRead {
+async fn read_static_file(static_root: &FsPath, path: &FsPath) -> StaticRead {
     let canonical = match std::fs::canonicalize(path) {
         Ok(path) => path,
         Err(_) => return StaticRead::Missing,
@@ -523,7 +553,11 @@ fn public_static_headers(content_type: &'static str) -> HeaderMap {
     headers
 }
 
-fn surface_bundle_path<S>(state: AppState<S>, prefix: &str, file: &str) -> Option<PathBuf>
+fn surface_bundle_path<S>(
+    state: AppState<S>,
+    prefix: &str,
+    file: &str,
+) -> Option<(PathBuf, PathBuf)>
 where
     S: EventStore,
 {
@@ -539,15 +573,17 @@ where
         if rest.as_os_str().is_empty() {
             return None;
         }
-        return ygg_core::paths::project_dir(&project_id)
-            .ok()
-            .map(|dir| dir.join("dist").join(rest));
+        let root = ygg_core::paths::project_dir(&project_id).ok()?.join("dist");
+        let path = root.join(rest);
+        return Some((root, path));
     }
 
     let Some(base) = state.runtime.config().surface_dev_paths.get(prefix) else {
         return None;
     };
-    Some(PathBuf::from(base).join(safe_file))
+    let root = PathBuf::from(base);
+    let path = root.join(safe_file);
+    Some((root, path))
 }
 
 fn safe_relative_path(path: &str) -> Option<PathBuf> {
@@ -714,6 +750,7 @@ mod tests {
         });
 
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/assets/app.js")
@@ -727,6 +764,26 @@ mod tests {
         );
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"console.log('ygg');");
+
+        let project_route = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/project/demo-project")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(project_route.status(), StatusCode::OK);
+
+        let random_route = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/unknown-route")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(random_route.status(), StatusCode::NOT_FOUND);
         Ok(())
     }
 
@@ -895,7 +952,19 @@ mod tests {
             access_token: None,
         });
 
-        for path in ["/rpc/anything", "/kernelx", "/surface-bundlesx"] {
+        for path in [
+            "/rpc/anything",
+            "/kernel/anything",
+            "/surface-bundles/anything",
+            "/surface-bundlesx",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty())?)
+                .await?;
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "path {path}");
+        }
+        for path in ["/kernelx", "/project/bad/id", "/project/bad%2Fid"] {
             let response = app
                 .clone()
                 .oneshot(Request::builder().uri(path).body(Body::empty())?)

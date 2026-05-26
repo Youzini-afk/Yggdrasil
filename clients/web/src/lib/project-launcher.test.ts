@@ -45,5 +45,5 @@ const popupBlocked: ProjectTabWindow = {
 };
 
 assertEqual(openProjectInTab("fallback-project", popupBlocked), false);
-assertEqual(assigned, "/project/fallback-project");
+assertEqual(assigned, "");
 assertEqual(openProjectInTab("bad/id", popupBlocked), false);

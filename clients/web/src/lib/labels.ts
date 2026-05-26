@@ -79,6 +79,8 @@ export interface LocaleDictionary {
   homeActionViewLogs: string;
   homeActionUninstall: string;
   homeMore: string;
+  homeProjectPopupBlockedTitle: string;
+  homeProjectPopupBlockedBody: string;
 
   homeStoppedToast: (title: string) => string;
   homeStopFailedTitle: string;
@@ -522,6 +524,8 @@ export const labels = {
     homeActionViewLogs: "View logs",
     homeActionUninstall: "Uninstall…",
     homeMore: "More",
+    homeProjectPopupBlockedTitle: "Project tab was blocked",
+    homeProjectPopupBlockedBody: "Allow pop-ups for this site, then open the project again from Home.",
 
     homeStoppedToast: (title) => `Stopped ${title}`,
     homeStopFailedTitle: "Stop failed",
@@ -988,6 +992,8 @@ export const labels = {
     homeActionViewLogs: "查看日志",
     homeActionUninstall: "卸载…",
     homeMore: "更多",
+    homeProjectPopupBlockedTitle: "项目标签页被拦截",
+    homeProjectPopupBlockedBody: "请允许此站点打开弹出式窗口，然后从首页重新打开项目。",
 
     homeStoppedToast: (title) => `已停止 ${title}`,
     homeStopFailedTitle: "停止失败",

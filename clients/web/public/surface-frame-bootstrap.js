@@ -13,6 +13,7 @@ let nextRpcId = 0;
 const pendingRpc = new Map();
 let bridgeToken = '';
 let targetOrigin = '*';
+let mounted = false;
 
 function postToHost(message) {
   window.parent.postMessage(
@@ -49,6 +50,10 @@ window.addEventListener('message', async (e) => {
   }
 
   if (msg.type === 'mount') {
+    if (mounted) return;
+    if (typeof msg.bridge_token !== 'string' || !msg.bridge_token) return;
+    if (typeof msg.bundleUrl !== 'string' || !isAllowedAssetUrl(msg.bundleUrl)) return;
+    if (typeof msg.exportName !== 'string' || !/^[A-Za-z_$][A-Za-z0-9_$]{0,95}$/.test(msg.exportName)) return;
     try {
       bridgeToken = typeof msg.bridge_token === 'string' ? msg.bridge_token : '';
       targetOrigin =
@@ -58,6 +63,7 @@ window.addEventListener('message', async (e) => {
       // Inject stylesheets if provided
       if (msg.stylesheets && Array.isArray(msg.stylesheets)) {
         for (const href of msg.stylesheets) {
+          if (typeof href !== 'string' || !isAllowedAssetUrl(href)) continue;
           const link = document.createElement('link');
           link.rel = 'stylesheet';
           link.href = href;
@@ -65,6 +71,7 @@ window.addEventListener('message', async (e) => {
         }
       }
 
+      mounted = true;
       const mod = await import(msg.bundleUrl);
       const mounter = mod[msg.exportName];
       if (!mounter) {
@@ -92,8 +99,21 @@ window.addEventListener('message', async (e) => {
     root.innerHTML = '';
     bridgeToken = '';
     targetOrigin = '*';
+    mounted = false;
   }
 });
 
 // Signal ready
 window.parent.postMessage({ type: 'ready' }, '*');
+
+function isAllowedAssetUrl(value) {
+  try {
+    const url = new URL(value, window.location.href);
+    return url.origin === window.location.origin
+      && (url.pathname.startsWith('/surface-bundles/')
+        || url.pathname.startsWith('/assets/')
+        || url.pathname === '/surface-frame-bootstrap.js');
+  } catch {
+    return false;
+  }
+}

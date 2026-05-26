@@ -62,7 +62,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         }
         const [bundle, contribution] = await Promise.all([
           resolveSurfaceBundle(client, detail.entry_surface_id),
-          client.describeSurface(detail.entry_surface_id).catch<SurfaceContributionRecord | null>(() => null),
+          client.describeSurface(detail.entry_surface_id),
         ]);
         if (cancelled) return;
         const allowedCapabilityIds = allowedSurfaceCapabilityIdsForTest(contribution);

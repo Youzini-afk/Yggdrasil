@@ -40,9 +40,16 @@ export function HomePage() {
   const navigateTo = useCallback((route: Route) => navigate(route), [navigate]);
   const launchProject = useCallback(
     (projectId: string) => {
-      openProjectInTab(projectId);
+      const opened = openProjectInTab(projectId);
+      if (!opened) {
+        toast.push({
+          variant: "warning",
+          title: t("homeProjectPopupBlockedTitle"),
+          body: t("homeProjectPopupBlockedBody"),
+        });
+      }
     },
-    [],
+    [t, toast],
   );
   const relativeAgeLabels = {
     now: t("homeContinueAgeNow"),
