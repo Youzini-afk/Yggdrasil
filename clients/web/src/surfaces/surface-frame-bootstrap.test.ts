@@ -16,5 +16,7 @@ assertContains("if (e.source !== window.parent) return;");
 assertContains("if (bridgeToken && msg.bridge_token !== bridgeToken) return;\n    pendingRpc.delete(msg.id);");
 assertContains("if (mounted) return;");
 assertContains("isAllowedAssetUrl(msg.bundleUrl)");
+assertContains("code: 'invalid_bundle_url'");
+assertContains("code: 'invalid_stylesheet_url'");
 assertContains("type: 'mount.error'");
 assertContains("postToHost({ type: 'rpc.call'");

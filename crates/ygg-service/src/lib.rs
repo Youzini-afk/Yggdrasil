@@ -498,13 +498,17 @@ fn is_valid_project_path_segment(segment: &str) -> bool {
             .next()
             .is_some_and(|(_, decoded)| {
                 !decoded.contains('/')
+                    && decoded.as_ref() != "."
+                    && decoded.as_ref() != ".."
+                    && !decoded.starts_with('.')
+                    && !decoded.contains("..")
                     && decoded
                         .chars()
                         .next()
                         .is_some_and(|c| c.is_ascii_alphanumeric())
-                    && decoded.chars().all(|c| {
-                        c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '@' | '-')
-                    })
+                    && decoded
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
             })
 }
 
@@ -524,11 +528,15 @@ enum StaticRead {
 }
 
 async fn read_static_file(static_root: &FsPath, path: &FsPath) -> StaticRead {
+    let static_root = match std::fs::canonicalize(static_root) {
+        Ok(path) => path,
+        Err(_) => return StaticRead::Missing,
+    };
     let canonical = match std::fs::canonicalize(path) {
         Ok(path) => path,
         Err(_) => return StaticRead::Missing,
     };
-    if !canonical.starts_with(static_root) || !canonical.is_file() {
+    if !canonical.starts_with(&static_root) || !canonical.is_file() {
         return StaticRead::Forbidden;
     }
     let bytes = match tokio::fs::read(&canonical).await {
@@ -906,6 +914,48 @@ mod tests {
         );
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"export const ok = true;");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn surface_bundle_serving_rejects_symlink_escape() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        let bundle_dir = dir.path().join("surface");
+        std::fs::create_dir_all(&bundle_dir)?;
+        std::fs::write(outside.path().join("secret.mjs"), "do-not-serve")?;
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(
+            outside.path().join("secret.mjs"),
+            bundle_dir.join("leak.mjs"),
+        )?;
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(
+            outside.path().join("secret.mjs"),
+            bundle_dir.join("leak.mjs"),
+        )?;
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let mut config = RuntimeConfig::default();
+        config
+            .surface_dev_paths
+            .insert("test".to_string(), bundle_dir.to_string_lossy().to_string());
+        let runtime = Arc::new(Runtime::new(store, config));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/surface-bundles/test/leak.mjs")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
         Ok(())
     }
 

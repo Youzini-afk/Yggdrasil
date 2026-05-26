@@ -52,10 +52,16 @@ window.addEventListener('message', async (e) => {
   if (msg.type === 'mount') {
     if (mounted) return;
     if (typeof msg.bridge_token !== 'string' || !msg.bridge_token) return;
-    if (typeof msg.bundleUrl !== 'string' || !isAllowedAssetUrl(msg.bundleUrl)) return;
-    if (typeof msg.exportName !== 'string' || !/^[A-Za-z_$][A-Za-z0-9_$]{0,95}$/.test(msg.exportName)) return;
+    bridgeToken = msg.bridge_token;
+    if (typeof msg.bundleUrl !== 'string' || !isAllowedAssetUrl(msg.bundleUrl)) {
+      postToHost({ type: 'mount.error', code: 'invalid_bundle_url', message: 'Surface bundle URL is not allowed' });
+      return;
+    }
+    if (typeof msg.exportName !== 'string' || !/^[A-Za-z_$][A-Za-z0-9_$]{0,95}$/.test(msg.exportName)) {
+      postToHost({ type: 'mount.error', code: 'invalid_export', message: 'Surface export name is invalid' });
+      return;
+    }
     try {
-      bridgeToken = typeof msg.bridge_token === 'string' ? msg.bridge_token : '';
       targetOrigin =
         msg.initialProps && typeof msg.initialProps.targetOrigin === 'string'
           ? msg.initialProps.targetOrigin
@@ -63,7 +69,10 @@ window.addEventListener('message', async (e) => {
       // Inject stylesheets if provided
       if (msg.stylesheets && Array.isArray(msg.stylesheets)) {
         for (const href of msg.stylesheets) {
-          if (typeof href !== 'string' || !isAllowedAssetUrl(href)) continue;
+          if (typeof href !== 'string' || !isAllowedAssetUrl(href)) {
+            postToHost({ type: 'mount.error', code: 'invalid_stylesheet_url', message: 'Surface stylesheet URL is not allowed' });
+            return;
+          }
           const link = document.createElement('link');
           link.rel = 'stylesheet';
           link.href = href;

@@ -25,7 +25,7 @@ export type SettingsTab =
   | "about";
 
 const MAX_PROJECT_ID_LENGTH = 128;
-const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
+const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export type Route =
   | { kind: "home" }
@@ -84,6 +84,10 @@ export function isValidProjectId(value: string): boolean {
   return value.length > 0
     && value.length <= MAX_PROJECT_ID_LENGTH
     && !value.includes("/")
+    && value !== "."
+    && value !== ".."
+    && !value.startsWith(".")
+    && !value.includes("..")
     && !/[\u0000-\u001F\u007F]/.test(value)
     && PROJECT_ID_PATTERN.test(value);
 }

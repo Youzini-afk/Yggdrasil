@@ -210,7 +210,12 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
   });
 
   container.appendChild(iframe);
-  await ready;
+  try {
+    await ready;
+  } catch (err) {
+    iframe.remove();
+    throw err;
+  }
 
   // Send mount instruction
   const mountError = waitForSurfaceMountError(iframe, bridgeToken, 1000);
@@ -223,7 +228,12 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
     initialProps,
     stylesheets: options.stylesheets,
   } satisfies MountMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
-  await mountError;
+  try {
+    await mountError;
+  } catch (err) {
+    iframe.remove();
+    throw err;
+  }
 
   const bridgeState = createSurfaceBridgeState();
 
