@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+use anyhow::Context;
 use ygg_core::project::{ProjectDescriptor, ProjectId, ProjectState};
 
 #[derive(Default)]
@@ -88,8 +89,18 @@ impl ProjectRegistry {
         }
 
         let mut count = 0;
-        for entry in std::fs::read_dir(&projects_dir)? {
-            let entry = entry?;
+        for entry in std::fs::read_dir(projects_dir).with_context(|| {
+            format!(
+                "failed to read projects directory {}",
+                projects_dir.display()
+            )
+        })? {
+            let entry = entry.with_context(|| {
+                format!(
+                    "failed to read projects directory entry in {}",
+                    projects_dir.display()
+                )
+            })?;
             let path = entry.path();
             if !path.is_dir() {
                 continue;
@@ -108,7 +119,12 @@ impl ProjectRegistry {
                 continue;
             }
 
-            let yaml = std::fs::read_to_string(&descriptor_path)?;
+            let yaml = std::fs::read_to_string(&descriptor_path).with_context(|| {
+                format!(
+                    "failed to read project descriptor {}",
+                    descriptor_path.display()
+                )
+            })?;
             let descriptor: ProjectDescriptor = serde_yaml::from_str(&yaml).map_err(|e| {
                 anyhow::anyhow!("invalid project.yaml at {}: {e}", descriptor_path.display())
             })?;

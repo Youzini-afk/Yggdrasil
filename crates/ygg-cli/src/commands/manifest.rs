@@ -1,14 +1,17 @@
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use ygg_core::PackageManifest;
 
 pub(crate) async fn read_manifest(path: PathBuf) -> Result<PackageManifest> {
-    let raw = fs::read_to_string(&path)?;
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("failed to read package manifest {}", path.display()))?;
     let manifest = match path.extension().and_then(|ext| ext.to_str()) {
-        Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)?,
-        _ => serde_json::from_str(&raw)?,
+        Some("yaml") | Some("yml") => serde_yaml::from_str(&raw)
+            .with_context(|| format!("failed to parse YAML package manifest {}", path.display()))?,
+        _ => serde_json::from_str(&raw)
+            .with_context(|| format!("failed to parse JSON package manifest {}", path.display()))?,
     };
     Ok(manifest)
 }

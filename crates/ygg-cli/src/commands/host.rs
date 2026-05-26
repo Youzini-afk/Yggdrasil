@@ -65,12 +65,18 @@ pub(crate) async fn host_serve(
     access_token: Option<String>,
 ) -> Result<()> {
     if let Some(data_dir) = data_dir.as_ref() {
+        println!("host data dir: {}", data_dir.display());
         std::env::set_var("YGG_DATA_DIR", data_dir);
-        ygg_core::paths::ensure_initialized()?;
+        ygg_core::paths::ensure_initialized().with_context(|| {
+            format!("failed to initialize data directory {}", data_dir.display())
+        })?;
     }
     if let Some(profile_path) = profile {
-        let raw = fs::read_to_string(&profile_path)?;
-        let profile: HostProfile = serde_yaml::from_str(&raw)?;
+        println!("host profile: {}", profile_path.display());
+        let raw = fs::read_to_string(&profile_path)
+            .with_context(|| format!("failed to read host profile {}", profile_path.display()))?;
+        let profile: HostProfile = serde_yaml::from_str(&raw)
+            .with_context(|| format!("failed to parse host profile {}", profile_path.display()))?;
         let mut runtime_config = runtime_config_from_profile(&profile)?;
         register_profile_package_roots(&mut runtime_config, &profile, Some(&profile_path)).await?;
         match &profile.event_store {
@@ -195,7 +201,12 @@ async fn register_profile_package_roots(
         } else {
             base.join(manifest_path)
         };
-        let manifest = read_manifest(resolved.clone()).await?;
+        let manifest = read_manifest(resolved.clone()).await.with_context(|| {
+            format!(
+                "failed to register package root from manifest {}",
+                resolved.display()
+            )
+        })?;
         if let Some(parent) = resolved.parent() {
             let root = std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
             config.package_roots.insert(manifest.id.clone(), root);
@@ -567,8 +578,10 @@ pub(crate) async fn load_host_profile<S>(
 where
     S: EventStore,
 {
-    let raw = fs::read_to_string(&profile_path)?;
-    let profile: HostProfile = serde_yaml::from_str(&raw)?;
+    let raw = fs::read_to_string(&profile_path)
+        .with_context(|| format!("failed to read host profile {}", profile_path.display()))?;
+    let profile: HostProfile = serde_yaml::from_str(&raw)
+        .with_context(|| format!("failed to parse host profile {}", profile_path.display()))?;
     load_profile_packages(runtime, profile, profile_path).await
 }
 
@@ -593,7 +606,9 @@ where
         } else {
             base.join(manifest_path)
         };
-        let manifest = read_manifest(resolved).await?;
+        let manifest = read_manifest(resolved.clone()).await.with_context(|| {
+            format!("failed to autoload package manifest {}", resolved.display())
+        })?;
         let record = runtime.load_package(manifest).await?;
         println!(
             "autoloaded package: {}@{} ({:?})",
