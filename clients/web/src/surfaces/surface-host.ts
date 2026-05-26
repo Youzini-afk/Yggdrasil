@@ -30,6 +30,11 @@ const MAX_CAPABILITY_ID_LENGTH = 256;
 const MAX_OWNED_STREAMS = 32;
 const MAX_SUBSCRIPTIONS = 8;
 
+// The surface frame is sandboxed without allow-same-origin, so its origin is
+// opaque and host->iframe postMessage cannot use the host origin as the target.
+// Every host->surface message sent with "*" carries bridge_token instead.
+const HOST_TO_SURFACE_TARGET_ORIGIN = '*';
+
 export interface SurfaceHostOptions {
   containerId: string;
   surfaceId: string;
@@ -42,7 +47,7 @@ export interface SurfaceHostOptions {
 }
 
 export interface SurfaceHostBridge {
-  currentSessionId: string;
+  currentSessionId?: string;
   allowedCapabilityIds?: Iterable<string>;
   callRpc?(method: string, params: unknown): Promise<unknown>;
   subscribeEvents?(callback: (event: unknown) => void): () => void;
@@ -56,15 +61,22 @@ export interface SurfaceHostHandle {
 
 interface MountMessage {
   type: 'mount';
+  bridge_token: string;
   bundleUrl: string;
   exportName: string;
   wrapperClass?: string;
-  initialProps?: unknown;
+  initialProps: Record<string, unknown>;
   stylesheets?: string[];
+}
+
+interface UnmountMessage {
+  type: 'unmount';
+  bridge_token: string;
 }
 
 interface RpcCallMessage {
   type: 'rpc.call';
+  bridge_token?: string;
   id: string;
   method: string;
   params: unknown;
@@ -72,6 +84,7 @@ interface RpcCallMessage {
 
 interface RpcResultMessage {
   type: 'rpc.result';
+  bridge_token: string;
   id: string;
   result?: unknown;
   error?: { code: string; message: string };
@@ -83,18 +96,23 @@ interface ReadyMessage {
 
 interface StreamSubscribeMessage {
   type: 'stream.subscribe';
+  bridge_token?: string;
   id: string;
   stream_id: string;
-  session_id?: string;
+  session_id: string;
 }
 
 interface StreamUnsubscribeMessage {
   type: 'stream.unsubscribe';
+  bridge_token?: string;
+  session_id?: string;
   subscription_id: string;
 }
 
 interface StreamFrameMessage {
   type: 'stream.frame';
+  bridge_token: string;
+  session_id: string;
   subscription_id: string;
   kind: 'started' | 'chunk' | 'progress';
   payload: unknown;
@@ -102,17 +120,22 @@ interface StreamFrameMessage {
 
 interface StreamEndedMessage {
   type: 'stream.ended';
+  bridge_token: string;
+  session_id: string;
   subscription_id: string;
 }
 
 interface StreamErrorMessage {
   type: 'stream.error';
+  bridge_token: string;
+  session_id: string;
   subscription_id: string;
   error: { code: string; message: string };
 }
 
 type SurfaceMessage =
   | MountMessage
+  | UnmountMessage
   | RpcCallMessage
   | RpcResultMessage
   | ReadyMessage
@@ -132,6 +155,12 @@ interface SurfaceBridgeState {
   ownedInvocations: Map<string, OwnedStreamRecord>;
 }
 
+interface ActiveSubscriptionRecord {
+  bridgeToken: string;
+  sessionId: string;
+  close: () => void;
+}
+
 export class SurfaceBridgeError extends Error {
   constructor(
     readonly code: string,
@@ -144,6 +173,10 @@ export class SurfaceBridgeError extends Error {
 export async function mountSurface(options: SurfaceHostOptions): Promise<SurfaceHostHandle> {
   const container = document.getElementById(options.containerId);
   if (!container) throw new Error(`SurfaceHost: container ${options.containerId} not found`);
+
+  const bridgeToken = createBridgeToken();
+  const currentSessionId = options.hostBridge?.currentSessionId;
+  const initialProps = createMountInitialProps(options.initialProps, options.hostBridge, bridgeToken);
 
   const iframe = document.createElement('iframe');
   iframe.className = 'ygg-surface-iframe';
@@ -174,12 +207,13 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
   // Send mount instruction
   iframe.contentWindow!.postMessage({
     type: 'mount',
+    bridge_token: bridgeToken,
     bundleUrl: options.bundleUrl,
     exportName: options.exportName,
     wrapperClass: options.wrapperClass,
-    initialProps: options.initialProps,
+    initialProps,
     stylesheets: options.stylesheets,
-  } satisfies MountMessage, '*');
+  } satisfies MountMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
 
   const bridgeState = createSurfaceBridgeState();
 
@@ -188,45 +222,53 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
     if (e.source !== iframe.contentWindow) return;
     const msg = e.data as SurfaceMessage;
     if (msg.type !== 'rpc.call') return;
+    if (!isAuthorizedSurfaceMessage(e.source, iframe.contentWindow, msg, bridgeToken)) return;
     if (!options.hostBridge?.callRpc) {
       iframe.contentWindow!.postMessage({
         type: 'rpc.result',
+        bridge_token: bridgeToken,
         id: msg.id,
         error: { code: 'no_bridge', message: 'host did not configure RPC bridge' },
-      } satisfies RpcResultMessage, '*');
+      } satisfies RpcResultMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
       return;
     }
     try {
       const result = await callBridgeRpc(options.hostBridge, msg, bridgeState);
       iframe.contentWindow!.postMessage({
         type: 'rpc.result',
+        bridge_token: bridgeToken,
         id: safeResponseId(msg.id),
         result,
-      } satisfies RpcResultMessage, '*');
+      } satisfies RpcResultMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
     } catch (err) {
       const code = err instanceof SurfaceBridgeError ? err.code : 'rpc_denied';
       iframe.contentWindow!.postMessage({
         type: 'rpc.result',
+        bridge_token: bridgeToken,
         id: safeResponseId(msg.id),
         error: {
           code,
           message: sanitizedBridgeMessage(code),
         },
-      } satisfies RpcResultMessage, '*');
+      } satisfies RpcResultMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
     }
   };
   window.addEventListener('message', bridgeListener);
 
   // Wire stream subscriptions from surface to session SSE events.
-  const activeSubs = new Map<string, () => void>();
+  const activeSubs = new Map<string, ActiveSubscriptionRecord>();
   const streamListener = async (e: MessageEvent) => {
     if (e.source !== iframe.contentWindow) return;
     const msg = e.data as SurfaceMessage;
 
     if (msg.type === 'stream.subscribe') {
-      await handleStreamSubscribe(msg, iframe, options.hostBridge, activeSubs, bridgeState.ownedStreams);
+      if (!isAuthorizedSurfaceMessage(e.source, iframe.contentWindow, msg, bridgeToken)) return;
+      if (msg.session_id !== currentSessionId) return;
+      await handleStreamSubscribe(msg, iframe, options.hostBridge, activeSubs, bridgeState.ownedStreams, bridgeToken);
     } else if (msg.type === 'stream.unsubscribe') {
-      handleStreamUnsubscribe(msg, activeSubs);
+      if (!isAuthorizedSurfaceMessage(e.source, iframe.contentWindow, msg, bridgeToken)) return;
+      if (msg.session_id !== currentSessionId) return;
+      handleStreamUnsubscribe(msg, activeSubs, bridgeToken, currentSessionId);
     }
   };
   window.addEventListener('message', streamListener);
@@ -235,11 +277,11 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
     surfaceId: options.surfaceId,
     iframe,
     async unmount() {
-      iframe.contentWindow?.postMessage({ type: 'unmount' }, '*');
+      iframe.contentWindow?.postMessage({ type: 'unmount', bridge_token: bridgeToken } satisfies UnmountMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
       await new Promise((resolve) => setTimeout(resolve, 50));
       window.removeEventListener('message', bridgeListener);
       window.removeEventListener('message', streamListener);
-      for (const close of activeSubs.values()) close();
+      for (const subscription of activeSubs.values()) subscription.close();
       activeSubs.clear();
       iframe.remove();
     },
@@ -275,6 +317,85 @@ export function canSubscribeSurfaceStreamForTest(
   if (active.size >= MAX_SUBSCRIPTIONS) return { ok: false, code: 'limit_exceeded' };
   if (!new Set(ownedStreamIds).has(streamId)) return { ok: false, code: 'not_owned' };
   return { ok: true };
+}
+
+export function createMountInitialPropsForTest(
+  initialProps: unknown,
+  hostBridge: Pick<SurfaceHostBridge, 'currentSessionId'> | undefined,
+  bridgeToken: string,
+): Record<string, unknown> {
+  return createMountInitialProps(initialProps, hostBridge, bridgeToken);
+}
+
+export function isAuthorizedSurfaceMessageForTest(
+  eventSource: MessageEvent['source'],
+  expectedSource: Window | null,
+  message: { bridge_token?: string },
+  bridgeToken: string,
+): boolean {
+  return isAuthorizedSurfaceMessage(eventSource, expectedSource, message, bridgeToken);
+}
+
+export function createRpcResultMessageForTest(
+  id: string,
+  bridgeToken: string,
+  result: unknown,
+): RpcResultMessage {
+  return {
+    type: 'rpc.result',
+    bridge_token: bridgeToken,
+    id: safeResponseId(id),
+    result,
+  };
+}
+
+export function createStreamFrameMessageForTest(
+  subscriptionId: string,
+  kind: StreamFrameMessage['kind'],
+  payload: unknown,
+  bridgeToken: string,
+  sessionId: string,
+): StreamFrameMessage {
+  return createStreamFrameMessage(subscriptionId, kind, payload, bridgeToken, sessionId);
+}
+
+function createMountInitialProps(
+  initialProps: unknown,
+  hostBridge: Pick<SurfaceHostBridge, 'currentSessionId'> | undefined,
+  bridgeToken: string,
+): Record<string, unknown> {
+  const props: Record<string, unknown> = isPlainRecord(initialProps) ? { ...initialProps } : {};
+  if (hostBridge?.currentSessionId) {
+    props.sessionId = hostBridge.currentSessionId;
+    props.session_id = hostBridge.currentSessionId;
+  }
+  props.targetOrigin = window.location.origin;
+  props.bridgeToken = bridgeToken;
+  props.bridge_token = bridgeToken;
+  return props;
+}
+
+function createBridgeToken(): string {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === 'function') return cryptoApi.randomUUID();
+  if (typeof cryptoApi?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return `bridge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isAuthorizedSurfaceMessage(
+  eventSource: MessageEvent['source'],
+  expectedSource: Window | null,
+  message: { bridge_token?: string },
+  bridgeToken: string,
+): boolean {
+  return eventSource === expectedSource && message.bridge_token === bridgeToken;
 }
 
 function safeResponseId(value: unknown): string {
@@ -393,8 +514,12 @@ function sanitizeCancelParams(
   if (invocationId && !ownedInvocations.has(invocationId)) {
     throw new SurfaceBridgeError('not_owned', 'invocation not owned');
   }
+  const sessionId = hostBridge.currentSessionId;
+  if (!isBoundedString(sessionId, MAX_ID_LENGTH)) {
+    throw new SurfaceBridgeError('invalid_request', 'invalid session');
+  }
   return {
-    session_id: hostBridge.currentSessionId,
+    session_id: sessionId,
     ...(streamId ? { stream_id: streamId } : {}),
     ...(invocationId ? { invocation_id: invocationId } : {}),
   };
@@ -454,20 +579,24 @@ async function handleStreamSubscribe(
   msg: StreamSubscribeMessage,
   iframe: HTMLIFrameElement,
   hostBridge: SurfaceHostBridge | undefined,
-  activeSubs: Map<string, () => void>,
+  activeSubs: Map<string, ActiveSubscriptionRecord>,
   ownedStreams: Map<string, OwnedStreamRecord>,
+  bridgeToken: string,
 ) {
+  const sessionId = hostBridge?.currentSessionId ?? '';
   if (!hostBridge?.subscribeEvents) {
     iframe.contentWindow?.postMessage({
       type: 'stream.error',
+      bridge_token: bridgeToken,
+      session_id: sessionId,
       subscription_id: msg.id,
       error: { code: 'no_bridge', message: 'host did not configure event subscription bridge' },
-    } satisfies StreamErrorMessage, '*');
+    } satisfies StreamErrorMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
     return;
   }
   const decision = canSubscribeSurfaceStreamForTest(msg.id, msg.stream_id, activeSubs.keys(), ownedStreams.keys());
   if (!decision.ok) {
-    postStreamError(iframe, safeResponseId(msg.id), decision.code);
+    postStreamError(iframe, safeResponseId(msg.id), decision.code, bridgeToken, sessionId);
     return;
   }
 
@@ -480,34 +609,30 @@ async function handleStreamSubscribe(
       if (payloadStreamId(ev.payload) !== msg.stream_id) return;
 
       if (kind === 'kernel/v1/stream.started') {
-        iframe.contentWindow?.postMessage({
-          type: 'stream.frame',
-          subscription_id: msg.id,
-          kind: 'started',
-          payload: ev.payload,
-        } satisfies StreamFrameMessage, '*');
+        iframe.contentWindow?.postMessage(
+          createStreamFrameMessage(msg.id, 'started', ev.payload, bridgeToken, sessionId),
+          HOST_TO_SURFACE_TARGET_ORIGIN,
+        );
       } else if (kind === 'kernel/v1/stream.chunk') {
-        iframe.contentWindow?.postMessage({
-          type: 'stream.frame',
-          subscription_id: msg.id,
-          kind: 'chunk',
-          payload: ev.payload,
-        } satisfies StreamFrameMessage, '*');
+        iframe.contentWindow?.postMessage(
+          createStreamFrameMessage(msg.id, 'chunk', ev.payload, bridgeToken, sessionId),
+          HOST_TO_SURFACE_TARGET_ORIGIN,
+        );
       } else if (kind === 'kernel/v1/stream.progress') {
-        iframe.contentWindow?.postMessage({
-          type: 'stream.frame',
-          subscription_id: msg.id,
-          kind: 'progress',
-          payload: ev.payload,
-        } satisfies StreamFrameMessage, '*');
+        iframe.contentWindow?.postMessage(
+          createStreamFrameMessage(msg.id, 'progress', ev.payload, bridgeToken, sessionId),
+          HOST_TO_SURFACE_TARGET_ORIGIN,
+        );
       } else if (kind === 'kernel/v1/stream.ended') {
         iframe.contentWindow?.postMessage({
           type: 'stream.ended',
+          bridge_token: bridgeToken,
+          session_id: sessionId,
           subscription_id: msg.id,
-        } satisfies StreamEndedMessage, '*');
-        const c = activeSubs.get(msg.id);
-        if (c) {
-          c();
+        } satisfies StreamEndedMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
+        const active = activeSubs.get(msg.id);
+        if (active?.bridgeToken === bridgeToken && active.sessionId === sessionId) {
+          active.close();
           activeSubs.delete(msg.id);
         }
       } else if (
@@ -517,42 +642,73 @@ async function handleStreamSubscribe(
       ) {
         iframe.contentWindow?.postMessage({
           type: 'stream.error',
+          bridge_token: bridgeToken,
+          session_id: sessionId,
           subscription_id: msg.id,
           error: { code: kind, message: 'Stream failed' },
-        } satisfies StreamErrorMessage, '*');
-        const c = activeSubs.get(msg.id);
-        if (c) {
-          c();
+        } satisfies StreamErrorMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
+        const active = activeSubs.get(msg.id);
+        if (active?.bridgeToken === bridgeToken && active.sessionId === sessionId) {
+          active.close();
           activeSubs.delete(msg.id);
         }
       }
     });
-    activeSubs.set(msg.id, close);
+    activeSubs.set(msg.id, { bridgeToken, sessionId, close });
   } catch (err) {
     iframe.contentWindow?.postMessage({
       type: 'stream.error',
+      bridge_token: bridgeToken,
+      session_id: sessionId,
       subscription_id: msg.id,
       error: { code: 'subscribe_failed', message: 'Stream subscription failed' },
-    } satisfies StreamErrorMessage, '*');
+    } satisfies StreamErrorMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
     close();
   }
 }
 
-function postStreamError(iframe: HTMLIFrameElement, subscriptionId: string, code: string) {
+function createStreamFrameMessage(
+  subscriptionId: string,
+  kind: StreamFrameMessage['kind'],
+  payload: unknown,
+  bridgeToken: string,
+  sessionId: string,
+): StreamFrameMessage {
+  return {
+    type: 'stream.frame',
+    bridge_token: bridgeToken,
+    session_id: sessionId,
+    subscription_id: subscriptionId,
+    kind,
+    payload,
+  };
+}
+
+function postStreamError(
+  iframe: HTMLIFrameElement,
+  subscriptionId: string,
+  code: string,
+  bridgeToken: string,
+  sessionId: string,
+) {
   iframe.contentWindow?.postMessage({
     type: 'stream.error',
+    bridge_token: bridgeToken,
+    session_id: sessionId,
     subscription_id: subscriptionId,
     error: { code, message: sanitizedBridgeMessage(code) },
-  } satisfies StreamErrorMessage, '*');
+  } satisfies StreamErrorMessage, HOST_TO_SURFACE_TARGET_ORIGIN);
 }
 
 function handleStreamUnsubscribe(
   msg: StreamUnsubscribeMessage,
-  activeSubs: Map<string, () => void>,
+  activeSubs: Map<string, ActiveSubscriptionRecord>,
+  bridgeToken: string,
+  sessionId: string | undefined,
 ) {
-  const close = activeSubs.get(msg.subscription_id);
-  if (close) {
-    close();
+  const active = activeSubs.get(msg.subscription_id);
+  if (active?.bridgeToken === bridgeToken && active.sessionId === sessionId) {
+    active.close();
     activeSubs.delete(msg.subscription_id);
   }
 }

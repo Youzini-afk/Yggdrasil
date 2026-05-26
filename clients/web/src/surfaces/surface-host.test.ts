@@ -1,7 +1,11 @@
 import {
   callSurfaceBridgeForTest,
   canSubscribeSurfaceStreamForTest,
+  createMountInitialPropsForTest,
+  createRpcResultMessageForTest,
   createSurfaceBridgeState,
+  createStreamFrameMessageForTest,
+  isAuthorizedSurfaceMessageForTest,
   SurfaceBridgeError,
   type SurfaceHostBridge,
 } from "./surface-host";
@@ -16,6 +20,10 @@ function assertDeepEqual(actual: unknown, expected: unknown) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
+}
+
+function assertOk(value: unknown, message: string) {
+  if (!value) throw new Error(message);
 }
 
 async function rejectsWithCode(promise: Promise<unknown>, code: string) {
@@ -42,6 +50,56 @@ const bridge: SurfaceHostBridge = {
     return { ok: true };
   },
 };
+
+const testWindow = { location: { origin: "http://localhost" } } as Window;
+Object.defineProperty(globalThis, "window", { value: testWindow, configurable: true });
+
+const mountProps = createMountInitialPropsForTest({ projectId: "project-1", sessionId: "old-session" }, bridge, "token-1");
+assertDeepEqual(mountProps, {
+  projectId: "project-1",
+  sessionId: "session-current",
+  session_id: "session-current",
+  targetOrigin: window.location.origin,
+  bridgeToken: "token-1",
+  bridge_token: "token-1",
+});
+
+const nonObjectMountProps = createMountInitialPropsForTest("not-object", undefined, "token-2");
+assertDeepEqual(nonObjectMountProps, {
+  targetOrigin: window.location.origin,
+  bridgeToken: "token-2",
+  bridge_token: "token-2",
+});
+
+const expectedSource = testWindow;
+assertOk(
+  isAuthorizedSurfaceMessageForTest(testWindow, expectedSource, { bridge_token: "token-1" }, "token-1"),
+  "expected matching source/token to authorize",
+);
+assertOk(
+  !isAuthorizedSurfaceMessageForTest(testWindow, expectedSource, { bridge_token: "wrong-token" }, "token-1"),
+  "expected wrong rpc.call token to be ignored",
+);
+assertOk(
+  !isAuthorizedSurfaceMessageForTest(null, expectedSource, { bridge_token: "token-1" }, "token-1"),
+  "expected wrong rpc.call source to be ignored",
+);
+
+assertDeepEqual(createRpcResultMessageForTest("rpc-1", "token-1", { ok: true }), {
+  type: "rpc.result",
+  bridge_token: "token-1",
+  id: "rpc-1",
+  result: { ok: true },
+});
+
+assertDeepEqual(createStreamFrameMessageForTest("sub-1", "chunk", { stream_id: "stream-1" }, "token-1", "session-current"), {
+  type: "stream.frame",
+  bridge_token: "token-1",
+  session_id: "session-current",
+  subscription_id: "sub-1",
+  kind: "chunk",
+  payload: { stream_id: "stream-1" },
+});
 
 await rejectsWithCode(
   callSurfaceBridgeForTest(bridge, { id: "1", method: "kernel.v1.install.execute", params: {} }),

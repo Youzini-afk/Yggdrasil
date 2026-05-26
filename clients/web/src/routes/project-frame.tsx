@@ -57,7 +57,7 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           exportName: bundle.exportName,
           stylesheets: bundle.stylesheets,
           wrapperClass: bundle.wrapperClass,
-          initialProps: { sessionId, projectId },
+          initialProps: { projectId },
           hostBridge: {
             currentSessionId: sessionId,
             allowedCapabilityIds,
