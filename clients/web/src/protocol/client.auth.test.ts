@@ -13,6 +13,14 @@ function assertEqual<T>(actual: T, expected: T) {
   }
 }
 
+function assertDeepEqual(actual: unknown, expected: unknown) {
+  const actualJson = JSON.stringify(actual);
+  const expectedJson = JSON.stringify(expected);
+  if (actualJson !== expectedJson) {
+    throw new Error(`expected ${expectedJson}, got ${actualJson}`);
+  }
+}
+
 async function rejectsWithHttpStatus(promise: Promise<unknown>, status: number) {
   try {
     await promise;
@@ -107,6 +115,58 @@ globalThis.fetch = (async () =>
   })) as typeof fetch;
 
 await rejectsWithHttpStatus(new YggProtocolClient("http://host.test", "bad-token").diagnostics(), 401);
+
+const capturedRequests: unknown[] = [];
+globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+  const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+  capturedRequests.push(body);
+
+  if (body?.method === "kernel.v1.session.open") {
+    return Response.json({ id: body.id, result: { id: "install-session" } });
+  }
+
+  if (body?.method === "kernel.v1.capability.invoke") {
+    return Response.json({
+      id: body.id,
+      result: {
+        capability_id: body.params.capability_id,
+        correlation_id: "corr-1",
+        duration_ms: 1,
+        provider_package_id: body.params.provider_package_id,
+        output: {
+          plan: {
+            root_id: "official/test-project",
+            packages: [],
+            permissions_summary: {
+              new_capabilities: [],
+              new_network_hosts: [],
+              new_secret_refs: [],
+            },
+            signature_summary: {
+              all_signed: false,
+              unsigned_packages: [],
+            },
+            integrity_summary: {
+              manifest_hashes_match_lockfile: true,
+              drift_detected: [],
+            },
+          },
+        },
+      },
+    });
+  }
+
+  throw new Error(`unexpected method ${body?.method}`);
+}) as typeof fetch;
+
+await new YggProtocolClient("http://host.test", "valid-token").resolveInstallPlan({
+  root_url: "https://github.com/Youzini-afk/Yggdrasil-Tavern",
+});
+
+const sessionOpenRequest = capturedRequests[0] as { method?: string; params?: Record<string, unknown> };
+assertEqual(sessionOpenRequest.method, "kernel.v1.session.open");
+assertDeepEqual(sessionOpenRequest.params?.active_package_set, ["official/install-lab"]);
+assertDeepEqual(sessionOpenRequest.params?.labels, ["install", "official/install-lab"]);
 
 globalThis.fetch = originalFetch;
 Object.defineProperty(globalThis, "crypto", {

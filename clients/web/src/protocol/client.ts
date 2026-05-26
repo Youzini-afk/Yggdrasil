@@ -448,8 +448,12 @@ export class YggProtocolClient {
     };
   }
 
-  openSession(labels: string[] = [], metadata: Record<string, unknown> = {}) {
-    return this.call<{ id: string }>("kernel.v1.session.open", { labels, metadata });
+  openSession(labels: string[] = [], metadata: Record<string, unknown> = {}, activePackageSet: string[] = []) {
+    return this.call<{ id: string }>("kernel.v1.session.open", {
+      active_package_set: activePackageSet,
+      labels,
+      metadata,
+    });
   }
 
   forkSession(parentSessionId: string, forkedFromSequence: number, metadata: Record<string, unknown> = {}) {
@@ -478,7 +482,7 @@ export class YggProtocolClient {
     const session = await this.openSession(["install", "official/install-lab"], {
       source: "clients/web",
       capability_id: capabilityId,
-    });
+    }, [INSTALL_LAB_PROVIDER]);
     const result = await this.invokeCapability<TOutput>(capabilityId, input, INSTALL_LAB_PROVIDER, session.id);
     return result.output;
   }
