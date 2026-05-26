@@ -54,10 +54,11 @@ pub(super) async fn execute_plan(input: Value) -> Result<Value> {
                         .commit_sha
                         .as_deref()
                         .context("git package missing commit_sha")?;
+                    let ref_name = pkg.ref_name.as_deref().unwrap_or(commit);
                     invoke_package_capability(
                         "official/git-tools-lab",
                         "official/git-tools-lab/fetch_tree",
-                        json!({ "remote_url": url, "commit_sha": commit, "dest_dir": staging.to_string_lossy() }),
+                        json!({ "remote_url": url, "commit_sha": commit, "ref_name": ref_name, "dest_dir": staging.to_string_lossy() }),
                     )
                     .await?;
                     fs::rename(&staging, &store_path).with_context(|| {

@@ -34,6 +34,8 @@ struct FetchRefsInput {
 struct FetchTreeInput {
     remote_url: String,
     commit_sha: String,
+    #[serde(default)]
+    ref_name: Option<String>,
     dest_dir: String,
 }
 
@@ -49,6 +51,7 @@ struct RemoteRef {
     sha: String,
     kind: RefKind,
     tag_object: Option<String>,
+    symbolic_target: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,20 +121,44 @@ fn resolve_ref(input: Value) -> Result<Value> {
         format!("refs/tags/{wanted}"),
     ];
 
-    let resolved = refs
-        .iter()
-        .find(|remote_ref| {
-            candidates
-                .iter()
-                .any(|candidate| candidate == &remote_ref.name)
-        })
+    let resolved = resolve_remote_ref(&refs, wanted, &candidates)
         .with_context(|| format!("ref '{wanted}' not found on remote"))?;
+    let resolved_name = resolved
+        .symbolic_target
+        .as_deref()
+        .unwrap_or(&resolved.name);
 
     Ok(serde_json::json!({
         "commit_sha": resolved.sha,
         "ref_kind": resolved.kind.as_str(),
-        "ref_name": resolved.name,
+        "ref_name": resolved_name,
     }))
+}
+
+fn resolve_remote_ref<'a>(
+    refs: &'a [RemoteRef],
+    wanted: &str,
+    candidates: &[String],
+) -> Option<&'a RemoteRef> {
+    if wanted.is_empty() || wanted == "HEAD" {
+        return refs
+            .iter()
+            .find(|remote_ref| remote_ref.name == "HEAD")
+            .or_else(|| {
+                refs.iter()
+                    .find(|remote_ref| remote_ref.name == "refs/heads/main")
+            })
+            .or_else(|| {
+                refs.iter()
+                    .find(|remote_ref| remote_ref.name == "refs/heads/master")
+            });
+    }
+
+    refs.iter().find(|remote_ref| {
+        candidates
+            .iter()
+            .any(|candidate| candidate == &remote_ref.name)
+    })
 }
 
 fn fetch_refs(input: Value) -> Result<Value> {
@@ -180,7 +207,8 @@ fn fetch_tree(input: Value) -> Result<Value> {
 
     let outcome = (|| -> Result<Value> {
         let repo_tmp = parent.join(format!("{file_name}.repo.tmp.{}", Uuid::new_v4()));
-        let repo = clone_shallow(&input.remote_url, &input.commit_sha, &repo_tmp)?;
+        let fetch_ref = input.ref_name.as_deref().unwrap_or(&input.commit_sha);
+        let repo = clone_shallow(&input.remote_url, fetch_ref, &repo_tmp)?;
         let commit_id = gix::ObjectId::from_hex(input.commit_sha.as_bytes())?;
         let commit = repo.find_object(commit_id)?.peel_to_commit()?;
         let tree = commit.tree()?;
@@ -300,12 +328,26 @@ fn remote_ref_from_gix(remote_ref: &gix::protocol::handshake::Ref) -> Option<Rem
             full_ref_name,
             tag,
             object,
-            ..
-        } => classify_remote_ref(
-            full_ref_name.as_bstr(),
-            object.to_string(),
-            tag.as_ref().map(ToString::to_string),
-        ),
+            target,
+        } => {
+            let name = bstr_to_string(full_ref_name.as_bstr());
+            let symbolic_target = bstr_to_string(target.as_bstr());
+            if name == "HEAD" && symbolic_target.starts_with("refs/heads/") {
+                Some(RemoteRef {
+                    name,
+                    sha: object.to_string(),
+                    kind: RefKind::Branch,
+                    tag_object: tag.as_ref().map(ToString::to_string),
+                    symbolic_target: Some(symbolic_target),
+                })
+            } else {
+                classify_remote_ref(
+                    full_ref_name.as_bstr(),
+                    object.to_string(),
+                    tag.as_ref().map(ToString::to_string),
+                )
+            }
+        }
         gix::protocol::handshake::Ref::Unborn { .. } => None,
     }
 }
@@ -322,6 +364,7 @@ fn classify_remote_ref(
             sha,
             kind: RefKind::Branch,
             tag_object: None,
+            symbolic_target: None,
         })
     } else if name.starts_with("refs/tags/") {
         Some(RemoteRef {
@@ -329,29 +372,21 @@ fn classify_remote_ref(
             sha,
             kind: RefKind::Tag,
             tag_object,
+            symbolic_target: None,
         })
     } else {
         None
     }
 }
 
-fn clone_shallow(remote_url: &str, ref_name: &str, path: &Path) -> Result<gix::Repository> {
-    let mut prep = gix::prepare_clone(remote_url, path)?
-        .with_ref_name(Some(ref_name))?
-        .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
-            std::num::NonZeroU32::new(1).expect("non-zero"),
-        ))
-        .configure_remote(|remote| {
-            remote
-                .with_refspecs(
-                    [
-                        "+refs/heads/*:refs/remotes/origin/*",
-                        "+refs/tags/*:refs/tags/*",
-                    ],
-                    gix::remote::Direction::Fetch,
-                )
-                .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
-        });
+fn clone_shallow(remote_url: &str, _ref_name: &str, path: &Path) -> Result<gix::Repository> {
+    // We only need the object database so `fetch_tree` can read `commit_sha` and
+    // write its tree. Avoid `prepare_clone(...).with_ref_name(...)`: the gix
+    // 0.83 clone helper has a name-only refspec panic path for HEAD/default
+    // branch fetches. A bare full fetch is slower than a shallow single-branch
+    // clone, but it is deterministic and avoids treating package installation as
+    // a branch checkout operation.
+    let mut prep = gix::prepare_clone_bare(remote_url, path)?;
     let interrupt = AtomicBool::new(false);
     let (repo, _) = prep.fetch_only(gix::progress::Discard, &interrupt)?;
     Ok(repo)
@@ -484,5 +519,110 @@ mod tests {
     #[test]
     fn rejects_parent_components() {
         assert!(validate_dest_dir(Path::new("/tmp/../repo")).is_err());
+    }
+
+    #[test]
+    fn resolves_head_to_symbolic_default_branch() {
+        let refs = vec![
+            remote_branch(
+                "refs/heads/main",
+                "1111111111111111111111111111111111111111",
+            ),
+            RemoteRef {
+                name: "HEAD".to_string(),
+                sha: "2222222222222222222222222222222222222222".to_string(),
+                kind: RefKind::Branch,
+                tag_object: None,
+                symbolic_target: Some("refs/heads/trunk".to_string()),
+            },
+            remote_branch(
+                "refs/heads/trunk",
+                "2222222222222222222222222222222222222222",
+            ),
+        ];
+        let candidates = [
+            "HEAD".to_string(),
+            "refs/heads/HEAD".to_string(),
+            "refs/tags/HEAD".to_string(),
+        ];
+        let resolved = resolve_remote_ref(&refs, "HEAD", &candidates).expect("HEAD resolves");
+        assert_eq!(resolved.name, "HEAD");
+        assert_eq!(
+            resolved.symbolic_target.as_deref(),
+            Some("refs/heads/trunk")
+        );
+    }
+
+    #[test]
+    fn resolves_head_to_main_when_symbolic_head_missing() {
+        let refs = vec![
+            remote_branch(
+                "refs/heads/feature",
+                "1111111111111111111111111111111111111111",
+            ),
+            remote_branch(
+                "refs/heads/main",
+                "2222222222222222222222222222222222222222",
+            ),
+        ];
+        let candidates = [
+            "HEAD".to_string(),
+            "refs/heads/HEAD".to_string(),
+            "refs/tags/HEAD".to_string(),
+        ];
+        let resolved =
+            resolve_remote_ref(&refs, "HEAD", &candidates).expect("fallback main resolves");
+        assert_eq!(resolved.name, "refs/heads/main");
+    }
+
+    #[test]
+    fn resolves_head_to_master_when_main_missing() {
+        let refs = vec![
+            remote_branch(
+                "refs/heads/feature",
+                "1111111111111111111111111111111111111111",
+            ),
+            remote_branch(
+                "refs/heads/master",
+                "2222222222222222222222222222222222222222",
+            ),
+        ];
+        let candidates = [
+            "HEAD".to_string(),
+            "refs/heads/HEAD".to_string(),
+            "refs/tags/HEAD".to_string(),
+        ];
+        let resolved =
+            resolve_remote_ref(&refs, "HEAD", &candidates).expect("fallback master resolves");
+        assert_eq!(resolved.name, "refs/heads/master");
+    }
+
+    #[test]
+    fn resolves_explicit_branch_without_head_fallback() {
+        let refs = vec![
+            remote_branch(
+                "refs/heads/main",
+                "1111111111111111111111111111111111111111",
+            ),
+            remote_branch("refs/heads/dev", "2222222222222222222222222222222222222222"),
+        ];
+        let candidates = [
+            "dev".to_string(),
+            "refs/heads/dev".to_string(),
+            "refs/tags/dev".to_string(),
+        ];
+        let resolved =
+            resolve_remote_ref(&refs, "dev", &candidates).expect("explicit branch resolves");
+        assert_eq!(resolved.name, "refs/heads/dev");
+    }
+
+    fn remote_branch(name: &str, sha: &str) -> RemoteRef {
+        RemoteRef {
+            name: name.to_string(),
+            sha: sha.to_string(),
+            kind: RefKind::Branch,
+            tag_object: None,
+            symbolic_target: None,
+        }
     }
 }

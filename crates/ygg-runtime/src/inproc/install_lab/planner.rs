@@ -16,7 +16,8 @@ use super::source::{
 };
 use super::types::{
     Consent, InstallPlan, IntegritySummary, PackageDescriptor, PermissionsSummary, PlannedPackage,
-    PlannedPermissions, PlannedRequirement, ResolvePlanInput, SignatureSummary, SourceDescriptor,
+    PlannedPermissions, PlannedRequirement, ResolvePlanInput, ResolvedPackages, SignatureSummary,
+    SourceDescriptor,
 };
 
 const MAX_DEPTH: usize = 32;
@@ -44,6 +45,9 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
                 resolve_project_packages(
                     &canonical,
                     &descriptor,
+                    ProjectPackageSource::Local {
+                        path: project_root_path(&canonical),
+                    },
                     input.strict_conformance,
                     &mut visited,
                     &mut resolving,
@@ -55,6 +59,7 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
                     root,
                     input.require_signed,
                     input.strict_conformance,
+                    &mut project_descriptor,
                     &mut visited,
                     &mut resolving,
                     &mut stack,
@@ -67,6 +72,7 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
             root,
             input.require_signed,
             input.strict_conformance,
+            &mut project_descriptor,
             &mut visited,
             &mut resolving,
             &mut stack,
@@ -126,6 +132,7 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
 fn resolve_project_packages(
     project_root: &Path,
     descriptor: &ygg_core::ProjectDescriptor,
+    source: ProjectPackageSource,
     strict_conformance: bool,
     visited: &mut HashSet<String>,
     resolving: &mut HashSet<String>,
@@ -133,6 +140,7 @@ fn resolve_project_packages(
     plan: &mut Vec<PlannedPackage>,
 ) -> Result<()> {
     let tree_hash = block_on_current(compute_tree_hash(project_root))?;
+    let mut ignored_project_descriptor = None;
     for manifest_ref in &descriptor.project.packages {
         let relative = normalize_relative_manifest_path(manifest_ref)?;
         let manifest_path = project_root.join(&relative);
@@ -148,15 +156,15 @@ fn resolve_project_packages(
         let mut planned = planned_from_manifest(
             &manifest,
             package_root,
-            "local".to_string(),
-            None,
-            None,
-            Some(project_root.to_string_lossy().to_string()),
-            None,
+            source.source_kind().to_string(),
+            source.url().map(str::to_string),
+            source.ref_name().map(str::to_string),
+            source.path().map(str::to_string),
+            source.commit_sha().map(str::to_string),
             manifest_hash,
             tree_hash.clone(),
             Some(relative),
-            false,
+            source.signed(),
             None,
         );
         attach_conformance(&mut planned, package_root, strict_conformance)?;
@@ -164,6 +172,7 @@ fn resolve_project_packages(
             planned,
             false,
             strict_conformance,
+            &mut ignored_project_descriptor,
             visited,
             resolving,
             stack,
@@ -174,10 +183,72 @@ fn resolve_project_packages(
     Ok(())
 }
 
+#[derive(Clone)]
+enum ProjectPackageSource {
+    Local {
+        path: String,
+    },
+    Git {
+        url: String,
+        ref_name: String,
+        commit_sha: String,
+        signed: bool,
+    },
+}
+
+impl ProjectPackageSource {
+    fn source_kind(&self) -> &'static str {
+        match self {
+            Self::Local { .. } => "local",
+            Self::Git { .. } => "git",
+        }
+    }
+
+    fn url(&self) -> Option<&str> {
+        match self {
+            Self::Local { .. } => None,
+            Self::Git { url, .. } => Some(url),
+        }
+    }
+
+    fn ref_name(&self) -> Option<&str> {
+        match self {
+            Self::Local { .. } => None,
+            Self::Git { ref_name, .. } => Some(ref_name),
+        }
+    }
+
+    fn path(&self) -> Option<&str> {
+        match self {
+            Self::Local { path } => Some(path),
+            Self::Git { .. } => None,
+        }
+    }
+
+    fn commit_sha(&self) -> Option<&str> {
+        match self {
+            Self::Local { .. } => None,
+            Self::Git { commit_sha, .. } => Some(commit_sha),
+        }
+    }
+
+    fn signed(&self) -> bool {
+        match self {
+            Self::Local { .. } => false,
+            Self::Git { signed, .. } => *signed,
+        }
+    }
+}
+
+fn project_root_path(path: &Path) -> String {
+    path.to_string_lossy().to_string()
+}
+
 fn resolve_transitive(
     root: PackageDescriptor,
     require_signed: bool,
     strict_conformance: bool,
+    project_descriptor: &mut Option<ygg_core::ProjectDescriptor>,
     visited: &mut HashSet<String>,
     resolving: &mut HashSet<String>,
     stack: &mut Vec<String>,
@@ -199,22 +270,30 @@ fn resolve_transitive(
     }
 
     let resolved = resolve_one(root, require_signed, strict_conformance)?;
-    push_resolved_package(
-        resolved,
-        require_signed,
-        strict_conformance,
-        visited,
-        resolving,
-        stack,
-        plan,
-        max_depth,
-    )
+    if project_descriptor.is_none() {
+        *project_descriptor = resolved.project_descriptor;
+    }
+    for resolved in resolved.packages {
+        push_resolved_package(
+            resolved,
+            require_signed,
+            strict_conformance,
+            project_descriptor,
+            visited,
+            resolving,
+            stack,
+            plan,
+            max_depth,
+        )?;
+    }
+    Ok(())
 }
 
 fn push_resolved_package(
     resolved: PlannedPackage,
     require_signed: bool,
     strict_conformance: bool,
+    project_descriptor: &mut Option<ygg_core::ProjectDescriptor>,
     visited: &mut HashSet<String>,
     resolving: &mut HashSet<String>,
     stack: &mut Vec<String>,
@@ -243,6 +322,7 @@ fn push_resolved_package(
             next,
             require_signed,
             strict_conformance,
+            project_descriptor,
             visited,
             resolving,
             stack,
@@ -261,9 +341,12 @@ fn resolve_one(
     desc: PackageDescriptor,
     require_signed: bool,
     strict_conformance: bool,
-) -> Result<PlannedPackage> {
+) -> Result<ResolvedPackages> {
     match desc.source {
-        SourceDescriptor::Local { path } => resolve_local_package(path, strict_conformance),
+        SourceDescriptor::Local { path } => Ok(ResolvedPackages {
+            packages: vec![resolve_local_package(path, strict_conformance)?],
+            project_descriptor: None,
+        }),
         SourceDescriptor::Git { url, ref_name } => block_on_current(resolve_git_package(
             url,
             ref_name,
@@ -306,7 +389,7 @@ async fn resolve_git_package(
     ref_name: String,
     require_signed: bool,
     strict_conformance: bool,
-) -> Result<PlannedPackage> {
+) -> Result<ResolvedPackages> {
     let resolved = invoke_package_capability(
         "official/git-tools-lab",
         "official/git-tools-lab/resolve_ref",
@@ -314,18 +397,16 @@ async fn resolve_git_package(
     )
     .await?;
     let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
+    let resolved_ref_name = value_str(&resolved, "ref_name")?.to_string();
     let tmp = std::env::temp_dir().join(format!("yggdrasil-git-install-{}", Uuid::new_v4()));
     let fetch = invoke_package_capability(
         "official/git-tools-lab",
         "official/git-tools-lab/fetch_tree",
-        json!({ "remote_url": url, "commit_sha": commit_sha, "dest_dir": tmp.to_string_lossy() }),
+        json!({ "remote_url": url, "commit_sha": commit_sha, "ref_name": resolved_ref_name, "dest_dir": tmp.to_string_lossy() }),
     )
     .await?;
     let _git_tree_hash = value_str(&fetch, "tree_hash")?.to_string();
     let result = async {
-        let manifest_path = manifest_path_in(&tmp)?;
-        let manifest = parse_manifest_at(&manifest_path)?;
-        let manifest_hash = compute_manifest_hash(&manifest_path).await?;
         let tree_hash = compute_tree_hash(&tmp).await?;
         let mut signed = false;
         if require_signed {
@@ -340,14 +421,45 @@ async fn resolve_git_package(
             }
             signed = true;
         }
+        let project_yaml = tmp.join("project.yaml");
+        if project_yaml.is_file() {
+            let descriptor = parse_project_descriptor_at(&project_yaml)?;
+            let mut packages = Vec::new();
+            let mut visited = HashSet::new();
+            let mut resolving = HashSet::new();
+            let mut stack = Vec::new();
+            resolve_project_packages(
+                &tmp,
+                &descriptor,
+                ProjectPackageSource::Git {
+                    url: url.clone(),
+                    ref_name: resolved_ref_name.clone(),
+                    commit_sha: commit_sha.clone(),
+                    signed,
+                },
+                strict_conformance,
+                &mut visited,
+                &mut resolving,
+                &mut stack,
+                &mut packages,
+            )?;
+            return Ok(ResolvedPackages {
+                packages,
+                project_descriptor: Some(descriptor),
+            });
+        }
+
+        let manifest_path = manifest_path_in(&tmp)?;
+        let manifest = parse_manifest_at(&manifest_path)?;
+        let manifest_hash = compute_manifest_hash(&manifest_path).await?;
         let mut planned = planned_from_manifest(
             &manifest,
             manifest_path.parent().unwrap_or(&tmp),
             "git".to_string(),
-            Some(url),
-            Some(ref_name),
+            Some(url.clone()),
+            Some(resolved_ref_name.clone()),
             None,
-            Some(commit_sha),
+            Some(commit_sha.clone()),
             manifest_hash,
             tree_hash,
             None,
@@ -355,7 +467,10 @@ async fn resolve_git_package(
             None,
         );
         attach_conformance(&mut planned, &tmp, strict_conformance)?;
-        Ok(planned)
+        Ok(ResolvedPackages {
+            packages: vec![planned],
+            project_descriptor: None,
+        })
     }
     .await;
     fs::remove_dir_all(&tmp).ok();

@@ -130,6 +130,12 @@ pub(super) struct PlannedPackage {
     pub(super) conformance: Option<PackageConformanceReport>,
 }
 
+#[derive(Debug)]
+pub(super) struct ResolvedPackages {
+    pub(super) packages: Vec<PlannedPackage>,
+    pub(super) project_descriptor: Option<ProjectDescriptor>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(super) struct PlannedPermissions {
     #[serde(default)]

@@ -285,7 +285,9 @@ mod surface_tests {
     use std::sync::Arc;
 
     use crate::{InMemoryEventStore, ProjectRegistry, ProtocolContext, Runtime, RuntimeConfig};
-    use ygg_core::project::{ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy};
+    use ygg_core::project::{
+        ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy,
+    };
 
     #[tokio::test]
     async fn resolve_bundle_does_not_return_project_metadata() {
