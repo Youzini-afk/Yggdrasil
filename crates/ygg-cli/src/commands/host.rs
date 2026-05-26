@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
     DenyAllWebSocketExecutor, EventStore, FakeOutboundExecutor, FakeWebSocketExecutor,
@@ -92,8 +92,18 @@ pub(crate) async fn host_serve(
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
+                if let Some(parent) = resolved.parent() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!(
+                            "failed to create event store directory {}",
+                            parent.display()
+                        )
+                    })?;
+                }
                 let runtime = Arc::new(Runtime::new(
-                    Arc::new(SqliteEventStore::open(resolved)?),
+                    Arc::new(SqliteEventStore::open(&resolved).with_context(|| {
+                        format!("failed to open sqlite event store {}", resolved.display())
+                    })?),
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
@@ -458,6 +468,15 @@ mod tests {
             other => panic!("unexpected command: {other:?}"),
         }
     }
+
+    #[test]
+    fn resolve_profile_relative_event_store_under_profile_dir() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let profile_path = tmp.path().join("profiles/default.yaml");
+        let event_path = resolve_profile_path(&profile_path, PathBuf::from("events.sqlite"));
+        assert_eq!(event_path, tmp.path().join("profiles/events.sqlite"));
+        Ok(())
+    }
 }
 
 async fn serve_runtime<S>(
@@ -477,12 +496,31 @@ where
             .and_then(Path::parent)
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
+        let projects_dir = data_dir.join("projects");
+        fs::create_dir_all(&projects_dir).with_context(|| {
+            format!(
+                "failed to create projects directory {}",
+                projects_dir.display()
+            )
+        })?;
         runtime
             .config()
             .project_registry
-            .load_from_projects_dir(&data_dir.join("projects"))?
+            .load_from_projects_dir(&projects_dir)
+            .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?
     } else {
-        runtime.config().project_registry.load_from_disk()?
+        let projects_dir = ygg_core::paths::projects_dir()?;
+        fs::create_dir_all(&projects_dir).with_context(|| {
+            format!(
+                "failed to create projects directory {}",
+                projects_dir.display()
+            )
+        })?;
+        runtime
+            .config()
+            .project_registry
+            .load_from_projects_dir(&projects_dir)
+            .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?
     };
     println!("  projects loaded: {count}");
     let listener = tokio::net::TcpListener::bind(http).await?;
