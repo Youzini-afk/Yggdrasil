@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
 import { IconContext } from "@phosphor-icons/react";
 import { ThemeProvider } from "@/lib/theme";
@@ -9,6 +9,12 @@ import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGateScreen, AuthChecking } from "@/components/auth-gate";
 import { Shell } from "@/components/layout/shell";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePathProjectRoute } from "@/lib/router";
+
+const ProjectFrame = lazy(() =>
+  import("@/routes/project-frame").then((module) => ({ default: module.ProjectFrame })),
+);
 
 const iconDefaults = {
   color: "currentColor",
@@ -33,6 +39,7 @@ export function App({ children }: { children?: ReactNode }) {
 
 function AppInner({ children }: { children?: ReactNode }) {
   const { status, token } = useAuth();
+  const pathProjectRoute = usePathProjectRoute();
 
   if (status === "checking") {
     return <AuthChecking />;
@@ -47,9 +54,26 @@ function AppInner({ children }: { children?: ReactNode }) {
     <KernelProvider accessToken={token}>
       <MotionConfig reducedMotion="user">
         <TooltipProvider>
-          <ToastProvider>{children ?? <Shell />}</ToastProvider>
+          <ToastProvider>
+            {children ?? (pathProjectRoute ? (
+              <Suspense fallback={<ProjectTabSkeleton />}>
+                <ProjectFrame projectId={pathProjectRoute.projectId} chrome="none" />
+              </Suspense>
+            ) : (
+              <Shell />
+            ))}
+          </ToastProvider>
         </TooltipProvider>
       </MotionConfig>
     </KernelProvider>
+  );
+}
+
+function ProjectTabSkeleton() {
+  return (
+    <div className="flex min-h-[100dvh] flex-col gap-4 bg-warm-bone p-6">
+      <Skeleton className="h-5 w-44" />
+      <Skeleton className="min-h-0 flex-1 rounded-[24px]" />
+    </div>
   );
 }

@@ -12,5 +12,7 @@ function assertContains(fragment: string) {
 assertContains("let bridgeToken = ''");
 assertContains("bridge_token: bridgeToken");
 assertContains("msg.bridge_token !== bridgeToken");
+assertContains("if (e.source !== window.parent) return;");
+assertContains("if (bridgeToken && msg.bridge_token !== bridgeToken) return;\n    pendingRpc.delete(msg.id);");
 assertContains("type: 'mount.error'");
 assertContains("postToHost({ type: 'rpc.call'");

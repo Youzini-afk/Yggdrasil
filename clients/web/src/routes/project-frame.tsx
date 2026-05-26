@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, BookOpenText, DotsThree, ListBullets, StopCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { StatusPill, projectStateTone } from "@/components/ui/status-pill";
@@ -13,20 +13,31 @@ import type { ProjectRecord, SurfaceContributionRecord } from "@/protocol/client
 
 const FRAME_CONTAINER_ID = "ygg-project-frame";
 
-export function ProjectFrame({ projectId }: { projectId: string }) {
+export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: string; chrome?: "shell" | "none" }) {
   const client = useKernel();
   const toast = useToast();
   const t = useT();
   const [, navigate] = useRoute();
-  const [project, setProject] = useState<(ProjectRecord & { running_session_id?: string }) | null>(null);
+  const [project, setProject] = useState<(ProjectRecord & { running_session_id?: string; entry_surface_id?: string }) | null>(null);
   const [stopping, setStopping] = useState(false);
+  const [frameState, setFrameState] = useState<"loading" | "mounted" | "failed" | "stopped">("loading");
   const handleRef = useRef<SurfaceHostHandle | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chrome !== "none" || typeof document === "undefined") return;
+    const previousTitle = document.title;
+    document.title = `${project?.title ?? projectId} — Yggdrasil`;
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [chrome, project?.title, projectId]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        setFrameState("loading");
         const detail = await client.getProject(projectId);
         if (cancelled) return;
 
@@ -45,7 +56,10 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
         // Reflect the live state in the project frame topbar.
         setProject({ ...detail, state: runtimeState, running_session_id: sessionId });
 
-        if (!detail.entry_surface_id) return;
+        if (!detail.entry_surface_id) {
+          setFrameState("failed");
+          return;
+        }
         const [bundle, contribution] = await Promise.all([
           resolveSurfaceBundle(client, detail.entry_surface_id),
           client.describeSurface(detail.entry_surface_id).catch<SurfaceContributionRecord | null>(() => null),
@@ -55,22 +69,23 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
         let handle: SurfaceHostHandle;
         try {
           handle = await mountSurface({
-          containerId: FRAME_CONTAINER_ID,
-          surfaceId: bundle.surfaceId,
-          bundleUrl: bundle.bundleUrl,
-          exportName: bundle.exportName,
-          stylesheets: bundle.stylesheets,
-          wrapperClass: bundle.wrapperClass,
-          initialProps: { projectId },
-          hostBridge: {
-            currentSessionId: sessionId,
-            allowedCapabilityIds,
-            callRpc: (method, params) => client.invokeWithSession(method, params, sessionId),
-            subscribeEvents: (cb) =>
-              client.subscribeEvents(sessionId, (event) => cb(event)),
-          },
+            containerId: FRAME_CONTAINER_ID,
+            surfaceId: bundle.surfaceId,
+            bundleUrl: bundle.bundleUrl,
+            exportName: bundle.exportName,
+            stylesheets: bundle.stylesheets,
+            wrapperClass: bundle.wrapperClass,
+            initialProps: { projectId },
+            hostBridge: {
+              currentSessionId: sessionId,
+              allowedCapabilityIds,
+              callRpc: (method, params) => client.invokeWithSession(method, params, sessionId),
+              subscribeEvents: (cb) =>
+                client.subscribeEvents(sessionId, (event) => cb(event)),
+            },
           });
         } catch (err) {
+          setFrameState("failed");
           toast.push({
             variant: "error",
             title: t("projectFrameMountFailedTitle"),
@@ -83,7 +98,9 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           return;
         }
         handleRef.current = handle;
+        setFrameState("mounted");
       } catch (err) {
+        setFrameState("failed");
         toast.push({
           variant: "error",
           title: t("projectFrameStartFailedTitle"),
@@ -99,12 +116,17 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
     };
   }, [client, projectId, toast, t]);
 
-  const onStop = async () => {
+  const onStop = useCallback(async () => {
+    if (stopping) return;
     setStopping(true);
     try {
       await client.stopProject(projectId);
       toast.push({ variant: "success", title: t("projectFrameStopped", project?.title ?? projectId) });
-      navigate({ kind: "home" });
+      await handleRef.current?.unmount().catch(() => {});
+      handleRef.current = null;
+      setProject((current) => current ? { ...current, state: "stopped", running_session_id: undefined } : current);
+      setFrameState("stopped");
+      if (chrome !== "none") navigate({ kind: "home" });
     } catch (err) {
       toast.push({
         variant: "error",
@@ -114,11 +136,28 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
     } finally {
       setStopping(false);
     }
-  };
+  }, [chrome, client, navigate, project?.title, projectId, stopping, t, toast]);
+
+  useEffect(() => {
+    if (chrome !== "none") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.isTrusted) return;
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key !== "." && event.code !== "Period") return;
+      const target = event.target as Element | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      event.preventDefault();
+      void onStop();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [chrome, onStop]);
+
+  const isStandalone = chrome === "none";
 
   return (
-    <div className="flex min-h-[calc(100dvh-60px)] flex-col">
-      {/* Project frame topbar */}
+    <div className={isStandalone ? "flex h-[100dvh] flex-col overflow-hidden bg-warm-bone" : "flex min-h-[calc(100dvh-60px)] flex-col"}>
+      {isStandalone ? null : (
       <div className="flex h-10 items-center justify-between border-b border-whisper-border bg-pure-surface px-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Tooltip label={t("projectFrameBackHome")}>
@@ -155,15 +194,36 @@ export function ProjectFrame({ projectId }: { projectId: string }) {
           </Tooltip>
         </div>
       </div>
+      )}
 
-      {/* Iframe surface — neutral platform-bone background until the project
-          paints. The project owns its territory once mounted. */}
-      <div
-        ref={containerRef}
-        id={FRAME_CONTAINER_ID}
-        className="flex-1"
-        style={{ background: "var(--color-warm-bone)" }}
-      />
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={containerRef}
+          id={FRAME_CONTAINER_ID}
+          className="h-full w-full"
+          style={{ background: "var(--color-warm-bone)" }}
+        />
+        {frameState === "loading" ? (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center bg-warm-bone">
+            <div className="min-w-[280px] max-w-[420px] rounded-[24px] border border-whisper-border bg-pure-surface p-5 shadow-card">
+              <p className="font-display text-[18px] font-bold text-charcoal-ink">{project?.title ?? projectId}</p>
+              <p className="mt-2 text-[13px] text-steel-secondary">{t("projectFrameLoadingSurface")}</p>
+            </div>
+          </div>
+        ) : null}
+        {frameState === "failed" || frameState === "stopped" ? (
+          <div className="absolute inset-0 grid place-items-center bg-warm-bone p-6">
+            <div className="max-w-[460px] rounded-[24px] border border-whisper-border bg-pure-surface p-6 text-center shadow-card">
+              <p className="font-display text-[20px] font-bold text-charcoal-ink">
+                {frameState === "stopped" ? t("projectFrameStoppedTitle") : t("projectFrameMountFailedTitle")}
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-steel-secondary">
+                {frameState === "stopped" ? t("projectFrameStoppedBody") : t("projectFrameMountFailedBody")}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

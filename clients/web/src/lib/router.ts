@@ -12,7 +12,7 @@
  *   #/settings/profiles
  *   #/settings/storage
  *   #/settings/about
- *   #/project/<projectId>             Project frame (mounted iframe)
+ *   /project/<projectId>              Chrome-free project tab host
  */
 
 import { useEffect, useState } from "react";
@@ -23,6 +23,9 @@ export type SettingsTab =
   | "profiles"
   | "storage"
   | "about";
+
+const MAX_PROJECT_ID_LENGTH = 128;
+const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
 
 export type Route =
   | { kind: "home" }
@@ -37,7 +40,7 @@ export const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: "about", label: "About" },
 ];
 
-function parseHash(hash: string): Route {
+export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, "").replace(/^\//, "");
   if (!path) return { kind: "home" };
   const [head, ...rest] = path.split("/");
@@ -51,7 +54,8 @@ function parseHash(hash: string): Route {
   if (head === "project" && rest[0]) {
     // Malformed escapes (e.g., "%") would throw — fall back to Home.
     try {
-      return { kind: "project", projectId: decodeURIComponent(rest[0]) };
+      const projectId = decodeURIComponent(rest[0]);
+      return isValidProjectId(projectId) ? { kind: "project", projectId } : { kind: "home" };
     } catch {
       return { kind: "home" };
     }
@@ -59,15 +63,60 @@ function parseHash(hash: string): Route {
   return { kind: "home" };
 }
 
-function serializeRoute(route: Route): string {
+function encodeRouteProjectId(projectId: string): string {
+  // Keep project ids with `/` out of hash routes too. Canonical project tabs use
+  // `/project/<id>` and project ids are a single URL segment there.
+  return encodeURIComponent(projectId);
+}
+
+export function serializeRoute(route: Route): string {
   switch (route.kind) {
     case "home":
       return "#/";
     case "settings":
       return `#/settings/${route.tab}`;
     case "project":
-      return `#/project/${encodeURIComponent(route.projectId)}`;
+      return `#/project/${encodeRouteProjectId(route.projectId)}`;
   }
+}
+
+export function isValidProjectId(value: string): boolean {
+  return value.length > 0
+    && value.length <= MAX_PROJECT_ID_LENGTH
+    && !value.includes("/")
+    && !/[\u0000-\u001F\u007F]/.test(value)
+    && PROJECT_ID_PATTERN.test(value);
+}
+
+export function projectPath(projectId: string): string {
+  if (!isValidProjectId(projectId)) throw new Error("invalid project id");
+  return `/project/${encodeURIComponent(projectId)}`;
+}
+
+export function parseProjectPath(pathname: string): { kind: "project"; projectId: string } | null {
+  if (!pathname.startsWith("/project/")) return null;
+  const suffix = pathname.slice("/project/".length);
+  if (!suffix || suffix.includes("/")) return null;
+  try {
+    const projectId = decodeURIComponent(suffix);
+    return isValidProjectId(projectId) ? { kind: "project", projectId } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function usePathProjectRoute(): { kind: "project"; projectId: string } | null {
+  const [route, setRoute] = useState<{ kind: "project"; projectId: string } | null>(() =>
+    typeof window === "undefined" ? null : parseProjectPath(window.location.pathname),
+  );
+
+  useEffect(() => {
+    const onPopState = () => setRoute(parseProjectPath(window.location.pathname));
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  return route;
 }
 
 export function useRoute(): [Route, (next: Route) => void] {

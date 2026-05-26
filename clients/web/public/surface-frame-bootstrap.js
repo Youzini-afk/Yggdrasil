@@ -34,14 +34,15 @@ window.yggHost = {
 let unmountFn = null;
 
 window.addEventListener('message', async (e) => {
+  if (e.source !== window.parent) return;
   const msg = e.data;
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.type === 'rpc.result') {
     const pending = pendingRpc.get(msg.id);
     if (!pending) return;
-    pendingRpc.delete(msg.id);
     if (bridgeToken && msg.bridge_token !== bridgeToken) return;
+    pendingRpc.delete(msg.id);
     if (msg.error) pending.reject(new Error(`${msg.error.code}: ${msg.error.message}`));
     else pending.resolve(msg.result);
     return;

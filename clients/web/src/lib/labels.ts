@@ -262,6 +262,9 @@ export interface LocaleDictionary {
   projectFrameStop: string;
   projectFrameMore: string;
   projectFrameState: (state: string) => string;
+  projectFrameLoadingSurface: string;
+  projectFrameStoppedTitle: string;
+  projectFrameStoppedBody: string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -715,6 +718,9 @@ export const labels = {
     projectFrameStop: "Stop",
     projectFrameMore: "More",
     projectFrameState: (state) => state.toUpperCase(),
+    projectFrameLoadingSurface: "Loading project interface…",
+    projectFrameStoppedTitle: "Project stopped",
+    projectFrameStoppedBody: "This tab can be closed. Reopen the project from Home when you want to resume.",
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -1169,6 +1175,9 @@ export const labels = {
     projectFrameStop: "停止",
     projectFrameMore: "更多",
     projectFrameState: (state) => state.toUpperCase(),
+    projectFrameLoadingSurface: "正在加载项目界面…",
+    projectFrameStoppedTitle: "项目已停止",
+    projectFrameStoppedBody: "可以关闭这个标签页。需要继续时，从首页重新打开项目。",
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",

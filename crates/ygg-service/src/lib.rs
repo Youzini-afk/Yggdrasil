@@ -458,6 +458,10 @@ where
         StaticRead::Missing => {}
     }
 
+    if is_static_asset_path(request_path) {
+        return (StatusCode::NOT_FOUND, "static file not found").into_response();
+    }
+
     let index = static_root.join("index.html");
     match read_static_file(&static_root, &index).await {
         StaticRead::Served(response) => response,
@@ -472,6 +476,15 @@ fn is_reserved_service_path(path: &str) -> bool {
         || path.starts_with("/rpc/")
         || path.starts_with("/kernel")
         || path.starts_with("/surface-bundles")
+}
+
+fn is_static_asset_path(path: &str) -> bool {
+    path == "/surface-frame.html"
+        || path == "/surface-frame-bootstrap.js"
+        || path.starts_with("/assets/")
+        || std::path::Path::new(path.trim_start_matches('/'))
+            .extension()
+            .is_some()
 }
 
 enum StaticRead {
