@@ -59,6 +59,8 @@ The current implementation exposes unmounting as `SurfaceHostHandle.unmount()`; 
 
 A surface bundle must be an ESM module loadable via dynamic `import(bundleUrl)`, and it must expose a named export. `exportName` comes from surface metadata, for example `YdlTavernPlaySurface`.
 
+Installed project browser bundles are public static artifacts. The host serves them from `/surface-bundles/projects/<project_id>/...` and makes them CORS-readable for sandboxed iframes. Do not put secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must flow through capabilities, `secret_ref`, outbound audit, and bridge permissions — never through the bundle.
+
 The frame accepts two mount contracts:
 
 ```ts
@@ -134,6 +136,8 @@ The host then sends the mount instruction:
 }
 ```
 
+The host creates an ephemeral `bridge_token` for each mount. The frame only accepts mount/unmount/RPC result messages from `window.parent`; bundle URLs and stylesheet URLs must be same-origin `/surface-bundles/` or `/assets/` paths; `exportName` must be a bounded JavaScript identifier. On the host side, frame messages are checked against `event.source`, `bridge_token`, session id, and the capability allowlist.
+
 When a surface needs host RPC, code in the frame calls `window.yggHost.callRpc(method, params)`, which sends:
 
 ```ts
@@ -206,6 +210,8 @@ surfaces:
 ```
 
 The web shell reads descriptors and metadata through `kernel.v1.surface.contribution.list` / `.describe`, chooses the surface for the target slot, resolves `bundle_url`, `export_name`, and `wrapper_class`, then calls `mountSurface`. The host can pass the session id, descriptor, and read-only configuration in `initialProps`, and can decide whether to wire `hostBridge.callRpc` based on permissions.
+
+When Home opens a project, the web shell opens `/project/<project_id>` in a separate tab. That page has no platform topbar or back button; it only hosts the full-viewport sandboxed iframe. Closing the tab does not stop the project session. The project tab supports `⌘ .` / `Ctrl .` to stop the current project. Stop is handled by the host page and is not exposed as a surface bridge capability.
 
 ## v0 limitations
 

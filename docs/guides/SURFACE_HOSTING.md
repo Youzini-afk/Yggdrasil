@@ -59,6 +59,8 @@ export function unmountSurface(handle: SurfaceHostHandle): Promise<void>;
 
 Surface bundle 必须是可被动态 `import(bundleUrl)` 加载的 ESM module，并暴露一个具名 export。`exportName` 来自 surface metadata，例如 `YdlTavernPlaySurface`。
 
+已安装项目的 browser bundle 是公开静态产物。宿主会从 `/surface-bundles/projects/<project_id>/...` 服务它们，并为 sandbox iframe 设置 CORS 可读响应。不要把 secret、token、私有配置、主机路径或 source map 放进 `dist/`。私有数据必须通过 capability、`secret_ref`、出站审计和 bridge 权限边界取得，而不是写进 bundle。
+
 frame 接受两种 mount contract：
 
 ```ts
@@ -134,6 +136,8 @@ Frame load 后先通知宿主：
 }
 ```
 
+宿主为每次 mount 生成临时 `bridge_token`。Frame 只接受来自 `window.parent` 的 mount/unmount/RPC result 消息；bundle URL 和 stylesheet URL 必须来自同源 `/surface-bundles/` 或 `/assets/` 路径；`exportName` 必须是受限 JS identifier。宿主收到 frame 消息时同时校验 `event.source`、`bridge_token`、session id 和 capability allowlist。
+
 Surface 如需调用宿主 RPC，frame 内代码通过 `window.yggHost.callRpc(method, params)` 发送：
 
 ```ts
@@ -206,6 +210,8 @@ surfaces:
 ```
 
 Web shell 通过 `kernel.v1.surface.contribution.list` / `.describe` 读取描述符和 metadata，选择目标 slot 的 surface，解析 `bundle_url`、`export_name`、`wrapper_class`，然后调用 `mountSurface`。宿主可以把 session id、surface descriptor、只读配置等放入 `initialProps`，并按权限决定是否接线 `hostBridge.callRpc`。
+
+在 Home 打开项目时，Web shell 会新开 `/project/<project_id>` 标签页。该页面没有平台顶栏或返回按钮，只保留全屏 sandbox iframe。关闭标签页不会停止项目 session；项目页支持 `⌘ .` / `Ctrl .` 停止当前项目。Stop 由宿主页处理，不作为 surface bridge 能力暴露。
 
 ## v0 限制
 

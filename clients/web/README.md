@@ -127,25 +127,31 @@ src/
 
 ---
 
-## Routes (hash-based)
+## Routes
 
-| Hash | View |
-| ---- | ---- |
+| Route | View |
+| ----- | ---- |
 | `#/` | Home |
 | `#/settings/api-connections` | Settings — secrets |
 | `#/settings/installed-packages` | Settings — package inventory |
 | `#/settings/profiles` | Settings — workshop profiles |
 | `#/settings/storage` | Settings — data paths and backend |
 | `#/settings/about` | Settings — version, license, links |
-| `#/project/<id>` | Project frame with mounted surface |
+| `/project/<id>` | Standalone project tab with a full-viewport mounted surface |
 
-Hash routing was chosen over React Router because:
+Home and Settings keep hash routing because:
 
 - The shell has five static routes; nothing dynamic enough to warrant the
   framework.
 - It survives reloads inside Tauri WebView with no server config.
 - It composes naturally with the surface iframe (the surface owns its own
   internal navigation independent of the shell route).
+
+Projects use a path route instead. Home opens `/project/<id>` in a separate
+named tab with `noopener,noreferrer`. The project page bypasses the platform
+topbar and fills the viewport with the sandboxed surface iframe. Closing that
+tab does not stop the project session; `⌘ .` / `Ctrl .` stops the current
+project from the project tab.
 
 ---
 
@@ -174,7 +180,7 @@ mode for legibility on bark backgrounds.
 | Settings — Installed Packages | `kernel.v1.package.list` + `kernel.v1.project.list` (project flag) |
 | Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
-| Project Frame | `kernel.v1.project.get/start/stop` + `kernel.v1.surface.resolve_bundle` |
+| Project tab | `kernel.v1.project.get/start/stop` + `kernel.v1.surface.resolve_bundle` |
 | Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `kernel.v1.capability.invoke` |
 | Failure Modal | `kernel.v1.package.list/status/logs` redacted failure summaries |
 
@@ -191,7 +197,8 @@ sees only names, scopes, and counts.
 ## Surface hosting
 
 `src/surfaces/surface-host.ts` mounts third-party surface bundles in sandboxed
-iframes using `/surface-frame.html`. Surface bundles are ESM modules with a
+iframes using `/surface-frame.html`. Project tabs use the same host, only without
+the shell chrome around it. Surface bundles are ESM modules with a
 named export that is either callable as `(root, props) => void` or exposes
 `{ mount(root, props) }`.
 
@@ -225,6 +232,7 @@ Production hosting still needs a static fileserver route (deferred).
 | Shortcut | Action |
 | -------- | ------ |
 | `⌘ N` / `Ctrl N` | Open Install modal (Home only) |
+| `⌘ .` / `Ctrl .` | Stop current project (standalone project tab only) |
 | `⌘ F` / `Ctrl F` | Focus package filter input (Settings → Installed Packages) |
 | `Esc` | Close modal |
 | `↵` | Confirm primary action in modals |

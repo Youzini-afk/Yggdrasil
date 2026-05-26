@@ -8,7 +8,7 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 
 - The kernel is content-free. Official packages have no privileges. Public protocol is the only entry.
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
-- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, Home project shelf, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
+- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, Home project shelf, standalone project tabs, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
 - Contract V1 is the public platform spec; all 115 schemas (63 methods + 45 events + 7 top-level) validate, and 428 conformance cases pass.
 
