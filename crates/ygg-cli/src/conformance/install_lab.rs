@@ -240,6 +240,11 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
         plan["project_descriptor"]["project"]["id"] == json!("fixture-project__abc12345")
     );
 
+    fs::create_dir_all(tmp.path().join("profiles"))?;
+    fs::write(
+        tmp.path().join("profiles/default.yaml"),
+        "title: Existing profile\nevent_store:\n  kind: sqlite\n  path: /tmp/events.sqlite\nsecret_resolver:\n  store_enabled: true\nautoload:\n  - /existing/package/manifest.yaml\n",
+    )?;
     let executed = execute_with_full_consent(&rt, plan, tmp.path()).await?;
     anyhow::ensure!(executed.output["project"]["project_id"] == json!("fixture-project__abc12345"));
     anyhow::ensure!(tmp
@@ -251,6 +256,9 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
         .join("projects/fixture-project__abc12345/dist/bundle.mjs")
         .is_file());
     let profile = fs::read_to_string(tmp.path().join("profiles/default.yaml"))?;
+    anyhow::ensure!(profile.contains("event_store:"));
+    anyhow::ensure!(profile.contains("secret_resolver:"));
+    anyhow::ensure!(profile.contains("/existing/package/manifest.yaml"));
     anyhow::ensure!(profile.contains("packages/engine/manifest.yaml"));
     anyhow::ensure!(profile.contains("packages/surface/manifest.yaml"));
     let checked = invoke(

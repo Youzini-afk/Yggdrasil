@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use schemars::JsonSchema;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -71,10 +72,20 @@ impl SubprocessSupervisor {
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
-        if let Some(package_root) = runtime.config().package_roots.get(&manifest.id) {
+        let package_root = runtime.config().package_roots.get(&manifest.id).cloned();
+        if let Some(package_root) = &package_root {
             command_builder.current_dir(package_root);
         }
-        let mut child = command_builder.spawn()?;
+        let mut child = command_builder.spawn().with_context(|| {
+            let cwd = package_root
+                .as_ref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "<inherited>".to_string());
+            format!(
+                "failed to spawn subprocess package {} command {:?} cwd {}",
+                manifest.id, command, cwd
+            )
+        })?;
         let stdin = child
             .stdin
             .take()

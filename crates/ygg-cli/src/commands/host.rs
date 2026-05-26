@@ -600,16 +600,42 @@ where
         .parent()
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
-    for manifest_path in profile.autoload {
+    let autoload_count = profile.autoload.len();
+    println!("host autoload manifests: {autoload_count}");
+    for (index, manifest_path) in profile.autoload.into_iter().enumerate() {
         let resolved = if manifest_path.is_absolute() {
             manifest_path
         } else {
             base.join(manifest_path)
         };
+        println!(
+            "autoloading package manifest {}/{}: {}",
+            index + 1,
+            autoload_count,
+            resolved.display()
+        );
         let manifest = read_manifest(resolved.clone()).await.with_context(|| {
             format!("failed to autoload package manifest {}", resolved.display())
         })?;
-        let record = runtime.load_package(manifest).await?;
+        let package_id = manifest.id.clone();
+        let is_subprocess = matches!(
+            manifest.entry.kind,
+            ygg_core::PackageEntry::Subprocess { .. }
+        );
+        let record = match runtime.load_package(manifest).await.with_context(|| {
+            format!(
+                "failed to load autoload package {} from {}",
+                package_id,
+                resolved.display()
+            )
+        }) {
+            Ok(record) => record,
+            Err(error) if is_subprocess => {
+                eprintln!("autoloaded subprocess package failed and was left degraded: {error:#}");
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         println!(
             "autoloaded package: {}@{} ({:?})",
             record.id, record.version, record.state

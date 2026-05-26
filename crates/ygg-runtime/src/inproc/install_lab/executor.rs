@@ -410,32 +410,37 @@ fn write_profile(
     plan: &InstallPlan,
     data_dir_override: Option<&str>,
 ) -> Result<()> {
-    let mut autoload = if profile_path.exists() {
+    let mut profile = if profile_path.exists() {
         let raw = fs::read_to_string(profile_path)?;
-        serde_yaml::from_str::<Value>(&raw)
-            .ok()
-            .and_then(|v| v.get("autoload").and_then(Value::as_array).cloned())
-            .unwrap_or_default()
+        serde_yaml::from_str::<Value>(&raw).unwrap_or_else(|_| json!({}))
     } else {
-        Vec::new()
+        json!({})
     };
+    let mut autoload = profile
+        .get("autoload")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let existing = autoload
         .iter()
         .filter_map(Value::as_str)
         .map(str::to_string)
         .collect::<std::collections::HashSet<_>>();
+    let mut existing = existing;
     for pkg in &plan.packages {
         let package_store = store_path_for_hash(&pkg.tree_hash, data_dir_override)?;
         let manifest = installed_manifest_path(pkg, &package_store)?;
         let entry = manifest.to_string_lossy().to_string();
         if !existing.contains(&entry) {
+            existing.insert(entry.clone());
             autoload.push(Value::String(entry));
         }
     }
-    atomic_write(
-        profile_path,
-        serde_yaml::to_string(&json!({ "autoload": autoload }))?.as_bytes(),
-    )
+    if !profile.is_object() {
+        profile = json!({});
+    }
+    profile["autoload"] = Value::Array(autoload);
+    atomic_write(profile_path, serde_yaml::to_string(&profile)?.as_bytes())
 }
 
 fn build_lockfile(

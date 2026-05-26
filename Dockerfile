@@ -15,7 +15,7 @@ COPY sdk ./sdk
 COPY clients/desktop/src-tauri ./clients/desktop/src-tauri
 RUN cargo build --release -p ygg-cli --bin ygg
 
-FROM debian:bookworm-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates git \
   && rm -rf /var/lib/apt/lists/* \
