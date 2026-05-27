@@ -360,6 +360,28 @@ pub(crate) async fn uninstall_removes_from_profile() -> anyhow::Result<()> {
     anyhow::ensure!(out.output["removed_from_profile"] == json!(true));
     let profile = fs::read_to_string(tmp.path().join("profiles/default.yaml"))?;
     anyhow::ensure!(!profile.contains("pkg-local"));
+
+    let plan = plan_for(&rt, "project-root").await?;
+    execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/uninstall",
+        json!({ "project_id": "fixture-project__abc12345", "data_dir": tmp.path() }),
+    )
+    .await?;
+    anyhow::ensure!(out.output["removed_from_profile"] == json!(true));
+    anyhow::ensure!(out.output["project"]["data_action"] == json!("archived"));
+    let profile = fs::read_to_string(tmp.path().join("profiles/default.yaml"))?;
+    anyhow::ensure!(!profile.contains("packages/engine/manifest.yaml"));
+    anyhow::ensure!(!profile.contains("packages/surface/manifest.yaml"));
+    anyhow::ensure!(!tmp
+        .path()
+        .join("projects/fixture-project__abc12345")
+        .exists());
+    anyhow::ensure!(tmp
+        .path()
+        .join("projects/.archived/fixture-project__abc12345/project.yaml")
+        .is_file());
     Ok(())
 }
 

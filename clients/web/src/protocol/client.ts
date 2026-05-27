@@ -153,11 +153,19 @@ export interface InstallExecuteResult {
   project?: { project_id?: string } | null;
 }
 
+export interface InstallUninstallResult {
+  removed_from_profile: boolean;
+  store_path_orphaned?: string | null;
+  store_paths_orphaned?: string[];
+  project?: { project_id: string; data_action: string } | null;
+}
+
 const INSTALL_LAB_PROVIDER = "official/install-lab";
 const INSTALL_LAB_CAPABILITIES = {
   resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
   detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
   executePlan: `${INSTALL_LAB_PROVIDER}/execute_plan`,
+  uninstall: `${INSTALL_LAB_PROVIDER}/uninstall`,
 } as const;
 
 function normalizeInstallRootUrl(input: string): string {
@@ -527,6 +535,14 @@ export class YggProtocolClient {
       plan,
       consent,
       profile,
+    });
+  }
+
+  async uninstallProject(projectId: string, profile = "default"): Promise<InstallUninstallResult> {
+    return await this.invokeInstallLab<InstallUninstallResult>(INSTALL_LAB_CAPABILITIES.uninstall, {
+      project_id: projectId,
+      profile,
+      delete_project_data: false,
     });
   }
 

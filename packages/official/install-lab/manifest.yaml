@@ -88,6 +88,7 @@ permissions:
       - ~/.yggdrasil/store/
       - ~/.yggdrasil/profiles/
       - ~/.yggdrasil/cache/
+      - ~/.yggdrasil/projects/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 30000
   memory_mb: 512

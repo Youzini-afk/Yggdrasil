@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use uuid::Uuid;
-use ygg_core::{LockEntry, LockRequirement, LockSource, Lockfile, PackageEntry, PackageManifest};
+use ygg_core::{
+    LockEntry, LockRequirement, LockSource, Lockfile, PackageEntry, PackageManifest, ProjectId,
+};
 
 use crate::inproc::invoke_capability_from_inproc;
 use crate::CapabilityInvocationRequest;
@@ -140,23 +142,51 @@ pub(super) async fn uninstall(input: Value) -> Result<Value> {
     let input: UninstallInput = serde_json::from_value(input)?;
     let profile_path = profile_path(&input.profile, input.data_dir.as_deref())?;
     let lockfile_path = lockfile_path(&input.profile, input.data_dir.as_deref())?;
-    let mut orphaned = None;
+    let mut target_package_ids = input.package_ids.clone();
+    if let Some(package_id) = &input.package_id {
+        target_package_ids.push(package_id.clone());
+    }
+    let project_id = input
+        .project_id
+        .as_deref()
+        .map(ProjectId::new)
+        .transpose()?;
+    let project_descriptor = project_id
+        .as_ref()
+        .map(|id| {
+            read_project_descriptor(
+                &project_dir(input.data_dir.as_deref(), id).join("project.yaml"),
+            )
+        })
+        .transpose()?;
+    let target_manifest_relatives = project_descriptor
+        .as_ref()
+        .map(|descriptor| descriptor.project.packages.clone())
+        .unwrap_or_default();
+    target_package_ids.sort();
+    target_package_ids.dedup();
+    anyhow::ensure!(
+        !target_package_ids.is_empty() || project_id.is_some(),
+        "uninstall requires package_id, package_ids, or project_id"
+    );
+
+    let mut orphaned = Vec::new();
     let mut manifest_paths_for_removed = Vec::new();
     let mut removed = false;
 
     if lockfile_path.exists() {
         let raw = fs::read_to_string(&lockfile_path)?;
         let mut lock: Lockfile = toml::from_str(&raw)?;
-        if let Some(entry) = lock
-            .package
-            .iter()
-            .find(|entry| entry.id == input.package_id)
-        {
-            orphaned = Some(entry.installed_at_store.clone());
-            manifest_paths_for_removed = manifest_candidates_for_lock_entry(entry);
+        for entry in lock.package.iter().filter(|entry| {
+            should_uninstall_lock_entry(entry, &target_package_ids, &target_manifest_relatives)
+        }) {
+            orphaned.push(entry.installed_at_store.clone());
+            manifest_paths_for_removed.extend(manifest_candidates_for_lock_entry(entry));
         }
         let before = lock.package.len();
-        lock.package.retain(|entry| entry.id != input.package_id);
+        lock.package.retain(|entry| {
+            !should_uninstall_lock_entry(entry, &target_package_ids, &target_manifest_relatives)
+        });
         removed = before != lock.package.len();
         atomic_write(&lockfile_path, toml::to_string_pretty(&lock)?.as_bytes())?;
     }
@@ -166,16 +196,20 @@ pub(super) async fn uninstall(input: Value) -> Result<Value> {
         let mut value: Value = serde_yaml::from_str(&raw)?;
         if let Some(autoload) = value.get_mut("autoload").and_then(Value::as_array_mut) {
             let before = autoload.len();
-            let manifest_yaml = orphaned
-                .as_ref()
-                .map(|store| format!("{store}/manifest.yaml"));
-            let manifest_json = orphaned
-                .as_ref()
-                .map(|store| format!("{store}/manifest.json"));
+            let orphaned_manifest_paths = orphaned
+                .iter()
+                .flat_map(|store| {
+                    [
+                        format!("{store}/manifest.yaml"),
+                        format!("{store}/manifest.json"),
+                    ]
+                })
+                .collect::<Vec<_>>();
             autoload.retain(|entry| {
                 !entry.as_str().is_some_and(|s| {
-                    manifest_yaml.as_deref() == Some(s)
-                        || manifest_json.as_deref() == Some(s)
+                    orphaned_manifest_paths
+                        .iter()
+                        .any(|candidate| candidate == s)
                         || manifest_paths_for_removed
                             .iter()
                             .any(|candidate| candidate == s)
@@ -185,7 +219,20 @@ pub(super) async fn uninstall(input: Value) -> Result<Value> {
         }
         atomic_write(&profile_path, serde_yaml::to_string(&value)?.as_bytes())?;
     }
-    Ok(json!({ "removed_from_profile": removed, "store_path_orphaned": orphaned }))
+
+    let project = if let Some(id) = &project_id {
+        let data_action =
+            uninstall_project_data(id, input.data_dir.as_deref(), input.delete_project_data)?;
+        Some(json!({ "project_id": id.as_str(), "data_action": data_action }))
+    } else {
+        None
+    };
+    Ok(json!({
+        "removed_from_profile": removed,
+        "store_path_orphaned": orphaned.first().cloned(),
+        "store_paths_orphaned": orphaned,
+        "project": project,
+    }))
 }
 
 pub(super) async fn list_installed(input: Value) -> Result<Value> {
@@ -339,6 +386,64 @@ fn manifest_candidates_for_lock_entry(entry: &LockEntry) -> Vec<String> {
             format!("{}/manifest.json", entry.installed_at_store),
         ]
     }
+}
+
+fn should_uninstall_lock_entry(
+    entry: &LockEntry,
+    target_package_ids: &[String],
+    target_manifest_relatives: &[String],
+) -> bool {
+    target_package_ids.iter().any(|id| id == &entry.id)
+        || entry
+            .manifest_relative_path
+            .as_ref()
+            .is_some_and(|relative| {
+                target_manifest_relatives
+                    .iter()
+                    .any(|candidate| candidate == relative)
+            })
+}
+
+fn project_dir(data_dir_override: Option<&str>, id: &ProjectId) -> PathBuf {
+    if let Some(dir) = data_dir_override {
+        PathBuf::from(dir).join("projects").join(id.as_str())
+    } else {
+        ygg_core::paths::project_dir(id)
+            .unwrap_or_else(|_| PathBuf::from("projects").join(id.as_str()))
+    }
+}
+
+fn uninstall_project_data(
+    id: &ProjectId,
+    data_dir_override: Option<&str>,
+    delete_project_data: bool,
+) -> Result<&'static str> {
+    let from = project_dir(data_dir_override, id);
+    if !from.exists() {
+        crate::inproc::project_registry_from_inproc()?.unregister(id);
+        return Ok("missing");
+    }
+    if delete_project_data {
+        fs::remove_dir_all(&from)?;
+        crate::inproc::project_registry_from_inproc()?.unregister(id);
+        return Ok("deleted");
+    }
+
+    let archived = from
+        .parent()
+        .unwrap_or_else(|| Path::new("projects"))
+        .join(".archived");
+    fs::create_dir_all(&archived)?;
+    let to = archived.join(id.as_str());
+    if to.exists() {
+        fs::remove_dir_all(&to)?;
+    }
+    if fs::rename(&from, &to).is_err() {
+        super::fs_copy::copy_dir_recursive(&from, &to)?;
+        fs::remove_dir_all(&from)?;
+    }
+    crate::inproc::project_registry_from_inproc()?.unregister(id);
+    Ok("archived")
 }
 
 pub(super) async fn invoke_package_capability(

@@ -168,6 +168,18 @@ assertEqual(sessionOpenRequest.method, "kernel.v1.session.open");
 assertDeepEqual(sessionOpenRequest.params?.active_package_set, ["official/install-lab"]);
 assertDeepEqual(sessionOpenRequest.params?.labels, ["install", "official/install-lab"]);
 
+capturedRequests.length = 0;
+await new YggProtocolClient("http://host.test", "valid-token").uninstallProject("youzini-afk__YdlTavern__d2a47e5c");
+const uninstallInvoke = capturedRequests.find(
+  (request) => (request as { method?: string }).method === "kernel.v1.capability.invoke",
+) as { params?: Record<string, unknown> };
+assertEqual(uninstallInvoke.params?.capability_id, "official/install-lab/uninstall");
+assertDeepEqual(uninstallInvoke.params?.input, {
+  project_id: "youzini-afk__YdlTavern__d2a47e5c",
+  profile: "default",
+  delete_project_data: false,
+});
+
 globalThis.fetch = originalFetch;
 Object.defineProperty(globalThis, "crypto", {
   configurable: true,

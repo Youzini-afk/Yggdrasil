@@ -23,7 +23,11 @@ interface UseProjectActionsArgs {
     stopFailedTitle: string;
     stopFailedBody: string;
     uninstallTitle: (title: string) => string;
-    uninstallBody: (title: string) => string;
+    uninstallingBody: string;
+    uninstalledTitle: (title: string) => string;
+    uninstalledBody: string;
+    uninstallFailedTitle: string;
+    uninstallFailedBody: string;
     loadingDiagnostics: string;
     loadingDiagnosticsSummary: string;
     descriptorNoPackages: string;
@@ -77,14 +81,24 @@ export function useProjectActions({
   );
 
   const onUninstall = useCallback(
-    (title: string) => {
-      pushToast({
-        variant: "info",
-        title: labels.uninstallTitle(title),
-        body: labels.uninstallBody(title),
-      });
+    async (project: ProjectRecord) => {
+      pushToast({ variant: "progress", title: labels.uninstallTitle(project.title), body: labels.uninstallingBody });
+      try {
+        if (project.state === "running" || project.state === "starting") {
+          await client.stopProject(project.id).catch(() => undefined);
+        }
+        await client.uninstallProject(project.id);
+        pushToast({ variant: "success", title: labels.uninstalledTitle(project.title), body: labels.uninstalledBody });
+        refreshProjects();
+      } catch {
+        pushToast({
+          variant: "error",
+          title: labels.uninstallFailedTitle,
+          body: labels.uninstallFailedBody,
+        });
+      }
     },
-    [labels, pushToast],
+    [client, labels, pushToast, refreshProjects],
   );
 
   const onInstallClick = useCallback(() => setShowInstall(true), [setShowInstall]);

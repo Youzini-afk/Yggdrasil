@@ -62,7 +62,14 @@ pub(super) struct RegisterProjectInput {
 
 #[derive(Debug, Deserialize)]
 pub(super) struct UninstallInput {
-    pub(super) package_id: String,
+    #[serde(default)]
+    pub(super) package_id: Option<String>,
+    #[serde(default)]
+    pub(super) package_ids: Vec<String>,
+    #[serde(default)]
+    pub(super) project_id: Option<String>,
+    #[serde(default)]
+    pub(super) delete_project_data: bool,
     #[serde(default = "super::layout::default_profile")]
     pub(super) profile: String,
     #[serde(default)]

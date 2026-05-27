@@ -86,7 +86,11 @@ export interface LocaleDictionary {
   homeStopFailedTitle: string;
   homeStopFailedBody: string;
   homeUninstallTitle: (title: string) => string;
-  homeUninstallBody: (title: string) => string;
+  homeUninstallingBody: string;
+  homeUninstalledTitle: (title: string) => string;
+  homeUninstalledBody: string;
+  homeUninstallFailedTitle: string;
+  homeUninstallFailedBody: string;
   homeLoadingDiagnostics: string;
   homeLoadingDiagnosticsSummary: string;
   homeDescriptorNoPackages: string;
@@ -531,7 +535,11 @@ export const labels = {
     homeStopFailedTitle: "Stop failed",
     homeStopFailedBody: "The project could not be stopped. Check the local host and try again.",
     homeUninstallTitle: (title) => `Uninstall ${title}`,
-    homeUninstallBody: (title) => `Confirm in CLI: yg uninstall ${title}`,
+    homeUninstallingBody: "Removing installed packages from the active profile and archiving project data.",
+    homeUninstalledTitle: (title) => `Uninstalled ${title}`,
+    homeUninstalledBody: "Project data was archived locally. Reinstall the project to use it again.",
+    homeUninstallFailedTitle: "Uninstall failed",
+    homeUninstallFailedBody: "The project could not be uninstalled from the web shell. Check host diagnostics and retry.",
     homeLoadingDiagnostics: "Loading diagnostics…",
     homeLoadingDiagnosticsSummary: "Reading bounded package failure details from the kernel.",
     homeDescriptorNoPackages: "Project descriptor does not list packages.",
@@ -999,7 +1007,11 @@ export const labels = {
     homeStopFailedTitle: "停止失败",
     homeStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
     homeUninstallTitle: (title) => `卸载 ${title}`,
-    homeUninstallBody: (title) => `在 CLI 中确认：yg uninstall ${title}`,
+    homeUninstallingBody: "正在从当前配置移除已安装包，并归档项目数据。",
+    homeUninstalledTitle: (title) => `已卸载 ${title}`,
+    homeUninstalledBody: "项目数据已在本机归档。重新安装后可再次使用。",
+    homeUninstallFailedTitle: "卸载失败",
+    homeUninstallFailedBody: "无法从 Web Shell 卸载该项目。请检查主机诊断后重试。",
     homeLoadingDiagnostics: "正在加载诊断…",
     homeLoadingDiagnosticsSummary: "正在从内核读取限定的包失败详情。",
     homeDescriptorNoPackages: "项目描述符没有列出包。",

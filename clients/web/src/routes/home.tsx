@@ -99,7 +99,11 @@ export function HomePage() {
       stopFailedTitle: t("homeStopFailedTitle"),
       stopFailedBody: t("homeStopFailedBody"),
       uninstallTitle: (title) => t("homeUninstallTitle", title),
-      uninstallBody: (title) => t("homeUninstallBody", title),
+      uninstallingBody: t("homeUninstallingBody"),
+      uninstalledTitle: (title) => t("homeUninstalledTitle", title),
+      uninstalledBody: t("homeUninstalledBody"),
+      uninstallFailedTitle: t("homeUninstallFailedTitle"),
+      uninstallFailedBody: t("homeUninstallFailedBody"),
       loadingDiagnostics: t("homeLoadingDiagnostics"),
       loadingDiagnosticsSummary: t("homeLoadingDiagnosticsSummary"),
       descriptorNoPackages: t("homeDescriptorNoPackages"),
@@ -233,7 +237,7 @@ export function HomePage() {
                     onLaunch: () => onCardLaunch(project),
                     onStop: () => onStop(project.id, project.title),
                     onRestart: () => onCardLaunch(project),
-                    onUninstall: () => onUninstall(project.title),
+                    onUninstall: () => void onUninstall(project),
                     onConfigure: () => navigateTo({ kind: "settings", tab: "installed-packages" }),
                     onViewLogs:
                       project.state === "failed" ? () => void onShowFailure(project) : undefined,
@@ -339,7 +343,8 @@ export function HomePage() {
               if (failureProjectId) navigateTo({ kind: "project", projectId: failureProjectId });
             }}
             onUninstall={() => {
-              if (failureProjectId) onUninstall(failureProjectId);
+              const project = projectList.find((entry) => entry.id === failureProjectId);
+              if (project) void onUninstall(project);
             }}
             detail={failureDetail}
           />
