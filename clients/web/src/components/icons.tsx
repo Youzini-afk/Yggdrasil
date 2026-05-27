@@ -61,7 +61,9 @@ export {
   StopCircleIcon as StopCircle,
   SunIcon as Sun,
   TerminalIcon as Terminal,
+  UserIcon as User,
   WarningIcon as Warning,
+  WrenchIcon as Wrench,
   XIcon as X,
   XCircleIcon as XCircle,
 } from "@phosphor-icons/react";
