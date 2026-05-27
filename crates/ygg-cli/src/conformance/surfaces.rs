@@ -268,5 +268,83 @@ contributes:
             .contains("surface_id must belong to the package id"),
         "cross-package surface_id failed for the wrong reason: {surface_ownership_err}"
     );
+
+    let long_title_path = temp.path().join("long-title.yaml");
+    std::fs::write(
+        &long_title_path,
+        format!(
+            r#"schema_version: 1
+id: thirdparty/invalid-shell
+version: 0.1.0
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  symbol: register
+  abi_version: 1
+provides:
+  - id: thirdparty/invalid-shell/run
+    version: 0.1.0
+    input_schema: {{}}
+    output_schema: {{}}
+contributes:
+  surfaces:
+    - id: thirdparty/invalid-shell/quick
+      version: 0.1.0
+      slot: quick_action
+      title: Long title quick action
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: {}
+"#,
+            "x".repeat(81)
+        ),
+    )?;
+    let long_title_err = crate::commands::manifest::validate_manifest(long_title_path)
+        .await
+        .expect_err("manifest validation should reject overly long shell title");
+    anyhow::ensure!(
+        long_title_err
+            .to_string()
+            .contains("title.en must be non-empty text up to 80 characters"),
+        "long shell title failed for the wrong reason: {long_title_err}"
+    );
+
+    let bad_icon_path = temp.path().join("bad-icon.yaml");
+    std::fs::write(
+        &bad_icon_path,
+        r#"schema_version: 1
+id: thirdparty/invalid-shell
+version: 0.1.0
+entry:
+  kind: rust_inproc
+  crate_ref: example-echo-rust-inproc
+  symbol: register
+  abi_version: 1
+provides:
+  - id: thirdparty/invalid-shell/run
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+contributes:
+  surfaces:
+    - id: thirdparty/invalid-shell/quick
+      version: 0.1.0
+      slot: quick_action
+      title: Bad icon quick action
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Bad icon
+        icon_hint: bad/icon
+"#,
+    )?;
+    let bad_icon_err = crate::commands::manifest::validate_manifest(bad_icon_path)
+        .await
+        .expect_err("manifest validation should reject invalid shell icon hint");
+    anyhow::ensure!(
+        bad_icon_err.to_string().contains("icon_hint must match"),
+        "bad shell icon hint failed for the wrong reason: {bad_icon_err}"
+    );
     Ok(())
 }

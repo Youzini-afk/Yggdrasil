@@ -71,6 +71,7 @@ export function parseShellContribution(
   if (!title) return null;
 
   const description = readLocalizedText(metadata.description, locale, SHELL_CONTRIBUTION_DESCRIPTION_MAX_LENGTH);
+  if (metadata.description !== undefined && description === null) return null;
   const iconHint = readIconHint(metadata.icon_hint);
   if (metadata.icon_hint !== undefined && iconHint === null) return null;
 
@@ -87,7 +88,7 @@ export function parseShellContribution(
     ...(order !== undefined && order !== null ? { order } : {}),
   };
 
-  const capabilityId = readString(surface.capability_id) ?? readString(metadata.capability_id);
+  const capabilityId = readString(surface.capability_id);
   const surfaceId = readString(surface.surface_id) ?? readString(metadata.surface_id);
 
   if (slot === "quick_action") {
@@ -140,9 +141,14 @@ export function compareShellContributions(a: ShellContribution, b: ShellContribu
   return a.id.localeCompare(b.id);
 }
 
-function readLocalizedText(value: unknown, locale: string, maxLength: number): string | undefined {
+function readLocalizedText(value: unknown, locale: string, maxLength: number): string | undefined | null {
   const localized = asRecord(value);
   if (!localized) return undefined;
+
+  for (const text of Object.values(localized)) {
+    const trimmed = readString(text);
+    if (!trimmed || trimmed.length > maxLength) return null;
+  }
 
   const seen = new Set<string>();
   const candidates = [locale, ...FALLBACK_LOCALES, ...Object.keys(localized)];

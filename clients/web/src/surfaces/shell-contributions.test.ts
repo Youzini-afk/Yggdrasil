@@ -61,7 +61,7 @@ assertEqual(localeFallback?.description, "中文描述");
 const enFallback = parseShellContribution(
   contribution({
     shell_schema_version: 1,
-    title: { de: "", en: "English", "zh-CN": "中文" },
+    title: { en: "English", "zh-CN": "中文" },
   }),
   "quick_action",
   "de",
@@ -71,11 +71,21 @@ assertEqual(enFallback?.title, "English");
 assertEqual(parseShellContribution(contribution({ title: { en: "Legacy" } }), "quick_action", "en"), null);
 assertEqual(parseShellContribution(contribution({ shell_schema_version: 1, description: { en: "No title" } }), "quick_action", "en"), null);
 assertEqual(parseShellContribution(contribution({ ...baseMetadata, title: { en: "   " } }), "quick_action", "en"), null);
+assertEqual(parseShellContribution(contribution({ shell_schema_version: 1, title: { en: "x".repeat(81) } }), "quick_action", "en"), null);
+assertEqual(parseShellContribution(contribution({ ...baseMetadata, description: { en: "x".repeat(241) } }), "quick_action", "en"), null);
 
 const unknownIcon = parseShellContribution(contribution({ ...baseMetadata, icon_hint: "mystery" }), "quick_action", "en");
 assertEqual(unknownIcon?.iconHint, "mystery");
 
 assertEqual(parseShellContribution(contribution({ ...baseMetadata, icon_hint: "https://example.test/icon.svg" }), "quick_action", "en"), null);
+assertEqual(parseShellContribution(contribution({ ...baseMetadata, icon_hint: "bad/icon" }), "quick_action", "en"), null);
+
+const metadataCapabilityIgnored = parseShellContribution(
+  contribution({ ...baseMetadata, capability_id: "other/package/run" }),
+  "quick_action",
+  "en",
+);
+assertEqual(metadataCapabilityIgnored?.capabilityId, undefined);
 
 const validCategory = parseShellContribution(
   contribution({ ...baseMetadata, category: "template" }, {}, "workshop_card"),

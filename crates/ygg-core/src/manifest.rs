@@ -749,12 +749,19 @@ fn validate_shell_descriptor_metadata(
         }
     }
 
-    validate_localized_text_object(&surface.id, metadata.get("title"), "title", true)?;
+    validate_localized_text_object(
+        &surface.id,
+        metadata.get("title"),
+        "title",
+        true,
+        SHELL_DESCRIPTOR_TITLE_MAX_CHARS,
+    )?;
     validate_localized_text_object(
         &surface.id,
         metadata.get("description"),
         "description",
         false,
+        SHELL_DESCRIPTOR_DESCRIPTION_MAX_CHARS,
     )?;
 
     if let Some(icon_hint) = metadata.get("icon_hint") {
@@ -811,6 +818,7 @@ fn validate_localized_text_object(
     value: Option<&Value>,
     field: &str,
     required: bool,
+    max_chars: usize,
 ) -> Result<(), ManifestError> {
     let Some(value) = value else {
         return if required {
@@ -830,7 +838,7 @@ fn validate_localized_text_object(
             object
                 .get(*locale)
                 .and_then(Value::as_str)
-                .map(is_valid_shell_text)
+                .map(is_non_empty_shell_text)
                 .unwrap_or(false)
         });
         if !has_required_locale {
@@ -847,40 +855,45 @@ fn validate_localized_text_object(
                 format!("{field}.{locale} must be a string"),
             )
         })?;
-        if !is_valid_shell_text(text) {
+        if !is_valid_shell_text(text, max_chars) {
             return Err(invalid_shell_descriptor_metadata(
                 surface_id,
-                format!("{field}.{locale} must be non-empty short text"),
+                format!("{field}.{locale} must be non-empty text up to {max_chars} characters"),
             ));
         }
     }
     Ok(())
 }
 
-fn is_valid_shell_text(text: &str) -> bool {
+const SHELL_DESCRIPTOR_TITLE_MAX_CHARS: usize = 80;
+const SHELL_DESCRIPTOR_DESCRIPTION_MAX_CHARS: usize = 240;
+const SHELL_DESCRIPTOR_ICON_HINT_MAX_CHARS: usize = 40;
+
+fn is_non_empty_shell_text(text: &str) -> bool {
+    !text.trim().is_empty()
+}
+
+fn is_valid_shell_text(text: &str, max_chars: usize) -> bool {
     let trimmed = text.trim();
-    !trimmed.is_empty() && trimmed.chars().count() <= 160
+    is_non_empty_shell_text(text) && trimmed.chars().count() <= max_chars
 }
 
 fn validate_icon_hint(surface_id: &str, icon_hint: &str) -> Result<(), ManifestError> {
     let trimmed = icon_hint.trim();
-    let looks_like_url =
-        url::Url::parse(trimmed).is_ok() || trimmed.starts_with("//") || trimmed.contains("://");
-    let looks_like_path = trimmed.starts_with('/')
-        || trimmed.starts_with("./")
-        || trimmed.starts_with("../")
-        || trimmed.contains('\\')
-        || trimmed.contains('/');
-    let looks_like_html = trimmed.contains('<') || trimmed.contains('>');
+    let valid_chars = trimmed.chars().enumerate().all(|(index, character)| {
+        if index == 0 {
+            character.is_ascii_alphabetic()
+        } else {
+            character.is_ascii_alphanumeric() || character == '_' || character == '-'
+        }
+    });
     if trimmed.is_empty()
-        || trimmed.chars().count() > 64
-        || looks_like_url
-        || looks_like_path
-        || looks_like_html
+        || trimmed.chars().count() > SHELL_DESCRIPTOR_ICON_HINT_MAX_CHARS
+        || !valid_chars
     {
         return Err(invalid_shell_descriptor_metadata(
             surface_id,
-            "icon_hint must be a short non-url, non-path, non-html string",
+            "icon_hint must match [A-Za-z][A-Za-z0-9_-]{0,39}",
         ));
     }
     Ok(())
