@@ -64,12 +64,20 @@ export interface LocaleDictionary {
   homeMeasuring: string;
   homeNoStorageMeasured: string;
   homeManageStorage: string;
+  homeWorkshopCards: string;
+  homeWorkshopCategoryTool: string;
+  homeWorkshopCategoryTemplate: string;
+  homeWorkshopCategoryExample: string;
   homeQuickActions: string;
+  homeCapabilityCards: string;
   homeQuickInstallUrl: string;
   homeQuickDataFolder: string;
   homeQuickSettings: string;
   homeQuickSwitchProfile: string;
   homeOpenDataFolderToast: string;
+  homePackageActionFoundTitle: (title: string) => string;
+  homePackageActionFoundBody: string;
+  homePackageActionFoundSurfaceBody: string;
   homeActionResume: string;
   homeActionOpen: string;
   homeActionRestart: string;
@@ -513,12 +521,21 @@ export const labels = {
     homeMeasuring: "Measuring",
     homeNoStorageMeasured: "No project storage measured.",
     homeManageStorage: "Manage storage →",
+    homeWorkshopCards: "Workshop cards",
+    homeWorkshopCategoryTool: "Tool",
+    homeWorkshopCategoryTemplate: "Template",
+    homeWorkshopCategoryExample: "Example",
     homeQuickActions: "Quick actions",
+    homeCapabilityCards: "Home capability cards",
     homeQuickInstallUrl: "Install URL",
     homeQuickDataFolder: "Data folder",
     homeQuickSettings: "Settings",
     homeQuickSwitchProfile: "Switch profile",
     homeOpenDataFolderToast: "Use the CLI to open the local platform data directory.",
+    homePackageActionFoundTitle: (title) => `${title} found`,
+    homePackageActionFoundBody: "This package action is available. Action wiring needs package details in a later pass.",
+    homePackageActionFoundSurfaceBody:
+      "This package surface is available. Opening it safely needs package details in a later pass.",
     homeActionResume: "Resume",
     homeActionOpen: "Open",
     homeActionRestart: "Restart",
@@ -985,12 +1002,20 @@ export const labels = {
     homeMeasuring: "测量中",
     homeNoStorageMeasured: "尚未测量项目存储。",
     homeManageStorage: "管理存储 →",
+    homeWorkshopCards: "工作台卡片",
+    homeWorkshopCategoryTool: "工具",
+    homeWorkshopCategoryTemplate: "模板",
+    homeWorkshopCategoryExample: "示例",
     homeQuickActions: "快捷操作",
+    homeCapabilityCards: "首页能力卡片",
     homeQuickInstallUrl: "安装 URL",
     homeQuickDataFolder: "数据文件夹",
     homeQuickSettings: "设置",
     homeQuickSwitchProfile: "切换配置",
     homeOpenDataFolderToast: "请使用 CLI 打开本地平台数据目录。",
+    homePackageActionFoundTitle: (title) => `已发现 ${title}`,
+    homePackageActionFoundBody: "此包操作已可见。操作接线需要在后续实现中读取包详情。",
+    homePackageActionFoundSurfaceBody: "此包界面已可见。安全打开它需要在后续实现中读取包详情。",
     homeActionResume: "继续",
     homeActionOpen: "打开",
     homeActionRestart: "重启",

@@ -1,5 +1,4 @@
 import { Card } from "@/components/ui/card";
-import { EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
 import { resolveShellIcon } from "./shell-icons";
 import type {
@@ -28,7 +27,7 @@ export function QuickActionList({
 
   return (
     <nav aria-label={ariaLabel} className={className}>
-      <ul className="grid grid-cols-2 gap-1.5">
+      <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {items.map((item) => {
           const Icon = resolveShellIcon(item.iconHint);
           const disabled = isActionDisabled?.(item) ?? false;
@@ -158,7 +157,6 @@ export function HomeCapabilityCards({
                 <span className="grid size-9 place-items-center rounded-[12px] bg-whisper-border-strong/30 text-charcoal-ink">
                   <Icon size={18} aria-hidden />
                 </span>
-                <EyebrowSm>{item.packageId}</EyebrowSm>
               </div>
               <div className="space-y-1">
                 <h3 className="text-[14px] font-semibold text-charcoal-ink">{item.title}</h3>

@@ -4,7 +4,7 @@ import { UtilityStrip } from "@/components/home/utility-strip";
 import { ProjectCard } from "@/components/home/project-card";
 import { InstallCard } from "@/components/home/install-card";
 import { ActivityTimeline } from "@/components/home/activity-timeline";
-import { WorkshopUtilities, QUICK_ACTION_ICONS } from "@/components/home/workshop-utilities";
+import { WorkshopUtilities } from "@/components/home/workshop-utilities";
 import { Eyebrow } from "@/components/ui/typography";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,8 +16,25 @@ import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime } from "@/lib/format";
 import { useLocale } from "@/lib/locale";
 import type { FailureDetail } from "@/components/install/failure-modal";
+import { HomeCapabilityCards } from "@/surfaces/shell-contribution-renderers";
+import type {
+  HomeCardContribution,
+  QuickActionContribution,
+  WorkshopCardContribution,
+} from "@/surfaces/shell-contributions";
+import { useSurfaceContributions } from "@/surfaces/use-surface-contributions";
 import { useHomeProjects } from "./home/use-home-projects";
 import { useProjectActions } from "./home/use-project-actions";
+import {
+  HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID,
+  HOME_CAPABILITY_CARD_LIMIT,
+  HOME_WORKSHOP_CARD_LIMIT,
+  createHomeBuiltinQuickActions,
+  limitHomeCapabilityCards,
+  limitHomeWorkshopCards,
+  mergeHomeQuickActions,
+  type HomeBuiltinQuickActionId,
+} from "./home/shell-actions";
 
 const InstallModal = lazy(() =>
   import("@/components/install/install-modal").then((module) => ({ default: module.InstallModal })),
@@ -37,6 +54,9 @@ export function HomePage() {
   const [showInstall, setShowInstall] = useState(false);
   const [failureProjectId, setFailureProjectId] = useState<string | null>(null);
   const [failureDetail, setFailureDetail] = useState<FailureDetail>();
+  const packageQuickActions = useSurfaceContributions<QuickActionContribution>("quick_action", locale);
+  const packageWorkshopCards = useSurfaceContributions<WorkshopCardContribution>("workshop_card", locale);
+  const packageHomeCards = useSurfaceContributions<HomeCardContribution>("home_card", locale);
   const navigateTo = useCallback((route: Route) => navigate(route), [navigate]);
   const launchProject = useCallback(
     (projectId: string) => {
@@ -135,6 +155,53 @@ export function HomePage() {
   }, []);
 
   const hasInstalledProjects = projectList.length > 0;
+  const builtinQuickActions = createHomeBuiltinQuickActions([
+    { id: "install", title: t("homeQuickInstallUrl"), iconHint: "plus" },
+    { id: "open-folder", title: t("homeQuickDataFolder"), iconHint: "folder" },
+    { id: "settings", title: t("homeQuickSettings"), iconHint: "settings" },
+    { id: "switch-profile", title: t("homeQuickSwitchProfile"), iconHint: "terminal" },
+  ]);
+  const quickActions = mergeHomeQuickActions({
+    builtin: builtinQuickActions,
+    packageActions: packageQuickActions.items,
+  });
+  const workshopCards = limitHomeWorkshopCards(packageWorkshopCards.items, HOME_WORKSHOP_CARD_LIMIT);
+  const homeCards = limitHomeCapabilityCards(packageHomeCards.items, HOME_CAPABILITY_CARD_LIMIT);
+
+  const onPackageContributionClick = useCallback(
+    (item: QuickActionContribution | WorkshopCardContribution | HomeCardContribution) => {
+      toast.push({
+        variant: "info",
+        title: t("homePackageActionFoundTitle", item.title),
+        body: item.surfaceId ? t("homePackageActionFoundSurfaceBody") : t("homePackageActionFoundBody"),
+      });
+    },
+    [t, toast],
+  );
+
+  const onQuickActionClick = useCallback(
+    (action: QuickActionContribution) => {
+      if (action.packageId !== HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID) {
+        onPackageContributionClick(action);
+        return;
+      }
+      switch (action.id as HomeBuiltinQuickActionId) {
+        case "install":
+          onInstallClick();
+          break;
+        case "open-folder":
+          toast.push({ variant: "info", title: t("homeOpenDataFolderToast") });
+          break;
+        case "settings":
+          navigateTo({ kind: "settings", tab: "api-connections" });
+          break;
+        case "switch-profile":
+          navigateTo({ kind: "settings", tab: "profiles" });
+          break;
+      }
+    },
+    [navigateTo, onInstallClick, onPackageContributionClick, t, toast],
+  );
 
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[1920px] flex-col gap-7 px-4 pt-6 pb-8 sm:px-6 sm:pb-10 lg:gap-8 lg:px-8 lg:pt-8 lg:pb-12 2xl:px-12 2xl:pb-14">
@@ -171,6 +238,14 @@ export function HomePage() {
         onContinue={onContinue}
         onInstall={onInstallClick}
         onBrowseProjects={onBrowseProjects}
+      />
+
+      <HomeCapabilityCards
+        items={homeCards}
+        onCardClick={onPackageContributionClick}
+        ariaLabel={t("homeCapabilityCards")}
+        maxItems={HOME_CAPABILITY_CARD_LIMIT}
+        className="-mt-3"
       />
 
       <div className="grid flex-1 grid-cols-1 gap-8 lg:min-h-0 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_460px]">
@@ -293,38 +368,16 @@ export function HomePage() {
               measuring: t("homeMeasuring"),
               noStorageMeasured: t("homeNoStorageMeasured"),
               manageStorage: t("homeManageStorage"),
+              workshopCards: t("homeWorkshopCards"),
+              categoryTool: t("homeWorkshopCategoryTool"),
+              categoryTemplate: t("homeWorkshopCategoryTemplate"),
+              categoryExample: t("homeWorkshopCategoryExample"),
               quickActions: t("homeQuickActions"),
             }}
-            quickActions={[
-              {
-                id: "install",
-                label: t("homeQuickInstallUrl"),
-                shortcut: "⌘N",
-                icon: QUICK_ACTION_ICONS.Plus,
-                onClick: onInstallClick,
-              },
-              {
-                id: "open-folder",
-                label: t("homeQuickDataFolder"),
-                shortcut: "⌘O",
-                icon: QUICK_ACTION_ICONS.Folder,
-                onClick: () => toast.push({ variant: "info", title: t("homeOpenDataFolderToast") }),
-              },
-              {
-                id: "settings",
-                label: t("homeQuickSettings"),
-                shortcut: "⌘,",
-                icon: QUICK_ACTION_ICONS.GearSix,
-                onClick: () => navigateTo({ kind: "settings", tab: "api-connections" }),
-              },
-              {
-                id: "switch-profile",
-                label: t("homeQuickSwitchProfile"),
-                shortcut: "⌘P",
-                icon: QUICK_ACTION_ICONS.Terminal,
-                onClick: () => navigateTo({ kind: "settings", tab: "profiles" }),
-              },
-            ]}
+            quickActions={quickActions}
+            workshopCards={workshopCards}
+            onQuickActionClick={onQuickActionClick}
+            onWorkshopCardClick={onPackageContributionClick}
           />
         </div>
       </div>

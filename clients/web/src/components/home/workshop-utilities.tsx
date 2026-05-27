@@ -1,9 +1,11 @@
-import { Folder, GearSix, Plus, Terminal } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Eyebrow, EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
+import { QuickActionList } from "@/surfaces/shell-contribution-renderers";
+import type { QuickActionContribution, WorkshopCardContribution } from "@/surfaces/shell-contributions";
+import { WorkshopCardList } from "@/surfaces/shell-contribution-renderers";
 
 export interface UpdateEntry {
   id: string;
@@ -21,20 +23,15 @@ export interface DiskSegment {
   toneClass: string;
 }
 
-export interface QuickAction {
-  id: string;
-  label: string;
-  shortcut: string;
-  icon: typeof Plus;
-  onClick: () => void;
-}
-
 export interface WorkshopUtilitiesProps {
   updates: UpdateEntry[];
   totalDisk: number; // bytes
   diskSegments: DiskSegment[];
   diskCapacity: number; // bytes
-  quickActions: QuickAction[];
+  quickActions: QuickActionContribution[];
+  workshopCards?: WorkshopCardContribution[];
+  onQuickActionClick?: (action: QuickActionContribution) => void;
+  onWorkshopCardClick?: (card: WorkshopCardContribution) => void;
   onUpdateAll?: () => void;
   onManageStorage?: () => void;
   labels?: Partial<WorkshopUtilitiesLabels>;
@@ -53,6 +50,10 @@ export interface WorkshopUtilitiesLabels {
   measuring: string;
   noStorageMeasured: string;
   manageStorage: string;
+  workshopCards: string;
+  categoryTool: string;
+  categoryTemplate: string;
+  categoryExample: string;
   quickActions: string;
 }
 
@@ -69,6 +70,10 @@ const DEFAULT_LABELS: WorkshopUtilitiesLabels = {
   measuring: "Measuring",
   noStorageMeasured: "No project storage measured.",
   manageStorage: "Manage storage →",
+  workshopCards: "",
+  categoryTool: "",
+  categoryTemplate: "",
+  categoryExample: "",
   quickActions: "Quick actions",
 };
 
@@ -87,6 +92,9 @@ export function WorkshopUtilities({
   diskSegments,
   diskCapacity,
   quickActions,
+  workshopCards = [],
+  onQuickActionClick,
+  onWorkshopCardClick,
   onUpdateAll,
   onManageStorage,
   labels: labelOverrides,
@@ -97,7 +105,7 @@ export function WorkshopUtilities({
   const hasPositiveStorage = totalDisk > 0 && measuredSegments.some((segment) => segment.bytes > 0);
 
   return (
-    <section className="flex flex-col gap-3 lg:flex-[1.15]">
+    <section className="flex min-h-0 flex-col gap-3 lg:flex-[1.15]">
       <Eyebrow>{labels.workshop}</Eyebrow>
       <Card className="flex flex-1 flex-col divide-y divide-whisper-border">
         {/* Updates */}
@@ -183,31 +191,29 @@ export function WorkshopUtilities({
           </button>
         </div>
 
+        {workshopCards.length > 0 ? (
+          <div className="flex flex-col gap-3 p-5">
+            <EyebrowSm>{labels.workshopCards}</EyebrowSm>
+            <WorkshopCardList
+              items={workshopCards}
+              onCardClick={onWorkshopCardClick}
+              ariaLabel={labels.workshopCards}
+              categoryLabels={{
+                tool: labels.categoryTool,
+                template: labels.categoryTemplate,
+                example: labels.categoryExample,
+              }}
+              className="[&>div]:grid-cols-1 [&>div]:gap-2"
+            />
+          </div>
+        ) : null}
+
         {/* Quick actions */}
         <div className="flex flex-col gap-2 p-5">
           <EyebrowSm>{labels.quickActions}</EyebrowSm>
-          <ul className="grid grid-cols-2 gap-1.5">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <li key={action.id}>
-                  <button
-                    type="button"
-                    onClick={action.onClick}
-                    className="flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left text-[12px] text-charcoal-ink transition hover:bg-whisper-border-strong/30"
-                  >
-                    <Icon size={14} className="text-steel-secondary" />
-                    <span className="flex-1 font-medium">{action.label}</span>
-                    <span className="font-mono text-[10px] text-muted-tone">{action.shortcut}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <QuickActionList items={quickActions} onActionClick={onQuickActionClick} ariaLabel={labels.quickActions} />
         </div>
       </Card>
     </section>
   );
 }
-
-export const QUICK_ACTION_ICONS = { Plus, Folder, GearSix, Terminal };

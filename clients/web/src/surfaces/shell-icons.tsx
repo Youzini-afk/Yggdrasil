@@ -17,6 +17,7 @@ export type ShellIconComponent = typeof Info;
 const SHELL_ICON_REGISTRY: Record<string, ShellIconComponent> = {
   add: Plus,
   folder: Folder,
+  gear: GearSix,
   info: Info,
   package: Package,
   play: Play,

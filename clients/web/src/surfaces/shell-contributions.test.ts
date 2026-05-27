@@ -1,8 +1,16 @@
 import {
   parseShellContribution,
   parseShellContributions,
+  type QuickActionContribution,
   type ShellContributionSlot,
+  type WorkshopCardContribution,
 } from "./shell-contributions";
+import {
+  HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID,
+  createHomeBuiltinQuickActions,
+  limitHomeWorkshopCards,
+  mergeHomeQuickActions,
+} from "../routes/home/shell-actions";
 
 function assertEqual<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -95,3 +103,52 @@ assertDeepEqual(sorted.map((item) => `${item.order}:${item.packageId}:${item.id}
   "20:pkg/a:c",
   "20:pkg/b:b",
 ]);
+
+const builtinQuickActions = createHomeBuiltinQuickActions([
+  { id: "install", title: "Install URL", iconHint: "plus" },
+  { id: "open-folder", title: "Data folder", iconHint: "folder" },
+  { id: "settings", title: "Settings", iconHint: "settings" },
+  { id: "switch-profile", title: "Switch profile", iconHint: "terminal" },
+]);
+assertDeepEqual(builtinQuickActions.map((item) => item.id), ["install", "open-folder", "settings", "switch-profile"]);
+assertDeepEqual(
+  builtinQuickActions.map((item) => item.packageId),
+  Array.from({ length: 4 }, () => HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID),
+);
+assertDeepEqual(
+  builtinQuickActions.map((item) => item.capabilityId ?? item.surfaceId ?? null),
+  [null, null, null, null],
+);
+
+const packageQuickActions = parseShellContributions(
+  [
+    { package_id: "pkg/a", surface: { id: "a", slot: "quick_action", metadata: { ...baseMetadata, order: 1 } } },
+    { package_id: "pkg/b", surface: { id: "b", slot: "quick_action", metadata: { ...baseMetadata, order: 2 } } },
+    { package_id: "pkg/c", surface: { id: "c", slot: "quick_action", metadata: { ...baseMetadata, order: 3 } } },
+    { package_id: "pkg/d", surface: { id: "d", slot: "quick_action", metadata: { ...baseMetadata, order: 4 } } },
+    { package_id: "pkg/e", surface: { id: "e", slot: "quick_action", metadata: { ...baseMetadata, order: 5 } } },
+  ],
+  "quick_action",
+  "en",
+).filter((item): item is QuickActionContribution => item.slot === "quick_action");
+const mergedQuickActions = mergeHomeQuickActions({ builtin: builtinQuickActions, packageActions: packageQuickActions, packageLimit: 4 });
+assertDeepEqual(mergedQuickActions.map((item) => `${item.packageId}:${item.id}`), [
+  `${HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID}:install`,
+  `${HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID}:open-folder`,
+  `${HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID}:settings`,
+  `${HOME_BUILTIN_QUICK_ACTION_PACKAGE_ID}:switch-profile`,
+  "pkg/a:a",
+  "pkg/b:b",
+  "pkg/c:c",
+  "pkg/d:d",
+]);
+
+const workshopCards = parseShellContributions(
+  [0, 1, 2, 3, 4, 5, 6].map((index) => ({
+    package_id: `pkg/${index}`,
+    surface: { id: `card-${index}`, slot: "workshop_card", metadata: { ...baseMetadata, order: index } },
+  })),
+  "workshop_card",
+  "en",
+).filter((item): item is WorkshopCardContribution => item.slot === "workshop_card");
+assertEqual(limitHomeWorkshopCards(workshopCards).length, 4);
