@@ -176,6 +176,7 @@ mode for legibility on bark backgrounds.
 | Page | Source |
 | ---- | ------ |
 | Home — projects | `kernel.v1.project.list` + per-project `storage_summary` |
+| Home — shell contributions | `kernel.v1.surface.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
 | Settings — API Connections | `official/secret-store-lab/{list,put,delete}_secret` + `health` |
 | Settings — Installed Packages | `kernel.v1.package.list` + `kernel.v1.project.list` (project flag) |
 | Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
@@ -191,6 +192,14 @@ project, install) push toast feedback and re-query the underlying resource.
 The shell never reads raw secret values. Provider keys move from the secret
 store into outbound requests via host-injected `secret_ref` references; the UI
 sees only names, scopes, and counts.
+
+Structured shell descriptors are rendered by the platform, not by package code.
+`quick_action`, `workshop_card`, and `home_card` entries with
+`metadata.shell_schema_version: 1` may provide bounded localized text, a shell
+icon hint, display order, and same-package targets. The shell does not import a
+bundle, parse HTML, or create an iframe for these entries. Package-contributed
+quick actions are discovery affordances in the current slice; executable wiring
+must still cross proposal, permission, and audit boundaries.
 
 ---
 

@@ -60,7 +60,7 @@ This document defines what the kernel does and what it doesn't. Anything not lis
 
 ### 8. Surface contributions
 
-- Accepts UI surface descriptors that packages declare in their manifests (slots: `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`).
+- Accepts UI surface descriptors that packages declare in their manifests (slots: `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`).
 - Exposes them through the public protocol so any client can discover what's launchable, viewable, or actionable.
 - Stores descriptors only. Rendering and content semantics belong to packages and clients.
 

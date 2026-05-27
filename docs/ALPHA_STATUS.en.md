@@ -8,7 +8,7 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 428 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
+- **Conformance:** 429 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 - **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`; `surface_bundle` is a static, non-executing entry; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`.
@@ -61,7 +61,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 - Session fork / branch lineage rehydrates from the event log.
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
 - Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `yg project list/info/status/start/stop` are implemented.
-- Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, `assistant_action`. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
+- Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`. `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are structured shell descriptors: the web shell reads only bounded text, icon hints, order, and same-package targets, then renders them itself. It does not load package JavaScript, parse HTML, or mount iframes for those entries. Complex project surfaces still use `surface_bundle` plus sandboxed iframe hosting. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
 - Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry; installed project bundles are served by the host as same-origin static files under `/surface-bundles/projects/<project_id>/...`.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
@@ -219,7 +219,7 @@ Under `sdk/typescript/`:
 
 The platform user-facing chrome — Home, Settings, Install flow, Project frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite with route- and modal-level lazy splitting. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
 
-- **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `kernel.v1.project.list`; disk usage comes from project `storage_summary`. `⌘N` opens the Install modal.
+- **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `kernel.v1.project.list`; disk usage comes from project `storage_summary`. Home also consumes structured shell descriptors: built-in quick actions remain, and package-contributed `quick_action`, `workshop_card`, and schema-versioned `home_card` entries are discovery affordances rendered by the platform. Package actions are discovery-only in this slice and do not bypass proposal / permission / audit. `⌘N` opens the Install modal.
 - **Settings:** five panels, all wired to real data.
   - API Connections — `official/secret-store-lab/{list,put,delete}_secret` plus health. The UI never reads raw secret values; secret-edit modals wipe their input state on close.
   - Installed Packages — `kernel.v1.package.list` plus the project flag, with Cmd/Ctrl+F focus.
@@ -227,7 +227,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
   - Storage — storage-area summary plus the live event-store kind (sqlite / postgres / memory), without exposing host absolute paths in the Web UI.
   - About — platform identity, license, links, gratitude.
 - **Install flow:** three-step modal calls `official/install-lab` (`resolve_plan` / `detect_kind` / `execute_plan`) through `kernel.v1.capability.invoke`. Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard. There is no `kernel.v1.install.*`.
-- **Project Frame:** 60px platform topbar plus 40px project topbar (project name / status pill / Stop / Audit log) plus the iframe SurfaceHost that mounts the project's own UI.
+- **Project Frame:** Home opens projects in standalone `/project/<id>` tabs. The project page has no platform topbar or back button; it fills the viewport with the sandboxed iframe that mounts the project's own UI. Closing the tab does not stop the project. `⌘ .` / `Ctrl .` stops the current project from the project tab.
 - **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `kernel.v1.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
@@ -253,7 +253,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Code organization
 
-- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 428 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 429 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/ygg-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`KernelMethod`), with a registry / dispatch consistency unit test.
@@ -264,7 +264,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 428 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 429 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

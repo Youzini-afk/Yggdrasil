@@ -60,7 +60,7 @@
 
 ### 8. Surface 贡献
 
-- 接收能力包在清单里声明的 UI surface 描述符（slot 包括 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`）。
+- 接收能力包在清单里声明的 UI surface 描述符（slot 包括 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`）。
 - 通过公开协议暴露这些描述符，让任意客户端都能发现「现在这里有什么可启动、可查看、可让 assistant 操作」。
 - 只存描述符。渲染和内容语义归能力包和客户端管。
 

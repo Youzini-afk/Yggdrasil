@@ -8,9 +8,9 @@
 
 - 内核对内容无意见，官方包没有特权，公开协议是唯一入口。
 - 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
-- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、Home 项目货架、独立项目标签页、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
+- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、Home 项目货架、结构化 shell descriptor、独立项目标签页、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
 - 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
-- Contract V1 是公开平台规范，63 methods + 45 events + 7 top-level = 115 个 schema 全部通过校验，428 conformance cases 通过。
+- Contract V1 是公开平台规范，63 methods + 45 events + 7 top-level = 115 个 schema 全部通过校验，429 conformance cases 通过。
 
 下一阶段不再继续摊大表面积，而是由真实可玩体验来牵引剩下的工作。
 
@@ -82,6 +82,7 @@
 
 ### Web shell 与 surface
 
+- 结构化 shell descriptor 的下一步执行接线：包贡献的 `quick_action` / `workshop_card` 现在是发现入口，后续若要可执行，必须走 proposal / permission / audit，不得直接静默调用能力。
 - Surface lifecycle hooks（`onClose`、`onProposalDraft` 等）。
 - Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
 - 社区 marketplace 的 surface allowlist / integrity pin / version pin / audit metadata；默认 installed project bundle 仍走 same-origin 静态路由。

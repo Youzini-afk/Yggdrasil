@@ -82,7 +82,7 @@ contributes:
   surfaces:
     - id: org/name/entry
       version: 0.1.0
-      slot: experience_entry        # | home_card | play_renderer | forge_panel | asset_editor | assistant_action
+      slot: experience_entry        # | home_card | quick_action | workshop_card | play_renderer | forge_panel | asset_editor | assistant_action
       title: ...
       description: ...
       capability_id: org/name/launch

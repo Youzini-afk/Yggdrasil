@@ -257,7 +257,9 @@ kernel.v1.surface.contribution.list
 kernel.v1.surface.contribution.describe
 ```
 
-Initial slots are `experience_entry`, `home_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
+Current slots are `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`.
+
+`quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are structured shell descriptors. They allow only bounded text, icon hints, order, and same-package targets. The web shell renders these entries itself. It does not load package JavaScript, parse HTML, or mount iframes for them. Package-contributed actions are discovery affordances today; if they become executable later, they still have to cross the public protocol, permission, proposal, and audit boundaries.
 
 Surface descriptors may include a version, launch capability, session template, input schema, permission UX metadata, and an approval policy. They remain descriptors; the kernel does not turn them into built-in experience/game semantics.
 

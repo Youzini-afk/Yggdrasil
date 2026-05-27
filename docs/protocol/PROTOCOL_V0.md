@@ -257,7 +257,9 @@ kernel.v1.surface.contribution.list
 kernel.v1.surface.contribution.describe
 ```
 
-初始 slot 为 `experience_entry`、`home_card`、`play_renderer`、`forge_panel`、`asset_editor` 和 `assistant_action`。
+当前 slot 为 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor` 和 `assistant_action`。
+
+`quick_action`、`workshop_card`，以及带 `metadata.shell_schema_version: 1` 的 `home_card` 是结构化 shell descriptor。它们只允许受限文本、icon hint、排序和同包 target。Web shell 自己渲染这些入口，不加载包 JS、不解析 HTML、不 mount iframe。包贡献的 action 目前是发现入口；未来若要执行，仍必须走公开协议、权限、提案和审计。
 
 Surface 描述符可以包含版本、启动能力、会话模板、input schema、权限 UX 元数据和 approval 策略。这些始终只是描述符；内核不会将它们转化为内建的体验/游戏语义。
 

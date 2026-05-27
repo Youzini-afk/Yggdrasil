@@ -2,11 +2,11 @@
 
 > [English](./SURFACE_HOSTING.en.md) · [中文](./SURFACE_HOSTING.md)
 
-本指南说明 `clients/web` 如何用 sandboxed iframe 承载外部 React / Web surface bundle。它描述的是 v0 宿主边界：Web shell 仍然是 plain TypeScript SPA，第三方 surface 通过公开协议和显式 host bridge 与 Yggdrasil 交互。
+本指南说明 `clients/web` 如何处理两类 surface：结构化 shell descriptor，以及用 sandboxed iframe 承载的外部 React / Web surface bundle。它描述的是 v0 宿主边界：Web shell 仍然是 plain TypeScript SPA，第三方 iframe surface 通过公开协议和显式 host bridge 与 Yggdrasil 交互。
 
 ## 目的
 
-Yggdrasil 的能力包可以通过 manifest 贡献 surface 描述符。`clients/web` 负责把这些描述符变成可见 UI。对于需要自带前端 bundle 的第三方 surface，Web shell 不把代码直接加载进主窗口，而是通过 `SurfaceHost` 创建 iframe：
+Yggdrasil 的能力包可以通过 manifest 贡献 surface 描述符。`clients/web` 负责把这些描述符变成可见 UI。小颗粒 shell 入口由平台用结构化 metadata 渲染；需要自带前端 bundle 的第三方 surface 则不把代码直接加载进主窗口，而是通过 `SurfaceHost` 创建 iframe：
 
 - 主 shell 保持对导航、会话、公开协议客户端和权限提示的控制；
 - 第三方 bundle 在隔离 frame 内运行；
@@ -14,6 +14,26 @@ Yggdrasil 的能力包可以通过 manifest 贡献 surface 描述符。`clients/
 - surface 不能直接访问 kernel，只能使用宿主显式接线的 bridge。
 
 实现入口见 `clients/web/src/surfaces/surface-host.ts`，frame bootstrap 见 `clients/web/public/surface-frame.html`。
+
+## 结构化 shell descriptor
+
+这些 slot 由 Web shell 直接渲染：
+
+- `quick_action`
+- `workshop_card`
+- 带 `metadata.shell_schema_version: 1` 的 `home_card`
+
+它们只允许受限 metadata：
+
+- `title`：本地化字符串，单项最多 80 字符。
+- `description`：可选本地化字符串，单项最多 240 字符。
+- `icon`：平台维护的 icon hint 白名单。
+- `order`、`category`、`badge`、`tone`：只影响平台渲染。
+- `surface_id` 或 top-level `capability_id`：必须指向同一 package 声明的 surface 或 capability。
+
+Web shell 不会为这些 descriptor 加载 bundle、解析 HTML、运行包 JS 或创建 iframe。`quick_action` 当前只是发现入口；点击包贡献的 action 会显示来源与目标，不会静默调用能力。后续若要接入执行，也必须走公开协议、权限、提案和审计。
+
+这层机制用于 Home 的小卡片和入口，不用于替换整个 Home、Settings 核心页、项目网格、Continue Card 或 Activity Timeline。
 
 ## Host API
 

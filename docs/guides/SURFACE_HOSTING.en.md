@@ -2,11 +2,11 @@
 
 > [English](./SURFACE_HOSTING.en.md) · [中文](./SURFACE_HOSTING.md)
 
-This guide describes how `clients/web` hosts external React / Web surface bundles through sandboxed iframes. It documents the v0 host boundary: the web shell remains a plain TypeScript SPA, while third-party surfaces interact with Yggdrasil through the public protocol and an explicit host bridge.
+This guide describes how `clients/web` handles two surface shapes: structured shell descriptors, and external React / Web surface bundles hosted through sandboxed iframes. It documents the v0 host boundary: the web shell remains a plain TypeScript SPA, while third-party iframe surfaces interact with Yggdrasil through the public protocol and an explicit host bridge.
 
 ## Purpose
 
-Yggdrasil capability packages can contribute surface descriptors through their manifests. `clients/web` turns those descriptors into visible UI. When a third-party surface brings its own frontend bundle, the web shell does not load that code directly into the main window. Instead, `SurfaceHost` creates an iframe:
+Yggdrasil capability packages can contribute surface descriptors through their manifests. `clients/web` turns those descriptors into visible UI. Small shell entries are rendered from structured metadata by the platform. When a third-party surface brings its own frontend bundle, the web shell does not load that code directly into the main window. Instead, `SurfaceHost` creates an iframe:
 
 - the main shell keeps control of navigation, sessions, the public-protocol client, and permission prompts;
 - the third-party bundle runs inside an isolated frame;
@@ -14,6 +14,26 @@ Yggdrasil capability packages can contribute surface descriptors through their m
 - the surface cannot reach the kernel directly and only gets bridge methods explicitly wired by the host.
 
 The host implementation is in `clients/web/src/surfaces/surface-host.ts`. The frame bootstrap is in `clients/web/public/surface-frame.html`.
+
+## Structured shell descriptors
+
+These slots are rendered directly by the web shell:
+
+- `quick_action`
+- `workshop_card`
+- `home_card` entries with `metadata.shell_schema_version: 1`
+
+They accept only bounded metadata:
+
+- `title`: localized string, max 80 characters per entry.
+- `description`: optional localized string, max 240 characters per entry.
+- `icon`: an allowlisted platform icon hint.
+- `order`, `category`, `badge`, `tone`: display-only hints for the platform renderer.
+- `surface_id` or top-level `capability_id`: must point to a surface or capability declared by the same package.
+
+The web shell does not load bundles, parse HTML, run package JavaScript, or create iframes for these descriptors. A package-contributed `quick_action` is currently a discovery affordance: clicking it shows the package source and target instead of silently invoking a capability. Future executable wiring must still cross the public protocol, permission, proposal, and audit boundaries.
+
+This mechanism is for Home cards and lightweight entry points. It is not a way to replace the whole Home page, core Settings pages, the project grid, the Continue Card, or the Activity Timeline.
 
 ## Host API
 
