@@ -30,6 +30,25 @@ export function formatDetectedKind(kind: InstallDetectedKind | null, t: TFunctio
   }
 }
 
+export function detectKindFromInstallPlan(plan: InstallPlan): InstallDetectedKind | null {
+  const descriptor = readProjectDescriptor(plan.project_descriptor);
+  const projectType = descriptor?.project?.type;
+  if (projectType === "yggdrasil_native") {
+    return { kind: "native", descriptor };
+  }
+  if (projectType === "external_wrapped" || projectType === "external_workspace") {
+    return { kind: "declared_external", descriptor };
+  }
+  return null;
+}
+
+function readProjectDescriptor(value: unknown): { project?: { type?: unknown } } | null {
+  if (!value || typeof value !== "object") return null;
+  const descriptor = value as { project?: unknown };
+  if (!descriptor.project || typeof descriptor.project !== "object") return null;
+  return descriptor as { project?: { type?: unknown } };
+}
+
 export function errorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }

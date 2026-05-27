@@ -86,6 +86,7 @@ export interface InstallSource {
 export interface InstallPlan {
   root_id: string;
   packages: InstallPlannedPackage[];
+  project_descriptor?: unknown;
   permissions_summary: InstallPermissionsSummary;
   signature_summary: InstallSignatureSummary;
   integrity_summary: InstallIntegritySummary;
@@ -323,11 +324,7 @@ export class YggProtocolClient {
   }
 
   async invokeWithSession(method: string, params: unknown = {}, sessionId: string): Promise<unknown> {
-    const response = await fetch(`${this.baseUrl}/rpc`, {
-      method: "POST",
-      headers: this.rpcHeaders(),
-      body: JSON.stringify({ id: crypto.randomUUID(), method, params, session_id: sessionId }),
-    });
+    const response = await this.fetchRpc({ id: crypto.randomUUID(), method, params, session_id: sessionId });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
     if (envelope.error) {
@@ -337,11 +334,7 @@ export class YggProtocolClient {
   }
 
   async call<T>(method: string, params: unknown = {}): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/rpc`, {
-      method: "POST",
-      headers: this.rpcHeaders(),
-      body: JSON.stringify({ id: crypto.randomUUID(), method, params }),
-    });
+    const response = await this.fetchRpc({ id: crypto.randomUUID(), method, params });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<T>;
     if (envelope.error) {
@@ -564,6 +557,23 @@ export class YggProtocolClient {
     };
   }
 
+  private async fetchRpc(body: unknown): Promise<Response> {
+    try {
+      return await fetch(`${this.baseUrl}/rpc`, {
+        method: "POST",
+        headers: this.rpcHeaders(),
+        body: JSON.stringify(body),
+      });
+    } catch (err: unknown) {
+      if (isFetchTransportError(err)) {
+        throw new Error(
+          "Cannot reach the Yggdrasil host RPC. Check that the host is still running, the access token is valid, and the deployment did not time out while resolving the install plan.",
+        );
+      }
+      throw err;
+    }
+  }
+
   private eventSubscribeUrl(sessionId: string): string {
     const url = new URL(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(sessionId)}`);
     if (this.accessToken) {
@@ -618,6 +628,12 @@ export class YggProtocolClient {
     const result = (await this.invokeCapability<{ removed: boolean }>(capability, params)).output;
     return { removed: result.removed };
   }
+}
+
+function isFetchTransportError(err: unknown): boolean {
+  if (!(err instanceof TypeError)) return false;
+  const message = err.message.toLowerCase();
+  return message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
 }
 
 async function throwForHttpError(response: Response): Promise<void> {

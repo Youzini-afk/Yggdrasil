@@ -2,9 +2,46 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { useKernel } from "@/lib/kernel-client";
 import { useT } from "@/lib/locale";
-import type { InstallConsent, InstallDetectedKind, InstallExecuteResult, InstallPlan } from "@/protocol/client";
-import { errorMessage } from "./install-format";
+import type { InstallConsent, InstallDetectedKind, InstallExecuteResult, InstallPlan, InstallSource } from "@/protocol/client";
+import { detectKindFromInstallPlan, errorMessage } from "./install-format";
 import type { InstallPhase, InstallStep } from "./install-types";
+
+type InstallResolveClient = {
+  resolveInstallPlan(source: InstallSource): Promise<InstallPlan>;
+  detectInstallKind(source: Pick<InstallSource, "root_url" | "root_ref">): Promise<InstallDetectedKind>;
+};
+
+export async function resolveInstallReview(client: InstallResolveClient, source: InstallSource): Promise<{
+  plan: InstallPlan | null;
+  detectedKind: InstallDetectedKind | null;
+  externalPlanError: string | null;
+  step: Extract<InstallStep, "plan" | "external">;
+  progressPhases: InstallPhase[];
+}> {
+  try {
+    const plan = await client.resolveInstallPlan(source);
+    return {
+      plan,
+      detectedKind: detectKindFromInstallPlan(plan),
+      externalPlanError: null,
+      step: "plan",
+      progressPhases: ["resolving", "reviewed"],
+    };
+  } catch (planErr) {
+    const planError = errorMessage(planErr);
+    const detectedKind = await client.detectInstallKind(source);
+    if (detectedKind.kind === "external") {
+      return {
+        plan: null,
+        detectedKind,
+        externalPlanError: planError,
+        step: "external",
+        progressPhases: ["resolving", "detecting", "reviewed"],
+      };
+    }
+    throw new Error(planError);
+  }
+}
 
 export function useInstallFlow({
   open,
@@ -62,36 +99,15 @@ export function useInstallFlow({
     setResolveError(null);
     setExternalPlanError(null);
     setIsResolving(true);
-    setProgressPhases(["resolving", "detecting"]);
+    setProgressPhases(["resolving"]);
     try {
-      const [planOutcome, kindOutcome] = await Promise.allSettled([
-        client.resolveInstallPlan(source),
-        client.detectInstallKind(source),
-      ]);
-      if (kindOutcome.status === "rejected") {
-        throw kindOutcome.reason;
-      }
-      const kind = kindOutcome.value;
-      setDetectedKind(kind);
-
-      if (planOutcome.status === "fulfilled") {
-        setPlan(planOutcome.value);
-      } else {
-        const planError = errorMessage(planOutcome.reason);
-        setPlan(null);
-        if (kind.kind !== "external") {
-          throw new Error(planError);
-        }
-        setExternalPlanError(planError);
-      }
-
+      const review = await resolveInstallReview(client, source);
+      setPlan(review.plan);
+      setDetectedKind(review.detectedKind);
+      setExternalPlanError(review.externalPlanError);
       setApprovedPermissions(false);
-      setProgressPhases(["resolving", "detecting", "reviewed"]);
-      if (kind.kind === "external") {
-        setStep("external");
-      } else {
-        setStep("plan");
-      }
+      setProgressPhases(review.progressPhases);
+      setStep(review.step);
     } catch (err) {
       const message = errorMessage(err);
       setResolveError(message);
