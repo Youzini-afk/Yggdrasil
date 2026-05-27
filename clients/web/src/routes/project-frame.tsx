@@ -7,6 +7,7 @@ import { useKernel } from "@/lib/kernel-client";
 import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/locale";
+import { openProjectInTab } from "@/lib/project-launcher";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle } from "@/surfaces/bundle-resolver";
 import type { ProjectRecord, SurfaceContributionRecord } from "@/protocol/client";
@@ -26,9 +27,11 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const [mountAttempt, setMountAttempt] = useState(0);
 
   useEffect(() => {
-    if (chrome !== "none" || typeof document === "undefined") return;
+    if (typeof document === "undefined") return;
     const previousTitle = document.title;
-    document.title = `${project?.title ?? projectId} — Yggdrasil`;
+    document.title = chrome === "none"
+      ? `${project?.title ?? projectId} — Yggdrasil`
+      : `${project?.title ?? projectId} console — Yggdrasil`;
     return () => {
       document.title = previousTitle;
     };
@@ -56,6 +59,11 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
 
         // Reflect the live state in the project frame topbar.
         setProject({ ...detail, state: runtimeState, running_session_id: sessionId });
+
+        if (chrome !== "none") {
+          setFrameState("mounted");
+          return;
+        }
 
         if (!detail.entry_surface_id) {
           setFrameState("start_failed");
@@ -120,7 +128,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       handleRef.current?.unmount().catch(() => {});
       handleRef.current = null;
     };
-  }, [client, mountAttempt, projectId, toast, t]);
+  }, [chrome, client, mountAttempt, projectId, toast, t]);
 
   const onRetry = useCallback(() => {
     void handleRef.current?.unmount().catch(() => {});
@@ -149,6 +157,17 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       setStopping(false);
     }
   }, [chrome, client, navigate, project?.title, projectId, stopping, t, toast]);
+
+  const onOpenProjectTab = useCallback(() => {
+    const opened = openProjectInTab(projectId);
+    if (!opened) {
+      toast.push({
+        variant: "warning",
+        title: t("projectFrameProjectTabBlockedTitle"),
+        body: t("projectFrameProjectTabBlockedBody"),
+      });
+    }
+  }, [projectId, t, toast]);
 
   useEffect(() => {
     if (chrome !== "none") return;
@@ -187,10 +206,12 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
           />
         </div>
         <div className="flex items-center gap-1">
-          <Button tone="tertiary" size="sm" className="hidden sm:inline-flex">
-            <ListBullets size={14} />
-            {t("projectFrameAuditLog")}
-          </Button>
+          <Tooltip label={t("projectFrameAuditLogUnavailable")}>
+            <Button tone="tertiary" size="sm" className="hidden sm:inline-flex" disabled>
+              <ListBullets size={14} />
+              {t("projectFrameAuditLog")}
+            </Button>
+          </Tooltip>
           <span className="mx-2 hidden h-4 w-px bg-whisper-border sm:inline-block" aria-hidden />
           {project?.state === "running" ? (
             <Tooltip label={t("projectFrameStopProject")}>
@@ -199,8 +220,8 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
               </Button>
             </Tooltip>
           ) : null}
-          <Tooltip label={t("projectFrameMore")}>
-            <Button tone="icon" size="icon-sm" aria-label={t("projectFrameMore")}>
+          <Tooltip label={t("projectFrameMoreUnavailable")}>
+            <Button tone="icon" size="icon-sm" aria-label={t("projectFrameMore")} disabled>
               <DotsThree size={16} />
             </Button>
           </Tooltip>
@@ -209,12 +230,35 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       )}
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        <div
-          ref={containerRef}
-          id={FRAME_CONTAINER_ID}
-          className="h-full w-full"
-          style={{ background: "var(--color-warm-bone)" }}
-        />
+        {isStandalone ? (
+          <div
+            ref={containerRef}
+            id={FRAME_CONTAINER_ID}
+            className="h-full w-full"
+            style={{ background: "var(--color-warm-bone)" }}
+          />
+        ) : (
+          <div className="h-full overflow-auto bg-warm-bone p-4 sm:p-6">
+            <div className="mx-auto max-w-5xl rounded-[24px] border border-whisper-border bg-pure-surface p-5 shadow-card sm:p-6">
+              <p className="font-display text-[22px] font-bold text-charcoal-ink">
+                {t("projectFrameConsoleTitle")}
+              </p>
+              <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-steel-secondary">
+                {t("projectFrameConsoleBody")}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <Button tone="primary" size="sm" onClick={onOpenProjectTab}>
+                  {t("projectFrameOpenProjectTab")}
+                </Button>
+                {project?.state === "running" ? (
+                  <Button tone="tertiary" size="sm" onClick={onStop} disabled={stopping}>
+                    {t("projectFrameStopProject")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
         {frameState === "loading" ? (
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-warm-bone">
             <div className="min-w-[280px] max-w-[420px] rounded-[24px] border border-whisper-border bg-pure-surface p-5 shadow-card">

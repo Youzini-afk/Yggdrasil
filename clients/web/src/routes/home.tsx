@@ -14,6 +14,7 @@ import { useRoute, type Route } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime } from "@/lib/format";
 import { useLocale } from "@/lib/locale";
+import { openProjectInTab } from "@/lib/project-launcher";
 import type { FailureDetail } from "@/components/install/failure-modal";
 import { HomeCapabilityCards } from "@/surfaces/shell-contribution-renderers";
 import type {
@@ -59,9 +60,17 @@ export function HomePage() {
   const navigateTo = useCallback((route: Route) => navigate(route), [navigate]);
   const launchProject = useCallback(
     (projectId: string) => {
+      const opened = openProjectInTab(projectId);
+      if (!opened) {
+        toast.push({
+          variant: "warning",
+          title: t("homeProjectPopupBlockedTitle"),
+          body: t("homeProjectPopupBlockedBody"),
+        });
+      }
       navigate({ kind: "project", projectId });
     },
-    [navigate],
+    [navigate, t, toast],
   );
   const relativeAgeLabels = {
     now: t("homeContinueAgeNow"),

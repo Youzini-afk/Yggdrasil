@@ -272,13 +272,20 @@ export interface LocaleDictionary {
   projectFrameStopFailedBody: string;
   projectFrameBackHome: string;
   projectFrameAuditLog: string;
+  projectFrameAuditLogUnavailable: string;
   projectFrameStopProject: string;
   projectFrameStop: string;
   projectFrameMore: string;
+  projectFrameMoreUnavailable: string;
   projectFrameState: (state: string) => string;
   projectFrameLoadingSurface: string;
   projectFrameStoppedTitle: string;
   projectFrameStoppedBody: string;
+  projectFrameConsoleTitle: string;
+  projectFrameConsoleBody: string;
+  projectFrameOpenProjectTab: string;
+  projectFrameProjectTabBlockedTitle: string;
+  projectFrameProjectTabBlockedBody: string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -546,7 +553,7 @@ export const labels = {
     homeActionUninstall: "Uninstall…",
     homeMore: "More",
     homeProjectPopupBlockedTitle: "Project tab was blocked",
-    homeProjectPopupBlockedBody: "Allow pop-ups for this site, then open the project again from Home.",
+    homeProjectPopupBlockedBody: "Allow pop-ups for this site, then open the project interface from the console.",
 
     homeStoppedToast: (title) => `Stopped ${title}`,
     homeStopFailedTitle: "Stop failed",
@@ -743,13 +750,20 @@ export const labels = {
     projectFrameStopFailedBody: "The project could not be stopped. Check the local host and try again.",
     projectFrameBackHome: "Back to Home",
     projectFrameAuditLog: "Audit log",
+    projectFrameAuditLogUnavailable: "Audit log is not wired yet",
     projectFrameStopProject: "Stop project",
     projectFrameStop: "Stop",
     projectFrameMore: "More",
+    projectFrameMoreUnavailable: "More project actions are not wired yet",
     projectFrameState: (state) => state.toUpperCase(),
     projectFrameLoadingSurface: "Loading project interface…",
     projectFrameStoppedTitle: "Project stopped",
     projectFrameStoppedBody: "This tab can be closed. Reopen the project from Home when you want to resume.",
+    projectFrameConsoleTitle: "Project console",
+    projectFrameConsoleBody: "The project is running from this Yggdrasil tab. Its own interface opens in a separate project tab so the console controls remain available here.",
+    projectFrameOpenProjectTab: "Open project interface",
+    projectFrameProjectTabBlockedTitle: "Project tab was blocked",
+    projectFrameProjectTabBlockedBody: "Allow pop-ups for this site, then open the project interface from the console.",
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -1026,7 +1040,7 @@ export const labels = {
     homeActionUninstall: "卸载…",
     homeMore: "更多",
     homeProjectPopupBlockedTitle: "项目标签页被拦截",
-    homeProjectPopupBlockedBody: "请允许此站点打开弹出式窗口，然后从首页重新打开项目。",
+    homeProjectPopupBlockedBody: "请允许此站点打开弹出式窗口，然后从控制台重新打开项目界面。",
 
     homeStoppedToast: (title) => `已停止 ${title}`,
     homeStopFailedTitle: "停止失败",
@@ -1214,13 +1228,20 @@ export const labels = {
     projectFrameStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
     projectFrameBackHome: "返回首页",
     projectFrameAuditLog: "审计日志",
+    projectFrameAuditLogUnavailable: "审计日志暂未接线",
     projectFrameStopProject: "停止项目",
     projectFrameStop: "停止",
     projectFrameMore: "更多",
+    projectFrameMoreUnavailable: "更多项目操作暂未接线",
     projectFrameState: (state) => state.toUpperCase(),
     projectFrameLoadingSurface: "正在加载项目界面…",
     projectFrameStoppedTitle: "项目已停止",
     projectFrameStoppedBody: "可以关闭这个标签页。需要继续时，从首页重新打开项目。",
+    projectFrameConsoleTitle: "项目控制台",
+    projectFrameConsoleBody: "项目正在由当前 Yggdrasil 标签页托管。项目自己的界面会在独立项目标签页打开，这里保留返回、停止和审计控制。",
+    projectFrameOpenProjectTab: "打开项目界面",
+    projectFrameProjectTabBlockedTitle: "项目标签页被浏览器拦截",
+    projectFrameProjectTabBlockedBody: "请允许本站弹出窗口，然后从控制台重新打开项目界面。",
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",
