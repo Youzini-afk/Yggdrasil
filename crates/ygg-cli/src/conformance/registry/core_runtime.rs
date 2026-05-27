@@ -172,6 +172,11 @@ pub(super) fn surfaces_cases() -> Vec<ConformanceCase> {
             ["surface"],
             crate::conformance::surfaces::contribution_list
         ),
+        c!(
+            "surface.shell_descriptor_metadata_validation",
+            ["surface", "manifest", "package"],
+            crate::conformance::surfaces::shell_descriptor_metadata_validation
+        ),
     ]
 }
 

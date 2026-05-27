@@ -50,6 +50,8 @@ pub(crate) async fn package_check(path: PathBuf) -> Result<()> {
         let slot_name = match surface.slot {
             ygg_core::SurfaceSlot::ExperienceEntry => "experience_entry",
             ygg_core::SurfaceSlot::HomeCard => "home_card",
+            ygg_core::SurfaceSlot::QuickAction => "quick_action",
+            ygg_core::SurfaceSlot::WorkshopCard => "workshop_card",
             ygg_core::SurfaceSlot::PlayRenderer => "play_renderer",
             ygg_core::SurfaceSlot::ForgePanel => "forge_panel",
             ygg_core::SurfaceSlot::AssetEditor => "asset_editor",

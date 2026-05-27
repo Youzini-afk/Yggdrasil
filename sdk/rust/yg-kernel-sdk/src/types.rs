@@ -16950,6 +16950,8 @@ pub struct PackageLifecyclePayload {
 ///        "enum": [
 ///          "experience_entry",
 ///          "home_card",
+///          "quick_action",
+///          "workshop_card",
 ///          "play_renderer",
 ///          "forge_panel",
 ///          "asset_editor",
@@ -19598,6 +19600,8 @@ impl ::std::default::Default for PackagePermissions {
 ///      "enum": [
 ///        "experience_entry",
 ///        "home_card",
+///        "quick_action",
+///        "workshop_card",
 ///        "play_renderer",
 ///        "forge_panel",
 ///        "asset_editor",
@@ -41973,6 +41977,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceRisk {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -41999,6 +42005,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42013,6 +42023,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42028,6 +42040,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),
@@ -42070,6 +42084,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -42096,6 +42112,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42110,6 +42130,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42125,6 +42147,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),
@@ -42167,6 +42191,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -42193,6 +42219,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42207,6 +42237,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42222,6 +42254,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),
@@ -42264,6 +42298,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -42290,6 +42326,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42304,6 +42344,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42319,6 +42361,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),
@@ -42361,6 +42405,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -42387,6 +42433,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42401,6 +42451,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42416,6 +42468,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),
@@ -42458,6 +42512,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -42484,6 +42540,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42498,6 +42558,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42513,6 +42575,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),
@@ -42555,6 +42619,8 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 ///  "enum": [
 ///    "experience_entry",
 ///    "home_card",
+///    "quick_action",
+///    "workshop_card",
 ///    "play_renderer",
 ///    "forge_panel",
 ///    "asset_editor",
@@ -42581,6 +42647,10 @@ pub enum SurfaceSlot {
     ExperienceEntry,
     #[serde(rename = "home_card")]
     HomeCard,
+    #[serde(rename = "quick_action")]
+    QuickAction,
+    #[serde(rename = "workshop_card")]
+    WorkshopCard,
     #[serde(rename = "play_renderer")]
     PlayRenderer,
     #[serde(rename = "forge_panel")]
@@ -42595,6 +42665,8 @@ impl ::std::fmt::Display for SurfaceSlot {
         match *self {
             Self::ExperienceEntry => f.write_str("experience_entry"),
             Self::HomeCard => f.write_str("home_card"),
+            Self::QuickAction => f.write_str("quick_action"),
+            Self::WorkshopCard => f.write_str("workshop_card"),
             Self::PlayRenderer => f.write_str("play_renderer"),
             Self::ForgePanel => f.write_str("forge_panel"),
             Self::AssetEditor => f.write_str("asset_editor"),
@@ -42610,6 +42682,8 @@ impl ::std::str::FromStr for SurfaceSlot {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
+            "quick_action" => Ok(Self::QuickAction),
+            "workshop_card" => Ok(Self::WorkshopCard),
             "play_renderer" => Ok(Self::PlayRenderer),
             "forge_panel" => Ok(Self::ForgePanel),
             "asset_editor" => Ok(Self::AssetEditor),

@@ -70,6 +70,32 @@ contributes:
       title: Third-Party Assistant Suggestion
       capability_id: thirdparty/surface-fixture/suggest
       approval_policy: fork_then_approve
+    - id: thirdparty/surface-fixture/quick-action
+      version: 0.1.0
+      slot: quick_action
+      title: Third-Party Quick Action
+      capability_id: thirdparty/surface-fixture/start
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Fixture quick action
+        description:
+          en: Launch the surface fixture.
+        icon_hint: play
+        order: 10
+    - id: thirdparty/surface-fixture/workshop-card
+      version: 0.1.0
+      slot: workshop_card
+      title: Third-Party Workshop Card
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Fixture workshop card
+        description:
+          en: Inspect shell descriptor contribution behavior.
+        icon_hint: stack
+        order: 20
+        category: tool
 permissions:
   events:
     read: true

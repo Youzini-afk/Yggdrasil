@@ -1353,7 +1353,7 @@ export interface SurfaceResolveBundleResult {
 
 export type SurfaceRisk = "low" | "medium" | "high";
 
-export type SurfaceSlot = "experience_entry" | "home_card" | "play_renderer" | "forge_panel" | "asset_editor" | "assistant_action";
+export type SurfaceSlot = "experience_entry" | "home_card" | "quick_action" | "workshop_card" | "play_renderer" | "forge_panel" | "asset_editor" | "assistant_action";
 
 export interface TighteningSuggestion {
   "kind": string;

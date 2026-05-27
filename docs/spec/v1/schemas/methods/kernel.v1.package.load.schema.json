@@ -830,6 +830,8 @@
           "enum": [
             "experience_entry",
             "home_card",
+            "quick_action",
+            "workshop_card",
             "play_renderer",
             "forge_panel",
             "asset_editor",
@@ -2039,6 +2041,8 @@
           "enum": [
             "experience_entry",
             "home_card",
+            "quick_action",
+            "workshop_card",
             "play_renderer",
             "forge_panel",
             "asset_editor",

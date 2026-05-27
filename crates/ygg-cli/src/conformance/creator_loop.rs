@@ -63,6 +63,8 @@ pub(crate) async fn creator_loop_playable_board_template() -> anyhow::Result<()>
             ygg_core::SurfaceSlot::AssistantAction => "assistant_action",
             ygg_core::SurfaceSlot::AssetEditor => "asset_editor",
             ygg_core::SurfaceSlot::HomeCard => "home_card",
+            ygg_core::SurfaceSlot::QuickAction => "quick_action",
+            ygg_core::SurfaceSlot::WorkshopCard => "workshop_card",
         })
         .collect();
     anyhow::ensure!(

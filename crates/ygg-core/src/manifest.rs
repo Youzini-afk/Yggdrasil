@@ -290,6 +290,8 @@ pub enum SurfaceApprovalPolicy {
 pub enum SurfaceSlot {
     ExperienceEntry,
     HomeCard,
+    QuickAction,
+    WorkshopCard,
     PlayRenderer,
     ForgePanel,
     AssetEditor,
@@ -500,6 +502,7 @@ impl PackageManifest {
             if let Some(capability_id) = &surface.activation.launch_capability_id {
                 validate_namespaced_id(capability_id)?;
             }
+            validate_shell_descriptor_metadata(self, surface)?;
             validate_schema_shape(&surface.activation.input_schema)?;
             for requirement in &surface.required_permissions {
                 if requirement.permission.trim().is_empty() {
@@ -629,6 +632,15 @@ pub enum ManifestError {
     },
     #[error("surface_bundle package must be static and cannot declare executable authority: {0}")]
     InvalidSurfaceBundleAuthority(String),
+    #[error("invalid shell descriptor metadata for surface {surface_id}: {reason}")]
+    InvalidShellDescriptorMetadata { surface_id: String, reason: String },
+}
+
+fn invalid_shell_descriptor_metadata(surface_id: &str, reason: impl Into<String>) -> ManifestError {
+    ManifestError::InvalidShellDescriptorMetadata {
+        surface_id: surface_id.to_string(),
+        reason: reason.into(),
+    }
 }
 
 fn validate_package_id(id: &str) -> Result<(), ManifestError> {
@@ -703,6 +715,182 @@ fn validate_schema_shape(schema: &Value) -> Result<(), ManifestError> {
     } else {
         Err(ManifestError::InvalidSchema(schema.to_string()))
     }
+}
+
+fn validate_shell_descriptor_metadata(
+    manifest: &PackageManifest,
+    surface: &SurfaceContribution,
+) -> Result<(), ManifestError> {
+    let is_shell_descriptor_slot = matches!(
+        surface.slot,
+        SurfaceSlot::QuickAction | SurfaceSlot::WorkshopCard
+    );
+    let has_shell_schema_version = surface
+        .metadata
+        .get("shell_schema_version")
+        .map(|version| version == 1)
+        .unwrap_or(false);
+    if !is_shell_descriptor_slot
+        && !(matches!(surface.slot, SurfaceSlot::HomeCard) && has_shell_schema_version)
+    {
+        return Ok(());
+    }
+
+    let metadata = surface.metadata.as_object().ok_or_else(|| {
+        invalid_shell_descriptor_metadata(&surface.id, "metadata must be an object")
+    })?;
+    match metadata.get("shell_schema_version") {
+        Some(Value::Number(number)) if number.as_u64() == Some(1) => {}
+        _ => {
+            return Err(invalid_shell_descriptor_metadata(
+                &surface.id,
+                "shell_schema_version must be number 1",
+            ));
+        }
+    }
+
+    validate_localized_text_object(&surface.id, metadata.get("title"), "title", true)?;
+    validate_localized_text_object(
+        &surface.id,
+        metadata.get("description"),
+        "description",
+        false,
+    )?;
+
+    if let Some(icon_hint) = metadata.get("icon_hint") {
+        let icon_hint = icon_hint.as_str().ok_or_else(|| {
+            invalid_shell_descriptor_metadata(&surface.id, "icon_hint must be a string")
+        })?;
+        validate_icon_hint(&surface.id, icon_hint)?;
+    }
+    if metadata
+        .get("order")
+        .map(|order| !order.is_number())
+        .unwrap_or(false)
+    {
+        return Err(invalid_shell_descriptor_metadata(
+            &surface.id,
+            "order must be a number",
+        ));
+    }
+    if let Some(category) = metadata.get("category") {
+        if !matches!(surface.slot, SurfaceSlot::WorkshopCard) {
+            return Err(invalid_shell_descriptor_metadata(
+                &surface.id,
+                "category is only allowed for workshop_card",
+            ));
+        }
+        match category.as_str() {
+            Some("tool" | "template" | "example") => {}
+            _ => {
+                return Err(invalid_shell_descriptor_metadata(
+                    &surface.id,
+                    "category must be one of tool, template, example",
+                ));
+            }
+        }
+    }
+    if let Some(capability_id) = &surface.capability_id {
+        validate_package_owned_id(&manifest.id, capability_id).map_err(|reason| {
+            invalid_shell_descriptor_metadata(&surface.id, format!("capability_id {reason}"))
+        })?;
+    }
+    if let Some(surface_id) = metadata.get("surface_id") {
+        let surface_id = surface_id.as_str().ok_or_else(|| {
+            invalid_shell_descriptor_metadata(&surface.id, "surface_id must be a string")
+        })?;
+        validate_package_owned_id(&manifest.id, surface_id).map_err(|reason| {
+            invalid_shell_descriptor_metadata(&surface.id, format!("surface_id {reason}"))
+        })?;
+    }
+    Ok(())
+}
+
+fn validate_localized_text_object(
+    surface_id: &str,
+    value: Option<&Value>,
+    field: &str,
+    required: bool,
+) -> Result<(), ManifestError> {
+    let Some(value) = value else {
+        return if required {
+            Err(invalid_shell_descriptor_metadata(
+                surface_id,
+                format!("{field} is required"),
+            ))
+        } else {
+            Ok(())
+        };
+    };
+    let object = value.as_object().ok_or_else(|| {
+        invalid_shell_descriptor_metadata(surface_id, format!("{field} must be an object"))
+    })?;
+    if required {
+        let has_required_locale = ["en", "zh-CN"].iter().any(|locale| {
+            object
+                .get(*locale)
+                .and_then(Value::as_str)
+                .map(is_valid_shell_text)
+                .unwrap_or(false)
+        });
+        if !has_required_locale {
+            return Err(invalid_shell_descriptor_metadata(
+                surface_id,
+                format!("{field} must include non-empty en or zh-CN text"),
+            ));
+        }
+    }
+    for (locale, text) in object {
+        let text = text.as_str().ok_or_else(|| {
+            invalid_shell_descriptor_metadata(
+                surface_id,
+                format!("{field}.{locale} must be a string"),
+            )
+        })?;
+        if !is_valid_shell_text(text) {
+            return Err(invalid_shell_descriptor_metadata(
+                surface_id,
+                format!("{field}.{locale} must be non-empty short text"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn is_valid_shell_text(text: &str) -> bool {
+    let trimmed = text.trim();
+    !trimmed.is_empty() && trimmed.chars().count() <= 160
+}
+
+fn validate_icon_hint(surface_id: &str, icon_hint: &str) -> Result<(), ManifestError> {
+    let trimmed = icon_hint.trim();
+    let looks_like_url =
+        url::Url::parse(trimmed).is_ok() || trimmed.starts_with("//") || trimmed.contains("://");
+    let looks_like_path = trimmed.starts_with('/')
+        || trimmed.starts_with("./")
+        || trimmed.starts_with("../")
+        || trimmed.contains('\\')
+        || trimmed.contains('/');
+    let looks_like_html = trimmed.contains('<') || trimmed.contains('>');
+    if trimmed.is_empty()
+        || trimmed.chars().count() > 64
+        || looks_like_url
+        || looks_like_path
+        || looks_like_html
+    {
+        return Err(invalid_shell_descriptor_metadata(
+            surface_id,
+            "icon_hint must be a short non-url, non-path, non-html string",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_package_owned_id(package_id: &str, id: &str) -> Result<(), String> {
+    id.strip_prefix(package_id)
+        .filter(|rest| rest.starts_with('/'))
+        .map(|_| ())
+        .ok_or_else(|| "must belong to the package id".to_string())
 }
 
 fn validate_network_method(method: &str) -> Result<(), ManifestError> {
