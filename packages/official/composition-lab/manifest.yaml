@@ -67,6 +67,22 @@ contributes:
       description: Draft an approval-gated explanation or launch checklist for a composition.
       capability_id: official/composition-lab/launch_plan
       approval_policy: user_approval
+    - id: official/composition-lab/workshop-card
+      slot: workshop_card
+      title: Composition Check
+      description: Validate package composition and inspect surface wiring.
+      capability_id: official/composition-lab/validate
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Composition check
+          zh-CN: 组合检查
+        description:
+          en: Validate package composition and inspect surface wiring.
+          zh-CN: 检查包组合与 surface wiring。
+        icon_hint: stack
+        order: 40
+        category: tool
 permissions:
   capabilities:
     invoke: []

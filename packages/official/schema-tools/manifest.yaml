@@ -32,6 +32,22 @@ contributes:
       title: Schema Tools
       description: Validate and sample schemas from a Forge panel.
       capability_id: official/schema-tools/validate
+    - id: official/schema-tools/workshop-card
+      slot: workshop_card
+      title: Schema Tools
+      description: Validate schemas and generate examples.
+      capability_id: official/schema-tools/validate
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Schema tools
+          zh-CN: Schema 工具
+        description:
+          en: Validate schemas and generate examples.
+          zh-CN: 校验 schema 并生成示例。
+        icon_hint: package
+        order: 50
+        category: tool
 permissions:
   capabilities:
     invoke: []

@@ -97,6 +97,31 @@ contributes:
       title: Project Intake Lab
       description: Static project intake without clone, install, run, or network access.
       capability_id: official/project-intake-lab/describe_intake_contract
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Project intake
+          zh-CN: 项目接入
+        description:
+          en: Inspect an external project reference before clone, install, run, or network access.
+          zh-CN: 在 clone、安装、运行或联网前检查外部项目引用。
+        icon_hint: folder
+        order: 20
+    - id: official/project-intake-lab/quick-action
+      slot: quick_action
+      title: Add external project
+      description: Draft an intake plan for an external project reference.
+      capability_id: official/project-intake-lab/draft_workspace_plan
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Add external project
+          zh-CN: 添加外部项目
+        description:
+          en: Draft an intake plan before execution.
+          zh-CN: 在执行前生成接入计划。
+        icon_hint: plus
+        order: 30
 permissions:
   capabilities:
     invoke: []
