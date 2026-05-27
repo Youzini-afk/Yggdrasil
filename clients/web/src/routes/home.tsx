@@ -11,7 +11,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Warning } from "@/components/icons";
 import { useKernel } from "@/lib/kernel-client";
 import { useRoute, type Route } from "@/lib/router";
-import { openProjectInTab } from "@/lib/project-launcher";
 import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime } from "@/lib/format";
 import { useLocale } from "@/lib/locale";
@@ -60,16 +59,9 @@ export function HomePage() {
   const navigateTo = useCallback((route: Route) => navigate(route), [navigate]);
   const launchProject = useCallback(
     (projectId: string) => {
-      const opened = openProjectInTab(projectId);
-      if (!opened) {
-        toast.push({
-          variant: "warning",
-          title: t("homeProjectPopupBlockedTitle"),
-          body: t("homeProjectPopupBlockedBody"),
-        });
-      }
+      navigate({ kind: "project", projectId });
     },
-    [t, toast],
+    [navigate],
   );
   const relativeAgeLabels = {
     now: t("homeContinueAgeNow"),

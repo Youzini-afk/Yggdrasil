@@ -20,9 +20,10 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const [, navigate] = useRoute();
   const [project, setProject] = useState<(ProjectRecord & { running_session_id?: string; entry_surface_id?: string }) | null>(null);
   const [stopping, setStopping] = useState(false);
-  const [frameState, setFrameState] = useState<"loading" | "mounted" | "failed" | "stopped">("loading");
+  const [frameState, setFrameState] = useState<"loading" | "mounted" | "start_failed" | "mount_failed" | "stopped">("loading");
   const handleRef = useRef<SurfaceHostHandle | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [mountAttempt, setMountAttempt] = useState(0);
 
   useEffect(() => {
     if (chrome !== "none" || typeof document === "undefined") return;
@@ -57,13 +58,18 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         setProject({ ...detail, state: runtimeState, running_session_id: sessionId });
 
         if (!detail.entry_surface_id) {
-          setFrameState("failed");
+          setFrameState("start_failed");
           return;
         }
-        const [bundle, contribution] = await Promise.all([
-          resolveSurfaceBundle(client, detail.entry_surface_id),
-          client.describeSurface(detail.entry_surface_id),
-        ]);
+        const bundle = await resolveSurfaceBundle(client, detail.entry_surface_id);
+        // Installed native projects can resolve to a copied project bundle even
+        // when the contributing surface package has not been autoloaded into the
+        // current host process yet (for example immediately after a web install).
+        // Treat contribution metadata as best-effort so an available project UI
+        // does not fail before the iframe has a chance to mount.
+        const contribution = await client
+          .describeSurface(detail.entry_surface_id)
+          .catch((): SurfaceContributionRecord | null => null);
         if (cancelled) return;
         const allowedCapabilityIds = allowedSurfaceCapabilityIdsForTest(contribution);
         let handle: SurfaceHostHandle;
@@ -85,7 +91,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
             },
           });
         } catch (err) {
-          setFrameState("failed");
+          setFrameState("mount_failed");
           toast.push({
             variant: "error",
             title: t("projectFrameMountFailedTitle"),
@@ -100,7 +106,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         handleRef.current = handle;
         setFrameState("mounted");
       } catch (err) {
-        setFrameState("failed");
+        setFrameState("start_failed");
         toast.push({
           variant: "error",
           title: t("projectFrameStartFailedTitle"),
@@ -114,7 +120,13 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       handleRef.current?.unmount().catch(() => {});
       handleRef.current = null;
     };
-  }, [client, projectId, toast, t]);
+  }, [client, mountAttempt, projectId, toast, t]);
+
+  const onRetry = useCallback(() => {
+    void handleRef.current?.unmount().catch(() => {});
+    handleRef.current = null;
+    setMountAttempt((attempt) => attempt + 1);
+  }, []);
 
   const onStop = useCallback(async () => {
     if (stopping) return;
@@ -211,15 +223,38 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
             </div>
           </div>
         ) : null}
-        {frameState === "failed" || frameState === "stopped" ? (
+        {frameState === "start_failed" || frameState === "mount_failed" || frameState === "stopped" ? (
           <div className="absolute inset-0 grid place-items-center bg-warm-bone p-6">
             <div className="max-w-[460px] rounded-[24px] border border-whisper-border bg-pure-surface p-6 text-center shadow-card">
               <p className="font-display text-[20px] font-bold text-charcoal-ink">
-                {frameState === "stopped" ? t("projectFrameStoppedTitle") : t("projectFrameMountFailedTitle")}
+                {frameState === "stopped"
+                  ? t("projectFrameStoppedTitle")
+                  : frameState === "start_failed"
+                    ? t("projectFrameStartFailedTitle")
+                    : t("projectFrameMountFailedTitle")}
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-steel-secondary">
-                {frameState === "stopped" ? t("projectFrameStoppedBody") : t("projectFrameMountFailedBody")}
+                {frameState === "stopped"
+                  ? t("projectFrameStoppedBody")
+                  : frameState === "start_failed"
+                    ? t("projectFrameStartFailedBody")
+                    : t("projectFrameMountFailedBody")}
               </p>
+              <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+                {frameState !== "stopped" ? (
+                  <Button tone="primary" size="sm" onClick={onRetry}>
+                    {t("retry")}
+                  </Button>
+                ) : null}
+                {frameState === "mount_failed" && project?.state === "running" ? (
+                  <Button tone="secondary" size="sm" onClick={onStop} disabled={stopping}>
+                    {t("projectFrameStopProject")}
+                  </Button>
+                ) : null}
+                <Button tone="tertiary" size="sm" onClick={() => navigate({ kind: "home" })}>
+                  {t("projectFrameBackHome")}
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}
