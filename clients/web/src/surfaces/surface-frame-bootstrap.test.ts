@@ -14,6 +14,9 @@ function assertContains(fragment: string) {
 }
 
 assertContains("let bridgeToken = ''");
+assertContains("globalThis.process ??= {};");
+assertContains("globalThis.process.env ??= {};");
+assertContains("globalThis.process.env.NODE_ENV ??= 'production';");
 assertContains("bridge_token: bridgeToken");
 assertContains("msg.bridge_token !== bridgeToken");
 assertContains("if (e.source !== window.parent) return;");
@@ -24,3 +27,4 @@ assertContains("code: 'invalid_bundle_url'");
 assertContains("code: 'invalid_stylesheet_url'");
 assertContains("type: 'mount.error'");
 assertContains("postToHost({ type: 'rpc.call'");
+assertContains("url.pathname.startsWith('/surface-bundles/')");

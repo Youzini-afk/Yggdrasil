@@ -3,6 +3,7 @@ import type { YggProtocolClient } from "../protocol/client";
 export interface ResolvedSurfaceBundle {
   surfaceId: string;
   bundleUrl: string;
+  bundleFingerprint?: string;
   exportName: string;
   stylesheets: string[];
   wrapperClass?: string;
@@ -18,6 +19,7 @@ export async function resolveSurfaceBundle(
   const r = result as {
     surface_id: string;
     bundle_url: string;
+    bundle_fingerprint?: string;
     export_name: string;
     stylesheets?: string[];
     wrapper_class?: string;
@@ -27,6 +29,7 @@ export async function resolveSurfaceBundle(
   return {
     surfaceId: r.surface_id,
     bundleUrl: r.bundle_url,
+    bundleFingerprint: r.bundle_fingerprint,
     exportName: r.export_name,
     stylesheets: r.stylesheets ?? [],
     wrapperClass: r.wrapper_class,

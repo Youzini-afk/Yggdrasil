@@ -1,9 +1,13 @@
 use super::*;
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize)]
 struct ResolvedSurfaceBundle {
     surface_id: String,
     bundle_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bundle_fingerprint: Option<String>,
     export_name: String,
     stylesheets: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -57,6 +61,24 @@ fn default_surface_stylesheets(prefix: &str) -> Vec<String> {
     }
 }
 
+fn cache_busted_url(path: &str, fingerprint: Option<&str>) -> String {
+    match fingerprint {
+        Some(value) => format!("{path}?v={value}"),
+        None => path.to_string(),
+    }
+}
+
+fn bundle_fingerprint(path: &Path) -> Option<String> {
+    let bytes = fs::read(path).ok()?;
+    let digest = Sha256::digest(&bytes);
+    Some(
+        digest[..8]
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect(),
+    )
+}
+
 impl<S> Runtime<S>
 where
     S: EventStore,
@@ -105,9 +127,15 @@ where
         }
 
         let project_id = entry.descriptor.project.id.as_str();
+        let bundle_path = ygg_core::paths::project_dir(&entry.descriptor.project.id)
+            .ok()
+            .map(|path| path.join("dist").join("bundle.mjs"));
+        let fingerprint = bundle_path.as_deref().and_then(bundle_fingerprint);
+        let bundle_path = format!("/surface-bundles/projects/{project_id}/bundle.mjs");
         Ok(Some(ResolvedSurfaceBundle {
             surface_id: surface_id.to_string(),
-            bundle_url: format!("/surface-bundles/projects/{project_id}/bundle.mjs"),
+            bundle_url: cache_busted_url(&bundle_path, fingerprint.as_deref()),
+            bundle_fingerprint: fingerprint,
             export_name: default_surface_export_name(surface_id),
             stylesheets: Vec::new(),
             wrapper_class: None,
@@ -120,7 +148,7 @@ where
         &self,
         surface_id: &str,
     ) -> anyhow::Result<Option<ResolvedSurfaceBundle>> {
-        let Some((prefix, _path)) = self
+        let Some((prefix, path)) = self
             .config
             .surface_dev_paths
             .iter()
@@ -130,9 +158,14 @@ where
             return Ok(None);
         };
 
+        let bundle_path = PathBuf::from(path).join("bundle.mjs");
+        let fingerprint = bundle_fingerprint(&bundle_path);
+        let bundle_url = format!("/surface-bundles/{prefix}/bundle.mjs");
+
         Ok(Some(ResolvedSurfaceBundle {
             surface_id: surface_id.to_string(),
-            bundle_url: format!("/surface-bundles/{prefix}/bundle.mjs"),
+            bundle_url: cache_busted_url(&bundle_url, fingerprint.as_deref()),
+            bundle_fingerprint: fingerprint,
             export_name: default_surface_export_name(surface_id),
             stylesheets: default_surface_stylesheets(prefix),
             wrapper_class: Some(format!("{}-surface", prefix.replace(['/', '_'], "-"))),

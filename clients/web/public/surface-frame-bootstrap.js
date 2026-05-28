@@ -9,6 +9,14 @@
 
 const root = document.getElementById('root');
 
+// Compatibility shim for browser-targeted bundles that still contain
+// React/Vite-style NODE_ENV checks. Surface frames run in a sandboxed browser
+// context, not Node, so provide the tiny shape those bundles expect without
+// exposing any broader process API.
+globalThis.process ??= {};
+globalThis.process.env ??= {};
+globalThis.process.env.NODE_ENV ??= 'production';
+
 let nextRpcId = 0;
 const pendingRpc = new Map();
 let bridgeToken = '';

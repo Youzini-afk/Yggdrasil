@@ -341,6 +341,38 @@ mod surface_tests {
             "resolve_bundle must not expose arbitrary project metadata: {value:?}"
         );
     }
+
+    #[tokio::test]
+    async fn resolve_bundle_fingerprints_dev_bundle() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("bundle.mjs"), "export const ok = true;")
+            .expect("write bundle");
+
+        let mut config = RuntimeConfig::default();
+        config.surface_dev_paths.insert(
+            "example".to_string(),
+            dir.path().to_string_lossy().to_string(),
+        );
+        let runtime = Runtime::new(Arc::new(InMemoryEventStore::default()), config);
+        let value = runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("test"),
+                "kernel.v1.surface.resolve_bundle",
+                serde_json::json!({ "surface_id": "example/surface" }),
+            )
+            .await
+            .expect("resolve bundle");
+
+        let fingerprint = value["bundle_fingerprint"]
+            .as_str()
+            .expect("bundle fingerprint");
+        assert_eq!(fingerprint.len(), 16);
+        assert!(fingerprint.chars().all(|ch| ch.is_ascii_hexdigit()));
+        assert_eq!(
+            value["bundle_url"].as_str().expect("bundle url"),
+            format!("/surface-bundles/example/bundle.mjs?v={fingerprint}")
+        );
+    }
 }
 
 #[cfg(test)]

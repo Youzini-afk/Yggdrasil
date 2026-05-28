@@ -402,7 +402,13 @@ where
         return (StatusCode::NOT_FOUND, "surface bundle path not found").into_response();
     };
     match read_static_file(&root, &path).await {
-        StaticRead::Served(response) => response,
+        StaticRead::Served(mut response) => {
+            response.headers_mut().insert(
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("no-cache, must-revalidate"),
+            );
+            response
+        }
         StaticRead::Missing | StaticRead::Forbidden => {
             (StatusCode::NOT_FOUND, "surface bundle file not found").into_response()
         }
@@ -912,6 +918,10 @@ mod tests {
             response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
             Some(&HeaderValue::from_static("*"))
         );
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL),
+            Some(&HeaderValue::from_static("no-cache, must-revalidate"))
+        );
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"export const ok = true;");
         Ok(())
@@ -986,6 +996,10 @@ mod tests {
         assert_eq!(
             response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
             Some(&HeaderValue::from_static("*"))
+        );
+        assert!(
+            response.headers().get(header::CACHE_CONTROL).is_none(),
+            "generic static assets should not inherit surface bundle cache policy"
         );
         Ok(())
     }
