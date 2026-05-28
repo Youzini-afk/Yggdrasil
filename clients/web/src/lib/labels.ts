@@ -286,6 +286,51 @@ export interface LocaleDictionary {
   projectFrameOpenProjectTab: string;
   projectFrameProjectTabBlockedTitle: string;
   projectFrameProjectTabBlockedBody: string;
+  projectFrameRefresh: string;
+  projectFrameRefreshing: string;
+  projectFrameRefreshDiagnostics: string;
+  projectFrameUpdateProject: string;
+  projectFrameUpdating: string;
+  projectFrameUpdateCompleteTitle: string;
+  projectFrameUpdateCompleteBody: (count: number) => string;
+  projectFrameUpdateCurrentTitle: string;
+  projectFrameUpdateCurrentBody: string;
+  projectFrameUpdateFailedTitle: string;
+  projectFrameStopConfirm: string;
+  projectFrameDiagnosticsLoading: string;
+  projectFrameStatus: string;
+  projectFramePackages: string;
+  projectFrameUpdates: string;
+  projectFrameActivity: string;
+  projectFramePackageHealth: (healthy: number, total: number) => string;
+  projectFrameRecentEvents: (count: number) => string;
+  projectFrameUpdatesAvailable: (count: number) => string;
+  projectFrameUpdatesCurrent: string;
+  projectFrameUpdateUnavailable: string;
+  projectFrameProjectId: string;
+  projectFrameProjectType: string;
+  projectFrameSession: string;
+  projectFrameActiveSession: string;
+  projectFrameStorage: string;
+  projectFrameInterfaceSection: string;
+  projectFrameInterfaceDescription: string;
+  projectFrameEntrySurface: string;
+  projectFrameBundleUrl: string;
+  projectFrameBundleFingerprint: string;
+  projectFrameBundleUnavailable: string;
+  projectFrameLastResolved: string;
+  projectFrameUpdatesSection: string;
+  projectFrameUpdatesDescription: string;
+  projectFrameNoUpdateRecords: string;
+  projectFramePackagesSection: string;
+  projectFramePackagesDescription: string;
+  projectFrameNoPackages: string;
+  projectFramePackageCounts: (capabilities: number, hooks: number) => string;
+  projectFrameActivitySection: string;
+  projectFrameActivityDescription: string;
+  projectFrameNoEvents: string;
+  projectFrameNoSession: string;
+  projectFrameDiagnosticsWarnings: string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -764,6 +809,51 @@ export const labels = {
     projectFrameOpenProjectTab: "Open project interface",
     projectFrameProjectTabBlockedTitle: "Project tab was blocked",
     projectFrameProjectTabBlockedBody: "Allow pop-ups for this site, then open the project interface from the console.",
+    projectFrameRefresh: "Refresh",
+    projectFrameRefreshing: "Refreshing…",
+    projectFrameRefreshDiagnostics: "Refresh diagnostics",
+    projectFrameUpdateProject: "Update project",
+    projectFrameUpdating: "Updating…",
+    projectFrameUpdateCompleteTitle: "Project updated",
+    projectFrameUpdateCompleteBody: (count) => `Updated ${count} package${count === 1 ? "" : "s"}.`,
+    projectFrameUpdateCurrentTitle: "Project is current",
+    projectFrameUpdateCurrentBody: "No package updates are available.",
+    projectFrameUpdateFailedTitle: "Update failed",
+    projectFrameStopConfirm: "Stopping will terminate the running session and project packages. Open work in the project UI may be lost. Stop this project?",
+    projectFrameDiagnosticsLoading: "Loading diagnostics…",
+    projectFrameStatus: "Status",
+    projectFramePackages: "Packages",
+    projectFrameUpdates: "Updates",
+    projectFrameActivity: "Activity",
+    projectFramePackageHealth: (healthy, total) => `${healthy}/${total} healthy`,
+    projectFrameRecentEvents: (count) => `${count} recent event${count === 1 ? "" : "s"}`,
+    projectFrameUpdatesAvailable: (count) => `${count} update${count === 1 ? "" : "s"} available`,
+    projectFrameUpdatesCurrent: "Up to date",
+    projectFrameUpdateUnavailable: "Update check unavailable",
+    projectFrameProjectId: "Project ID",
+    projectFrameProjectType: "Type",
+    projectFrameSession: "Session",
+    projectFrameActiveSession: "Active",
+    projectFrameStorage: "Storage",
+    projectFrameInterfaceSection: "Project interface",
+    projectFrameInterfaceDescription: "Standalone project tab plus the resolved surface bundle used by the iframe host.",
+    projectFrameEntrySurface: "Entry surface",
+    projectFrameBundleUrl: "Bundle URL",
+    projectFrameBundleFingerprint: "Fingerprint",
+    projectFrameBundleUnavailable: "Bundle could not be resolved",
+    projectFrameLastResolved: "Last resolved",
+    projectFrameUpdatesSection: "Updates",
+    projectFrameUpdatesDescription: "Checks use official/install-lab capabilities through capability.invoke.",
+    projectFrameNoUpdateRecords: "No update records returned for this project.",
+    projectFramePackagesSection: "Package health",
+    projectFramePackagesDescription: "Runtime package state, counts, and redacted failure/log summaries when available.",
+    projectFrameNoPackages: "No project packages were reported by the host.",
+    projectFramePackageCounts: (capabilities, hooks) => `${capabilities} capabilities · ${hooks} hooks`,
+    projectFrameActivitySection: "Recent activity",
+    projectFrameActivityDescription: "Best-effort tail of the running project session events.",
+    projectFrameNoEvents: "No recent events for this session.",
+    projectFrameNoSession: "No running session is available yet.",
+    projectFrameDiagnosticsWarnings: "Diagnostic warnings",
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -1242,6 +1332,51 @@ export const labels = {
     projectFrameOpenProjectTab: "打开项目界面",
     projectFrameProjectTabBlockedTitle: "项目标签页被浏览器拦截",
     projectFrameProjectTabBlockedBody: "请允许本站弹出窗口，然后从控制台重新打开项目界面。",
+    projectFrameRefresh: "刷新",
+    projectFrameRefreshing: "正在刷新…",
+    projectFrameRefreshDiagnostics: "刷新诊断",
+    projectFrameUpdateProject: "更新项目",
+    projectFrameUpdating: "正在更新…",
+    projectFrameUpdateCompleteTitle: "项目已更新",
+    projectFrameUpdateCompleteBody: (count) => `已更新 ${count} 个包。`,
+    projectFrameUpdateCurrentTitle: "项目已是最新",
+    projectFrameUpdateCurrentBody: "没有可用的包更新。",
+    projectFrameUpdateFailedTitle: "更新失败",
+    projectFrameStopConfirm: "停止会终止当前运行会话和项目包。项目界面里尚未保存的工作可能丢失。确定停止这个项目吗？",
+    projectFrameDiagnosticsLoading: "正在加载诊断…",
+    projectFrameStatus: "状态",
+    projectFramePackages: "包",
+    projectFrameUpdates: "更新",
+    projectFrameActivity: "活动",
+    projectFramePackageHealth: (healthy, total) => `${healthy}/${total} 健康`,
+    projectFrameRecentEvents: (count) => `${count} 条近期事件`,
+    projectFrameUpdatesAvailable: (count) => `${count} 个更新可用`,
+    projectFrameUpdatesCurrent: "已是最新",
+    projectFrameUpdateUnavailable: "更新检查不可用",
+    projectFrameProjectId: "项目 ID",
+    projectFrameProjectType: "类型",
+    projectFrameSession: "会话",
+    projectFrameActiveSession: "运行中",
+    projectFrameStorage: "存储",
+    projectFrameInterfaceSection: "项目界面",
+    projectFrameInterfaceDescription: "独立项目标签页，以及 iframe 主机解析到的 surface bundle。",
+    projectFrameEntrySurface: "入口 surface",
+    projectFrameBundleUrl: "Bundle URL",
+    projectFrameBundleFingerprint: "指纹",
+    projectFrameBundleUnavailable: "无法解析 bundle",
+    projectFrameLastResolved: "最近解析",
+    projectFrameUpdatesSection: "更新",
+    projectFrameUpdatesDescription: "通过 capability.invoke 调用 official/install-lab 能力进行检查。",
+    projectFrameNoUpdateRecords: "该项目没有返回更新记录。",
+    projectFramePackagesSection: "包健康",
+    projectFramePackagesDescription: "运行时包状态、计数，以及可用的脱敏失败/日志摘要。",
+    projectFrameNoPackages: "主机未报告项目包。",
+    projectFramePackageCounts: (capabilities, hooks) => `${capabilities} 个能力 · ${hooks} 个 hook`,
+    projectFrameActivitySection: "近期活动",
+    projectFrameActivityDescription: "尽力展示运行中项目会话的事件尾部。",
+    projectFrameNoEvents: "该会话暂无近期事件。",
+    projectFrameNoSession: "尚无运行中的会话。",
+    projectFrameDiagnosticsWarnings: "诊断警告",
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",

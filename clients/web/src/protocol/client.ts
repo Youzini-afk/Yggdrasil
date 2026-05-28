@@ -161,12 +161,45 @@ export interface InstallUninstallResult {
   project?: { project_id: string; data_action: string } | null;
 }
 
+export interface UpdateCheckRecord {
+  id?: string;
+  package_id?: string;
+  project_id?: string | null;
+  source_kind?: string;
+  applicable?: boolean;
+  status?: string;
+  reason?: string;
+  available?: boolean;
+  dangling?: boolean;
+  current_commit?: string | null;
+  upstream_commit?: string | null;
+  current_tree_hash?: string | null;
+  available_tree_hash?: string | null;
+  installed_at_store?: string | null;
+}
+
+export interface UpdateCheckResult {
+  results: UpdateCheckRecord[];
+}
+
+export interface ProjectUpdateResult {
+  status?: string;
+  updated?: boolean;
+  updated_packages?: string[];
+  reason?: string;
+  check?: UpdateCheckResult;
+  execute?: unknown;
+  store_gc?: unknown;
+}
+
 const INSTALL_LAB_PROVIDER = "official/install-lab";
 const INSTALL_LAB_CAPABILITIES = {
   resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
   detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
   executePlan: `${INSTALL_LAB_PROVIDER}/execute_plan`,
   uninstall: `${INSTALL_LAB_PROVIDER}/uninstall`,
+  checkForUpdates: `${INSTALL_LAB_PROVIDER}/check_for_updates`,
+  updateProject: `${INSTALL_LAB_PROVIDER}/update_project`,
 } as const;
 
 function normalizeInstallRootUrl(input: string): string {
@@ -536,6 +569,21 @@ export class YggProtocolClient {
       project_id: projectId,
       profile,
       delete_project_data: false,
+    });
+  }
+
+  async checkProjectUpdates(projectId: string, profile = "default"): Promise<UpdateCheckResult> {
+    return await this.invokeInstallLab<UpdateCheckResult>(INSTALL_LAB_CAPABILITIES.checkForUpdates, {
+      project_id: projectId,
+      profile,
+    });
+  }
+
+  async updateProject(projectId: string, profile = "default", force = false): Promise<ProjectUpdateResult> {
+    return await this.invokeInstallLab<ProjectUpdateResult>(INSTALL_LAB_CAPABILITIES.updateProject, {
+      project_id: projectId,
+      profile,
+      force,
     });
   }
 

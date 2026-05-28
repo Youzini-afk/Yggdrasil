@@ -1,6 +1,6 @@
 # Project Update & Bundle Freshness — Plan
 
-Status: Phase 6 complete — CLI `ygg update` now routes through `official/install-lab/update_project` after the Phase 5 generic in-place update capability landed (2026-05-28). Phase 7 may begin.
+Status: Phase 7 complete — the web project console now shows diagnostics and calls `official/install-lab/check_for_updates` / `official/install-lab/update_project` through `capability.invoke` (2026-05-28). Phase 8 may begin.
 
 ## Oracle review amendments (2026-05-28)
 

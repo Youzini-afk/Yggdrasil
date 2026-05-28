@@ -126,32 +126,38 @@ globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
   }
 
   if (body?.method === "kernel.v1.capability.invoke") {
+    const capabilityId = body.params.capability_id;
+    const output = capabilityId.endsWith("/check_for_updates")
+      ? { results: [] }
+      : capabilityId.endsWith("/update_project")
+        ? { status: "current", updated: false, updated_packages: [], check: { results: [] } }
+        : {
+            plan: {
+              root_id: "official/test-project",
+              packages: [],
+              permissions_summary: {
+                new_capabilities: [],
+                new_network_hosts: [],
+                new_secret_refs: [],
+              },
+              signature_summary: {
+                all_signed: false,
+                unsigned_packages: [],
+              },
+              integrity_summary: {
+                manifest_hashes_match_lockfile: true,
+                drift_detected: [],
+              },
+            },
+          };
     return Response.json({
       id: body.id,
       result: {
-        capability_id: body.params.capability_id,
+        capability_id: capabilityId,
         correlation_id: "corr-1",
         duration_ms: 1,
         provider_package_id: body.params.provider_package_id,
-        output: {
-          plan: {
-            root_id: "official/test-project",
-            packages: [],
-            permissions_summary: {
-              new_capabilities: [],
-              new_network_hosts: [],
-              new_secret_refs: [],
-            },
-            signature_summary: {
-              all_signed: false,
-              unsigned_packages: [],
-            },
-            integrity_summary: {
-              manifest_hashes_match_lockfile: true,
-              drift_detected: [],
-            },
-          },
-        },
+        output,
       },
     });
   }
@@ -178,6 +184,29 @@ assertDeepEqual(uninstallInvoke.params?.input, {
   project_id: "youzini-afk__YdlTavern__d2a47e5c",
   profile: "default",
   delete_project_data: false,
+});
+
+capturedRequests.length = 0;
+await new YggProtocolClient("http://host.test", "valid-token").checkProjectUpdates("youzini-afk__YdlTavern__d2a47e5c");
+const updateCheckInvoke = capturedRequests.find(
+  (request) => (request as { method?: string }).method === "kernel.v1.capability.invoke",
+) as { params?: Record<string, unknown> };
+assertEqual(updateCheckInvoke.params?.capability_id, "official/install-lab/check_for_updates");
+assertDeepEqual(updateCheckInvoke.params?.input, {
+  project_id: "youzini-afk__YdlTavern__d2a47e5c",
+  profile: "default",
+});
+
+capturedRequests.length = 0;
+await new YggProtocolClient("http://host.test", "valid-token").updateProject("youzini-afk__YdlTavern__d2a47e5c");
+const updateInvoke = capturedRequests.find(
+  (request) => (request as { method?: string }).method === "kernel.v1.capability.invoke",
+) as { params?: Record<string, unknown> };
+assertEqual(updateInvoke.params?.capability_id, "official/install-lab/update_project");
+assertDeepEqual(updateInvoke.params?.input, {
+  project_id: "youzini-afk__YdlTavern__d2a47e5c",
+  profile: "default",
+  force: false,
 });
 
 globalThis.fetch = originalFetch;
