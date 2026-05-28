@@ -550,6 +550,196 @@ pub(crate) async fn check_for_updates_external_project_not_applicable() -> anyho
     Ok(())
 }
 
+pub(crate) async fn update_project_local_replaces_dist_and_lockfile() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("project-source");
+    copy_dir_all(Path::new(&fixture_path("project-root")), &source)?;
+
+    let plan = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": source }),
+    )
+    .await?
+    .output["plan"]
+        .clone();
+    execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    let lock_path = tmp.path().join("profiles/default.lock.toml");
+    let before_lock = fs::read_to_string(&lock_path)?;
+    let before: ygg_core::Lockfile = toml::from_str(&before_lock)?;
+    let before_surface = before
+        .package
+        .iter()
+        .find(|entry| entry.id == "fixture/project-surface")
+        .context("surface entry before update")?;
+    let before_tree_hash = before_surface.tree_hash.clone();
+    let before_store = before_surface.installed_at_store.clone();
+
+    fs::write(
+        source.join("packages/surface/dist/bundle.mjs"),
+        "export const updated = true;\n",
+    )?;
+    let updated = invoke(
+        &rt,
+        "official/install-lab/update_project",
+        json!({ "data_dir": tmp.path(), "project_id": "fixture-project__abc12345" }),
+    )
+    .await?;
+    anyhow::ensure!(updated.output["status"] == json!("updated"));
+    anyhow::ensure!(updated.output["updated_packages"]
+        .as_array()
+        .context("updated packages")?
+        .iter()
+        .any(|id| id == "fixture/project-surface"));
+
+    let after: ygg_core::Lockfile = toml::from_str(&fs::read_to_string(&lock_path)?)?;
+    let after_surface = after
+        .package
+        .iter()
+        .find(|entry| entry.id == "fixture/project-surface")
+        .context("surface entry after update")?;
+    anyhow::ensure!(after_surface.tree_hash != before_tree_hash);
+    anyhow::ensure!(after_surface.installed_at_store != before_store);
+    anyhow::ensure!(tmp
+        .path()
+        .join("projects/fixture-project__abc12345/dist/bundle.mjs")
+        .is_file());
+    let dist = fs::read_to_string(
+        tmp.path()
+            .join("projects/fixture-project__abc12345/dist/bundle.mjs"),
+    )?;
+    anyhow::ensure!(dist.contains("updated = true"));
+    anyhow::ensure!(!Path::new(&before_store).exists());
+    Ok(())
+}
+
+pub(crate) async fn update_project_local_current_noop() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("project-source");
+    copy_dir_all(Path::new(&fixture_path("project-root")), &source)?;
+    let plan = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": source }),
+    )
+    .await?
+    .output["plan"]
+        .clone();
+    execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    let before = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/update_project",
+        json!({ "data_dir": tmp.path(), "project_id": "fixture-project__abc12345" }),
+    )
+    .await?;
+    anyhow::ensure!(out.output["status"] == json!("current"));
+    let after = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
+    anyhow::ensure!(after == before);
+    Ok(())
+}
+
+pub(crate) async fn update_project_local_force_reinstalls_current() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("project-source");
+    copy_dir_all(Path::new(&fixture_path("project-root")), &source)?;
+    let plan = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": source }),
+    )
+    .await?
+    .output["plan"]
+        .clone();
+    execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/update_project",
+        json!({ "data_dir": tmp.path(), "project_id": "fixture-project__abc12345", "force": true }),
+    )
+    .await?;
+    anyhow::ensure!(out.output["status"] == json!("updated"));
+    anyhow::ensure!(out.output["updated"] == json!(true));
+    anyhow::ensure!(!out.output["updated_packages"]
+        .as_array()
+        .context("updated packages")?
+        .is_empty());
+    Ok(())
+}
+
+pub(crate) async fn update_project_external_not_applicable() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("external-source");
+    fs::create_dir_all(&source)?;
+    let project_id = "external_update_project__abc123";
+    let project_dir = tmp.path().join("projects").join(project_id);
+    fs::create_dir_all(&project_dir)?;
+    fs::write(
+        project_dir.join("project.yaml"),
+        format!(
+            "schema_version: 1\nproject:\n  id: {project_id}\n  title: External Updates\n  type: external_workspace\n  packages: []\n  external:\n    source: {}\n    workspace_root: {}\n",
+            source.display(),
+            source.display()
+        ),
+    )?;
+    let out = invoke(
+        &rt,
+        "official/install-lab/update_project",
+        json!({ "data_dir": tmp.path(), "project_id": project_id }),
+    )
+    .await?;
+    anyhow::ensure!(out.output["status"] == json!("not_applicable"));
+    anyhow::ensure!(out.output["updated"] == json!(false));
+    Ok(())
+}
+
+pub(crate) async fn update_project_permission_drift_blocks_before_mutation() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("perm-source");
+    fs::create_dir_all(&source)?;
+    fs::write(
+        source.join("manifest.yaml"),
+        "schema_version: 1\nid: fixture/perm-update\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions: {}\n",
+    )?;
+    fs::write(source.join("content.txt"), "one")?;
+    let plan = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": source }),
+    )
+    .await?
+    .output["plan"]
+        .clone();
+    execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    let lock_path = tmp.path().join("profiles/default.lock.toml");
+    let before_lock = fs::read_to_string(&lock_path)?;
+
+    fs::write(
+        source.join("manifest.yaml"),
+        "schema_version: 1\nid: fixture/perm-update\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions:\n  capabilities:\n    invoke:\n      - official/other/*\n",
+    )?;
+    fs::write(source.join("content.txt"), "two")?;
+    let err = invoke(
+        &rt,
+        "official/install-lab/update_project",
+        json!({ "data_dir": tmp.path(), "package_id": "fixture/perm-update" }),
+    )
+    .await
+    .expect_err("permission drift should block update");
+    anyhow::ensure!(
+        err.to_string().contains("new capability"),
+        "unexpected error: {err}"
+    );
+    let after_lock = fs::read_to_string(&lock_path)?;
+    anyhow::ensure!(after_lock == before_lock);
+    Ok(())
+}
+
 async fn plan_for(
     runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>,
     fixture: &str,
@@ -593,4 +783,19 @@ fn fixture_path(name: &str) -> String {
             .join(name)
             .display()
     )
+}
+
+fn copy_dir_all(src: &Path, dest: &Path) -> anyhow::Result<()> {
+    fs::create_dir_all(dest)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = dest.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&from, &to)?;
+        } else {
+            fs::copy(&from, &to)?;
+        }
+    }
+    Ok(())
 }

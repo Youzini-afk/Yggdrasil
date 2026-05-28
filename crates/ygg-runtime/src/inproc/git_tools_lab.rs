@@ -319,7 +319,10 @@ fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
         None => protocol::LsRefsCommand::new(
             None,
             &handshake.capabilities,
-            ("yggdrasil", Some(Cow::Owned(protocol::agent(gix::env::agent())))),
+            (
+                "yggdrasil",
+                Some(Cow::Owned(protocol::agent(gix::env::agent()))),
+            ),
         )
         .invoke_blocking(&mut transport, &mut progress, false)?,
     };

@@ -587,7 +587,7 @@ where
         if rest.as_os_str().is_empty() {
             return None;
         }
-        let root = ygg_core::paths::project_dir(&project_id).ok()?.join("dist");
+        let root = recoverable_project_dist_dir(&project_id)?;
         let path = root.join(rest);
         return Some((root, path));
     }
@@ -598,6 +598,33 @@ where
     let root = PathBuf::from(base);
     let path = root.join(safe_file);
     Some((root, path))
+}
+
+fn recoverable_project_dist_dir(project_id: &ygg_core::project::ProjectId) -> Option<PathBuf> {
+    let project_dir = ygg_core::paths::project_dir(project_id).ok()?;
+    let dist = project_dir.join("dist");
+    if dist.is_dir() {
+        return Some(dist);
+    }
+    latest_dist_backup(&project_dir)
+}
+
+fn latest_dist_backup(project_dir: &FsPath) -> Option<PathBuf> {
+    let mut candidates = std::fs::read_dir(project_dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            let name = path.file_name()?.to_str()?;
+            if !name.starts_with(".dist.bak-") || !path.is_dir() {
+                return None;
+            }
+            let modified = entry.metadata().and_then(|meta| meta.modified()).ok();
+            Some((modified, path))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(modified, _)| *modified);
+    candidates.pop().map(|(_, path)| path)
 }
 
 fn safe_relative_path(path: &str) -> Option<PathBuf> {

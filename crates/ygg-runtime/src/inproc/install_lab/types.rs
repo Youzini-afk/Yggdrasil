@@ -56,6 +56,20 @@ pub(super) struct CheckForUpdatesInput {
 }
 
 #[derive(Debug, Deserialize)]
+pub(super) struct UpdateProjectInput {
+    #[serde(default = "super::layout::default_profile")]
+    pub(super) profile: String,
+    #[serde(default)]
+    pub(super) data_dir: Option<String>,
+    #[serde(default)]
+    pub(super) project_id: Option<String>,
+    #[serde(default)]
+    pub(super) package_id: Option<String>,
+    #[serde(default)]
+    pub(super) force: bool,
+}
+
+#[derive(Debug, Deserialize)]
 pub(super) struct DetectKindInput {
     #[serde(default)]
     pub(super) path: Option<String>,

@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use uuid::Uuid;
 
 use super::executor::{compute_manifest_hash, compute_tree_hash};
 use super::source::manifest_path_in;
@@ -50,6 +51,56 @@ pub(super) fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<()> {
                 }
             }
         }
+    }
+    Ok(())
+}
+
+pub(super) fn replace_dir_atomic(src: &Path, dest: &Path) -> Result<()> {
+    let parent = dest.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    let tmp = parent.join(format!(
+        ".{}.tmp-{}",
+        dest.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("dist"),
+        Uuid::new_v4()
+    ));
+    let backup = parent.join(format!(
+        ".{}.bak-{}",
+        dest.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("dist"),
+        Uuid::new_v4()
+    ));
+    if tmp.exists() {
+        fs::remove_dir_all(&tmp).ok();
+    }
+    copy_dir_recursive(src, &tmp)?;
+    let had_dest = dest.exists();
+    if had_dest {
+        fs::rename(dest, &backup).with_context(|| {
+            format!(
+                "failed to move existing {} to {}",
+                dest.display(),
+                backup.display()
+            )
+        })?;
+    }
+    if let Err(error) = fs::rename(&tmp, dest) {
+        if had_dest {
+            let _ = fs::rename(&backup, dest);
+        }
+        let _ = fs::remove_dir_all(&tmp);
+        return Err(error).with_context(|| {
+            format!(
+                "failed to atomically replace {} with {}",
+                dest.display(),
+                src.display()
+            )
+        });
+    }
+    if had_dest {
+        fs::remove_dir_all(&backup).ok();
     }
     Ok(())
 }

@@ -400,10 +400,7 @@ fn copy_project_surface_dist(
         data_dir_override,
     )?;
     let dest_dist = project_dir.join("dist");
-    if dest_dist.exists() {
-        fs::remove_dir_all(&dest_dist)?;
-    }
-    super::fs_copy::copy_dir_recursive(&source_dist, &dest_dist)
+    super::fs_copy::replace_dir_atomic(&source_dist, &dest_dist)
 }
 
 fn find_surface_bundle_package<'a>(

@@ -18,6 +18,7 @@ mod project_kind;
 mod source;
 mod types;
 mod update_check;
+mod updater;
 
 const PACKAGE_ID: &str = "official/install-lab";
 
@@ -56,6 +57,9 @@ pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
         "install.check_for_updates" | "official/install-lab/check_for_updates" => {
             Some(update_check::check_for_updates(request.input.clone()).await)
         }
+        "install.update_project" | "official/install-lab/update_project" => Some(
+            updater::update_project(request.input.clone(), request.session_id.as_deref()).await,
+        ),
         _ => None,
     }
 }

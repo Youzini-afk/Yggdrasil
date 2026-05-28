@@ -684,6 +684,61 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
             crate::conformance::install_lab::check_for_updates_external_project_not_applicable
         ),
         c!(
+            "install_lab.update_project_local_replaces_dist_and_lockfile",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::update_project_local_replaces_dist_and_lockfile
+        ),
+        c!(
+            "install_lab.update_project_local_current_noop",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::update_project_local_current_noop
+        ),
+        c!(
+            "install_lab.update_project_local_force_reinstalls_current",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::update_project_local_force_reinstalls_current
+        ),
+        c!(
+            "install_lab.update_project_external_not_applicable",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::update_project_external_not_applicable
+        ),
+        c!(
+            "install_lab.update_project_permission_drift_blocks_before_mutation",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::update_project_permission_drift_blocks_before_mutation
+        ),
+        c!(
             "install.real_github_smoke",
             ["install", "real-network", "opt-in"],
             crate::conformance::install_real_smoke::real_github_smoke

@@ -1,5 +1,6 @@
 use super::*;
 use sha2::{Digest, Sha256};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize)]
@@ -127,9 +128,8 @@ where
         }
 
         let project_id = entry.descriptor.project.id.as_str();
-        let bundle_path = ygg_core::paths::project_dir(&entry.descriptor.project.id)
-            .ok()
-            .map(|path| path.join("dist").join("bundle.mjs"));
+        let bundle_path = recoverable_project_dist_dir(&entry.descriptor.project.id)
+            .map(|path| path.join("bundle.mjs"));
         let fingerprint = bundle_path.as_deref().and_then(bundle_fingerprint);
         let bundle_path = format!("/surface-bundles/projects/{project_id}/bundle.mjs");
         Ok(Some(ResolvedSurfaceBundle {
@@ -191,4 +191,31 @@ where
             })?;
         self.describe_surface_contribution(surface_id).await
     }
+}
+
+fn recoverable_project_dist_dir(project_id: &ProjectId) -> Option<PathBuf> {
+    let project_dir = ygg_core::paths::project_dir(project_id).ok()?;
+    let dist = project_dir.join("dist");
+    if dist.is_dir() {
+        return Some(dist);
+    }
+    latest_dist_backup(&project_dir)
+}
+
+fn latest_dist_backup(project_dir: &Path) -> Option<PathBuf> {
+    let mut candidates = fs::read_dir(project_dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            let name = path.file_name()?.to_str()?;
+            if !name.starts_with(".dist.bak-") || !path.is_dir() {
+                return None;
+            }
+            let modified = entry.metadata().and_then(|meta| meta.modified()).ok();
+            Some((modified, path))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(modified, _)| *modified);
+    candidates.pop().map(|(_, path)| path)
 }

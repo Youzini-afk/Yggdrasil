@@ -1,6 +1,6 @@
 # Project Update & Bundle Freshness — Plan
 
-Status: Phase 4 complete — generic read-only update checks are implemented and pushed through conformance (2026-05-28). Phase 5 may begin.
+Status: Phase 5 complete — generic in-place `official/install-lab/update_project` is implemented and pushed through conformance (2026-05-28). Phase 6 may begin.
 
 ## Oracle review amendments (2026-05-28)
 
