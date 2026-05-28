@@ -314,8 +314,10 @@ fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
 
     let refs = match handshake.refs.take() {
         Some(refs) => refs,
-        None => protocol::LsRefsCommand::new(None, &handshake.capabilities, ls_refs_agent_feature())
-        .invoke_blocking(&mut transport, &mut progress, false)?,
+        None => {
+            protocol::LsRefsCommand::new(None, &handshake.capabilities, ls_refs_agent_feature())
+                .invoke_blocking(&mut transport, &mut progress, false)?
+        }
     };
 
     Ok(refs.iter().filter_map(remote_ref_from_gix).collect())

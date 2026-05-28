@@ -128,17 +128,22 @@ where
         }
 
         let project_id = entry.descriptor.project.id.as_str();
-        let bundle_path = recoverable_project_dist_dir(&entry.descriptor.project.id)
-            .map(|path| path.join("bundle.mjs"));
+        let dist_dir = recoverable_project_dist_dir(&entry.descriptor.project.id);
+        let bundle_path = dist_dir.as_ref().map(|path| path.join("bundle.mjs"));
         let fingerprint = bundle_path.as_deref().and_then(bundle_fingerprint);
         let bundle_path = format!("/surface-bundles/projects/{project_id}/bundle.mjs");
+        let stylesheets = dist_dir
+            .as_deref()
+            .map(|path| discover_project_stylesheets(project_id, path))
+            .unwrap_or_default();
+        let wrapper_class = (!stylesheets.is_empty()).then(|| surface_wrapper_class(surface_id));
         Ok(Some(ResolvedSurfaceBundle {
             surface_id: surface_id.to_string(),
             bundle_url: cache_busted_url(&bundle_path, fingerprint.as_deref()),
             bundle_fingerprint: fingerprint,
             export_name: default_surface_export_name(surface_id),
-            stylesheets: Vec::new(),
-            wrapper_class: None,
+            stylesheets,
+            wrapper_class,
             project_id: Some(project_id.to_string()),
             source: SurfaceBundleSource::InstalledProject,
         }))
@@ -191,6 +196,48 @@ where
             })?;
         self.describe_surface_contribution(surface_id).await
     }
+}
+
+fn discover_project_stylesheets(project_id: &str, dist_dir: &Path) -> Vec<String> {
+    let styles_dir = dist_dir.join("styles");
+    let mut entries = match fs::read_dir(styles_dir) {
+        Ok(entries) => entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let path = entry.path();
+                if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("css") {
+                    return None;
+                }
+                let name = path.file_name()?.to_str()?;
+                if name.contains('/') || name.contains('\\') || name == "." || name == ".." {
+                    return None;
+                }
+                Some((stylesheet_order(name), name.to_string(), path))
+            })
+            .collect::<Vec<_>>(),
+        Err(_) => return Vec::new(),
+    };
+    entries.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+    entries
+        .into_iter()
+        .map(|(_, name, path)| {
+            let url = format!("/surface-bundles/projects/{project_id}/styles/{name}");
+            cache_busted_url(&url, bundle_fingerprint(&path).as_deref())
+        })
+        .collect()
+}
+
+fn stylesheet_order(name: &str) -> u8 {
+    match name {
+        "surface.css" => 0,
+        "mobile.css" => 1,
+        _ => 2,
+    }
+}
+
+fn surface_wrapper_class(surface_id: &str) -> String {
+    let prefix = surface_id.split('/').next().unwrap_or(surface_id);
+    format!("{}-surface", prefix.replace(['/', '_'], "-"))
 }
 
 fn recoverable_project_dist_dir(project_id: &ProjectId) -> Option<PathBuf> {

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fs;
 
 use serde_json::json;
 use ygg_core::project::{
@@ -365,11 +366,28 @@ pub(crate) async fn surface_resolve_via_dev_path() -> anyhow::Result<()> {
 }
 
 pub(crate) async fn surface_resolve_via_installed_project() -> anyhow::Result<()> {
+    let tmp = tempfile::tempdir()?;
+    let _env = EnvGuard::set("YGG_DATA_DIR", tmp.path().display().to_string());
     let (_store, runtime) = runtime();
+    let project_id = ProjectId::new("surface-project__abc12345")?;
+    let project_dir = ygg_core::paths::project_dir(&project_id)?;
+    fs::create_dir_all(project_dir.join("dist/styles"))?;
+    fs::write(
+        project_dir.join("dist/bundle.mjs"),
+        "export function mountSurface(){}",
+    )?;
+    fs::write(
+        project_dir.join("dist/styles/surface.css"),
+        ".official-surface{color:red}",
+    )?;
+    fs::write(
+        project_dir.join("dist/styles/mobile.css"),
+        "@media(max-width: 800px){}",
+    )?;
     runtime
         .config()
         .project_registry
-        .register(descriptor("surface-project__abc12345"))?;
+        .register(descriptor(project_id.as_str()))?;
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
@@ -384,7 +402,49 @@ pub(crate) async fn surface_resolve_via_installed_project() -> anyhow::Result<()
         .as_str()
         .unwrap_or_default()
         .contains("/surface-bundles/projects/surface-project__abc12345/"));
+    anyhow::ensure!(value["bundle_url"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("?v="));
+    anyhow::ensure!(value["wrapper_class"] == json!("official-surface"));
+    let stylesheets = value["stylesheets"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("stylesheets missing"))?;
+    anyhow::ensure!(
+        stylesheets.len() == 2,
+        "expected surface and mobile stylesheets: {stylesheets:?}"
+    );
+    anyhow::ensure!(stylesheets[0]
+        .as_str()
+        .unwrap_or_default()
+        .contains("/surface-bundles/projects/surface-project__abc12345/styles/surface.css?v="));
+    anyhow::ensure!(stylesheets[1]
+        .as_str()
+        .unwrap_or_default()
+        .contains("/surface-bundles/projects/surface-project__abc12345/styles/mobile.css?v="));
     Ok(())
+}
+
+struct EnvGuard {
+    key: &'static str,
+    previous: Option<String>,
+}
+
+impl EnvGuard {
+    fn set(key: &'static str, value: String) -> Self {
+        let previous = std::env::var(key).ok();
+        std::env::set_var(key, value);
+        Self { key, previous }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => std::env::set_var(self.key, value),
+            None => std::env::remove_var(self.key),
+        }
+    }
 }
 
 pub(crate) async fn surface_resolve_unknown_fails() -> anyhow::Result<()> {
