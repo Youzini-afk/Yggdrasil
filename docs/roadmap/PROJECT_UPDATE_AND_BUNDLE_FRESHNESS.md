@@ -1,6 +1,6 @@
 # Project Update & Bundle Freshness — Plan
 
-Status: Phase 5 complete — generic in-place `official/install-lab/update_project` is implemented and pushed through conformance (2026-05-28). Phase 6 may begin.
+Status: Phase 6 complete — CLI `ygg update` now routes through `official/install-lab/update_project` after the Phase 5 generic in-place update capability landed (2026-05-28). Phase 7 may begin.
 
 ## Oracle review amendments (2026-05-28)
 
