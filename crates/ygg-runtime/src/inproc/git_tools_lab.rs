@@ -286,8 +286,6 @@ fn read_signed_tag(input: Value) -> Result<Value> {
 }
 
 fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
-    use std::borrow::Cow;
-
     use gix::protocol::{
         self,
         transport::{client::blocking_io::connect, Protocol, Service},
@@ -316,18 +314,25 @@ fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
 
     let refs = match handshake.refs.take() {
         Some(refs) => refs,
-        None => protocol::LsRefsCommand::new(
-            None,
-            &handshake.capabilities,
-            (
-                "yggdrasil",
-                Some(Cow::Owned(protocol::agent(gix::env::agent()))),
-            ),
-        )
+        None => protocol::LsRefsCommand::new(None, &handshake.capabilities, ls_refs_agent_feature())
         .invoke_blocking(&mut transport, &mut progress, false)?,
     };
 
     Ok(refs.iter().filter_map(remote_ref_from_gix).collect())
+}
+
+fn ls_refs_agent_feature() -> (&'static str, Option<std::borrow::Cow<'static, str>>) {
+    // Git protocol v2 validates ls-refs feature names against server-advertised
+    // capabilities. The feature name must be the standard `agent`; the custom
+    // identity belongs in the value. Passing `yggdrasil` as the feature name
+    // makes gix reject the command before it reaches GitHub with:
+    // `ls-refs: capability yggdrasil is not supported`.
+    (
+        "agent",
+        Some(std::borrow::Cow::Owned(gix::protocol::agent(
+            gix::env::agent(),
+        ))),
+    )
 }
 
 fn remote_ref_from_gix(remote_ref: &gix::protocol::handshake::Ref) -> Option<RemoteRef> {
@@ -635,6 +640,15 @@ mod tests {
         let resolved =
             resolve_remote_ref(&refs, "dev", &candidates).expect("explicit branch resolves");
         assert_eq!(resolved.name, "refs/heads/dev");
+    }
+
+    #[test]
+    fn ls_refs_uses_standard_agent_feature_name() {
+        let (feature, value) = ls_refs_agent_feature();
+        assert_eq!(feature, "agent");
+        assert!(value
+            .as_deref()
+            .is_some_and(|agent| agent.starts_with("git/")));
     }
 
     fn remote_branch(name: &str, sha: &str) -> RemoteRef {
