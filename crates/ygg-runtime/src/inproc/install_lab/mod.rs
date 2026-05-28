@@ -11,6 +11,7 @@ use super::InprocInvocation;
 
 mod executor;
 mod fs_copy;
+mod gc;
 mod layout;
 mod planner;
 mod project_kind;
@@ -34,7 +35,7 @@ pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
             Some(planner::resolve_plan(request.input.clone()).await)
         }
         "install.execute_plan" | "official/install-lab/execute_plan" => {
-            Some(executor::execute_plan(request.input.clone()).await)
+            Some(executor::execute_plan(request.input.clone(), request.session_id.as_deref()).await)
         }
         "install.detect_kind" | "official/install-lab/detect_kind" => {
             Some(project_kind::detect_kind(request.input.clone()).await)
@@ -43,7 +44,7 @@ pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
             Some(executor::register_project_capability(request.input.clone()).await)
         }
         "install.uninstall" | "official/install-lab/uninstall" => {
-            Some(executor::uninstall(request.input.clone()).await)
+            Some(executor::uninstall(request.input.clone(), request.session_id.as_deref()).await)
         }
         "install.list_installed" | "official/install-lab/list_installed" => {
             Some(executor::list_installed(request.input.clone()).await)

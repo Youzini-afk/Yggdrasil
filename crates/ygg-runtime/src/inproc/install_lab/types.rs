@@ -70,10 +70,16 @@ pub(super) struct UninstallInput {
     pub(super) project_id: Option<String>,
     #[serde(default)]
     pub(super) delete_project_data: bool,
+    #[serde(default = "default_purge_orphaned_stores")]
+    pub(super) purge_orphaned_stores: bool,
     #[serde(default = "super::layout::default_profile")]
     pub(super) profile: String,
     #[serde(default)]
     pub(super) data_dir: Option<String>,
+}
+
+pub(super) fn default_purge_orphaned_stores() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

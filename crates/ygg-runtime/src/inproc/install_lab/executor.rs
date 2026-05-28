@@ -26,7 +26,9 @@ use super::types::{
 };
 use super::PACKAGE_ID;
 
-pub(super) async fn execute_plan(input: Value) -> Result<Value> {
+const STORE_GC_EVENT_KIND: &str = "kernel/v1/install-lab.store.gc";
+
+pub(super) async fn execute_plan(input: Value, _session_id: Option<&str>) -> Result<Value> {
     if input.as_object().is_some_and(|object| object.is_empty()) {
         anyhow::bail!("unsupported smoke input: missing plan");
     }
@@ -135,7 +137,7 @@ pub(super) async fn register_project_capability(input: Value) -> Result<Value> {
     Ok(info)
 }
 
-pub(super) async fn uninstall(input: Value) -> Result<Value> {
+pub(super) async fn uninstall(input: Value, session_id: Option<&str>) -> Result<Value> {
     if input.as_object().is_some_and(|object| object.is_empty()) {
         return Ok(json!({ "removed_from_profile": false, "store_path_orphaned": null }));
     }
@@ -227,12 +229,54 @@ pub(super) async fn uninstall(input: Value) -> Result<Value> {
     } else {
         None
     };
+    let store_gc = if input.purge_orphaned_stores {
+        let report = super::gc::prune_orphaned_stores(input.data_dir.as_deref())?;
+        let store_gc = store_gc_json(report);
+        emit_store_gc_event(session_id, &store_gc).await?;
+        Some(store_gc)
+    } else {
+        None
+    };
     Ok(json!({
         "removed_from_profile": removed,
         "store_path_orphaned": orphaned.first().cloned(),
         "store_paths_orphaned": orphaned,
+        "store_gc": store_gc,
         "project": project,
     }))
+}
+
+fn store_gc_json(report: super::gc::StoreGcReport) -> Value {
+    json!({
+        "event_kind": STORE_GC_EVENT_KIND,
+        "removed_paths": report
+            .removed_paths
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect::<Vec<_>>(),
+        "orphaned_paths": report
+            .orphaned_paths
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect::<Vec<_>>(),
+        "ignored_store_entries": report
+            .ignored_store_entries
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect::<Vec<_>>(),
+    })
+}
+
+async fn emit_store_gc_event(session_id: Option<&str>, store_gc: &Value) -> Result<()> {
+    if let Some(session_id) = session_id {
+        crate::inproc::append_kernel_event_from_inproc(
+            session_id,
+            STORE_GC_EVENT_KIND,
+            store_gc.clone(),
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 pub(super) async fn list_installed(input: Value) -> Result<Value> {

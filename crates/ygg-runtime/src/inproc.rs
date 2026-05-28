@@ -79,6 +79,15 @@ pub trait InprocCapabilityInvoker: Send + Sync {
     fn project_registry(&self) -> Option<Arc<ProjectRegistry>> {
         None
     }
+
+    fn append_kernel_event(
+        &self,
+        _session_id: &str,
+        _kind: &'static str,
+        _payload: Value,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
+        Box::pin(async { Ok(()) })
+    }
 }
 
 struct RuntimeInprocInvoker<S>
@@ -106,6 +115,22 @@ where
 
     fn project_registry(&self) -> Option<Arc<ProjectRegistry>> {
         Some(self.runtime.config().project_registry.clone())
+    }
+
+    fn append_kernel_event(
+        &self,
+        session_id: &str,
+        kind: &'static str,
+        payload: Value,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
+        let runtime = self.runtime.clone();
+        let session_id = session_id.to_string();
+        Box::pin(async move {
+            runtime
+                .append_kernel_event(&session_id, kind, payload)
+                .await
+                .map(|_| ())
+        })
     }
 }
 
@@ -149,6 +174,17 @@ pub(crate) fn project_registry_from_inproc() -> anyhow::Result<Arc<ProjectRegist
     invoker
         .project_registry()
         .ok_or_else(|| anyhow::anyhow!("inproc project registry context is unavailable"))
+}
+
+pub(crate) async fn append_kernel_event_from_inproc(
+    session_id: &str,
+    kind: &'static str,
+    payload: Value,
+) -> anyhow::Result<()> {
+    let invoker = INPROC_INVOKER
+        .try_with(Clone::clone)
+        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
+    invoker.append_kernel_event(session_id, kind, payload).await
 }
 
 pub use install_lab::StoreSchemaMigration;
