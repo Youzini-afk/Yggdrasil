@@ -17,6 +17,7 @@ mod planner;
 mod project_kind;
 mod source;
 mod types;
+mod update_check;
 
 const PACKAGE_ID: &str = "official/install-lab";
 
@@ -51,6 +52,9 @@ pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
         }
         "install.check_lockfile" | "official/install-lab/check_lockfile" => {
             Some(executor::check_lockfile(request.input.clone()).await)
+        }
+        "install.check_for_updates" | "official/install-lab/check_for_updates" => {
+            Some(update_check::check_for_updates(request.input.clone()).await)
         }
         _ => None,
     }

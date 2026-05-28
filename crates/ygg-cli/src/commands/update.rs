@@ -30,6 +30,31 @@ pub struct UpdateArgs {
 pub async fn run(args: UpdateArgs) -> Result<()> {
     let data_dir = args.data_dir.unwrap_or_else(default_data_dir);
     let runtime = load_install_runtime().await?;
+    if args.check_only {
+        let mut input = json!({
+            "profile": args.profile,
+            "data_dir": data_dir.display().to_string(),
+        });
+        if let Some(package_id) = args.package_id.as_deref() {
+            input["package_id"] = json!(package_id);
+        }
+        let checked = invoke_install_lab(&runtime, "official/install-lab/check_for_updates", input)
+            .await?
+            .output;
+        let results = checked["results"].as_array().cloned().unwrap_or_default();
+        if results.is_empty() {
+            if let Some(package_id) = args.package_id {
+                anyhow::bail!("package '{package_id}' is not installed");
+            }
+            println!("No installed packages.");
+            return Ok(());
+        }
+        for result in results {
+            print_update_check_result(&result);
+        }
+        return Ok(());
+    }
+
     let listed = invoke_install_lab(
         &runtime,
         "official/install-lab/list_installed",
@@ -105,9 +130,6 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
                 new_commit
             }
         );
-        if args.check_only {
-            continue;
-        }
         print_plan_human(&plan);
         let consent = approve_all(&plan);
         invoke_install_lab(
@@ -133,6 +155,33 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
         println!("Updated {updated} packages.");
     }
     Ok(())
+}
+
+fn print_update_check_result(result: &serde_json::Value) {
+    let id = result["package_id"]
+        .as_str()
+        .or_else(|| result["id"].as_str())
+        .unwrap_or("?");
+    let status = result["status"].as_str().unwrap_or("unknown");
+    let reason = result["reason"].as_str().unwrap_or("");
+    match status {
+        "current" => println!("{id}: up to date"),
+        "update_available" => {
+            let current = result["current_commit"]
+                .as_str()
+                .or_else(|| result["current_tree_hash"].as_str())
+                .unwrap_or("(unknown)");
+            let available = result["upstream_commit"]
+                .as_str()
+                .or_else(|| result["available_tree_hash"].as_str())
+                .unwrap_or("(unknown)");
+            println!("{id}: update available {current} -> {available}");
+        }
+        "repair_required" => println!("{id}: repair required ({reason})"),
+        "not_applicable" => println!("{id}: skipped ({reason})"),
+        "check_failed" => println!("{id}: check failed ({reason})"),
+        other => println!("{id}: {other} ({reason})"),
+    }
 }
 
 #[derive(Debug)]

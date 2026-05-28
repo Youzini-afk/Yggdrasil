@@ -286,27 +286,45 @@ fn read_signed_tag(input: Value) -> Result<Value> {
 }
 
 fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
-    let tmp = std::env::temp_dir().join(format!("ygg-git-refs-{}", Uuid::new_v4()));
-    let result = (|| -> Result<Vec<RemoteRef>> {
-        let repo = gix::init_bare(&tmp)?;
-        let remote = repo.remote_at(remote_url)?.with_refspecs(
-            [
-                "+refs/heads/*:refs/remotes/origin/*",
-                "+refs/tags/*:refs/tags/*",
-            ],
-            gix::remote::Direction::Fetch,
-        )?;
-        let connection = remote.connect(gix::remote::Direction::Fetch)?;
-        let (ref_map, _) = connection.ref_map(gix::progress::Discard, Default::default())?;
-        let refs = ref_map
-            .remote_refs
-            .iter()
-            .filter_map(remote_ref_from_gix)
-            .collect();
-        Ok(refs)
-    })();
-    fs::remove_dir_all(&tmp).ok();
-    result
+    use std::borrow::Cow;
+
+    use gix::protocol::{
+        self,
+        transport::{client::blocking_io::connect, Protocol, Service},
+    };
+
+    let url = gix::Url::try_from(remote_url)?;
+    let mut transport = connect::connect(
+        url,
+        connect::Options {
+            version: Protocol::V2,
+            ssh: Default::default(),
+            trace: false,
+        },
+    )?;
+    let mut authenticate = |_action: protocol::credentials::helper::Action| {
+        Ok::<_, protocol::credentials::protocol::Error>(None)
+    };
+    let mut progress = gix::progress::Discard;
+    let mut handshake = protocol::handshake(
+        &mut transport,
+        Service::UploadPack,
+        &mut authenticate,
+        Vec::new(),
+        &mut progress,
+    )?;
+
+    let refs = match handshake.refs.take() {
+        Some(refs) => refs,
+        None => protocol::LsRefsCommand::new(
+            None,
+            &handshake.capabilities,
+            ("yggdrasil", Some(Cow::Owned(protocol::agent(gix::env::agent())))),
+        )
+        .invoke_blocking(&mut transport, &mut progress, false)?,
+    };
+
+    Ok(refs.iter().filter_map(remote_ref_from_gix).collect())
 }
 
 fn remote_ref_from_gix(remote_ref: &gix::protocol::handshake::Ref) -> Option<RemoteRef> {

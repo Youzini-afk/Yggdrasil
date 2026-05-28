@@ -662,6 +662,28 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
             crate::conformance::install_lab::check_lockfile_drift_detection
         ),
         c!(
+            "install_lab.check_for_updates_local_dangling_unsupported",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::check_for_updates_local_dangling_unsupported
+        ),
+        c!(
+            "install_lab.check_for_updates_external_project_not_applicable",
+            [
+                "official",
+                "install",
+                "package_install",
+                "fixture",
+                "update"
+            ],
+            crate::conformance::install_lab::check_for_updates_external_project_not_applicable
+        ),
+        c!(
             "install.real_github_smoke",
             ["install", "real-network", "opt-in"],
             crate::conformance::install_real_smoke::real_github_smoke

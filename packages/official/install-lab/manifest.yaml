@@ -59,6 +59,25 @@ provides:
     output_schema: {}
     side_effects: []
     streaming: false
+  - id: official/install-lab/check_for_updates
+    version: 1.0.0
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        profile:
+          type: string
+        data_dir:
+          type: string
+        project_id:
+          type: string
+        package_id:
+          type: string
+    output_schema: {}
+    side_effects:
+      - filesystem.read
+      - network.read
+    streaming: false
 requires:
   - id: official/git-tools-lab
     source:
@@ -79,6 +98,20 @@ permissions:
     invoke:
       - official/git-tools-lab/*
       - official/integrity-lab/*
+  network:
+    declarations:
+      - host: github.com
+        methods: [GET, POST]
+        purpose: resolve git refs while checking installed package freshness
+      - host: gitlab.com
+        methods: [GET, POST]
+        purpose: resolve git refs while checking installed package freshness
+      - host: codeberg.org
+        methods: [GET, POST]
+        purpose: resolve git refs while checking installed package freshness
+      - host: bitbucket.org
+        methods: [GET, POST]
+        purpose: resolve git refs while checking installed package freshness
   filesystem:
     read:
       - /tmp/yggdrasil-git/

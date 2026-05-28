@@ -1,6 +1,6 @@
 # Project Update & Bundle Freshness — Plan
 
-Status: Phase 0 — @oracle review applied (2026-05-28). Phase 1 may begin.
+Status: Phase 4 complete — generic read-only update checks are implemented and pushed through conformance (2026-05-28). Phase 5 may begin.
 
 ## Oracle review amendments (2026-05-28)
 

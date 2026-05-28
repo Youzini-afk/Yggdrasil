@@ -610,6 +610,7 @@ fn build_lockfile(
                 _ => LockSource::Internal,
             },
             url: pkg.url.clone(),
+            source_path: (pkg.source == "local").then(|| pkg.path.clone()).flatten(),
             r#ref: pkg.ref_name.clone(),
             commit: pkg.commit_sha.clone(),
             tree_hash: pkg.tree_hash.clone(),

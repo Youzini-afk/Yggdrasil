@@ -39,6 +39,12 @@ pub struct LockEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 
+    /// Original absolute path for local sources. This is where update checks
+    /// recompute the current local tree hash; `installed_at_store` remains the
+    /// immutable store copy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_path: Option<String>,
+
     /// Original ref (tag/branch) at lock time
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#ref: Option<String>,
@@ -54,8 +60,8 @@ pub struct LockEntry {
     pub manifest_hash: String,
 
     /// SHA-256 of the referenced static surface bundle artifact when this is a
-    /// surface_bundle package. Covers browser JS that is intentionally excluded
-    /// from the package tree hash.
+    /// surface_bundle package. Retained as an artifact fingerprint even though
+    /// built `dist/` output now also participates in the tree hash.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surface_bundle_hash: Option<String>,
 
@@ -152,6 +158,7 @@ mod tests {
             version: "1.2.3".to_string(),
             source: LockSource::Git,
             url: Some("https://example.com/vendor/tool.git".to_string()),
+            source_path: None,
             r#ref: Some("v1.2.3".to_string()),
             commit: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
             tree_hash: "sha256:tree".to_string(),
@@ -193,6 +200,28 @@ mod tests {
             Some("https://example.com/vendor/tool.git")
         );
         decoded.validate().expect("valid git lockfile");
+    }
+
+    #[test]
+    fn local_source_path_round_trip() {
+        let mut lockfile = Lockfile::new("default", "sha256:profile");
+        let mut entry = git_entry();
+        entry.source = LockSource::Local;
+        entry.url = None;
+        entry.r#ref = None;
+        entry.commit = None;
+        entry.source_path = Some("/workspace/example-package".to_string());
+        lockfile.package.push(entry);
+
+        let toml = toml::to_string(&lockfile).expect("serialize toml");
+        let decoded: Lockfile = toml::from_str(&toml).expect("deserialize toml");
+
+        assert!(matches!(decoded.package[0].source, LockSource::Local));
+        assert_eq!(
+            decoded.package[0].source_path.as_deref(),
+            Some("/workspace/example-package")
+        );
+        decoded.validate().expect("valid local lockfile");
     }
 
     #[test]

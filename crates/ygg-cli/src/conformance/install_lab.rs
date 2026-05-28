@@ -428,6 +428,128 @@ pub(crate) async fn check_lockfile_drift_detection() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("local-source");
+    fs::create_dir_all(&source)?;
+    fs::write(
+        source.join("manifest.yaml"),
+        "schema_version: 1\nid: fixture/update-local\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions: {}\n",
+    )?;
+    fs::write(source.join("content.txt"), "one")?;
+    let plan = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({ "root_url": source }),
+    )
+    .await?
+    .output["plan"]
+        .clone();
+    let executed = execute_with_full_consent(&rt, plan, tmp.path()).await?;
+    let store = PathBuf::from(
+        executed.output["installed"][0]["store_path"]
+            .as_str()
+            .context("store path")?,
+    );
+
+    let current = invoke(
+        &rt,
+        "official/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
+    )
+    .await?;
+    anyhow::ensure!(current.output["results"][0]["status"] == json!("current"));
+
+    fs::write(source.join("content.txt"), "two")?;
+    let changed = invoke(
+        &rt,
+        "official/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
+    )
+    .await?;
+    anyhow::ensure!(changed.output["results"][0]["status"] == json!("update_available"));
+    anyhow::ensure!(changed.output["results"][0]["available"] == json!(true));
+
+    let lock_path = tmp.path().join("profiles/default.lock.toml");
+    let mut lock: ygg_core::Lockfile = toml::from_str(&fs::read_to_string(&lock_path)?)?;
+    let saved_source_path = lock.package[0].source_path.take();
+    fs::write(&lock_path, toml::to_string_pretty(&lock)?)?;
+    let missing_source_path = invoke(
+        &rt,
+        "official/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
+    )
+    .await?;
+    anyhow::ensure!(missing_source_path.output["results"][0]["status"] == json!("not_applicable"));
+    anyhow::ensure!(missing_source_path.output["results"][0]["available"] == json!(false));
+    anyhow::ensure!(missing_source_path.output["results"][0]["source_kind"] == json!("local"));
+    anyhow::ensure!(missing_source_path.output["results"][0]["reason"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("source_path"));
+
+    lock.package[0].source_path = saved_source_path;
+    fs::write(&lock_path, toml::to_string_pretty(&lock)?)?;
+
+    fs::remove_dir_all(&store)?;
+    let dangling = invoke(
+        &rt,
+        "official/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
+    )
+    .await?;
+    anyhow::ensure!(dangling.output["results"][0]["status"] == json!("repair_required"));
+    anyhow::ensure!(dangling.output["results"][0]["dangling"] == json!(true));
+
+    let mut lock: ygg_core::Lockfile = toml::from_str(&fs::read_to_string(&lock_path)?)?;
+    lock.package[0].id = "official/internal-fixture".to_string();
+    lock.package[0].source = ygg_core::LockSource::Internal;
+    lock.package[0].manifest_relative_path = None;
+    fs::write(&lock_path, toml::to_string_pretty(&lock)?)?;
+    let unsupported = invoke(
+        &rt,
+        "official/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "package_id": "official/internal-fixture" }),
+    )
+    .await?;
+    anyhow::ensure!(unsupported.output["results"][0]["status"] == json!("not_applicable"));
+    anyhow::ensure!(unsupported.output["results"][0]["applicable"] == json!(false));
+    Ok(())
+}
+
+pub(crate) async fn check_for_updates_external_project_not_applicable() -> anyhow::Result<()> {
+    let rt = load_install_lab().await?;
+    let tmp = TempDir::new()?;
+    let source = tmp.path().join("external-source");
+    fs::create_dir_all(&source)?;
+    let project_id = "external_updates__abc123";
+    let project_dir = tmp.path().join("projects").join(project_id);
+    fs::create_dir_all(&project_dir)?;
+    fs::write(
+        project_dir.join("project.yaml"),
+        format!(
+            "schema_version: 1\nproject:\n  id: {project_id}\n  title: External Updates\n  type: external_workspace\n  packages: []\n  external:\n    source: {}\n    workspace_root: {}\n",
+            source.display(),
+            source.display()
+        ),
+    )?;
+
+    let checked = invoke(
+        &rt,
+        "official/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "project_id": project_id }),
+    )
+    .await?;
+    let results = checked.output["results"].as_array().context("results")?;
+    anyhow::ensure!(results.len() == 1);
+    anyhow::ensure!(results[0]["status"] == json!("not_applicable"));
+    anyhow::ensure!(results[0]["available"] == json!(false));
+    anyhow::ensure!(results[0]["project_id"] == json!(project_id));
+    anyhow::ensure!(results[0]["source_kind"] == json!("external_workspace"));
+    Ok(())
+}
+
 async fn plan_for(
     runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>,
     fixture: &str,

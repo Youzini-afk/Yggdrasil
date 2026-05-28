@@ -221,6 +221,7 @@ mod tests {
             version: "1.0.0".to_string(),
             source: LockSource::Local,
             url: None,
+            source_path: None,
             r#ref: None,
             commit: None,
             tree_hash: tree_hash.to_string(),
