@@ -148,6 +148,7 @@ yg project status <id>
 # Control
 yg project start <id>
 yg project stop <id>
+yg update --project-id <id> [--check-only]
 
 # Uninstall
 yg uninstall <id>                # interactive data prompt
@@ -178,6 +179,8 @@ Status indicators:
 - ❌ Failed (red)
 
 Clicking Play calls `kernel.v1.project.start`, then navigates to the project's `entry_surface`.
+
+The project page includes a platform-side console for bundle, package, recent-event, and update diagnostics. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `kernel.v1.capability.invoke` path.
 
 ## Play flow
 

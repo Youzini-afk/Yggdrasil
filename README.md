@@ -39,7 +39,7 @@
 
 ## 当前状态
 
-平台底座已经搭好。Contract V1 是公开平台规范，见 [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md)。下一阶段不再继续摊大表面积，而是用真实可玩体验来牵引剩下的工作。
+平台底座已经搭好：安装/更新链路、surface bundle freshness 防护、项目控制台诊断与更新入口都已落地。Contract V1 是公开平台规范，见 [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md)。下一阶段不再继续摊大表面积，而是用真实可玩体验来牵引剩下的工作。
 
 详细状态、能力清单、partial 与 deferred 项见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。下一步方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
@@ -99,7 +99,7 @@ yg project list
 yg project start <project-id>
 yg project stop <project-id>
 yg uninstall <package-id-or-project-id>
-yg update [<package-id>]
+yg update [<package-id>|--project-id <project-id>] [--check-only]
 yg lockfile --check
 ```
 

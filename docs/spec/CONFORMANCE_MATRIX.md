@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**429**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**436**。
 
 ## Conformance Feedback Loop
 
@@ -91,6 +91,10 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | redacted diagnostics | bridge 诊断、错误和日志不泄漏 raw secret 或 host 绝对路径 | implemented |
 | uncontrolled secret input | secret 输入保持 uncontrolled/短生命周期，关闭时清理 | implemented |
 | schema timestamp stability | schema/export timestamp 稳定，不引入非确定性时间戳 | implemented |
+| surface bundle freshness | `dist/` 参与 `tree_hash`，只改 bundle 会触发更新 | implemented |
+| store schema migration | store schema bump 会清掉旧 store，避免旧 hash 复用 | implemented |
+| orphan store GC | install/update/uninstall 后清理无 lockfile/profile 引用的 store | implemented |
+| project updates | `official/install-lab/check_for_updates` 与 `update_project` 支撑 CLI 与 Web 更新入口 | implemented |
 
 
 | 领域 | 用例 | 状态 |
@@ -670,9 +674,11 @@ git_tools.path_validation_absolute PASS
 git_tools.path_validation_no_traversal PASS
 git_tools.read_signed_tag_unsigned PASS
 install_lab.resolve_plan_local_source PASS
+install_lab.project_root_install_registers_surface_dist PASS
 install_lab.resolve_plan_runs_conformance PASS
-install_lab.resolve_plan_blocks_on_conformance_failure PASS
-install_lab.resolve_plan_ignore_conformance_overrides PASS
+install_lab.resolve_plan_blocks_when_strict PASS
+install_lab.strict_conformance_blocks PASS
+install_lab.lenient_conformance_warns_not_blocks PASS
 install_lab.transitive_conformance_propagates PASS
 install_lab.resolve_plan_with_transitive PASS
 install_lab.resolve_plan_cycle_detection PASS
@@ -681,6 +687,13 @@ install_lab.execute_plan_consent_mismatch PASS
 install_lab.uninstall_removes_from_profile PASS
 install_lab.list_installed_reflects_lockfile PASS
 install_lab.check_lockfile_drift_detection PASS
+install_lab.check_for_updates_local_dangling_unsupported PASS
+install_lab.check_for_updates_external_project_not_applicable PASS
+install_lab.update_project_local_replaces_dist_and_lockfile PASS
+install_lab.update_project_local_current_noop PASS
+install_lab.update_project_local_force_reinstalls_current PASS
+install_lab.update_project_external_not_applicable PASS
+install_lab.update_project_permission_drift_blocks_before_mutation PASS
 install.real_github_smoke PASS
 secret_store_resolver.host_profile_installs_composite_resolver PASS
 project_secret.put_then_resolve_via_project_ref PASS

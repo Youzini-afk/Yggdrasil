@@ -8,10 +8,10 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 429 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
+- **Conformance:** 436 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`; `surface_bundle` is a static, non-executing entry; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`.
+- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `official/install-lab` provides `check_for_updates` / `update_project`, and both CLI `yg update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`.
 
 The platform substrate is in place. From here, real AI-native playable experiences pull the remaining substrate work.
 
@@ -62,7 +62,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
 - Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `yg project list/info/status/start/stop` are implemented.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`. `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are structured shell descriptors: the web shell reads only bounded text, icon hints, order, and same-package targets, then renders them itself. It does not load package JavaScript, parse HTML, or mount iframes for those entries. Complex project surfaces still use `surface_bundle` plus sandboxed iframe hosting. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
-- Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry; installed project bundles are served by the host as same-origin static files under `/surface-bundles/projects/<project_id>/...`.
+- Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry; installed project bundles are served by the host as same-origin static files under `/surface-bundles/projects/<project_id>/...`. `dist/` participates in `tree_hash`, so browser-bundle-only changes trigger updates; project dist refreshes through a temporary directory plus atomic replacement.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
 ## Package installation and project model
@@ -81,6 +81,11 @@ The platform substrate is in place. From here, real AI-native playable experienc
 | GPG signature verification (off by default; `--require-signed` enables) | implemented |
 | Cycle detection | implemented |
 | Real GitHub smoke (opt-in) | implemented |
+| `dist/` included in `tree_hash` | implemented |
+| Store schema migration clears old store | implemented |
+| Orphaned store GC (after install / update / uninstall) | implemented |
+| `official/install-lab/check_for_updates` | implemented |
+| `official/install-lab/update_project` | implemented |
 | `official/secret-store-lab` encrypted storage | implemented |
 | `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
 | age (X25519) encryption + 0600 file permissions | implemented |
@@ -90,7 +95,6 @@ The platform substrate is in place. From here, real AI-native playable experienc
 | Tauri UI install path | deferred |
 | Auto-update daemon | deferred |
 | Binary package distribution | deferred |
-| `yg gc` orphaned-store cleanup | deferred |
 | Project as first-class runtime concept | implemented |
 | `ProjectDescriptor` + `ProjectId` + `ProjectType` + `SecretPolicy` | implemented |
 | `~/.yggdrasil/projects/<id>/` filesystem layout | implemented |
@@ -108,6 +112,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 | Native project install into profile, project registry, and project dist | implemented |
 | `surface_bundle` static entry and installed project bundle route | implemented |
 | typed `allowed_capability_ids` bridge declaration | implemented |
+| CLI `yg update` routes through install-lab project update | implemented |
 | Multi-tenant `project_id` in `ProtocolContext` | deferred |
 | Project archive auto-cleanup beyond 30 days | deferred |
 
@@ -226,7 +231,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
   - Profiles — `kernel.v1.host.diagnostics` (active profile, packages_loaded, network allowlist).
   - Storage — storage-area summary plus the live event-store kind (sqlite / postgres / memory), without exposing host absolute paths in the Web UI.
   - About — platform identity, license, links, gratitude.
-- **Install flow:** three-step modal calls `official/install-lab` (`resolve_plan` / `detect_kind` / `execute_plan`) through `kernel.v1.capability.invoke`. Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard. There is no `kernel.v1.install.*`.
+- **Install / Update flow:** the Install modal calls `official/install-lab` (`resolve_plan` / `detect_kind` / `execute_plan`) through `kernel.v1.capability.invoke`. Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard. The project console shows bundle / package / event diagnostics and exposes updates through `check_for_updates` / `update_project`. There is no `kernel.v1.install.*`.
 - **Project Frame:** Home opens projects in standalone `/project/<id>` tabs. The project page has no platform topbar or back button; it fills the viewport with the sandboxed iframe that mounts the project's own UI. Closing the tab does not stop the project. `⌘ .` / `Ctrl .` stops the current project from the project tab.
 - **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `kernel.v1.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
@@ -253,7 +258,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Code organization
 
-- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 429 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 436 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/ygg-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`KernelMethod`), with a registry / dispatch consistency unit test.
@@ -264,7 +269,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 429 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 436 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

@@ -79,7 +79,7 @@ The current implementation exposes unmounting as `SurfaceHostHandle.unmount()`; 
 
 A surface bundle must be an ESM module loadable via dynamic `import(bundleUrl)`, and it must expose a named export. `exportName` comes from surface metadata, for example `YdlTavernPlaySurface`.
 
-Installed project browser bundles are public static artifacts. The host serves them from `/surface-bundles/projects/<project_id>/...` and makes them CORS-readable for sandboxed iframes. Do not put secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must flow through capabilities, `secret_ref`, outbound audit, and bridge permissions — never through the bundle.
+Installed project browser bundles are public static artifacts. The host serves them from `/surface-bundles/projects/<project_id>/...` and makes them CORS-readable for sandboxed iframes. `dist/` participates in install `tree_hash`, so bundle-only updates are detected by install-lab and refresh project dist. Do not put secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must flow through capabilities, `secret_ref`, outbound audit, and bridge permissions — never through the bundle.
 
 The frame accepts two mount contracts:
 

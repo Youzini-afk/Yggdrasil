@@ -153,6 +153,7 @@ yg project status <id>
 # 控制
 yg project start <id>
 yg project stop <id>
+yg update --project-id <id> [--check-only]
 
 # 卸载
 yg uninstall <id>                # 交互式问数据怎么办
@@ -183,6 +184,8 @@ yg uninstall <id> --delete-data  # 立即删除
 - ❌ Failed (红)
 
 点 Play 调用 `kernel.v1.project.start`，启动后导航到项目的 `entry_surface`。
+
+项目页带平台侧控制台：显示 bundle、包、最近事件和更新诊断；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `kernel.v1.capability.invoke`。
 
 ## Play 流程
 

@@ -46,9 +46,11 @@ Layout:
     └── git/                    # Git fetch cache
 ```
 
-The store is treated as append-only: `yg uninstall` removes references from
-profiles and lockfiles but does not delete from the store. Old store entries
-become orphaned and can be garbage-collected by `yg gc` (planned).
+The store is content-addressed: installed trees are immutable, while successful
+install/update/uninstall operations remove entries that are no longer referenced
+by profiles or lockfiles. Store schema migration may clear old store contents
+when hash rules change; profiles and lockfiles are preserved so updates can
+rebuild the store.
 
 Permissions: data directory is created with 0700 on Unix.
 

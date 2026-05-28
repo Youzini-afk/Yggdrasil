@@ -31,8 +31,8 @@ After that, hop into the relevant guide / spec / roadmap on demand.
 - [`guides/`](guides/README.en.md) — capability package authoring guides, grouped by domain (foundation / agent / model / inference / experience / memory / storage / external projects / sharing)
 - [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.en.md) — v1 capability handles, attenuation, revoke, and effect audit
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.en.md) — third-party package v1 conformance kit
-- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — `yg install`, lockfiles, content-addressed store, and consent prompts
-- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) — Home project shelf, `project.yaml`, project lifecycle, and project-level secrets
+- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — `yg install/update`, lockfiles, content-addressed store, bundle freshness, and consent prompts
+- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) — Home project shelf, `project.yaml`, project lifecycle, console diagnostics/update, and project-level secrets
 - [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted store, and API key management
 - [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) — end-to-end path from YdlTavern Send to a real provider response
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.en.md) — `entry.contract: "none"` self-contained path

@@ -31,8 +31,8 @@
 - [`guides/`](guides/README.md) — 能力包创作指南，按域分组（基础 / agent / 模型 / 推理 / 体验 / 记忆 / 存储 / 外部项目 / 分发）
 - [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.md) — v1 能力句柄、衰减、撤销与 effect audit
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.md) — 第三方包 v1 conformance kit
-- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) — `yg install`、lockfile、内容寻址 store 与同意提示
-- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) — Home 项目架、`project.yaml`、项目 lifecycle 与项目级 secrets
+- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) — `yg install/update`、lockfile、内容寻址 store、bundle freshness 与同意提示
+- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) — Home 项目架、`project.yaml`、项目 lifecycle、控制台诊断/更新与项目级 secrets
 - [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 store 与 API key 管理
 - [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.md) — YdlTavern Send 到真实 provider 响应的端到端链路
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.md) — `entry.contract: "none"` 自包含路径

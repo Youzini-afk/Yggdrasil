@@ -79,7 +79,7 @@ export function unmountSurface(handle: SurfaceHostHandle): Promise<void>;
 
 Surface bundle 必须是可被动态 `import(bundleUrl)` 加载的 ESM module，并暴露一个具名 export。`exportName` 来自 surface metadata，例如 `YdlTavernPlaySurface`。
 
-已安装项目的 browser bundle 是公开静态产物。宿主会从 `/surface-bundles/projects/<project_id>/...` 服务它们，并为 sandbox iframe 设置 CORS 可读响应。不要把 secret、token、私有配置、主机路径或 source map 放进 `dist/`。私有数据必须通过 capability、`secret_ref`、出站审计和 bridge 权限边界取得，而不是写进 bundle。
+已安装项目的 browser bundle 是公开静态产物。宿主会从 `/surface-bundles/projects/<project_id>/...` 服务它们，并为 sandbox iframe 设置 CORS 可读响应。`dist/` 参与安装 `tree_hash`，所以只更新 bundle 也能被 install-lab 检测并刷新 project dist。不要把 secret、token、私有配置、主机路径或 source map 放进 `dist/`。私有数据必须通过 capability、`secret_ref`、出站审计和 bridge 权限边界取得，而不是写进 bundle。
 
 frame 接受两种 mount contract：
 

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **429**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **436**.
 
 ## Conformance Feedback Loop
 
@@ -91,6 +91,10 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | redacted diagnostics | bridge diagnostics, errors, and logs do not leak raw secrets or host absolute paths | implemented |
 | uncontrolled secret input | secret inputs remain uncontrolled/short-lived and are cleared on close | implemented |
 | schema timestamp stability | schema/export timestamps are stable and avoid nondeterministic generated timestamps | implemented |
+| surface-bundle freshness | `dist/` participates in `tree_hash`, so bundle-only changes trigger updates | implemented |
+| store schema migration | a store schema bump clears old store entries so stale hashes are not reused | implemented |
+| orphan store GC | install/update/uninstall remove store entries no longer referenced by lockfiles/profiles | implemented |
+| project updates | `official/install-lab/check_for_updates` and `update_project` power CLI and web update entries | implemented |
 
 
 | Area | Case | Status |
@@ -679,9 +683,11 @@ git_tools.path_validation_absolute PASS
 git_tools.path_validation_no_traversal PASS
 git_tools.read_signed_tag_unsigned PASS
 install_lab.resolve_plan_local_source PASS
+install_lab.project_root_install_registers_surface_dist PASS
 install_lab.resolve_plan_runs_conformance PASS
-install_lab.resolve_plan_blocks_on_conformance_failure PASS
-install_lab.resolve_plan_ignore_conformance_overrides PASS
+install_lab.resolve_plan_blocks_when_strict PASS
+install_lab.strict_conformance_blocks PASS
+install_lab.lenient_conformance_warns_not_blocks PASS
 install_lab.transitive_conformance_propagates PASS
 install_lab.resolve_plan_with_transitive PASS
 install_lab.resolve_plan_cycle_detection PASS
@@ -690,6 +696,13 @@ install_lab.execute_plan_consent_mismatch PASS
 install_lab.uninstall_removes_from_profile PASS
 install_lab.list_installed_reflects_lockfile PASS
 install_lab.check_lockfile_drift_detection PASS
+install_lab.check_for_updates_local_dangling_unsupported PASS
+install_lab.check_for_updates_external_project_not_applicable PASS
+install_lab.update_project_local_replaces_dist_and_lockfile PASS
+install_lab.update_project_local_current_noop PASS
+install_lab.update_project_local_force_reinstalls_current PASS
+install_lab.update_project_external_not_applicable PASS
+install_lab.update_project_permission_drift_blocks_before_mutation PASS
 install.real_github_smoke PASS
 secret_store_resolver.host_profile_installs_composite_resolver PASS
 project_secret.put_then_resolve_via_project_ref PASS

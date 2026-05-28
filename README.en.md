@@ -39,7 +39,7 @@ The platform's job is to make radical AI-native creation possible — not to giv
 
 ## Status
 
-The platform substrate is in place. Contract V1 is the public platform spec; see [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md). The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
+The platform substrate is in place: install/update flows, surface-bundle freshness safeguards, and the project-console diagnostics/update entry are implemented. Contract V1 is the public platform spec; see [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md). The next stage isn't more substrate sprawl — real playable experiences pull what comes next.
 
 For the detailed status, capability inventory, and partial / deferred items, see [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md). For what's next, see [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md).
 
@@ -99,7 +99,7 @@ yg project list
 yg project start <project-id>
 yg project stop <project-id>
 yg uninstall <package-id-or-project-id>
-yg update [<package-id>]
+yg update [<package-id>|--project-id <project-id>] [--check-only]
 yg lockfile --check
 ```
 

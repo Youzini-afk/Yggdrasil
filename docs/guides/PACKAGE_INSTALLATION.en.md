@@ -12,7 +12,7 @@ This guide covers the install flow, native/external project detection, manifest 
 - Make install results reproducible through a lockfile.
 - Require user consent for every newly expanded authority.
 - Fail safe by default and avoid half-written profiles.
-- Let uninstall remove profile references without mutating content-addressed storage.
+- Let uninstall/update remove profile references and collect unreferenced content-addressed stores.
 
 ## Design principles
 
@@ -72,7 +72,7 @@ yg project status <id>
 yg project start <id>
 yg project stop <id>
 yg uninstall <package-id-or-project-id> [--profile <name>]
-yg update [<package-id>]      # Check upstream and install updates
+yg update [<package-id>|--project-id <id>] [--check-only]  # Check/update through install-lab
 yg lockfile [--check]         # Verify lockfile and store consistency
 ```
 
@@ -278,12 +278,13 @@ Tree writing rejects dangerous entries such as `.git`, path separators, and pare
 All profile, lockfile, and store writes use tmp + rename.
 A crash may leave a temporary directory, but store, profile, and lockfile should not be half-written.
 
-### Immutable store
+### Content-addressed store and schema
 
 `~/.yggdrasil/store/` is content-addressed.
 Once written, content is not mutated.
-Uninstall removes only profile and lockfile references; store content remains as orphaned content.
-A future `yg gc` command will collect orphaned store directories.
+`tree_hash` covers `dist/` inside the package/project tree, so a browser surface bundle-only change gets a new hash. The store has a schema marker; when hash rules change, host layout initialization clears old store contents while preserving profiles and lockfiles, so the next update rebuilds the store.
+
+Uninstall, install replacement, and project update collect orphaned store directories after profile / lockfile writes succeed. Content still referenced by another lockfile/profile is kept.
 
 ### Default safety baseline
 
@@ -339,11 +340,14 @@ Future dependency reverse lookup can warn when another package still needs the t
 ```bash
 yg update
 yg update third-party/cool-tool
+yg update --project-id my-project__abc12345 --check-only
 ```
 
+CLI update routes through `official/install-lab/update_project`; `--check-only` calls `official/install-lab/check_for_updates`.
 Update checks upstream refs, resolves a new plan, and reruns integrity, signature, conformance, and consent checks.
 If authority does not change, the user does not repeat old approvals.
 If network, secret, or capability authority expands, new consent is required.
+Native project updates refresh lockfiles, profiles, the project descriptor, the project registry, and project dist; failures roll back from a snapshot. External workspace content itself is not updated by install-lab; adapter-package updates are follow-up polish.
 
 ## Drift detection
 
@@ -381,7 +385,8 @@ The current install foundation covers:
 - git URL and path rejection;
 - signed-tag fixture;
 - tree hash, manifest hash, GPG verify, and fingerprint;
-- resolve plan, execute plan, uninstall, list, lockfile drift;
+- resolve plan, execute plan, uninstall, list, lockfile drift, store GC, and store schema migration;
+- `check_for_updates` / `update_project`, covering local project dist refresh, current noop, force reinstall, permission-drift blocking, and external not-applicable;
 - transitive dependencies and cycle detection;
 - conformance gating, strict blocking, lenient warning, and transitive propagation;
 - `install.real_github_smoke`, the opt-in real GitHub smoke.
@@ -401,7 +406,7 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - Auto-update daemon: deferred (`yg update` remains manual).
 - Binary package distribution: deferred (source/git only).
 - Cross-profile package sharing semantics: deferred.
-- `yg gc` orphaned-store cleanup: planned.
+- Standalone `yg gc` command: not needed yet; install/update/uninstall already collect orphaned store entries automatically.
 
 ## Recommended practice
 

@@ -7,8 +7,8 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 ## Getting started
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough (init-package, check, run-fixture, reload, composition)
-- [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install, lockfiles, `~/.yggdrasil` layout, signatures/integrity, and consent prompts
-- [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — `project.yaml`, Home project cards, project lifecycle, and project-level secret policy
+- [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install and update, lockfiles, `~/.yggdrasil` layout, signatures/integrity, bundle freshness, and consent prompts
+- [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — `project.yaml`, Home project cards, project lifecycle, project-console diagnostics/update, and project-level secret policy
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management
 - [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md) — complete path from YdlTavern Send to a real model provider response
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md) — kernel v1 capability handles, attenuation, revoke, bindings, and effect audit

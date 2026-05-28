@@ -8,9 +8,9 @@
 
 - 内核对内容无意见，官方包没有特权，公开协议是唯一入口。
 - 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
-- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、Home 项目货架、结构化 shell descriptor、独立项目标签页、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
+- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
 - 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
-- Contract V1 是公开平台规范，63 methods + 45 events + 7 top-level = 115 个 schema 全部通过校验，429 conformance cases 通过。
+- Contract V1 是公开平台规范，63 methods + 45 events + 7 top-level = 115 个 schema 全部通过校验，436 conformance cases 通过。
 
 下一阶段不再继续摊大表面积，而是由真实可玩体验来牵引剩下的工作。
 
@@ -71,7 +71,7 @@
 
 ### 安装与发布
 
-- `yg gc` 孤立 store 回收。
+- 更新链路的下一步主要是 polish：更细的失败恢复提示、外部 wrapped adapter 更新、更多 UI 进度细节。
 - Tauri UI 安装 polish 与发行集成。
 - Sigstore keyless 验签。
 - 自动更新守护进程。
@@ -86,6 +86,7 @@
 - Surface lifecycle hooks（`onClose`、`onProposalDraft` 等）。
 - Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
 - 社区 marketplace 的 surface allowlist / integrity pin / version pin / audit metadata；默认 installed project bundle 仍走 same-origin 静态路由。
+- 项目控制台更新入口已接 `check_for_updates` / `update_project`；后续补更丰富的更新进度、失败恢复和历史记录。
 - 当 host 暴露后接入：真实 stderr / exit metadata 给 Failure modal、项目 `size_bytes` 给 Disk usage、更精确的 storage_summary 测量状态。
 - Failure 与 health 监控更丰富。
 
