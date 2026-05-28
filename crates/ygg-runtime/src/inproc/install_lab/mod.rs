@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::path::Path;
 
 use super::InprocInvocation;
 
@@ -17,6 +18,12 @@ mod source;
 mod types;
 
 const PACKAGE_ID: &str = "official/install-lab";
+
+pub use layout::StoreSchemaMigration;
+
+pub fn ensure_store_schema(data_dir: &Path) -> Result<Option<StoreSchemaMigration>> {
+    layout::ensure_store_schema(data_dir)
+}
 
 pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

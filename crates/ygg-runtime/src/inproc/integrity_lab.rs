@@ -25,13 +25,14 @@ use super::InprocInvocation;
 
 const PACKAGE_ID: &str = "official/integrity-lab";
 
+pub const TREE_HASH_SCHEMA_VERSION: u32 = 2;
+
 const EXCLUDED_NAMES: &[&str] = &[
     ".git",
     ".gitignore",
     ".DS_Store",
     "node_modules",
     "target",
-    "dist",
     "__pycache__",
 ];
 
@@ -382,6 +383,32 @@ mod tests {
         let yaml: Value = serde_yaml::from_str("b: 2\na: 1\n")?;
         let json: Value = serde_json::from_str(r#"{"a":1,"b":2}"#)?;
         assert_eq!(canonicalize_json(yaml), canonicalize_json(json));
+        Ok(())
+    }
+
+    #[test]
+    fn tree_hash_changes_when_only_dist_content_changes() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let package_dir = tmp.path().join("package");
+        let dist_dir = package_dir.join("dist");
+        fs::create_dir_all(&dist_dir)?;
+        fs::write(package_dir.join("manifest.yaml"), "id: fixture/dist\n")?;
+        fs::write(dist_dir.join("bundle.mjs"), "export const version = 1;\n")?;
+
+        let first = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({ "dir": package_dir }),
+        ))?;
+
+        fs::write(dist_dir.join("bundle.mjs"), "export const version = 2;\n")?;
+        let second = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({ "dir": package_dir }),
+        ))?;
+
+        assert_ne!(first["sha256"], second["sha256"]);
+        assert_eq!(first["files_hashed"], serde_json::json!(2));
+        assert_eq!(second["files_hashed"], serde_json::json!(2));
         Ok(())
     }
 

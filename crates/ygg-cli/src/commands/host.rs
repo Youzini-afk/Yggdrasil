@@ -1,6 +1,6 @@
 use std::fs;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -71,6 +71,14 @@ pub(crate) async fn host_serve(
             format!("failed to initialize data directory {}", data_dir.display())
         })?;
     }
+    let default_data_dir;
+    let schema_data_dir = if let Some(data_dir) = data_dir.as_ref() {
+        data_dir.as_path()
+    } else {
+        default_data_dir = ygg_core::paths::data_dir()?;
+        default_data_dir.as_path()
+    };
+    ensure_host_store_schema(schema_data_dir)?;
     if let Some(profile_path) = profile {
         println!("host profile: {}", profile_path.display());
         let raw = fs::read_to_string(&profile_path)
@@ -86,15 +94,7 @@ pub(crate) async fn host_serve(
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(
-                    http,
-                    runtime,
-                    "memory",
-                    Some(&profile_path),
-                    static_dir,
-                    access_token,
-                )
-                .await
+                serve_runtime(http, runtime, "memory", static_dir, access_token).await
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
@@ -113,15 +113,7 @@ pub(crate) async fn host_serve(
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(
-                    http,
-                    runtime,
-                    "sqlite",
-                    Some(&profile_path),
-                    static_dir,
-                    access_token,
-                )
-                .await
+                serve_runtime(http, runtime, "sqlite", static_dir, access_token).await
             }
             HostEventStoreProfile::Postgres { env } => {
                 #[cfg(feature = "postgres")]
@@ -134,15 +126,7 @@ pub(crate) async fn host_serve(
                     let store = ygg_runtime::PostgresEventStore::connect(&url).await?;
                     let runtime = Arc::new(Runtime::new(Arc::new(store), runtime_config));
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                    serve_runtime(
-                        http,
-                        runtime,
-                        "postgres",
-                        Some(&profile_path),
-                        static_dir,
-                        access_token,
-                    )
-                    .await
+                    serve_runtime(http, runtime, "postgres", static_dir, access_token).await
                 }
                 #[cfg(not(feature = "postgres"))]
                 {
@@ -156,7 +140,7 @@ pub(crate) async fn host_serve(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         ));
-        serve_runtime(http, runtime, "memory", None, static_dir, access_token).await
+        serve_runtime(http, runtime, "memory", static_dir, access_token).await
     }
 }
 
@@ -201,6 +185,9 @@ async fn register_profile_package_roots(
         } else {
             base.join(manifest_path)
         };
+        if should_skip_dangling_store_autoload(&resolved) {
+            continue;
+        }
         let manifest = read_manifest(resolved.clone()).await.with_context(|| {
             format!(
                 "failed to register package root from manifest {}",
@@ -213,6 +200,65 @@ async fn register_profile_package_roots(
         }
     }
     Ok(())
+}
+
+fn ensure_host_store_schema(data_dir: &Path) -> Result<()> {
+    if let Some(migration) = ygg_runtime::inproc::ensure_install_lab_store_schema(data_dir)
+        .with_context(|| format!("failed to ensure store schema under {}", data_dir.display()))?
+    {
+        println!(
+            "kernel/v1/host.store_schema_migrated: from={:?} to={} wiped_paths_count={}",
+            migration.from, migration.to, migration.wiped_paths_count
+        );
+    }
+    Ok(())
+}
+
+fn should_skip_dangling_store_autoload(resolved_manifest: &Path) -> bool {
+    if resolved_manifest.exists() {
+        return false;
+    }
+    let Ok(store_dir) = ygg_core::paths::store_dir() else {
+        return false;
+    };
+    should_skip_dangling_store_autoload_in_store(resolved_manifest, &store_dir)
+}
+
+fn should_skip_dangling_store_autoload_in_store(
+    resolved_manifest: &Path,
+    store_dir: &Path,
+) -> bool {
+    if resolved_manifest.exists() {
+        return false;
+    }
+    if is_under_store_dir(resolved_manifest, store_dir) {
+        eprintln!(
+            "kernel/v1/host.autoload.skipped: missing migrated store manifest {}",
+            resolved_manifest.display()
+        );
+        return true;
+    }
+    false
+}
+
+fn is_under_store_dir(path: &Path, data_dir: &Path) -> bool {
+    normalize_path(path).starts_with(normalize_path(data_dir))
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::RootDir | Component::Prefix(_) | Component::Normal(_) => {
+                out.push(component.as_os_str());
+            }
+        }
+    }
+    out
 }
 
 pub(crate) fn build_secret_resolver(
@@ -488,51 +534,59 @@ mod tests {
         assert_eq!(event_path, tmp.path().join("profiles/events.sqlite"));
         Ok(())
     }
+
+    #[test]
+    fn autoload_skip_helper_only_skips_missing_store_manifests() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let data = tmp.path();
+        let store = data.join("store");
+        fs::create_dir_all(&store)?;
+
+        let missing_store_manifest = data.join("store/sha256-old/manifest.yaml");
+        assert!(should_skip_dangling_store_autoload_in_store(
+            &missing_store_manifest,
+            &store
+        ));
+
+        let missing_non_store_manifest = data.join("packages/missing/manifest.yaml");
+        assert!(!should_skip_dangling_store_autoload_in_store(
+            &missing_non_store_manifest,
+            &store
+        ));
+
+        let existing_store_manifest = data.join("store/sha256-current/manifest.yaml");
+        fs::create_dir_all(existing_store_manifest.parent().unwrap())?;
+        fs::write(&existing_store_manifest, "id: fixture/current\n")?;
+        assert!(!should_skip_dangling_store_autoload_in_store(
+            &existing_store_manifest,
+            &store
+        ));
+        Ok(())
+    }
 }
 
 async fn serve_runtime<S>(
     http: SocketAddr,
     runtime: Arc<Runtime<S>>,
     backend_kind: &'static str,
-    profile_path: Option<&Path>,
     static_dir: Option<PathBuf>,
     access_token: Option<String>,
 ) -> Result<()>
 where
     S: EventStore,
 {
-    let count = if let Some(profile_path) = profile_path {
-        let data_dir = profile_path
-            .parent()
-            .and_then(Path::parent)
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
-        let projects_dir = data_dir.join("projects");
-        fs::create_dir_all(&projects_dir).with_context(|| {
-            format!(
-                "failed to create projects directory {}",
-                projects_dir.display()
-            )
-        })?;
-        runtime
-            .config()
-            .project_registry
-            .load_from_projects_dir(&projects_dir)
-            .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?
-    } else {
-        let projects_dir = ygg_core::paths::projects_dir()?;
-        fs::create_dir_all(&projects_dir).with_context(|| {
-            format!(
-                "failed to create projects directory {}",
-                projects_dir.display()
-            )
-        })?;
-        runtime
-            .config()
-            .project_registry
-            .load_from_projects_dir(&projects_dir)
-            .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?
-    };
+    let projects_dir = ygg_core::paths::projects_dir()?;
+    fs::create_dir_all(&projects_dir).with_context(|| {
+        format!(
+            "failed to create projects directory {}",
+            projects_dir.display()
+        )
+    })?;
+    let count = runtime
+        .config()
+        .project_registry
+        .load_from_projects_dir(&projects_dir)
+        .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?;
     println!("  projects loaded: {count}");
     let listener = tokio::net::TcpListener::bind(http).await?;
     println!("Yggdrasil host serving http://{http}");
@@ -614,6 +668,9 @@ where
             autoload_count,
             resolved.display()
         );
+        if should_skip_dangling_store_autoload(&resolved) {
+            continue;
+        }
         let manifest = read_manifest(resolved.clone()).await.with_context(|| {
             format!("failed to autoload package manifest {}", resolved.display())
         })?;

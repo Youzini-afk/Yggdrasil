@@ -5,6 +5,17 @@ use anyhow::Result;
 use uuid::Uuid;
 use ygg_core::paths;
 
+use crate::inproc::integrity_lab::TREE_HASH_SCHEMA_VERSION;
+
+const STORE_SCHEMA_MARKER: &str = ".schema_version";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoreSchemaMigration {
+    pub from: Option<u32>,
+    pub to: u32,
+    pub wiped_paths_count: usize,
+}
+
 pub(super) fn ensure_layout(data_dir_override: Option<&str>) -> Result<()> {
     if let Some(dir) = data_dir_override {
         let data = PathBuf::from(dir);
@@ -27,6 +38,51 @@ pub(super) fn ensure_layout(data_dir_override: Option<&str>) -> Result<()> {
         return Ok(());
     }
     paths::ensure_initialized()
+}
+
+pub fn ensure_store_schema(data_dir: &Path) -> Result<Option<StoreSchemaMigration>> {
+    let store = data_dir.join("store");
+    fs::create_dir_all(&store)?;
+    ensure_store_schema_at(&store)
+}
+
+fn ensure_store_schema_at(store: &Path) -> Result<Option<StoreSchemaMigration>> {
+    let marker = store.join(STORE_SCHEMA_MARKER);
+    let current = read_schema_marker(&marker)?;
+    if current == Some(TREE_HASH_SCHEMA_VERSION) {
+        return Ok(None);
+    }
+
+    let mut wiped_paths_count = 0usize;
+    for entry in fs::read_dir(store)? {
+        let entry = entry?;
+        if entry.file_name() == STORE_SCHEMA_MARKER {
+            continue;
+        }
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path)?;
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
+            fs::remove_dir_all(&path)?;
+        } else {
+            fs::remove_file(&path)?;
+        }
+        wiped_paths_count += 1;
+    }
+
+    atomic_write(&marker, TREE_HASH_SCHEMA_VERSION.to_string().as_bytes())?;
+    Ok(Some(StoreSchemaMigration {
+        from: current,
+        to: TREE_HASH_SCHEMA_VERSION,
+        wiped_paths_count,
+    }))
+}
+
+fn read_schema_marker(marker: &Path) -> Result<Option<u32>> {
+    match fs::read_to_string(marker) {
+        Ok(raw) => Ok(raw.trim().parse::<u32>().ok()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+    }
 }
 
 pub(super) fn store_dir(data_dir_override: Option<&str>) -> Result<PathBuf> {
@@ -89,4 +145,41 @@ pub(super) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     fs::write(&tmp, bytes)?;
     fs::rename(&tmp, path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn schema_migration_wipes_store_contents_preserves_marker_and_is_idempotent() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let data = tmp.path();
+        let store = data.join("store");
+        fs::create_dir_all(store.join("sha256-old"))?;
+        fs::write(store.join("sha256-old/manifest.yaml"), "id: old\n")?;
+        fs::write(store.join("loose-file"), "stale")?;
+        fs::write(store.join(STORE_SCHEMA_MARKER), "1\n")?;
+
+        let migrated = ensure_store_schema(data)?.expect("schema should migrate");
+        assert_eq!(migrated.from, Some(1));
+        assert_eq!(migrated.to, TREE_HASH_SCHEMA_VERSION);
+        assert_eq!(migrated.wiped_paths_count, 2);
+        assert!(!store.join("sha256-old").exists());
+        assert!(!store.join("loose-file").exists());
+        assert_eq!(
+            fs::read_to_string(store.join(STORE_SCHEMA_MARKER))?,
+            TREE_HASH_SCHEMA_VERSION.to_string()
+        );
+
+        fs::create_dir_all(store.join("sha256-current"))?;
+        let second = ensure_store_schema(data)?;
+        assert!(second.is_none());
+        assert!(store.join("sha256-current").is_dir());
+        assert_eq!(
+            fs::read_to_string(store.join(STORE_SCHEMA_MARKER))?,
+            TREE_HASH_SCHEMA_VERSION.to_string()
+        );
+        Ok(())
+    }
 }

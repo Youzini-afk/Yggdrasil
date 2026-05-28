@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -148,6 +149,14 @@ pub(crate) fn project_registry_from_inproc() -> anyhow::Result<Arc<ProjectRegist
     invoker
         .project_registry()
         .ok_or_else(|| anyhow::anyhow!("inproc project registry context is unavailable"))
+}
+
+pub use install_lab::StoreSchemaMigration;
+
+pub fn ensure_install_lab_store_schema(
+    data_dir: &Path,
+) -> anyhow::Result<Option<StoreSchemaMigration>> {
+    install_lab::ensure_store_schema(data_dir)
 }
 
 #[derive(Clone, Default)]
