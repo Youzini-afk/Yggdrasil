@@ -418,6 +418,7 @@ export interface HostDeployProjectInput {
   container_port: number;
   port_name: string;
   route_id: string;
+  health_path?: string;
   pull_if_missing: boolean;
 }
 
@@ -491,6 +492,7 @@ export interface ProxyRouteRecord {
   public_url: string;
   iframe_url: string;
   status: "active" | "removed" | string;
+  ready: boolean;
   upstream: {
     port_lease_id: string;
     port_name: string;

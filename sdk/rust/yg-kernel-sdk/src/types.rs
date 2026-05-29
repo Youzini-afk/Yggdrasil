@@ -39860,6 +39860,7 @@ for ProxyDeniedPayload {
 ///      "iframe_url",
 ///      "protocol",
 ///      "public_url",
+///      "ready",
 ///      "status",
 ///      "upstream"
 ///    ],
@@ -39875,6 +39876,9 @@ for ProxyDeniedPayload {
 ///      },
 ///      "public_url": {
 ///        "type": "string"
+///      },
+///      "ready": {
+///        "type": "boolean"
 ///      },
 ///      "status": {
 ///        "$ref": "#/definitions/ProxyRouteStatusKind"
@@ -40775,6 +40779,7 @@ pub struct ProxyRouteIdParams {
 ///    "iframe_url",
 ///    "protocol",
 ///    "public_url",
+///    "ready",
 ///    "status",
 ///    "upstream"
 ///  ],
@@ -40790,6 +40795,9 @@ pub struct ProxyRouteIdParams {
 ///    },
 ///    "public_url": {
 ///      "type": "string"
+///    },
+///    "ready": {
+///      "type": "boolean"
 ///    },
 ///    "status": {
 ///      "$ref": "#/definitions/ProxyRouteStatusKind"
@@ -40841,6 +40849,7 @@ pub struct ProxyRouteRecord {
     pub iframe_url: ::std::string::String,
     pub protocol: ProxyProtocol,
     pub public_url: ::std::string::String,
+    pub ready: bool,
     pub status: ProxyRouteStatusKind,
     pub upstream: ProxyRouteUpstream,
 }
@@ -40856,6 +40865,7 @@ pub struct ProxyRouteRecord {
 ///    "iframe_url",
 ///    "protocol",
 ///    "public_url",
+///    "ready",
 ///    "status",
 ///    "upstream"
 ///  ],
@@ -40871,6 +40881,9 @@ pub struct ProxyRouteRecord {
 ///    },
 ///    "public_url": {
 ///      "type": "string"
+///    },
+///    "ready": {
+///      "type": "boolean"
 ///    },
 ///    "status": {
 ///      "$ref": "#/definitions/ProxyRouteStatusKind"
@@ -40889,55 +40902,7 @@ pub struct ProxyRouteRecord {
     pub iframe_url: ::std::string::String,
     pub protocol: ProxyProtocol,
     pub public_url: ::std::string::String,
-    pub status: ProxyRouteStatusKind,
-    pub upstream: ProxyRouteUpstream,
-}
-///`ProxyRouteRecord`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "ProxyRouteRecord",
-///  "type": "object",
-///  "required": [
-///    "id",
-///    "iframe_url",
-///    "protocol",
-///    "public_url",
-///    "status",
-///    "upstream"
-///  ],
-///  "properties": {
-///    "id": {
-///      "type": "string"
-///    },
-///    "iframe_url": {
-///      "type": "string"
-///    },
-///    "protocol": {
-///      "$ref": "#/definitions/ProxyProtocol"
-///    },
-///    "public_url": {
-///      "type": "string"
-///    },
-///    "status": {
-///      "$ref": "#/definitions/ProxyRouteStatusKind"
-///    },
-///    "upstream": {
-///      "$ref": "#/definitions/ProxyRouteUpstream"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct ProxyRouteRecord {
-    pub id: ::std::string::String,
-    pub iframe_url: ::std::string::String,
-    pub protocol: ProxyProtocol,
-    pub public_url: ::std::string::String,
+    pub ready: bool,
     pub status: ProxyRouteStatusKind,
     pub upstream: ProxyRouteUpstream,
 }
@@ -40954,6 +40919,7 @@ pub struct ProxyRouteRecord {
 ///    "iframe_url",
 ///    "protocol",
 ///    "public_url",
+///    "ready",
 ///    "status",
 ///    "upstream"
 ///  ],
@@ -40969,6 +40935,9 @@ pub struct ProxyRouteRecord {
 ///    },
 ///    "public_url": {
 ///      "type": "string"
+///    },
+///    "ready": {
+///      "type": "boolean"
 ///    },
 ///    "status": {
 ///      "$ref": "#/definitions/ProxyRouteStatusKind"
@@ -40987,6 +40956,61 @@ pub struct ProxyRouteRecord {
     pub iframe_url: ::std::string::String,
     pub protocol: ProxyProtocol,
     pub public_url: ::std::string::String,
+    pub ready: bool,
+    pub status: ProxyRouteStatusKind,
+    pub upstream: ProxyRouteUpstream,
+}
+///`ProxyRouteRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteRecord",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "iframe_url",
+///    "protocol",
+///    "public_url",
+///    "ready",
+///    "status",
+///    "upstream"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "iframe_url": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/ProxyProtocol"
+///    },
+///    "public_url": {
+///      "type": "string"
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ProxyRouteStatusKind"
+///    },
+///    "upstream": {
+///      "$ref": "#/definitions/ProxyRouteUpstream"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRecord {
+    pub id: ::std::string::String,
+    pub iframe_url: ::std::string::String,
+    pub protocol: ProxyProtocol,
+    pub public_url: ::std::string::String,
+    pub ready: bool,
     pub status: ProxyRouteStatusKind,
     pub upstream: ProxyRouteUpstream,
 }

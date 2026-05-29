@@ -204,6 +204,10 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
         "proxy route rehydrated as {:?}, expected Stale",
         restored_route.status
     );
+    anyhow::ensure!(
+        !restored_route.ready,
+        "proxy route must rehydrate as not ready before reconcile"
+    );
 
     let restored_exec = exec_registry
         .status(&exec_id)
@@ -285,6 +289,7 @@ pub(crate) async fn deployment_reconcile_promotes_live_container() -> anyhow::Re
     let route = proxy_route_registry.status(&route_id).await.unwrap();
     anyhow::ensure!(lease.status == PortLeaseStatusKind::Active);
     anyhow::ensure!(route.status == ProxyRouteStatusKind::Active);
+    anyhow::ensure!(route.ready, "promoted proxy route must be ready");
     Ok(())
 }
 

@@ -351,6 +351,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         container_port: descriptor.container_port,
         port_name: descriptor.port_name,
         route_id: descriptor.route_id,
+        ...(descriptor.health_path ? { health_path: descriptor.health_path } : {}),
         pull_if_missing: descriptor.pull_if_missing,
       });
       void result;

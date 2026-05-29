@@ -224,11 +224,11 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   }
 
   if (body?.method === "kernel.v1.proxy.status") {
-    return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", upstream: { port_lease_id: "lease-1", port_name: "web" } } });
+    return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", ready: true, upstream: { port_lease_id: "lease-1", port_name: "web" } } });
   }
 
   if (body?.method === "kernel.v1.proxy.register") {
-    return Response.json({ id: body.id, result: { route: { id: body.params.route_id ?? "route-1", protocol: body.params.protocol ?? "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", upstream: body.params.upstream } } });
+    return Response.json({ id: body.id, result: { route: { id: body.params.route_id ?? "route-1", protocol: body.params.protocol ?? "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", ready: false, upstream: body.params.upstream } } });
   }
 
   if (body?.method === "kernel.v1.proxy.unregister") {
@@ -342,13 +342,14 @@ await protocolClient.deployProject({
   container_port: 8080,
   port_name: "web",
   route_id: "route-1",
+  health_path: "/healthz",
   pull_if_missing: false,
 });
 await protocolClient.stopProjectDeployment({ route_id: "route-1" });
 assertEqual(capturedFetches[0].input, "http://host.test/host/v1/deploy");
 assertEqual(capturedFetches[1].input, "http://host.test/host/v1/deploy/stop");
 assertDeepEqual(capturedFetches.map((request) => request.body), [
-  { image: "example/app:latest", container_port: 8080, port_name: "web", route_id: "route-1", pull_if_missing: false },
+  { image: "example/app:latest", container_port: 8080, port_name: "web", route_id: "route-1", health_path: "/healthz", pull_if_missing: false },
   { route_id: "route-1" },
 ]);
 

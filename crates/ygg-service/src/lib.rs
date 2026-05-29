@@ -17,6 +17,8 @@ use axum::{Json, Router};
 use futures::{SinkExt, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::net::TcpStream;
+use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
@@ -32,6 +34,9 @@ use ygg_runtime::{PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteS
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const PROXY_RESPONSE_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const PROXY_WEBSOCKET_FRAME_LIMIT_BYTES: usize = 16 * 1024 * 1024;
+const DEPLOY_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
+const DEPLOY_READINESS_INTERVAL: Duration = Duration::from_millis(500);
+const DEPLOY_READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -412,6 +417,8 @@ pub struct HostDeployRequest {
     pub port_name: String,
     pub route_id: String,
     #[serde(default)]
+    pub health_path: Option<String>,
+    #[serde(default)]
     pub pull_if_missing: bool,
 }
 
@@ -548,10 +555,47 @@ where
             return Err(anyhow::anyhow!("proxy registration failed: {error}").into());
         }
     };
+    let route_id = required_string(&route, "id", "proxy route")?;
+    let public_url = required_string(&route, "public_url", "proxy route")?;
+
+    if let Err(error) =
+        wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
+    {
+        rollback_deploy(
+            &state,
+            &context,
+            &route_id,
+            true,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(anyhow::anyhow!("deployment did not become ready in time: {error}").into());
+    }
+
+    if state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .set_ready(&route_id, true)
+        .await
+        .is_none()
+    {
+        rollback_deploy(
+            &state,
+            &context,
+            &route_id,
+            true,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(anyhow::anyhow!("proxy route disappeared before readiness promotion").into());
+    }
 
     Ok(Json(HostDeployResponse {
-        route_id: required_string(&route, "id", "proxy route")?,
-        public_url: required_string(&route, "public_url", "proxy route")?,
+        route_id,
+        public_url,
         port_lease_id,
         container_id: parsed_container_id,
         container_name,
@@ -709,6 +753,48 @@ where
     value_field(value, "output", "kernel.v1.capability.invoke")
 }
 
+async fn wait_for_deployment_readiness(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
+    let deadline = Instant::now() + DEPLOY_READINESS_TIMEOUT;
+
+    loop {
+        if let Err(error) = probe_loopback_port(port, health_path).await {
+            let now = Instant::now();
+            if now >= deadline {
+                return Err(error.context("readiness deadline expired"));
+            }
+            sleep(std::cmp::min(DEPLOY_READINESS_INTERVAL, deadline - now)).await;
+        } else {
+            return Ok(());
+        }
+    }
+}
+
+async fn probe_loopback_port(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
+    timeout(
+        DEPLOY_READINESS_CONNECT_TIMEOUT,
+        TcpStream::connect(("127.0.0.1", port)),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("tcp readiness probe timed out"))?
+    .map_err(|error| anyhow::anyhow!("tcp readiness probe failed: {error}"))?;
+
+    if let Some(path) = health_path {
+        let url = format!("http://127.0.0.1:{port}{path}");
+        let response = hardened_proxy_client()
+            .get(url)
+            .send()
+            .await
+            .map_err(|error| anyhow::anyhow!("http readiness probe failed: {error}"))?;
+        let status = response.status();
+        if status.is_success() || status.is_redirection() || status.is_client_error() {
+            return Ok(());
+        }
+        anyhow::bail!("http readiness probe returned {status}");
+    }
+
+    Ok(())
+}
+
 async fn rollback_deploy<S>(
     state: &AppState<S>,
     context: &ProtocolContext,
@@ -761,6 +847,11 @@ fn validate_host_deploy_request(request: &HostDeployRequest) -> anyhow::Result<(
     }
     if !is_safe_route_token(&request.route_id) {
         anyhow::bail!("route_id must be label-safe");
+    }
+    if let Some(health_path) = request.health_path.as_deref() {
+        if !health_path.starts_with('/') || health_path.len() > 256 {
+            anyhow::bail!("health_path must start with / and be at most 256 bytes");
+        }
     }
     Ok(())
 }
@@ -1020,7 +1111,10 @@ where
         .status(route_id)
         .await
     {
-        Some(route) if route.status == ProxyRouteStatusKind::Active => route,
+        Some(route) if route.status == ProxyRouteStatusKind::Active && route.ready => route,
+        Some(route) if route.status == ProxyRouteStatusKind::Active => {
+            return Err((StatusCode::SERVICE_UNAVAILABLE, "deployment not ready").into_response())
+        }
         _ => return Err((StatusCode::NOT_FOUND, "proxy route not found").into_response()),
     };
 
@@ -1956,6 +2050,78 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn proxy_route_requires_ready_before_forwarding() -> anyhow::Result<()> {
+        let upstream = Router::new().fallback(any(|| async { "ready upstream" }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let upstream_addr: SocketAddr = listener.local_addr()?;
+        tokio::spawn(async move {
+            axum::serve(listener, upstream)
+                .await
+                .expect("test upstream serves");
+        });
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(upstream_addr.port()),
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("readiness-route".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.lease.id.clone(),
+                    port_name: "web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+            })
+            .await;
+        let app = app_with_state(AppState {
+            runtime: runtime.clone(),
+            static_dir: None,
+            access_token: None,
+        });
+
+        let not_ready = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/p/readiness-route/app")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(not_ready.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = to_bytes(not_ready.into_body(), usize::MAX).await?;
+        assert_eq!(&body[..], b"deployment not ready");
+
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready("readiness-route", true)
+            .await;
+
+        let ready = app
+            .oneshot(
+                Request::builder()
+                    .uri("/p/readiness-route/app")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(ready.status(), StatusCode::OK);
+        let body = to_bytes(ready.into_body(), usize::MAX).await?;
+        assert_eq!(&body[..], b"ready upstream");
+        Ok(())
+    }
+
     #[derive(Debug, Default)]
     struct ObservedProxyRequest {
         method: String,
@@ -2030,6 +2196,11 @@ mod tests {
                 },
                 protocol: ProxyProtocol::Http,
             })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready("route-1", true)
             .await;
         let app = app_with_state(AppState {
             runtime,
@@ -2122,6 +2293,11 @@ mod tests {
                 protocol: ProxyProtocol::Http,
             })
             .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready("redirect-route", true)
+            .await;
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -2209,6 +2385,11 @@ mod tests {
                 },
                 protocol: ProxyProtocol::Http,
             })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready("http-only", true)
             .await;
         let app = app_with_state(AppState {
             runtime,
@@ -2299,6 +2480,11 @@ mod tests {
                 },
                 protocol: ProxyProtocol::Websocket,
             })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready("ws-route", true)
             .await;
         let app = app_with_state(AppState {
             runtime,

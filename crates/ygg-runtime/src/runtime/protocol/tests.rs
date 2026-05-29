@@ -475,6 +475,7 @@ mod deployment_hub_tests {
             .await
             .expect("active lease can be proxied");
         assert_eq!(registered["route"]["status"], "active");
+        assert_eq!(registered["route"]["ready"], false);
         assert_eq!(registered["route"]["upstream"]["port_lease_id"], lease_id);
     }
 

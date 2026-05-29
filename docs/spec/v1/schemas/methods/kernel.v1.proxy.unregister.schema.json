@@ -82,6 +82,9 @@
         "public_url": {
           "type": "string"
         },
+        "ready": {
+          "type": "boolean"
+        },
         "status": {
           "$ref": "#/definitions/ProxyRouteStatusKind"
         },
@@ -94,6 +97,7 @@
         "iframe_url",
         "protocol",
         "public_url",
+        "ready",
         "status",
         "upstream"
       ],

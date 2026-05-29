@@ -14998,6 +14998,8 @@ paths:
                           $ref: '#/$defs/ProxyProtocol'
                         public_url:
                           type: string
+                        ready:
+                          type: boolean
                         status:
                           $ref: '#/$defs/ProxyRouteStatusKind'
                         upstream:
@@ -15007,6 +15009,7 @@ paths:
                       - iframe_url
                       - protocol
                       - public_url
+                      - ready
                       - status
                       - upstream
                       title: ProxyRouteRecord
@@ -15118,6 +15121,8 @@ paths:
                             $ref: '#/$defs/ProxyProtocol'
                           public_url:
                             type: string
+                          ready:
+                            type: boolean
                           status:
                             $ref: '#/$defs/ProxyRouteStatusKind'
                           upstream:
@@ -15127,6 +15132,7 @@ paths:
                         - iframe_url
                         - protocol
                         - public_url
+                        - ready
                         - status
                         - upstream
                         type: object
@@ -15252,6 +15258,8 @@ paths:
                         $ref: '#/$defs/ProxyProtocol'
                       public_url:
                         type: string
+                      ready:
+                        type: boolean
                       status:
                         $ref: '#/$defs/ProxyRouteStatusKind'
                       upstream:
@@ -15261,6 +15269,7 @@ paths:
                     - iframe_url
                     - protocol
                     - public_url
+                    - ready
                     - status
                     - upstream
                     title: ProxyRouteRecord
@@ -15363,6 +15372,8 @@ paths:
                         $ref: '#/$defs/ProxyProtocol'
                       public_url:
                         type: string
+                      ready:
+                        type: boolean
                       status:
                         $ref: '#/$defs/ProxyRouteStatusKind'
                       upstream:
@@ -15372,6 +15383,7 @@ paths:
                     - iframe_url
                     - protocol
                     - public_url
+                    - ready
                     - status
                     - upstream
                     title: ProxyRouteRecord

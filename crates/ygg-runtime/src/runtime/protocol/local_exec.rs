@@ -297,6 +297,7 @@ where
                 "public_url": response.route.public_url,
                 "iframe_url": response.route.iframe_url,
                 "status": response.route.status,
+                "ready": response.route.ready,
             }),
         )
         .await?;

@@ -1393,6 +1393,7 @@ export type ProxyListResult = Array<{
   "iframe_url": string;
   "protocol": ProxyProtocol;
   "public_url": string;
+  "ready": boolean;
   "status": ProxyRouteStatusKind;
   "upstream": ProxyRouteUpstream;
 }>;
@@ -1415,6 +1416,7 @@ export interface ProxyRouteRecord {
   "iframe_url": string;
   "protocol": ProxyProtocol;
   "public_url": string;
+  "ready": boolean;
   "status": ProxyRouteStatusKind;
   "upstream": ProxyRouteUpstream;
 }
@@ -1424,6 +1426,7 @@ export interface ProxyRouteRecord2 {
   "iframe_url": string;
   "protocol": ProxyProtocol;
   "public_url": string;
+  "ready": boolean;
   "status": ProxyRouteStatusKind;
   "upstream": ProxyRouteUpstream;
 }

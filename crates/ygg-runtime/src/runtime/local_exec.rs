@@ -1468,6 +1468,7 @@ pub struct ProxyRouteRecord {
     pub public_url: String,
     pub iframe_url: String,
     pub status: ProxyRouteStatusKind,
+    pub ready: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -1500,6 +1501,7 @@ impl ProxyRouteRegistry {
             upstream: request.upstream,
             protocol: request.protocol,
             status: ProxyRouteStatusKind::Active,
+            ready: false,
         };
         self.routes.write().await.insert(id, route.clone());
         ProxyRouteRegisterResponse { route }
@@ -1529,6 +1531,13 @@ impl ProxyRouteRegistry {
         let mut routes = self.routes.write().await;
         let route = routes.get_mut(route_id)?;
         route.status = status;
+        Some(route.clone())
+    }
+
+    pub async fn set_ready(&self, route_id: &str, ready: bool) -> Option<ProxyRouteRecord> {
+        let mut routes = self.routes.write().await;
+        let route = routes.get_mut(route_id)?;
+        route.ready = ready;
         Some(route.clone())
     }
 

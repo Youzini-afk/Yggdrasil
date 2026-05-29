@@ -502,6 +502,7 @@ where
             if route.status == ProxyRouteStatusKind::Active {
                 route.status = ProxyRouteStatusKind::Stale;
             }
+            route.ready = false;
             self.config.proxy_route_registry.restore(route).await;
         }
 
@@ -558,6 +559,11 @@ where
                     .await
                     .is_some()
                 {
+                    let _ = self
+                        .config
+                        .proxy_route_registry
+                        .set_ready(&route.id, true)
+                        .await;
                     summary.routes_promoted += 1;
                     promoted_lease_ids.insert(route.upstream.port_lease_id);
                 }
@@ -691,6 +697,7 @@ fn proxy_route_record_from_payload(payload: &Value) -> Option<ProxyRouteRecord> 
         public_url: payload_str(payload, "public_url")?,
         iframe_url: payload_str(payload, "iframe_url")?,
         status: enum_from_payload(payload, "status").unwrap_or(ProxyRouteStatusKind::Active),
+        ready: payload_bool(payload, "ready"),
     })
 }
 
