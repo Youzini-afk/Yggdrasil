@@ -364,6 +364,40 @@ export interface LocaleDictionary {
   projectFrameDeployFailedBody: string;
   projectFrameStopDeploymentSuccessTitle: string;
   projectFrameStopDeploymentPartialTitle: string;
+  projectFrameBuildDeployTitle: string;
+  projectFrameBuildDeployDescription: string;
+  projectFrameBuildDeployInvalidTitle: string;
+  projectFrameBuildDeployButton: string;
+  projectFrameBuildDeployRunning: string;
+  projectFrameBuildDeployCancel: string;
+  projectFrameBuildDeployCancelConfirmTitle: string;
+  projectFrameBuildDeployCancelConfirmBody: string;
+  projectFrameBuildDeployStrategy: string;
+  projectFrameBuildDeploySource: string;
+  projectFrameBuildDeployRef: string;
+  projectFrameBuildDeployEnv: string;
+  projectFrameBuildDeploySecretRef: string;
+  projectFrameBuildDeployPlainEnv: string;
+  projectFrameBuildDeployMounts: string;
+  projectFrameBuildDeployApproveMount: string;
+  projectFrameBuildDeployApproveRisk: string;
+  projectFrameBuildDeployHighRiskBadge: string;
+  projectFrameBuildDeployJob: string;
+  projectFrameBuildDeployTracker: string;
+  projectFrameBuildDeployCopyLogs: string;
+  projectFrameBuildDeployNoLogs: string;
+  projectFrameBuildDeployResultReady: string;
+  projectFrameBuildDeployResultFailed: string;
+  projectFrameBuildDeployResultCancelled: string;
+  projectFrameBuildDeployNewBuild: string;
+  projectFrameBuildDeployRestart: string;
+  projectFrameBuildDeployEditConfig: string;
+  projectFrameBuildDeployConfirm: (routeId: string) => string;
+  projectFrameBuildDeployStartedTitle: string;
+  projectFrameBuildDeployStartedBody: (jobId: string) => string;
+  projectFrameBuildDeployFailedTitle: string;
+  projectFrameBuildDeployCancelTitle: string;
+  projectFrameBuildDeployReady: (url: string) => string;
   projectFrameStatusReady: string;
   projectFrameStatusNotReady: string;
   projectFrameShowLogs: string;
@@ -932,6 +966,40 @@ export const labels = {
     projectFrameDeployFailedBody: "Docker runtime lab or host resource setup failed.",
     projectFrameStopDeploymentSuccessTitle: "Deployment stopped",
     projectFrameStopDeploymentPartialTitle: "Deployment cleanup partially failed",
+    projectFrameBuildDeployTitle: "Build & Deploy",
+    projectFrameBuildDeployDescription: "Clone the project workspace, build an image, then start it through the host deployment broker.",
+    projectFrameBuildDeployInvalidTitle: "Build-deploy metadata is invalid",
+    projectFrameBuildDeployButton: "Build & Deploy",
+    projectFrameBuildDeployRunning: "Running…",
+    projectFrameBuildDeployCancel: "Cancel job",
+    projectFrameBuildDeployCancelConfirmTitle: "Cancel build job?",
+    projectFrameBuildDeployCancelConfirmBody: "The host will stop after the current safe checkpoint and roll back any acquired deploy resources.",
+    projectFrameBuildDeployStrategy: "Strategy",
+    projectFrameBuildDeploySource: "Source",
+    projectFrameBuildDeployRef: "Ref",
+    projectFrameBuildDeployEnv: "Runtime env",
+    projectFrameBuildDeploySecretRef: "secret ref",
+    projectFrameBuildDeployPlainEnv: "plain",
+    projectFrameBuildDeployMounts: "Runtime mounts",
+    projectFrameBuildDeployApproveMount: "I've verified this path is correct",
+    projectFrameBuildDeployApproveRisk: "I approve read-write access",
+    projectFrameBuildDeployHighRiskBadge: "RW high risk",
+    projectFrameBuildDeployJob: "Job",
+    projectFrameBuildDeployTracker: "Build thread",
+    projectFrameBuildDeployCopyLogs: "Copy logs",
+    projectFrameBuildDeployNoLogs: "Waiting for job events…",
+    projectFrameBuildDeployResultReady: "Deployment ready",
+    projectFrameBuildDeployResultFailed: "Deployment failed",
+    projectFrameBuildDeployResultCancelled: "Deployment cancelled",
+    projectFrameBuildDeployNewBuild: "New Build",
+    projectFrameBuildDeployRestart: "Restart",
+    projectFrameBuildDeployEditConfig: "Edit Config",
+    projectFrameBuildDeployConfirm: (routeId) => `Build and deploy route ${routeId}? This may run Docker builds on the host.`,
+    projectFrameBuildDeployStartedTitle: "Build job started",
+    projectFrameBuildDeployStartedBody: (jobId) => `Tracking job ${jobId}.`,
+    projectFrameBuildDeployFailedTitle: "Build-deploy failed",
+    projectFrameBuildDeployCancelTitle: "Cancel requested",
+    projectFrameBuildDeployReady: (url) => `Ready at ${url}`,
     projectFrameStatusReady: "Ready",
     projectFrameStatusNotReady: "Not ready",
     projectFrameShowLogs: "Show logs",
@@ -1500,6 +1568,40 @@ export const labels = {
     projectFrameDeployFailedBody: "Docker runtime lab 或主机资源设置失败。",
     projectFrameStopDeploymentSuccessTitle: "部署已停止",
     projectFrameStopDeploymentPartialTitle: "部署清理部分失败",
+    projectFrameBuildDeployTitle: "构建并部署",
+    projectFrameBuildDeployDescription: "克隆项目工作区、构建镜像，然后通过主机部署代理启动。",
+    projectFrameBuildDeployInvalidTitle: "构建部署元数据无效",
+    projectFrameBuildDeployButton: "构建并部署",
+    projectFrameBuildDeployRunning: "运行中…",
+    projectFrameBuildDeployCancel: "取消任务",
+    projectFrameBuildDeployCancelConfirmTitle: "取消构建任务？",
+    projectFrameBuildDeployCancelConfirmBody: "主机会在下一个安全检查点停止，并回滚已获取的部署资源。",
+    projectFrameBuildDeployStrategy: "策略",
+    projectFrameBuildDeploySource: "来源",
+    projectFrameBuildDeployRef: "引用",
+    projectFrameBuildDeployEnv: "运行时环境变量",
+    projectFrameBuildDeploySecretRef: "密钥引用",
+    projectFrameBuildDeployPlainEnv: "明文",
+    projectFrameBuildDeployMounts: "运行时挂载",
+    projectFrameBuildDeployApproveMount: "我已确认此路径正确",
+    projectFrameBuildDeployApproveRisk: "我批准读写访问",
+    projectFrameBuildDeployHighRiskBadge: "读写高风险",
+    projectFrameBuildDeployJob: "任务",
+    projectFrameBuildDeployTracker: "构建线程",
+    projectFrameBuildDeployCopyLogs: "复制日志",
+    projectFrameBuildDeployNoLogs: "等待任务事件…",
+    projectFrameBuildDeployResultReady: "部署已就绪",
+    projectFrameBuildDeployResultFailed: "部署失败",
+    projectFrameBuildDeployResultCancelled: "部署已取消",
+    projectFrameBuildDeployNewBuild: "新构建",
+    projectFrameBuildDeployRestart: "重新启动",
+    projectFrameBuildDeployEditConfig: "编辑配置",
+    projectFrameBuildDeployConfirm: (routeId) => `构建并部署路由 ${routeId}？这可能会在主机上运行 Docker 构建。`,
+    projectFrameBuildDeployStartedTitle: "构建任务已启动",
+    projectFrameBuildDeployStartedBody: (jobId) => `正在跟踪任务 ${jobId}。`,
+    projectFrameBuildDeployFailedTitle: "构建部署失败",
+    projectFrameBuildDeployCancelTitle: "已请求取消",
+    projectFrameBuildDeployReady: (url) => `已就绪：${url}`,
     projectFrameStatusReady: "已就绪",
     projectFrameStatusNotReady: "未就绪",
     projectFrameShowLogs: "显示日志",

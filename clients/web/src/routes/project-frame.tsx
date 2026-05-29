@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowsClockwise, BookOpenText, Copy, LinkSimple, StopCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Modal, ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { StatusPill, projectStateTone } from "@/components/ui/status-pill";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useKernel } from "@/lib/kernel-client";
@@ -11,8 +12,11 @@ import { openProjectInTab } from "@/lib/project-launcher";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle, type ResolvedSurfaceBundle } from "@/surfaces/bundle-resolver";
 import { formatBytes } from "@/lib/format";
-import { parseDockerDeploymentDescriptor, type DockerDeploymentDescriptor } from "@/lib/project-deployment";
+import { parseBuildDeployDescriptor, parseDockerDeploymentDescriptor, type BuildDeployDescriptor, type DockerDeploymentDescriptor } from "@/lib/project-deployment";
 import type {
+  BuildDeployJobEvent,
+  BuildDeployJobStatusResponse,
+  BuildDeployJobSubmitResponse,
   ExecStatus,
   ExecutionTarget,
   KernelEvent,
@@ -65,6 +69,8 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const [refreshingDiagnostics, setRefreshingDiagnostics] = useState(false);
   const [updatingProject, setUpdatingProject] = useState(false);
   const [deploymentOperation, setDeploymentOperation] = useState<"idle" | "deploying" | "stopping">("idle");
+  const [buildDeployJob, setBuildDeployJob] = useState<BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse | null>(null);
+  const [buildDeployEvents, setBuildDeployEvents] = useState<BuildDeployJobEvent[]>([]);
   const [diagnostics, setDiagnostics] = useState<ProjectDiagnostics | null>(null);
   const [frameState, setFrameState] = useState<"loading" | "mounted" | "start_failed" | "mount_failed" | "stopped">("loading");
   const handleRef = useRef<SurfaceHostHandle | null>(null);
@@ -389,6 +395,58 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     }
   }, [client, deploymentOperation, loadDiagnostics, t, toast]);
 
+  const onBuildDeploy = useCallback(async (descriptor: BuildDeployDescriptor) => {
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameBuildDeployConfirm", descriptor.route_id))) return;
+    try {
+      const job = await client.buildDeployProject({
+        project_id: projectId,
+        source_url: descriptor.source_url,
+        ref_name: descriptor.ref_name,
+        strategy: descriptor.strategy,
+        ...(descriptor.dockerfile ? { dockerfile: descriptor.dockerfile } : {}),
+        container_port: descriptor.container_port,
+        port_name: descriptor.port_name,
+        route_id: descriptor.route_id,
+        ...(descriptor.health_path ? { health_path: descriptor.health_path } : {}),
+        approved: true,
+        runtime_env: descriptor.runtime_env,
+        runtime_mounts: descriptor.runtime_mounts,
+      });
+      setBuildDeployJob(job);
+      setBuildDeployEvents([]);
+      toast.push({ variant: "success", title: t("projectFrameBuildDeployStartedTitle"), body: t("projectFrameBuildDeployStartedBody", job.job_id) });
+    } catch (err) {
+      toast.push({ variant: "error", title: t("projectFrameBuildDeployFailedTitle"), body: errorMessage(err) });
+    }
+  }, [client, projectId, t, toast]);
+
+  const onCancelBuildDeploy = useCallback(async (jobId: string) => {
+    try {
+      const result = await client.cancelBuildDeployJob(jobId);
+      setBuildDeployJob((current) => current && current.job_id === jobId ? { ...current, state: result.state } : current);
+      toast.push({ variant: "info", title: t("projectFrameBuildDeployCancelTitle"), body: jobId });
+    } catch (err) {
+      toast.push({ variant: "error", title: t("projectFrameBuildDeployFailedTitle"), body: errorMessage(err) });
+    }
+  }, [client, t, toast]);
+
+  useEffect(() => {
+    const jobId = buildDeployJob?.job_id;
+    if (!jobId) return;
+    let closed = false;
+    const close = client.subscribeBuildDeployJob(jobId, (event) => {
+      if (closed) return;
+      setBuildDeployEvents((events) => [...events.filter((item) => item.sequence !== event.sequence), event].slice(-80));
+      void client.getBuildDeployJob(jobId).then((status) => {
+        if (!closed) setBuildDeployJob(status);
+      }).catch(() => {});
+    });
+    void client.getBuildDeployJob(jobId).then((status) => {
+      if (!closed) setBuildDeployJob(status);
+    }).catch(() => {});
+    return () => { closed = true; close(); };
+  }, [buildDeployJob?.job_id, client]);
+
   const consoleSummary = useMemo(() => summarizeConsoleDiagnostics(diagnostics), [diagnostics]);
   const isStandalone = chrome === "none";
 
@@ -458,6 +516,10 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
               deploymentOperation={deploymentOperation}
               onDeployDocker={onDeployDocker}
               onStopDockerDeployment={onStopDockerDeployment}
+              buildDeployJob={buildDeployJob}
+              buildDeployEvents={buildDeployEvents}
+              onBuildDeploy={onBuildDeploy}
+              onCancelBuildDeploy={onCancelBuildDeploy}
             />
           </div>
         )}
@@ -554,6 +616,10 @@ function ProjectConsole({
   deploymentOperation,
   onDeployDocker,
   onStopDockerDeployment,
+  buildDeployJob,
+  buildDeployEvents,
+  onBuildDeploy,
+  onCancelBuildDeploy,
 }: {
   projectId: string;
   project: (ProjectRecord & { running_session_id?: string; entry_surface_id?: string }) | null;
@@ -569,10 +635,15 @@ function ProjectConsole({
   deploymentOperation: "idle" | "deploying" | "stopping";
   onDeployDocker: (descriptor: DockerDeploymentDescriptor) => void;
   onStopDockerDeployment: (descriptor: DockerDeploymentDescriptor) => void;
+  buildDeployJob: BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse | null;
+  buildDeployEvents: BuildDeployJobEvent[];
+  onBuildDeploy: (descriptor: BuildDeployDescriptor) => void;
+  onCancelBuildDeploy: (jobId: string) => void;
 }) {
   const t = useT();
   const bundle = diagnostics?.bundle;
   const deploymentParse = parseDockerDeploymentDescriptor(projectId, project?.metadata);
+  const buildDeployParse = parseBuildDeployDescriptor(projectId, project?.metadata);
   const updateResults = diagnostics?.updates?.results ?? [];
   const updateStatus = loading
     ? t("projectFrameDiagnosticsLoading")
@@ -660,6 +731,16 @@ function ProjectConsole({
             operation={deploymentOperation}
             onDeploy={onDeployDocker}
             onStop={onStopDockerDeployment}
+          />
+        ) : null}
+        {buildDeployParse.descriptor || buildDeployParse.error ? (
+          <BuildDeployActionCard
+            descriptor={buildDeployParse.descriptor}
+            error={buildDeployParse.error}
+            job={buildDeployJob}
+            events={buildDeployEvents}
+            onBuildDeploy={onBuildDeploy}
+            onCancel={onCancelBuildDeploy}
           />
         ) : null}
         <DeploymentDiagnostics diagnostics={diagnostics} />
@@ -793,6 +874,113 @@ function DeploymentActionCard({
       {hasActiveDeployment ? <p className="mt-3 text-[12px] text-steel-secondary">{t("projectFrameDeployActiveHint")}</p> : null}
     </div>
   );
+}
+
+function BuildDeployActionCard({
+  descriptor,
+  error,
+  job,
+  events,
+  onBuildDeploy,
+  onCancel,
+}: {
+  descriptor: BuildDeployDescriptor | null;
+  error?: string;
+  job: BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse | null;
+  events: BuildDeployJobEvent[];
+  onBuildDeploy: (descriptor: BuildDeployDescriptor) => void;
+  onCancel: (jobId: string) => void;
+}) {
+  const t = useT();
+  const [strategy, setStrategy] = useState<"dockerfile" | "nixpacks">(descriptor?.strategy ?? "dockerfile");
+  const [mountApprovals, setMountApprovals] = useState<Record<number, boolean>>({});
+  const [riskApprovals, setRiskApprovals] = useState<Record<number, boolean>>({});
+  const [showConfig, setShowConfig] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  useEffect(() => {
+    setStrategy(descriptor?.strategy ?? "dockerfile");
+    setMountApprovals({});
+    setRiskApprovals({});
+  }, [descriptor?.route_id, descriptor?.strategy]);
+
+  if (!descriptor) {
+    return <div className="mb-4 rounded-[14px] border border-deep-rust bg-deep-rust-surface p-4 text-[12px] text-deep-rust"><p className="font-semibold">{t("projectFrameBuildDeployInvalidTitle")}</p><p className="mt-1">{error}</p></div>;
+  }
+
+  const mounts = descriptor.runtime_mounts.map((mount, index) => ({
+    ...mount,
+    approved: mount.approved || mountApprovals[index] === true,
+    high_risk_approved: mount.mode !== "rw" ? mount.high_risk_approved : mount.high_risk_approved || riskApprovals[index] === true,
+  }));
+  const approvalsReady = mounts.every((mount) => mount.approved && (mount.mode !== "rw" || mount.high_risk_approved));
+  const isRunning = job ? !["ready", "failed", "cancelled"].includes(job.state) : false;
+  const isResolved = job ? ["ready", "failed", "cancelled"].includes(job.state) : false;
+  const activeJobId = job?.job_id;
+  const status = job && "result" in job ? job : null;
+  const submitDescriptor = { ...descriptor, strategy, runtime_mounts: mounts };
+  const mode = isRunning ? "running" : isResolved ? "resolved" : "idle";
+  const showIdleConfig = mode === "idle" || (mode === "resolved" && showConfig);
+
+  return (
+    <div className="mb-4 rounded-[16px] border border-aged-brass/40 bg-warm-bone p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="font-display text-[15px] font-bold text-charcoal-ink">{t("projectFrameBuildDeployTitle")}</p>
+          <p className="mt-1 text-[12px] text-steel-secondary">{t("projectFrameBuildDeployDescription")}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {mode === "resolved" ? <Button tone="secondary" size="sm" onClick={() => setShowConfig((value) => !value)}>{t("projectFrameBuildDeployEditConfig")}</Button> : null}
+          {mode !== "running" ? <Button tone="primary" size="sm" disabled={!approvalsReady} onClick={() => onBuildDeploy(submitDescriptor)}>{mode === "resolved" ? t("projectFrameBuildDeployNewBuild") : t("projectFrameBuildDeployButton")}</Button> : null}
+        </div>
+      </div>
+
+      {showIdleConfig ? <BuildDeployConfigPanel descriptor={descriptor} strategy={strategy} setStrategy={setStrategy} mountApprovals={mountApprovals} riskApprovals={riskApprovals} setMountApprovals={setMountApprovals} setRiskApprovals={setRiskApprovals} /> : null}
+
+      {mode === "running" && activeJobId ? <div className="mt-4 space-y-4"><JobStatusTracker state={job.state} /><TerminalLogPanel events={events} live onCopy={() => void navigator.clipboard?.writeText(events.map((event) => `#${event.sequence} [${event.state}] ${event.message}`).join("\n"))} /><div className="flex justify-end"><Button tone="destructive" size="sm" onClick={() => setConfirmCancel(true)}>{t("projectFrameBuildDeployCancel")}</Button></div></div> : null}
+
+      {mode === "resolved" && job ? <BuildDeployResultCard job={job} status={status} events={events} onRetry={() => onBuildDeploy(submitDescriptor)} onEdit={() => setShowConfig(true)} /> : null}
+
+      <Modal open={confirmCancel} onOpenChange={setConfirmCancel} accent="rust" size="sm" contentLabel={t("projectFrameBuildDeployCancel")}>
+        <ModalHeader title={t("projectFrameBuildDeployCancelConfirmTitle")} description={t("projectFrameBuildDeployCancelConfirmBody")} />
+        <ModalFooter className="justify-end">
+          <Button tone="secondary" size="sm" onClick={() => setConfirmCancel(false)}>{t("back")}</Button>
+          <Button tone="destructive" size="sm" onClick={() => { if (activeJobId) onCancel(activeJobId); setConfirmCancel(false); }}>{t("projectFrameBuildDeployCancel")}</Button>
+        </ModalFooter>
+      </Modal>
+    </div>
+  );
+}
+
+function BuildDeployConfigPanel({ descriptor, strategy, setStrategy, mountApprovals, riskApprovals, setMountApprovals, setRiskApprovals }: { descriptor: BuildDeployDescriptor; strategy: "dockerfile" | "nixpacks"; setStrategy: (strategy: "dockerfile" | "nixpacks") => void; mountApprovals: Record<number, boolean>; riskApprovals: Record<number, boolean>; setMountApprovals: React.Dispatch<React.SetStateAction<Record<number, boolean>>>; setRiskApprovals: React.Dispatch<React.SetStateAction<Record<number, boolean>>> }) {
+  const t = useT();
+  return <div className="mt-4 space-y-4"><div className="grid gap-3 lg:grid-cols-2"><div className="rounded-[12px] border border-whisper-border bg-pure-surface p-3 text-[12px]"><p className="font-mono uppercase tracking-[0.12em] text-muted-tone">{t("projectFrameBuildDeployStrategy")}</p><div className="mt-2 flex gap-2">{(["dockerfile", "nixpacks"] as const).map((item) => <button key={item} type="button" onClick={() => setStrategy(item)} className={item === strategy ? "rounded-full bg-charcoal-ink px-3 py-1.5 text-[12px] font-semibold text-pure-surface" : "rounded-full border border-whisper-border bg-warm-bone px-3 py-1.5 text-[12px] font-semibold text-steel-secondary hover:text-charcoal-ink"}>{item === "dockerfile" ? "Dockerfile" : "Nixpacks"}</button>)}</div></div><TinyValue label={t("projectFrameBuildDeploySource")} value={descriptor.source_url.replace(/^https:\/\//, "")} /><TinyValue label={t("projectFrameBuildDeployRef")} value={descriptor.ref_name} /><TinyValue label={t("projectFrameDeployRouteId")} value={descriptor.route_id} /></div>{descriptor.runtime_env.length ? <div><p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameBuildDeployEnv")}</p><div className="mt-2 flex flex-wrap gap-2">{descriptor.runtime_env.map((env) => <span key={env.name} className="rounded-full border border-whisper-border bg-pure-surface px-3 py-1 text-[12px] text-steel-secondary">{env.name} · {env.secret_ref ? t("projectFrameBuildDeploySecretRef") : t("projectFrameBuildDeployPlainEnv")}</span>)}</div></div> : null}{descriptor.runtime_mounts.length ? <div className="space-y-2"><p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameBuildDeployMounts")}</p>{descriptor.runtime_mounts.map((mount, index) => <VolumeApprovalRow key={`${mount.container_path}-${index}`} mount={mount} index={index} mountApprovals={mountApprovals} riskApprovals={riskApprovals} setMountApprovals={setMountApprovals} setRiskApprovals={setRiskApprovals} />)}</div> : null}</div>;
+}
+
+function VolumeApprovalRow({ mount, index, mountApprovals, riskApprovals, setMountApprovals, setRiskApprovals }: { mount: BuildDeployDescriptor["runtime_mounts"][number]; index: number; mountApprovals: Record<number, boolean>; riskApprovals: Record<number, boolean>; setMountApprovals: React.Dispatch<React.SetStateAction<Record<number, boolean>>>; setRiskApprovals: React.Dispatch<React.SetStateAction<Record<number, boolean>>> }) {
+  const t = useT();
+  return <div className="rounded-[12px] border border-whisper-border bg-pure-surface p-3 text-[12px]"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-mono text-charcoal-ink">{basename(mount.source_host_path)} → {mount.container_path}</span><span className={mount.mode === "rw" ? "rounded-full bg-deep-rust-surface px-2 py-0.5 font-semibold text-deep-rust" : "rounded-full bg-warm-bone px-2 py-0.5 text-steel-secondary"}>{mount.mode === "rw" ? t("projectFrameBuildDeployHighRiskBadge") : "RO"}</span></div><p className="mt-1 text-steel-secondary">{mount.reason}</p><label className="mt-2 flex items-center gap-2 text-steel-secondary"><input type="checkbox" checked={mount.approved || mountApprovals[index] === true} onChange={(event) => setMountApprovals((value) => ({ ...value, [index]: event.target.checked }))} />{t("projectFrameBuildDeployApproveMount")}</label>{mount.mode === "rw" ? <label className="mt-1 flex items-center gap-2 text-deep-rust"><input type="checkbox" checked={mount.high_risk_approved || riskApprovals[index] === true} onChange={(event) => setRiskApprovals((value) => ({ ...value, [index]: event.target.checked }))} />{t("projectFrameBuildDeployApproveRisk")}</label> : null}</div>;
+}
+
+const BUILD_JOB_PHASES = ["queued", "cloning", "building", "starting", "registering_proxy", "probing", "ready"];
+
+function JobStatusTracker({ state }: { state: string }) {
+  const t = useT();
+  const current = state === "failed" || state === "cancelled" ? BUILD_JOB_PHASES.length - 1 : Math.max(0, BUILD_JOB_PHASES.indexOf(state));
+  return <div className="rounded-[14px] border border-aged-brass/30 bg-pure-surface p-4"><p className="font-display text-[14px] font-bold text-charcoal-ink">{t("projectFrameBuildDeployTracker")}</p><div className="mt-3 grid gap-2 sm:grid-cols-4 lg:grid-cols-7">{BUILD_JOB_PHASES.map((phase, index) => <div key={phase} className={index <= current ? "rounded-[10px] border border-aged-brass bg-aged-brass/10 p-2" : "rounded-[10px] border border-whisper-border bg-warm-bone p-2 opacity-70"}><span className={index <= current ? "block size-2 rounded-full bg-aged-brass" : "block size-2 rounded-full bg-muted-tone"} /><p className="mt-2 text-[11px] font-semibold text-charcoal-ink">{phase.replace("_", " ")}</p></div>)}</div></div>;
+}
+
+function TerminalLogPanel({ events, live, onCopy }: { events: BuildDeployJobEvent[]; live: boolean; onCopy: () => void }) {
+  const t = useT();
+  return <div className="overflow-hidden rounded-[14px] border border-charcoal-ink/20 bg-[#201a15]"><div className="flex items-center justify-between border-b border-white/10 px-3 py-2"><span className="font-mono text-[11px] uppercase tracking-[0.16em] text-warm-bone">{live ? "LIVE" : "CLOSED"}</span><Button tone="tertiary" size="sm" onClick={onCopy}>{t("projectFrameBuildDeployCopyLogs")}</Button></div><ol className="max-h-[min(42dvh,360px)] space-y-1 overflow-auto p-3 font-mono text-[11px] text-warm-bone/90">{events.length ? events.map((event) => <li key={event.sequence}>#{event.sequence} [{event.state}] {event.message}</li>) : <li>{t("projectFrameBuildDeployNoLogs")}</li>}</ol></div>;
+}
+
+function BuildDeployResultCard({ job, status, events, onRetry, onEdit }: { job: BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse; status: BuildDeployJobStatusResponse | null; events: BuildDeployJobEvent[]; onRetry: () => void; onEdit: () => void }) {
+  const t = useT();
+  const ready = job.state === "ready";
+  const failed = job.state === "failed";
+  const url = status?.result?.public_url;
+  return <div className="mt-4 space-y-3 rounded-[14px] border border-whisper-border bg-pure-surface p-4"><JobStatusTracker state={job.state} /><div className="rounded-[12px] bg-warm-bone p-3 text-[12px]"><p className="font-display text-[15px] font-bold text-charcoal-ink">{ready ? t("projectFrameBuildDeployResultReady") : failed ? t("projectFrameBuildDeployResultFailed") : t("projectFrameBuildDeployResultCancelled")}</p>{url ? <p className="mt-1 break-all text-steel-secondary">{url}</p> : null}{status?.error ? <p className="mt-1 text-deep-rust">{status.error}</p> : null}<div className="mt-3 flex flex-wrap gap-2">{ready && url ? <Button tone="secondary" size="sm" onClick={() => window.open(url, "_blank", "noopener,noreferrer")}>{t("projectFrameOpenUrl")}</Button> : null}<Button tone="primary" size="sm" onClick={onRetry}>{ready ? t("projectFrameBuildDeployNewBuild") : failed ? t("retry") : t("projectFrameBuildDeployRestart")}</Button>{!ready ? <Button tone="secondary" size="sm" onClick={onEdit}>{t("projectFrameBuildDeployEditConfig")}</Button> : null}</div></div><TerminalLogPanel events={events} live={false} onCopy={() => void navigator.clipboard?.writeText(events.map((event) => `#${event.sequence} [${event.state}] ${event.message}`).join("\n"))} /></div>;
 }
 
 function DeploymentDiagnostics({ diagnostics }: { diagnostics: ProjectDiagnostics | null }) {
@@ -979,6 +1167,10 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
 function TinyValue({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-[10px] bg-pure-surface p-2"><p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{label}</p><p className="mt-1 truncate font-mono text-[12px] text-charcoal-ink" title={value}>{value}</p></div>;
+}
+
+function basename(path: string): string {
+  return path.split("/").filter(Boolean).pop() ?? path;
 }
 
 function QuietEmpty({ children }: { children: ReactNode }) {

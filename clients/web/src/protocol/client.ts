@@ -436,6 +436,105 @@ export interface HostStopProjectDeploymentOutput {
   warnings: string[];
 }
 
+export type BuildDeployStrategy = "dockerfile" | "nixpacks";
+export type BuildDeployJobState = "queued" | "cloning" | "building" | "starting" | "registering_proxy" | "probing" | "ready" | "failed" | "cancelled" | string;
+
+export interface RuntimeEnvSpec {
+  name: string;
+  value?: string;
+  secret_ref?: string;
+}
+
+export interface RuntimeMountSpec {
+  source_host_path: string;
+  container_path: string;
+  mode?: "ro" | "rw";
+  approved: boolean;
+  high_risk_approved?: boolean;
+  reason: string;
+}
+
+export interface HostBuildDeployRequest {
+  project_id: string;
+  source_url: string;
+  ref_name: string;
+  strategy?: BuildDeployStrategy;
+  dockerfile?: string;
+  container_port: number;
+  port_name: string;
+  route_id: string;
+  health_path?: string;
+  approved: true;
+  source_commit?: string;
+  build_id?: string;
+  runtime_env?: RuntimeEnvSpec[];
+  runtime_mounts?: RuntimeMountSpec[];
+}
+
+export interface RuntimeEnvSummary {
+  name: string;
+  source: "plain" | "secret_ref" | string;
+}
+
+export interface RuntimeMountSummary {
+  container_path: string;
+  mode: "ro" | "rw" | string;
+  source_basename?: string | null;
+  source_kind?: string;
+  source_hash?: string;
+  approved?: boolean;
+}
+
+export interface HostBuildDeployResult {
+  route_id: string;
+  public_url: string;
+  port_lease_id: string;
+  container_id: string;
+  container_name?: string | null;
+  image: string;
+  build_id: string;
+  source_commit: string;
+  build_descriptor_hash: string;
+  strategy: string;
+  runtime_env?: RuntimeEnvSummary[];
+  runtime_mounts?: RuntimeMountSummary[];
+  warnings?: string[];
+}
+
+export interface BuildDeployJobSubmitResponse {
+  job_id: string;
+  status_url: string;
+  events_url: string;
+  state: BuildDeployJobState;
+}
+
+export interface BuildDeployJobStatusResponse {
+  job_id: string;
+  project_id: string;
+  route_id: string;
+  build_id?: string | null;
+  state: BuildDeployJobState;
+  created_at_ms: number;
+  updated_at_ms: number;
+  result?: HostBuildDeployResult | null;
+  error?: string | null;
+  events_url: string;
+}
+
+export interface BuildDeployJobEvent {
+  job_id: string;
+  state: BuildDeployJobState;
+  message: string;
+  sequence: number;
+  timestamp_ms: number;
+}
+
+export interface BuildDeployCancelResponse {
+  job_id: string;
+  state: BuildDeployJobState;
+  cancelled: boolean;
+}
+
 export interface ExecutionTarget {
   id: string;
   name: string;
@@ -752,6 +851,26 @@ export class YggProtocolClient {
     return this.fetchHostJson("/host/v1/deploy/stop", input);
   }
 
+  buildDeployProject(input: HostBuildDeployRequest, options: { wait?: boolean } = {}): Promise<BuildDeployJobSubmitResponse | BuildDeployJobStatusResponse> {
+    const suffix = options.wait ? "?wait=true" : "";
+    return this.fetchHostJson(`/host/v1/build-deploy${suffix}`, input);
+  }
+
+  getBuildDeployJob(jobId: string): Promise<BuildDeployJobStatusResponse> {
+    return this.fetchHostGetJson(`/host/v1/build-deploy/${encodeURIComponent(jobId)}`);
+  }
+
+  cancelBuildDeployJob(jobId: string): Promise<BuildDeployCancelResponse> {
+    return this.fetchHostJson(`/host/v1/build-deploy/${encodeURIComponent(jobId)}/cancel`, {});
+  }
+
+  subscribeBuildDeployJob(jobId: string, onEvent: (event: BuildDeployJobEvent) => void, onError?: (error: Event) => void) {
+    const source = new EventSource(this.buildDeployJobEventsUrl(jobId));
+    source.addEventListener("build_deploy", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
+    if (onError) source.addEventListener("error", onError);
+    return () => source.close();
+  }
+
   async resolveInstallPlan(source: InstallSource): Promise<InstallPlan> {
     const rootUrl = normalizeInstallRootUrl(source.root_url);
     if (!/^https:\/\//i.test(rootUrl)) {
@@ -870,8 +989,32 @@ export class YggProtocolClient {
     }
   }
 
+  private async fetchHostGetJson<T>(path: string): Promise<T> {
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: "GET",
+        headers: this.rpcHeaders(),
+      });
+      await throwForHttpError(response);
+      return (await response.json()) as T;
+    } catch (err: unknown) {
+      if (isFetchTransportError(err)) {
+        throw new Error("Cannot reach the Yggdrasil host deployment broker. Check that the host is still running and the access token is valid.");
+      }
+      throw err;
+    }
+  }
+
   private eventSubscribeUrl(sessionId: string): string {
     const url = new URL(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(sessionId)}`);
+    if (this.accessToken) {
+      url.searchParams.set("access_token", this.accessToken);
+    }
+    return url.toString();
+  }
+
+  private buildDeployJobEventsUrl(jobId: string): string {
+    const url = new URL(`${this.baseUrl}/host/v1/build-deploy/${encodeURIComponent(jobId)}/events`);
     if (this.accessToken) {
       url.searchParams.set("access_token", this.accessToken);
     }

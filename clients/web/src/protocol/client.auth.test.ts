@@ -136,6 +136,16 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return Response.json({ route_id: body.route_id, stopped: true, warnings: [] });
   }
 
+  if (inputString.includes("/host/v1/build-deploy")) {
+    if (init?.method === "GET") {
+      return Response.json({ job_id: "job-1", project_id: "project-1", route_id: "route-1", state: "ready", created_at_ms: 1, updated_at_ms: 2, result: null, error: null, events_url: "/host/v1/build-deploy/job-1/events" });
+    }
+    if (inputString.endsWith("/cancel")) {
+      return Response.json({ job_id: "job-1", state: "cancelled", cancelled: true });
+    }
+    return Response.json({ job_id: "job-1", status_url: "/host/v1/build-deploy/job-1", events_url: "/host/v1/build-deploy/job-1/events", state: "queued" });
+  }
+
   capturedRequests.push(body);
 
   if (body?.method === "kernel.v1.session.open") {
@@ -346,11 +356,20 @@ await protocolClient.deployProject({
   pull_if_missing: false,
 });
 await protocolClient.stopProjectDeployment({ route_id: "route-1" });
+await protocolClient.buildDeployProject({ project_id: "project-1", source_url: "https://example.com/repo.git", ref_name: "main", strategy: "dockerfile", container_port: 3000, port_name: "web", route_id: "route-1", approved: true });
+await protocolClient.getBuildDeployJob("job-1");
+await protocolClient.cancelBuildDeployJob("job-1");
 assertEqual(capturedFetches[0].input, "http://host.test/host/v1/deploy");
 assertEqual(capturedFetches[1].input, "http://host.test/host/v1/deploy/stop");
+assertEqual(capturedFetches[2].input, "http://host.test/host/v1/build-deploy");
+assertEqual(capturedFetches[3].input, "http://host.test/host/v1/build-deploy/job-1");
+assertEqual(capturedFetches[4].input, "http://host.test/host/v1/build-deploy/job-1/cancel");
 assertDeepEqual(capturedFetches.map((request) => request.body), [
   { image: "example/app:latest", container_port: 8080, port_name: "web", route_id: "route-1", health_path: "/healthz", pull_if_missing: false },
   { route_id: "route-1" },
+  { project_id: "project-1", source_url: "https://example.com/repo.git", ref_name: "main", strategy: "dockerfile", container_port: 3000, port_name: "web", route_id: "route-1", approved: true },
+  undefined,
+  {},
 ]);
 
 capturedRequests.length = 0;
