@@ -3,14 +3,19 @@
 //! Phase 1 is intentionally fail-closed and in-memory only: no OS process
 //! launch, no host proxying, and no raw secret material is stored here.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
+use anyhow::Context;
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use tokio::io::AsyncReadExt;
+use tokio::process::Command;
+use tokio::sync::{Mutex, RwLock};
 
 pub type ExecutionTargetId = String;
 pub type ExecId = String;
@@ -114,6 +119,14 @@ impl ExecStatus {
 pub struct LocalExecStartRequest {
     pub target_id: ExecutionTargetId,
     pub command: ExecCommand,
+    /// Required by the live executor. Fake/deny executors tolerate omission for
+    /// backwards-compatible protocol fixtures.
+    #[serde(default)]
+    pub cwd: Option<PathBuf>,
+    /// Explicit environment to pass to the child. The live executor clears the
+    /// inherited environment and forwards only keys allowed by host policy.
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
     #[serde(default)]
     pub lifecycle: ExecLifecyclePolicy,
     #[serde(default)]
@@ -222,7 +235,8 @@ impl ExecRegistry {
 
 #[async_trait]
 pub trait LocalExecExecutor: Send + Sync + 'static {
-    async fn start(&self, request: LocalExecStartRequest) -> anyhow::Result<LocalExecStartResponse>;
+    async fn start(&self, request: LocalExecStartRequest)
+        -> anyhow::Result<LocalExecStartResponse>;
     async fn stop(&self, request: LocalExecStopRequest) -> anyhow::Result<LocalExecStopResponse>;
     async fn status(
         &self,
@@ -241,6 +255,456 @@ pub enum LocalExecExecutorConfig {
 impl Default for LocalExecExecutorConfig {
     fn default() -> Self {
         Self::DenyAll
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LiveLocalExecExecutorConfig {
+    pub allowed_programs: Vec<String>,
+    pub allowed_working_dirs: Vec<PathBuf>,
+    pub allowed_env_vars: Vec<String>,
+    pub max_duration_ms: u64,
+    pub max_log_bytes: u64,
+}
+
+impl LiveLocalExecExecutorConfig {
+    pub fn new(
+        allowed_programs: Vec<String>,
+        allowed_working_dirs: Vec<PathBuf>,
+        allowed_env_vars: Vec<String>,
+        max_duration_ms: u64,
+        max_log_bytes: u64,
+    ) -> anyhow::Result<Self> {
+        validate_allowed_programs(&allowed_programs)?;
+        validate_allowed_working_dirs(&allowed_working_dirs)?;
+        validate_allowed_env_vars(&allowed_env_vars)?;
+        if max_duration_ms == 0 {
+            anyhow::bail!("local exec max_duration_ms must be greater than zero");
+        }
+        if max_log_bytes == 0 {
+            anyhow::bail!("local exec max_log_bytes must be greater than zero");
+        }
+        Ok(Self {
+            allowed_programs,
+            allowed_working_dirs,
+            allowed_env_vars,
+            max_duration_ms,
+            max_log_bytes,
+        })
+    }
+}
+
+pub struct LiveLocalExecExecutor {
+    allowed_program_names: HashSet<String>,
+    allowed_program_paths: HashSet<PathBuf>,
+    allowed_working_dirs: Vec<PathBuf>,
+    allowed_env_vars: HashSet<String>,
+    max_duration_ms: u64,
+    max_log_bytes: u64,
+    executions: RwLock<HashMap<ExecId, Arc<LiveExecState>>>,
+    next_id: AtomicU64,
+}
+
+struct LiveExecState {
+    status: RwLock<ExecStatus>,
+    logs: RwLock<Vec<LocalExecLogLine>>,
+    next_seq: AtomicU64,
+    child: Mutex<Option<tokio::process::Child>>,
+    log_bytes: AtomicU64,
+    max_log_bytes: u64,
+}
+
+impl LiveLocalExecExecutor {
+    pub fn new(config: LiveLocalExecExecutorConfig) -> anyhow::Result<Self> {
+        let mut allowed_program_names = HashSet::new();
+        let mut allowed_program_paths = HashSet::new();
+        for program in config.allowed_programs {
+            let path = PathBuf::from(&program);
+            if path.is_absolute() {
+                let canonical = std::fs::canonicalize(&path).with_context(|| {
+                    format!(
+                        "failed to canonicalize allowed local exec program {}",
+                        path.display()
+                    )
+                })?;
+                allowed_program_paths.insert(canonical);
+            } else {
+                allowed_program_names.insert(program);
+            }
+        }
+
+        let mut allowed_working_dirs = Vec::new();
+        for dir in config.allowed_working_dirs {
+            let canonical = std::fs::canonicalize(&dir).with_context(|| {
+                format!(
+                    "failed to canonicalize allowed local exec working dir {}",
+                    dir.display()
+                )
+            })?;
+            if !canonical.is_dir() {
+                anyhow::bail!(
+                    "allowed local exec working dir is not a directory: {}",
+                    canonical.display()
+                );
+            }
+            allowed_working_dirs.push(canonical);
+        }
+
+        Ok(Self {
+            allowed_program_names,
+            allowed_program_paths,
+            allowed_working_dirs,
+            allowed_env_vars: config.allowed_env_vars.into_iter().collect(),
+            max_duration_ms: config.max_duration_ms,
+            max_log_bytes: config.max_log_bytes,
+            executions: RwLock::new(HashMap::new()),
+            next_id: AtomicU64::new(0),
+        })
+    }
+
+    fn validate_start(
+        &self,
+        request: &LocalExecStartRequest,
+    ) -> Result<ValidatedLiveExecStart, String> {
+        if request.command.program.trim().is_empty() {
+            return Err("local exec program is required".to_string());
+        }
+        if request.command.program.contains('*') {
+            return Err("local exec program wildcard is not allowed".to_string());
+        }
+        if !self.is_program_allowed(&request.command.program) {
+            return Err("local exec program is not allowed by host policy".to_string());
+        }
+
+        let cwd = request
+            .cwd
+            .as_ref()
+            .ok_or_else(|| "local exec cwd is required by live executor".to_string())?;
+        let cwd = std::fs::canonicalize(cwd)
+            .map_err(|_| "local exec cwd is missing or unsafe".to_string())?;
+        if !cwd.is_dir()
+            || !self
+                .allowed_working_dirs
+                .iter()
+                .any(|allowed| cwd.starts_with(allowed))
+        {
+            return Err("local exec cwd is not allowed by host policy".to_string());
+        }
+
+        for key in request.env.keys() {
+            if key.trim().is_empty() || key.contains('=') || !self.allowed_env_vars.contains(key) {
+                return Err("local exec env key is not allowed by host policy".to_string());
+            }
+        }
+
+        let requested_duration = request.resource_limits.max_duration_ms;
+        if requested_duration == Some(0) {
+            return Err("local exec max_duration_ms must be greater than zero".to_string());
+        }
+        let max_duration_ms = requested_duration
+            .map(|requested| requested.min(self.max_duration_ms))
+            .unwrap_or(self.max_duration_ms);
+
+        let requested_log_bytes = request.resource_limits.max_log_bytes;
+        if requested_log_bytes == Some(0) {
+            return Err("local exec max_log_bytes must be greater than zero".to_string());
+        }
+        let max_log_bytes = requested_log_bytes
+            .map(|requested| requested.min(self.max_log_bytes))
+            .unwrap_or(self.max_log_bytes);
+
+        Ok(ValidatedLiveExecStart {
+            cwd,
+            max_duration_ms,
+            max_log_bytes,
+        })
+    }
+
+    fn is_program_allowed(&self, program: &str) -> bool {
+        let path = PathBuf::from(program);
+        if path.is_absolute() {
+            return std::fs::canonicalize(path)
+                .ok()
+                .is_some_and(|canonical| self.allowed_program_paths.contains(&canonical));
+        }
+        self.allowed_program_names.contains(program)
+    }
+
+    async fn update_status_from_child(&self, exec_id: &str, state: &LiveExecState) {
+        let mut child_guard = state.child.lock().await;
+        let Some(child) = child_guard.as_mut() else {
+            return;
+        };
+        let Ok(Some(exit)) = child.try_wait() else {
+            return;
+        };
+        *child_guard = None;
+        let mut status = state.status.write().await;
+        status.kind = if exit.success() {
+            ExecStatusKind::Exited
+        } else {
+            ExecStatusKind::Failed
+        };
+        status.exit_code = exit.code();
+        status.message = Some(if exit.success() {
+            "local exec exited".to_string()
+        } else {
+            "local exec failed".to_string()
+        });
+        status.ready = false;
+        status.exec_id = Some(exec_id.to_string());
+    }
+
+    async fn denied_start(message: impl Into<String>) -> LocalExecStartResponse {
+        let message = message.into();
+        LocalExecStartResponse {
+            exec_id: None,
+            status: ExecStatus::denied(message.clone()),
+            error: Some(message),
+        }
+    }
+}
+
+struct ValidatedLiveExecStart {
+    cwd: PathBuf,
+    max_duration_ms: u64,
+    max_log_bytes: u64,
+}
+
+#[async_trait]
+impl LocalExecExecutor for LiveLocalExecExecutor {
+    async fn start(
+        &self,
+        request: LocalExecStartRequest,
+    ) -> anyhow::Result<LocalExecStartResponse> {
+        let validated = match self.validate_start(&request) {
+            Ok(validated) => validated,
+            Err(message) => return Ok(Self::denied_start(message).await),
+        };
+
+        let mut command = Command::new(&request.command.program);
+        command
+            .args(&request.command.args)
+            .current_dir(&validated.cwd)
+            .env_clear()
+            .envs(&request.env)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(_) => {
+                return Ok(Self::denied_start("local exec failed to spawn allowed program").await)
+            }
+        };
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let sequence = self.next_id.fetch_add(1, Ordering::SeqCst);
+        let exec_id = format!("live-exec-{sequence:06}");
+        let status = ExecStatus {
+            exec_id: Some(exec_id.clone()),
+            target_id: Some(request.target_id),
+            kind: ExecStatusKind::Running,
+            exit_code: None,
+            message: Some("local exec running".to_string()),
+            ready: true,
+        };
+        let state = Arc::new(LiveExecState {
+            status: RwLock::new(status.clone()),
+            logs: RwLock::new(Vec::new()),
+            next_seq: AtomicU64::new(1),
+            child: Mutex::new(Some(child)),
+            log_bytes: AtomicU64::new(0),
+            max_log_bytes: validated.max_log_bytes,
+        });
+        self.executions
+            .write()
+            .await
+            .insert(exec_id.clone(), state.clone());
+
+        append_live_log(
+            &state,
+            LocalExecLogStream::System,
+            "local exec started",
+            &[],
+        )
+        .await;
+        let redaction_values: Vec<String> = request
+            .env
+            .values()
+            .filter(|value| value.len() >= 3)
+            .cloned()
+            .collect();
+        if let Some(stdout) = stdout {
+            tokio::spawn(read_live_log_stream(
+                state.clone(),
+                stdout,
+                LocalExecLogStream::Stdout,
+                redaction_values.clone(),
+            ));
+        }
+        if let Some(stderr) = stderr {
+            tokio::spawn(read_live_log_stream(
+                state.clone(),
+                stderr,
+                LocalExecLogStream::Stderr,
+                redaction_values,
+            ));
+        }
+
+        let timeout_state = state.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(validated.max_duration_ms)).await;
+            let mut child_guard = timeout_state.child.lock().await;
+            let Some(child) = child_guard.as_mut() else {
+                return;
+            };
+            if let Ok(Some(exit)) = child.try_wait() {
+                let mut status = timeout_state.status.write().await;
+                status.kind = if exit.success() {
+                    ExecStatusKind::Exited
+                } else {
+                    ExecStatusKind::Failed
+                };
+                status.exit_code = exit.code();
+                status.message = Some(if exit.success() {
+                    "local exec exited".to_string()
+                } else {
+                    "local exec failed".to_string()
+                });
+                status.ready = false;
+                *child_guard = None;
+                return;
+            }
+            let _ = child.start_kill();
+            let _ = child.wait().await;
+            *child_guard = None;
+            let mut status = timeout_state.status.write().await;
+            status.kind = ExecStatusKind::Failed;
+            status.exit_code = None;
+            status.message = Some("local exec timed out and was killed".to_string());
+            status.ready = false;
+            drop(status);
+            append_live_log(
+                &timeout_state,
+                LocalExecLogStream::System,
+                "local exec timed out and was killed",
+                &[],
+            )
+            .await;
+        });
+
+        Ok(LocalExecStartResponse {
+            exec_id: Some(exec_id),
+            status,
+            error: None,
+        })
+    }
+
+    async fn stop(&self, request: LocalExecStopRequest) -> anyhow::Result<LocalExecStopResponse> {
+        let Some(state) = self.executions.read().await.get(&request.exec_id).cloned() else {
+            let status = ExecStatus {
+                exec_id: Some(request.exec_id.clone()),
+                target_id: None,
+                kind: ExecStatusKind::Unknown,
+                exit_code: None,
+                message: Some("local exec not found".to_string()),
+                ready: false,
+            };
+            return Ok(LocalExecStopResponse {
+                exec_id: request.exec_id,
+                status,
+                error: Some("local exec not found".to_string()),
+            });
+        };
+
+        let mut child_guard = state.child.lock().await;
+        if let Some(child) = child_guard.as_mut() {
+            // Phase 3b uses tokio Child::start_kill for test-friendly behavior.
+            // A later hardening pass can replace this with Unix process-group
+            // termination for descendants.
+            let _ = child.start_kill();
+            let _ = child.wait().await;
+            *child_guard = None;
+        }
+        drop(child_guard);
+
+        let mut status_guard = state.status.write().await;
+        status_guard.kind = ExecStatusKind::Stopped;
+        status_guard.exit_code = None;
+        status_guard.message = Some("local exec stopped".to_string());
+        status_guard.ready = false;
+        drop(status_guard);
+        append_live_log(
+            &state,
+            LocalExecLogStream::System,
+            "local exec stopped",
+            &[],
+        )
+        .await;
+        let status = state.status.read().await.clone();
+
+        Ok(LocalExecStopResponse {
+            exec_id: request.exec_id,
+            status,
+            error: None,
+        })
+    }
+
+    async fn status(
+        &self,
+        request: LocalExecStatusRequest,
+    ) -> anyhow::Result<LocalExecStatusResponse> {
+        let Some(state) = self.executions.read().await.get(&request.exec_id).cloned() else {
+            return Ok(LocalExecStatusResponse {
+                status: ExecStatus {
+                    exec_id: Some(request.exec_id),
+                    target_id: None,
+                    kind: ExecStatusKind::Unknown,
+                    exit_code: None,
+                    message: Some("local exec not found".to_string()),
+                    ready: false,
+                },
+                error: Some("local exec not found".to_string()),
+            });
+        };
+        self.update_status_from_child(&request.exec_id, &state)
+            .await;
+        let status = state.status.read().await.clone();
+        Ok(LocalExecStatusResponse {
+            status,
+            error: None,
+        })
+    }
+
+    async fn logs(&self, request: LocalExecLogsRequest) -> anyhow::Result<LocalExecLogsResponse> {
+        let Some(state) = self.executions.read().await.get(&request.exec_id).cloned() else {
+            return Ok(LocalExecLogsResponse {
+                exec_id: request.exec_id,
+                lines: Vec::new(),
+                next_seq: None,
+                error: Some("local exec not found".to_string()),
+            });
+        };
+        let since = request.since_seq.unwrap_or(0);
+        let limit = request.limit.unwrap_or(100) as usize;
+        let lines: Vec<_> = state
+            .logs
+            .read()
+            .await
+            .iter()
+            .filter(|line| line.seq > since)
+            .take(limit)
+            .cloned()
+            .collect();
+        let next_seq = lines.last().map(|line| line.seq + 1);
+        Ok(LocalExecLogsResponse {
+            exec_id: request.exec_id,
+            lines,
+            next_seq,
+            error: None,
+        })
     }
 }
 
@@ -308,7 +772,10 @@ pub struct FakeLocalExecExecutor;
 
 #[async_trait]
 impl LocalExecExecutor for FakeLocalExecExecutor {
-    async fn start(&self, request: LocalExecStartRequest) -> anyhow::Result<LocalExecStartResponse> {
+    async fn start(
+        &self,
+        request: LocalExecStartRequest,
+    ) -> anyhow::Result<LocalExecStartResponse> {
         let exec_id = fake_exec_id(&request.target_id, &request.command.program);
         let status = ExecStatus {
             exec_id: Some(exec_id.clone()),
@@ -387,7 +854,11 @@ impl LocalExecExecutor for FakeLocalExecExecutor {
 }
 
 fn fake_exec_id(target_id: &str, program: &str) -> ExecId {
-    format!("fake-exec-{}-{}", sanitize_id(target_id), sanitize_id(program))
+    format!(
+        "fake-exec-{}-{}",
+        sanitize_id(target_id),
+        sanitize_id(program)
+    )
 }
 
 fn sanitize_id(input: &str) -> String {
@@ -407,6 +878,311 @@ fn sanitize_id(input: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn first_existing(paths: &[&str]) -> Option<PathBuf> {
+        paths.iter().map(PathBuf::from).find(|path| path.exists())
+    }
+
+    fn request(program: &Path, cwd: &Path, args: Vec<String>) -> LocalExecStartRequest {
+        LocalExecStartRequest {
+            target_id: "local".to_string(),
+            command: ExecCommand {
+                program: program.display().to_string(),
+                args,
+            },
+            cwd: Some(cwd.to_path_buf()),
+            env: BTreeMap::new(),
+            lifecycle: ExecLifecyclePolicy::StopOnSessionClose,
+            resource_limits: ExecResourceLimits {
+                max_duration_ms: Some(1_000),
+                max_log_bytes: Some(4_096),
+                ..ExecResourceLimits::default()
+            },
+            readiness_probe: ReadinessProbe::default(),
+            port_names: Vec::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn live_local_exec_runs_allowed_tiny_command() -> anyhow::Result<()> {
+        let Some(echo) = first_existing(&["/bin/echo", "/usr/bin/echo"]) else {
+            eprintln!("skipping: echo binary not found");
+            return Ok(());
+        };
+        let tmp = tempfile::tempdir()?;
+        let executor = LiveLocalExecExecutor::new(LiveLocalExecExecutorConfig::new(
+            vec![echo.display().to_string()],
+            vec![tmp.path().to_path_buf()],
+            Vec::new(),
+            5_000,
+            4_096,
+        )?)?;
+
+        let response = executor
+            .start(request(
+                &echo,
+                tmp.path(),
+                vec!["hello-local-exec".to_string()],
+            ))
+            .await?;
+        let exec_id = response.exec_id.expect("exec id");
+        for _ in 0..20 {
+            let status = executor
+                .status(LocalExecStatusRequest {
+                    exec_id: exec_id.clone(),
+                })
+                .await?
+                .status;
+            if status.kind == ExecStatusKind::Exited {
+                assert_eq!(status.exit_code, Some(0));
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        for _ in 0..20 {
+            let logs = executor
+                .logs(LocalExecLogsRequest {
+                    exec_id: exec_id.clone(),
+                    since_seq: None,
+                    limit: Some(20),
+                })
+                .await?;
+            if logs
+                .lines
+                .iter()
+                .any(|line| line.message_redacted.contains("hello-local-exec"))
+            {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        let logs = executor
+            .logs(LocalExecLogsRequest {
+                exec_id,
+                since_seq: None,
+                limit: Some(20),
+            })
+            .await?;
+        assert!(logs
+            .lines
+            .iter()
+            .any(|line| line.message_redacted.contains("hello-local-exec")));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn live_local_exec_rejects_disallowed_program_and_cwd() -> anyhow::Result<()> {
+        let Some(echo) = first_existing(&["/bin/echo", "/usr/bin/echo"]) else {
+            eprintln!("skipping: echo binary not found");
+            return Ok(());
+        };
+        let tmp = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        let executor = LiveLocalExecExecutor::new(LiveLocalExecExecutorConfig::new(
+            vec![echo.display().to_string()],
+            vec![tmp.path().to_path_buf()],
+            Vec::new(),
+            5_000,
+            4_096,
+        )?)?;
+
+        let disallowed_program = PathBuf::from("/definitely/not/allowed");
+        let rejected = executor
+            .start(request(&disallowed_program, tmp.path(), Vec::new()))
+            .await?;
+        assert_eq!(rejected.status.kind, ExecStatusKind::Denied);
+        assert!(rejected.error.unwrap_or_default().contains("program"));
+
+        let rejected = executor
+            .start(request(&echo, outside.path(), Vec::new()))
+            .await?;
+        assert_eq!(rejected.status.kind, ExecStatusKind::Denied);
+        assert!(rejected.error.unwrap_or_default().contains("cwd"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn live_local_exec_timeout_kills_long_running_command() -> anyhow::Result<()> {
+        let Some(sleep) = first_existing(&["/bin/sleep", "/usr/bin/sleep"]) else {
+            eprintln!("skipping: sleep binary not found");
+            return Ok(());
+        };
+        let tmp = tempfile::tempdir()?;
+        let executor = LiveLocalExecExecutor::new(LiveLocalExecExecutorConfig::new(
+            vec![sleep.display().to_string()],
+            vec![tmp.path().to_path_buf()],
+            Vec::new(),
+            100,
+            4_096,
+        )?)?;
+        let response = executor
+            .start(request(&sleep, tmp.path(), vec!["5".to_string()]))
+            .await?;
+        let exec_id = response.exec_id.expect("exec id");
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        let status = executor
+            .status(LocalExecStatusRequest { exec_id })
+            .await?
+            .status;
+        assert_eq!(status.kind, ExecStatusKind::Failed);
+        assert!(status.message.unwrap_or_default().contains("timed out"));
+        Ok(())
+    }
+}
+
+fn validate_allowed_programs(programs: &[String]) -> anyhow::Result<()> {
+    if programs.is_empty() {
+        anyhow::bail!("local exec allowed_programs must not be empty");
+    }
+    for program in programs {
+        if program.trim().is_empty() || program.contains('*') {
+            anyhow::bail!("local exec allowed_programs must not contain empty or wildcard entries");
+        }
+        let path = Path::new(program);
+        if path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
+            anyhow::bail!(
+                "local exec allowed_programs must not contain parent-directory components"
+            );
+        }
+        if path.is_absolute() && !path.exists() {
+            anyhow::bail!(
+                "local exec allowed program path does not exist: {}",
+                path.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_allowed_working_dirs(dirs: &[PathBuf]) -> anyhow::Result<()> {
+    if dirs.is_empty() {
+        anyhow::bail!("local exec allowed_working_dirs must not be empty");
+    }
+    for dir in dirs {
+        let raw = dir.to_string_lossy();
+        if raw.trim().is_empty() || raw.contains('*') {
+            anyhow::bail!(
+                "local exec allowed_working_dirs must not contain empty or wildcard entries"
+            );
+        }
+        if dir
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
+            anyhow::bail!(
+                "local exec allowed_working_dirs must not contain parent-directory components"
+            );
+        }
+        if !dir.exists() {
+            anyhow::bail!(
+                "local exec allowed working dir does not exist: {}",
+                dir.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_allowed_env_vars(keys: &[String]) -> anyhow::Result<()> {
+    for key in keys {
+        if key.trim().is_empty() || key.contains('=') || key.contains('*') {
+            anyhow::bail!("local exec allowed_env_vars must not contain empty or wildcard entries");
+        }
+    }
+    Ok(())
+}
+
+async fn read_live_log_stream<R>(
+    state: Arc<LiveExecState>,
+    mut reader: R,
+    stream: LocalExecLogStream,
+    redaction_values: Vec<String>,
+) where
+    R: tokio::io::AsyncRead + Unpin,
+{
+    let mut buffer = [0_u8; 4096];
+    loop {
+        let Ok(read) = reader.read(&mut buffer).await else {
+            break;
+        };
+        if read == 0 {
+            break;
+        }
+        let message = String::from_utf8_lossy(&buffer[..read]).to_string();
+        append_live_log(&state, stream, &message, &redaction_values).await;
+    }
+}
+
+async fn append_live_log(
+    state: &LiveExecState,
+    stream: LocalExecLogStream,
+    message: &str,
+    redaction_values: &[String],
+) {
+    let mut redacted = redact_live_log_message(message, redaction_values);
+    let remaining = remaining_log_bytes(state);
+    if remaining == 0 {
+        return;
+    }
+    let mut bytes = redacted.into_bytes();
+    if bytes.len() > remaining {
+        bytes.truncate(remaining);
+        bytes.extend_from_slice(b"...[truncated]");
+    }
+    let consumed = bytes.len() as u64;
+    let previous = state.log_bytes.fetch_add(consumed, Ordering::SeqCst);
+    if previous >= state.max_log_bytes {
+        return;
+    }
+    let allowed = (state.max_log_bytes - previous) as usize;
+    if bytes.len() > allowed {
+        bytes.truncate(allowed);
+    }
+    redacted = String::from_utf8_lossy(&bytes).to_string();
+    let seq = state.next_seq.fetch_add(1, Ordering::SeqCst);
+    state.logs.write().await.push(LocalExecLogLine {
+        seq,
+        stream,
+        message_redacted: redacted,
+    });
+}
+
+fn remaining_log_bytes(state: &LiveExecState) -> usize {
+    let used = state.log_bytes.load(Ordering::SeqCst);
+    state.max_log_bytes.saturating_sub(used) as usize
+}
+
+fn redact_live_log_message(message: &str, redaction_values: &[String]) -> String {
+    let mut redacted = message.to_string();
+    for value in redaction_values {
+        if !value.is_empty() {
+            redacted = redacted.replace(value, "[REDACTED]");
+        }
+    }
+    for token in redacted
+        .split_whitespace()
+        .map(str::to_string)
+        .collect::<Vec<_>>()
+    {
+        let lowered = token.to_ascii_lowercase();
+        if lowered.contains("secret")
+            || lowered.contains("token")
+            || lowered.contains("password")
+            || lowered.contains("apikey")
+            || lowered.contains("api_key")
+        {
+            redacted = redacted.replace(&token, "[REDACTED]");
+        }
+    }
+    redacted
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -475,10 +1251,7 @@ impl ExecutionTargetRegistry {
     }
 
     pub async fn register(&self, target: ExecutionTarget) -> Option<ExecutionTarget> {
-        self.targets
-            .write()
-            .await
-            .insert(target.id.clone(), target)
+        self.targets.write().await.insert(target.id.clone(), target)
     }
 
     pub async fn unregister(&self, target_id: &str) -> Option<ExecutionTarget> {

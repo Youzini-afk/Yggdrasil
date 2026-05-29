@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde_json::json;
-use ygg_runtime::{CapabilityInvocationRequest, ProtocolContext};
+use ygg_runtime::{CapabilityInvocationRequest, ProtocolContext, RuntimeConfig};
 
 use super::fixtures::*;
 use crate::commands::manifest;
@@ -114,6 +114,107 @@ pub(crate) async fn composition_lab() -> anyhow::Result<()> {
         graph.output["kind"] == json!("composition_surface_graph"),
         "composition lab surface_graph returned wrong kind"
     );
+    Ok(())
+}
+
+pub(crate) async fn docker_runtime_lab_contract_and_plan() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/docker-runtime-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
+    let input = json!({
+        "image": "nginx:alpine",
+        "container_port": 80,
+        "host_port": 39180,
+        "route_id": "conformance-docker-route",
+        "port_lease_id": "lease-conformance-docker-route"
+    });
+    let plan = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("official/docker-runtime-lab/plan_container".to_string()),
+            caller_package_id: None,
+            provider_package_id: Some("official/docker-runtime-lab".to_string()),
+            version: None,
+            session_id: None,
+            input,
+        })
+        .await?;
+    anyhow::ensure!(plan.output["valid"] == json!(true));
+    anyhow::ensure!(plan.output["docker_performed"] == json!(false));
+    anyhow::ensure!(plan.output["bind_host"] == json!("127.0.0.1"));
+    anyhow::ensure!(plan.output["requires_host_port_lease"] == json!(true));
+    anyhow::ensure!(plan.output["requires_proxy_route"] == json!(true));
+    Ok(())
+}
+
+pub(crate) async fn docker_runtime_lab_blocks_dangerous_spec() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/docker-runtime-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
+    let validation = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("official/docker-runtime-lab/validate_spec".to_string()),
+            caller_package_id: None,
+            provider_package_id: Some("official/docker-runtime-lab".to_string()),
+            version: None,
+            session_id: None,
+            input: json!({
+                "image": "nginx:alpine",
+                "container_port": 80,
+                "host_port": 39180,
+                "route_id": "bad-route",
+                "port_lease_id": "lease-bad-route",
+                "privileged": true,
+                "network_mode": "host",
+                "binds": ["/:/host"],
+                "env": {"RAW_SECRET": "sk-dangerous"}
+            }),
+        })
+        .await?;
+    anyhow::ensure!(validation.output["valid"] == json!(false));
+    let codes = validation.output["diagnostics"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("diagnostics missing"))?
+        .iter()
+        .filter_map(|item| item["code"].as_str())
+        .collect::<Vec<_>>();
+    anyhow::ensure!(codes.contains(&"privileged_blocked"));
+    anyhow::ensure!(codes.contains(&"network_mode_blocked"));
+    anyhow::ensure!(codes.contains(&"mounts_blocked"));
+    anyhow::ensure!(codes.contains(&"env_or_secret_blocked"));
+    Ok(())
+}
+
+pub(crate) async fn deployment_hub_local_exec_default_deny_all() -> anyhow::Result<()> {
+    let store = std::sync::Arc::new(ygg_runtime::InMemoryEventStore::default());
+    let runtime = ygg_runtime::Runtime::new(store, RuntimeConfig::default());
+    let response = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.exec.start",
+            json!({
+                "target_id": "local",
+                "command": {"program": "echo", "args": ["should-not-run"]},
+                "cwd": "/tmp"
+            }),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(response["status"]["kind"] == json!("denied"));
+    anyhow::ensure!(response["exec_id"].is_null());
     Ok(())
 }
 

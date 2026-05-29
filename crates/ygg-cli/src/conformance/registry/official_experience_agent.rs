@@ -24,6 +24,21 @@ pub(super) fn official_foundation_labs_cases() -> Vec<ConformanceCase> {
             ["official", "slow"],
             crate::conformance::official_play_creation::blank_play_creation_loop
         ),
+        c!(
+            "deployment_hub.local_exec_default_deny_all",
+            ["deployment_hub", "exec", "permission"],
+            crate::conformance::official_labs::deployment_hub_local_exec_default_deny_all
+        ),
+        c!(
+            "docker_runtime_lab.contract_and_plan",
+            ["deployment_hub", "docker", "official"],
+            crate::conformance::official_labs::docker_runtime_lab_contract_and_plan
+        ),
+        c!(
+            "docker_runtime_lab.blocks_dangerous_spec",
+            ["deployment_hub", "docker", "official", "security"],
+            crate::conformance::official_labs::docker_runtime_lab_blocks_dangerous_spec
+        ),
     ]
 }
 

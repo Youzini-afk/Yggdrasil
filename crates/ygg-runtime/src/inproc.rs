@@ -19,6 +19,7 @@ mod agentic_forge_lab;
 mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
+mod docker_runtime_lab;
 mod experience_observability_lab;
 mod experience_runtime_lab;
 mod git_tools_lab;
@@ -311,6 +312,7 @@ async fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> 
         "official/persona-lab" => persona_lab::try_handle(request),
         "official/knowledge-lab" => knowledge_lab::try_handle(request),
         "official/context-lab" => context_lab::try_handle(request),
+        "official/docker-runtime-lab" => docker_runtime_lab::try_handle(request),
         "official/text-transform-lab" => text_transform_lab::try_handle(request),
         "official/model-connector-lab" => model_connector_lab::try_handle(request),
         "official/model-provider-lab" => model_provider_lab::try_handle(request),

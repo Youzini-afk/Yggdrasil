@@ -477,6 +477,14 @@ export interface LocalExecPermissions {
 
 export interface LocalExecStartRequest {
   "command": ExecCommand;
+  /**
+   * Required by the live executor. Fake/deny executors tolerate omission for backwards-compatible protocol fixtures.
+   */
+  "cwd"?: null | string;
+  /**
+   * Explicit environment to pass to the child. The live executor clears the inherited environment and forwards only keys allowed by host policy.
+   */
+  "env"?: Record<string, string>;
   "lifecycle"?: ExecLifecyclePolicy;
   "port_names"?: Array<string>;
   "readiness_probe"?: ReadinessProbe;

@@ -7,16 +7,17 @@ use anyhow::{Context, Result};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
     DenyAllWebSocketExecutor, EventStore, FakeOutboundExecutor, FakeWebSocketExecutor,
-    InMemoryEventStore, LiveHttpOutboundExecutor, LiveWebSocketExecutor, LiveWebSocketProfile,
-    OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext, Runtime, RuntimeConfig,
-    SqliteEventStore, WebSocketExecutor,
+    InMemoryEventStore, LiveHttpOutboundExecutor, LiveLocalExecExecutor,
+    LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketProfile,
+    LocalExecExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext,
+    Runtime, RuntimeConfig, SqliteEventStore, WebSocketExecutor,
 };
 
 use super::manifest::read_manifest;
 use crate::cli::{
     HostEventStoreProfile, HostExecuteOutboundExecutorKind, HostExecuteOutboundProfile,
-    HostProfile, HostSecretResolverProfile, HostWebSocketOutboundExecutorKind,
-    HostWebSocketOutboundProfile,
+    HostLocalExecExecutorKind, HostLocalExecProfile, HostProfile, HostSecretResolverProfile,
+    HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
 };
 
 impl LiveWebSocketProfile for HostWebSocketOutboundProfile {
@@ -147,6 +148,7 @@ pub(crate) async fn host_serve(
 pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
     validate_execute_outbound_profile(&profile.outbound.execute)?;
     validate_websocket_outbound_profile(&profile.outbound.websocket)?;
+    validate_local_exec_profile(&profile.local_exec)?;
 
     let mut config = RuntimeConfig::default();
     // Y1: Wire outbound.execute profile into RuntimeConfig
@@ -163,6 +165,8 @@ pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfi
 
     config.outbound_websocket_executor =
         build_outbound_websocket_executor(&profile.outbound.websocket)?;
+
+    config.local_exec_executor = build_local_exec_executor(&profile.local_exec)?;
 
     config.secret_resolver = build_secret_resolver(&profile.secret_resolver)?;
     config.surface_dev_paths = profile.surface_dev_paths.clone();
@@ -358,6 +362,30 @@ pub(crate) fn build_outbound_websocket_executor(
     }
 }
 
+pub(crate) fn build_local_exec_executor(
+    profile: &HostLocalExecProfile,
+) -> Result<LocalExecExecutorConfig> {
+    if !profile.enabled {
+        return Ok(LocalExecExecutorConfig::DenyAll);
+    }
+    match profile.executor {
+        HostLocalExecExecutorKind::DenyAll => Ok(LocalExecExecutorConfig::DenyAll),
+        HostLocalExecExecutorKind::Fake => Ok(LocalExecExecutorConfig::Fake),
+        HostLocalExecExecutorKind::Live => {
+            let config = LiveLocalExecExecutorConfig::new(
+                profile.allowed_programs.clone(),
+                profile.allowed_working_dirs.clone(),
+                profile.allowed_env_vars.clone(),
+                profile.max_duration_ms,
+                profile.max_log_bytes,
+            )?;
+            Ok(LocalExecExecutorConfig::Custom(Arc::new(
+                LiveLocalExecExecutor::new(config)?,
+            )))
+        }
+    }
+}
+
 /// Validate the execute outbound profile section (Y1).
 ///
 /// Enforces fail-closed constraints:
@@ -446,6 +474,80 @@ pub(crate) fn validate_websocket_outbound_profile(
         anyhow::bail!(
             "outbound.websocket.allowed_hosts must not contain empty hosts or wildcard hosts"
         )
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_local_exec_profile(profile: &HostLocalExecProfile) -> Result<()> {
+    if profile.max_duration_ms == 0 {
+        anyhow::bail!("local_exec.max_duration_ms must be greater than zero");
+    }
+    if profile.max_log_bytes == 0 {
+        anyhow::bail!("local_exec.max_log_bytes must be greater than zero");
+    }
+    validate_local_exec_string_allowlist(
+        "local_exec.allowed_programs",
+        &profile.allowed_programs,
+        true,
+    )?;
+    validate_local_exec_string_allowlist(
+        "local_exec.allowed_env_vars",
+        &profile.allowed_env_vars,
+        false,
+    )?;
+    for dir in &profile.allowed_working_dirs {
+        let raw = dir.to_string_lossy();
+        if raw.trim().is_empty() || raw.contains('*') {
+            anyhow::bail!(
+                "local_exec.allowed_working_dirs must not contain empty or wildcard entries"
+            );
+        }
+        if dir
+            .components()
+            .any(|component| matches!(component, Component::ParentDir))
+        {
+            anyhow::bail!(
+                "local_exec.allowed_working_dirs must not contain parent-directory components"
+            );
+        }
+    }
+    if !profile.enabled {
+        return Ok(());
+    }
+    if matches!(profile.executor, HostLocalExecExecutorKind::Live) {
+        if profile.allowed_programs.is_empty() {
+            anyhow::bail!(
+                "local_exec.allowed_programs is required when local_exec is enabled with live executor"
+            );
+        }
+        if profile.allowed_working_dirs.is_empty() {
+            anyhow::bail!(
+                "local_exec.allowed_working_dirs is required when local_exec is enabled with live executor"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_local_exec_string_allowlist(
+    name: &str,
+    values: &[String],
+    reject_path_parent: bool,
+) -> Result<()> {
+    for value in values {
+        if value.trim().is_empty() || value.contains('*') {
+            anyhow::bail!("{name} must not contain empty or wildcard entries");
+        }
+        if reject_path_parent
+            && Path::new(value)
+                .components()
+                .any(|component| matches!(component, Component::ParentDir))
+        {
+            anyhow::bail!("{name} must not contain parent-directory components");
+        }
+        if !reject_path_parent && value.contains('=') {
+            anyhow::bail!("{name} must not contain '='");
+        }
     }
     Ok(())
 }

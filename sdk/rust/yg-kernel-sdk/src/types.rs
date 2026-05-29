@@ -14707,6 +14707,22 @@ impl ::std::default::Default for LocalExecPermissions {
 ///    "command": {
 ///      "$ref": "#/definitions/ExecCommand"
 ///    },
+///    "cwd": {
+///      "description": "Required by the live executor. Fake/deny executors tolerate omission for backwards-compatible protocol fixtures.",
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "env": {
+///      "description": "Explicit environment to pass to the child. The live executor clears the inherited environment and forwards only keys allowed by host policy.",
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": {
+///        "type": "string"
+///      }
+///    },
 ///    "lifecycle": {
 ///      "default": "stop_on_session_close",
 ///      "allOf": [
@@ -14760,6 +14776,12 @@ impl ::std::default::Default for LocalExecPermissions {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct LocalExecStartRequest {
     pub command: ExecCommand,
+    ///Required by the live executor. Fake/deny executors tolerate omission for backwards-compatible protocol fixtures.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub cwd: ::std::option::Option<::std::string::String>,
+    ///Explicit environment to pass to the child. The live executor clears the inherited environment and forwards only keys allowed by host policy.
+    #[serde(default, skip_serializing_if = ":: std :: collections :: HashMap::is_empty")]
+    pub env: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     #[serde(default = "defaults::local_exec_start_request_lifecycle")]
     pub lifecycle: ExecLifecyclePolicy,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]

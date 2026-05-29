@@ -2,6 +2,7 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 use ygg_cli::cli::HostProfile;
 use ygg_cli::commands::host::runtime_config_from_profile;
+use ygg_runtime::{ExecStatusKind, LocalExecExecutorConfig, LocalExecStartRequest};
 
 static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -48,6 +49,13 @@ impl Drop for EnvVarGuard {
 
 fn profile_from_yaml(yaml: &str) -> HostProfile {
     serde_yaml::from_str(yaml).expect("parse host profile")
+}
+
+fn first_existing(paths: &[&str]) -> Option<std::path::PathBuf> {
+    paths
+        .iter()
+        .map(std::path::PathBuf::from)
+        .find(|path| path.exists())
 }
 
 #[tokio::test]
@@ -113,4 +121,61 @@ async fn profile_with_store_disabled_denies_store_refs() {
         err.to_string().contains("no secret resolver configured"),
         "store-disabled empty profile should fail closed with DenyAll: {err}"
     );
+}
+
+#[test]
+fn host_profile_default_local_exec_yields_deny_all() {
+    let profile = profile_from_yaml("title: test\n");
+    let config = runtime_config_from_profile(&profile).expect("build runtime config");
+    assert!(matches!(
+        config.local_exec_executor,
+        LocalExecExecutorConfig::DenyAll
+    ));
+}
+
+#[test]
+fn host_profile_live_local_exec_rejects_empty_allowlists() {
+    let profile =
+        profile_from_yaml("title: test\nlocal_exec:\n  enabled: true\n  executor: live\n");
+    let err = match runtime_config_from_profile(&profile) {
+        Ok(_) => panic!("live local exec without allowlists should fail closed"),
+        Err(err) => err,
+    };
+    let msg = err.to_string();
+    assert!(msg.contains("allowed_programs") || msg.contains("allowed_working_dirs"));
+}
+
+#[tokio::test]
+async fn host_profile_live_local_exec_runs_allowed_tiny_command() -> anyhow::Result<()> {
+    let Some(echo) = first_existing(&["/bin/echo", "/usr/bin/echo"]) else {
+        eprintln!("skipping: echo binary not found");
+        return Ok(());
+    };
+    let tmp = tempfile::tempdir()?;
+    let yaml = format!(
+        "title: test\nlocal_exec:\n  enabled: true\n  executor: live\n  allowed_programs:\n    - {}\n  allowed_working_dirs:\n    - {}\n  max_duration_ms: 5000\n  max_log_bytes: 4096\n",
+        echo.display(),
+        tmp.path().display()
+    );
+    let profile = profile_from_yaml(&yaml);
+    let config = runtime_config_from_profile(&profile).expect("build runtime config");
+    let executor = config.local_exec_executor.executor();
+    let response = executor
+        .start(LocalExecStartRequest {
+            target_id: "local".to_string(),
+            command: ygg_runtime::ExecCommand {
+                program: echo.display().to_string(),
+                args: vec!["host-profile-local-exec".to_string()],
+            },
+            cwd: Some(tmp.path().to_path_buf()),
+            env: Default::default(),
+            lifecycle: ygg_runtime::ExecLifecyclePolicy::StopOnSessionClose,
+            resource_limits: ygg_runtime::ExecResourceLimits::default(),
+            readiness_probe: ygg_runtime::ReadinessProbe::default(),
+            port_names: Vec::new(),
+        })
+        .await?;
+    assert!(response.exec_id.is_some());
+    assert_eq!(response.status.kind, ExecStatusKind::Running);
+    Ok(())
 }

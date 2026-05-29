@@ -407,7 +407,10 @@ mod deployment_hub_tests {
 
         assert_eq!(result["status"]["kind"], "denied");
         assert!(result["exec_id"].is_null());
-        assert!(result["error"].as_str().unwrap_or_default().contains("denied"));
+        assert!(result["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("denied"));
     }
 
     #[tokio::test]

@@ -255,6 +255,8 @@ pub struct HostProfile {
     #[serde(default)]
     pub(crate) outbound: HostOutboundProfile,
     #[serde(default)]
+    pub(crate) local_exec: HostLocalExecProfile,
+    #[serde(default)]
     pub(crate) secret_resolver: HostSecretResolverProfile,
     #[serde(default)]
     pub(crate) autoload: Vec<PathBuf>,
@@ -332,6 +334,48 @@ impl Default for HostExecuteOutboundProfile {
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum HostExecuteOutboundExecutorKind {
+    #[default]
+    DenyAll,
+    Fake,
+    Live,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct HostLocalExecProfile {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) executor: HostLocalExecExecutorKind,
+    #[serde(default)]
+    pub(crate) allowed_programs: Vec<String>,
+    #[serde(default)]
+    pub(crate) allowed_working_dirs: Vec<PathBuf>,
+    #[serde(default)]
+    pub(crate) allowed_env_vars: Vec<String>,
+    #[serde(default = "default_local_exec_max_duration_ms")]
+    pub(crate) max_duration_ms: u64,
+    #[serde(default = "default_local_exec_max_log_bytes")]
+    pub(crate) max_log_bytes: u64,
+}
+
+impl Default for HostLocalExecProfile {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            executor: HostLocalExecExecutorKind::DenyAll,
+            allowed_programs: Vec::new(),
+            allowed_working_dirs: Vec::new(),
+            allowed_env_vars: Vec::new(),
+            max_duration_ms: default_local_exec_max_duration_ms(),
+            max_log_bytes: default_local_exec_max_log_bytes(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HostLocalExecExecutorKind {
     #[default]
     DenyAll,
     Fake,
@@ -432,6 +476,14 @@ fn default_execute_timeout_ms() -> u64 {
     30_000
 }
 
+fn default_local_exec_max_duration_ms() -> u64 {
+    30_000
+}
+
+fn default_local_exec_max_log_bytes() -> u64 {
+    65_536
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum HostEventStoreProfile {
@@ -499,6 +551,46 @@ mod tests {
             HostExecuteOutboundExecutorKind::DenyAll,
             "execute.executor should default to DenyAll"
         );
+    }
+
+    #[test]
+    fn host_profile_local_exec_default_disabled() {
+        let profile: HostProfile =
+            serde_yaml::from_str("title: test\n").expect("parse empty profile");
+        assert!(!profile.local_exec.enabled);
+        assert_eq!(
+            profile.local_exec.executor,
+            HostLocalExecExecutorKind::DenyAll
+        );
+    }
+
+    #[test]
+    fn host_profile_local_exec_parses_live_executor() {
+        let yaml = r#"
+title: test
+local_exec:
+  enabled: true
+  executor: live
+  allowed_programs:
+    - echo
+  allowed_working_dirs:
+    - /tmp
+  allowed_env_vars:
+    - YGG_TEST_VALUE
+  max_duration_ms: 1000
+  max_log_bytes: 2048
+"#;
+        let profile: HostProfile = serde_yaml::from_str(yaml).expect("parse local exec profile");
+        assert!(profile.local_exec.enabled);
+        assert_eq!(profile.local_exec.executor, HostLocalExecExecutorKind::Live);
+        assert_eq!(profile.local_exec.allowed_programs, vec!["echo"]);
+        assert_eq!(
+            profile.local_exec.allowed_working_dirs,
+            vec![PathBuf::from("/tmp")]
+        );
+        assert_eq!(profile.local_exec.allowed_env_vars, vec!["YGG_TEST_VALUE"]);
+        assert_eq!(profile.local_exec.max_duration_ms, 1000);
+        assert_eq!(profile.local_exec.max_log_bytes, 2048);
     }
 
     #[test]

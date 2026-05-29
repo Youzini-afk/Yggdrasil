@@ -9,7 +9,9 @@ where
     // --- Target ---
 
     pub(crate) async fn dispatch_target_list(&self) -> anyhow::Result<Value> {
-        Ok(serde_json::to_value(self.config.target_registry.list().await)?)
+        Ok(serde_json::to_value(
+            self.config.target_registry.list().await,
+        )?)
     }
 
     pub(crate) async fn dispatch_target_status(&self, params: &Value) -> anyhow::Result<Value> {
@@ -60,7 +62,12 @@ where
         )
         .await?;
 
-        let response = self.config.local_exec_executor.executor().start(request).await?;
+        let response = self
+            .config
+            .local_exec_executor
+            .executor()
+            .start(request)
+            .await?;
         self.config
             .exec_registry
             .upsert_from_status(&response.status)
@@ -96,7 +103,12 @@ where
         if request.exec_id.trim().is_empty() {
             anyhow::bail!("kernel.v1.exec.stop requires exec_id");
         }
-        let response = self.config.local_exec_executor.executor().stop(request).await?;
+        let response = self
+            .config
+            .local_exec_executor
+            .executor()
+            .stop(request)
+            .await?;
         self.config
             .exec_registry
             .upsert_from_status(&response.status)
@@ -121,7 +133,12 @@ where
         if request.exec_id.trim().is_empty() {
             anyhow::bail!("kernel.v1.exec.status requires exec_id");
         }
-        let response = self.config.local_exec_executor.executor().status(request).await?;
+        let response = self
+            .config
+            .local_exec_executor
+            .executor()
+            .status(request)
+            .await?;
         self.config
             .exec_registry
             .upsert_from_status(&response.status)
@@ -135,14 +152,20 @@ where
             anyhow::bail!("kernel.v1.exec.logs requires exec_id");
         }
         Ok(serde_json::to_value(
-            self.config.local_exec_executor.executor().logs(request).await?,
+            self.config
+                .local_exec_executor
+                .executor()
+                .logs(request)
+                .await?,
         )?)
     }
 
     pub(crate) async fn dispatch_exec_list(&self) -> anyhow::Result<Value> {
-        Ok(serde_json::to_value(crate::runtime::LocalExecListResponse {
-            executions: self.config.exec_registry.list().await,
-        })?)
+        Ok(serde_json::to_value(
+            crate::runtime::LocalExecListResponse {
+                executions: self.config.exec_registry.list().await,
+            },
+        )?)
     }
 
     // --- Port ---
@@ -341,7 +364,9 @@ where
         {
             let sessions = self.sessions.read().await;
             if matches!(
-                sessions.get(DEPLOYMENT_HUB_SESSION_ID).map(|session| &session.status),
+                sessions
+                    .get(DEPLOYMENT_HUB_SESSION_ID)
+                    .map(|session| &session.status),
                 Some(ygg_core::SessionStatus::Open)
             ) {
                 return Ok(DEPLOYMENT_HUB_SESSION_ID.to_string());

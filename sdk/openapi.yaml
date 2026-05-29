@@ -3321,6 +3321,18 @@ paths:
                   properties:
                     command:
                       $ref: '#/$defs/ExecCommand'
+                    cwd:
+                      default: null
+                      description: Required by the live executor. Fake/deny executors tolerate omission for backwards-compatible protocol fixtures.
+                      type:
+                      - string
+                      - 'null'
+                    env:
+                      additionalProperties:
+                        type: string
+                      default: {}
+                      description: Explicit environment to pass to the child. The live executor clears the inherited environment and forwards only keys allowed by host policy.
+                      type: object
                     lifecycle:
                       allOf:
                       - $ref: '#/$defs/ExecLifecyclePolicy'
