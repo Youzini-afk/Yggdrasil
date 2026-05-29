@@ -72,7 +72,7 @@ src/
 │   ├── kernel-client.tsx       # KernelProvider, useKernel, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
 │   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
-│   ├── project-deployment.ts   # Docker deployment descriptor parser for explicit Deploy broker
+│   ├── project-deployment.ts   # Docker and Build & Deploy descriptor parsers for explicit deploy brokers
 │   └── cn.ts                   # clsx + tailwind-merge composer
 ├── components/
 │   ├── icons.tsx               # Phosphor re-exports with semantic names
@@ -208,6 +208,12 @@ Project deployment is also explicit. If a project exposes
 controls. Deploy leases a loopback port, invokes `official/docker-runtime-lab`,
 then registers a reverse-proxy route. `kernel.v1.project.start` does not deploy
 anything automatically.
+
+If a project exposes `project.metadata.deployment.build_deploy`, the console can
+start a Build & Deploy job instead: clone source, build with Dockerfile or
+nixpacks, inject approved runtime env / volumes, deploy the built image, and
+stream job progress through the host broker. This still requires an explicit
+user action; project start remains a state/session transition only.
 
 ---
 

@@ -10,7 +10,7 @@
 - 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
 - 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、显式 Docker Deploy broker、target/exec/port/proxy 部署原语、ygg-service HTTP/WebSocket 反代、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
 - 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
-- Contract V1 是公开平台规范，80 methods + 58 events + 7 top-level = 145 个 schema 全部通过校验，446 conformance cases 通过。
+- Contract V1 是公开平台规范，80 methods + 59 events + 7 top-level = 146 个 schema 全部通过校验，447 conformance cases 通过。
 
 下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。
 
@@ -62,7 +62,7 @@
 - `yg secret put / list / delete` CLI。
 - OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
 - 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
-- 部署描述符 polish：Docker pull 进度、日志归档、volume 策略与外部项目 wizard 自动生成描述符。
+- 部署描述符 polish：Docker pull 进度、长期日志归档、Build & Deploy job 持久化，以及外部项目 wizard 自动生成描述符。
 - 远程目标与多端公开暴露：当前端口只绑 loopback。
 
 ### 模型与出站

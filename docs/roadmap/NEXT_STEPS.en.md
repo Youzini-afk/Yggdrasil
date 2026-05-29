@@ -10,7 +10,7 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
 - The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, explicit Docker Deploy broker, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
-- Contract V1 is the public platform spec; all 145 schemas (80 methods + 58 events + 7 top-level) validate, and 446 conformance cases pass.
+- Contract V1 is the public platform spec; all 146 schemas (80 methods + 59 events + 7 top-level) validate, and 447 conformance cases pass.
 
 The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 
@@ -62,7 +62,7 @@ These are known to-dos. Priority follows real friction.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
-- Deployment descriptor polish: Docker pull progress, log archival, volume policy, and external-project wizard generation.
+- Deployment descriptor polish: Docker pull progress, long-term log archival, Build & Deploy job persistence, and external-project wizard generation.
 - Remote targets and multi-client public exposure: ports currently bind to loopback only.
 
 ### Models and outbound

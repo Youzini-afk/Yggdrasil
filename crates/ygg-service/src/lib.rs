@@ -2832,6 +2832,7 @@ fn short_path_hash(path: &FsPath) -> String {
         .collect::<String>()
 }
 
+#[cfg(test)]
 fn should_remove_ygg_build_image(
     labels: &HashMap<String, String>,
     project_id: &str,
