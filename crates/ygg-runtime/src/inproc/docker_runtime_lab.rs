@@ -8,10 +8,14 @@
 use std::collections::HashMap;
 
 use bollard::container::LogOutput;
-use bollard::models::{ContainerCreateBody, HostConfig, PortBinding, PortMap};
+use bollard::models::{
+    ContainerCreateBody, ContainerSummary, ContainerSummaryStateEnum, HostConfig, PortBinding,
+    PortMap,
+};
 use bollard::query_parameters::{
     CreateContainerOptionsBuilder, CreateImageOptionsBuilder, InspectContainerOptionsBuilder,
-    LogsOptionsBuilder, RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
+    ListContainersOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder,
+    StopContainerOptionsBuilder,
 };
 use bollard::Docker;
 use futures::StreamExt;
@@ -46,6 +50,8 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(logs(request))
     } else if id.ends_with("/stop_container") {
         Some(stop_container(request))
+    } else if id.ends_with("/list_managed") {
+        Some(list_managed(request))
     } else {
         None
     }
@@ -63,7 +69,8 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/docker-runtime-lab/start_container", "docker_performed": true, "requires_approved_true": true},
             {"id": "official/docker-runtime-lab/status", "docker_performed": true},
             {"id": "official/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true},
-            {"id": "official/docker-runtime-lab/stop_container", "docker_performed": true}
+            {"id": "official/docker-runtime-lab/stop_container", "docker_performed": true},
+            {"id": "official/docker-runtime-lab/list_managed", "docker_performed": true, "label_filter": "managed-by=yggdrasil"}
         ],
         "host_owned_resources": {
             "port_lease": true,
@@ -303,6 +310,22 @@ fn stop_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 }
 
+fn list_managed(request: &InprocInvocation) -> anyhow::Result<Value> {
+    if safety::contains_raw_secret(&request.input) {
+        return Ok(rejected_output(request));
+    }
+    let result = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(async move { list_managed_async().await })
+    });
+    match result {
+        Ok(value) => Ok(with_provenance(value, request)),
+        Err(error) => Ok(with_provenance(
+            docker_error_output("list_managed", error),
+            request,
+        )),
+    }
+}
+
 async fn docker() -> Result<Docker, String> {
     let docker = Docker::connect_with_local_defaults()
         .or_else(|_| Docker::connect_with_defaults())
@@ -504,6 +527,50 @@ async fn stop_container_async(
         "timeout_secs": timeout_secs,
         "stop_error": stop_error,
         "docker_performed": true
+    }))
+}
+
+async fn list_managed_async() -> Result<Value, String> {
+    let docker = docker().await?;
+    let filters = HashMap::from([(
+        "label".to_string(),
+        vec!["managed-by=yggdrasil".to_string()],
+    )]);
+    let options = ListContainersOptionsBuilder::default()
+        .all(true)
+        .filters(&filters)
+        .build();
+    let containers = docker
+        .list_containers(Some(options))
+        .await
+        .map_err(|e| format!("docker list managed failed: {e}"))?;
+    let managed: Vec<Value> = containers
+        .iter()
+        .filter_map(managed_container_json)
+        .collect();
+    let count = managed.len();
+    Ok(serde_json::json!({
+        "kind": "docker_runtime_lab_managed_containers",
+        "managed": managed,
+        "count": count,
+        "docker_performed": true
+    }))
+}
+
+fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
+    let labels = container.labels.as_ref()?;
+    let route_id = labels.get("yggdrasil.route_id")?.clone();
+    let port_lease_id = labels.get("yggdrasil.port_lease_id")?.clone();
+    let running = matches!(container.state, Some(ContainerSummaryStateEnum::RUNNING));
+    let host_port = container
+        .ports
+        .as_ref()
+        .and_then(|ports| ports.iter().find_map(|port| port.public_port));
+    Some(serde_json::json!({
+        "route_id": route_id,
+        "port_lease_id": port_lease_id,
+        "running": running,
+        "host_port": host_port
     }))
 }
 
@@ -827,6 +894,36 @@ mod tests {
         assert_eq!(output["requires_host_port_lease"], true);
         assert_eq!(output["requires_proxy_route"], true);
         assert_eq!(output["docker_performed"], false);
+    }
+
+    #[test]
+    fn docker_runtime_lab_list_managed_shape_from_summary() {
+        let container = ContainerSummary {
+            labels: Some(HashMap::from([
+                ("managed-by".to_string(), "yggdrasil".to_string()),
+                (
+                    "yggdrasil.route_id".to_string(),
+                    "proxy-route-000001".to_string(),
+                ),
+                (
+                    "yggdrasil.port_lease_id".to_string(),
+                    "port-lease-000001".to_string(),
+                ),
+            ])),
+            state: Some(ContainerSummaryStateEnum::RUNNING),
+            ports: Some(vec![bollard::models::PortSummary {
+                ip: Some(BIND_HOST.to_string()),
+                private_port: 3000,
+                public_port: Some(39000),
+                typ: None,
+            }]),
+            ..ContainerSummary::default()
+        };
+        let output = managed_container_json(&container).expect("managed container report");
+        assert_eq!(output["route_id"], "proxy-route-000001");
+        assert_eq!(output["port_lease_id"], "port-lease-000001");
+        assert_eq!(output["running"], true);
+        assert_eq!(output["host_port"], 39000);
     }
 
     #[test]

@@ -49,3 +49,16 @@
 | `kernel/v1/outbound.websocket.frame` | [`./schemas/events/kernel__v1__outbound.websocket.frame.schema.json`](./schemas/events/kernel__v1__outbound.websocket.frame.schema.json) | kernel | 出站 WebSocket frame 已记录 | implemented |
 | `kernel/v1/outbound.websocket.error` | [`./schemas/events/kernel__v1__outbound.websocket.error.schema.json`](./schemas/events/kernel__v1__outbound.websocket.error.schema.json) | kernel | 出站 WebSocket 错误 | implemented |
 | `kernel/v1/outbound.websocket.completed` | [`./schemas/events/kernel__v1__outbound.websocket.completed.schema.json`](./schemas/events/kernel__v1__outbound.websocket.completed.schema.json) | kernel | 出站 WebSocket 完成/关闭 | implemented |
+| `kernel/v1/exec.request` | [`./schemas/events/kernel__v1__exec.request.schema.json`](./schemas/events/kernel__v1__exec.request.schema.json) | kernel | exec 请求已记录 | implemented |
+| `kernel/v1/exec.denied` | [`./schemas/events/kernel__v1__exec.denied.schema.json`](./schemas/events/kernel__v1__exec.denied.schema.json) | kernel | exec 请求被拒绝 | implemented |
+| `kernel/v1/exec.started` | [`./schemas/events/kernel__v1__exec.started.schema.json`](./schemas/events/kernel__v1__exec.started.schema.json) | kernel | exec 已启动 | implemented |
+| `kernel/v1/exec.stopped` | [`./schemas/events/kernel__v1__exec.stopped.schema.json`](./schemas/events/kernel__v1__exec.stopped.schema.json) | kernel | exec 已停止 | implemented |
+| `kernel/v1/exec.completed` | [`./schemas/events/kernel__v1__exec.completed.schema.json`](./schemas/events/kernel__v1__exec.completed.schema.json) | kernel | exec 已完成 | planned |
+| `kernel/v1/exec.failed` | [`./schemas/events/kernel__v1__exec.failed.schema.json`](./schemas/events/kernel__v1__exec.failed.schema.json) | kernel | exec 失败 | planned |
+| `kernel/v1/port.leased` | [`./schemas/events/kernel__v1__port.leased.schema.json`](./schemas/events/kernel__v1__port.leased.schema.json) | kernel | host port lease 已创建 | implemented |
+| `kernel/v1/port.released` | [`./schemas/events/kernel__v1__port.released.schema.json`](./schemas/events/kernel__v1__port.released.schema.json) | kernel | host port lease 已释放 | implemented |
+| `kernel/v1/port.denied` | [`./schemas/events/kernel__v1__port.denied.schema.json`](./schemas/events/kernel__v1__port.denied.schema.json) | kernel | host port lease 被拒绝 | implemented |
+| `kernel/v1/proxy.registered` | [`./schemas/events/kernel__v1__proxy.registered.schema.json`](./schemas/events/kernel__v1__proxy.registered.schema.json) | kernel | proxy route 已注册 | implemented |
+| `kernel/v1/proxy.unregistered` | [`./schemas/events/kernel__v1__proxy.unregistered.schema.json`](./schemas/events/kernel__v1__proxy.unregistered.schema.json) | kernel | proxy route 已移除 | implemented |
+| `kernel/v1/proxy.denied` | [`./schemas/events/kernel__v1__proxy.denied.schema.json`](./schemas/events/kernel__v1__proxy.denied.schema.json) | kernel | proxy 注册被拒绝 | implemented |
+| `kernel/v1/deployment.reconciled` | [`./schemas/events/kernel__v1__deployment.reconciled.schema.json`](./schemas/events/kernel__v1__deployment.reconciled.schema.json) | kernel | 启动后部署状态 reconcile 汇总 | implemented |

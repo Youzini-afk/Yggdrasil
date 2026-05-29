@@ -1,16 +1,17 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
     project::ProjectId, AssetRecord, EventEnvelope, KernelSession, PackageId, SessionId,
-    SessionStatus, EVENT_ASSET_PUT, EVENT_EXEC_DENIED, EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED,
-    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED, EVENT_PORT_RELEASED,
-    EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED,
-    EVENT_SESSION_FORKED,
+    SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_DENIED,
+    EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
+    EVENT_PORT_LEASED, EVENT_PORT_RELEASED, EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED,
+    EVENT_PROXY_UNREGISTERED, EVENT_SESSION_FORKED,
 };
 
 use crate::{
@@ -53,18 +54,18 @@ pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::handles::HandleTable;
 pub use self::local_exec::{
-    DenyAllLocalExecExecutor, ExecCommand, ExecId, ExecLifecyclePolicy, ExecRegistry,
-    ExecResourceLimits, ExecStatus, ExecStatusKind, ExecutionTarget, ExecutionTargetCapability,
-    ExecutionTargetId, ExecutionTargetReachability, ExecutionTargetRegistry,
-    ExecutionTargetStatusKind, FakeLocalExecExecutor, LiveLocalExecExecutor,
-    LiveLocalExecExecutorConfig, LocalExecExecutor, LocalExecExecutorConfig, LocalExecListResponse,
-    LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest, LocalExecLogsResponse,
-    LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse,
-    LocalExecStopRequest, LocalExecStopResponse, PortBindScope, PortLeaseId, PortLeaseRecord,
-    PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse, PortLeaseStatusKind, PortProtocol,
-    ProxyProtocol, ProxyRouteId, ProxyRouteRecord, ProxyRouteRegisterRequest,
-    ProxyRouteRegisterResponse, ProxyRouteRegistry, ProxyRouteStatusKind, ProxyRouteUpstream,
-    ReadinessProbe, ReadinessProbeKind,
+    DenyAllLocalExecExecutor, DeploymentReconcileSource, EmptyReconcileSource, ExecCommand, ExecId,
+    ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
+    ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetReachability,
+    ExecutionTargetRegistry, ExecutionTargetStatusKind, FakeLocalExecExecutor,
+    LiveLocalExecExecutor, LiveLocalExecExecutorConfig, LocalExecExecutor, LocalExecExecutorConfig,
+    LocalExecListResponse, LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest,
+    LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
+    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
+    PortBindScope, PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest,
+    PortLeaseResponse, PortLeaseStatusKind, PortProtocol, ProxyProtocol, ProxyRouteId,
+    ProxyRouteRecord, ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteRegistry,
+    ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe, ReadinessProbeKind,
 };
 pub use self::network::{
     check_network_policy, NetworkPolicyDecision, OutboundExecuteCompletion, OutboundRequest,
@@ -124,6 +125,8 @@ pub struct RuntimeConfig {
     pub port_lease_registry: Arc<PortLeaseRegistry>,
     /// In-memory placeholder proxy route registry.
     pub proxy_route_registry: Arc<ProxyRouteRegistry>,
+    /// Restart reconciliation truth source. Defaults empty (fail-safe cleanup).
+    pub deployment_reconcile_source: Arc<dyn DeploymentReconcileSource>,
     /// Development-mode surface bundle path overrides. Maps a surface_id prefix
     /// to a filesystem directory containing built bundles.
     pub surface_dev_paths: BTreeMap<String, String>,
@@ -150,6 +153,7 @@ impl Default for RuntimeConfig {
             target_registry: Arc::new(ExecutionTargetRegistry::default()),
             port_lease_registry: Arc::new(PortLeaseRegistry::default()),
             proxy_route_registry: Arc::new(ProxyRouteRegistry::default()),
+            deployment_reconcile_source: Arc::new(EmptyReconcileSource),
             surface_dev_paths: BTreeMap::new(),
             package_roots: BTreeMap::new(),
         }
@@ -164,6 +168,15 @@ impl Default for RuntimeConfig {
 pub(crate) struct StoredAsset {
     pub record: AssetRecord,
     pub content: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
+pub struct DeploymentReconcileSummary {
+    pub execs_failed: usize,
+    pub routes_promoted: usize,
+    pub routes_removed: usize,
+    pub leases_promoted: usize,
+    pub leases_released: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -505,6 +518,94 @@ where
         }
 
         Ok(())
+    }
+
+    pub async fn reconcile_deployment(&self) -> anyhow::Result<DeploymentReconcileSummary> {
+        let reports = self
+            .config
+            .deployment_reconcile_source
+            .list_managed()
+            .await?;
+        let running_by_route: HashMap<String, ManagedContainerReport> = reports
+            .into_iter()
+            .filter(|report| report.running)
+            .map(|report| (report.route_id.clone(), report))
+            .collect();
+
+        let mut summary = DeploymentReconcileSummary {
+            execs_failed: self
+                .config
+                .exec_registry
+                .reconcile_unknown_to_failed()
+                .await,
+            ..DeploymentReconcileSummary::default()
+        };
+
+        let routes = self.config.proxy_route_registry.list().await;
+        let mut promoted_lease_ids: HashSet<PortLeaseId> = HashSet::new();
+        for route in routes {
+            if route.status != ProxyRouteStatusKind::Stale {
+                continue;
+            }
+            let matching_running_container = running_by_route
+                .get(&route.id)
+                .is_some_and(|report| report.port_lease_id == route.upstream.port_lease_id);
+            if matching_running_container {
+                if self
+                    .config
+                    .proxy_route_registry
+                    .set_status(&route.id, ProxyRouteStatusKind::Active)
+                    .await
+                    .is_some()
+                {
+                    summary.routes_promoted += 1;
+                    promoted_lease_ids.insert(route.upstream.port_lease_id);
+                }
+            } else if self
+                .config
+                .proxy_route_registry
+                .set_status(&route.id, ProxyRouteStatusKind::Removed)
+                .await
+                .is_some()
+            {
+                summary.routes_removed += 1;
+            }
+        }
+
+        let leases = self.config.port_lease_registry.list().await;
+        for lease in leases {
+            if lease.status != PortLeaseStatusKind::Reserved {
+                continue;
+            }
+            if promoted_lease_ids.contains(&lease.id) {
+                if self
+                    .config
+                    .port_lease_registry
+                    .set_status(&lease.id, PortLeaseStatusKind::Active)
+                    .await
+                    .is_some()
+                {
+                    summary.leases_promoted += 1;
+                }
+            } else if self
+                .config
+                .port_lease_registry
+                .set_status(&lease.id, PortLeaseStatusKind::Released)
+                .await
+                .is_some()
+            {
+                summary.leases_released += 1;
+            }
+        }
+
+        self.append_kernel_event(
+            &"kernel_deployment_reconcile".to_string(),
+            EVENT_DEPLOYMENT_RECONCILED,
+            serde_json::to_value(&summary)?,
+        )
+        .await?;
+
+        Ok(summary)
     }
 
     // Private helper used across submodules — event-appending via kernel identity.

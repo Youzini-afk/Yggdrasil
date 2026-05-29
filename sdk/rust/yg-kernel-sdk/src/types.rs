@@ -5175,6 +5175,60 @@ pub enum DependencySource {
     #[serde(rename = "local")]
     Local { path: ::std::string::String },
 }
+///`DeploymentReconcileSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "DeploymentReconcileSummary",
+///  "type": "object",
+///  "required": [
+///    "execs_failed",
+///    "leases_promoted",
+///    "leases_released",
+///    "routes_promoted",
+///    "routes_removed"
+///  ],
+///  "properties": {
+///    "execs_failed": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "leases_promoted": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "leases_released": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "routes_promoted": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "routes_removed": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct DeploymentReconcileSummary {
+    pub execs_failed: u32,
+    pub leases_promoted: u32,
+    pub leases_released: u32,
+    pub routes_promoted: u32,
+    pub routes_removed: u32,
+}
 ///`EmptyParams`
 ///
 /// <details><summary>JSON schema</summary>

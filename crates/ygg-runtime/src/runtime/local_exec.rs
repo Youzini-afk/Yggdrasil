@@ -203,6 +203,28 @@ pub struct LocalExecListResponse {
     pub executions: Vec<ExecStatus>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ManagedContainerReport {
+    pub route_id: String,
+    pub port_lease_id: String,
+    pub running: bool,
+    pub host_port: Option<u16>,
+}
+
+#[async_trait]
+pub trait DeploymentReconcileSource: Send + Sync + 'static {
+    async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>>;
+}
+
+pub struct EmptyReconcileSource;
+
+#[async_trait]
+impl DeploymentReconcileSource for EmptyReconcileSource {
+    async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>> {
+        Ok(Vec::new())
+    }
+}
+
 #[derive(Default)]
 pub struct ExecRegistry {
     executions: RwLock<HashMap<ExecId, ExecStatus>>,
@@ -239,6 +261,20 @@ impl ExecRegistry {
 
     pub async fn list(&self) -> Vec<ExecStatus> {
         self.executions.read().await.values().cloned().collect()
+    }
+
+    pub async fn reconcile_unknown_to_failed(&self) -> usize {
+        let mut executions = self.executions.write().await;
+        let mut changed = 0;
+        for status in executions.values_mut() {
+            if status.kind == ExecStatusKind::Unknown {
+                status.kind = ExecStatusKind::Failed;
+                status.ready = false;
+                status.message = Some("local exec process lost after host restart".to_string());
+                changed += 1;
+            }
+        }
+        changed
     }
 }
 
@@ -1369,6 +1405,17 @@ impl PortLeaseRegistry {
         self.leases.read().await.get(lease_id).cloned()
     }
 
+    pub async fn set_status(
+        &self,
+        lease_id: &str,
+        status: PortLeaseStatusKind,
+    ) -> Option<PortLeaseRecord> {
+        let mut leases = self.leases.write().await;
+        let lease = leases.get_mut(lease_id)?;
+        lease.status = status;
+        Some(lease.clone())
+    }
+
     pub async fn list(&self) -> Vec<PortLeaseRecord> {
         self.leases.read().await.values().cloned().collect()
     }
@@ -1472,6 +1519,17 @@ impl ProxyRouteRegistry {
 
     pub async fn status(&self, route_id: &str) -> Option<ProxyRouteRecord> {
         self.routes.read().await.get(route_id).cloned()
+    }
+
+    pub async fn set_status(
+        &self,
+        route_id: &str,
+        status: ProxyRouteStatusKind,
+    ) -> Option<ProxyRouteRecord> {
+        let mut routes = self.routes.write().await;
+        let route = routes.get_mut(route_id)?;
+        route.status = status;
+        Some(route.clone())
     }
 
     pub async fn list(&self) -> Vec<ProxyRouteRecord> {

@@ -68,6 +68,7 @@ pub const EVENT_PORT_DENIED: &str = "kernel/v1/port.denied";
 pub const EVENT_PROXY_REGISTERED: &str = "kernel/v1/proxy.registered";
 pub const EVENT_PROXY_UNREGISTERED: &str = "kernel/v1/proxy.unregistered";
 pub const EVENT_PROXY_DENIED: &str = "kernel/v1/proxy.denied";
+pub const EVENT_DEPLOYMENT_RECONCILED: &str = "kernel/v1/deployment.reconciled";
 
 // ---------------------------------------------------------------------------
 // Outbound audit / redaction types (Phase S2)

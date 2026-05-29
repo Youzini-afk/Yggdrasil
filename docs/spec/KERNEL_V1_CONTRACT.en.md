@@ -180,7 +180,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `kernel.v1.extension_point.describe` | planned | Describe one extension point. |
 | `kernel.v1.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (57)
+## Event kind matrix (58)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -198,6 +198,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | exec | 6 | `exec.request`, `.started`, `.completed`, `.failed`, `.stopped`, `.denied` |
 | port | 3 | `port.leased`, `.released`, `.denied` |
 | proxy | 3 | `proxy.registered`, `.unregistered`, `.denied` |
+| deployment | 1 | `deployment.reconciled` |
 | error | 1 | `kernel/v1/error` |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/v1/...` or another package namespace.
@@ -279,12 +280,12 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 ## Schemas and error codes
 
 - Method schemas: `docs/spec/v1/schemas/methods/` (80).
-- Event schemas: `docs/spec/v1/schemas/events/` (57).
+- Event schemas: `docs/spec/v1/schemas/events/` (58).
 - Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (7).
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 144 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 145 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -455,7 +456,7 @@ Official and third-party surfaces use the same descriptors, permission declarati
 A v1 implementation must at least prove:
 
 1. 80 method schemas export.
-2. 57 event schemas validate.
+2. 58 event schemas validate.
 3. 7 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.

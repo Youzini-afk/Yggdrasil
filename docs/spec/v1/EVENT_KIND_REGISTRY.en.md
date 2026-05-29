@@ -49,3 +49,16 @@ This table lists kernel-reserved `kernel/v1/*` event kinds. Non-kernel packages 
 | `kernel/v1/outbound.websocket.frame` | [`./schemas/events/kernel__v1__outbound.websocket.frame.schema.json`](./schemas/events/kernel__v1__outbound.websocket.frame.schema.json) | kernel | Outbound WebSocket frame observed | implemented |
 | `kernel/v1/outbound.websocket.error` | [`./schemas/events/kernel__v1__outbound.websocket.error.schema.json`](./schemas/events/kernel__v1__outbound.websocket.error.schema.json) | kernel | Outbound WebSocket error | implemented |
 | `kernel/v1/outbound.websocket.completed` | [`./schemas/events/kernel__v1__outbound.websocket.completed.schema.json`](./schemas/events/kernel__v1__outbound.websocket.completed.schema.json) | kernel | Outbound WebSocket completed/closed | implemented |
+| `kernel/v1/exec.request` | [`./schemas/events/kernel__v1__exec.request.schema.json`](./schemas/events/kernel__v1__exec.request.schema.json) | kernel | Exec requested | implemented |
+| `kernel/v1/exec.denied` | [`./schemas/events/kernel__v1__exec.denied.schema.json`](./schemas/events/kernel__v1__exec.denied.schema.json) | kernel | Exec denied | implemented |
+| `kernel/v1/exec.started` | [`./schemas/events/kernel__v1__exec.started.schema.json`](./schemas/events/kernel__v1__exec.started.schema.json) | kernel | Exec started | implemented |
+| `kernel/v1/exec.stopped` | [`./schemas/events/kernel__v1__exec.stopped.schema.json`](./schemas/events/kernel__v1__exec.stopped.schema.json) | kernel | Exec stopped | implemented |
+| `kernel/v1/exec.completed` | [`./schemas/events/kernel__v1__exec.completed.schema.json`](./schemas/events/kernel__v1__exec.completed.schema.json) | kernel | Exec completed | planned |
+| `kernel/v1/exec.failed` | [`./schemas/events/kernel__v1__exec.failed.schema.json`](./schemas/events/kernel__v1__exec.failed.schema.json) | kernel | Exec failed | planned |
+| `kernel/v1/port.leased` | [`./schemas/events/kernel__v1__port.leased.schema.json`](./schemas/events/kernel__v1__port.leased.schema.json) | kernel | Host port lease created | implemented |
+| `kernel/v1/port.released` | [`./schemas/events/kernel__v1__port.released.schema.json`](./schemas/events/kernel__v1__port.released.schema.json) | kernel | Host port lease released | implemented |
+| `kernel/v1/port.denied` | [`./schemas/events/kernel__v1__port.denied.schema.json`](./schemas/events/kernel__v1__port.denied.schema.json) | kernel | Host port lease denied | implemented |
+| `kernel/v1/proxy.registered` | [`./schemas/events/kernel__v1__proxy.registered.schema.json`](./schemas/events/kernel__v1__proxy.registered.schema.json) | kernel | Proxy route registered | implemented |
+| `kernel/v1/proxy.unregistered` | [`./schemas/events/kernel__v1__proxy.unregistered.schema.json`](./schemas/events/kernel__v1__proxy.unregistered.schema.json) | kernel | Proxy route removed | implemented |
+| `kernel/v1/proxy.denied` | [`./schemas/events/kernel__v1__proxy.denied.schema.json`](./schemas/events/kernel__v1__proxy.denied.schema.json) | kernel | Proxy registration denied | implemented |
+| `kernel/v1/deployment.reconciled` | [`./schemas/events/kernel__v1__deployment.reconciled.schema.json`](./schemas/events/kernel__v1__deployment.reconciled.schema.json) | kernel | Deployment state reconciled after startup | implemented |

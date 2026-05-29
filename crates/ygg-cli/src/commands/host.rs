@@ -121,6 +121,10 @@ pub(crate) async fn host_serve(
                     .hydrate_deployment_from_events()
                     .await
                     .context("failed to rehydrate deployment from sqlite event log")?;
+                runtime
+                    .reconcile_deployment()
+                    .await
+                    .context("failed to reconcile deployment from sqlite event log")?;
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
                 serve_runtime(http, runtime, "sqlite", static_dir, access_token).await
             }
@@ -142,6 +146,10 @@ pub(crate) async fn host_serve(
                         .hydrate_deployment_from_events()
                         .await
                         .context("failed to rehydrate deployment from postgres event log")?;
+                    runtime
+                        .reconcile_deployment()
+                        .await
+                        .context("failed to reconcile deployment from postgres event log")?;
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
                     serve_runtime(http, runtime, "postgres", static_dir, access_token).await
                 }

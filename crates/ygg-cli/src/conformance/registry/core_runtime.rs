@@ -105,6 +105,21 @@ pub(super) fn core_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::deployment_sqlite_rehydrate
         ),
         c!(
+            "deployment.reconcile_empty_cleans_stale",
+            ["deployment", "deployment_hub", "reconcile"],
+            crate::conformance::protocol::deployment_reconcile_empty_cleans_stale
+        ),
+        c!(
+            "deployment.reconcile_promotes_live_container",
+            ["deployment", "deployment_hub", "reconcile"],
+            crate::conformance::protocol::deployment_reconcile_promotes_live_container
+        ),
+        c!(
+            "deployment.reconcile_exec_always_failed",
+            ["deployment", "deployment_hub", "reconcile"],
+            crate::conformance::protocol::deployment_reconcile_exec_always_failed
+        ),
+        c!(
             "capability.ambiguous_provider_denied",
             ["runtime", "capability"],
             crate::conformance::core::ambiguous_provider_denied

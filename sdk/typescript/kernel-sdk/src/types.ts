@@ -199,6 +199,14 @@ export type DependencySource = {
   "path": string;
 };
 
+export interface DeploymentReconcileSummary {
+  "execs_failed": number;
+  "leases_promoted": number;
+  "leases_released": number;
+  "routes_promoted": number;
+  "routes_removed": number;
+}
+
 export type EmptyParams = Record<string, unknown>;
 
 export type EntryDescriptor = {
