@@ -1668,6 +1668,24 @@ mod tests {
                 "port_lease_id": "lease-1",
                 "secrets": ["secret_ref:env:TOKEN"]
             }),
+            serde_json::json!({
+                "approved": true,
+                "image": "nginx:latest",
+                "container_port": 80,
+                "host_port": 8080,
+                "route_id": "route-1",
+                "port_lease_id": "lease-1",
+                "mounts": [{"source": "/tmp", "target": "/data", "type": "bind"}]
+            }),
+            serde_json::json!({
+                "approved": true,
+                "image": "nginx:latest",
+                "container_port": 80,
+                "host_port": 8080,
+                "route_id": "route-1",
+                "port_lease_id": "lease-1",
+                "binds": ["/tmp:/data:ro"]
+            }),
         ] {
             let output = start_container(&request("start_container", input)).unwrap();
             assert_eq!(output["kind"], "docker_runtime_lab_rejected");

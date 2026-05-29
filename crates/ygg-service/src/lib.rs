@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::Infallible;
 use std::fmt;
+use std::fs;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -17,6 +18,7 @@ use axum::response::Response;
 use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use bollard::models::{ContainerCreateBody, HostConfig, PortBinding, PortMap};
+use bollard::models::{Mount, MountType};
 use bollard::query_parameters::CreateContainerOptionsBuilder;
 use bollard::Docker;
 use futures::{SinkExt, Stream, StreamExt};
@@ -50,6 +52,7 @@ const HEALTH_RECOVERY_THRESHOLD: u32 = 2;
 const MAX_RUNTIME_ENV_ENTRIES: usize = 128;
 const MAX_RUNTIME_ENV_VALUE_LEN: usize = 8192;
 const MAX_RUNTIME_ENV_TOTAL_BYTES: usize = 64 * 1024;
+const MAX_RUNTIME_MOUNTS: usize = 32;
 const DOCKER_RUNTIME_PACKAGE_ID: &str = "official/docker-runtime-lab";
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
@@ -497,6 +500,8 @@ pub struct HostBuildDeployRequest {
     pub build_id: Option<String>,
     #[serde(default)]
     pub runtime_env: Vec<RuntimeEnvSpec>,
+    #[serde(default)]
+    pub runtime_mounts: Vec<RuntimeMountSpec>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -507,6 +512,43 @@ pub struct RuntimeEnvSpec {
     pub value: Option<String>,
     #[serde(default)]
     pub secret_ref: Option<String>,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeMountSpec {
+    pub source_host_path: String,
+    pub container_path: String,
+    #[serde(default = "default_runtime_mount_mode")]
+    pub mode: RuntimeMountMode,
+    pub approved: bool,
+    #[serde(default)]
+    pub high_risk_approved: bool,
+    pub reason: String,
+}
+
+impl fmt::Debug for RuntimeMountSpec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RuntimeMountSpec")
+            .field("source_host_path", &"<redacted>")
+            .field("container_path", &self.container_path)
+            .field("mode", &self.mode)
+            .field("approved", &self.approved)
+            .field("high_risk_approved", &self.high_risk_approved)
+            .field("reason", &"<redacted>")
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeMountMode {
+    Ro,
+    Rw,
+}
+
+fn default_runtime_mount_mode() -> RuntimeMountMode {
+    RuntimeMountMode::Ro
 }
 
 impl fmt::Debug for RuntimeEnvSpec {
@@ -532,6 +574,16 @@ pub struct RuntimeEnvSummary {
     pub source: RuntimeEnvSourceKind,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct RuntimeMountSummary {
+    pub container_path: String,
+    pub mode: RuntimeMountMode,
+    pub source_basename: Option<String>,
+    pub source_kind: String,
+    pub source_hash: String,
+    pub approved: bool,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeEnvSourceKind {
@@ -552,6 +604,7 @@ pub struct HostBuildDeployResponse {
     pub build_descriptor_hash: String,
     pub strategy: String,
     pub runtime_env: Vec<RuntimeEnvSummary>,
+    pub runtime_mounts: Vec<RuntimeMountSummary>,
     pub warnings: Vec<String>,
 }
 
@@ -559,6 +612,27 @@ struct ResolvedRuntimeEnv {
     name: String,
     value: String,
     source: RuntimeEnvSourceKind,
+}
+
+struct ResolvedRuntimeMount {
+    source: PathBuf,
+    container_path: String,
+    mode: RuntimeMountMode,
+    source_kind: String,
+    source_basename: Option<String>,
+    source_hash: String,
+}
+
+impl fmt::Debug for ResolvedRuntimeMount {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ResolvedRuntimeMount")
+            .field("source", &"<redacted>")
+            .field("container_path", &self.container_path)
+            .field("mode", &self.mode)
+            .field("source_kind", &self.source_kind)
+            .field("source_hash", &self.source_hash)
+            .finish()
+    }
 }
 
 struct HostDockerStartRequest<'a> {
@@ -571,6 +645,7 @@ struct HostDockerStartRequest<'a> {
     build_id: &'a str,
     source_commit: &'a str,
     env: &'a [ResolvedRuntimeEnv],
+    mounts: &'a [ResolvedRuntimeMount],
 }
 
 #[derive(Debug, Clone)]
@@ -833,6 +908,18 @@ where
             source: env.source,
         })
         .collect::<Vec<_>>();
+    let resolved_mounts = resolve_runtime_mounts(&request)?;
+    let mount_summary = resolved_mounts
+        .iter()
+        .map(|mount| RuntimeMountSummary {
+            container_path: mount.container_path.clone(),
+            mode: mount.mode,
+            source_basename: mount.source_basename.clone(),
+            source_kind: mount.source_kind.clone(),
+            source_hash: mount.source_hash.clone(),
+            approved: true,
+        })
+        .collect::<Vec<_>>();
     let workspace_dir = ygg_core::paths::project_workspace_dir(&request.project_id)?;
     let context = ProtocolContext::host_dev("host_build_deploy");
     let build_output = invoke_docker_runtime_lab(
@@ -861,6 +948,7 @@ where
         &build_id,
         &source_commit,
         &resolved_env,
+        &resolved_mounts,
     )
     .await
     .map_err(|error| {
@@ -879,6 +967,7 @@ where
         build_descriptor_hash,
         strategy,
         runtime_env: env_summary,
+        runtime_mounts: mount_summary,
         warnings: Vec::new(),
     })
 }
@@ -1059,6 +1148,17 @@ async fn start_build_deploy_container(
         .iter()
         .map(|entry| format!("{}={}", entry.name, entry.value))
         .collect::<Vec<_>>();
+    let mounts = request
+        .mounts
+        .iter()
+        .map(|mount| Mount {
+            typ: Some(MountType::BIND),
+            source: Some(mount.source.to_string_lossy().to_string()),
+            target: Some(mount.container_path.clone()),
+            read_only: Some(mount.mode == RuntimeMountMode::Ro),
+            ..Default::default()
+        })
+        .collect::<Vec<_>>();
     let config = ContainerCreateBody {
         image: Some(request.image.to_string()),
         labels: Some(labels),
@@ -1067,6 +1167,7 @@ async fn start_build_deploy_container(
         host_config: Some(HostConfig {
             network_mode: Some("bridge".to_string()),
             port_bindings: Some(port_bindings),
+            mounts: (!mounts.is_empty()).then_some(mounts),
             publish_all_ports: Some(false),
             privileged: Some(false),
             ..Default::default()
@@ -1102,6 +1203,7 @@ async fn deploy_built_image<S>(
     build_id: &str,
     source_commit: &str,
     env: &[ResolvedRuntimeEnv],
+    mounts: &[ResolvedRuntimeMount],
 ) -> anyhow::Result<DeployBuiltImageResponse>
 where
     S: EventStore,
@@ -1137,6 +1239,7 @@ where
         build_id,
         source_commit,
         env,
+        mounts,
     })
     .await
     {
@@ -1842,6 +1945,7 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
         validate_relative_dockerfile(dockerfile)?;
     }
     validate_runtime_env_specs(&request.runtime_env)?;
+    validate_runtime_mount_specs(&request.runtime_mounts)?;
     validate_host_deploy_request(&HostDeployRequest {
         image: "yggdrasil/placeholder:build".to_string(),
         container_port: request.container_port,
@@ -1947,6 +2051,164 @@ where
     Ok(resolved)
 }
 
+fn validate_runtime_mount_specs(specs: &[RuntimeMountSpec]) -> anyhow::Result<()> {
+    if specs.len() > MAX_RUNTIME_MOUNTS {
+        anyhow::bail!("runtime_mounts may contain at most {MAX_RUNTIME_MOUNTS} entries");
+    }
+    let mut targets = HashSet::new();
+    let mut pairs = HashSet::new();
+    for spec in specs {
+        if !spec.approved {
+            anyhow::bail!("runtime mount requires approved: true");
+        }
+        if spec.mode == RuntimeMountMode::Rw && !spec.high_risk_approved {
+            anyhow::bail!("rw runtime mount requires high_risk_approved: true");
+        }
+        if spec.reason.trim().is_empty() || spec.reason.len() > 512 || spec.reason.contains('\0') {
+            anyhow::bail!("runtime mount reason is required and must be at most 512 bytes");
+        }
+        validate_container_mount_path(&spec.container_path)?;
+        let canonical = canonical_runtime_mount_source(&spec.source_host_path)?;
+        reject_dangerous_host_mount_source(&canonical)?;
+        if !targets.insert(spec.container_path.as_str()) {
+            anyhow::bail!("duplicate runtime mount container_path");
+        }
+        let pair = (canonical, spec.container_path.as_str());
+        if !pairs.insert(pair) {
+            anyhow::bail!("duplicate runtime mount source/container pair");
+        }
+    }
+    Ok(())
+}
+
+fn canonical_runtime_mount_source(source: &str) -> anyhow::Result<PathBuf> {
+    if source.is_empty() || source.contains('\0') || source.contains(':') {
+        anyhow::bail!("runtime mount source_host_path is invalid");
+    }
+    let path = FsPath::new(source);
+    if !path.is_absolute() {
+        anyhow::bail!("runtime mount source_host_path must be absolute");
+    }
+    path.canonicalize()
+        .with_context(|| "runtime mount source_host_path must exist")
+}
+
+fn validate_container_mount_path(path: &str) -> anyhow::Result<()> {
+    if path.is_empty() || path.contains('\0') || path.contains(':') {
+        anyhow::bail!("runtime mount container_path is invalid");
+    }
+    let p = FsPath::new(path);
+    if !p.is_absolute()
+        || p.components()
+            .any(|component| !matches!(component, Component::RootDir | Component::Normal(_)))
+    {
+        anyhow::bail!("runtime mount container_path must be absolute without parent components");
+    }
+    const DENIED_TARGETS: &[&str] = &[
+        "/", "/proc", "/sys", "/dev", "/run", "/var/run", "/etc", "/root", "/home", "/tmp",
+    ];
+    if DENIED_TARGETS
+        .iter()
+        .any(|denied| path == *denied || path.starts_with(&format!("{denied}/")))
+    {
+        anyhow::bail!("runtime mount container_path targets a denied container path");
+    }
+    Ok(())
+}
+
+fn reject_dangerous_host_mount_source(path: &FsPath) -> anyhow::Result<()> {
+    let s = path.to_string_lossy();
+    let home = std::env::var("HOME").ok().map(PathBuf::from);
+    let data_dir = ygg_core::paths::data_dir()?;
+    let mut denied = vec![
+        PathBuf::from("/"),
+        PathBuf::from("/etc"),
+        PathBuf::from("/root"),
+        PathBuf::from("/proc"),
+        PathBuf::from("/sys"),
+        PathBuf::from("/dev"),
+        PathBuf::from("/run"),
+        PathBuf::from("/var/run"),
+        PathBuf::from("/var/lib/docker"),
+        PathBuf::from("/var/lib/containerd"),
+        PathBuf::from("/var/lib/kubelet"),
+        PathBuf::from("/var/run/docker.sock"),
+        PathBuf::from("/run/docker.sock"),
+        PathBuf::from("/run/containerd/containerd.sock"),
+        PathBuf::from("/run/podman/podman.sock"),
+        data_dir.join("keys"),
+        data_dir.join("secrets.dat"),
+        data_dir.join("events.db"),
+    ];
+    if let Some(home) = &home {
+        denied.extend([
+            home.join(".ssh"),
+            home.join(".gnupg"),
+            home.join(".aws"),
+            home.join(".azure"),
+            home.join(".config/gcloud"),
+            home.join(".kube"),
+            home.join(".docker/config.json"),
+        ]);
+    }
+    for denied_path in denied {
+        if path == denied_path
+            || (denied_path != FsPath::new("/") && path.starts_with(&denied_path))
+            || (path != FsPath::new("/") && denied_path.starts_with(path))
+        {
+            anyhow::bail!("runtime mount source_host_path is denied");
+        }
+    }
+    if s == "/home"
+        || s == "/Users"
+        || s.starts_with("/home/") && path.components().count() <= 3
+        || s.starts_with("/Users/") && path.components().count() <= 3
+    {
+        anyhow::bail!("runtime mount source_host_path is too broad");
+    }
+    Ok(())
+}
+
+fn resolve_runtime_mounts(
+    request: &HostBuildDeployRequest,
+) -> anyhow::Result<Vec<ResolvedRuntimeMount>> {
+    let mut resolved = Vec::with_capacity(request.runtime_mounts.len());
+    for spec in &request.runtime_mounts {
+        let source = canonical_runtime_mount_source(&spec.source_host_path)?;
+        reject_dangerous_host_mount_source(&source)?;
+        let metadata = fs::metadata(&source)?;
+        let source_kind = if metadata.is_dir() {
+            "directory"
+        } else if metadata.is_file() {
+            "file"
+        } else {
+            anyhow::bail!("runtime mount source_host_path must be a file or directory")
+        }
+        .to_string();
+        let source_basename = source
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string());
+        let source_hash = short_path_hash(&source);
+        resolved.push(ResolvedRuntimeMount {
+            source,
+            container_path: spec.container_path.clone(),
+            mode: spec.mode,
+            source_kind,
+            source_basename,
+            source_hash,
+        });
+    }
+    Ok(resolved)
+}
+
+fn short_path_hash(path: &FsPath) -> String {
+    let digest = Sha256::digest(path.to_string_lossy().as_bytes());
+    digest[..8]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>()
+}
+
 fn validate_build_id(build_id: &str) -> anyhow::Result<()> {
     if build_id.len() < 3
         || build_id.len() > 128
@@ -2024,6 +2286,10 @@ fn build_deploy_descriptor_hash(
         "runtime_env": request.runtime_env.iter().map(|env| serde_json::json!({
             "name": env.name,
             "source": if env.secret_ref.is_some() { "secret_ref" } else { "plain" },
+        })).collect::<Vec<_>>(),
+        "runtime_mounts": request.runtime_mounts.iter().map(|mount| serde_json::json!({
+            "container_path": mount.container_path,
+            "mode": mount.mode,
         })).collect::<Vec<_>>(),
     });
     let bytes = serde_json::to_vec(&canonical).expect("build descriptor serializes");
@@ -3037,6 +3303,7 @@ mod tests {
             source_commit: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
             build_id: Some("build-001".to_string()),
             runtime_env: Vec::new(),
+            runtime_mounts: Vec::new(),
         }
     }
 
@@ -3155,6 +3422,92 @@ mod tests {
         let json = serde_json::to_string(&summary).unwrap();
         assert!(json.contains("TOKEN"));
         assert!(!json.contains("super-secret-value"));
+    }
+
+    fn approved_ro_mount(source: &FsPath, target: &str) -> RuntimeMountSpec {
+        RuntimeMountSpec {
+            source_host_path: source.to_string_lossy().to_string(),
+            container_path: target.to_string(),
+            mode: RuntimeMountMode::Ro,
+            approved: true,
+            high_risk_approved: false,
+            reason: "needed for runtime data".to_string(),
+        }
+    }
+
+    #[test]
+    fn runtime_mount_validation_accepts_temp_ro_mount_and_redacts_summary() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let source = tmp.path().join("data");
+        std::fs::create_dir(&source)?;
+        let mut request = valid_build_deploy_request();
+        request.runtime_mounts = vec![approved_ro_mount(&source, "/data/app")];
+        validate_host_build_deploy_request(&request)?;
+        let resolved = resolve_runtime_mounts(&request)?;
+        assert_eq!(resolved.len(), 1);
+        let debug = format!("{:?}", resolved[0]);
+        assert!(debug.contains("<redacted>"));
+        assert!(!debug.contains(&source.to_string_lossy().to_string()));
+        let summary = RuntimeMountSummary {
+            container_path: resolved[0].container_path.clone(),
+            mode: resolved[0].mode,
+            source_basename: resolved[0].source_basename.clone(),
+            source_kind: resolved[0].source_kind.clone(),
+            source_hash: resolved[0].source_hash.clone(),
+            approved: true,
+        };
+        let json = serde_json::to_string(&summary)?;
+        assert!(json.contains("/data/app"));
+        assert!(!json.contains(&tmp.path().to_string_lossy().to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn runtime_mount_validation_rejects_unsafe_specs() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let source = tmp.path().join("data");
+        std::fs::create_dir(&source)?;
+
+        let mut request = valid_build_deploy_request();
+        let mut mount = approved_ro_mount(&source, "/data/app");
+        mount.approved = false;
+        request.runtime_mounts = vec![mount];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        let mut mount = approved_ro_mount(&source, "/data/app");
+        mount.mode = RuntimeMountMode::Rw;
+        request.runtime_mounts = vec![mount];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_mounts = vec![approved_ro_mount(&source, "/etc/config")];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_mounts = vec![approved_ro_mount(FsPath::new("/"), "/data/root")];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_mounts = vec![
+            approved_ro_mount(&source, "/data/app"),
+            approved_ro_mount(&source, "/data/app"),
+        ];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_mount_validation_rejects_symlink_to_denied_path() -> anyhow::Result<()> {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir()?;
+        let link = tmp.path().join("etc-link");
+        symlink("/etc", &link)?;
+        let mut request = valid_build_deploy_request();
+        request.runtime_mounts = vec![approved_ro_mount(&link, "/data/etc")];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+        Ok(())
     }
 
     #[test]
