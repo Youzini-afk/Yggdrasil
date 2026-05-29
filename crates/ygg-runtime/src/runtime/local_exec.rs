@@ -1052,6 +1052,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn proxy_set_ready_if_active_with_lease_is_guarded() {
+        let registry = ProxyRouteRegistry::new();
+        let response = registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("route-guard".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: "lease-a".to_string(),
+                    port_name: "web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+            })
+            .await;
+        assert!(!response.route.ready);
+
+        assert!(registry
+            .set_ready_if_active_with_lease("route-guard", "lease-b", true)
+            .await
+            .is_none());
+        assert!(!registry.status("route-guard").await.unwrap().ready);
+
+        let updated = registry
+            .set_ready_if_active_with_lease("route-guard", "lease-a", true)
+            .await
+            .expect("matching active route updates");
+        assert!(updated.ready);
+
+        registry.unregister("route-guard").await;
+        assert!(registry
+            .set_ready_if_active_with_lease("route-guard", "lease-a", false)
+            .await
+            .is_none());
+        assert!(registry.status("route-guard").await.unwrap().ready);
+    }
+
+    #[tokio::test]
     async fn live_local_exec_timeout_kills_long_running_command() -> anyhow::Result<()> {
         let Some(sleep) = first_existing(&["/bin/sleep", "/usr/bin/sleep"]) else {
             eprintln!("skipping: sleep binary not found");
@@ -1537,6 +1572,23 @@ impl ProxyRouteRegistry {
     pub async fn set_ready(&self, route_id: &str, ready: bool) -> Option<ProxyRouteRecord> {
         let mut routes = self.routes.write().await;
         let route = routes.get_mut(route_id)?;
+        route.ready = ready;
+        Some(route.clone())
+    }
+
+    pub async fn set_ready_if_active_with_lease(
+        &self,
+        route_id: &str,
+        port_lease_id: &str,
+        ready: bool,
+    ) -> Option<ProxyRouteRecord> {
+        let mut routes = self.routes.write().await;
+        let route = routes.get_mut(route_id)?;
+        if route.status != ProxyRouteStatusKind::Active
+            || route.upstream.port_lease_id != port_lease_id
+        {
+            return None;
+        }
         route.ready = ready;
         Some(route.clone())
     }

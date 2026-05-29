@@ -5175,6 +5175,88 @@ pub enum DependencySource {
     #[serde(rename = "local")]
     Local { path: ::std::string::String },
 }
+///`DeploymentHealthEventPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "DeploymentHealthEventPayload",
+///  "type": "object",
+///  "required": [
+///    "failure_count",
+///    "previous_ready",
+///    "probe",
+///    "ready",
+///    "reason",
+///    "route_id"
+///  ],
+///  "properties": {
+///    "failure_count": {
+///      "type": "integer",
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_lease_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "previous_ready": {
+///      "type": "boolean"
+///    },
+///    "probe": {
+///      "$ref": "#/definitions/DeploymentHealthProbe"
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "route_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct DeploymentHealthEventPayload {
+    pub failure_count: u32,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub port_lease_id: ::std::option::Option<::std::string::String>,
+    pub previous_ready: bool,
+    pub probe: DeploymentHealthProbe,
+    pub ready: bool,
+    pub reason: ::std::string::String,
+    pub route_id: ::std::string::String,
+}
+///`DeploymentHealthProbe`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "kind"
+///  ],
+///  "properties": {
+///    "kind": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct DeploymentHealthProbe {
+    pub kind: ::std::string::String,
+}
 ///`DeploymentReconcileSummary`
 ///
 /// <details><summary>JSON schema</summary>

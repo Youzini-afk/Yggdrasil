@@ -179,6 +179,22 @@ pub struct DeploymentReconcileSummary {
     pub leases_released: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
+pub struct DeploymentHealthEventPayload {
+    pub route_id: ProxyRouteId,
+    pub port_lease_id: Option<PortLeaseId>,
+    pub previous_ready: bool,
+    pub ready: bool,
+    pub reason: String,
+    pub failure_count: u32,
+    pub probe: DeploymentHealthProbe,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
+pub struct DeploymentHealthProbe {
+    pub kind: String,
+}
+
 // ---------------------------------------------------------------------------
 // Runtime<S>
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::Infallible;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -37,6 +37,10 @@ const PROXY_WEBSOCKET_FRAME_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 const DEPLOY_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 const DEPLOY_READINESS_INTERVAL: Duration = Duration::from_millis(500);
 const DEPLOY_READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(5);
+const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_millis(1000);
+const HEALTH_FAILURE_THRESHOLD: u32 = 3;
+const HEALTH_RECOVERY_THRESHOLD: u32 = 2;
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -155,6 +159,13 @@ where
         .merge(protected)
         .fallback(static_fallback::<S>)
         .with_state(state)
+}
+
+pub fn spawn_health_supervisor<S>(state: AppState<S>) -> tokio::task::JoinHandle<()>
+where
+    S: EventStore,
+{
+    tokio::spawn(run_health_supervisor(state))
 }
 
 async fn health() -> &'static str {
@@ -792,6 +803,207 @@ async fn probe_loopback_port(port: u16, health_path: Option<&str>) -> anyhow::Re
         anyhow::bail!("http readiness probe returned {status}");
     }
 
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct HealthRouteSnapshot {
+    route_id: String,
+    port_lease_id: String,
+    port: u16,
+    ready: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct HealthCounters {
+    consecutive_failures: u32,
+    consecutive_successes: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HealthProbeResult {
+    Success,
+    Failure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct HealthTransition {
+    ready: bool,
+    reason: &'static str,
+}
+
+fn decide_health_transition(
+    current_ready: bool,
+    counters: &mut HealthCounters,
+    probe_result: HealthProbeResult,
+) -> Option<HealthTransition> {
+    match probe_result {
+        HealthProbeResult::Failure => {
+            counters.consecutive_failures = counters.consecutive_failures.saturating_add(1);
+            counters.consecutive_successes = 0;
+            if current_ready && counters.consecutive_failures >= HEALTH_FAILURE_THRESHOLD {
+                return Some(HealthTransition {
+                    ready: false,
+                    reason: "tcp_probe_failed",
+                });
+            }
+        }
+        HealthProbeResult::Success => {
+            counters.consecutive_successes = counters.consecutive_successes.saturating_add(1);
+            counters.consecutive_failures = 0;
+            if !current_ready && counters.consecutive_successes >= HEALTH_RECOVERY_THRESHOLD {
+                return Some(HealthTransition {
+                    ready: true,
+                    reason: "recovered",
+                });
+            }
+        }
+    }
+    None
+}
+
+async fn run_health_supervisor<S>(state: AppState<S>)
+where
+    S: EventStore,
+{
+    let mut counters: HashMap<String, HealthCounters> = HashMap::new();
+    let mut health_session_id: Option<SessionId> = None;
+    loop {
+        sleep(HEALTH_POLL_INTERVAL).await;
+        let snapshots = health_route_snapshots(&state).await;
+        let active_route_ids: HashSet<String> = snapshots
+            .iter()
+            .map(|snapshot| snapshot.route_id.clone())
+            .collect();
+        counters.retain(|route_id, _| active_route_ids.contains(route_id));
+
+        for snapshot in snapshots {
+            let probe_result = if probe_health_tcp(snapshot.port).await.is_ok() {
+                HealthProbeResult::Success
+            } else {
+                HealthProbeResult::Failure
+            };
+            let route_counters = counters.entry(snapshot.route_id.clone()).or_default();
+            let previous_ready = snapshot.ready;
+            let Some(transition) =
+                decide_health_transition(previous_ready, route_counters, probe_result)
+            else {
+                continue;
+            };
+
+            let updated = state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .set_ready_if_active_with_lease(
+                    &snapshot.route_id,
+                    &snapshot.port_lease_id,
+                    transition.ready,
+                )
+                .await;
+            if updated.is_none() {
+                counters.remove(&snapshot.route_id);
+                continue;
+            }
+
+            let failure_count = route_counters.consecutive_failures;
+            let payload = serde_json::json!({
+                "route_id": snapshot.route_id,
+                "port_lease_id": snapshot.port_lease_id,
+                "previous_ready": previous_ready,
+                "ready": transition.ready,
+                "reason": transition.reason,
+                "failure_count": failure_count,
+                "probe": { "kind": "tcp" },
+            });
+            if let Err(error) = state
+                .runtime
+                .append_event_with_context(
+                    &ProtocolContext::host_dev("health_supervisor"),
+                    AppendEventRequest {
+                        session_id: deployment_health_session(&state, &mut health_session_id).await,
+                        writer_package_id: ygg_core::KERNEL_PACKAGE_ID.to_string(),
+                        kind: ygg_core::EVENT_DEPLOYMENT_HEALTH.to_string(),
+                        payload,
+                        metadata: serde_json::json!({}),
+                    },
+                )
+                .await
+            {
+                eprintln!("deployment health audit append failed: {error}");
+            }
+        }
+    }
+}
+
+async fn deployment_health_session<S>(
+    state: &AppState<S>,
+    cached: &mut Option<SessionId>,
+) -> SessionId
+where
+    S: EventStore,
+{
+    if let Some(session_id) = cached.as_ref() {
+        return session_id.clone();
+    }
+    match state
+        .runtime
+        .open_session(OpenSessionRequest {
+            labels: vec!["kernel:deployment-health".to_string()],
+            metadata: serde_json::json!({"kind":"deployment_health"}),
+            ..OpenSessionRequest::default()
+        })
+        .await
+    {
+        Ok(session) => {
+            *cached = Some(session.id.clone());
+            session.id
+        }
+        Err(_) => "kernel_deployment_health".to_string(),
+    }
+}
+
+async fn health_route_snapshots<S>(state: &AppState<S>) -> Vec<HealthRouteSnapshot>
+where
+    S: EventStore,
+{
+    let routes = state.runtime.config().proxy_route_registry.list().await;
+    let mut snapshots = Vec::new();
+    for route in routes {
+        if route.status != ProxyRouteStatusKind::Active {
+            continue;
+        }
+        let port_lease_id = route.upstream.port_lease_id.clone();
+        let Some(lease) = state
+            .runtime
+            .config()
+            .port_lease_registry
+            .status(&port_lease_id)
+            .await
+        else {
+            continue;
+        };
+        if lease.status != PortLeaseStatusKind::Active {
+            continue;
+        }
+        snapshots.push(HealthRouteSnapshot {
+            route_id: route.id,
+            port_lease_id,
+            port: lease.port,
+            ready: route.ready,
+        });
+    }
+    snapshots
+}
+
+async fn probe_health_tcp(port: u16) -> anyhow::Result<()> {
+    timeout(
+        HEALTH_PROBE_TIMEOUT,
+        TcpStream::connect(("127.0.0.1", port)),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("tcp health probe timed out"))?
+    .map_err(|error| anyhow::anyhow!("tcp health probe failed: {error}"))?;
     Ok(())
 }
 
@@ -1729,6 +1941,40 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn health_transition_decision_respects_thresholds() {
+        let mut counters = HealthCounters::default();
+        assert!(
+            decide_health_transition(true, &mut counters, HealthProbeResult::Failure).is_none()
+        );
+        assert!(
+            decide_health_transition(true, &mut counters, HealthProbeResult::Failure).is_none()
+        );
+        assert_eq!(
+            decide_health_transition(true, &mut counters, HealthProbeResult::Failure),
+            Some(HealthTransition {
+                ready: false,
+                reason: "tcp_probe_failed"
+            })
+        );
+        assert_eq!(counters.consecutive_failures, HEALTH_FAILURE_THRESHOLD);
+        assert_eq!(counters.consecutive_successes, 0);
+
+        assert!(
+            decide_health_transition(false, &mut counters, HealthProbeResult::Success).is_none()
+        );
+        assert_eq!(counters.consecutive_failures, 0);
+        assert_eq!(counters.consecutive_successes, 1);
+        assert_eq!(
+            decide_health_transition(false, &mut counters, HealthProbeResult::Success),
+            Some(HealthTransition {
+                ready: true,
+                reason: "recovered"
+            })
+        );
+        assert_eq!(counters.consecutive_successes, HEALTH_RECOVERY_THRESHOLD);
+    }
 
     #[tokio::test]
     async fn rpc_host_info_returns_protocol_envelope() -> anyhow::Result<()> {

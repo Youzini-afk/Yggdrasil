@@ -199,6 +199,20 @@ export type DependencySource = {
   "path": string;
 };
 
+export interface DeploymentHealthEventPayload {
+  "failure_count": number;
+  "port_lease_id"?: null | string;
+  "previous_ready": boolean;
+  "probe": DeploymentHealthProbe;
+  "ready": boolean;
+  "reason": string;
+  "route_id": string;
+}
+
+export interface DeploymentHealthProbe {
+  "kind": string;
+}
+
 export interface DeploymentReconcileSummary {
   "execs_failed": number;
   "leases_promoted": number;

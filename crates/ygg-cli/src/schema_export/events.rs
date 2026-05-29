@@ -141,5 +141,9 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             EVENT_DEPLOYMENT_RECONCILED,
             schema_value::<DeploymentReconcileSummary>(),
         ),
+        (
+            EVENT_DEPLOYMENT_HEALTH,
+            schema_value::<DeploymentHealthEventPayload>(),
+        ),
     ]
 }

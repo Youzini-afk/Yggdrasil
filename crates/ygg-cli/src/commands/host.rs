@@ -730,11 +730,13 @@ where
     } else {
         println!("  access token: disabled (local/dev only)");
     }
-    let app = ygg_service::app_with_state(ygg_service::AppState {
+    let state = ygg_service::AppState {
         runtime,
         static_dir,
         access_token,
-    });
+    };
+    let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
+    let app = ygg_service::app_with_state(state);
     axum::serve(listener, app).await?;
     Ok(())
 }
