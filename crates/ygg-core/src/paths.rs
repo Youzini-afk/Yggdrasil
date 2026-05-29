@@ -77,6 +77,22 @@ pub fn project_dir(id: &ProjectId) -> Result<PathBuf> {
     Ok(projects_dir()?.join(id.as_str()))
 }
 
+/// Path to a project's workspace clone directory.
+/// Path: `<data_dir>/projects/<project_id>/workspace`
+pub fn project_workspace_dir(id: &ProjectId) -> Result<PathBuf> {
+    Ok(project_dir(id)?.join("workspace"))
+}
+
+/// Path to a project's workspace clone directory under an explicit data dir.
+/// Path: `<data_dir>/projects/<project_id>/workspace`
+pub fn project_workspace_dir_in(data_dir: impl AsRef<std::path::Path>, id: &ProjectId) -> PathBuf {
+    data_dir
+        .as_ref()
+        .join("projects")
+        .join(id.as_str())
+        .join("workspace")
+}
+
 /// Path to a project's encrypted secret store.
 pub fn project_secret_store_path(id: &ProjectId) -> Result<PathBuf> {
     Ok(project_dir(id)?.join("secrets.dat"))
@@ -120,6 +136,7 @@ pub fn ensure_project_initialized(id: &ProjectId) -> Result<()> {
     fs::create_dir_all(project_dir(id)?)?;
     fs::create_dir_all(project_sessions_dir(id)?)?;
     fs::create_dir_all(project_state_dir(id)?)?;
+    fs::create_dir_all(project_workspace_dir(id)?)?;
 
     #[cfg(unix)]
     {
@@ -304,6 +321,20 @@ mod tests {
     }
 
     #[test]
+    fn project_workspace_dir_uses_expected_layout() {
+        let _guard = scope_env("YGG_DATA_DIR", "/tmp/ygg-test-paths");
+        let id = ProjectId::new("foo__abc123").unwrap();
+        assert_eq!(
+            project_workspace_dir(&id).unwrap(),
+            PathBuf::from("/tmp/ygg-test-paths/projects/foo__abc123/workspace")
+        );
+        assert_eq!(
+            project_workspace_dir_in("/custom/data", &id),
+            PathBuf::from("/custom/data/projects/foo__abc123/workspace")
+        );
+    }
+
+    #[test]
     fn project_secret_store_path_format() {
         let _guard = scope_env("YGG_DATA_DIR", "/tmp/ygg-test-paths");
         let id = ProjectId::new("test__xyz").unwrap();
@@ -320,5 +351,6 @@ mod tests {
         assert!(project_dir(&id).unwrap().exists());
         assert!(project_sessions_dir(&id).unwrap().exists());
         assert!(project_state_dir(&id).unwrap().exists());
+        assert!(project_workspace_dir(&id).unwrap().exists());
     }
 }

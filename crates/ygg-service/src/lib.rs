@@ -4,6 +4,7 @@ use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
+use anyhow::Context;
 use axum::body::to_bytes;
 use axum::extract::ws::{Message as AxumWsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{FromRequestParts, OriginalUri, Path, Query, Request, State};
@@ -20,7 +21,7 @@ use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
+use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, ProjectId, SessionId};
 use ygg_runtime::{
     host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
     EventListRequest, PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest,
@@ -455,6 +456,31 @@ pub struct HostDeployStopResponse {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectWorkspaceCloneRequest {
+    pub project_id: ProjectId,
+    pub source_url: String,
+    pub ref_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ProjectWorkspaceCloneResult {
+    pub project_id: ProjectId,
+    pub ref_name: String,
+    pub commit_sha: String,
+    pub tree_hash: Option<String>,
+    pub files_written: Option<u64>,
+    pub total_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitFetchTreeInvocation {
+    resolve_ref_params: Value,
+    fetch_tree_params: Value,
+    workspace_dir: PathBuf,
+    staging_dir: PathBuf,
+}
+
 async fn deploy_project<S>(
     State(state): State<AppState<S>>,
     Json(request): Json<HostDeployRequest>,
@@ -762,6 +788,258 @@ where
     )
     .await?;
     value_field(value, "output", "kernel.v1.capability.invoke")
+}
+
+pub async fn clone_project_workspace_from_git<S>(
+    state: &AppState<S>,
+    request: ProjectWorkspaceCloneRequest,
+) -> anyhow::Result<ProjectWorkspaceCloneResult>
+where
+    S: EventStore,
+{
+    validate_workspace_clone_url(&request.source_url)?;
+    validate_workspace_clone_ref(&request.ref_name)?;
+    let invocation = build_project_workspace_clone_invocation(&request, None)?;
+    let context = ProtocolContext::host_dev("project_workspace_clone");
+
+    let resolved = invoke_git_tools_lab(
+        state,
+        &context,
+        "official/git-tools-lab/resolve_ref",
+        invocation.resolve_ref_params,
+    )
+    .await?;
+    let commit_sha = required_string(&resolved, "commit_sha", "git resolve_ref")?;
+    let resolved_ref_name = required_string(&resolved, "ref_name", "git resolve_ref")?;
+    validate_git_commit_sha(&commit_sha)?;
+    validate_workspace_clone_ref(&resolved_ref_name)?;
+
+    if invocation.staging_dir.exists() {
+        std::fs::remove_dir_all(&invocation.staging_dir).with_context(|| {
+            format!(
+                "failed to clear workspace staging dir {}",
+                invocation.staging_dir.display()
+            )
+        })?;
+    }
+    let fetch_params = serde_json::json!({
+        "remote_url": request.source_url,
+        "commit_sha": commit_sha,
+        "ref_name": resolved_ref_name.clone(),
+        "dest_dir": invocation.staging_dir.to_string_lossy(),
+    });
+    let fetch_result = async {
+        let output = invoke_git_tools_lab(
+            state,
+            &context,
+            "official/git-tools-lab/fetch_tree",
+            fetch_params,
+        )
+        .await?;
+        validate_workspace_staging_containment(&invocation.workspace_dir, &invocation.staging_dir)?;
+        replace_workspace_from_staging(&invocation.workspace_dir, &invocation.staging_dir)?;
+        anyhow::Ok(output)
+    }
+    .await;
+
+    if fetch_result.is_err() {
+        std::fs::remove_dir_all(&invocation.staging_dir).ok();
+    }
+    let output = fetch_result?;
+
+    Ok(ProjectWorkspaceCloneResult {
+        project_id: request.project_id,
+        ref_name: resolved_ref_name,
+        commit_sha,
+        tree_hash: output
+            .get("tree_hash")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        files_written: output.get("files_written").and_then(Value::as_u64),
+        total_bytes: output.get("total_bytes").and_then(Value::as_u64),
+    })
+}
+
+async fn invoke_git_tools_lab<S>(
+    state: &AppState<S>,
+    context: &ProtocolContext,
+    capability_id: &str,
+    input: Value,
+) -> anyhow::Result<Value>
+where
+    S: EventStore,
+{
+    let value = call_host_protocol(
+        state,
+        context,
+        "kernel.v1.capability.invoke",
+        serde_json::json!({
+            "capability_id": capability_id,
+            "provider_package_id": "official/git-tools-lab",
+            "input": input,
+        }),
+    )
+    .await?;
+    value_field(value, "output", "kernel.v1.capability.invoke")
+}
+
+fn build_project_workspace_clone_invocation(
+    request: &ProjectWorkspaceCloneRequest,
+    data_dir_override: Option<&FsPath>,
+) -> anyhow::Result<GitFetchTreeInvocation> {
+    validate_workspace_clone_url(&request.source_url)?;
+    validate_workspace_clone_ref(&request.ref_name)?;
+    let workspace_dir = match data_dir_override {
+        Some(data_dir) => ygg_core::paths::project_workspace_dir_in(data_dir, &request.project_id),
+        None => ygg_core::paths::project_workspace_dir(&request.project_id)?,
+    };
+    validate_workspace_destination(&request.project_id, data_dir_override, &workspace_dir)?;
+    let staging_dir = workspace_dir.with_file_name("workspace.staging");
+    validate_workspace_destination(&request.project_id, data_dir_override, &staging_dir)?;
+    Ok(GitFetchTreeInvocation {
+        resolve_ref_params: serde_json::json!({
+            "remote_url": request.source_url,
+            "ref": request.ref_name,
+        }),
+        fetch_tree_params: serde_json::json!({
+            "remote_url": request.source_url,
+            "ref_name": request.ref_name,
+            "dest_dir": staging_dir.to_string_lossy(),
+        }),
+        workspace_dir,
+        staging_dir,
+    })
+}
+
+fn validate_workspace_clone_url(source_url: &str) -> anyhow::Result<()> {
+    let parsed = url::Url::parse(source_url).context("source_url must be an absolute HTTPS URL")?;
+    if parsed.scheme() != "https" {
+        anyhow::bail!("source_url must use https");
+    }
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        anyhow::bail!("source_url must not contain userinfo");
+    }
+    if parsed.host_str().is_none() {
+        anyhow::bail!("source_url must include a host");
+    }
+    if parsed.query().is_some() || parsed.fragment().is_some() {
+        anyhow::bail!("source_url must not contain query or fragment");
+    }
+    Ok(())
+}
+
+fn validate_workspace_clone_ref(ref_name: &str) -> anyhow::Result<()> {
+    let trimmed = ref_name.trim();
+    if trimmed.is_empty() || trimmed.len() > 256 {
+        anyhow::bail!("git ref must be non-empty and at most 256 bytes");
+    }
+    if trimmed != ref_name
+        || trimmed.starts_with('-')
+        || trimmed.contains("..")
+        || trimmed.contains("//")
+        || trimmed.contains('\\')
+        || trimmed.bytes().any(|byte| byte.is_ascii_control())
+    {
+        anyhow::bail!("git ref contains unsupported characters");
+    }
+    Ok(())
+}
+
+fn validate_git_commit_sha(commit_sha: &str) -> anyhow::Result<()> {
+    if commit_sha.len() == 40 && commit_sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Ok(())
+    } else {
+        anyhow::bail!("resolved commit_sha must be a 40-character hex SHA")
+    }
+}
+
+fn validate_workspace_destination(
+    project_id: &ProjectId,
+    data_dir_override: Option<&FsPath>,
+    candidate: &FsPath,
+) -> anyhow::Result<()> {
+    if candidate
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        anyhow::bail!("workspace path must not contain parent components");
+    }
+    let project_dir = match data_dir_override {
+        Some(data_dir) => data_dir.join("projects").join(project_id.as_str()),
+        None => ygg_core::paths::project_dir(project_id)?,
+    };
+    if !candidate.starts_with(&project_dir) {
+        anyhow::bail!("workspace path escaped project directory");
+    }
+    Ok(())
+}
+
+fn validate_workspace_staging_containment(
+    workspace_dir: &FsPath,
+    staging_dir: &FsPath,
+) -> anyhow::Result<()> {
+    let staging = std::fs::canonicalize(staging_dir).with_context(|| {
+        format!(
+            "failed to canonicalize workspace staging dir {}",
+            staging_dir.display()
+        )
+    })?;
+    let project_dir = workspace_dir
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("workspace dir has no project parent"))?;
+    let project_dir = std::fs::canonicalize(project_dir).with_context(|| {
+        format!(
+            "failed to canonicalize project dir {}",
+            project_dir.display()
+        )
+    })?;
+    if !staging.starts_with(&project_dir) {
+        anyhow::bail!("workspace staging dir escaped project directory");
+    }
+    Ok(())
+}
+
+fn replace_workspace_from_staging(
+    workspace_dir: &FsPath,
+    staging_dir: &FsPath,
+) -> anyhow::Result<()> {
+    let project_dir = workspace_dir
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("workspace dir has no project parent"))?;
+    std::fs::create_dir_all(project_dir)?;
+    let backup_dir = workspace_dir.with_file_name("workspace.previous");
+    if backup_dir.exists() {
+        std::fs::remove_dir_all(&backup_dir).with_context(|| {
+            format!(
+                "failed to remove old workspace backup {}",
+                backup_dir.display()
+            )
+        })?;
+    }
+    if workspace_dir.exists() {
+        std::fs::rename(workspace_dir, &backup_dir).with_context(|| {
+            format!(
+                "failed to move existing workspace {} to backup",
+                workspace_dir.display()
+            )
+        })?;
+    }
+    let replace_result = std::fs::rename(staging_dir, workspace_dir).with_context(|| {
+        format!(
+            "failed to atomically install workspace {}",
+            workspace_dir.display()
+        )
+    });
+    if replace_result.is_err() {
+        if backup_dir.exists() && !workspace_dir.exists() {
+            std::fs::rename(&backup_dir, workspace_dir).ok();
+        }
+        return replace_result;
+    }
+    if backup_dir.exists() {
+        std::fs::remove_dir_all(&backup_dir).ok();
+    }
+    Ok(())
 }
 
 async fn wait_for_deployment_readiness(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
@@ -1941,6 +2219,86 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn workspace_clone_url_policy_rejects_unsafe_sources() {
+        for url in [
+            "file:///tmp/repo",
+            "ssh://git@example.com/repo.git",
+            "git@example.com:repo.git",
+            "https://user@example.com/repo.git",
+            "https://user:token@example.com/repo.git",
+            "https://example.com/repo.git?token=secret",
+            "https://example.com/repo.git#token",
+            "/tmp/local-repo",
+        ] {
+            assert!(validate_workspace_clone_url(url).is_err(), "accepted {url}");
+        }
+        assert!(validate_workspace_clone_url("https://example.com/org/repo.git").is_ok());
+    }
+
+    #[test]
+    fn workspace_clone_invocation_uses_expected_git_tools_shape() -> anyhow::Result<()> {
+        let project_id = ProjectId::new("clone__abc123")?;
+        let request = ProjectWorkspaceCloneRequest {
+            project_id: project_id.clone(),
+            source_url: "https://example.com/org/repo.git".to_string(),
+            ref_name: "refs/heads/main".to_string(),
+        };
+        let data_dir = tempfile::tempdir()?;
+        let invocation = build_project_workspace_clone_invocation(&request, Some(data_dir.path()))?;
+
+        assert_eq!(
+            invocation.workspace_dir,
+            data_dir.path().join("projects/clone__abc123/workspace")
+        );
+        assert_eq!(
+            invocation.staging_dir,
+            data_dir
+                .path()
+                .join("projects/clone__abc123/workspace.staging")
+        );
+        assert_eq!(
+            invocation.resolve_ref_params,
+            json!({"remote_url":"https://example.com/org/repo.git","ref":"refs/heads/main"})
+        );
+        assert_eq!(
+            invocation.fetch_tree_params,
+            json!({
+                "remote_url":"https://example.com/org/repo.git",
+                "ref_name":"refs/heads/main",
+                "dest_dir": invocation.staging_dir.to_string_lossy(),
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn workspace_destination_rejects_escape() -> anyhow::Result<()> {
+        let project_id = ProjectId::new("clone__abc123")?;
+        let data_dir = tempfile::tempdir()?;
+        assert!(validate_workspace_destination(
+            &project_id,
+            Some(data_dir.path()),
+            &data_dir.path().join("projects/clone__abc123/workspace")
+        )
+        .is_ok());
+        assert!(validate_workspace_destination(
+            &project_id,
+            Some(data_dir.path()),
+            &data_dir.path().join("projects/other__abc123/workspace")
+        )
+        .is_err());
+        assert!(validate_workspace_destination(
+            &project_id,
+            Some(data_dir.path()),
+            &data_dir
+                .path()
+                .join("projects/clone__abc123/../other/workspace")
+        )
+        .is_err());
+        Ok(())
+    }
 
     #[test]
     fn health_transition_decision_respects_thresholds() {

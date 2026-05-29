@@ -53,8 +53,8 @@ pub use paths::{
     archived_project_dir, archived_projects_dir, cache_dir, data_dir, ensure_initialized,
     ensure_project_initialized, keys_dir, lockfile_path, profile_path, profiles_dir,
     project_descriptor_path, project_dir, project_lockfile_path, project_secret_store_path,
-    project_sessions_dir, project_state_dir, projects_dir, secret_store_key_path,
-    secret_store_path, store_dir, store_path_for_hash,
+    project_sessions_dir, project_state_dir, project_workspace_dir, project_workspace_dir_in,
+    projects_dir, secret_store_key_path, secret_store_path, store_dir, store_path_for_hash,
 };
 pub use project::{
     ExternalProjectData, ProjectDescriptor, ProjectId, ProjectInner, ProjectState, ProjectType,
