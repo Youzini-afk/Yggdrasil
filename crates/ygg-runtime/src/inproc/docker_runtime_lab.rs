@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 use std::time::Duration;
 
 use bollard::body_full;
@@ -41,6 +42,23 @@ const DEFAULT_BUILD_TIMEOUT_SECS: u64 = 15 * 60;
 const MAX_BUILD_TIMEOUT_SECS: u64 = 60 * 60;
 const DEFAULT_BUILD_MEMORY_BYTES: i32 = 1024 * 1024 * 1024;
 const DEFAULT_BUILD_CPU_QUOTA: i32 = 100_000;
+const NIXPACKS_BINARY: &str = "nixpacks";
+const NIXPACKS_GENERATED_DOCKERFILE: &str = "Dockerfile";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuildStrategy {
+    Dockerfile,
+    Nixpacks,
+}
+
+impl BuildStrategy {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Dockerfile => "dockerfile",
+            Self::Nixpacks => "nixpacks",
+        }
+    }
+}
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
@@ -80,7 +98,7 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/docker-runtime-lab/describe_contract", "docker_performed": false},
             {"id": "official/docker-runtime-lab/validate_spec", "docker_performed": false},
             {"id": "official/docker-runtime-lab/plan_container", "docker_performed": false},
-            {"id": "official/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile"]},
+            {"id": "official/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile", "nixpacks"], "experimental_strategies": ["nixpacks"]},
             {"id": "official/docker-runtime-lab/start_container", "docker_performed": true, "requires_approved_true": true},
             {"id": "official/docker-runtime-lab/status", "docker_performed": true},
             {"id": "official/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true},
@@ -461,6 +479,7 @@ async fn start_container_async(
 
 #[derive(Debug, Clone)]
 struct BuildImageSpec {
+    strategy: BuildStrategy,
     project_id: String,
     build_id: String,
     context_dir: PathBuf,
@@ -480,22 +499,36 @@ struct ContextTar {
     total_bytes: u64,
 }
 
+#[derive(Debug, Clone)]
+struct PreparedBuildContext {
+    context: ContextTar,
+    dockerfile: String,
+    buildpack_version: Option<String>,
+    generated_dockerfile: Option<String>,
+}
+
 async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
-    let docker = docker().await?;
     let tag = image_tag(&spec.project_id, &spec.build_id);
-    let context = tokio::task::spawn_blocking({
+    let prepared = tokio::task::spawn_blocking({
         let spec = spec.clone();
-        move || create_context_tar(&spec)
+        move || prepare_build_context(&spec)
     })
     .await
-    .map_err(|e| format!("context tar task failed: {e}"))??;
+    .map_err(|e| format!("build context task failed: {e}"))??;
+    let docker = docker().await?;
 
     let mut labels = build_labels(&spec);
     labels.insert("managed-by".to_string(), "yggdrasil".to_string());
     labels.insert("yggdrasil.package_id".to_string(), PACKAGE_ID.to_string());
+    if let Some(version) = prepared.buildpack_version.as_deref() {
+        labels.insert(
+            "yggdrasil.buildpack_version".to_string(),
+            version.to_string(),
+        );
+    }
 
     let options = BuildImageOptionsBuilder::default()
-        .dockerfile(&spec.dockerfile)
+        .dockerfile(&prepared.dockerfile)
         .t(&tag)
         .q(false)
         .rm(true)
@@ -506,7 +539,7 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
         .labels(&labels)
         .buildargs(&spec.build_args)
         .build();
-    let body = body_full(Bytes::from(context.bytes));
+    let body = body_full(Bytes::from(prepared.context.bytes));
 
     let build = async {
         let mut stream = docker.build_image(options, None, Some(body));
@@ -534,12 +567,15 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
         "kind": "docker_runtime_lab_image_built",
         "image": tag,
         "build_id": spec.build_id,
-        "strategy": "dockerfile",
+        "strategy": spec.strategy.as_str(),
+        "buildpack": if spec.strategy == BuildStrategy::Nixpacks { Some("nixpacks") } else { None::<&str> },
+        "buildpack_version": prepared.buildpack_version,
+        "generated_dockerfile": prepared.generated_dockerfile,
         "source_commit": spec.source_commit,
         "build_descriptor_hash": spec.build_descriptor_hash,
         "context": {
-            "files": context.files,
-            "total_bytes": context.total_bytes,
+            "files": prepared.context.files,
+            "total_bytes": prepared.context.total_bytes,
             "max_files": spec.max_context_files,
             "max_bytes": spec.max_context_bytes,
         },
@@ -805,8 +841,11 @@ fn validate_input(input: &Value) -> Vec<Diagnostic> {
 }
 
 fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
-    if has_build_secret_request(input) || safety::contains_raw_secret(input) {
+    if has_build_secret_request(input) || contains_raw_build_secret(input) {
         return Err("build-time secrets are not supported; fail-closed".to_string());
+    }
+    if input.get("nixpacks_binary").is_some() {
+        return Err("nixpacks binary override is not supported".to_string());
     }
     if !input
         .get("approved")
@@ -815,12 +854,14 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
     {
         return Err("build_image requires approved: true; fail-closed".to_string());
     }
-    let strategy = string_field(input, "strategy").unwrap_or_else(|| "dockerfile".to_string());
-    if strategy != "dockerfile" {
-        return Err(format!(
-            "unsupported build strategy '{strategy}'; only dockerfile is supported"
-        ));
-    }
+    let strategy = match string_field(input, "strategy")
+        .unwrap_or_else(|| "dockerfile".to_string())
+        .as_str()
+    {
+        "dockerfile" => BuildStrategy::Dockerfile,
+        "nixpacks" => BuildStrategy::Nixpacks,
+        other => return Err(format!("unsupported build strategy '{other}'")),
+    };
     let project_id = string_field(input, "project_id").ok_or("project_id is required")?;
     if !valid_label_value(&project_id) {
         return Err("project_id must be label-safe".to_string());
@@ -869,6 +910,7 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         .unwrap_or(DEFAULT_BUILD_TIMEOUT_SECS);
 
     Ok(BuildImageSpec {
+        strategy,
         project_id,
         build_id,
         context_dir,
@@ -880,6 +922,20 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         max_context_files,
         build_timeout_secs,
     })
+}
+
+fn contains_raw_build_secret(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, value)| {
+            if key == "context_dir" {
+                return false;
+            }
+            contains_raw_build_secret(value)
+        }),
+        Value::Array(items) => items.iter().any(contains_raw_build_secret),
+        Value::String(value) => safety::looks_like_raw_secret_value(value),
+        _ => false,
+    }
 }
 
 fn has_build_secret_request(input: &Value) -> bool {
@@ -1021,12 +1077,18 @@ fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
     let mut labels = HashMap::from([
         ("yggdrasil.project_id".to_string(), spec.project_id.clone()),
         ("yggdrasil.build_id".to_string(), spec.build_id.clone()),
-        ("yggdrasil.strategy".to_string(), "dockerfile".to_string()),
+        (
+            "yggdrasil.strategy".to_string(),
+            spec.strategy.as_str().to_string(),
+        ),
         (
             "yggdrasil.dockerfile_path".to_string(),
             spec.dockerfile.clone(),
         ),
     ]);
+    if spec.strategy == BuildStrategy::Nixpacks {
+        labels.insert("yggdrasil.buildpack".to_string(), "nixpacks".to_string());
+    }
     if let Some(value) = &spec.source_commit {
         labels.insert("yggdrasil.source_commit".to_string(), value.clone());
     }
@@ -1034,6 +1096,100 @@ fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
         labels.insert("yggdrasil.build_descriptor_hash".to_string(), value.clone());
     }
     labels
+}
+
+fn prepare_build_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, String> {
+    match spec.strategy {
+        BuildStrategy::Dockerfile => Ok(PreparedBuildContext {
+            context: create_context_tar(spec)?,
+            dockerfile: spec.dockerfile.clone(),
+            buildpack_version: None,
+            generated_dockerfile: None,
+        }),
+        BuildStrategy::Nixpacks => prepare_nixpacks_context(spec),
+    }
+}
+
+fn prepare_nixpacks_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, String> {
+    prepare_nixpacks_context_with_binary(spec, NIXPACKS_BINARY)
+}
+
+fn prepare_nixpacks_context_with_binary(
+    spec: &BuildImageSpec,
+    binary: &str,
+) -> Result<PreparedBuildContext, String> {
+    validate_nixpacks_binary(binary)?;
+    let root = std::fs::canonicalize(&spec.context_dir)
+        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
+    if !root.is_dir() {
+        return Err("context_dir must be a directory".to_string());
+    }
+    let out_dir = root.join(".yggdrasil-nixpacks").join(&spec.build_id);
+    if out_dir.exists() {
+        std::fs::remove_dir_all(&out_dir)
+            .map_err(|e| format!("failed to clear nixpacks output dir: {e}"))?;
+    }
+    std::fs::create_dir_all(&out_dir)
+        .map_err(|e| format!("failed to create nixpacks output dir: {e}"))?;
+    let version = nixpacks_version(binary);
+    let output = nixpacks_command(binary, &root, &out_dir)
+        .output()
+        .map_err(|e| format!("nixpacks unavailable or failed to start: {e}"))?;
+    if !output.status.success() {
+        let stderr = redact_log_text(&String::from_utf8_lossy(&output.stderr));
+        let stdout = redact_log_text(&String::from_utf8_lossy(&output.stdout));
+        let mut message = format!("nixpacks exited with status {}", output.status);
+        if !stderr.trim().is_empty() {
+            message.push_str(": ");
+            message.push_str(stderr.trim());
+        } else if !stdout.trim().is_empty() {
+            message.push_str(": ");
+            message.push_str(stdout.trim());
+        }
+        return Err(message);
+    }
+    let mut generated = spec.clone();
+    generated.context_dir = out_dir;
+    generated.dockerfile = NIXPACKS_GENERATED_DOCKERFILE.to_string();
+    Ok(PreparedBuildContext {
+        context: create_context_tar(&generated)?,
+        dockerfile: NIXPACKS_GENERATED_DOCKERFILE.to_string(),
+        buildpack_version: version,
+        generated_dockerfile: Some(NIXPACKS_GENERATED_DOCKERFILE.to_string()),
+    })
+}
+
+fn validate_nixpacks_binary(binary: &str) -> Result<(), String> {
+    if binary.is_empty()
+        || binary.contains('/')
+        || binary.contains('\\')
+        || binary
+            .bytes()
+            .any(|byte| byte.is_ascii_control() || byte == b' ')
+    {
+        return Err("nixpacks binary name is invalid".to_string());
+    }
+    Ok(())
+}
+
+fn nixpacks_command(binary: &str, context_dir: &Path, out_dir: &Path) -> Command {
+    let mut command = Command::new(binary);
+    command
+        .arg("build")
+        .arg(context_dir)
+        .arg("--out")
+        .arg(out_dir);
+    command
+}
+
+fn nixpacks_version(binary: &str) -> Option<String> {
+    validate_nixpacks_binary(binary).ok()?;
+    let output = Command::new(binary).arg("--version").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (!raw.is_empty()).then_some(raw)
 }
 
 fn create_context_tar(spec: &BuildImageSpec) -> Result<ContextTar, String> {
@@ -1497,7 +1653,7 @@ mod tests {
             "build_image",
             serde_json::json!({
                 "approved": true,
-                "strategy": "nixpacks",
+                "strategy": "compose",
                 "project_id": "project-1",
                 "build_id": "build-1",
                 "context_dir": "/tmp/project"
@@ -1507,6 +1663,69 @@ mod tests {
         assert_eq!(output["kind"], "docker_runtime_lab_rejected");
         assert_eq!(output["docker_performed"], false);
         assert!(output["reason"].as_str().unwrap().contains("unsupported"));
+    }
+
+    #[test]
+    fn docker_runtime_lab_build_image_accepts_nixpacks_strategy_shape() {
+        let data_dir = PathBuf::from("/tmp/ygg-runtime-nixpacks-test-data");
+        std::env::set_var("YGG_DATA_DIR", &data_dir);
+        let context_dir = data_dir.join("projects/project-1/workspace");
+        let spec = parse_build_image_request(&serde_json::json!({
+            "approved": true,
+            "strategy": "nixpacks",
+            "project_id": "project-1",
+            "build_id": "build-1",
+            "context_dir": context_dir.to_string_lossy()
+        }))
+        .unwrap();
+        std::env::remove_var("YGG_DATA_DIR");
+        assert_eq!(spec.strategy, BuildStrategy::Nixpacks);
+        assert_eq!(spec.dockerfile, "Dockerfile");
+    }
+
+    #[test]
+    fn docker_runtime_lab_nixpacks_command_shape_is_fixed_argv() {
+        let context = PathBuf::from("/tmp/ygg/context");
+        let out = PathBuf::from("/tmp/ygg/context/.yggdrasil-nixpacks/build-1");
+        let command = nixpacks_command("nixpacks", &context, &out);
+        assert_eq!(command.get_program().to_string_lossy(), "nixpacks");
+        let args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            args,
+            vec![
+                "build".to_string(),
+                "/tmp/ygg/context".to_string(),
+                "--out".to_string(),
+                "/tmp/ygg/context/.yggdrasil-nixpacks/build-1".to_string()
+            ]
+        );
+        assert!(validate_nixpacks_binary("nixpacks").is_ok());
+        assert!(validate_nixpacks_binary("/bin/nixpacks").is_err());
+        assert!(validate_nixpacks_binary("nix packs").is_err());
+    }
+
+    #[test]
+    fn docker_runtime_lab_nixpacks_unavailable_fails_closed_before_docker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let spec = BuildImageSpec {
+            strategy: BuildStrategy::Nixpacks,
+            project_id: "project-1".to_string(),
+            build_id: "build-1".to_string(),
+            context_dir: tmp.path().to_path_buf(),
+            dockerfile: "Dockerfile".to_string(),
+            source_commit: None,
+            build_descriptor_hash: None,
+            build_args: HashMap::new(),
+            max_context_bytes: 1024,
+            max_context_files: 10,
+            build_timeout_secs: 1,
+        };
+        let error = prepare_nixpacks_context_with_binary(&spec, "definitely-not-ygg-nixpacks")
+            .unwrap_err();
+        assert!(error.contains("nixpacks unavailable") || error.contains("failed to start"));
     }
 
     #[test]
@@ -1557,6 +1776,7 @@ mod tests {
         std::fs::write(tmp.path().join("Dockerfile"), "FROM scratch\n").unwrap();
         std::fs::write(tmp.path().join("app.txt"), "hello").unwrap();
         let spec = BuildImageSpec {
+            strategy: BuildStrategy::Dockerfile,
             project_id: "project-1".to_string(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
@@ -1591,6 +1811,7 @@ mod tests {
         std::fs::create_dir(tmp.path().join("node_modules")).unwrap();
         std::fs::write(tmp.path().join("node_modules/huge.js"), "ignored").unwrap();
         let spec = BuildImageSpec {
+            strategy: BuildStrategy::Dockerfile,
             project_id: "project-1".to_string(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),

@@ -474,6 +474,8 @@ pub struct HostBuildDeployRequest {
     pub source_url: String,
     pub ref_name: String,
     #[serde(default)]
+    pub strategy: Option<String>,
+    #[serde(default)]
     pub dockerfile: Option<String>,
     pub container_port: u16,
     pub port_name: String,
@@ -498,6 +500,7 @@ pub struct HostBuildDeployResponse {
     pub build_id: String,
     pub source_commit: String,
     pub build_descriptor_hash: String,
+    pub strategy: String,
     pub warnings: Vec<String>,
 }
 
@@ -727,6 +730,11 @@ where
         .build_id
         .clone()
         .unwrap_or_else(|| generated_build_id(&source_commit));
+    let strategy = request
+        .strategy
+        .as_deref()
+        .unwrap_or("dockerfile")
+        .to_string();
     let dockerfile = request
         .dockerfile
         .clone()
@@ -740,7 +748,7 @@ where
         "official/docker-runtime-lab/build_image",
         serde_json::json!({
             "approved": true,
-            "strategy": "dockerfile",
+            "strategy": strategy,
             "project_id": request.project_id.as_str(),
             "build_id": build_id,
             "context_dir": workspace_dir.to_string_lossy(),
@@ -769,6 +777,7 @@ where
         build_id,
         source_commit,
         build_descriptor_hash,
+        strategy,
         warnings: Vec::new(),
     })
 }
@@ -1652,6 +1661,10 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
     if let Some(build_id) = request.build_id.as_deref() {
         validate_build_id(build_id)?;
     }
+    let strategy = request.strategy.as_deref().unwrap_or("dockerfile");
+    if !matches!(strategy, "dockerfile" | "nixpacks") {
+        anyhow::bail!("strategy must be dockerfile or nixpacks");
+    }
     if let Some(dockerfile) = request.dockerfile.as_deref() {
         validate_relative_dockerfile(dockerfile)?;
     }
@@ -1710,7 +1723,7 @@ fn build_deploy_descriptor_hash(
 ) -> String {
     let canonical = serde_json::json!({
         "version": 1,
-        "strategy": "dockerfile",
+        "strategy": request.strategy.as_deref().unwrap_or("dockerfile"),
         "project_id": request.project_id.as_str(),
         "source_url": request.source_url,
         "ref_name": request.ref_name,
@@ -2723,6 +2736,7 @@ mod tests {
             project_id: ProjectId::new("build__abc123").unwrap(),
             source_url: "https://example.com/org/repo.git".to_string(),
             ref_name: "refs/heads/main".to_string(),
+            strategy: Some("dockerfile".to_string()),
             dockerfile: Some("Dockerfile".to_string()),
             container_port: 3000,
             port_name: "web".to_string(),
@@ -2753,6 +2767,14 @@ mod tests {
         let mut request = valid_build_deploy_request();
         request.build_id = Some("../bad".to_string());
         assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.strategy = Some("compose".to_string());
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.strategy = Some("nixpacks".to_string());
+        assert!(validate_host_build_deploy_request(&request).is_ok());
     }
 
     #[test]

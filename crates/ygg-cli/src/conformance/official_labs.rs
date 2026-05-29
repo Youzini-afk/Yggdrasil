@@ -216,7 +216,7 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
             "project_id": "build-test__abc123",
             "build_id": "build-001",
             "context_dir": "/tmp/not-used",
-            "strategy": "nixpacks"
+            "strategy": "compose"
         }),
         json!({
             "approved": true,
@@ -240,6 +240,40 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
         anyhow::ensure!(result.output["kind"] == json!("docker_runtime_lab_rejected"));
         anyhow::ensure!(result.output["docker_performed"] == json!(false));
     }
+
+    let tmp = tempfile::tempdir()?;
+    let data_dir = tmp.path().join("data");
+    let workspace = data_dir
+        .join("projects")
+        .join("build-test__abc123")
+        .join("workspace");
+    std::fs::create_dir_all(&workspace)?;
+    let previous_data_dir = std::env::var("YGG_DATA_DIR").ok();
+    std::env::set_var("YGG_DATA_DIR", &data_dir);
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("official/docker-runtime-lab/build_image".to_string()),
+            caller_package_id: None,
+            provider_package_id: Some("official/docker-runtime-lab".to_string()),
+            version: None,
+            session_id: None,
+            input: json!({
+                "approved": true,
+                "strategy": "nixpacks",
+                "project_id": "build-test__abc123",
+                "build_id": "build-001",
+                "context_dir": workspace.to_string_lossy(),
+                "nixpacks_binary": "definitely-not-ygg-nixpacks"
+            }),
+        })
+        .await?;
+    match previous_data_dir {
+        Some(value) => std::env::set_var("YGG_DATA_DIR", value),
+        None => std::env::remove_var("YGG_DATA_DIR"),
+    }
+    anyhow::ensure!(result.output["kind"] == json!("docker_runtime_lab_rejected"));
+    anyhow::ensure!(result.output["docker_performed"] == json!(false));
     Ok(())
 }
 
