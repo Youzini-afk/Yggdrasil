@@ -734,6 +734,7 @@ where
         runtime,
         static_dir,
         access_token,
+        build_jobs: ygg_service::build_deploy_job_registry(),
     };
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
     let app = ygg_service::app_with_state(state);

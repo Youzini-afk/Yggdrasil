@@ -3,7 +3,8 @@ use std::convert::Infallible;
 use std::fmt;
 use std::fs;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use anyhow::Context;
@@ -26,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tokio::net::TcpStream;
+use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
 use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, ProjectId, SessionId};
@@ -54,6 +56,11 @@ const MAX_RUNTIME_ENV_VALUE_LEN: usize = 8192;
 const MAX_RUNTIME_ENV_TOTAL_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_MOUNTS: usize = 32;
 const DOCKER_RUNTIME_PACKAGE_ID: &str = "official/docker-runtime-lab";
+const BUILD_DEPLOY_MAX_GLOBAL_ACTIVE: usize = 2;
+const BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE: usize = 1;
+const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
+const BUILD_DEPLOY_LOG_RING: usize = 256;
+const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -64,6 +71,7 @@ where
     pub runtime: Arc<Runtime<S>>,
     pub static_dir: Option<PathBuf>,
     pub access_token: Option<String>,
+    pub build_jobs: Arc<BuildDeployJobRegistry>,
 }
 
 impl<S> Clone for AppState<S>
@@ -75,6 +83,7 @@ where
             runtime: self.runtime.clone(),
             static_dir: self.static_dir.clone(),
             access_token: self.access_token.clone(),
+            build_jobs: self.build_jobs.clone(),
         }
     }
 }
@@ -118,6 +127,7 @@ pub fn app() -> Router {
         runtime,
         static_dir: None,
         access_token: None,
+        build_jobs: Arc::new(BuildDeployJobRegistry::default()),
     })
 }
 
@@ -155,6 +165,18 @@ where
         .route("/host/v1/deploy", post(deploy_project::<S>))
         .route("/host/v1/deploy/stop", post(stop_project_deployment::<S>))
         .route("/host/v1/build-deploy", post(build_deploy_project::<S>))
+        .route(
+            "/host/v1/build-deploy/:job_id",
+            get(build_deploy_job_status::<S>),
+        )
+        .route(
+            "/host/v1/build-deploy/:job_id/events",
+            get(build_deploy_job_events::<S>),
+        )
+        .route(
+            "/host/v1/build-deploy/:job_id/cancel",
+            post(cancel_build_deploy_job::<S>),
+        )
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
@@ -584,6 +606,77 @@ pub struct RuntimeMountSummary {
     pub approved: bool,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildDeployJobState {
+    Queued,
+    Cloning,
+    Building,
+    Starting,
+    RegisteringProxy,
+    Probing,
+    Ready,
+    Failed,
+    Cancelled,
+}
+
+impl BuildDeployJobState {
+    fn terminal(self) -> bool {
+        matches!(self, Self::Ready | Self::Failed | Self::Cancelled)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildDeployJobEvent {
+    pub job_id: String,
+    pub sequence: u64,
+    pub state: BuildDeployJobState,
+    pub message: String,
+    pub timestamp_ms: u128,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildDeployJobStatusResponse {
+    pub job_id: String,
+    pub project_id: ProjectId,
+    pub route_id: String,
+    pub build_id: Option<String>,
+    pub state: BuildDeployJobState,
+    pub created_at_ms: u128,
+    pub updated_at_ms: u128,
+    pub result: Option<HostBuildDeployResponse>,
+    pub error: Option<String>,
+    pub events_url: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BuildDeployJobSubmitResponse {
+    pub job_id: String,
+    pub status_url: String,
+    pub events_url: String,
+    pub state: BuildDeployJobState,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum BuildDeploySubmitOrStatusResponse {
+    Submitted(BuildDeployJobSubmitResponse),
+    Status(BuildDeployJobStatusResponse),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BuildDeploySubmitQuery {
+    #[serde(default)]
+    pub wait: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BuildDeployCancelResponse {
+    pub job_id: String,
+    pub state: BuildDeployJobState,
+    pub cancelled: bool,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeEnvSourceKind {
@@ -606,6 +699,26 @@ pub struct HostBuildDeployResponse {
     pub runtime_env: Vec<RuntimeEnvSummary>,
     pub runtime_mounts: Vec<RuntimeMountSummary>,
     pub warnings: Vec<String>,
+}
+
+impl Clone for HostBuildDeployResponse {
+    fn clone(&self) -> Self {
+        Self {
+            route_id: self.route_id.clone(),
+            public_url: self.public_url.clone(),
+            port_lease_id: self.port_lease_id.clone(),
+            container_id: self.container_id.clone(),
+            container_name: self.container_name.clone(),
+            image: self.image.clone(),
+            build_id: self.build_id.clone(),
+            source_commit: self.source_commit.clone(),
+            build_descriptor_hash: self.build_descriptor_hash.clone(),
+            strategy: self.strategy.clone(),
+            runtime_env: self.runtime_env.clone(),
+            runtime_mounts: self.runtime_mounts.clone(),
+            warnings: self.warnings.clone(),
+        }
+    }
 }
 
 struct ResolvedRuntimeEnv {
@@ -652,6 +765,233 @@ struct HostDockerStartRequest<'a> {
 struct HostDockerStartedContainer {
     container_id: String,
     container_name: Option<String>,
+}
+
+#[derive(Debug)]
+struct BuildDeployJobRecord {
+    job_id: String,
+    project_id: ProjectId,
+    route_id: String,
+    build_id: Option<String>,
+    state: BuildDeployJobState,
+    created_at_ms: u128,
+    updated_at_ms: u128,
+    result: Option<HostBuildDeployResponse>,
+    error: Option<String>,
+    events: VecDeque<BuildDeployJobEvent>,
+    next_sequence: u64,
+    cancel: Arc<AtomicBool>,
+}
+
+#[derive(Debug)]
+pub struct BuildDeployJobRegistry {
+    jobs: Mutex<HashMap<String, BuildDeployJobRecord>>,
+    notifier: broadcast::Sender<BuildDeployJobEvent>,
+    global_sem: Arc<Semaphore>,
+    project_active: Mutex<HashSet<ProjectId>>,
+}
+
+impl Default for BuildDeployJobRegistry {
+    fn default() -> Self {
+        let (notifier, _) = broadcast::channel(512);
+        Self {
+            jobs: Mutex::new(HashMap::new()),
+            notifier,
+            global_sem: Arc::new(Semaphore::new(BUILD_DEPLOY_MAX_GLOBAL_ACTIVE)),
+            project_active: Mutex::new(HashSet::new()),
+        }
+    }
+}
+
+pub fn build_deploy_job_registry() -> Arc<BuildDeployJobRegistry> {
+    Arc::new(BuildDeployJobRegistry::default())
+}
+
+impl BuildDeployJobRegistry {
+    fn create_job(&self, request: &HostBuildDeployRequest) -> anyhow::Result<String> {
+        let permit = self.global_sem.clone().try_acquire_owned().ok();
+        if permit.is_none() {
+            anyhow::bail!("build-deploy global concurrency limit reached");
+        }
+        drop(permit);
+        {
+            let mut active = self.project_active.lock().expect("project lock poisoned");
+            if active.contains(&request.project_id) {
+                anyhow::bail!(
+                    "build-deploy project concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE})"
+                );
+            }
+            active.insert(request.project_id.clone());
+        }
+        let now = now_millis();
+        let job_id = format!("bdj-{now}-{}", sanitize_container_name(&request.route_id));
+        let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
+        jobs.insert(
+            job_id.clone(),
+            BuildDeployJobRecord {
+                job_id: job_id.clone(),
+                project_id: request.project_id.clone(),
+                route_id: request.route_id.clone(),
+                build_id: request.build_id.clone(),
+                state: BuildDeployJobState::Queued,
+                created_at_ms: now,
+                updated_at_ms: now,
+                result: None,
+                error: None,
+                events: VecDeque::new(),
+                next_sequence: 1,
+                cancel: Arc::new(AtomicBool::new(false)),
+            },
+        );
+        drop(jobs);
+        self.push_event(&job_id, BuildDeployJobState::Queued, "job queued");
+        self.prune();
+        Ok(job_id)
+    }
+
+    fn status(&self, job_id: &str) -> Option<BuildDeployJobStatusResponse> {
+        let jobs = self.jobs.lock().expect("jobs lock poisoned");
+        let job = jobs.get(job_id)?;
+        Some(job_status_response(job))
+    }
+
+    fn events(&self, job_id: &str) -> Option<Vec<BuildDeployJobEvent>> {
+        let jobs = self.jobs.lock().expect("jobs lock poisoned");
+        Some(jobs.get(job_id)?.events.iter().cloned().collect())
+    }
+
+    fn subscribe(&self) -> broadcast::Receiver<BuildDeployJobEvent> {
+        self.notifier.subscribe()
+    }
+
+    fn cancel(&self, job_id: &str) -> Option<(BuildDeployJobState, bool)> {
+        let cancel = {
+            let jobs = self.jobs.lock().expect("jobs lock poisoned");
+            let job = jobs.get(job_id)?;
+            if job.state.terminal() {
+                return Some((job.state, false));
+            }
+            job.cancel.clone()
+        };
+        cancel.store(true, Ordering::SeqCst);
+        self.push_event(job_id, BuildDeployJobState::Cancelled, "cancel requested");
+        self.status(job_id).map(|status| (status.state, true))
+    }
+
+    async fn acquire(&self, project_id: &ProjectId) -> anyhow::Result<OwnedSemaphorePermit> {
+        let permit = self
+            .global_sem
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| anyhow::anyhow!("build-deploy global concurrency limit reached"))?;
+        let _ = project_id;
+        Ok(permit)
+    }
+
+    fn release_project(&self, project_id: &ProjectId) {
+        self.project_active
+            .lock()
+            .expect("project lock poisoned")
+            .remove(project_id);
+    }
+
+    fn cancel_flag(&self, job_id: &str) -> Option<Arc<AtomicBool>> {
+        self.jobs
+            .lock()
+            .expect("jobs lock poisoned")
+            .get(job_id)
+            .map(|job| job.cancel.clone())
+    }
+
+    fn transition(&self, job_id: &str, state: BuildDeployJobState, message: &str) {
+        self.push_event(job_id, state, message);
+    }
+
+    fn complete_ready(&self, job_id: &str, result: HostBuildDeployResponse) {
+        let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
+        if let Some(job) = jobs.get_mut(job_id) {
+            if job.state.terminal() {
+                return;
+            }
+            job.build_id = Some(result.build_id.clone());
+            job.result = Some(result);
+        }
+        drop(jobs);
+        self.push_event(job_id, BuildDeployJobState::Ready, "deployment ready");
+    }
+
+    fn complete_error(&self, job_id: &str, state: BuildDeployJobState, error: String) {
+        let redacted = redact_build_log(&error);
+        let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
+        if let Some(job) = jobs.get_mut(job_id) {
+            if job.state.terminal() {
+                return;
+            }
+            job.error = Some(redacted.clone());
+        }
+        drop(jobs);
+        self.push_event(job_id, state, &redacted);
+    }
+
+    fn push_event(&self, job_id: &str, state: BuildDeployJobState, message: &str) {
+        let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
+        let Some(job) = jobs.get_mut(job_id) else {
+            return;
+        };
+        if job.state.terminal() && state != job.state {
+            return;
+        }
+        let event = BuildDeployJobEvent {
+            job_id: job_id.to_string(),
+            sequence: job.next_sequence,
+            state,
+            message: redact_build_log(message),
+            timestamp_ms: now_millis(),
+        };
+        job.next_sequence += 1;
+        job.state = state;
+        job.updated_at_ms = event.timestamp_ms;
+        job.events.push_back(event.clone());
+        while job.events.len() > BUILD_DEPLOY_LOG_RING {
+            job.events.pop_front();
+        }
+        drop(jobs);
+        let _ = self.notifier.send(event);
+    }
+
+    fn prune(&self) {
+        let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
+        if jobs.len() <= BUILD_DEPLOY_MAX_RETAINED_JOBS {
+            return;
+        }
+        let mut terminal = jobs
+            .values()
+            .filter(|job| job.state.terminal())
+            .map(|job| (job.created_at_ms, job.job_id.clone()))
+            .collect::<Vec<_>>();
+        terminal.sort();
+        for (_, id) in terminal
+            .into_iter()
+            .take(jobs.len() - BUILD_DEPLOY_MAX_RETAINED_JOBS)
+        {
+            jobs.remove(&id);
+        }
+    }
+}
+
+fn job_status_response(job: &BuildDeployJobRecord) -> BuildDeployJobStatusResponse {
+    BuildDeployJobStatusResponse {
+        job_id: job.job_id.clone(),
+        project_id: job.project_id.clone(),
+        route_id: job.route_id.clone(),
+        build_id: job.build_id.clone(),
+        state: job.state,
+        created_at_ms: job.created_at_ms,
+        updated_at_ms: job.updated_at_ms,
+        result: job.result.clone(),
+        error: job.error.clone(),
+        events_url: format!("/host/v1/build-deploy/{}/events", job.job_id),
+    }
 }
 
 impl fmt::Debug for ResolvedRuntimeEnv {
@@ -849,15 +1189,164 @@ where
 
 async fn build_deploy_project<S>(
     State(state): State<AppState<S>>,
+    Query(query): Query<BuildDeploySubmitQuery>,
     Json(request): Json<HostBuildDeployRequest>,
-) -> anyhow::Result<Json<HostBuildDeployResponse>, ServiceError>
+) -> anyhow::Result<Json<BuildDeploySubmitOrStatusResponse>, ServiceError>
 where
     S: EventStore,
 {
-    build_deploy_project_minimal(&state, request)
-        .await
-        .map(Json)
-        .map_err(redacted_build_deploy_error)
+    validate_host_build_deploy_request(&request).map_err(redacted_build_deploy_error)?;
+    let job_id = state.build_jobs.create_job(&request).map_err(|error| {
+        ServiceError::with_status(StatusCode::TOO_MANY_REQUESTS, error.to_string())
+    })?;
+    let worker_state = state.clone();
+    let worker_job_id = job_id.clone();
+    tokio::spawn(async move {
+        run_build_deploy_job(worker_state, worker_job_id, request).await;
+    });
+    if query.wait {
+        let status = wait_for_build_job(&state, &job_id, BUILD_DEPLOY_WAIT_TIMEOUT).await;
+        return Ok(Json(BuildDeploySubmitOrStatusResponse::Status(status)));
+    }
+    Ok(Json(BuildDeploySubmitOrStatusResponse::Submitted(
+        BuildDeployJobSubmitResponse {
+            status_url: format!("/host/v1/build-deploy/{job_id}"),
+            events_url: format!("/host/v1/build-deploy/{job_id}/events"),
+            state: BuildDeployJobState::Queued,
+            job_id,
+        },
+    )))
+}
+
+async fn build_deploy_job_status<S>(
+    State(state): State<AppState<S>>,
+    Path(job_id): Path<String>,
+) -> anyhow::Result<Json<BuildDeployJobStatusResponse>, ServiceError>
+where
+    S: EventStore,
+{
+    state.build_jobs.status(&job_id).map(Json).ok_or_else(|| {
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+    })
+}
+
+async fn cancel_build_deploy_job<S>(
+    State(state): State<AppState<S>>,
+    Path(job_id): Path<String>,
+) -> anyhow::Result<Json<BuildDeployCancelResponse>, ServiceError>
+where
+    S: EventStore,
+{
+    let (state_value, cancelled) = state.build_jobs.cancel(&job_id).ok_or_else(|| {
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+    })?;
+    Ok(Json(BuildDeployCancelResponse {
+        job_id,
+        state: state_value,
+        cancelled,
+    }))
+}
+
+async fn build_deploy_job_events<S>(
+    State(state): State<AppState<S>>,
+    Path(job_id): Path<String>,
+) -> anyhow::Result<Sse<impl Stream<Item = Result<SseEvent, Infallible>>>, ServiceError>
+where
+    S: EventStore,
+{
+    let replay = state.build_jobs.events(&job_id).ok_or_else(|| {
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+    })?;
+    let rx = state.build_jobs.subscribe();
+    let stream = futures::stream::unfold((replay, 0usize, rx), move |(replay, idx, mut rx)| {
+        let job_id = job_id.clone();
+        async move {
+            if idx < replay.len() {
+                let event = replay[idx].clone();
+                return Some((sse_json_event(&event), (replay, idx + 1, rx)));
+            }
+            loop {
+                match rx.recv().await {
+                    Ok(event) => {
+                        if event.job_id == job_id {
+                            return Some((sse_json_event(&event), (replay, idx, rx)));
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(broadcast::error::RecvError::Closed) => return None,
+                }
+            }
+        }
+    });
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+}
+
+fn sse_json_event(event: &BuildDeployJobEvent) -> Result<SseEvent, Infallible> {
+    Ok(SseEvent::default()
+        .event("build_deploy")
+        .data(serde_json::to_string(event).unwrap_or_else(|_| "{}".to_string())))
+}
+
+async fn wait_for_build_job<S>(
+    state: &AppState<S>,
+    job_id: &str,
+    max_wait: Duration,
+) -> BuildDeployJobStatusResponse
+where
+    S: EventStore,
+{
+    let deadline = Instant::now() + max_wait;
+    loop {
+        if let Some(status) = state.build_jobs.status(job_id) {
+            if status.state.terminal() || Instant::now() >= deadline {
+                return status;
+            }
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+}
+
+async fn run_build_deploy_job<S>(
+    state: AppState<S>,
+    job_id: String,
+    request: HostBuildDeployRequest,
+) where
+    S: EventStore,
+{
+    let permit = match state.build_jobs.acquire(&request.project_id).await {
+        Ok(permit) => permit,
+        Err(error) => {
+            state.build_jobs.complete_error(
+                &job_id,
+                BuildDeployJobState::Failed,
+                error.to_string(),
+            );
+            return;
+        }
+    };
+    let result = build_deploy_project_minimal_with_job(&state, &job_id, request).await;
+    drop(permit);
+    // Project must be released even when cancelled/failed.
+    if let Some(status) = state.build_jobs.status(&job_id) {
+        state.build_jobs.release_project(&status.project_id);
+    }
+    match result {
+        Ok(result) => state.build_jobs.complete_ready(&job_id, result),
+        Err(error) => {
+            let state_kind = if state
+                .build_jobs
+                .cancel_flag(&job_id)
+                .is_some_and(|flag| flag.load(Ordering::SeqCst))
+            {
+                BuildDeployJobState::Cancelled
+            } else {
+                BuildDeployJobState::Failed
+            };
+            state
+                .build_jobs
+                .complete_error(&job_id, state_kind, error.to_string());
+        }
+    }
 }
 
 pub async fn build_deploy_project_minimal<S>(
@@ -867,7 +1356,36 @@ pub async fn build_deploy_project_minimal<S>(
 where
     S: EventStore,
 {
+    build_deploy_project_minimal_inner(state, None, request).await
+}
+
+async fn build_deploy_project_minimal_with_job<S>(
+    state: &AppState<S>,
+    job_id: &str,
+    request: HostBuildDeployRequest,
+) -> anyhow::Result<HostBuildDeployResponse>
+where
+    S: EventStore,
+{
+    build_deploy_project_minimal_inner(state, Some(job_id), request).await
+}
+
+async fn build_deploy_project_minimal_inner<S>(
+    state: &AppState<S>,
+    job_id: Option<&str>,
+    request: HostBuildDeployRequest,
+) -> anyhow::Result<HostBuildDeployResponse>
+where
+    S: EventStore,
+{
     validate_host_build_deploy_request(&request)?;
+    check_job_cancel(state, job_id)?;
+    job_transition(
+        state,
+        job_id,
+        BuildDeployJobState::Cloning,
+        "cloning source",
+    );
     let clone = clone_project_workspace_from_git(
         state,
         ProjectWorkspaceCloneRequest {
@@ -878,6 +1396,7 @@ where
     )
     .await
     .context("project workspace clone failed")?;
+    check_job_cancel(state, job_id)?;
 
     let source_commit = request
         .source_commit
@@ -922,6 +1441,12 @@ where
         .collect::<Vec<_>>();
     let workspace_dir = ygg_core::paths::project_workspace_dir(&request.project_id)?;
     let context = ProtocolContext::host_dev("host_build_deploy");
+    job_transition(
+        state,
+        job_id,
+        BuildDeployJobState::Building,
+        "building image",
+    );
     let build_output = invoke_docker_runtime_lab(
         state,
         &context,
@@ -940,9 +1465,17 @@ where
     .await
     .context("docker image build failed")?;
     let image = require_built_image(&build_output)?;
+    check_job_cancel(state, job_id)?;
+    job_transition(
+        state,
+        job_id,
+        BuildDeployJobState::Starting,
+        "starting container",
+    );
 
     let deploy = deploy_built_image(
         state,
+        job_id,
         &request,
         &image,
         &build_id,
@@ -970,6 +1503,35 @@ where
         runtime_mounts: mount_summary,
         warnings: Vec::new(),
     })
+}
+
+fn check_job_cancel<S>(state: &AppState<S>, job_id: Option<&str>) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    if let Some(job_id) = job_id {
+        if state
+            .build_jobs
+            .cancel_flag(job_id)
+            .is_some_and(|flag| flag.load(Ordering::SeqCst))
+        {
+            anyhow::bail!("build-deploy job cancelled");
+        }
+    }
+    Ok(())
+}
+
+fn job_transition<S>(
+    state: &AppState<S>,
+    job_id: Option<&str>,
+    status: BuildDeployJobState,
+    message: &str,
+) where
+    S: EventStore,
+{
+    if let Some(job_id) = job_id {
+        state.build_jobs.transition(job_id, status, message);
+    }
 }
 
 async fn stop_project_deployment<S>(
@@ -1198,6 +1760,7 @@ async fn start_build_deploy_container(
 
 async fn deploy_built_image<S>(
     state: &AppState<S>,
+    job_id: Option<&str>,
     request: &HostBuildDeployRequest,
     image: &str,
     build_id: &str,
@@ -1228,6 +1791,18 @@ where
     };
     let lease_id = required_string(&lease, "id", "port lease")?;
     let lease_port = required_u16(&lease, "port", "port lease")?;
+    if let Err(error) = check_job_cancel(state, job_id) {
+        rollback_deploy(
+            state,
+            &context,
+            &request.route_id,
+            false,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(error);
+    }
 
     let started = match start_build_deploy_container(HostDockerStartRequest {
         image,
@@ -1262,7 +1837,25 @@ where
     let parsed_container_id = started.container_id.clone();
     container_id = Some(parsed_container_id.clone());
     let container_name = started.container_name.clone();
+    if let Err(error) = check_job_cancel(state, job_id) {
+        rollback_deploy(
+            state,
+            &context,
+            &request.route_id,
+            false,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(error);
+    }
 
+    job_transition(
+        state,
+        job_id,
+        BuildDeployJobState::RegisteringProxy,
+        "registering proxy",
+    );
     let route = match call_host_protocol(
         state,
         &context,
@@ -1295,7 +1888,25 @@ where
     };
     let route_id = required_string(&route, "id", "proxy route")?;
     let public_url = required_string(&route, "public_url", "proxy route")?;
+    if let Err(error) = check_job_cancel(state, job_id) {
+        rollback_deploy(
+            state,
+            &context,
+            &route_id,
+            true,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(error);
+    }
 
+    job_transition(
+        state,
+        job_id,
+        BuildDeployJobState::Probing,
+        "probing readiness",
+    );
     if let Err(error) =
         wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
     {
@@ -1311,6 +1922,18 @@ where
         return Err(anyhow::anyhow!(
             "deployment did not become ready in time: {error}"
         ));
+    }
+    if let Err(error) = check_job_cancel(state, job_id) {
+        rollback_deploy(
+            state,
+            &context,
+            &route_id,
+            true,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(error);
     }
 
     if state
@@ -2209,6 +2832,20 @@ fn short_path_hash(path: &FsPath) -> String {
         .collect::<String>()
 }
 
+fn should_remove_ygg_build_image(
+    labels: &HashMap<String, String>,
+    project_id: &str,
+    build_id: &str,
+) -> bool {
+    labels.get("managed-by").is_some_and(|v| v == "yggdrasil")
+        && labels
+            .get("yggdrasil.project_id")
+            .is_some_and(|v| v == project_id)
+        && labels
+            .get("yggdrasil.build_id")
+            .is_some_and(|v| v == build_id)
+}
+
 fn validate_build_id(build_id: &str) -> anyhow::Result<()> {
     if build_id.len() < 3
         || build_id.len() > 128
@@ -2329,9 +2966,33 @@ fn redacted_build_deploy_error(error: anyhow::Error) -> ServiceError {
         error = %error,
         "build-deploy failed; public response redacted"
     );
-    ServiceError(anyhow::anyhow!(
+    ServiceError::from(anyhow::anyhow!(
         "build-deploy failed; details redacted in public response"
     ))
+}
+
+fn redact_build_log(input: &str) -> String {
+    let mut redacted = input.replace("secret_ref:", "secret_ref:<redacted>:");
+    for marker in [
+        "/workspace/",
+        "/tmp/",
+        "/var/run/docker.sock",
+        "/run/docker.sock",
+    ] {
+        redacted = redacted.replace(marker, "<path>/");
+    }
+    if redacted.len() > 1024 {
+        redacted.truncate(1024);
+        redacted.push_str("...");
+    }
+    redacted
+}
+
+fn now_millis() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
 }
 
 fn is_safe_docker_image(image: &str) -> bool {
@@ -3160,21 +3821,42 @@ where
     }
 }
 
-pub struct ServiceError(anyhow::Error);
+pub struct ServiceError {
+    error: anyhow::Error,
+    status: Option<StatusCode>,
+}
+
+impl ServiceError {
+    fn with_status(status: StatusCode, message: impl Into<String>) -> Self {
+        let code = match status {
+            StatusCode::NOT_FOUND => "kernel/v1/error/not_found",
+            StatusCode::TOO_MANY_REQUESTS => "kernel/v1/error/package_state",
+            StatusCode::BAD_REQUEST => "kernel/v1/error/invalid_request",
+            _ => "kernel/v1/error/internal",
+        };
+        Self {
+            error: anyhow::anyhow!("{}: {}", code, message.into()),
+            status: Some(status),
+        }
+    }
+}
 
 impl<E> From<E> for ServiceError
 where
     E: Into<anyhow::Error>,
 {
     fn from(value: E) -> Self {
-        Self(value.into())
+        Self {
+            error: value.into(),
+            status: None,
+        }
     }
 }
 
 impl axum::response::IntoResponse for ServiceError {
     fn into_response(self) -> axum::response::Response {
-        let error = ProtocolError::from_anyhow(self.0);
-        let status = match error.code.as_str() {
+        let error = ProtocolError::from_anyhow(self.error);
+        let status = self.status.unwrap_or_else(|| match error.code.as_str() {
             "kernel/v1/error/permission_denied" => StatusCode::FORBIDDEN,
             "kernel/v1/error/not_found" => StatusCode::NOT_FOUND,
             "kernel/v1/error/schema_invalid" | "kernel/v1/error/invalid_request" => {
@@ -3184,7 +3866,7 @@ impl axum::response::IntoResponse for ServiceError {
                 StatusCode::CONFLICT
             }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
-        };
+        });
         (status, Json(serde_json::json!({ "error": error }))).into_response()
     }
 }
@@ -3511,6 +4193,73 @@ mod tests {
     }
 
     #[test]
+    fn build_deploy_job_registry_cancel_terminal_and_redacts_logs() -> anyhow::Result<()> {
+        let registry = BuildDeployJobRegistry::default();
+        let request = valid_build_deploy_request();
+        let job_id = registry.create_job(&request)?;
+        registry.transition(
+            &job_id,
+            BuildDeployJobState::Building,
+            "building /tmp/secret_ref:env:TOKEN",
+        );
+        let events = registry.events(&job_id).unwrap();
+        assert!(events.iter().any(|event| event.message.contains("<path>/")));
+        assert!(!events.iter().any(|event| event.message.contains("/tmp/")));
+        assert!(!events
+            .iter()
+            .any(|event| event.message.contains("secret_ref:env:TOKEN")));
+
+        let (state, cancelled) = registry.cancel(&job_id).unwrap();
+        assert_eq!(state, BuildDeployJobState::Cancelled);
+        assert!(cancelled);
+        registry.complete_error(
+            &job_id,
+            BuildDeployJobState::Failed,
+            "late failure".to_string(),
+        );
+        let status = registry.status(&job_id).unwrap();
+        assert_eq!(status.state, BuildDeployJobState::Cancelled);
+        Ok(())
+    }
+
+    #[test]
+    fn build_deploy_job_registry_enforces_project_concurrency() -> anyhow::Result<()> {
+        let registry = BuildDeployJobRegistry::default();
+        let request = valid_build_deploy_request();
+        registry
+            .project_active
+            .lock()
+            .unwrap()
+            .insert(request.project_id.clone());
+        assert!(registry.create_job(&request).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn build_image_gc_policy_requires_ygg_project_and_build_labels() {
+        let labels = HashMap::from([
+            ("managed-by".to_string(), "yggdrasil".to_string()),
+            ("yggdrasil.project_id".to_string(), "project-1".to_string()),
+            ("yggdrasil.build_id".to_string(), "build-1".to_string()),
+        ]);
+        assert!(should_remove_ygg_build_image(
+            &labels,
+            "project-1",
+            "build-1"
+        ));
+        assert!(!should_remove_ygg_build_image(
+            &labels,
+            "project-2",
+            "build-1"
+        ));
+        assert!(!should_remove_ygg_build_image(
+            &HashMap::new(),
+            "project-1",
+            "build-1"
+        ));
+    }
+
+    #[test]
     fn build_deploy_descriptor_hash_is_deterministic_and_sensitive() {
         let request = valid_build_deploy_request();
         let hash1 = build_deploy_descriptor_hash(
@@ -3655,6 +4404,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -3705,6 +4455,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: Some("secret-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let health = app
@@ -3757,6 +4508,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("deploy-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let denied = app
@@ -3789,6 +4541,7 @@ mod tests {
             runtime: runtime.clone(),
             static_dir: None,
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -3842,6 +4595,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("event-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let denied = app
@@ -3873,6 +4627,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let denied = app
@@ -3895,6 +4650,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -3949,6 +4705,7 @@ mod tests {
             runtime: runtime.clone(),
             static_dir: None,
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let not_ready = app
@@ -4066,6 +4823,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -4162,6 +4920,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -4198,6 +4957,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("ws-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let denied = app
@@ -4255,6 +5015,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -4350,6 +5111,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("ws-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let proxy_addr = listener.local_addr()?;
@@ -4406,6 +5168,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("bundle-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -4458,6 +5221,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -4485,6 +5249,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: Some("static-token".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
@@ -4516,6 +5281,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         for path in [
@@ -4565,6 +5331,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
         let response = app
