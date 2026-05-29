@@ -8,12 +8,12 @@ For vision and principles, see [`CHARTER.md`](CHARTER.en.md), [`architecture/VIS
 
 ## Summary
 
-- **Conformance:** 436 named CLI cases pass, plus crate and service unit tests; 115 v1 schemas validate (63 methods + 45 events + 7 top-level).
+- **Conformance:** 442 named CLI cases pass, plus crate and service unit tests; 144 v1 schemas validate (80 methods + 57 events + 7 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `official/install-lab` provides `check_for_updates` / `update_project`, and both CLI `yg update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`.
+- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `official/install-lab` provides `check_for_updates` / `update_project`, and both CLI `yg update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`; the self-hosted deployment substrate is implemented: target / exec / port / proxy primitives, ygg-service HTTP/WebSocket reverse proxy, LiveLocalExecExecutor, `official/docker-runtime-lab`, and explicit web Deploy broker.
 
-The platform substrate is in place. From here, real AI-native playable experiences pull the remaining substrate work.
+The platform substrate is in place. From here, real project deployment, human testing, and AI-native experiences pull the remaining substrate work.
 
 ## Kernel
 
@@ -23,7 +23,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 - Principals: `host_admin`, `host_dev`, `package`, `human`, `assistant`, `anonymous`. Human and assistant principals get scoped grants.
 - Audit events: `kernel/v1/permission.granted|revoked|denied`, `kernel/v1/package.*` lifecycle, `kernel/v1/proposal.*` lifecycle.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 63 protocol methods, 45 event kinds, and 115 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 80 protocol methods, 57 event kinds, and 144 JSON Schemas. `kernel.v1.cap.*`, `kernel.v1.audit.package`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
@@ -44,7 +44,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 - The same dispatcher handles HTTP `POST /rpc` and host JSON-RPC stdio (`ygg host-stdio`).
 - Event subscription via SSE, with `after_sequence` replay and live tailing.
 - Profile-driven `ygg host serve` autoloads packages and exposes both `/rpc` and SSE.
-- WebSocket and TCP transports are reserved for later. WASM and remote entries are first-class manifest forms; execution is deferred.
+- TCP transport is reserved for later. WASM and remote entries are first-class manifest forms; execution is deferred.
 
 ## Package execution
 
@@ -61,6 +61,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 - Session fork / branch lineage rehydrates from the event log.
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
 - Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `yg project list/info/status/start/stop` are implemented.
+- Deployment runtime: `kernel.v1.target.*`, `kernel.v1.exec.*`, `kernel.v1.port.*`, and `kernel.v1.proxy.*` are implemented; default is deny-all; profiles can opt into `LiveLocalExecExecutor`; ports are loopback-only; proxy upstreams must reference active port leases; ygg-service provides HTTP/WebSocket reverse proxy. The web project console can explicitly Deploy / Stop Docker based on `project.metadata.deployment.docker`.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`. `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are structured shell descriptors: the web shell reads only bounded text, icon hints, order, and same-package targets, then renders them itself. It does not load package JavaScript, parse HTML, or mount iframes for those entries. Complex project surfaces still use `surface_bundle` plus sandboxed iframe hosting. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
 - Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry; installed project bundles are served by the host as same-origin static files under `/surface-bundles/projects/<project_id>/...`. `dist/` participates in `tree_hash`, so browser-bundle-only changes trigger updates; project dist refreshes through a temporary directory plus atomic replacement.
 - Proposal lifecycle: `kernel.v1.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
@@ -87,6 +88,7 @@ The platform substrate is in place. From here, real AI-native playable experienc
 | `official/install-lab/check_for_updates` | implemented |
 | `official/install-lab/update_project` | implemented |
 | `official/secret-store-lab` encrypted storage | implemented |
+| `official/docker-runtime-lab` (Docker container lifecycle, bollard) | implemented |
 | `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
 | age (X25519) encryption + 0600 file permissions | implemented |
 | OS keyring integration | deferred (libdbus-sys system dep) |
@@ -212,7 +214,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 63 methods, 45 events, 7 top-level schemas, 115 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 57 events, 7 top-level schemas, 144 total.
 - `sdk/typescript/kernel-sdk/` and `sdk/rust/yg-kernel-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `yg conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -258,7 +260,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Code organization
 
-- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 436 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 442 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/ygg-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`KernelMethod`), with a registry / dispatch consistency unit test.
@@ -269,7 +271,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 436 named CLI cases. Flags:
+`cargo run -p ygg-cli -- conformance` runs 442 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

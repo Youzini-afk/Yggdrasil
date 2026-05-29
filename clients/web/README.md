@@ -72,6 +72,7 @@ src/
 │   ├── kernel-client.tsx       # KernelProvider, useKernel, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
 │   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
+│   ├── project-deployment.ts   # Docker deployment descriptor parser for explicit Deploy broker
 │   └── cn.ts                   # clsx + tailwind-merge composer
 ├── components/
 │   ├── icons.tsx               # Phosphor re-exports with semantic names
@@ -182,6 +183,7 @@ mode for legibility on bark backgrounds.
 | Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
 | Project tab | `kernel.v1.project.get/start/stop` + `kernel.v1.surface.resolve_bundle` |
+| Project deployment | `kernel.v1.port.*` + `kernel.v1.proxy.*` + `official/docker-runtime-lab/{start_container,stop_container}` |
 | Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `kernel.v1.capability.invoke` |
 | Failure Modal | `kernel.v1.package.list/status/logs` redacted failure summaries |
 
@@ -200,6 +202,12 @@ icon hint, display order, and same-package targets. The shell does not import a
 bundle, parse HTML, or create an iframe for these entries. Package-contributed
 quick actions are discovery affordances in the current slice; executable wiring
 must still cross proposal, permission, and audit boundaries.
+
+Project deployment is also explicit. If a project exposes
+`project.metadata.deployment.docker`, the project console shows Deploy / Stop
+controls. Deploy leases a loopback port, invokes `official/docker-runtime-lab`,
+then registers a reverse-proxy route. `kernel.v1.project.start` does not deploy
+anything automatically.
 
 ---
 

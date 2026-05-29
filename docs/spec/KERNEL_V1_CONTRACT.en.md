@@ -21,7 +21,7 @@ The v1 contract supports two first-class participation modes:
 
 Path A is for packages that need kernel capabilities, network, secrets, audit, and SDK support. Path B is for self-contained apps, migration tools, and third-party processes that do not need platform authority.
 
-## Protocol method matrix (63)
+## Protocol method matrix (80)
 
 Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Method names are stable public API. v1 only allows additive changes.
 
@@ -121,6 +121,28 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 
 Git installation is not a kernel transport; future support belongs in the ordinary official capability package `official/git-tools-lab` using `kernel.v1.outbound.execute` plus `permissions.filesystem.write`.
 
+### `kernel.v1.target.*` / `exec.*` / `port.*` / `proxy.*` (17)
+
+| Method | Status | Contract |
+|---|---:|---|
+| `kernel.v1.target.list` | implemented | HostAdmin/HostDev only; list execution targets. |
+| `kernel.v1.target.status` | implemented | HostAdmin/HostDev only; inspect one target. |
+| `kernel.v1.target.register` | implemented | HostAdmin/HostDev only; register a controlled target. |
+| `kernel.v1.target.unregister` | implemented | HostAdmin/HostDev only; unregister a target. |
+| `kernel.v1.exec.start` | implemented | HostAdmin/HostDev only; start controlled execution through the host `LocalExecExecutor`; deny-all by default. |
+| `kernel.v1.exec.stop` | implemented | HostAdmin/HostDev only; stop a known execution. |
+| `kernel.v1.exec.status` | implemented | HostAdmin/HostDev only; inspect execution state. |
+| `kernel.v1.exec.logs` | implemented | HostAdmin/HostDev only; read redacted log tail. |
+| `kernel.v1.exec.list` | implemented | HostAdmin/HostDev only; list execution records. |
+| `kernel.v1.port.lease` | implemented | HostAdmin/HostDev only; lease a loopback port. |
+| `kernel.v1.port.release` | implemented | HostAdmin/HostDev only; release a port lease. |
+| `kernel.v1.port.status` | implemented | HostAdmin/HostDev only; inspect a port lease. |
+| `kernel.v1.port.list` | implemented | HostAdmin/HostDev only; list port leases. |
+| `kernel.v1.proxy.register` | implemented | HostAdmin/HostDev only; register an HTTP/WebSocket route; upstream must reference an active port lease and matching `port_name`. |
+| `kernel.v1.proxy.unregister` | implemented | HostAdmin/HostDev only; unregister a route. |
+| `kernel.v1.proxy.status` | implemented | HostAdmin/HostDev only; inspect a route. |
+| `kernel.v1.proxy.list` | implemented | HostAdmin/HostDev only; list routes. |
+
 
 ### `kernel.v1.project.*` (5)
 
@@ -158,7 +180,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `kernel.v1.extension_point.describe` | planned | Describe one extension point. |
 | `kernel.v1.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (45)
+## Event kind matrix (57)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -173,6 +195,9 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | proposals | 5 | `proposal.created`, `.approved`, `.rejected`, `.applied`, `.failed` |
 | assets / projections | 2 | `asset.put`, `projection.updated` |
 | outbound / websocket | 8 | `outbound.request`, `.denied`, completion events, websocket frames |
+| exec | 6 | `exec.request`, `.started`, `.completed`, `.failed`, `.stopped`, `.denied` |
+| port | 3 | `port.leased`, `.released`, `.denied` |
+| proxy | 3 | `proxy.registered`, `.unregistered`, `.denied` |
 | error | 1 | `kernel/v1/error` |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/v1/...` or another package namespace.
@@ -253,13 +278,13 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 
 ## Schemas and error codes
 
-- Method schemas: `docs/spec/v1/schemas/methods/` (63).
-- Event schemas: `docs/spec/v1/schemas/events/` (45).
+- Method schemas: `docs/spec/v1/schemas/methods/` (80).
+- Event schemas: `docs/spec/v1/schemas/events/` (57).
 - Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (7).
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 115 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 144 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -429,8 +454,8 @@ Official and third-party surfaces use the same descriptors, permission declarati
 
 A v1 implementation must at least prove:
 
-1. 63 method schemas export.
-2. 45 event schemas validate.
+1. 80 method schemas export.
+2. 57 event schemas validate.
 3. 7 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.

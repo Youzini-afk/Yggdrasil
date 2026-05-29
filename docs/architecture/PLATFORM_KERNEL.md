@@ -82,7 +82,7 @@
 
 - 在以下通道上承载规范的协议信封：in-process Rust API、HTTP `/rpc`、host JSON-RPC stdio（`ygg host-stdio`）、SSE 事件订阅。
 - 基于配置文件的 `ygg host serve` 自动加载能力包并暴露同一份 dispatcher。
-- WebSocket 和 TCP 留给后续工作。
+- WebSocket 出站与部署反代已落地；TCP 传输留给后续工作。
 - 所有传输都呈现同一份概念协议；官方包、客户端、第三方都用这份。
 
 ### 12. 沙箱边界

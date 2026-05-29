@@ -185,7 +185,7 @@ yg uninstall <id> --delete-data  # 立即删除
 
 点 Play 调用 `kernel.v1.project.start`，启动后导航到项目的 `entry_surface`。
 
-项目页带平台侧控制台：显示 bundle、包、最近事件和更新诊断；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `kernel.v1.capability.invoke`。
+项目页带平台侧控制台：显示 bundle、包、最近事件、更新诊断与部署诊断；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `kernel.v1.capability.invoke`。
 
 ## Play 流程
 
@@ -209,6 +209,18 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 - 所有 RPC 调用自动附带（`callHostRpc` 通过 `setActiveSessionId` 读取）。
 - 流式调用（`streamCapability`）用它作为订阅范围，接收 `kernel/v1/stream.*` 事件。
 
+## 显式部署
+
+`project.start` 不启动外部进程。它只打开项目 session，并把项目标记为 Running。
+
+若项目需要启动 Docker HTTP 服务，可以在 `project.metadata.deployment.docker` 声明最小部署描述符。Web 项目控制台会显示 Deploy / Stop 按钮，用户确认后由 Web shell 作为 host broker 串联：
+
+1. `kernel.v1.port.lease` 租 loopback 端口。
+2. `official/docker-runtime-lab/start_container` 启动容器。
+3. `kernel.v1.proxy.register` 注册 HTTP/WebSocket 反代 route。
+
+这条路径是显式操作，不会在打开项目时自动执行。完整说明见 [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md)。
+
 ## 协议
 
 宿主管理项目的协议（HostAdmin/HostDev only，普通包不能调）：
@@ -219,6 +231,15 @@ kernel.v1.project.get       项目详情
 kernel.v1.project.start     启动项目
 kernel.v1.project.stop      停止项目
 kernel.v1.project.status    项目状态
+```
+
+部署运行时协议（HostAdmin/HostDev only，普通包不能调）：
+
+```text
+kernel.v1.target.*   运行目标
+kernel.v1.exec.*     受控本地执行
+kernel.v1.port.*     loopback 端口租约
+kernel.v1.proxy.*    HTTP/WebSocket route
 ```
 
 生命周期事件：

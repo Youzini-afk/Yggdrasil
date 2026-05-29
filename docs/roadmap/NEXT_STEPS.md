@@ -8,11 +8,11 @@
 
 - 内核对内容无意见，官方包没有特权，公开协议是唯一入口。
 - 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
-- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
+- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、显式 Docker Deploy broker、target/exec/port/proxy 部署原语、ygg-service HTTP/WebSocket 反代、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
 - 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
-- Contract V1 是公开平台规范，63 methods + 45 events + 7 top-level = 115 个 schema 全部通过校验，436 conformance cases 通过。
+- Contract V1 是公开平台规范，80 methods + 57 events + 7 top-level = 144 个 schema 全部通过校验，442 conformance cases 通过。
 
-下一阶段不再继续摊大表面积，而是由真实可玩体验来牵引剩下的工作。
+下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。
 
 ## 长期方向
 
@@ -20,8 +20,8 @@
 
 要点：
 
-- 用一两个真实可玩体验作为压力源，倒逼底座剩下的工作浮现出来。
-- 任何新增基础设施都要回答「哪个真实玩家或创作者循环卡住了」。
+- 用一两个真实可玩体验或真实部署项目作为压力源，倒逼底座剩下的工作浮现出来。
+- 任何新增基础设施都要回答「哪个真实用户、玩家、创作者或部署循环卡住了」。
 - 不再按计划预先堆叠多层路标。
 
 ## 评分标准
@@ -61,6 +61,7 @@
 - 项目归档超过 30 天自动清理。
 - `yg secret put / list / delete` CLI。
 - OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
+- 部署描述符 polish：Docker pull 进度、健康检查轮询、日志归档、volume 策略与外部项目 wizard 自动生成描述符。
 
 ### 模型与出站
 

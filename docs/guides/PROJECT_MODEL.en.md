@@ -180,7 +180,7 @@ Status indicators:
 
 Clicking Play calls `kernel.v1.project.start`, then navigates to the project's `entry_surface`.
 
-The project page includes a platform-side console for bundle, package, recent-event, and update diagnostics. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `kernel.v1.capability.invoke` path.
+The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `kernel.v1.capability.invoke` path.
 
 ## Play flow
 
@@ -204,6 +204,18 @@ Note: this `sessionId` is then used for:
 - All RPC calls, which carry it automatically (`callHostRpc` reads it through `setActiveSessionId`).
 - Streaming calls (`streamCapability`), which use it as the subscription scope for receiving `kernel/v1/stream.*` events.
 
+## Explicit deployment
+
+`project.start` does not start external processes. It only opens a project session and marks the project Running.
+
+If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the web shell acts as a host broker:
+
+1. `kernel.v1.port.lease` leases a loopback port.
+2. `official/docker-runtime-lab/start_container` starts the container.
+3. `kernel.v1.proxy.register` registers the HTTP/WebSocket reverse-proxy route.
+
+This path is explicit. It never runs automatically when opening a project. See [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md).
+
 ## Protocol
 
 Host project-management methods are HostAdmin/HostDev only; ordinary packages cannot call them:
@@ -214,6 +226,15 @@ kernel.v1.project.get       get project details
 kernel.v1.project.start     start a project
 kernel.v1.project.stop      stop a project
 kernel.v1.project.status    get project status
+```
+
+Deployment runtime protocols are also HostAdmin/HostDev only; ordinary packages cannot call them:
+
+```text
+kernel.v1.target.*   execution targets
+kernel.v1.exec.*     controlled local execution
+kernel.v1.port.*     loopback port leases
+kernel.v1.proxy.*    HTTP/WebSocket routes
 ```
 
 Lifecycle events:

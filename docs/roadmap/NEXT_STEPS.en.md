@@ -8,11 +8,11 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 
 - The kernel is content-free. Official packages have no privileges. Public protocol is the only entry.
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
-- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
+- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, explicit Docker Deploy broker, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
-- Contract V1 is the public platform spec; all 115 schemas (63 methods + 45 events + 7 top-level) validate, and 436 conformance cases pass.
+- Contract V1 is the public platform spec; all 144 schemas (80 methods + 57 events + 7 top-level) validate, and 442 conformance cases pass.
 
-The next stage isn't more substrate sprawl. Real playable experiences pull what comes next.
+The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 
 ## Long-term direction
 
@@ -20,8 +20,8 @@ The platform stance lives in [`../product/PLAY_CREATION_MODEL.md`](../product/PL
 
 The shape:
 
-- one or two real playable experiences become the pressure source that surfaces the remaining substrate work;
-- every new piece of infrastructure has to answer "which real player or creator loop got stuck here";
+- one or two real playable experiences or deployed projects become the pressure source that surfaces the remaining substrate work;
+- every new piece of infrastructure has to answer "which real user, player, creator, or deployment loop got stuck here";
 - no more pre-planned multi-stage roadmaps stacked in advance.
 
 ## Scoring
@@ -61,6 +61,7 @@ These are known to-dos. Priority follows real friction.
 - Project archive auto-cleanup beyond 30 days.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
+- Deployment descriptor polish: Docker pull progress, health polling, log archival, volume policy, and external-project wizard generation.
 
 ### Models and outbound
 

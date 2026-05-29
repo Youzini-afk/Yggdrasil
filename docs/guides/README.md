@@ -9,6 +9,7 @@
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.md) — 第三方能力包创作 walkthrough（init-package、check、run-fixture、reload、composition）
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.md) — 包/项目安装与更新、lockfile、`~/.yggdrasil` 布局、签名/完整性、bundle freshness 与同意提示
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — `project.yaml`、Home 项目卡、项目 lifecycle、项目控制台诊断/更新、项目级 secret policy
+- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md) — target / exec / port / proxy 部署运行时、ygg-service 反代、Docker Deploy broker
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 secret store 与 API key 管理
 - [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md) — 从 YdlTavern Send 到真实模型 provider 响应的完整链路
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md) — 内核 v1 能力句柄模型、衰减、撤销、bindings 与 effect audit

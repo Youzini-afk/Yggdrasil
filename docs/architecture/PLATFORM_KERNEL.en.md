@@ -82,7 +82,7 @@ This document defines what the kernel does and what it doesn't. Anything not lis
 
 - Carries the canonical protocol envelope over: in-process Rust API, HTTP `/rpc`, host JSON-RPC stdio (`ygg host-stdio`), and SSE event subscription.
 - Profile-driven `ygg host serve` autoloads packages and exposes the same dispatcher.
-- WebSocket and TCP transports are reserved for later.
+- WebSocket outbound and deployment reverse proxy are implemented; TCP transport is reserved for later.
 - All transports present the same conceptual protocol; official packages and clients use it just like third parties.
 
 ### 12. Sandbox boundary
