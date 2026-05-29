@@ -11,7 +11,9 @@ import { openProjectInTab } from "@/lib/project-launcher";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle, type ResolvedSurfaceBundle } from "@/surfaces/bundle-resolver";
 import { formatBytes } from "@/lib/format";
+import { parseDockerDeploymentDescriptor, type DockerDeploymentDescriptor } from "@/lib/project-deployment";
 import type {
+  DockerStartContainerOutput,
   ExecStatus,
   ExecutionTarget,
   KernelEvent,
@@ -54,6 +56,13 @@ interface ConsoleSummary {
   proxyActive: number;
 }
 
+interface DeploymentRuntimeState {
+  routeId?: string;
+  leaseId?: string;
+  containerId?: string;
+  containerName?: string;
+}
+
 export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: string; chrome?: "shell" | "none" }) {
   const client = useKernel();
   const toast = useToast();
@@ -63,6 +72,8 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const [stopping, setStopping] = useState(false);
   const [refreshingDiagnostics, setRefreshingDiagnostics] = useState(false);
   const [updatingProject, setUpdatingProject] = useState(false);
+  const [deploymentOperation, setDeploymentOperation] = useState<"idle" | "deploying" | "stopping">("idle");
+  const [deploymentRuntime, setDeploymentRuntime] = useState<DeploymentRuntimeState>({});
   const [diagnostics, setDiagnostics] = useState<ProjectDiagnostics | null>(null);
   const [frameState, setFrameState] = useState<"loading" | "mounted" | "start_failed" | "mount_failed" | "stopped">("loading");
   const handleRef = useRef<SurfaceHostHandle | null>(null);
@@ -339,6 +350,100 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     }
   }, [client, loadDiagnostics, projectId, t, toast, updatingProject]);
 
+  const onDeployDocker = useCallback(async (descriptor: DockerDeploymentDescriptor) => {
+    if (deploymentOperation !== "idle") return;
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameDeployConfirm", descriptor.image))) return;
+    setDeploymentOperation("deploying");
+    let leasedId: string | undefined;
+    let containerId: string | undefined;
+    let containerName: string | undefined;
+    let proxyRegistered = false;
+    try {
+      const targetId = diagnostics?.targets.find((target) => target.status === "available")?.id ?? diagnostics?.targets[0]?.id ?? "local";
+      const lease = await client.leasePort({
+        target_id: targetId,
+        port_name: descriptor.port_name,
+        protocol: "tcp",
+      });
+      leasedId = lease.id;
+      const startResult = await client.startDockerContainer({
+        image: descriptor.image,
+        container_port: descriptor.container_port,
+        host_port: lease.port,
+        port_lease_id: lease.id,
+        route_id: descriptor.route_id,
+        approved: true,
+        pull_if_missing: descriptor.pull_if_missing,
+      });
+      containerId = startResult.container_id;
+      containerName = startResult.container_name;
+      assertDockerStarted(startResult);
+
+      await client.registerProxy({
+        route_id: descriptor.route_id,
+        protocol: "http",
+        upstream: {
+          port_lease_id: lease.id,
+          port_name: descriptor.port_name,
+        },
+      });
+      proxyRegistered = true;
+      setDeploymentRuntime({
+        routeId: descriptor.route_id,
+        leaseId: lease.id,
+        containerId,
+        containerName,
+      });
+      toast.push({ variant: "success", title: t("projectFrameDeploySuccessTitle"), body: t("projectFrameDeploySuccessBody", descriptor.route_id) });
+      await loadDiagnostics();
+    } catch (err) {
+      if (proxyRegistered) await client.unregisterProxy(descriptor.route_id).catch(() => {});
+      if (containerId) await client.stopDockerContainer({ container_id: containerId, timeout_secs: 5 }).catch(() => {});
+      if (leasedId) await client.releasePort(leasedId).catch(() => {});
+      toast.push({
+        variant: "error",
+        title: t("projectFrameDeployFailedTitle"),
+        body: `${t("projectFrameDeployFailedBody")} ${errorMessage(err)}`,
+      });
+      await loadDiagnostics().catch(() => {});
+    } finally {
+      setDeploymentOperation("idle");
+    }
+  }, [client, deploymentOperation, diagnostics?.targets, loadDiagnostics, t, toast]);
+
+  const onStopDockerDeployment = useCallback(async (descriptor: DockerDeploymentDescriptor) => {
+    if (deploymentOperation !== "idle") return;
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameStopDeploymentConfirm", descriptor.route_id))) return;
+    setDeploymentOperation("stopping");
+    const activeRoute = diagnostics?.proxyRoutes.find((route) => route.id === descriptor.route_id && route.status === "active");
+    const routeLeaseId = activeRoute?.upstream.port_lease_id;
+    const activeLease = diagnostics?.portLeases.find((lease) =>
+      lease.status === "active" && (lease.id === routeLeaseId || lease.id === deploymentRuntime.leaseId),
+    );
+    const leaseId = routeLeaseId ?? deploymentRuntime.leaseId ?? activeLease?.id;
+    const errors: string[] = [];
+    try {
+      if (activeRoute || deploymentRuntime.routeId === descriptor.route_id) {
+        await client.unregisterProxy(descriptor.route_id).catch((err: unknown) => errors.push(errorMessage(err)));
+      }
+      if (deploymentRuntime.containerId) {
+        await client.stopDockerContainer({ container_id: deploymentRuntime.containerId, timeout_secs: 10 }).catch((err: unknown) => errors.push(errorMessage(err)));
+      }
+      if (leaseId) {
+        await client.releasePort(leaseId).catch((err: unknown) => errors.push(errorMessage(err)));
+      }
+      setDeploymentRuntime({});
+      await loadDiagnostics();
+      if (errors.length > 0) {
+        toast.push({ variant: "warning", title: t("projectFrameStopDeploymentPartialTitle"), body: errors.slice(0, 2).join("; ") });
+      } else {
+        toast.push({ variant: "success", title: t("projectFrameStopDeploymentSuccessTitle") });
+      }
+    } finally {
+      setDeploymentOperation("idle");
+    }
+  }, [client, deploymentOperation, deploymentRuntime, diagnostics?.portLeases, diagnostics?.proxyRoutes, loadDiagnostics, t, toast]);
+
   const consoleSummary = useMemo(() => summarizeConsoleDiagnostics(diagnostics), [diagnostics]);
   const isStandalone = chrome === "none";
 
@@ -405,6 +510,10 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
               onRefresh={onRefreshDiagnostics}
               onUpdate={onUpdateProject}
               onStop={onStop}
+              deploymentOperation={deploymentOperation}
+              deploymentRuntime={deploymentRuntime}
+              onDeployDocker={onDeployDocker}
+              onStopDockerDeployment={onStopDockerDeployment}
             />
           </div>
         )}
@@ -498,6 +607,10 @@ function ProjectConsole({
   onRefresh,
   onUpdate,
   onStop,
+  deploymentOperation,
+  deploymentRuntime,
+  onDeployDocker,
+  onStopDockerDeployment,
 }: {
   projectId: string;
   project: (ProjectRecord & { running_session_id?: string; entry_surface_id?: string }) | null;
@@ -510,9 +623,14 @@ function ProjectConsole({
   onRefresh: () => void;
   onUpdate: () => void;
   onStop: () => void;
+  deploymentOperation: "idle" | "deploying" | "stopping";
+  deploymentRuntime: DeploymentRuntimeState;
+  onDeployDocker: (descriptor: DockerDeploymentDescriptor) => void;
+  onStopDockerDeployment: (descriptor: DockerDeploymentDescriptor) => void;
 }) {
   const t = useT();
   const bundle = diagnostics?.bundle;
+  const deploymentParse = parseDockerDeploymentDescriptor(projectId, project?.metadata);
   const updateResults = diagnostics?.updates?.results ?? [];
   const updateStatus = loading
     ? t("projectFrameDiagnosticsLoading")
@@ -592,6 +710,17 @@ function ProjectConsole({
       </div>
 
       <ConsoleSection title={t("projectFrameDeploymentSection")} description={t("projectFrameDeploymentDescription")}>
+        {deploymentParse.descriptor || deploymentParse.error ? (
+          <DeploymentActionCard
+            descriptor={deploymentParse.descriptor}
+            error={deploymentParse.error}
+            diagnostics={diagnostics}
+            operation={deploymentOperation}
+            runtime={deploymentRuntime}
+            onDeploy={onDeployDocker}
+            onStop={onStopDockerDeployment}
+          />
+        ) : null}
         <DeploymentDiagnostics diagnostics={diagnostics} />
       </ConsoleSection>
 
@@ -659,6 +788,73 @@ function ConsoleSection({ title, description, children }: { title: string; descr
 
 function KeyValue({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-[12px] border border-whisper-border bg-warm-bone p-3"><dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{label}</dt><dd className="mt-1 truncate font-mono text-[12px] text-charcoal-ink" title={value}>{value}</dd></div>;
+}
+
+function DeploymentActionCard({
+  descriptor,
+  error,
+  diagnostics,
+  operation,
+  runtime,
+  onDeploy,
+  onStop,
+}: {
+  descriptor: DockerDeploymentDescriptor | null;
+  error?: string;
+  diagnostics: ProjectDiagnostics | null;
+  operation: "idle" | "deploying" | "stopping";
+  runtime: DeploymentRuntimeState;
+  onDeploy: (descriptor: DockerDeploymentDescriptor) => void;
+  onStop: (descriptor: DockerDeploymentDescriptor) => void;
+}) {
+  const t = useT();
+  if (!descriptor) {
+    return (
+      <div className="mb-4 rounded-[14px] border border-deep-rust bg-deep-rust-surface p-4 text-[12px] text-deep-rust">
+        <p className="font-semibold">{t("projectFrameDeployInvalidTitle")}</p>
+        <p className="mt-1">{error}</p>
+      </div>
+    );
+  }
+
+  const activeRoute = diagnostics?.proxyRoutes.find((route) => route.id === descriptor.route_id && route.status === "active");
+  const activePort = diagnostics?.portLeases.find((lease) =>
+    lease.status === "active" && (lease.id === activeRoute?.upstream.port_lease_id || lease.id === runtime.leaseId || lease.port_name === descriptor.port_name),
+  );
+  const hasActiveDeployment = Boolean(activeRoute || activePort || runtime.containerId);
+  const deployDisabled = operation !== "idle" || hasActiveDeployment;
+  const stopDisabled = operation !== "idle" || !hasActiveDeployment;
+
+  return (
+    <div className="mb-4 rounded-[16px] border border-aged-brass/40 bg-warm-bone p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="font-display text-[15px] font-bold text-charcoal-ink">{t("projectFrameDeployActionTitle")}</p>
+          <p className="mt-1 text-[12px] text-steel-secondary">{t("projectFrameDeployActionDescription")}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button tone="primary" size="sm" onClick={() => onDeploy(descriptor)} disabled={deployDisabled}>
+            {operation === "deploying" ? t("projectFrameDeploying") : t("projectFrameDeploy")}
+          </Button>
+          {hasActiveDeployment ? (
+            <Button tone="destructive" size="sm" onClick={() => onStop(descriptor)} disabled={stopDisabled}>
+              {operation === "stopping" ? t("projectFrameStoppingDeployment") : t("projectFrameStopDeployment")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      <dl className="mt-4 grid gap-2 text-[12px] sm:grid-cols-2 xl:grid-cols-4">
+        <TinyValue label={t("projectFrameDeployImage")} value={descriptor.image} />
+        <TinyValue label={t("projectFrameDeployContainerPort")} value={String(descriptor.container_port)} />
+        <TinyValue label={t("projectFrameDeployRouteId")} value={descriptor.route_id} />
+        <TinyValue label={t("projectFrameDeployPortName")} value={descriptor.port_name} />
+        {descriptor.health_path ? <TinyValue label={t("projectFrameDeployHealthPath")} value={descriptor.health_path} /> : null}
+        {runtime.containerId ? <TinyValue label={t("projectFrameDeployContainerId")} value={runtime.containerId} /> : null}
+      </dl>
+      {descriptor.pull_if_missing ? <p className="mt-3 rounded-[10px] bg-pure-surface p-2 text-[12px] text-deep-rust">{t("projectFrameDeployPullWarning")}</p> : null}
+      {hasActiveDeployment ? <p className="mt-3 text-[12px] text-steel-secondary">{t("projectFrameDeployActiveHint")}</p> : null}
+    </div>
+  );
 }
 
 function DeploymentDiagnostics({ diagnostics }: { diagnostics: ProjectDiagnostics | null }) {
@@ -881,6 +1077,15 @@ function unwrapSettled<T>(result: PromiseSettledResult<T>, errors: string[]): T 
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function assertDockerStarted(output: DockerStartContainerOutput): void {
+  if (output.container_started === false || output.docker_performed === false) {
+    throw new Error(output.reason ?? "docker-runtime-lab did not start the container");
+  }
+  if (!output.container_id) {
+    throw new Error(output.reason ?? "docker-runtime-lab returned no container_id");
+  }
 }
 
 function fingerprintFromUrl(bundleUrl?: string): string | undefined {

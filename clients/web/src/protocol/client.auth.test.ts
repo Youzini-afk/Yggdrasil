@@ -131,25 +131,29 @@ globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
       ? { results: [] }
       : capabilityId.endsWith("/update_project")
         ? { status: "current", updated: false, updated_packages: [], check: { results: [] } }
-        : {
-            plan: {
-              root_id: "official/test-project",
-              packages: [],
-              permissions_summary: {
-                new_capabilities: [],
-                new_network_hosts: [],
-                new_secret_refs: [],
-              },
-              signature_summary: {
-                all_signed: false,
-                unsigned_packages: [],
-              },
-              integrity_summary: {
-                manifest_hashes_match_lockfile: true,
-                drift_detected: [],
-              },
-            },
-          };
+        : capabilityId.endsWith("/start_container")
+          ? { kind: "docker_runtime_lab_container_started", container_id: "container-1", container_started: true, docker_performed: true }
+          : capabilityId.endsWith("/stop_container")
+            ? { kind: "docker_runtime_lab_container_stopped", container_id: "container-1", docker_performed: true }
+            : {
+                plan: {
+                  root_id: "official/test-project",
+                  packages: [],
+                  permissions_summary: {
+                    new_capabilities: [],
+                    new_network_hosts: [],
+                    new_secret_refs: [],
+                  },
+                  signature_summary: {
+                    all_signed: false,
+                    unsigned_packages: [],
+                  },
+                  integrity_summary: {
+                    manifest_hashes_match_lockfile: true,
+                    drift_detected: [],
+                  },
+                },
+              };
     return Response.json({
       id: body.id,
       result: {
@@ -190,12 +194,32 @@ globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     return Response.json({ id: body.id, result: { id: body.params.lease_id, target_id: "local", port_name: "web", host: "127.0.0.1", port: 3000, protocol: "tcp", status: "active" } });
   }
 
+  if (body?.method === "kernel.v1.port.lease") {
+    return Response.json({ id: body.id, result: { lease: { id: "lease-1", target_id: body.params.target_id, port_name: body.params.port_name, host: "127.0.0.1", port: 39123, protocol: body.params.protocol ?? "tcp", status: "active" } } });
+  }
+
+  if (body?.method === "kernel.v1.port.release") {
+    return Response.json({ id: body.id, result: { id: body.params.lease_id, target_id: "local", port_name: "web", host: "127.0.0.1", port: 39123, protocol: "tcp", status: "released" } });
+  }
+
   if (body?.method === "kernel.v1.proxy.list") {
     return Response.json({ id: body.id, result: [] });
   }
 
   if (body?.method === "kernel.v1.proxy.status") {
     return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", upstream: { port_lease_id: "lease-1", port_name: "web" } } });
+  }
+
+  if (body?.method === "kernel.v1.proxy.register") {
+    return Response.json({ id: body.id, result: { route: { id: body.params.route_id ?? "route-1", protocol: body.params.protocol ?? "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", upstream: body.params.upstream } } });
+  }
+
+  if (body?.method === "kernel.v1.proxy.unregister") {
+    return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "removed", upstream: { port_lease_id: "lease-1", port_name: "web" } } });
+  }
+
+  if (body?.method === "kernel.v1.project.start") {
+    return Response.json({ id: body.id, result: { project_id: body.params.project_id, previous_state: "installed", new_state: "running", session_id: "session-1", already_running: false } });
   }
 
   throw new Error(`unexpected method ${body?.method}`);
@@ -256,6 +280,10 @@ await protocolClient.listPortLeases();
 await protocolClient.portStatus("lease-1");
 await protocolClient.listProxyRoutes();
 await protocolClient.proxyStatus("route-1");
+await protocolClient.leasePort({ target_id: "local", port_name: "web", protocol: "tcp", requested_port: 39123 });
+await protocolClient.releasePort("lease-1");
+await protocolClient.registerProxy({ route_id: "route-1", protocol: "http", upstream: { port_lease_id: "lease-1", port_name: "web" } });
+await protocolClient.unregisterProxy("route-1");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
   "kernel.v1.target.list",
   "kernel.v1.target.status",
@@ -266,8 +294,34 @@ assertDeepEqual(capturedRequests.map((request) => (request as { method?: string 
   "kernel.v1.port.status",
   "kernel.v1.proxy.list",
   "kernel.v1.proxy.status",
+  "kernel.v1.port.lease",
+  "kernel.v1.port.release",
+  "kernel.v1.proxy.register",
+  "kernel.v1.proxy.unregister",
 ]);
 assertDeepEqual((capturedRequests[4] as { params?: Record<string, unknown> }).params, { exec_id: "exec-1", limit: 80 });
+
+capturedRequests.length = 0;
+await protocolClient.startDockerContainer({
+  image: "example/app:latest",
+  container_port: 8080,
+  host_port: 39123,
+  port_lease_id: "lease-1",
+  route_id: "route-1",
+  approved: true,
+});
+await protocolClient.stopDockerContainer({ container_id: "container-1", timeout_secs: 5 });
+const dockerSessionOpen = capturedRequests.filter((request) => (request as { method?: string }).method === "kernel.v1.session.open") as Array<{ params?: Record<string, unknown> }>;
+const dockerInvokes = capturedRequests.filter((request) => (request as { method?: string }).method === "kernel.v1.capability.invoke") as Array<{ params?: Record<string, unknown> }>;
+assertDeepEqual(dockerSessionOpen[0].params?.active_package_set, ["official/docker-runtime-lab"]);
+assertDeepEqual(dockerSessionOpen[0].params?.labels, ["deploy", "official/docker-runtime-lab"]);
+assertEqual(dockerInvokes[0].params?.provider_package_id, "official/docker-runtime-lab");
+assertEqual(dockerInvokes[0].params?.capability_id, "official/docker-runtime-lab/start_container");
+assertEqual(dockerInvokes[1].params?.capability_id, "official/docker-runtime-lab/stop_container");
+
+capturedRequests.length = 0;
+await protocolClient.startProject("project-1");
+assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), ["kernel.v1.project.start"]);
 
 globalThis.fetch = originalFetch;
 Object.defineProperty(globalThis, "crypto", {

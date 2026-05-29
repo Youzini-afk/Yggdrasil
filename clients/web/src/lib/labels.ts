@@ -341,6 +341,29 @@ export interface LocaleDictionary {
   projectFrameDeploymentEmpty: string;
   projectFrameDeploymentReady: string;
   projectFrameDeploymentExitCode: string;
+  projectFrameDeployActionTitle: string;
+  projectFrameDeployActionDescription: string;
+  projectFrameDeployInvalidTitle: string;
+  projectFrameDeploy: string;
+  projectFrameDeploying: string;
+  projectFrameStopDeployment: string;
+  projectFrameStoppingDeployment: string;
+  projectFrameDeployImage: string;
+  projectFrameDeployContainerPort: string;
+  projectFrameDeployRouteId: string;
+  projectFrameDeployPortName: string;
+  projectFrameDeployHealthPath: string;
+  projectFrameDeployContainerId: string;
+  projectFrameDeployPullWarning: string;
+  projectFrameDeployActiveHint: string;
+  projectFrameDeployConfirm: (image: string) => string;
+  projectFrameStopDeploymentConfirm: (routeId: string) => string;
+  projectFrameDeploySuccessTitle: string;
+  projectFrameDeploySuccessBody: (routeId: string) => string;
+  projectFrameDeployFailedTitle: string;
+  projectFrameDeployFailedBody: string;
+  projectFrameStopDeploymentSuccessTitle: string;
+  projectFrameStopDeploymentPartialTitle: string;
   projectFrameStatusReady: string;
   projectFrameStatusNotReady: string;
   projectFrameShowLogs: string;
@@ -886,6 +909,29 @@ export const labels = {
     projectFrameDeploymentEmpty: "No deployment records reported by the host.",
     projectFrameDeploymentReady: "Ready",
     projectFrameDeploymentExitCode: "Exit code",
+    projectFrameDeployActionTitle: "Explicit Docker deployment",
+    projectFrameDeployActionDescription: "Starts one prebuilt HTTP container using host-owned port and proxy resources.",
+    projectFrameDeployInvalidTitle: "Deployment metadata is invalid",
+    projectFrameDeploy: "Deploy",
+    projectFrameDeploying: "Deploying…",
+    projectFrameStopDeployment: "Stop deployment",
+    projectFrameStoppingDeployment: "Stopping…",
+    projectFrameDeployImage: "Image",
+    projectFrameDeployContainerPort: "Container port",
+    projectFrameDeployRouteId: "Route ID",
+    projectFrameDeployPortName: "Port name",
+    projectFrameDeployHealthPath: "Health path",
+    projectFrameDeployContainerId: "Container ID",
+    projectFrameDeployPullWarning: "This deployment may pull the image if it is missing. Only deploy trusted image references.",
+    projectFrameDeployActiveHint: "An active route, port lease, or tracked container is present for this descriptor.",
+    projectFrameDeployConfirm: (image) => `Deploy Docker image ${image}? This will lease a local port and start a container on this host.`,
+    projectFrameStopDeploymentConfirm: (routeId) => `Stop deployment for route ${routeId}? The UI will only stop a container it started in this page session.`,
+    projectFrameDeploySuccessTitle: "Deployment started",
+    projectFrameDeploySuccessBody: (routeId) => `Proxy route ${routeId} is registered.`,
+    projectFrameDeployFailedTitle: "Deployment failed",
+    projectFrameDeployFailedBody: "Docker runtime lab or host resource setup failed.",
+    projectFrameStopDeploymentSuccessTitle: "Deployment stopped",
+    projectFrameStopDeploymentPartialTitle: "Deployment cleanup partially failed",
     projectFrameStatusReady: "Ready",
     projectFrameStatusNotReady: "Not ready",
     projectFrameShowLogs: "Show logs",
@@ -1431,6 +1477,29 @@ export const labels = {
     projectFrameDeploymentEmpty: "主机未报告部署记录。",
     projectFrameDeploymentReady: "就绪",
     projectFrameDeploymentExitCode: "退出码",
+    projectFrameDeployActionTitle: "显式 Docker 部署",
+    projectFrameDeployActionDescription: "使用主机拥有的端口和代理资源启动一个预构建 HTTP 容器。",
+    projectFrameDeployInvalidTitle: "部署元数据无效",
+    projectFrameDeploy: "部署",
+    projectFrameDeploying: "正在部署…",
+    projectFrameStopDeployment: "停止部署",
+    projectFrameStoppingDeployment: "正在停止…",
+    projectFrameDeployImage: "镜像",
+    projectFrameDeployContainerPort: "容器端口",
+    projectFrameDeployRouteId: "路由 ID",
+    projectFrameDeployPortName: "端口名",
+    projectFrameDeployHealthPath: "健康路径",
+    projectFrameDeployContainerId: "容器 ID",
+    projectFrameDeployPullWarning: "如果缺少镜像，此部署可能会拉取镜像。请只部署可信镜像引用。",
+    projectFrameDeployActiveHint: "该描述符已有活动路由、端口租约或已跟踪容器。",
+    projectFrameDeployConfirm: (image) => `部署 Docker 镜像 ${image}？这将在此主机上租用本地端口并启动容器。`,
+    projectFrameStopDeploymentConfirm: (routeId) => `停止路由 ${routeId} 的部署？界面只会停止本页面会话启动的容器。`,
+    projectFrameDeploySuccessTitle: "部署已启动",
+    projectFrameDeploySuccessBody: (routeId) => `代理路由 ${routeId} 已注册。`,
+    projectFrameDeployFailedTitle: "部署失败",
+    projectFrameDeployFailedBody: "Docker runtime lab 或主机资源设置失败。",
+    projectFrameStopDeploymentSuccessTitle: "部署已停止",
+    projectFrameStopDeploymentPartialTitle: "部署清理部分失败",
     projectFrameStatusReady: "已就绪",
     projectFrameStatusNotReady: "未就绪",
     projectFrameShowLogs: "显示日志",

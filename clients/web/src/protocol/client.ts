@@ -193,6 +193,7 @@ export interface ProjectUpdateResult {
 }
 
 const INSTALL_LAB_PROVIDER = "official/install-lab";
+const DOCKER_RUNTIME_LAB_PROVIDER = "official/docker-runtime-lab";
 const INSTALL_LAB_CAPABILITIES = {
   resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
   detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
@@ -200,6 +201,10 @@ const INSTALL_LAB_CAPABILITIES = {
   uninstall: `${INSTALL_LAB_PROVIDER}/uninstall`,
   checkForUpdates: `${INSTALL_LAB_PROVIDER}/check_for_updates`,
   updateProject: `${INSTALL_LAB_PROVIDER}/update_project`,
+} as const;
+const DOCKER_RUNTIME_LAB_CAPABILITIES = {
+  startContainer: `${DOCKER_RUNTIME_LAB_PROVIDER}/start_container`,
+  stopContainer: `${DOCKER_RUNTIME_LAB_PROVIDER}/stop_container`,
 } as const;
 
 function normalizeInstallRootUrl(input: string): string {
@@ -343,6 +348,69 @@ export interface ProjectRecord {
   running_session_id?: string;
   storage_summary?: ProjectStorageSummary;
   packages?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface PortLeaseRequest {
+  target_id: string;
+  port_name: string;
+  protocol?: "tcp" | "udp" | string;
+  requested_port?: number | null;
+}
+
+export interface ProxyRegisterRequest {
+  route_id?: string | null;
+  protocol?: "http" | "websocket" | string;
+  upstream: {
+    port_lease_id: string;
+    port_name: string;
+  };
+}
+
+export interface DockerStartContainerInput {
+  image: string;
+  container_port: number;
+  host_port: number;
+  route_id: string;
+  port_lease_id: string;
+  approved: true;
+  pull_if_missing?: boolean;
+  container_name?: string;
+  name?: string;
+}
+
+export interface DockerStartContainerOutput {
+  kind?: string;
+  container_id?: string;
+  container_name?: string;
+  status?: string;
+  image?: string;
+  container_port?: number;
+  host_port?: number;
+  route_id?: string;
+  port_lease_id?: string;
+  docker_performed?: boolean;
+  container_started?: boolean;
+  reason?: string;
+  diagnostics?: unknown;
+  warnings?: unknown;
+}
+
+export interface DockerStopContainerInput {
+  container_id?: string;
+  container_name?: string;
+  container?: string;
+  timeout_secs?: number;
+  force?: boolean;
+}
+
+export interface DockerStopContainerOutput {
+  kind?: string;
+  container_id?: string;
+  container_name?: string;
+  status?: string;
+  docker_performed?: boolean;
+  reason?: string;
 }
 
 export interface ExecutionTarget {
@@ -486,12 +554,28 @@ export class YggProtocolClient {
     return this.call<PortLeaseRecord>("kernel.v1.port.status", { lease_id: leaseId });
   }
 
+  leasePort(input: PortLeaseRequest) {
+    return this.call<PortLeaseRecord>("kernel.v1.port.lease", input);
+  }
+
+  releasePort(leaseId: string) {
+    return this.call<PortLeaseRecord>("kernel.v1.port.release", { lease_id: leaseId });
+  }
+
   listProxyRoutes() {
     return this.call<ProxyRouteRecord[]>("kernel.v1.proxy.list");
   }
 
   proxyStatus(routeId: string) {
     return this.call<ProxyRouteRecord>("kernel.v1.proxy.status", { route_id: routeId });
+  }
+
+  registerProxy(input: ProxyRegisterRequest) {
+    return this.call<ProxyRouteRecord>("kernel.v1.proxy.register", input);
+  }
+
+  unregisterProxy(routeId: string) {
+    return this.call<ProxyRouteRecord>("kernel.v1.proxy.unregister", { route_id: routeId });
   }
 
   assets() {
@@ -617,6 +701,23 @@ export class YggProtocolClient {
     }, [INSTALL_LAB_PROVIDER]);
     const result = await this.invokeCapability<TOutput>(capabilityId, input, INSTALL_LAB_PROVIDER, session.id);
     return result.output;
+  }
+
+  private async invokeDockerRuntimeLab<TOutput>(capabilityId: string, input: unknown): Promise<TOutput> {
+    const session = await this.openSession(["deploy", "official/docker-runtime-lab"], {
+      source: "clients/web",
+      capability_id: capabilityId,
+    }, [DOCKER_RUNTIME_LAB_PROVIDER]);
+    const result = await this.invokeCapability<TOutput>(capabilityId, input, DOCKER_RUNTIME_LAB_PROVIDER, session.id);
+    return result.output;
+  }
+
+  async startDockerContainer(input: DockerStartContainerInput): Promise<DockerStartContainerOutput> {
+    return await this.invokeDockerRuntimeLab<DockerStartContainerOutput>(DOCKER_RUNTIME_LAB_CAPABILITIES.startContainer, input);
+  }
+
+  async stopDockerContainer(input: DockerStopContainerInput): Promise<DockerStopContainerOutput> {
+    return await this.invokeDockerRuntimeLab<DockerStopContainerOutput>(DOCKER_RUNTIME_LAB_CAPABILITIES.stopContainer, input);
   }
 
   async resolveInstallPlan(source: InstallSource): Promise<InstallPlan> {
