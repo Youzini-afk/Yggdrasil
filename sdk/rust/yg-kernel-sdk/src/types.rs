@@ -5804,6 +5804,154 @@ for EmptyParams {
         Self(value)
     }
 }
+///`EmptyParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EmptyParams",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct EmptyParams(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for EmptyParams {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<EmptyParams>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: EmptyParams) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for EmptyParams {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`EmptyParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EmptyParams",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct EmptyParams(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for EmptyParams {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<EmptyParams>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: EmptyParams) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for EmptyParams {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`EmptyParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EmptyParams",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct EmptyParams(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for EmptyParams {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<EmptyParams>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: EmptyParams) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for EmptyParams {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`EmptyParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EmptyParams",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct EmptyParams(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for EmptyParams {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<EmptyParams>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: EmptyParams) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for EmptyParams {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
 ///`EntryDescriptor`
 ///
 /// <details><summary>JSON schema</summary>
@@ -8242,6 +8390,2529 @@ impl ::std::convert::From<EventSubscribeResult> for () {
 impl ::std::convert::From<()> for EventSubscribeResult {
     fn from(value: ()) -> Self {
         Self(value)
+    }
+}
+///`ExecCommand`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "program"
+///  ],
+///  "properties": {
+///    "args": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "program": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecCommand {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub args: ::std::vec::Vec<::std::string::String>,
+    pub program: ::std::string::String,
+}
+///`ExecCompletedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecCompletedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExecCompletedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ExecCompletedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExecCompletedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ExecCompletedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ExecCompletedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ExecDeniedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecDeniedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExecDeniedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ExecDeniedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExecDeniedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ExecDeniedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ExecDeniedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ExecFailedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecFailedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExecFailedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ExecFailedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExecFailedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ExecFailedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ExecFailedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ExecIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecIdParams",
+///  "type": "object",
+///  "required": [
+///    "exec_id"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecIdParams {
+    pub exec_id: ::std::string::String,
+}
+///`ExecLifecyclePolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "stop_on_session_close",
+///    "keep_alive",
+///    "stop_on_idle"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecLifecyclePolicy {
+    #[serde(rename = "stop_on_session_close")]
+    StopOnSessionClose,
+    #[serde(rename = "keep_alive")]
+    KeepAlive,
+    #[serde(rename = "stop_on_idle")]
+    StopOnIdle,
+}
+impl ::std::fmt::Display for ExecLifecyclePolicy {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::StopOnSessionClose => f.write_str("stop_on_session_close"),
+            Self::KeepAlive => f.write_str("keep_alive"),
+            Self::StopOnIdle => f.write_str("stop_on_idle"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecLifecyclePolicy {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "stop_on_session_close" => Ok(Self::StopOnSessionClose),
+            "keep_alive" => Ok(Self::KeepAlive),
+            "stop_on_idle" => Ok(Self::StopOnIdle),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecLifecyclePolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecLifecyclePolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecLifecyclePolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecRequestPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecRequestPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExecRequestPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ExecRequestPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExecRequestPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ExecRequestPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ExecRequestPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ExecResourceLimits`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_cpu_millis": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "max_duration_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "max_log_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "max_memory_mb": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecResourceLimits {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_cpu_millis: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_duration_ms: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_log_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_memory_mb: ::std::option::Option<u64>,
+}
+impl ::std::default::Default for ExecResourceLimits {
+    fn default() -> Self {
+        Self {
+            max_cpu_millis: Default::default(),
+            max_duration_ms: Default::default(),
+            max_log_bytes: Default::default(),
+            max_memory_mb: Default::default(),
+        }
+    }
+}
+///`ExecStartedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecStartedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExecStartedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ExecStartedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExecStartedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ExecStartedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ExecStartedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ExecStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "kind",
+///    "ready"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exit_code": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int32"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ExecStatusKind"
+///    },
+///    "message": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "target_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecStatus {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exec_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<i32>,
+    pub kind: ExecStatusKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub message: ::std::option::Option<::std::string::String>,
+    pub ready: bool,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_id: ::std::option::Option<::std::string::String>,
+}
+///`ExecStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "kind",
+///    "ready"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exit_code": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int32"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ExecStatusKind"
+///    },
+///    "message": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "target_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecStatus {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exec_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<i32>,
+    pub kind: ExecStatusKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub message: ::std::option::Option<::std::string::String>,
+    pub ready: bool,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_id: ::std::option::Option<::std::string::String>,
+}
+///`ExecStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "kind",
+///    "ready"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exit_code": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int32"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ExecStatusKind"
+///    },
+///    "message": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "target_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecStatus {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exec_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<i32>,
+    pub kind: ExecStatusKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub message: ::std::option::Option<::std::string::String>,
+    pub ready: bool,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_id: ::std::option::Option<::std::string::String>,
+}
+///`ExecStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "kind",
+///    "ready"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exit_code": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int32"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ExecStatusKind"
+///    },
+///    "message": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "target_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecStatus {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exec_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exit_code: ::std::option::Option<i32>,
+    pub kind: ExecStatusKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub message: ::std::option::Option<::std::string::String>,
+    pub ready: bool,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_id: ::std::option::Option<::std::string::String>,
+}
+///`ExecStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "pending",
+///    "running",
+///    "stopped",
+///    "exited",
+///    "failed",
+///    "denied",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecStatusKind {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "exited")]
+    Exited,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for ExecStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Pending => f.write_str("pending"),
+            Self::Running => f.write_str("running"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Exited => f.write_str("exited"),
+            Self::Failed => f.write_str("failed"),
+            Self::Denied => f.write_str("denied"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "stopped" => Ok(Self::Stopped),
+            "exited" => Ok(Self::Exited),
+            "failed" => Ok(Self::Failed),
+            "denied" => Ok(Self::Denied),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "pending",
+///    "running",
+///    "stopped",
+///    "exited",
+///    "failed",
+///    "denied",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecStatusKind {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "exited")]
+    Exited,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for ExecStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Pending => f.write_str("pending"),
+            Self::Running => f.write_str("running"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Exited => f.write_str("exited"),
+            Self::Failed => f.write_str("failed"),
+            Self::Denied => f.write_str("denied"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "stopped" => Ok(Self::Stopped),
+            "exited" => Ok(Self::Exited),
+            "failed" => Ok(Self::Failed),
+            "denied" => Ok(Self::Denied),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "pending",
+///    "running",
+///    "stopped",
+///    "exited",
+///    "failed",
+///    "denied",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecStatusKind {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "exited")]
+    Exited,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for ExecStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Pending => f.write_str("pending"),
+            Self::Running => f.write_str("running"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Exited => f.write_str("exited"),
+            Self::Failed => f.write_str("failed"),
+            Self::Denied => f.write_str("denied"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "stopped" => Ok(Self::Stopped),
+            "exited" => Ok(Self::Exited),
+            "failed" => Ok(Self::Failed),
+            "denied" => Ok(Self::Denied),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "pending",
+///    "running",
+///    "stopped",
+///    "exited",
+///    "failed",
+///    "denied",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecStatusKind {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "exited")]
+    Exited,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for ExecStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Pending => f.write_str("pending"),
+            Self::Running => f.write_str("running"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Exited => f.write_str("exited"),
+            Self::Failed => f.write_str("failed"),
+            Self::Denied => f.write_str("denied"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "stopped" => Ok(Self::Stopped),
+            "exited" => Ok(Self::Exited),
+            "failed" => Ok(Self::Failed),
+            "denied" => Ok(Self::Denied),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecStoppedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecStoppedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExecStoppedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ExecStoppedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExecStoppedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ExecStoppedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ExecStoppedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ExecutionTarget`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecutionTarget",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "name",
+///    "reachability",
+///    "status"
+///  ],
+///  "properties": {
+///    "capabilities": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "name": {
+///      "type": "string"
+///    },
+///    "reachability": {
+///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecutionTargetStatusKind"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema",
+///  "definitions": {
+///    "ExecutionTargetCapability": {
+///      "enum": [
+///        "local_exec",
+///        "port_lease",
+///        "http_proxy_upstream",
+///        "websocket_proxy_upstream"
+///      ],
+///      "type": "string"
+///    },
+///    "ExecutionTargetReachability": {
+///      "enum": [
+///        "local_host"
+///      ],
+///      "type": "string"
+///    },
+///    "ExecutionTargetStatusKind": {
+///      "enum": [
+///        "available",
+///        "unavailable"
+///      ],
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecutionTarget {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    pub id: ::std::string::String,
+    pub name: ::std::string::String,
+    pub reachability: ExecutionTargetReachability,
+    pub status: ExecutionTargetStatusKind,
+}
+///`ExecutionTarget`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecutionTarget",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "name",
+///    "reachability",
+///    "status"
+///  ],
+///  "properties": {
+///    "capabilities": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "name": {
+///      "type": "string"
+///    },
+///    "reachability": {
+///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecutionTargetStatusKind"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecutionTarget {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    pub id: ::std::string::String,
+    pub name: ::std::string::String,
+    pub reachability: ExecutionTargetReachability,
+    pub status: ExecutionTargetStatusKind,
+}
+///`ExecutionTarget`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecutionTarget",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "name",
+///    "reachability",
+///    "status"
+///  ],
+///  "properties": {
+///    "capabilities": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "name": {
+///      "type": "string"
+///    },
+///    "reachability": {
+///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecutionTargetStatusKind"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecutionTarget {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    pub id: ::std::string::String,
+    pub name: ::std::string::String,
+    pub reachability: ExecutionTargetReachability,
+    pub status: ExecutionTargetStatusKind,
+}
+///`ExecutionTarget`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecutionTarget",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "name",
+///    "reachability",
+///    "status"
+///  ],
+///  "properties": {
+///    "capabilities": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "name": {
+///      "type": "string"
+///    },
+///    "reachability": {
+///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecutionTargetStatusKind"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecutionTarget {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    pub id: ::std::string::String,
+    pub name: ::std::string::String,
+    pub reachability: ExecutionTargetReachability,
+    pub status: ExecutionTargetStatusKind,
+}
+///`ExecutionTarget`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecutionTarget",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "name",
+///    "reachability",
+///    "status"
+///  ],
+///  "properties": {
+///    "capabilities": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "name": {
+///      "type": "string"
+///    },
+///    "reachability": {
+///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecutionTargetStatusKind"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecutionTarget {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    pub id: ::std::string::String,
+    pub name: ::std::string::String,
+    pub reachability: ExecutionTargetReachability,
+    pub status: ExecutionTargetStatusKind,
+}
+///`ExecutionTargetCapability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_exec",
+///    "port_lease",
+///    "http_proxy_upstream",
+///    "websocket_proxy_upstream"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetCapability {
+    #[serde(rename = "local_exec")]
+    LocalExec,
+    #[serde(rename = "port_lease")]
+    PortLease,
+    #[serde(rename = "http_proxy_upstream")]
+    HttpProxyUpstream,
+    #[serde(rename = "websocket_proxy_upstream")]
+    WebsocketProxyUpstream,
+}
+impl ::std::fmt::Display for ExecutionTargetCapability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalExec => f.write_str("local_exec"),
+            Self::PortLease => f.write_str("port_lease"),
+            Self::HttpProxyUpstream => f.write_str("http_proxy_upstream"),
+            Self::WebsocketProxyUpstream => f.write_str("websocket_proxy_upstream"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetCapability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_exec" => Ok(Self::LocalExec),
+            "port_lease" => Ok(Self::PortLease),
+            "http_proxy_upstream" => Ok(Self::HttpProxyUpstream),
+            "websocket_proxy_upstream" => Ok(Self::WebsocketProxyUpstream),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetCapability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_exec",
+///    "port_lease",
+///    "http_proxy_upstream",
+///    "websocket_proxy_upstream"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetCapability {
+    #[serde(rename = "local_exec")]
+    LocalExec,
+    #[serde(rename = "port_lease")]
+    PortLease,
+    #[serde(rename = "http_proxy_upstream")]
+    HttpProxyUpstream,
+    #[serde(rename = "websocket_proxy_upstream")]
+    WebsocketProxyUpstream,
+}
+impl ::std::fmt::Display for ExecutionTargetCapability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalExec => f.write_str("local_exec"),
+            Self::PortLease => f.write_str("port_lease"),
+            Self::HttpProxyUpstream => f.write_str("http_proxy_upstream"),
+            Self::WebsocketProxyUpstream => f.write_str("websocket_proxy_upstream"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetCapability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_exec" => Ok(Self::LocalExec),
+            "port_lease" => Ok(Self::PortLease),
+            "http_proxy_upstream" => Ok(Self::HttpProxyUpstream),
+            "websocket_proxy_upstream" => Ok(Self::WebsocketProxyUpstream),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetCapability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_exec",
+///    "port_lease",
+///    "http_proxy_upstream",
+///    "websocket_proxy_upstream"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetCapability {
+    #[serde(rename = "local_exec")]
+    LocalExec,
+    #[serde(rename = "port_lease")]
+    PortLease,
+    #[serde(rename = "http_proxy_upstream")]
+    HttpProxyUpstream,
+    #[serde(rename = "websocket_proxy_upstream")]
+    WebsocketProxyUpstream,
+}
+impl ::std::fmt::Display for ExecutionTargetCapability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalExec => f.write_str("local_exec"),
+            Self::PortLease => f.write_str("port_lease"),
+            Self::HttpProxyUpstream => f.write_str("http_proxy_upstream"),
+            Self::WebsocketProxyUpstream => f.write_str("websocket_proxy_upstream"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetCapability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_exec" => Ok(Self::LocalExec),
+            "port_lease" => Ok(Self::PortLease),
+            "http_proxy_upstream" => Ok(Self::HttpProxyUpstream),
+            "websocket_proxy_upstream" => Ok(Self::WebsocketProxyUpstream),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetCapability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_exec",
+///    "port_lease",
+///    "http_proxy_upstream",
+///    "websocket_proxy_upstream"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetCapability {
+    #[serde(rename = "local_exec")]
+    LocalExec,
+    #[serde(rename = "port_lease")]
+    PortLease,
+    #[serde(rename = "http_proxy_upstream")]
+    HttpProxyUpstream,
+    #[serde(rename = "websocket_proxy_upstream")]
+    WebsocketProxyUpstream,
+}
+impl ::std::fmt::Display for ExecutionTargetCapability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalExec => f.write_str("local_exec"),
+            Self::PortLease => f.write_str("port_lease"),
+            Self::HttpProxyUpstream => f.write_str("http_proxy_upstream"),
+            Self::WebsocketProxyUpstream => f.write_str("websocket_proxy_upstream"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetCapability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_exec" => Ok(Self::LocalExec),
+            "port_lease" => Ok(Self::PortLease),
+            "http_proxy_upstream" => Ok(Self::HttpProxyUpstream),
+            "websocket_proxy_upstream" => Ok(Self::WebsocketProxyUpstream),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetCapability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_exec",
+///    "port_lease",
+///    "http_proxy_upstream",
+///    "websocket_proxy_upstream"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetCapability {
+    #[serde(rename = "local_exec")]
+    LocalExec,
+    #[serde(rename = "port_lease")]
+    PortLease,
+    #[serde(rename = "http_proxy_upstream")]
+    HttpProxyUpstream,
+    #[serde(rename = "websocket_proxy_upstream")]
+    WebsocketProxyUpstream,
+}
+impl ::std::fmt::Display for ExecutionTargetCapability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalExec => f.write_str("local_exec"),
+            Self::PortLease => f.write_str("port_lease"),
+            Self::HttpProxyUpstream => f.write_str("http_proxy_upstream"),
+            Self::WebsocketProxyUpstream => f.write_str("websocket_proxy_upstream"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetCapability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_exec" => Ok(Self::LocalExec),
+            "port_lease" => Ok(Self::PortLease),
+            "http_proxy_upstream" => Ok(Self::HttpProxyUpstream),
+            "websocket_proxy_upstream" => Ok(Self::WebsocketProxyUpstream),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetReachability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_host"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetReachability {
+    #[serde(rename = "local_host")]
+    LocalHost,
+}
+impl ::std::fmt::Display for ExecutionTargetReachability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalHost => f.write_str("local_host"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetReachability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_host" => Ok(Self::LocalHost),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetReachability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_host"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetReachability {
+    #[serde(rename = "local_host")]
+    LocalHost,
+}
+impl ::std::fmt::Display for ExecutionTargetReachability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalHost => f.write_str("local_host"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetReachability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_host" => Ok(Self::LocalHost),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetReachability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_host"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetReachability {
+    #[serde(rename = "local_host")]
+    LocalHost,
+}
+impl ::std::fmt::Display for ExecutionTargetReachability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalHost => f.write_str("local_host"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetReachability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_host" => Ok(Self::LocalHost),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetReachability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_host"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetReachability {
+    #[serde(rename = "local_host")]
+    LocalHost,
+}
+impl ::std::fmt::Display for ExecutionTargetReachability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalHost => f.write_str("local_host"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetReachability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_host" => Ok(Self::LocalHost),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetReachability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "local_host"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetReachability {
+    #[serde(rename = "local_host")]
+    LocalHost,
+}
+impl ::std::fmt::Display for ExecutionTargetReachability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LocalHost => f.write_str("local_host"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetReachability {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local_host" => Ok(Self::LocalHost),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "available",
+///    "unavailable"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetStatusKind {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+impl ::std::fmt::Display for ExecutionTargetStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Available => f.write_str("available"),
+            Self::Unavailable => f.write_str("unavailable"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "available" => Ok(Self::Available),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "available",
+///    "unavailable"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetStatusKind {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+impl ::std::fmt::Display for ExecutionTargetStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Available => f.write_str("available"),
+            Self::Unavailable => f.write_str("unavailable"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "available" => Ok(Self::Available),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "available",
+///    "unavailable"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetStatusKind {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+impl ::std::fmt::Display for ExecutionTargetStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Available => f.write_str("available"),
+            Self::Unavailable => f.write_str("unavailable"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "available" => Ok(Self::Available),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "available",
+///    "unavailable"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetStatusKind {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+impl ::std::fmt::Display for ExecutionTargetStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Available => f.write_str("available"),
+            Self::Unavailable => f.write_str("unavailable"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "available" => Ok(Self::Available),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExecutionTargetStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "available",
+///    "unavailable"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExecutionTargetStatusKind {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+impl ::std::fmt::Display for ExecutionTargetStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Available => f.write_str("available"),
+            Self::Unavailable => f.write_str("unavailable"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExecutionTargetStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "available" => Ok(Self::Available),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
     }
 }
 ///The kind of outbound executor that produced a response.
@@ -11085,6 +13756,1160 @@ pub struct KernelSession {
     pub principal_scope: ::std::option::Option<::std::string::String>,
     pub status: SessionStatus,
     pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "programs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub programs: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecListResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecListResponse",
+///  "type": "object",
+///  "required": [
+///    "executions"
+///  ],
+///  "properties": {
+///    "executions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecStatus"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecListResponse {
+    pub executions: ::std::vec::Vec<ExecStatus>,
+}
+///`LocalExecLogLine`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "message_redacted",
+///    "seq",
+///    "stream"
+///  ],
+///  "properties": {
+///    "message_redacted": {
+///      "type": "string"
+///    },
+///    "seq": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "stream": {
+///      "$ref": "#/definitions/LocalExecLogStream"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecLogLine {
+    pub message_redacted: ::std::string::String,
+    pub seq: u64,
+    pub stream: LocalExecLogStream,
+}
+///`LocalExecLogStream`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "stdout",
+///    "stderr",
+///    "system"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum LocalExecLogStream {
+    #[serde(rename = "stdout")]
+    Stdout,
+    #[serde(rename = "stderr")]
+    Stderr,
+    #[serde(rename = "system")]
+    System,
+}
+impl ::std::fmt::Display for LocalExecLogStream {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Stdout => f.write_str("stdout"),
+            Self::Stderr => f.write_str("stderr"),
+            Self::System => f.write_str("system"),
+        }
+    }
+}
+impl ::std::str::FromStr for LocalExecLogStream {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "stdout" => Ok(Self::Stdout),
+            "stderr" => Ok(Self::Stderr),
+            "system" => Ok(Self::System),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for LocalExecLogStream {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for LocalExecLogStream {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for LocalExecLogStream {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`LocalExecLogsRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecLogsRequest",
+///  "type": "object",
+///  "required": [
+///    "exec_id"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": "string"
+///    },
+///    "limit": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "since_seq": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecLogsRequest {
+    pub exec_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub limit: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub since_seq: ::std::option::Option<u64>,
+}
+///`LocalExecLogsResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecLogsResponse",
+///  "type": "object",
+///  "required": [
+///    "exec_id",
+///    "lines"
+///  ],
+///  "properties": {
+///    "error": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exec_id": {
+///      "type": "string"
+///    },
+///    "lines": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecLogLine"
+///      }
+///    },
+///    "next_seq": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecLogsResponse {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<::std::string::String>,
+    pub exec_id: ::std::string::String,
+    pub lines: ::std::vec::Vec<LocalExecLogLine>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub next_seq: ::std::option::Option<u64>,
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LocalExecDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<LocalExecDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for LocalExecPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`LocalExecStartRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecStartRequest",
+///  "type": "object",
+///  "required": [
+///    "command",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "command": {
+///      "$ref": "#/definitions/ExecCommand"
+///    },
+///    "lifecycle": {
+///      "default": "stop_on_session_close",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ExecLifecyclePolicy"
+///        }
+///      ]
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "readiness_probe": {
+///      "default": {
+///        "initial_delay_ms": null,
+///        "kind": "none",
+///        "path": null,
+///        "port_name": null,
+///        "timeout_ms": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ReadinessProbe"
+///        }
+///      ]
+///    },
+///    "resource_limits": {
+///      "default": {
+///        "max_cpu_millis": null,
+///        "max_duration_ms": null,
+///        "max_log_bytes": null,
+///        "max_memory_mb": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ExecResourceLimits"
+///        }
+///      ]
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecStartRequest {
+    pub command: ExecCommand,
+    #[serde(default = "defaults::local_exec_start_request_lifecycle")]
+    pub lifecycle: ExecLifecyclePolicy,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    #[serde(default = "defaults::local_exec_start_request_readiness_probe")]
+    pub readiness_probe: ReadinessProbe,
+    #[serde(default = "defaults::local_exec_start_request_resource_limits")]
+    pub resource_limits: ExecResourceLimits,
+    pub target_id: ::std::string::String,
+}
+///`LocalExecStartResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecStartResponse",
+///  "type": "object",
+///  "required": [
+///    "status"
+///  ],
+///  "properties": {
+///    "error": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exec_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecStatus"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecStartResponse {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub exec_id: ::std::option::Option<::std::string::String>,
+    pub status: ExecStatus,
+}
+///`LocalExecStatusResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecStatusResponse",
+///  "type": "object",
+///  "required": [
+///    "status"
+///  ],
+///  "properties": {
+///    "error": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecStatus"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecStatusResponse {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<::std::string::String>,
+    pub status: ExecStatus,
+}
+///`LocalExecStopRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecStopRequest",
+///  "type": "object",
+///  "required": [
+///    "exec_id"
+///  ],
+///  "properties": {
+///    "exec_id": {
+///      "type": "string"
+///    },
+///    "reason": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecStopRequest {
+    pub exec_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub reason: ::std::option::Option<::std::string::String>,
+}
+///`LocalExecStopResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LocalExecStopResponse",
+///  "type": "object",
+///  "required": [
+///    "exec_id",
+///    "status"
+///  ],
+///  "properties": {
+///    "error": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "exec_id": {
+///      "type": "string"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExecStatus"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LocalExecStopResponse {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<::std::string::String>,
+    pub exec_id: ::std::string::String,
+    pub status: ExecStatus,
 }
 ///`MethodStatus`
 ///
@@ -16279,6 +20104,54 @@ pub struct PackageLifecyclePayload {
 ///        ],
 ///        "type": "string"
 ///      },
+///      "LocalExecDeclaration": {
+///        "properties": {
+///          "max_count": {
+///            "default": null,
+///            "format": "uint32",
+///            "minimum": 0.0,
+///            "type": [
+///              "integer",
+///              "null"
+///            ]
+///          },
+///          "programs": {
+///            "default": [],
+///            "items": {
+///              "type": "string"
+///            },
+///            "type": "array"
+///          },
+///          "target_id": {
+///            "type": "string"
+///          }
+///        },
+///        "required": [
+///          "target_id"
+///        ],
+///        "type": "object"
+///      },
+///      "LocalExecPermissions": {
+///        "properties": {
+///          "declarations": {
+///            "default": [],
+///            "items": {
+///              "$ref": "#/definitions/LocalExecDeclaration"
+///            },
+///            "type": "array"
+///          },
+///          "max_count": {
+///            "default": null,
+///            "format": "uint32",
+///            "minimum": 0.0,
+///            "type": [
+///              "integer",
+///              "null"
+///            ]
+///          }
+///        },
+///        "type": "object"
+///      },
 ///      "NetworkDeclaration": {
 ///        "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
 ///        "properties": {
@@ -16531,12 +20404,24 @@ pub struct PackageLifecyclePayload {
 ///                "read": [],
 ///                "write": []
 ///              },
+///              "local_exec": {
+///                "declarations": [],
+///                "max_count": null
+///              },
 ///              "network": {
 ///                "declarations": [],
 ///                "hosts": []
 ///              },
 ///              "packages": {
 ///                "call": []
+///              },
+///              "ports": {
+///                "declarations": [],
+///                "max_count": null
+///              },
+///              "proxy": {
+///                "declarations": [],
+///                "max_count": null
 ///              },
 ///              "secret_refs": []
 ///            }
@@ -16654,6 +20539,17 @@ pub struct PackageLifecyclePayload {
 ///              "write": []
 ///            }
 ///          },
+///          "local_exec": {
+///            "allOf": [
+///              {
+///                "$ref": "#/definitions/LocalExecPermissions"
+///              }
+///            ],
+///            "default": {
+///              "declarations": [],
+///              "max_count": null
+///            }
+///          },
 ///          "network": {
 ///            "allOf": [
 ///              {
@@ -16675,6 +20571,28 @@ pub struct PackageLifecyclePayload {
 ///              "call": []
 ///            }
 ///          },
+///          "ports": {
+///            "allOf": [
+///              {
+///                "$ref": "#/definitions/PortPermissions"
+///              }
+///            ],
+///            "default": {
+///              "declarations": [],
+///              "max_count": null
+///            }
+///          },
+///          "proxy": {
+///            "allOf": [
+///              {
+///                "$ref": "#/definitions/ProxyPermissions"
+///              }
+///            ],
+///            "default": {
+///              "declarations": [],
+///              "max_count": null
+///            }
+///          },
 ///          "secret_refs": {
 ///            "default": [],
 ///            "description": "Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
@@ -16682,6 +20600,96 @@ pub struct PackageLifecyclePayload {
 ///              "type": "string"
 ///            },
 ///            "type": "array"
+///          }
+///        },
+///        "type": "object"
+///      },
+///      "PortDeclaration": {
+///        "properties": {
+///          "max_count": {
+///            "default": null,
+///            "format": "uint32",
+///            "minimum": 0.0,
+///            "type": [
+///              "integer",
+///              "null"
+///            ]
+///          },
+///          "port_names": {
+///            "default": [],
+///            "items": {
+///              "type": "string"
+///            },
+///            "type": "array"
+///          },
+///          "target_id": {
+///            "type": "string"
+///          }
+///        },
+///        "required": [
+///          "target_id"
+///        ],
+///        "type": "object"
+///      },
+///      "PortPermissions": {
+///        "properties": {
+///          "declarations": {
+///            "default": [],
+///            "items": {
+///              "$ref": "#/definitions/PortDeclaration"
+///            },
+///            "type": "array"
+///          },
+///          "max_count": {
+///            "default": null,
+///            "format": "uint32",
+///            "minimum": 0.0,
+///            "type": [
+///              "integer",
+///              "null"
+///            ]
+///          }
+///        },
+///        "type": "object"
+///      },
+///      "ProxyDeclaration": {
+///        "properties": {
+///          "max_count": {
+///            "default": null,
+///            "format": "uint32",
+///            "minimum": 0.0,
+///            "type": [
+///              "integer",
+///              "null"
+///            ]
+///          },
+///          "route_ids": {
+///            "default": [],
+///            "items": {
+///              "type": "string"
+///            },
+///            "type": "array"
+///          }
+///        },
+///        "type": "object"
+///      },
+///      "ProxyPermissions": {
+///        "properties": {
+///          "declarations": {
+///            "default": [],
+///            "items": {
+///              "$ref": "#/definitions/ProxyDeclaration"
+///            },
+///            "type": "array"
+///          },
+///          "max_count": {
+///            "default": null,
+///            "format": "uint32",
+///            "minimum": 0.0,
+///            "type": [
+///              "integer",
+///              "null"
+///            ]
 ///          }
 ///        },
 ///        "type": "object"
@@ -17132,12 +21140,24 @@ impl ::std::convert::From<::std::vec::Vec<SubprocessLogLine>> for PackageLogsRes
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -17299,12 +21319,24 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -17467,12 +21499,24 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -17634,12 +21678,24 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -17801,12 +21857,24 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -17968,12 +22036,24 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -18135,12 +22215,24 @@ pub struct PackageManifest {
 ///          "read": [],
 ///          "write": []
 ///        },
+///        "local_exec": {
+///          "declarations": [],
+///          "max_count": null
+///        },
 ///        "network": {
 ///          "declarations": [],
 ///          "hosts": []
 ///        },
 ///        "packages": {
 ///          "call": []
+///        },
+///        "ports": {
+///          "declarations": [],
+///          "max_count": null
+///        },
+///        "proxy": {
+///          "declarations": [],
+///          "max_count": null
 ///        },
 ///        "secret_refs": []
 ///      },
@@ -18929,6 +23021,54 @@ impl ::std::default::Default for PackagePermissions {
 ///      ],
 ///      "type": "string"
 ///    },
+///    "LocalExecDeclaration": {
+///      "properties": {
+///        "max_count": {
+///          "default": null,
+///          "format": "uint32",
+///          "minimum": 0.0,
+///          "type": [
+///            "integer",
+///            "null"
+///          ]
+///        },
+///        "programs": {
+///          "default": [],
+///          "items": {
+///            "type": "string"
+///          },
+///          "type": "array"
+///        },
+///        "target_id": {
+///          "type": "string"
+///        }
+///      },
+///      "required": [
+///        "target_id"
+///      ],
+///      "type": "object"
+///    },
+///    "LocalExecPermissions": {
+///      "properties": {
+///        "declarations": {
+///          "default": [],
+///          "items": {
+///            "$ref": "#/definitions/LocalExecDeclaration"
+///          },
+///          "type": "array"
+///        },
+///        "max_count": {
+///          "default": null,
+///          "format": "uint32",
+///          "minimum": 0.0,
+///          "type": [
+///            "integer",
+///            "null"
+///          ]
+///        }
+///      },
+///      "type": "object"
+///    },
 ///    "NetworkDeclaration": {
 ///      "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
 ///      "properties": {
@@ -19181,12 +23321,24 @@ impl ::std::default::Default for PackagePermissions {
 ///              "read": [],
 ///              "write": []
 ///            },
+///            "local_exec": {
+///              "declarations": [],
+///              "max_count": null
+///            },
 ///            "network": {
 ///              "declarations": [],
 ///              "hosts": []
 ///            },
 ///            "packages": {
 ///              "call": []
+///            },
+///            "ports": {
+///              "declarations": [],
+///              "max_count": null
+///            },
+///            "proxy": {
+///              "declarations": [],
+///              "max_count": null
 ///            },
 ///            "secret_refs": []
 ///          }
@@ -19304,6 +23456,17 @@ impl ::std::default::Default for PackagePermissions {
 ///            "write": []
 ///          }
 ///        },
+///        "local_exec": {
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/LocalExecPermissions"
+///            }
+///          ],
+///          "default": {
+///            "declarations": [],
+///            "max_count": null
+///          }
+///        },
 ///        "network": {
 ///          "allOf": [
 ///            {
@@ -19325,6 +23488,28 @@ impl ::std::default::Default for PackagePermissions {
 ///            "call": []
 ///          }
 ///        },
+///        "ports": {
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/PortPermissions"
+///            }
+///          ],
+///          "default": {
+///            "declarations": [],
+///            "max_count": null
+///          }
+///        },
+///        "proxy": {
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/ProxyPermissions"
+///            }
+///          ],
+///          "default": {
+///            "declarations": [],
+///            "max_count": null
+///          }
+///        },
 ///        "secret_refs": {
 ///          "default": [],
 ///          "description": "Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
@@ -19332,6 +23517,96 @@ impl ::std::default::Default for PackagePermissions {
 ///            "type": "string"
 ///          },
 ///          "type": "array"
+///        }
+///      },
+///      "type": "object"
+///    },
+///    "PortDeclaration": {
+///      "properties": {
+///        "max_count": {
+///          "default": null,
+///          "format": "uint32",
+///          "minimum": 0.0,
+///          "type": [
+///            "integer",
+///            "null"
+///          ]
+///        },
+///        "port_names": {
+///          "default": [],
+///          "items": {
+///            "type": "string"
+///          },
+///          "type": "array"
+///        },
+///        "target_id": {
+///          "type": "string"
+///        }
+///      },
+///      "required": [
+///        "target_id"
+///      ],
+///      "type": "object"
+///    },
+///    "PortPermissions": {
+///      "properties": {
+///        "declarations": {
+///          "default": [],
+///          "items": {
+///            "$ref": "#/definitions/PortDeclaration"
+///          },
+///          "type": "array"
+///        },
+///        "max_count": {
+///          "default": null,
+///          "format": "uint32",
+///          "minimum": 0.0,
+///          "type": [
+///            "integer",
+///            "null"
+///          ]
+///        }
+///      },
+///      "type": "object"
+///    },
+///    "ProxyDeclaration": {
+///      "properties": {
+///        "max_count": {
+///          "default": null,
+///          "format": "uint32",
+///          "minimum": 0.0,
+///          "type": [
+///            "integer",
+///            "null"
+///          ]
+///        },
+///        "route_ids": {
+///          "default": [],
+///          "items": {
+///            "type": "string"
+///          },
+///          "type": "array"
+///        }
+///      },
+///      "type": "object"
+///    },
+///    "ProxyPermissions": {
+///      "properties": {
+///        "declarations": {
+///          "default": [],
+///          "items": {
+///            "$ref": "#/definitions/ProxyDeclaration"
+///          },
+///          "type": "array"
+///        },
+///        "max_count": {
+///          "default": null,
+///          "format": "uint32",
+///          "minimum": 0.0,
+///          "type": [
+///            "integer",
+///            "null"
+///          ]
 ///        }
 ///      },
 ///      "type": "object"
@@ -21281,6 +25556,17 @@ pub struct PermissionRevokeParams {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21299,6 +25585,28 @@ pub struct PermissionRevokeParams {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -21325,10 +25633,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -21344,8 +25658,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -21402,6 +25719,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21420,6 +25748,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -21446,10 +25796,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -21465,8 +25821,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -21522,6 +25881,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21540,6 +25910,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -21566,10 +25958,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -21585,8 +25983,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -21642,6 +26043,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21660,6 +26072,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -21686,10 +26120,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -21705,8 +26145,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -21762,6 +26205,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21780,6 +26234,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -21806,10 +26282,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -21825,8 +26307,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -21882,6 +26367,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -21900,6 +26396,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -21926,10 +26444,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -21945,8 +26469,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -22002,6 +26529,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -22020,6 +26558,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -22046,10 +26606,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -22065,8 +26631,11 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
     }
@@ -22122,6 +26691,17 @@ impl ::std::default::Default for PermissionSet {
 ///        }
 ///      ]
 ///    },
+///    "local_exec": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/LocalExecPermissions"
+///        }
+///      ]
+///    },
 ///    "network": {
 ///      "default": {
 ///        "declarations": [],
@@ -22140,6 +26720,28 @@ impl ::std::default::Default for PermissionSet {
 ///      "allOf": [
 ///        {
 ///          "$ref": "#/definitions/PackagePermissions"
+///        }
+///      ]
+///    },
+///    "ports": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortPermissions"
+///        }
+///      ]
+///    },
+///    "proxy": {
+///      "default": {
+///        "declarations": [],
+///        "max_count": null
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyPermissions"
 ///        }
 ///      ]
 ///    },
@@ -22166,10 +26768,16 @@ pub struct PermissionSet {
     pub events: EventPermissions,
     #[serde(default = "defaults::permission_set_filesystem")]
     pub filesystem: FilesystemPermissions,
+    #[serde(default = "defaults::permission_set_local_exec")]
+    pub local_exec: LocalExecPermissions,
     #[serde(default = "defaults::permission_set_network")]
     pub network: NetworkPermissions,
     #[serde(default = "defaults::permission_set_packages")]
     pub packages: PackagePermissions,
+    #[serde(default = "defaults::permission_set_ports")]
+    pub ports: PortPermissions,
+    #[serde(default = "defaults::permission_set_proxy")]
+    pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
 The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
@@ -22185,10 +26793,2200 @@ impl ::std::default::Default for PermissionSet {
             capabilities: defaults::permission_set_capabilities(),
             events: defaults::permission_set_events(),
             filesystem: defaults::permission_set_filesystem(),
+            local_exec: defaults::permission_set_local_exec(),
             network: defaults::permission_set_network(),
             packages: defaults::permission_set_packages(),
+            ports: defaults::permission_set_ports(),
+            proxy: defaults::permission_set_proxy(),
             secret_refs: Default::default(),
         }
+    }
+}
+///`PortBindScope`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "loopback_only"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortBindScope {
+    #[serde(rename = "loopback_only")]
+    LoopbackOnly,
+}
+impl ::std::fmt::Display for PortBindScope {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LoopbackOnly => f.write_str("loopback_only"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortBindScope {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "loopback_only" => Ok(Self::LoopbackOnly),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortBindScope`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "loopback_only"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortBindScope {
+    #[serde(rename = "loopback_only")]
+    LoopbackOnly,
+}
+impl ::std::fmt::Display for PortBindScope {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LoopbackOnly => f.write_str("loopback_only"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortBindScope {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "loopback_only" => Ok(Self::LoopbackOnly),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortBindScope`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "loopback_only"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortBindScope {
+    #[serde(rename = "loopback_only")]
+    LoopbackOnly,
+}
+impl ::std::fmt::Display for PortBindScope {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LoopbackOnly => f.write_str("loopback_only"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortBindScope {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "loopback_only" => Ok(Self::LoopbackOnly),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortBindScope`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "loopback_only"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortBindScope {
+    #[serde(rename = "loopback_only")]
+    LoopbackOnly,
+}
+impl ::std::fmt::Display for PortBindScope {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::LoopbackOnly => f.write_str("loopback_only"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortBindScope {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "loopback_only" => Ok(Self::LoopbackOnly),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortBindScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_names": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub port_names: ::std::vec::Vec<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`PortDeniedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortDeniedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct PortDeniedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for PortDeniedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<PortDeniedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: PortDeniedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for PortDeniedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`PortLeaseIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeaseIdParams",
+///  "type": "object",
+///  "required": [
+///    "lease_id"
+///  ],
+///  "properties": {
+///    "lease_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseIdParams {
+    pub lease_id: ::std::string::String,
+}
+///`PortLeaseIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeaseIdParams",
+///  "type": "object",
+///  "required": [
+///    "lease_id"
+///  ],
+///  "properties": {
+///    "lease_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseIdParams {
+    pub lease_id: ::std::string::String,
+}
+///`PortLeaseRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "bind",
+///    "host",
+///    "id",
+///    "port",
+///    "port_name",
+///    "protocol",
+///    "status",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "bind": {
+///      "$ref": "#/definitions/PortBindScope"
+///    },
+///    "host": {
+///      "type": "string"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "port": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "port_name": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/PortProtocol"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/PortLeaseStatusKind"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseRecord {
+    pub bind: PortBindScope,
+    pub host: ::std::string::String,
+    pub id: ::std::string::String,
+    pub port: u16,
+    pub port_name: ::std::string::String,
+    pub protocol: PortProtocol,
+    pub status: PortLeaseStatusKind,
+    pub target_id: ::std::string::String,
+}
+///`PortLeaseRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeaseRecord",
+///  "type": "object",
+///  "required": [
+///    "bind",
+///    "host",
+///    "id",
+///    "port",
+///    "port_name",
+///    "protocol",
+///    "status",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "bind": {
+///      "$ref": "#/definitions/PortBindScope"
+///    },
+///    "host": {
+///      "type": "string"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "port": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "port_name": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/PortProtocol"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/PortLeaseStatusKind"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseRecord {
+    pub bind: PortBindScope,
+    pub host: ::std::string::String,
+    pub id: ::std::string::String,
+    pub port: u16,
+    pub port_name: ::std::string::String,
+    pub protocol: PortProtocol,
+    pub status: PortLeaseStatusKind,
+    pub target_id: ::std::string::String,
+}
+///`PortLeaseRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeaseRecord",
+///  "type": "object",
+///  "required": [
+///    "bind",
+///    "host",
+///    "id",
+///    "port",
+///    "port_name",
+///    "protocol",
+///    "status",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "bind": {
+///      "$ref": "#/definitions/PortBindScope"
+///    },
+///    "host": {
+///      "type": "string"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "port": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "port_name": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/PortProtocol"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/PortLeaseStatusKind"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseRecord {
+    pub bind: PortBindScope,
+    pub host: ::std::string::String,
+    pub id: ::std::string::String,
+    pub port: u16,
+    pub port_name: ::std::string::String,
+    pub protocol: PortProtocol,
+    pub status: PortLeaseStatusKind,
+    pub target_id: ::std::string::String,
+}
+///`PortLeaseRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeaseRequest",
+///  "type": "object",
+///  "required": [
+///    "port_name",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "port_name": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "default": "tcp",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/PortProtocol"
+///        }
+///      ]
+///    },
+///    "requested_port": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseRequest {
+    pub port_name: ::std::string::String,
+    #[serde(default = "defaults::port_lease_request_protocol")]
+    pub protocol: PortProtocol,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub requested_port: ::std::option::Option<u16>,
+    pub target_id: ::std::string::String,
+}
+///`PortLeaseResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeaseResponse",
+///  "type": "object",
+///  "required": [
+///    "lease"
+///  ],
+///  "properties": {
+///    "lease": {
+///      "$ref": "#/definitions/PortLeaseRecord"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortLeaseResponse {
+    pub lease: PortLeaseRecord,
+}
+///`PortLeaseStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "released"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortLeaseStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "released")]
+    Released,
+}
+impl ::std::fmt::Display for PortLeaseStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Released => f.write_str("released"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortLeaseStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "released" => Ok(Self::Released),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortLeaseStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "released"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortLeaseStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "released")]
+    Released,
+}
+impl ::std::fmt::Display for PortLeaseStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Released => f.write_str("released"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortLeaseStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "released" => Ok(Self::Released),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortLeaseStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "released"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortLeaseStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "released")]
+    Released,
+}
+impl ::std::fmt::Display for PortLeaseStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Released => f.write_str("released"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortLeaseStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "released" => Ok(Self::Released),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortLeaseStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "released"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortLeaseStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "released")]
+    Released,
+}
+impl ::std::fmt::Display for PortLeaseStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Released => f.write_str("released"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortLeaseStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "released" => Ok(Self::Released),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortLeasedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortLeasedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct PortLeasedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for PortLeasedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<PortLeasedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: PortLeasedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for PortLeasedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`PortListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortListResult",
+///  "type": "array",
+///  "items": {
+///    "title": "PortLeaseRecord",
+///    "type": "object",
+///    "required": [
+///      "bind",
+///      "host",
+///      "id",
+///      "port",
+///      "port_name",
+///      "protocol",
+///      "status",
+///      "target_id"
+///    ],
+///    "properties": {
+///      "bind": {
+///        "$ref": "#/definitions/PortBindScope"
+///      },
+///      "host": {
+///        "type": "string"
+///      },
+///      "id": {
+///        "type": "string"
+///      },
+///      "port": {
+///        "type": "integer",
+///        "format": "uint16",
+///        "minimum": 0.0
+///      },
+///      "port_name": {
+///        "type": "string"
+///      },
+///      "protocol": {
+///        "$ref": "#/definitions/PortProtocol"
+///      },
+///      "status": {
+///        "$ref": "#/definitions/PortLeaseStatusKind"
+///      },
+///      "target_id": {
+///        "type": "string"
+///      }
+///    },
+///    "$schema": "https://json-schema.org/draft/2020-12/schema",
+///    "definitions": {
+///      "PortBindScope": {
+///        "enum": [
+///          "loopback_only"
+///        ],
+///        "type": "string"
+///      },
+///      "PortLeaseStatusKind": {
+///        "enum": [
+///          "active",
+///          "released"
+///        ],
+///        "type": "string"
+///      },
+///      "PortProtocol": {
+///        "enum": [
+///          "tcp",
+///          "udp"
+///        ],
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct PortListResult(pub ::std::vec::Vec<PortLeaseRecord>);
+impl ::std::ops::Deref for PortListResult {
+    type Target = ::std::vec::Vec<PortLeaseRecord>;
+    fn deref(&self) -> &::std::vec::Vec<PortLeaseRecord> {
+        &self.0
+    }
+}
+impl ::std::convert::From<PortListResult> for ::std::vec::Vec<PortLeaseRecord> {
+    fn from(value: PortListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<PortLeaseRecord>> for PortListResult {
+    fn from(value: ::std::vec::Vec<PortLeaseRecord>) -> Self {
+        Self(value)
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<PortDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for PortPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`PortProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "tcp",
+///    "udp"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortProtocol {
+    #[serde(rename = "tcp")]
+    Tcp,
+    #[serde(rename = "udp")]
+    Udp,
+}
+impl ::std::fmt::Display for PortProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Tcp => f.write_str("tcp"),
+            Self::Udp => f.write_str("udp"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "tcp" => Ok(Self::Tcp),
+            "udp" => Ok(Self::Udp),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "tcp",
+///    "udp"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortProtocol {
+    #[serde(rename = "tcp")]
+    Tcp,
+    #[serde(rename = "udp")]
+    Udp,
+}
+impl ::std::fmt::Display for PortProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Tcp => f.write_str("tcp"),
+            Self::Udp => f.write_str("udp"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "tcp" => Ok(Self::Tcp),
+            "udp" => Ok(Self::Udp),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "tcp",
+///    "udp"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortProtocol {
+    #[serde(rename = "tcp")]
+    Tcp,
+    #[serde(rename = "udp")]
+    Udp,
+}
+impl ::std::fmt::Display for PortProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Tcp => f.write_str("tcp"),
+            Self::Udp => f.write_str("udp"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "tcp" => Ok(Self::Tcp),
+            "udp" => Ok(Self::Udp),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "tcp",
+///    "udp"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortProtocol {
+    #[serde(rename = "tcp")]
+    Tcp,
+    #[serde(rename = "udp")]
+    Udp,
+}
+impl ::std::fmt::Display for PortProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Tcp => f.write_str("tcp"),
+            Self::Udp => f.write_str("udp"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "tcp" => Ok(Self::Tcp),
+            "udp" => Ok(Self::Udp),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "tcp",
+///    "udp"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PortProtocol {
+    #[serde(rename = "tcp")]
+    Tcp,
+    #[serde(rename = "udp")]
+    Udp,
+}
+impl ::std::fmt::Display for PortProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Tcp => f.write_str("tcp"),
+            Self::Udp => f.write_str("udp"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "tcp" => Ok(Self::Tcp),
+            "udp" => Ok(Self::Udp),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortReleasedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortReleasedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct PortReleasedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for PortReleasedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<PortReleasedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: PortReleasedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for PortReleasedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
     }
 }
 ///`ProjectGetResult`
@@ -32560,6 +39358,2231 @@ pub enum ProtocolPrincipal {
     #[serde(rename = "anonymous")]
     Anonymous,
 }
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "route_ids": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub route_ids: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for ProxyDeclaration {
+    fn default() -> Self {
+        Self {
+            max_count: Default::default(),
+            route_ids: Default::default(),
+        }
+    }
+}
+///`ProxyDeniedPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyDeniedPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ProxyDeniedPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ProxyDeniedPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ProxyDeniedPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ProxyDeniedPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ProxyDeniedPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ProxyListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyListResult",
+///  "type": "array",
+///  "items": {
+///    "title": "ProxyRouteRecord",
+///    "type": "object",
+///    "required": [
+///      "id",
+///      "iframe_url",
+///      "protocol",
+///      "public_url",
+///      "status",
+///      "upstream"
+///    ],
+///    "properties": {
+///      "id": {
+///        "type": "string"
+///      },
+///      "iframe_url": {
+///        "type": "string"
+///      },
+///      "protocol": {
+///        "$ref": "#/definitions/ProxyProtocol"
+///      },
+///      "public_url": {
+///        "type": "string"
+///      },
+///      "status": {
+///        "$ref": "#/definitions/ProxyRouteStatusKind"
+///      },
+///      "upstream": {
+///        "$ref": "#/definitions/ProxyRouteUpstream"
+///      }
+///    },
+///    "$schema": "https://json-schema.org/draft/2020-12/schema",
+///    "definitions": {
+///      "ProxyProtocol": {
+///        "enum": [
+///          "http",
+///          "websocket"
+///        ],
+///        "type": "string"
+///      },
+///      "ProxyRouteStatusKind": {
+///        "enum": [
+///          "active",
+///          "removed"
+///        ],
+///        "type": "string"
+///      },
+///      "ProxyRouteUpstream": {
+///        "properties": {
+///          "port_lease_id": {
+///            "type": "string"
+///          },
+///          "port_name": {
+///            "type": "string"
+///          }
+///        },
+///        "required": [
+///          "port_lease_id",
+///          "port_name"
+///        ],
+///        "type": "object"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ProxyListResult(pub ::std::vec::Vec<ProxyRouteRecord>);
+impl ::std::ops::Deref for ProxyListResult {
+    type Target = ::std::vec::Vec<ProxyRouteRecord>;
+    fn deref(&self) -> &::std::vec::Vec<ProxyRouteRecord> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ProxyListResult> for ::std::vec::Vec<ProxyRouteRecord> {
+    fn from(value: ProxyListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<ProxyRouteRecord>> for ProxyListResult {
+    fn from(value: ::std::vec::Vec<ProxyRouteRecord>) -> Self {
+        Self(value)
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyPermissions`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "properties": {
+///    "declarations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProxyDeclaration"
+///      }
+///    },
+///    "max_count": {
+///      "default": null,
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyPermissions {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declarations: ::std::vec::Vec<ProxyDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_count: ::std::option::Option<u32>,
+}
+impl ::std::default::Default for ProxyPermissions {
+    fn default() -> Self {
+        Self {
+            declarations: Default::default(),
+            max_count: Default::default(),
+        }
+    }
+}
+///`ProxyProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "http",
+///    "websocket"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyProtocol {
+    #[serde(rename = "http")]
+    Http,
+    #[serde(rename = "websocket")]
+    Websocket,
+}
+impl ::std::fmt::Display for ProxyProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Http => f.write_str("http"),
+            Self::Websocket => f.write_str("websocket"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "http" => Ok(Self::Http),
+            "websocket" => Ok(Self::Websocket),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "http",
+///    "websocket"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyProtocol {
+    #[serde(rename = "http")]
+    Http,
+    #[serde(rename = "websocket")]
+    Websocket,
+}
+impl ::std::fmt::Display for ProxyProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Http => f.write_str("http"),
+            Self::Websocket => f.write_str("websocket"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "http" => Ok(Self::Http),
+            "websocket" => Ok(Self::Websocket),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "http",
+///    "websocket"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyProtocol {
+    #[serde(rename = "http")]
+    Http,
+    #[serde(rename = "websocket")]
+    Websocket,
+}
+impl ::std::fmt::Display for ProxyProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Http => f.write_str("http"),
+            Self::Websocket => f.write_str("websocket"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "http" => Ok(Self::Http),
+            "websocket" => Ok(Self::Websocket),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "http",
+///    "websocket"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyProtocol {
+    #[serde(rename = "http")]
+    Http,
+    #[serde(rename = "websocket")]
+    Websocket,
+}
+impl ::std::fmt::Display for ProxyProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Http => f.write_str("http"),
+            Self::Websocket => f.write_str("websocket"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "http" => Ok(Self::Http),
+            "websocket" => Ok(Self::Websocket),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyProtocol`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "http",
+///    "websocket"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyProtocol {
+    #[serde(rename = "http")]
+    Http,
+    #[serde(rename = "websocket")]
+    Websocket,
+}
+impl ::std::fmt::Display for ProxyProtocol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Http => f.write_str("http"),
+            Self::Websocket => f.write_str("websocket"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyProtocol {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "http" => Ok(Self::Http),
+            "websocket" => Ok(Self::Websocket),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyProtocol {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyRegisteredPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRegisteredPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ProxyRegisteredPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ProxyRegisteredPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ProxyRegisteredPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ProxyRegisteredPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ProxyRegisteredPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ProxyRouteIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteIdParams",
+///  "type": "object",
+///  "required": [
+///    "route_id"
+///  ],
+///  "properties": {
+///    "route_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteIdParams {
+    pub route_id: ::std::string::String,
+}
+///`ProxyRouteIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteIdParams",
+///  "type": "object",
+///  "required": [
+///    "route_id"
+///  ],
+///  "properties": {
+///    "route_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteIdParams {
+    pub route_id: ::std::string::String,
+}
+///`ProxyRouteRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteRecord",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "iframe_url",
+///    "protocol",
+///    "public_url",
+///    "status",
+///    "upstream"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "iframe_url": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/ProxyProtocol"
+///    },
+///    "public_url": {
+///      "type": "string"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ProxyRouteStatusKind"
+///    },
+///    "upstream": {
+///      "$ref": "#/definitions/ProxyRouteUpstream"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema",
+///  "definitions": {
+///    "ProxyProtocol": {
+///      "enum": [
+///        "http",
+///        "websocket"
+///      ],
+///      "type": "string"
+///    },
+///    "ProxyRouteStatusKind": {
+///      "enum": [
+///        "active",
+///        "removed"
+///      ],
+///      "type": "string"
+///    },
+///    "ProxyRouteUpstream": {
+///      "properties": {
+///        "port_lease_id": {
+///          "type": "string"
+///        },
+///        "port_name": {
+///          "type": "string"
+///        }
+///      },
+///      "required": [
+///        "port_lease_id",
+///        "port_name"
+///      ],
+///      "type": "object"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRecord {
+    pub id: ::std::string::String,
+    pub iframe_url: ::std::string::String,
+    pub protocol: ProxyProtocol,
+    pub public_url: ::std::string::String,
+    pub status: ProxyRouteStatusKind,
+    pub upstream: ProxyRouteUpstream,
+}
+///`ProxyRouteRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "iframe_url",
+///    "protocol",
+///    "public_url",
+///    "status",
+///    "upstream"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "iframe_url": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/ProxyProtocol"
+///    },
+///    "public_url": {
+///      "type": "string"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ProxyRouteStatusKind"
+///    },
+///    "upstream": {
+///      "$ref": "#/definitions/ProxyRouteUpstream"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRecord {
+    pub id: ::std::string::String,
+    pub iframe_url: ::std::string::String,
+    pub protocol: ProxyProtocol,
+    pub public_url: ::std::string::String,
+    pub status: ProxyRouteStatusKind,
+    pub upstream: ProxyRouteUpstream,
+}
+///`ProxyRouteRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteRecord",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "iframe_url",
+///    "protocol",
+///    "public_url",
+///    "status",
+///    "upstream"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "iframe_url": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/ProxyProtocol"
+///    },
+///    "public_url": {
+///      "type": "string"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ProxyRouteStatusKind"
+///    },
+///    "upstream": {
+///      "$ref": "#/definitions/ProxyRouteUpstream"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRecord {
+    pub id: ::std::string::String,
+    pub iframe_url: ::std::string::String,
+    pub protocol: ProxyProtocol,
+    pub public_url: ::std::string::String,
+    pub status: ProxyRouteStatusKind,
+    pub upstream: ProxyRouteUpstream,
+}
+///`ProxyRouteRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteRecord",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "iframe_url",
+///    "protocol",
+///    "public_url",
+///    "status",
+///    "upstream"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "iframe_url": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "$ref": "#/definitions/ProxyProtocol"
+///    },
+///    "public_url": {
+///      "type": "string"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ProxyRouteStatusKind"
+///    },
+///    "upstream": {
+///      "$ref": "#/definitions/ProxyRouteUpstream"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRecord {
+    pub id: ::std::string::String,
+    pub iframe_url: ::std::string::String,
+    pub protocol: ProxyProtocol,
+    pub public_url: ::std::string::String,
+    pub status: ProxyRouteStatusKind,
+    pub upstream: ProxyRouteUpstream,
+}
+///`ProxyRouteRegisterRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteRegisterRequest",
+///  "type": "object",
+///  "required": [
+///    "upstream"
+///  ],
+///  "properties": {
+///    "protocol": {
+///      "default": "http",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyProtocol"
+///        }
+///      ]
+///    },
+///    "route_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "upstream": {
+///      "$ref": "#/definitions/ProxyRouteUpstream"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRegisterRequest {
+    #[serde(default = "defaults::proxy_route_register_request_protocol")]
+    pub protocol: ProxyProtocol,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub route_id: ::std::option::Option<::std::string::String>,
+    pub upstream: ProxyRouteUpstream,
+}
+///`ProxyRouteRegisterResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteRegisterResponse",
+///  "type": "object",
+///  "required": [
+///    "route"
+///  ],
+///  "properties": {
+///    "route": {
+///      "$ref": "#/definitions/ProxyRouteRecord"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteRegisterResponse {
+    pub route: ProxyRouteRecord,
+}
+///`ProxyRouteStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "removed"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyRouteStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "removed")]
+    Removed,
+}
+impl ::std::fmt::Display for ProxyRouteStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Removed => f.write_str("removed"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyRouteStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "removed" => Ok(Self::Removed),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyRouteStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "removed"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyRouteStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "removed")]
+    Removed,
+}
+impl ::std::fmt::Display for ProxyRouteStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Removed => f.write_str("removed"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyRouteStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "removed" => Ok(Self::Removed),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyRouteStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "removed"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyRouteStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "removed")]
+    Removed,
+}
+impl ::std::fmt::Display for ProxyRouteStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Removed => f.write_str("removed"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyRouteStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "removed" => Ok(Self::Removed),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyRouteStatusKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "removed"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyRouteStatusKind {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "removed")]
+    Removed,
+}
+impl ::std::fmt::Display for ProxyRouteStatusKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Removed => f.write_str("removed"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyRouteStatusKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "removed" => Ok(Self::Removed),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProxyRouteUpstream`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "port_lease_id",
+///    "port_name"
+///  ],
+///  "properties": {
+///    "port_lease_id": {
+///      "type": "string"
+///    },
+///    "port_name": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteUpstream {
+    pub port_lease_id: ::std::string::String,
+    pub port_name: ::std::string::String,
+}
+///`ProxyRouteUpstream`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "port_lease_id",
+///    "port_name"
+///  ],
+///  "properties": {
+///    "port_lease_id": {
+///      "type": "string"
+///    },
+///    "port_name": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteUpstream {
+    pub port_lease_id: ::std::string::String,
+    pub port_name: ::std::string::String,
+}
+///`ProxyRouteUpstream`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "port_lease_id",
+///    "port_name"
+///  ],
+///  "properties": {
+///    "port_lease_id": {
+///      "type": "string"
+///    },
+///    "port_name": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteUpstream {
+    pub port_lease_id: ::std::string::String,
+    pub port_name: ::std::string::String,
+}
+///`ProxyRouteUpstream`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "port_lease_id",
+///    "port_name"
+///  ],
+///  "properties": {
+///    "port_lease_id": {
+///      "type": "string"
+///    },
+///    "port_name": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteUpstream {
+    pub port_lease_id: ::std::string::String,
+    pub port_name: ::std::string::String,
+}
+///`ProxyRouteUpstream`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "port_lease_id",
+///    "port_name"
+///  ],
+///  "properties": {
+///    "port_lease_id": {
+///      "type": "string"
+///    },
+///    "port_name": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProxyRouteUpstream {
+    pub port_lease_id: ::std::string::String,
+    pub port_name: ::std::string::String,
+}
+///`ProxyUnregisteredPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyUnregisteredPayload",
+///  "type": "object"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ProxyUnregisteredPayload(
+    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+);
+impl ::std::ops::Deref for ProxyUnregisteredPayload {
+    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
+    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
+        &self.0
+    }
+}
+impl ::std::convert::From<ProxyUnregisteredPayload>
+for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    fn from(value: ProxyUnregisteredPayload) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
+for ProxyUnregisteredPayload {
+    fn from(
+        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    ) -> Self {
+        Self(value)
+    }
+}
+///`ReadinessProbe`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "kind"
+///  ],
+///  "properties": {
+///    "initial_delay_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ReadinessProbeKind"
+///    },
+///    "path": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "port_name": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "timeout_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ReadinessProbe {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub initial_delay_ms: ::std::option::Option<u64>,
+    pub kind: ReadinessProbeKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub path: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub port_name: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timeout_ms: ::std::option::Option<u64>,
+}
+///`ReadinessProbeKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "none",
+///    "tcp_port",
+///    "http_get"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ReadinessProbeKind {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "tcp_port")]
+    TcpPort,
+    #[serde(rename = "http_get")]
+    HttpGet,
+}
+impl ::std::fmt::Display for ReadinessProbeKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::None => f.write_str("none"),
+            Self::TcpPort => f.write_str("tcp_port"),
+            Self::HttpGet => f.write_str("http_get"),
+        }
+    }
+}
+impl ::std::str::FromStr for ReadinessProbeKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "none" => Ok(Self::None),
+            "tcp_port" => Ok(Self::TcpPort),
+            "http_get" => Ok(Self::HttpGet),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ReadinessProbeKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ReadinessProbeKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ReadinessProbeKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 /**Redaction state for an outbound audit record.
 
 Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
@@ -42716,6 +51739,141 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
         value.parse()
     }
 }
+///`TargetIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TargetIdParams",
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TargetIdParams {
+    pub target_id: ::std::string::String,
+}
+///`TargetIdParams`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TargetIdParams",
+///  "type": "object",
+///  "required": [
+///    "target_id"
+///  ],
+///  "properties": {
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TargetIdParams {
+    pub target_id: ::std::string::String,
+}
+///`TargetListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TargetListResult",
+///  "type": "array",
+///  "items": {
+///    "title": "ExecutionTarget",
+///    "type": "object",
+///    "required": [
+///      "id",
+///      "name",
+///      "reachability",
+///      "status"
+///    ],
+///    "properties": {
+///      "capabilities": {
+///        "default": [],
+///        "type": "array",
+///        "items": {
+///          "$ref": "#/definitions/ExecutionTargetCapability"
+///        }
+///      },
+///      "id": {
+///        "type": "string"
+///      },
+///      "name": {
+///        "type": "string"
+///      },
+///      "reachability": {
+///        "$ref": "#/definitions/ExecutionTargetReachability"
+///      },
+///      "status": {
+///        "$ref": "#/definitions/ExecutionTargetStatusKind"
+///      }
+///    },
+///    "$schema": "https://json-schema.org/draft/2020-12/schema",
+///    "definitions": {
+///      "ExecutionTargetCapability": {
+///        "enum": [
+///          "local_exec",
+///          "port_lease",
+///          "http_proxy_upstream",
+///          "websocket_proxy_upstream"
+///        ],
+///        "type": "string"
+///      },
+///      "ExecutionTargetReachability": {
+///        "enum": [
+///          "local_host"
+///        ],
+///        "type": "string"
+///      },
+///      "ExecutionTargetStatusKind": {
+///        "enum": [
+///          "available",
+///          "unavailable"
+///        ],
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct TargetListResult(pub ::std::vec::Vec<ExecutionTarget>);
+impl ::std::ops::Deref for TargetListResult {
+    type Target = ::std::vec::Vec<ExecutionTarget>;
+    fn deref(&self) -> &::std::vec::Vec<ExecutionTarget> {
+        &self.0
+    }
+}
+impl ::std::convert::From<TargetListResult> for ::std::vec::Vec<ExecutionTarget> {
+    fn from(value: TargetListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<ExecutionTarget>> for TargetListResult {
+    fn from(value: ::std::vec::Vec<ExecutionTarget>) -> Self {
+        Self(value)
+    }
+}
 ///`TighteningSuggestion`
 ///
 /// <details><summary>JSON schema</summary>
@@ -43585,6 +52743,26 @@ pub mod defaults {
     pub(super) fn kernel_session_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
+    pub(super) fn local_exec_start_request_lifecycle() -> super::ExecLifecyclePolicy {
+        super::ExecLifecyclePolicy::StopOnSessionClose
+    }
+    pub(super) fn local_exec_start_request_readiness_probe() -> super::ReadinessProbe {
+        super::ReadinessProbe {
+            initial_delay_ms: ::std::option::Option::None,
+            kind: super::ReadinessProbeKind::None,
+            path: ::std::option::Option::None,
+            port_name: ::std::option::Option::None,
+            timeout_ms: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn local_exec_start_request_resource_limits() -> super::ExecResourceLimits {
+        super::ExecResourceLimits {
+            max_cpu_millis: ::std::option::Option::None,
+            max_duration_ms: ::std::option::Option::None,
+            max_log_bytes: ::std::option::Option::None,
+            max_memory_mb: ::std::option::Option::None,
+        }
+    }
     pub(super) fn outbound_audit_record_cost() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -43661,12 +52839,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43703,12 +52893,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43745,12 +52947,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43787,12 +53001,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43829,12 +53055,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43871,12 +53109,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43913,12 +53163,24 @@ pub mod defaults {
                 read: vec![],
                 write: vec![],
             },
+            local_exec: super::LocalExecPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
             network: super::NetworkPermissions {
                 declarations: vec![],
                 hosts: vec![],
             },
             packages: super::PackagePermissions {
                 call: vec![],
+            },
+            ports: super::PortPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
+            },
+            proxy: super::ProxyPermissions {
+                declarations: vec![],
+                max_count: ::std::option::Option::None,
             },
             secret_refs: vec![],
         }
@@ -43953,6 +53215,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -43962,6 +53230,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -43987,6 +53267,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -43996,6 +53282,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -44021,6 +53319,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -44030,6 +53334,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -44055,6 +53371,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -44064,6 +53386,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -44089,6 +53423,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -44098,6 +53438,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -44123,6 +53475,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -44132,6 +53490,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -44157,6 +53527,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -44166,6 +53542,18 @@ pub mod defaults {
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
         super::PackagePermissions {
             call: vec![],
+        }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
         }
     }
     pub(super) fn permission_set_assets() -> super::AssetPermissions {
@@ -44191,6 +53579,12 @@ pub mod defaults {
             write: vec![],
         }
     }
+    pub(super) fn permission_set_local_exec() -> super::LocalExecPermissions {
+        super::LocalExecPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
     pub(super) fn permission_set_network() -> super::NetworkPermissions {
         super::NetworkPermissions {
             declarations: vec![],
@@ -44201,6 +53595,21 @@ pub mod defaults {
         super::PackagePermissions {
             call: vec![],
         }
+    }
+    pub(super) fn permission_set_ports() -> super::PortPermissions {
+        super::PortPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
+        super::ProxyPermissions {
+            declarations: vec![],
+            max_count: ::std::option::Option::None,
+        }
+    }
+    pub(super) fn port_lease_request_protocol() -> super::PortProtocol {
+        super::PortProtocol::Tcp
     }
     pub(super) fn project_inner_secret_policy() -> super::SecretPolicy {
         super::SecretPolicy {
@@ -44390,6 +53799,9 @@ pub mod defaults {
     }
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
+    }
+    pub(super) fn proxy_route_register_request_protocol() -> super::ProxyProtocol {
+        super::ProxyProtocol::Http
     }
     pub(super) fn remote_auth_config() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()

@@ -107,6 +107,22 @@ pub(crate) struct ProjectStatusResult {
     storage_summary: Option<ProjectStorageSummarySchema>,
 }
 #[derive(JsonSchema)]
+pub(crate) struct TargetIdParams {
+    target_id: String,
+}
+#[derive(JsonSchema)]
+pub(crate) struct ExecIdParams {
+    exec_id: String,
+}
+#[derive(JsonSchema)]
+pub(crate) struct PortLeaseIdParams {
+    lease_id: String,
+}
+#[derive(JsonSchema)]
+pub(crate) struct ProxyRouteIdParams {
+    route_id: String,
+}
+#[derive(JsonSchema)]
 pub(crate) struct ProjectLifecyclePayloadSchema {
     project_id: ygg_core::project::ProjectId,
     title: String,

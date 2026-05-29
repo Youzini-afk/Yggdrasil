@@ -41,6 +41,23 @@ pub enum KernelMethod {
     ProjectStart,
     ProjectStop,
     ProjectStatus,
+    TargetList,
+    TargetStatus,
+    TargetRegister,
+    TargetUnregister,
+    ExecStart,
+    ExecStop,
+    ExecStatus,
+    ExecLogs,
+    ExecList,
+    PortLease,
+    PortRelease,
+    PortStatus,
+    PortList,
+    ProxyRegister,
+    ProxyUnregister,
+    ProxyStatus,
+    ProxyList,
     CapabilityDiscover,
     CapabilityDescribe,
     CapabilityInvoke,
@@ -110,6 +127,23 @@ impl KernelMethod {
             Self::ProjectStart => "kernel.v1.project.start",
             Self::ProjectStop => "kernel.v1.project.stop",
             Self::ProjectStatus => "kernel.v1.project.status",
+            Self::TargetList => "kernel.v1.target.list",
+            Self::TargetStatus => "kernel.v1.target.status",
+            Self::TargetRegister => "kernel.v1.target.register",
+            Self::TargetUnregister => "kernel.v1.target.unregister",
+            Self::ExecStart => "kernel.v1.exec.start",
+            Self::ExecStop => "kernel.v1.exec.stop",
+            Self::ExecStatus => "kernel.v1.exec.status",
+            Self::ExecLogs => "kernel.v1.exec.logs",
+            Self::ExecList => "kernel.v1.exec.list",
+            Self::PortLease => "kernel.v1.port.lease",
+            Self::PortRelease => "kernel.v1.port.release",
+            Self::PortStatus => "kernel.v1.port.status",
+            Self::PortList => "kernel.v1.port.list",
+            Self::ProxyRegister => "kernel.v1.proxy.register",
+            Self::ProxyUnregister => "kernel.v1.proxy.unregister",
+            Self::ProxyStatus => "kernel.v1.proxy.status",
+            Self::ProxyList => "kernel.v1.proxy.list",
             Self::CapabilityDiscover => "kernel.v1.capability.discover",
             Self::CapabilityDescribe => "kernel.v1.capability.describe",
             Self::CapabilityInvoke => "kernel.v1.capability.invoke",
@@ -179,6 +213,23 @@ impl KernelMethod {
             Self::ProjectStart => MethodStatus::Implemented,
             Self::ProjectStop => MethodStatus::Implemented,
             Self::ProjectStatus => MethodStatus::Implemented,
+            Self::TargetList
+            | Self::TargetStatus
+            | Self::TargetRegister
+            | Self::TargetUnregister
+            | Self::ExecStart
+            | Self::ExecStop
+            | Self::ExecStatus
+            | Self::ExecLogs
+            | Self::ExecList
+            | Self::PortLease
+            | Self::PortRelease
+            | Self::PortStatus
+            | Self::PortList
+            | Self::ProxyRegister
+            | Self::ProxyUnregister
+            | Self::ProxyStatus
+            | Self::ProxyList => MethodStatus::Partial,
             Self::CapabilityDiscover => MethodStatus::Implemented,
             Self::CapabilityDescribe => MethodStatus::Planned,
             Self::CapabilityInvoke => MethodStatus::Partial,
@@ -259,6 +310,23 @@ impl KernelMethod {
             Self::ProjectStart,
             Self::ProjectStop,
             Self::ProjectStatus,
+            Self::TargetList,
+            Self::TargetStatus,
+            Self::TargetRegister,
+            Self::TargetUnregister,
+            Self::ExecStart,
+            Self::ExecStop,
+            Self::ExecStatus,
+            Self::ExecLogs,
+            Self::ExecList,
+            Self::PortLease,
+            Self::PortRelease,
+            Self::PortStatus,
+            Self::PortList,
+            Self::ProxyRegister,
+            Self::ProxyUnregister,
+            Self::ProxyStatus,
+            Self::ProxyList,
             Self::CapabilityDiscover,
             Self::CapabilityDescribe,
             Self::CapabilityInvoke,
@@ -337,6 +405,23 @@ impl KernelMethod {
             | Self::ProjectStart
             | Self::ProjectStop
             | Self::ProjectStatus
+            | Self::TargetList
+            | Self::TargetStatus
+            | Self::TargetRegister
+            | Self::TargetUnregister
+            | Self::ExecStart
+            | Self::ExecStop
+            | Self::ExecStatus
+            | Self::ExecLogs
+            | Self::ExecList
+            | Self::PortLease
+            | Self::PortRelease
+            | Self::PortStatus
+            | Self::PortList
+            | Self::ProxyRegister
+            | Self::ProxyUnregister
+            | Self::ProxyStatus
+            | Self::ProxyList
             | Self::CapabilityDiscover
             | Self::CapabilityInvoke
             | Self::CapabilityHandleAttenuate
@@ -419,6 +504,23 @@ impl FromStr for KernelMethod {
             "kernel.v1.project.start" => Ok(Self::ProjectStart),
             "kernel.v1.project.stop" => Ok(Self::ProjectStop),
             "kernel.v1.project.status" => Ok(Self::ProjectStatus),
+            "kernel.v1.target.list" => Ok(Self::TargetList),
+            "kernel.v1.target.status" => Ok(Self::TargetStatus),
+            "kernel.v1.target.register" => Ok(Self::TargetRegister),
+            "kernel.v1.target.unregister" => Ok(Self::TargetUnregister),
+            "kernel.v1.exec.start" => Ok(Self::ExecStart),
+            "kernel.v1.exec.stop" => Ok(Self::ExecStop),
+            "kernel.v1.exec.status" => Ok(Self::ExecStatus),
+            "kernel.v1.exec.logs" => Ok(Self::ExecLogs),
+            "kernel.v1.exec.list" => Ok(Self::ExecList),
+            "kernel.v1.port.lease" => Ok(Self::PortLease),
+            "kernel.v1.port.release" => Ok(Self::PortRelease),
+            "kernel.v1.port.status" => Ok(Self::PortStatus),
+            "kernel.v1.port.list" => Ok(Self::PortList),
+            "kernel.v1.proxy.register" => Ok(Self::ProxyRegister),
+            "kernel.v1.proxy.unregister" => Ok(Self::ProxyUnregister),
+            "kernel.v1.proxy.status" => Ok(Self::ProxyStatus),
+            "kernel.v1.proxy.list" => Ok(Self::ProxyList),
             "kernel.v1.capability.discover" => Ok(Self::CapabilityDiscover),
             "kernel.v1.capability.describe" => Ok(Self::CapabilityDescribe),
             "kernel.v1.capability.invoke" => Ok(Self::CapabilityInvoke),
@@ -749,6 +851,91 @@ pub const KERNEL_METHODS: &[ProtocolMethod] = &[
         id: "kernel.v1.project.status",
         streaming: false,
         status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.target.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.target.status",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.target.register",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.target.unregister",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.exec.start",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.exec.stop",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.exec.status",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.exec.logs",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.exec.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.port.lease",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.port.release",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.port.status",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.port.list",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proxy.register",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proxy.unregister",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proxy.status",
+        streaming: false,
+        status: MethodStatus::Partial,
+    },
+    ProtocolMethod {
+        id: "kernel.v1.proxy.list",
+        streaming: false,
+        status: MethodStatus::Partial,
     },
     ProtocolMethod {
         id: "kernel.v1.capability.discover",

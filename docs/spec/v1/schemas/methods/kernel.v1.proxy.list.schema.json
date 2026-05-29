@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EmptyParams",
+      "type": "object"
+    },
+    "Result": {
+      "items": {
+        "$defs": {
+          "ProxyProtocol": {
+            "enum": [
+              "http",
+              "websocket"
+            ],
+            "type": "string"
+          },
+          "ProxyRouteStatusKind": {
+            "enum": [
+              "active",
+              "removed"
+            ],
+            "type": "string"
+          },
+          "ProxyRouteUpstream": {
+            "properties": {
+              "port_lease_id": {
+                "type": "string"
+              },
+              "port_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "port_lease_id",
+              "port_name"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "iframe_url": {
+            "type": "string"
+          },
+          "protocol": {
+            "$ref": "#/definitions/ProxyProtocol"
+          },
+          "public_url": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/definitions/ProxyRouteStatusKind"
+          },
+          "upstream": {
+            "$ref": "#/definitions/ProxyRouteUpstream"
+          }
+        },
+        "required": [
+          "id",
+          "iframe_url",
+          "protocol",
+          "public_url",
+          "status",
+          "upstream"
+        ],
+        "title": "ProxyRouteRecord",
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.proxy.list.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.proxy.list.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.proxy.list"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.proxy.list",
+  "type": "object"
+}

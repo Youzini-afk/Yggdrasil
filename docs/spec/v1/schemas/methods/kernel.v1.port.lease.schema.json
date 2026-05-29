@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$defs": {
+        "PortProtocol": {
+          "enum": [
+            "tcp",
+            "udp"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "port_name": {
+          "type": "string"
+        },
+        "protocol": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/PortProtocol"
+            }
+          ],
+          "default": "tcp"
+        },
+        "requested_port": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "port_name",
+        "target_id"
+      ],
+      "title": "PortLeaseRequest",
+      "type": "object"
+    },
+    "Result": {
+      "$defs": {
+        "PortBindScope": {
+          "enum": [
+            "loopback_only"
+          ],
+          "type": "string"
+        },
+        "PortLeaseRecord": {
+          "properties": {
+            "bind": {
+              "$ref": "#/definitions/PortBindScope"
+            },
+            "host": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "port": {
+              "format": "uint16",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "port_name": {
+              "type": "string"
+            },
+            "protocol": {
+              "$ref": "#/definitions/PortProtocol"
+            },
+            "status": {
+              "$ref": "#/definitions/PortLeaseStatusKind"
+            },
+            "target_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "bind",
+            "host",
+            "id",
+            "port",
+            "port_name",
+            "protocol",
+            "status",
+            "target_id"
+          ],
+          "type": "object"
+        },
+        "PortLeaseStatusKind": {
+          "enum": [
+            "active",
+            "released"
+          ],
+          "type": "string"
+        },
+        "PortProtocol": {
+          "enum": [
+            "tcp",
+            "udp"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "lease": {
+          "$ref": "#/definitions/PortLeaseRecord"
+        }
+      },
+      "required": [
+        "lease"
+      ],
+      "title": "PortLeaseResponse",
+      "type": "object"
+    }
+  },
+  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.port.lease.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Yggdrasil public kernel method kernel.v1.port.lease.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "kernel.v1.port.lease"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "kernel.v1.port.lease",
+  "type": "object"
+}

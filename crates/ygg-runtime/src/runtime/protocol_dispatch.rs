@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 
 use super::Runtime;
-use crate::{EventStore, KernelMethod, ProtocolContext};
+use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal};
 
 impl<S> Runtime<S>
 where
@@ -30,6 +30,10 @@ where
                 method
             ))
         })?;
+        if is_deployment_hub_method(kernel_method) {
+            ensure_deployment_hub_control_allowed(context)
+                .map_err(crate::ProtocolError::from_anyhow)?;
+        }
         let result: anyhow::Result<Value> = match kernel_method {
             KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
             KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
@@ -42,6 +46,23 @@ where
             KernelMethod::OutboundWebSocketClose => {
                 self.dispatch_outbound_websocket_close(&params).await
             }
+            KernelMethod::TargetList => self.dispatch_target_list().await,
+            KernelMethod::TargetStatus => self.dispatch_target_status(&params).await,
+            KernelMethod::TargetRegister => self.dispatch_target_register(params).await,
+            KernelMethod::TargetUnregister => self.dispatch_target_unregister(&params).await,
+            KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
+            KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
+            KernelMethod::ExecStatus => self.dispatch_exec_status(params).await,
+            KernelMethod::ExecLogs => self.dispatch_exec_logs(params).await,
+            KernelMethod::ExecList => self.dispatch_exec_list().await,
+            KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
+            KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
+            KernelMethod::PortStatus => self.dispatch_port_status(&params).await,
+            KernelMethod::PortList => self.dispatch_port_list().await,
+            KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
+            KernelMethod::ProxyUnregister => self.dispatch_proxy_unregister(context, &params).await,
+            KernelMethod::ProxyStatus => self.dispatch_proxy_status(&params).await,
+            KernelMethod::ProxyList => self.dispatch_proxy_list().await,
             KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
             KernelMethod::HostInfo => {
                 serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from)
@@ -76,6 +97,9 @@ where
         let kernel_method: KernelMethod = method.parse().map_err(|_| {
             anyhow::anyhow!("protocol method '{}' is not a known kernel method", method)
         })?;
+        if is_deployment_hub_method(kernel_method) {
+            ensure_deployment_hub_control_allowed(context)?;
+        }
         match kernel_method {
             // Host domain
             KernelMethod::HostInfo => Ok(serde_json::to_value(crate::host_info())?),
@@ -155,6 +179,25 @@ where
             KernelMethod::ProjectStop => self.dispatch_project_stop(context, &params).await,
             KernelMethod::ProjectStatus => self.dispatch_project_status(context, &params).await,
 
+            // Deployment Hub Phase 1 primitives
+            KernelMethod::TargetList => self.dispatch_target_list().await,
+            KernelMethod::TargetStatus => self.dispatch_target_status(&params).await,
+            KernelMethod::TargetRegister => self.dispatch_target_register(params).await,
+            KernelMethod::TargetUnregister => self.dispatch_target_unregister(&params).await,
+            KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
+            KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
+            KernelMethod::ExecStatus => self.dispatch_exec_status(params).await,
+            KernelMethod::ExecLogs => self.dispatch_exec_logs(params).await,
+            KernelMethod::ExecList => self.dispatch_exec_list().await,
+            KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
+            KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
+            KernelMethod::PortStatus => self.dispatch_port_status(&params).await,
+            KernelMethod::PortList => self.dispatch_port_list().await,
+            KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
+            KernelMethod::ProxyUnregister => self.dispatch_proxy_unregister(context, &params).await,
+            KernelMethod::ProxyStatus => self.dispatch_proxy_status(&params).await,
+            KernelMethod::ProxyList => self.dispatch_proxy_list().await,
+
             // Capability domain
             KernelMethod::CapabilityDiscover => {
                 Ok(serde_json::to_value(self.discover_capabilities().await)?)
@@ -208,5 +251,37 @@ where
                 anyhow::bail!("protocol method '{}' is not yet implemented", kernel_method)
             }
         }
+    }
+}
+
+fn is_deployment_hub_method(method: KernelMethod) -> bool {
+    matches!(
+        method,
+        KernelMethod::TargetList
+            | KernelMethod::TargetStatus
+            | KernelMethod::TargetRegister
+            | KernelMethod::TargetUnregister
+            | KernelMethod::ExecStart
+            | KernelMethod::ExecStop
+            | KernelMethod::ExecStatus
+            | KernelMethod::ExecLogs
+            | KernelMethod::ExecList
+            | KernelMethod::PortLease
+            | KernelMethod::PortRelease
+            | KernelMethod::PortStatus
+            | KernelMethod::PortList
+            | KernelMethod::ProxyRegister
+            | KernelMethod::ProxyUnregister
+            | KernelMethod::ProxyStatus
+            | KernelMethod::ProxyList
+    )
+}
+
+fn ensure_deployment_hub_control_allowed(context: &ProtocolContext) -> anyhow::Result<()> {
+    match &context.principal {
+        ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => Ok(()),
+        _ => anyhow::bail!(
+            "permission denied: deployment hub control methods require host_admin or host_dev principal"
+        ),
     }
 }

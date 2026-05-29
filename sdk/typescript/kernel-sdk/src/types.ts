@@ -269,6 +269,61 @@ export interface EventPermissions {
 
 export type EventSubscribeResult = null;
 
+export interface ExecCommand {
+  "args"?: Array<string>;
+  "program": string;
+}
+
+export type ExecCompletedPayload = Record<string, unknown>;
+
+export type ExecDeniedPayload = Record<string, unknown>;
+
+export type ExecFailedPayload = Record<string, unknown>;
+
+export interface ExecIdParams {
+  "exec_id": string;
+}
+
+export type ExecLifecyclePolicy = "stop_on_session_close" | "keep_alive" | "stop_on_idle";
+
+export type ExecRequestPayload = Record<string, unknown>;
+
+export interface ExecResourceLimits {
+  "max_cpu_millis"?: null | number;
+  "max_duration_ms"?: null | number;
+  "max_log_bytes"?: null | number;
+  "max_memory_mb"?: null | number;
+}
+
+export type ExecStartedPayload = Record<string, unknown>;
+
+export interface ExecStatus {
+  "exec_id"?: null | string;
+  "exit_code"?: null | number;
+  "kind": ExecStatusKind;
+  "message"?: null | string;
+  "ready": boolean;
+  "target_id"?: null | string;
+}
+
+export type ExecStatusKind = "pending" | "running" | "stopped" | "exited" | "failed" | "denied" | "unknown";
+
+export type ExecStoppedPayload = Record<string, unknown>;
+
+export interface ExecutionTarget {
+  "capabilities"?: Array<ExecutionTargetCapability>;
+  "id": string;
+  "name": string;
+  "reachability": ExecutionTargetReachability;
+  "status": ExecutionTargetStatusKind;
+}
+
+export type ExecutionTargetCapability = "local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream";
+
+export type ExecutionTargetReachability = "local_host";
+
+export type ExecutionTargetStatusKind = "available" | "unavailable";
+
 /**
  * The kind of outbound executor that produced a response.
  */
@@ -382,6 +437,73 @@ export interface KernelSession {
   "principal_scope"?: null | string;
   "status": SessionStatus;
   "updated_at": string;
+}
+
+export interface LocalExecDeclaration {
+  "max_count"?: null | number;
+  "programs"?: Array<string>;
+  "target_id": string;
+}
+
+export interface LocalExecListResponse {
+  "executions": Array<ExecStatus>;
+}
+
+export interface LocalExecLogLine {
+  "message_redacted": string;
+  "seq": number;
+  "stream": LocalExecLogStream;
+}
+
+export type LocalExecLogStream = "stdout" | "stderr" | "system";
+
+export interface LocalExecLogsRequest {
+  "exec_id": string;
+  "limit"?: null | number;
+  "since_seq"?: null | number;
+}
+
+export interface LocalExecLogsResponse {
+  "error"?: null | string;
+  "exec_id": string;
+  "lines": Array<LocalExecLogLine>;
+  "next_seq"?: null | number;
+}
+
+export interface LocalExecPermissions {
+  "declarations"?: Array<LocalExecDeclaration>;
+  "max_count"?: null | number;
+}
+
+export interface LocalExecStartRequest {
+  "command": ExecCommand;
+  "lifecycle"?: ExecLifecyclePolicy;
+  "port_names"?: Array<string>;
+  "readiness_probe"?: ReadinessProbe;
+  "resource_limits"?: ExecResourceLimits;
+  "target_id": string;
+}
+
+export interface LocalExecStartResponse {
+  "error"?: null | string;
+  "exec_id"?: null | string;
+  "status": ExecStatus;
+}
+
+export interface LocalExecStatusResponse {
+  "error"?: null | string;
+  "status": ExecStatus;
+}
+
+export interface LocalExecStopRequest {
+  "exec_id": string;
+  "reason"?: null | string;
+}
+
+export interface LocalExecStopResponse {
+  "error"?: null | string;
+  "exec_id": string;
+  "status": ExecStatus;
 }
 
 export type MethodStatus = "implemented" | "partial" | "planned";
@@ -949,8 +1071,11 @@ export interface PermissionSet {
   "capabilities"?: CapabilityPermissions;
   "events"?: EventPermissions;
   "filesystem"?: FilesystemPermissions;
+  "local_exec"?: LocalExecPermissions;
   "network"?: NetworkPermissions;
   "packages"?: PackagePermissions;
+  "ports"?: PortPermissions;
+  "proxy"?: ProxyPermissions;
   /**
    * Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
    * 
@@ -966,8 +1091,11 @@ export interface PermissionSet2 {
   "capabilities"?: CapabilityPermissions;
   "events"?: EventPermissions;
   "filesystem"?: FilesystemPermissions;
+  "local_exec"?: LocalExecPermissions;
   "network"?: NetworkPermissions;
   "packages"?: PackagePermissions;
+  "ports"?: PortPermissions;
+  "proxy"?: ProxyPermissions;
   /**
    * Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
    * 
@@ -977,6 +1105,77 @@ export interface PermissionSet2 {
    */
   "secret_refs"?: Array<string>;
 }
+
+export type PortBindScope = "loopback_only";
+
+export interface PortDeclaration {
+  "max_count"?: null | number;
+  "port_names"?: Array<string>;
+  "target_id": string;
+}
+
+export type PortDeniedPayload = Record<string, unknown>;
+
+export interface PortLeaseIdParams {
+  "lease_id": string;
+}
+
+export interface PortLeaseRecord {
+  "bind": PortBindScope;
+  "host": string;
+  "id": string;
+  "port": number;
+  "port_name": string;
+  "protocol": PortProtocol;
+  "status": PortLeaseStatusKind;
+  "target_id": string;
+}
+
+export interface PortLeaseRecord2 {
+  "bind": PortBindScope;
+  "host": string;
+  "id": string;
+  "port": number;
+  "port_name": string;
+  "protocol": PortProtocol;
+  "status": PortLeaseStatusKind;
+  "target_id": string;
+}
+
+export interface PortLeaseRequest {
+  "port_name": string;
+  "protocol"?: PortProtocol;
+  "requested_port"?: null | number;
+  "target_id": string;
+}
+
+export interface PortLeaseResponse {
+  "lease": PortLeaseRecord;
+}
+
+export type PortLeaseStatusKind = "active" | "released";
+
+export type PortLeasedPayload = Record<string, unknown>;
+
+export type PortListResult = Array<{
+  "bind": PortBindScope;
+  "host": string;
+  "id": string;
+  "port": number;
+  "port_name": string;
+  "protocol": PortProtocol;
+  "status": PortLeaseStatusKind;
+  "target_id": string;
+}>;
+
+export interface PortPermissions {
+  "declarations"?: Array<PortDeclaration>;
+  "max_count"?: null | number;
+}
+
+export type PortProtocol = "tcp" | "udp";
+
+export type PortReleasedPayload = Record<string, unknown>;
 
 export type ProjectGetResult = {
   /**
@@ -1166,6 +1365,82 @@ export type ProtocolPrincipal = {
   "package_id": string;
 };
 
+export interface ProxyDeclaration {
+  "max_count"?: null | number;
+  "route_ids"?: Array<string>;
+}
+
+export type ProxyDeniedPayload = Record<string, unknown>;
+
+export type ProxyListResult = Array<{
+  "id": string;
+  "iframe_url": string;
+  "protocol": ProxyProtocol;
+  "public_url": string;
+  "status": ProxyRouteStatusKind;
+  "upstream": ProxyRouteUpstream;
+}>;
+
+export interface ProxyPermissions {
+  "declarations"?: Array<ProxyDeclaration>;
+  "max_count"?: null | number;
+}
+
+export type ProxyProtocol = "http" | "websocket";
+
+export type ProxyRegisteredPayload = Record<string, unknown>;
+
+export interface ProxyRouteIdParams {
+  "route_id": string;
+}
+
+export interface ProxyRouteRecord {
+  "id": string;
+  "iframe_url": string;
+  "protocol": ProxyProtocol;
+  "public_url": string;
+  "status": ProxyRouteStatusKind;
+  "upstream": ProxyRouteUpstream;
+}
+
+export interface ProxyRouteRecord2 {
+  "id": string;
+  "iframe_url": string;
+  "protocol": ProxyProtocol;
+  "public_url": string;
+  "status": ProxyRouteStatusKind;
+  "upstream": ProxyRouteUpstream;
+}
+
+export interface ProxyRouteRegisterRequest {
+  "protocol"?: ProxyProtocol;
+  "route_id"?: null | string;
+  "upstream": ProxyRouteUpstream;
+}
+
+export interface ProxyRouteRegisterResponse {
+  "route": ProxyRouteRecord;
+}
+
+export type ProxyRouteStatusKind = "active" | "removed";
+
+export interface ProxyRouteUpstream {
+  "port_lease_id": string;
+  "port_name": string;
+}
+
+export type ProxyUnregisteredPayload = Record<string, unknown>;
+
+export interface ReadinessProbe {
+  "initial_delay_ms"?: null | number;
+  "kind": ReadinessProbeKind;
+  "path"?: null | string;
+  "port_name"?: null | string;
+  "timeout_ms"?: null | number;
+}
+
+export type ReadinessProbeKind = "none" | "tcp_port" | "http_get";
+
 /**
  * Redaction state for an outbound audit record.
  * 
@@ -1354,6 +1629,18 @@ export interface SurfaceResolveBundleResult {
 export type SurfaceRisk = "low" | "medium" | "high";
 
 export type SurfaceSlot = "experience_entry" | "home_card" | "quick_action" | "workshop_card" | "play_renderer" | "forge_panel" | "asset_editor" | "assistant_action";
+
+export interface TargetIdParams {
+  "target_id": string;
+}
+
+export type TargetListResult = Array<{
+  "capabilities"?: Array<ExecutionTargetCapability>;
+  "id": string;
+  "name": string;
+  "reachability": ExecutionTargetReachability;
+  "status": ExecutionTargetStatusKind;
+}>;
 
 export interface TighteningSuggestion {
   "kind": string;

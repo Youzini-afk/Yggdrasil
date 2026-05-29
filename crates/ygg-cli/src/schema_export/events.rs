@@ -125,5 +125,17 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
         (EVENT_OUTBOUND_WEBSOCKET_FRAME, json!({"type":"object"})),
         (EVENT_OUTBOUND_WEBSOCKET_ERROR, json!({"type":"object"})),
         (EVENT_OUTBOUND_WEBSOCKET_COMPLETED, json!({"type":"object"})),
+        (EVENT_EXEC_REQUEST, json!({"type":"object"})),
+        (EVENT_EXEC_DENIED, json!({"type":"object"})),
+        (EVENT_EXEC_STARTED, json!({"type":"object"})),
+        (EVENT_EXEC_STOPPED, json!({"type":"object"})),
+        (EVENT_EXEC_COMPLETED, json!({"type":"object"})),
+        (EVENT_EXEC_FAILED, json!({"type":"object"})),
+        (EVENT_PORT_LEASED, json!({"type":"object"})),
+        (EVENT_PORT_RELEASED, json!({"type":"object"})),
+        (EVENT_PORT_DENIED, json!({"type":"object"})),
+        (EVENT_PROXY_REGISTERED, json!({"type":"object"})),
+        (EVENT_PROXY_UNREGISTERED, json!({"type":"object"})),
+        (EVENT_PROXY_DENIED, json!({"type":"object"})),
     ]
 }

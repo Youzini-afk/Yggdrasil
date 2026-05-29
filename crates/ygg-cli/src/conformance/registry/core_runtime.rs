@@ -85,6 +85,21 @@ pub(super) fn core_cases() -> Vec<ConformanceCase> {
             crate::conformance::audit::package_audit_report
         ),
         c!(
+            "deployment_hub.requires_host_principal",
+            ["runtime", "deployment_hub", "permission"],
+            crate::conformance::protocol::deployment_hub_requires_host_principal
+        ),
+        c!(
+            "deployment_hub.port_lease_loopback",
+            ["runtime", "deployment_hub", "port"],
+            crate::conformance::protocol::deployment_hub_port_lease_loopback
+        ),
+        c!(
+            "deployment_hub.proxy_requires_matching_lease_port",
+            ["runtime", "deployment_hub", "proxy"],
+            crate::conformance::protocol::deployment_hub_proxy_requires_matching_lease_port
+        ),
+        c!(
             "capability.ambiguous_provider_denied",
             ["runtime", "capability"],
             crate::conformance::core::ambiguous_provider_denied

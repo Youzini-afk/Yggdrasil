@@ -23,6 +23,7 @@ mod capabilities;
 mod events;
 mod handles;
 mod hooks;
+mod local_exec;
 mod network;
 mod outbound;
 mod outbound_sse;
@@ -49,6 +50,19 @@ pub use self::audit::{
 pub use self::branches::BranchRecord;
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::handles::HandleTable;
+pub use self::local_exec::{
+    DenyAllLocalExecExecutor, ExecCommand, ExecId, ExecLifecyclePolicy, ExecRegistry,
+    ExecResourceLimits, ExecStatus, ExecStatusKind, ExecutionTarget, ExecutionTargetCapability,
+    ExecutionTargetId, ExecutionTargetReachability, ExecutionTargetRegistry,
+    ExecutionTargetStatusKind, FakeLocalExecExecutor, LocalExecExecutor, LocalExecExecutorConfig,
+    LocalExecListResponse, LocalExecLogLine, LocalExecLogsRequest, LocalExecLogsResponse,
+    LocalExecLogStream, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
+    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, PortBindScope,
+    PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse,
+    PortLeaseStatusKind, PortProtocol, ProxyProtocol, ProxyRouteId, ProxyRouteRecord,
+    ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteRegistry,
+    ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe, ReadinessProbeKind,
+};
 pub use self::network::{
     check_network_policy, NetworkPolicyDecision, OutboundExecuteCompletion, OutboundRequest,
     OutboundStreamCompletion, OutboundWebSocketCompletion,
@@ -97,6 +111,16 @@ pub struct RuntimeConfig {
     pub outbound_execute_policy: OutboundExecutePolicyConfig,
     /// Outbound WebSocket executor. Defaults to DenyAll (fail-closed).
     pub outbound_websocket_executor: Arc<dyn WebSocketExecutor>,
+    /// Local exec executor. Defaults to DenyAll (fail-closed).
+    pub local_exec_executor: LocalExecExecutorConfig,
+    /// In-memory local exec status registry for Phase 1 fake/deny dispatch.
+    pub exec_registry: Arc<ExecRegistry>,
+    /// In-memory execution target registry. Defaults with local/local-host.
+    pub target_registry: Arc<ExecutionTargetRegistry>,
+    /// In-memory loopback-only port lease registry.
+    pub port_lease_registry: Arc<PortLeaseRegistry>,
+    /// In-memory placeholder proxy route registry.
+    pub proxy_route_registry: Arc<ProxyRouteRegistry>,
     /// Development-mode surface bundle path overrides. Maps a surface_id prefix
     /// to a filesystem directory containing built bundles.
     pub surface_dev_paths: BTreeMap<String, String>,
@@ -118,6 +142,11 @@ impl Default for RuntimeConfig {
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
+            local_exec_executor: LocalExecExecutorConfig::default(),
+            exec_registry: Arc::new(ExecRegistry::default()),
+            target_registry: Arc::new(ExecutionTargetRegistry::default()),
+            port_lease_registry: Arc::new(PortLeaseRegistry::default()),
+            proxy_route_registry: Arc::new(ProxyRouteRegistry::default()),
             surface_dev_paths: BTreeMap::new(),
             package_roots: BTreeMap::new(),
         }

@@ -56,6 +56,18 @@ pub const EVENT_OUTBOUND_WEBSOCKET_OPENED: &str = "kernel/v1/outbound.websocket.
 pub const EVENT_OUTBOUND_WEBSOCKET_FRAME: &str = "kernel/v1/outbound.websocket.frame";
 pub const EVENT_OUTBOUND_WEBSOCKET_ERROR: &str = "kernel/v1/outbound.websocket.error";
 pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "kernel/v1/outbound.websocket.completed";
+pub const EVENT_EXEC_REQUEST: &str = "kernel/v1/exec.request";
+pub const EVENT_EXEC_DENIED: &str = "kernel/v1/exec.denied";
+pub const EVENT_EXEC_STARTED: &str = "kernel/v1/exec.started";
+pub const EVENT_EXEC_STOPPED: &str = "kernel/v1/exec.stopped";
+pub const EVENT_EXEC_COMPLETED: &str = "kernel/v1/exec.completed";
+pub const EVENT_EXEC_FAILED: &str = "kernel/v1/exec.failed";
+pub const EVENT_PORT_LEASED: &str = "kernel/v1/port.leased";
+pub const EVENT_PORT_RELEASED: &str = "kernel/v1/port.released";
+pub const EVENT_PORT_DENIED: &str = "kernel/v1/port.denied";
+pub const EVENT_PROXY_REGISTERED: &str = "kernel/v1/proxy.registered";
+pub const EVENT_PROXY_UNREGISTERED: &str = "kernel/v1/proxy.unregistered";
+pub const EVENT_PROXY_DENIED: &str = "kernel/v1/proxy.denied";
 
 // ---------------------------------------------------------------------------
 // Outbound audit / redaction types (Phase S2)

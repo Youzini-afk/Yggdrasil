@@ -139,6 +139,53 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn exec_list(&self, params: EmptyParams) -> Result<LocalExecListResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.exec.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn exec_logs(
+        &self,
+        params: LocalExecLogsRequest,
+    ) -> Result<LocalExecLogsResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.exec.logs", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn exec_start(
+        &self,
+        params: LocalExecStartRequest,
+    ) -> Result<LocalExecStartResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.exec.start", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn exec_status(
+        &self,
+        params: ExecIdParams,
+    ) -> Result<LocalExecStatusResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.exec.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn exec_stop(
+        &self,
+        params: LocalExecStopRequest,
+    ) -> Result<LocalExecStopResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.exec.stop", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn extension_point_describe(
         &self,
         params: EmptyParams,
@@ -364,6 +411,43 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn port_lease(
+        &self,
+        params: PortLeaseRequest,
+    ) -> Result<PortLeaseResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.port.lease", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn port_list(&self, params: EmptyParams) -> Result<PortListResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.port.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn port_release(
+        &self,
+        params: PortLeaseIdParams,
+    ) -> Result<PortLeaseRecord> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.port.release", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn port_status(
+        &self,
+        params: PortLeaseIdParams,
+    ) -> Result<PortLeaseRecord> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.port.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn project_get(
         &self,
         params: ProjectIdParams,
@@ -514,6 +598,43 @@ impl KernelClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn proxy_list(&self, params: EmptyParams) -> Result<ProxyListResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.proxy.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn proxy_register(
+        &self,
+        params: ProxyRouteRegisterRequest,
+    ) -> Result<ProxyRouteRegisterResponse> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.proxy.register", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn proxy_status(
+        &self,
+        params: ProxyRouteIdParams,
+    ) -> Result<ProxyRouteRecord> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.proxy.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn proxy_unregister(
+        &self,
+        params: ProxyRouteIdParams,
+    ) -> Result<ProxyRouteRecord> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.proxy.unregister", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn session_branch_list(
         &self,
         params: SessionBranchListParams,
@@ -595,6 +716,43 @@ impl KernelClient {
         let raw = self
             .transport
             .invoke("kernel.v1.surface.resolve_bundle", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn target_list(&self, params: EmptyParams) -> Result<TargetListResult> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.target.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn target_register(
+        &self,
+        params: ExecutionTarget,
+    ) -> Result<ExecutionTarget> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.target.register", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn target_status(
+        &self,
+        params: TargetIdParams,
+    ) -> Result<ExecutionTarget> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.target.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn target_unregister(
+        &self,
+        params: TargetIdParams,
+    ) -> Result<ExecutionTarget> {
+        let raw = self
+            .transport
+            .invoke("kernel.v1.target.unregister", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }

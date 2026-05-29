@@ -345,6 +345,12 @@ pub struct PermissionSet {
     pub network: NetworkPermissions,
     #[serde(default)]
     pub filesystem: FilesystemPermissions,
+    #[serde(default)]
+    pub local_exec: LocalExecPermissions,
+    #[serde(default)]
+    pub ports: PortPermissions,
+    #[serde(default)]
+    pub proxy: ProxyPermissions,
     /// Declared secret references this package may use in
     /// `kernel.v1.outbound.execute` calls. Each entry must be a valid
     /// env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`,
@@ -423,6 +429,56 @@ pub struct FilesystemPermissions {
     pub read: Vec<String>,
     #[serde(default)]
     pub write: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct LocalExecDeclaration {
+    pub target_id: String,
+    #[serde(default)]
+    pub programs: Vec<String>,
+    #[serde(default)]
+    pub max_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct LocalExecPermissions {
+    #[serde(default)]
+    pub declarations: Vec<LocalExecDeclaration>,
+    #[serde(default)]
+    pub max_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct PortDeclaration {
+    pub target_id: String,
+    #[serde(default)]
+    pub port_names: Vec<String>,
+    #[serde(default)]
+    pub max_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct PortPermissions {
+    #[serde(default)]
+    pub declarations: Vec<PortDeclaration>,
+    #[serde(default)]
+    pub max_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ProxyDeclaration {
+    #[serde(default)]
+    pub route_ids: Vec<String>,
+    #[serde(default)]
+    pub max_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ProxyPermissions {
+    #[serde(default)]
+    pub declarations: Vec<ProxyDeclaration>,
+    #[serde(default)]
+    pub max_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -559,6 +615,12 @@ impl PackageManifest {
             || !self.permissions.network.declarations.is_empty()
             || !self.permissions.filesystem.read.is_empty()
             || !self.permissions.filesystem.write.is_empty()
+            || !self.permissions.local_exec.declarations.is_empty()
+            || self.permissions.local_exec.max_count.is_some()
+            || !self.permissions.ports.declarations.is_empty()
+            || self.permissions.ports.max_count.is_some()
+            || !self.permissions.proxy.declarations.is_empty()
+            || self.permissions.proxy.max_count.is_some()
             || !self.permissions.secret_refs.is_empty();
         if invalid {
             return Err(ManifestError::InvalidSurfaceBundleAuthority(
@@ -1330,6 +1392,46 @@ entry:
         });
         manifest.permissions = PermissionSet::default();
         manifest.permissions.network.hosts = vec!["example.com".to_string()];
+        assert!(matches!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidSurfaceBundleAuthority(_))
+        ));
+
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        manifest.permissions.local_exec.declarations = vec![LocalExecDeclaration {
+            target_id: "local".to_string(),
+            programs: vec!["server".to_string()],
+            max_count: Some(1),
+        }];
+        assert!(matches!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidSurfaceBundleAuthority(_))
+        ));
+
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        manifest.permissions.ports.max_count = Some(1);
+        assert!(matches!(
+            manifest.validate_basic(),
+            Err(ManifestError::InvalidSurfaceBundleAuthority(_))
+        ));
+
+        let mut manifest = base_manifest_with_network_methods(vec![]);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::SurfaceBundle {
+            bundle: "dist/bundle.mjs".to_string(),
+        });
+        manifest.permissions = PermissionSet::default();
+        manifest.permissions.proxy.declarations = vec![ProxyDeclaration {
+            route_ids: vec!["route".to_string()],
+            max_count: None,
+        }];
         assert!(matches!(
             manifest.validate_basic(),
             Err(ManifestError::InvalidSurfaceBundleAuthority(_))

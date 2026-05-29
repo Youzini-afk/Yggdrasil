@@ -376,6 +376,159 @@ mod surface_tests {
 }
 
 #[cfg(test)]
+mod deployment_hub_tests {
+    use std::sync::Arc;
+
+    use crate::{InMemoryEventStore, ProtocolContext, ProtocolPrincipal, Runtime, RuntimeConfig};
+
+    fn runtime() -> Runtime<InMemoryEventStore> {
+        Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        )
+    }
+
+    #[tokio::test]
+    async fn default_exec_start_is_denied() {
+        let runtime = runtime();
+        let context = ProtocolContext::host_dev("in_process");
+
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.exec.start",
+                serde_json::json!({
+                    "target_id": "local",
+                    "command": {"program": "definitely-not-started", "args": []}
+                }),
+            )
+            .await
+            .expect("exec.start dispatch succeeds with denied response");
+
+        assert_eq!(result["status"]["kind"], "denied");
+        assert!(result["exec_id"].is_null());
+        assert!(result["error"].as_str().unwrap_or_default().contains("denied"));
+    }
+
+    #[tokio::test]
+    async fn port_lease_is_loopback_only() {
+        let runtime = runtime();
+        let context = ProtocolContext::host_dev("in_process");
+
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.port.lease",
+                serde_json::json!({
+                    "target_id": "local",
+                    "port_name": "web",
+                    "requested_port": 39123
+                }),
+            )
+            .await
+            .expect("port lease succeeds");
+
+        assert_eq!(result["lease"]["host"], "127.0.0.1");
+        assert_eq!(result["lease"]["bind"], "loopback_only");
+        assert_eq!(result["lease"]["status"], "active");
+    }
+
+    #[tokio::test]
+    async fn proxy_register_requires_existing_active_port_lease() {
+        let runtime = runtime();
+        let context = ProtocolContext::host_dev("in_process");
+
+        let missing = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.proxy.register",
+                serde_json::json!({
+                    "upstream": {"port_lease_id": "missing", "port_name": "web"},
+                    "protocol": "http"
+                }),
+            )
+            .await;
+        assert!(missing.is_err(), "missing lease must be denied");
+
+        let lease = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.port.lease",
+                serde_json::json!({"target_id":"local","port_name":"web"}),
+            )
+            .await
+            .expect("lease succeeds");
+        let lease_id = lease["lease"]["id"].as_str().expect("lease id");
+
+        let registered = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.proxy.register",
+                serde_json::json!({
+                    "upstream": {"port_lease_id": lease_id, "port_name": "web"},
+                    "protocol": "http"
+                }),
+            )
+            .await
+            .expect("active lease can be proxied");
+        assert_eq!(registered["route"]["status"], "active");
+        assert_eq!(registered["route"]["upstream"]["port_lease_id"], lease_id);
+    }
+
+    #[tokio::test]
+    async fn deployment_hub_methods_require_host_principal() {
+        let runtime = runtime();
+        let context = ProtocolContext {
+            principal: ProtocolPrincipal::Anonymous,
+            transport: "in_process".to_string(),
+            session_id: None,
+            correlation_id: None,
+            parent_invocation_id: None,
+        };
+
+        let result = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.port.lease",
+                serde_json::json!({"target_id":"local","port_name":"web"}),
+            )
+            .await;
+
+        let error = result.expect_err("anonymous deployment hub call must be denied");
+        assert_eq!(error.code, "kernel/v1/error/permission_denied");
+    }
+
+    #[tokio::test]
+    async fn proxy_register_requires_matching_port_name() {
+        let runtime = runtime();
+        let context = ProtocolContext::host_dev("in_process");
+
+        let lease = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.port.lease",
+                serde_json::json!({"target_id":"local","port_name":"web"}),
+            )
+            .await
+            .expect("lease succeeds");
+        let lease_id = lease["lease"]["id"].as_str().expect("lease id");
+
+        let mismatch = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.proxy.register",
+                serde_json::json!({
+                    "upstream": {"port_lease_id": lease_id, "port_name": "admin"},
+                    "protocol": "http"
+                }),
+            )
+            .await;
+
+        assert!(mismatch.is_err(), "mismatched port_name must be denied");
+    }
+}
+
+#[cfg(test)]
 mod z_websocket_tests {
     use std::sync::Arc;
 

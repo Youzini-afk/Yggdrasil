@@ -393,6 +393,40 @@ components:
           - sync
           - async
           type: string
+        LocalExecDeclaration:
+          properties:
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+            programs:
+              default: []
+              items:
+                type: string
+              type: array
+            target_id:
+              type: string
+          required:
+          - target_id
+          type: object
+        LocalExecPermissions:
+          properties:
+            declarations:
+              default: []
+              items:
+                $ref: '#/$defs/LocalExecDeclaration'
+              type: array
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+          type: object
         NetworkDeclaration:
           description: |-
             A single network access declaration in a package manifest.
@@ -510,6 +544,12 @@ components:
               default:
                 read: []
                 write: []
+            local_exec:
+              allOf:
+              - $ref: '#/$defs/LocalExecPermissions'
+              default:
+                declarations: []
+                max_count: null
             network:
               allOf:
               - $ref: '#/$defs/NetworkPermissions'
@@ -521,6 +561,18 @@ components:
               - $ref: '#/$defs/PackagePermissions'
               default:
                 call: []
+            ports:
+              allOf:
+              - $ref: '#/$defs/PortPermissions'
+              default:
+                declarations: []
+                max_count: null
+            proxy:
+              allOf:
+              - $ref: '#/$defs/ProxyPermissions'
+              default:
+                declarations: []
+                max_count: null
             secret_refs:
               default: []
               description: |-
@@ -532,6 +584,70 @@ components:
               items:
                 type: string
               type: array
+          type: object
+        PortDeclaration:
+          properties:
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+            port_names:
+              default: []
+              items:
+                type: string
+              type: array
+            target_id:
+              type: string
+          required:
+          - target_id
+          type: object
+        PortPermissions:
+          properties:
+            declarations:
+              default: []
+              items:
+                $ref: '#/$defs/PortDeclaration'
+              type: array
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+          type: object
+        ProxyDeclaration:
+          properties:
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+            route_ids:
+              default: []
+              items:
+                type: string
+              type: array
+          type: object
+        ProxyPermissions:
+          properties:
+            declarations:
+              default: []
+              items:
+                $ref: '#/$defs/ProxyDeclaration'
+              type: array
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
           type: object
         RemoteAuth:
           properties:
@@ -734,11 +850,20 @@ components:
             filesystem:
               read: []
               write: []
+            local_exec:
+              declarations: []
+              max_count: null
             network:
               declarations: []
               hosts: []
             packages:
               call: []
+            ports:
+              declarations: []
+              max_count: null
+            proxy:
+              declarations: []
+              max_count: null
             secret_refs: []
         provides:
           default: []
@@ -811,6 +936,40 @@ components:
                 type: string
               type: array
           type: object
+        LocalExecDeclaration:
+          properties:
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+            programs:
+              default: []
+              items:
+                type: string
+              type: array
+            target_id:
+              type: string
+          required:
+          - target_id
+          type: object
+        LocalExecPermissions:
+          properties:
+            declarations:
+              default: []
+              items:
+                $ref: '#/$defs/LocalExecDeclaration'
+              type: array
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+          type: object
         NetworkDeclaration:
           description: |-
             A single network access declaration in a package manifest.
@@ -858,6 +1017,70 @@ components:
                 type: string
               type: array
           type: object
+        PortDeclaration:
+          properties:
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+            port_names:
+              default: []
+              items:
+                type: string
+              type: array
+            target_id:
+              type: string
+          required:
+          - target_id
+          type: object
+        PortPermissions:
+          properties:
+            declarations:
+              default: []
+              items:
+                $ref: '#/$defs/PortDeclaration'
+              type: array
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+          type: object
+        ProxyDeclaration:
+          properties:
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+            route_ids:
+              default: []
+              items:
+                type: string
+              type: array
+          type: object
+        ProxyPermissions:
+          properties:
+            declarations:
+              default: []
+              items:
+                $ref: '#/$defs/ProxyDeclaration'
+              type: array
+            max_count:
+              default: null
+              format: uint32
+              minimum: 0.0
+              type:
+              - integer
+              - 'null'
+          type: object
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
         assets:
@@ -883,6 +1106,12 @@ components:
           default:
             read: []
             write: []
+        local_exec:
+          allOf:
+          - $ref: '#/$defs/LocalExecPermissions'
+          default:
+            declarations: []
+            max_count: null
         network:
           allOf:
           - $ref: '#/$defs/NetworkPermissions'
@@ -894,6 +1123,18 @@ components:
           - $ref: '#/$defs/PackagePermissions'
           default:
             call: []
+        ports:
+          allOf:
+          - $ref: '#/$defs/PortPermissions'
+          default:
+            declarations: []
+            max_count: null
+        proxy:
+          allOf:
+          - $ref: '#/$defs/ProxyPermissions'
+          default:
+            declarations: []
+            max_count: null
         secret_refs:
           default: []
           description: |-
@@ -2746,6 +2987,705 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke kernel.v1.event.subscribe
+  /rpc/kernel.v1.exec.list:
+    post:
+      operationId: execList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.exec.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  title: EmptyParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecStatus:
+                        properties:
+                          exec_id:
+                            type:
+                            - string
+                            - 'null'
+                          exit_code:
+                            format: int32
+                            type:
+                            - integer
+                            - 'null'
+                          kind:
+                            $ref: '#/$defs/ExecStatusKind'
+                          message:
+                            type:
+                            - string
+                            - 'null'
+                          ready:
+                            type: boolean
+                          target_id:
+                            type:
+                            - string
+                            - 'null'
+                        required:
+                        - kind
+                        - ready
+                        type: object
+                      ExecStatusKind:
+                        enum:
+                        - pending
+                        - running
+                        - stopped
+                        - exited
+                        - failed
+                        - denied
+                        - unknown
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      executions:
+                        items:
+                          $ref: '#/$defs/ExecStatus'
+                        type: array
+                    required:
+                    - executions
+                    title: LocalExecListResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.exec.list
+  /rpc/kernel.v1.exec.logs:
+    post:
+      operationId: execLogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.exec.logs
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    exec_id:
+                      type: string
+                    limit:
+                      format: uint32
+                      minimum: 0.0
+                      type:
+                      - integer
+                      - 'null'
+                    since_seq:
+                      format: uint64
+                      minimum: 0.0
+                      type:
+                      - integer
+                      - 'null'
+                  required:
+                  - exec_id
+                  title: LocalExecLogsRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      LocalExecLogLine:
+                        properties:
+                          message_redacted:
+                            type: string
+                          seq:
+                            format: uint64
+                            minimum: 0.0
+                            type: integer
+                          stream:
+                            $ref: '#/$defs/LocalExecLogStream'
+                        required:
+                        - message_redacted
+                        - seq
+                        - stream
+                        type: object
+                      LocalExecLogStream:
+                        enum:
+                        - stdout
+                        - stderr
+                        - system
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      error:
+                        type:
+                        - string
+                        - 'null'
+                      exec_id:
+                        type: string
+                      lines:
+                        items:
+                          $ref: '#/$defs/LocalExecLogLine'
+                        type: array
+                      next_seq:
+                        format: uint64
+                        minimum: 0.0
+                        type:
+                        - integer
+                        - 'null'
+                    required:
+                    - exec_id
+                    - lines
+                    title: LocalExecLogsResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.exec.logs
+  /rpc/kernel.v1.exec.start:
+    post:
+      operationId: execStart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.exec.start
+                params:
+                  $defs:
+                    ExecCommand:
+                      properties:
+                        args:
+                          default: []
+                          items:
+                            type: string
+                          type: array
+                        program:
+                          type: string
+                      required:
+                      - program
+                      type: object
+                    ExecLifecyclePolicy:
+                      enum:
+                      - stop_on_session_close
+                      - keep_alive
+                      - stop_on_idle
+                      type: string
+                    ExecResourceLimits:
+                      properties:
+                        max_cpu_millis:
+                          format: uint64
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        max_duration_ms:
+                          format: uint64
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        max_log_bytes:
+                          format: uint64
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        max_memory_mb:
+                          format: uint64
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                      type: object
+                    ReadinessProbe:
+                      properties:
+                        initial_delay_ms:
+                          format: uint64
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        kind:
+                          $ref: '#/$defs/ReadinessProbeKind'
+                        path:
+                          type:
+                          - string
+                          - 'null'
+                        port_name:
+                          type:
+                          - string
+                          - 'null'
+                        timeout_ms:
+                          format: uint64
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                      required:
+                      - kind
+                      type: object
+                    ReadinessProbeKind:
+                      enum:
+                      - none
+                      - tcp_port
+                      - http_get
+                      type: string
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    command:
+                      $ref: '#/$defs/ExecCommand'
+                    lifecycle:
+                      allOf:
+                      - $ref: '#/$defs/ExecLifecyclePolicy'
+                      default: stop_on_session_close
+                    port_names:
+                      default: []
+                      items:
+                        type: string
+                      type: array
+                    readiness_probe:
+                      allOf:
+                      - $ref: '#/$defs/ReadinessProbe'
+                      default:
+                        initial_delay_ms: null
+                        kind: none
+                        path: null
+                        port_name: null
+                        timeout_ms: null
+                    resource_limits:
+                      allOf:
+                      - $ref: '#/$defs/ExecResourceLimits'
+                      default:
+                        max_cpu_millis: null
+                        max_duration_ms: null
+                        max_log_bytes: null
+                        max_memory_mb: null
+                    target_id:
+                      type: string
+                  required:
+                  - command
+                  - target_id
+                  title: LocalExecStartRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecStatus:
+                        properties:
+                          exec_id:
+                            type:
+                            - string
+                            - 'null'
+                          exit_code:
+                            format: int32
+                            type:
+                            - integer
+                            - 'null'
+                          kind:
+                            $ref: '#/$defs/ExecStatusKind'
+                          message:
+                            type:
+                            - string
+                            - 'null'
+                          ready:
+                            type: boolean
+                          target_id:
+                            type:
+                            - string
+                            - 'null'
+                        required:
+                        - kind
+                        - ready
+                        type: object
+                      ExecStatusKind:
+                        enum:
+                        - pending
+                        - running
+                        - stopped
+                        - exited
+                        - failed
+                        - denied
+                        - unknown
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      error:
+                        type:
+                        - string
+                        - 'null'
+                      exec_id:
+                        type:
+                        - string
+                        - 'null'
+                      status:
+                        $ref: '#/$defs/ExecStatus'
+                    required:
+                    - status
+                    title: LocalExecStartResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.exec.start
+  /rpc/kernel.v1.exec.status:
+    post:
+      operationId: execStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.exec.status
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    exec_id:
+                      type: string
+                  required:
+                  - exec_id
+                  title: ExecIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecStatus:
+                        properties:
+                          exec_id:
+                            type:
+                            - string
+                            - 'null'
+                          exit_code:
+                            format: int32
+                            type:
+                            - integer
+                            - 'null'
+                          kind:
+                            $ref: '#/$defs/ExecStatusKind'
+                          message:
+                            type:
+                            - string
+                            - 'null'
+                          ready:
+                            type: boolean
+                          target_id:
+                            type:
+                            - string
+                            - 'null'
+                        required:
+                        - kind
+                        - ready
+                        type: object
+                      ExecStatusKind:
+                        enum:
+                        - pending
+                        - running
+                        - stopped
+                        - exited
+                        - failed
+                        - denied
+                        - unknown
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      error:
+                        type:
+                        - string
+                        - 'null'
+                      status:
+                        $ref: '#/$defs/ExecStatus'
+                    required:
+                    - status
+                    title: LocalExecStatusResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.exec.status
+  /rpc/kernel.v1.exec.stop:
+    post:
+      operationId: execStop
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.exec.stop
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    exec_id:
+                      type: string
+                    reason:
+                      type:
+                      - string
+                      - 'null'
+                  required:
+                  - exec_id
+                  title: LocalExecStopRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecStatus:
+                        properties:
+                          exec_id:
+                            type:
+                            - string
+                            - 'null'
+                          exit_code:
+                            format: int32
+                            type:
+                            - integer
+                            - 'null'
+                          kind:
+                            $ref: '#/$defs/ExecStatusKind'
+                          message:
+                            type:
+                            - string
+                            - 'null'
+                          ready:
+                            type: boolean
+                          target_id:
+                            type:
+                            - string
+                            - 'null'
+                        required:
+                        - kind
+                        - ready
+                        type: object
+                      ExecStatusKind:
+                        enum:
+                        - pending
+                        - running
+                        - stopped
+                        - exited
+                        - failed
+                        - denied
+                        - unknown
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      error:
+                        type:
+                        - string
+                        - 'null'
+                      exec_id:
+                        type: string
+                      status:
+                        $ref: '#/$defs/ExecStatus'
+                    required:
+                    - exec_id
+                    - status
+                    title: LocalExecStopResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.exec.stop
   /rpc/kernel.v1.extension_point.describe:
     post:
       operationId: extensionPointDescribe
@@ -4630,6 +5570,40 @@ paths:
                           - sync
                           - async
                           type: string
+                        LocalExecDeclaration:
+                          properties:
+                            max_count:
+                              default: null
+                              format: uint32
+                              minimum: 0.0
+                              type:
+                              - integer
+                              - 'null'
+                            programs:
+                              default: []
+                              items:
+                                type: string
+                              type: array
+                            target_id:
+                              type: string
+                          required:
+                          - target_id
+                          type: object
+                        LocalExecPermissions:
+                          properties:
+                            declarations:
+                              default: []
+                              items:
+                                $ref: '#/$defs/LocalExecDeclaration'
+                              type: array
+                            max_count:
+                              default: null
+                              format: uint32
+                              minimum: 0.0
+                              type:
+                              - integer
+                              - 'null'
+                          type: object
                         NetworkDeclaration:
                           description: |-
                             A single network access declaration in a package manifest.
@@ -4809,11 +5783,20 @@ paths:
                                 filesystem:
                                   read: []
                                   write: []
+                                local_exec:
+                                  declarations: []
+                                  max_count: null
                                 network:
                                   declarations: []
                                   hosts: []
                                 packages:
                                   call: []
+                                ports:
+                                  declarations: []
+                                  max_count: null
+                                proxy:
+                                  declarations: []
+                                  max_count: null
                                 secret_refs: []
                             provides:
                               default: []
@@ -4888,6 +5871,12 @@ paths:
                               default:
                                 read: []
                                 write: []
+                            local_exec:
+                              allOf:
+                              - $ref: '#/$defs/LocalExecPermissions'
+                              default:
+                                declarations: []
+                                max_count: null
                             network:
                               allOf:
                               - $ref: '#/$defs/NetworkPermissions'
@@ -4899,6 +5888,18 @@ paths:
                               - $ref: '#/$defs/PackagePermissions'
                               default:
                                 call: []
+                            ports:
+                              allOf:
+                              - $ref: '#/$defs/PortPermissions'
+                              default:
+                                declarations: []
+                                max_count: null
+                            proxy:
+                              allOf:
+                              - $ref: '#/$defs/ProxyPermissions'
+                              default:
+                                declarations: []
+                                max_count: null
                             secret_refs:
                               default: []
                               description: |-
@@ -4910,6 +5911,70 @@ paths:
                               items:
                                 type: string
                               type: array
+                          type: object
+                        PortDeclaration:
+                          properties:
+                            max_count:
+                              default: null
+                              format: uint32
+                              minimum: 0.0
+                              type:
+                              - integer
+                              - 'null'
+                            port_names:
+                              default: []
+                              items:
+                                type: string
+                              type: array
+                            target_id:
+                              type: string
+                          required:
+                          - target_id
+                          type: object
+                        PortPermissions:
+                          properties:
+                            declarations:
+                              default: []
+                              items:
+                                $ref: '#/$defs/PortDeclaration'
+                              type: array
+                            max_count:
+                              default: null
+                              format: uint32
+                              minimum: 0.0
+                              type:
+                              - integer
+                              - 'null'
+                          type: object
+                        ProxyDeclaration:
+                          properties:
+                            max_count:
+                              default: null
+                              format: uint32
+                              minimum: 0.0
+                              type:
+                              - integer
+                              - 'null'
+                            route_ids:
+                              default: []
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        ProxyPermissions:
+                          properties:
+                            declarations:
+                              default: []
+                              items:
+                                $ref: '#/$defs/ProxyDeclaration'
+                              type: array
+                            max_count:
+                              default: null
+                              format: uint32
+                              minimum: 0.0
+                              type:
+                              - integer
+                              - 'null'
                           type: object
                         RedactionState:
                           description: |-
@@ -5442,6 +6507,40 @@ paths:
                       - sync
                       - async
                       type: string
+                    LocalExecDeclaration:
+                      properties:
+                        max_count:
+                          default: null
+                          format: uint32
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        programs:
+                          default: []
+                          items:
+                            type: string
+                          type: array
+                        target_id:
+                          type: string
+                      required:
+                      - target_id
+                      type: object
+                    LocalExecPermissions:
+                      properties:
+                        declarations:
+                          default: []
+                          items:
+                            $ref: '#/$defs/LocalExecDeclaration'
+                          type: array
+                        max_count:
+                          default: null
+                          format: uint32
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                      type: object
                     NetworkDeclaration:
                       description: |-
                         A single network access declaration in a package manifest.
@@ -5559,6 +6658,12 @@ paths:
                           default:
                             read: []
                             write: []
+                        local_exec:
+                          allOf:
+                          - $ref: '#/$defs/LocalExecPermissions'
+                          default:
+                            declarations: []
+                            max_count: null
                         network:
                           allOf:
                           - $ref: '#/$defs/NetworkPermissions'
@@ -5570,6 +6675,18 @@ paths:
                           - $ref: '#/$defs/PackagePermissions'
                           default:
                             call: []
+                        ports:
+                          allOf:
+                          - $ref: '#/$defs/PortPermissions'
+                          default:
+                            declarations: []
+                            max_count: null
+                        proxy:
+                          allOf:
+                          - $ref: '#/$defs/ProxyPermissions'
+                          default:
+                            declarations: []
+                            max_count: null
                         secret_refs:
                           default: []
                           description: |-
@@ -5581,6 +6698,70 @@ paths:
                           items:
                             type: string
                           type: array
+                      type: object
+                    PortDeclaration:
+                      properties:
+                        max_count:
+                          default: null
+                          format: uint32
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        port_names:
+                          default: []
+                          items:
+                            type: string
+                          type: array
+                        target_id:
+                          type: string
+                      required:
+                      - target_id
+                      type: object
+                    PortPermissions:
+                      properties:
+                        declarations:
+                          default: []
+                          items:
+                            $ref: '#/$defs/PortDeclaration'
+                          type: array
+                        max_count:
+                          default: null
+                          format: uint32
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                      type: object
+                    ProxyDeclaration:
+                      properties:
+                        max_count:
+                          default: null
+                          format: uint32
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
+                        route_ids:
+                          default: []
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    ProxyPermissions:
+                      properties:
+                        declarations:
+                          default: []
+                          items:
+                            $ref: '#/$defs/ProxyDeclaration'
+                          type: array
+                        max_count:
+                          default: null
+                          format: uint32
+                          minimum: 0.0
+                          type:
+                          - integer
+                          - 'null'
                       type: object
                     RemoteAuth:
                       properties:
@@ -5783,11 +6964,20 @@ paths:
                         filesystem:
                           read: []
                           write: []
+                        local_exec:
+                          declarations: []
+                          max_count: null
                         network:
                           declarations: []
                           hosts: []
                         packages:
                           call: []
+                        ports:
+                          declarations: []
+                          max_count: null
+                        proxy:
+                          declarations: []
+                          max_count: null
                         secret_refs: []
                     provides:
                       default: []
@@ -6113,6 +7303,40 @@ paths:
                         - sync
                         - async
                         type: string
+                      LocalExecDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          programs:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      LocalExecPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/LocalExecDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
                       NetworkDeclaration:
                         description: |-
                           A single network access declaration in a package manifest.
@@ -6292,11 +7516,20 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
+                              local_exec:
+                                declarations: []
+                                max_count: null
                               network:
                                 declarations: []
                                 hosts: []
                               packages:
                                 call: []
+                              ports:
+                                declarations: []
+                                max_count: null
+                              proxy:
+                                declarations: []
+                                max_count: null
                               secret_refs: []
                           provides:
                             default: []
@@ -6371,6 +7604,12 @@ paths:
                             default:
                               read: []
                               write: []
+                          local_exec:
+                            allOf:
+                            - $ref: '#/$defs/LocalExecPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -6382,6 +7621,18 @@ paths:
                             - $ref: '#/$defs/PackagePermissions'
                             default:
                               call: []
+                          ports:
+                            allOf:
+                            - $ref: '#/$defs/PortPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
+                          proxy:
+                            allOf:
+                            - $ref: '#/$defs/ProxyPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           secret_refs:
                             default: []
                             description: |-
@@ -6393,6 +7644,70 @@ paths:
                             items:
                               type: string
                             type: array
+                        type: object
+                      PortDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          port_names:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      PortPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/PortDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
+                      ProxyDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          route_ids:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      ProxyPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/ProxyDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
                         type: object
                       RedactionState:
                         description: |-
@@ -7047,6 +8362,40 @@ paths:
                         - sync
                         - async
                         type: string
+                      LocalExecDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          programs:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      LocalExecPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/LocalExecDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
                       NetworkDeclaration:
                         description: |-
                           A single network access declaration in a package manifest.
@@ -7226,11 +8575,20 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
+                              local_exec:
+                                declarations: []
+                                max_count: null
                               network:
                                 declarations: []
                                 hosts: []
                               packages:
                                 call: []
+                              ports:
+                                declarations: []
+                                max_count: null
+                              proxy:
+                                declarations: []
+                                max_count: null
                               secret_refs: []
                           provides:
                             default: []
@@ -7305,6 +8663,12 @@ paths:
                             default:
                               read: []
                               write: []
+                          local_exec:
+                            allOf:
+                            - $ref: '#/$defs/LocalExecPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -7316,6 +8680,18 @@ paths:
                             - $ref: '#/$defs/PackagePermissions'
                             default:
                               call: []
+                          ports:
+                            allOf:
+                            - $ref: '#/$defs/PortPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
+                          proxy:
+                            allOf:
+                            - $ref: '#/$defs/ProxyPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           secret_refs:
                             default: []
                             description: |-
@@ -7327,6 +8703,70 @@ paths:
                             items:
                               type: string
                             type: array
+                        type: object
+                      PortDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          port_names:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      PortPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/PortDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
+                      ProxyDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          route_ids:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      ProxyPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/ProxyDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
                         type: object
                       RedactionState:
                         description: |-
@@ -7899,6 +9339,40 @@ paths:
                         - sync
                         - async
                         type: string
+                      LocalExecDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          programs:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      LocalExecPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/LocalExecDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
                       NetworkDeclaration:
                         description: |-
                           A single network access declaration in a package manifest.
@@ -8078,11 +9552,20 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
+                              local_exec:
+                                declarations: []
+                                max_count: null
                               network:
                                 declarations: []
                                 hosts: []
                               packages:
                                 call: []
+                              ports:
+                                declarations: []
+                                max_count: null
+                              proxy:
+                                declarations: []
+                                max_count: null
                               secret_refs: []
                           provides:
                             default: []
@@ -8157,6 +9640,12 @@ paths:
                             default:
                               read: []
                               write: []
+                          local_exec:
+                            allOf:
+                            - $ref: '#/$defs/LocalExecPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -8168,6 +9657,18 @@ paths:
                             - $ref: '#/$defs/PackagePermissions'
                             default:
                               call: []
+                          ports:
+                            allOf:
+                            - $ref: '#/$defs/PortPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
+                          proxy:
+                            allOf:
+                            - $ref: '#/$defs/ProxyPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           secret_refs:
                             default: []
                             description: |-
@@ -8179,6 +9680,70 @@ paths:
                             items:
                               type: string
                             type: array
+                        type: object
+                      PortDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          port_names:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      PortPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/PortDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
+                      ProxyDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          route_ids:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      ProxyPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/ProxyDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
                         type: object
                       RedactionState:
                         description: |-
@@ -8751,6 +10316,40 @@ paths:
                         - sync
                         - async
                         type: string
+                      LocalExecDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          programs:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      LocalExecPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/LocalExecDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
                       NetworkDeclaration:
                         description: |-
                           A single network access declaration in a package manifest.
@@ -8930,11 +10529,20 @@ paths:
                               filesystem:
                                 read: []
                                 write: []
+                              local_exec:
+                                declarations: []
+                                max_count: null
                               network:
                                 declarations: []
                                 hosts: []
                               packages:
                                 call: []
+                              ports:
+                                declarations: []
+                                max_count: null
+                              proxy:
+                                declarations: []
+                                max_count: null
                               secret_refs: []
                           provides:
                             default: []
@@ -9009,6 +10617,12 @@ paths:
                             default:
                               read: []
                               write: []
+                          local_exec:
+                            allOf:
+                            - $ref: '#/$defs/LocalExecPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           network:
                             allOf:
                             - $ref: '#/$defs/NetworkPermissions'
@@ -9020,6 +10634,18 @@ paths:
                             - $ref: '#/$defs/PackagePermissions'
                             default:
                               call: []
+                          ports:
+                            allOf:
+                            - $ref: '#/$defs/PortPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
+                          proxy:
+                            allOf:
+                            - $ref: '#/$defs/ProxyPermissions'
+                            default:
+                              declarations: []
+                              max_count: null
                           secret_refs:
                             default: []
                             description: |-
@@ -9031,6 +10657,70 @@ paths:
                             items:
                               type: string
                             type: array
+                        type: object
+                      PortDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          port_names:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                          target_id:
+                            type: string
+                        required:
+                        - target_id
+                        type: object
+                      PortPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/PortDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                        type: object
+                      ProxyDeclaration:
+                        properties:
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
+                          route_ids:
+                            default: []
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      ProxyPermissions:
+                        properties:
+                          declarations:
+                            default: []
+                            items:
+                              $ref: '#/$defs/ProxyDeclaration'
+                            type: array
+                          max_count:
+                            default: null
+                            format: uint32
+                            minimum: 0.0
+                            type:
+                            - integer
+                            - 'null'
                         type: object
                       RedactionState:
                         description: |-
@@ -10013,6 +11703,477 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke kernel.v1.permission.revoke
+  /rpc/kernel.v1.port.lease:
+    post:
+      operationId: portLease
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.port.lease
+                params:
+                  $defs:
+                    PortProtocol:
+                      enum:
+                      - tcp
+                      - udp
+                      type: string
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    port_name:
+                      type: string
+                    protocol:
+                      allOf:
+                      - $ref: '#/$defs/PortProtocol'
+                      default: tcp
+                    requested_port:
+                      format: uint16
+                      minimum: 0.0
+                      type:
+                      - integer
+                      - 'null'
+                    target_id:
+                      type: string
+                  required:
+                  - port_name
+                  - target_id
+                  title: PortLeaseRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      PortBindScope:
+                        enum:
+                        - loopback_only
+                        type: string
+                      PortLeaseRecord:
+                        properties:
+                          bind:
+                            $ref: '#/$defs/PortBindScope'
+                          host:
+                            type: string
+                          id:
+                            type: string
+                          port:
+                            format: uint16
+                            minimum: 0.0
+                            type: integer
+                          port_name:
+                            type: string
+                          protocol:
+                            $ref: '#/$defs/PortProtocol'
+                          status:
+                            $ref: '#/$defs/PortLeaseStatusKind'
+                          target_id:
+                            type: string
+                        required:
+                        - bind
+                        - host
+                        - id
+                        - port
+                        - port_name
+                        - protocol
+                        - status
+                        - target_id
+                        type: object
+                      PortLeaseStatusKind:
+                        enum:
+                        - active
+                        - released
+                        type: string
+                      PortProtocol:
+                        enum:
+                        - tcp
+                        - udp
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      lease:
+                        $ref: '#/$defs/PortLeaseRecord'
+                    required:
+                    - lease
+                    title: PortLeaseResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.port.lease
+  /rpc/kernel.v1.port.list:
+    post:
+      operationId: portList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.port.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  title: EmptyParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $defs:
+                        PortBindScope:
+                          enum:
+                          - loopback_only
+                          type: string
+                        PortLeaseStatusKind:
+                          enum:
+                          - active
+                          - released
+                          type: string
+                        PortProtocol:
+                          enum:
+                          - tcp
+                          - udp
+                          type: string
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        bind:
+                          $ref: '#/$defs/PortBindScope'
+                        host:
+                          type: string
+                        id:
+                          type: string
+                        port:
+                          format: uint16
+                          minimum: 0.0
+                          type: integer
+                        port_name:
+                          type: string
+                        protocol:
+                          $ref: '#/$defs/PortProtocol'
+                        status:
+                          $ref: '#/$defs/PortLeaseStatusKind'
+                        target_id:
+                          type: string
+                      required:
+                      - bind
+                      - host
+                      - id
+                      - port
+                      - port_name
+                      - protocol
+                      - status
+                      - target_id
+                      title: PortLeaseRecord
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.port.list
+  /rpc/kernel.v1.port.release:
+    post:
+      operationId: portRelease
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.port.release
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    lease_id:
+                      type: string
+                  required:
+                  - lease_id
+                  title: PortLeaseIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      PortBindScope:
+                        enum:
+                        - loopback_only
+                        type: string
+                      PortLeaseStatusKind:
+                        enum:
+                        - active
+                        - released
+                        type: string
+                      PortProtocol:
+                        enum:
+                        - tcp
+                        - udp
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      bind:
+                        $ref: '#/$defs/PortBindScope'
+                      host:
+                        type: string
+                      id:
+                        type: string
+                      port:
+                        format: uint16
+                        minimum: 0.0
+                        type: integer
+                      port_name:
+                        type: string
+                      protocol:
+                        $ref: '#/$defs/PortProtocol'
+                      status:
+                        $ref: '#/$defs/PortLeaseStatusKind'
+                      target_id:
+                        type: string
+                    required:
+                    - bind
+                    - host
+                    - id
+                    - port
+                    - port_name
+                    - protocol
+                    - status
+                    - target_id
+                    title: PortLeaseRecord
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.port.release
+  /rpc/kernel.v1.port.status:
+    post:
+      operationId: portStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.port.status
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    lease_id:
+                      type: string
+                  required:
+                  - lease_id
+                  title: PortLeaseIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      PortBindScope:
+                        enum:
+                        - loopback_only
+                        type: string
+                      PortLeaseStatusKind:
+                        enum:
+                        - active
+                        - released
+                        type: string
+                      PortProtocol:
+                        enum:
+                        - tcp
+                        - udp
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      bind:
+                        $ref: '#/$defs/PortBindScope'
+                      host:
+                        type: string
+                      id:
+                        type: string
+                      port:
+                        format: uint16
+                        minimum: 0.0
+                        type: integer
+                      port_name:
+                        type: string
+                      protocol:
+                        $ref: '#/$defs/PortProtocol'
+                      status:
+                        $ref: '#/$defs/PortLeaseStatusKind'
+                      target_id:
+                        type: string
+                    required:
+                    - bind
+                    - host
+                    - id
+                    - port
+                    - port_name
+                    - protocol
+                    - status
+                    - target_id
+                    title: PortLeaseRecord
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.port.status
   /rpc/kernel.v1.project.get:
     post:
       operationId: projectGet
@@ -12733,6 +14894,474 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke kernel.v1.proposal.reject
+  /rpc/kernel.v1.proxy.list:
+    post:
+      operationId: proxyList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.proxy.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  title: EmptyParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $defs:
+                        ProxyProtocol:
+                          enum:
+                          - http
+                          - websocket
+                          type: string
+                        ProxyRouteStatusKind:
+                          enum:
+                          - active
+                          - removed
+                          type: string
+                        ProxyRouteUpstream:
+                          properties:
+                            port_lease_id:
+                              type: string
+                            port_name:
+                              type: string
+                          required:
+                          - port_lease_id
+                          - port_name
+                          type: object
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        id:
+                          type: string
+                        iframe_url:
+                          type: string
+                        protocol:
+                          $ref: '#/$defs/ProxyProtocol'
+                        public_url:
+                          type: string
+                        status:
+                          $ref: '#/$defs/ProxyRouteStatusKind'
+                        upstream:
+                          $ref: '#/$defs/ProxyRouteUpstream'
+                      required:
+                      - id
+                      - iframe_url
+                      - protocol
+                      - public_url
+                      - status
+                      - upstream
+                      title: ProxyRouteRecord
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.proxy.list
+  /rpc/kernel.v1.proxy.register:
+    post:
+      operationId: proxyRegister
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.proxy.register
+                params:
+                  $defs:
+                    ProxyProtocol:
+                      enum:
+                      - http
+                      - websocket
+                      type: string
+                    ProxyRouteUpstream:
+                      properties:
+                        port_lease_id:
+                          type: string
+                        port_name:
+                          type: string
+                      required:
+                      - port_lease_id
+                      - port_name
+                      type: object
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    protocol:
+                      allOf:
+                      - $ref: '#/$defs/ProxyProtocol'
+                      default: http
+                    route_id:
+                      type:
+                      - string
+                      - 'null'
+                    upstream:
+                      $ref: '#/$defs/ProxyRouteUpstream'
+                  required:
+                  - upstream
+                  title: ProxyRouteRegisterRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ProxyProtocol:
+                        enum:
+                        - http
+                        - websocket
+                        type: string
+                      ProxyRouteRecord:
+                        properties:
+                          id:
+                            type: string
+                          iframe_url:
+                            type: string
+                          protocol:
+                            $ref: '#/$defs/ProxyProtocol'
+                          public_url:
+                            type: string
+                          status:
+                            $ref: '#/$defs/ProxyRouteStatusKind'
+                          upstream:
+                            $ref: '#/$defs/ProxyRouteUpstream'
+                        required:
+                        - id
+                        - iframe_url
+                        - protocol
+                        - public_url
+                        - status
+                        - upstream
+                        type: object
+                      ProxyRouteStatusKind:
+                        enum:
+                        - active
+                        - removed
+                        type: string
+                      ProxyRouteUpstream:
+                        properties:
+                          port_lease_id:
+                            type: string
+                          port_name:
+                            type: string
+                        required:
+                        - port_lease_id
+                        - port_name
+                        type: object
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      route:
+                        $ref: '#/$defs/ProxyRouteRecord'
+                    required:
+                    - route
+                    title: ProxyRouteRegisterResponse
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.proxy.register
+  /rpc/kernel.v1.proxy.status:
+    post:
+      operationId: proxyStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.proxy.status
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    route_id:
+                      type: string
+                  required:
+                  - route_id
+                  title: ProxyRouteIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ProxyProtocol:
+                        enum:
+                        - http
+                        - websocket
+                        type: string
+                      ProxyRouteStatusKind:
+                        enum:
+                        - active
+                        - removed
+                        type: string
+                      ProxyRouteUpstream:
+                        properties:
+                          port_lease_id:
+                            type: string
+                          port_name:
+                            type: string
+                        required:
+                        - port_lease_id
+                        - port_name
+                        type: object
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      id:
+                        type: string
+                      iframe_url:
+                        type: string
+                      protocol:
+                        $ref: '#/$defs/ProxyProtocol'
+                      public_url:
+                        type: string
+                      status:
+                        $ref: '#/$defs/ProxyRouteStatusKind'
+                      upstream:
+                        $ref: '#/$defs/ProxyRouteUpstream'
+                    required:
+                    - id
+                    - iframe_url
+                    - protocol
+                    - public_url
+                    - status
+                    - upstream
+                    title: ProxyRouteRecord
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.proxy.status
+  /rpc/kernel.v1.proxy.unregister:
+    post:
+      operationId: proxyUnregister
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.proxy.unregister
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    route_id:
+                      type: string
+                  required:
+                  - route_id
+                  title: ProxyRouteIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ProxyProtocol:
+                        enum:
+                        - http
+                        - websocket
+                        type: string
+                      ProxyRouteStatusKind:
+                        enum:
+                        - active
+                        - removed
+                        type: string
+                      ProxyRouteUpstream:
+                        properties:
+                          port_lease_id:
+                            type: string
+                          port_name:
+                            type: string
+                        required:
+                        - port_lease_id
+                        - port_name
+                        type: object
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      id:
+                        type: string
+                      iframe_url:
+                        type: string
+                      protocol:
+                        $ref: '#/$defs/ProxyProtocol'
+                      public_url:
+                        type: string
+                      status:
+                        $ref: '#/$defs/ProxyRouteStatusKind'
+                      upstream:
+                        $ref: '#/$defs/ProxyRouteUpstream'
+                    required:
+                    - id
+                    - iframe_url
+                    - protocol
+                    - public_url
+                    - status
+                    - upstream
+                    title: ProxyRouteRecord
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.proxy.unregister
   /rpc/kernel.v1.session.branch.list:
     post:
       operationId: sessionBranchList
@@ -13546,3 +16175,451 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke kernel.v1.surface.resolve_bundle
+  /rpc/kernel.v1.target.list:
+    post:
+      operationId: targetList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.target.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  title: EmptyParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $defs:
+                        ExecutionTargetCapability:
+                          enum:
+                          - local_exec
+                          - port_lease
+                          - http_proxy_upstream
+                          - websocket_proxy_upstream
+                          type: string
+                        ExecutionTargetReachability:
+                          enum:
+                          - local_host
+                          type: string
+                        ExecutionTargetStatusKind:
+                          enum:
+                          - available
+                          - unavailable
+                          type: string
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        capabilities:
+                          default: []
+                          items:
+                            $ref: '#/$defs/ExecutionTargetCapability'
+                          type: array
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        reachability:
+                          $ref: '#/$defs/ExecutionTargetReachability'
+                        status:
+                          $ref: '#/$defs/ExecutionTargetStatusKind'
+                      required:
+                      - id
+                      - name
+                      - reachability
+                      - status
+                      title: ExecutionTarget
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.target.list
+  /rpc/kernel.v1.target.register:
+    post:
+      operationId: targetRegister
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.target.register
+                params:
+                  $defs:
+                    ExecutionTargetCapability:
+                      enum:
+                      - local_exec
+                      - port_lease
+                      - http_proxy_upstream
+                      - websocket_proxy_upstream
+                      type: string
+                    ExecutionTargetReachability:
+                      enum:
+                      - local_host
+                      type: string
+                    ExecutionTargetStatusKind:
+                      enum:
+                      - available
+                      - unavailable
+                      type: string
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    capabilities:
+                      default: []
+                      items:
+                        $ref: '#/$defs/ExecutionTargetCapability'
+                      type: array
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    reachability:
+                      $ref: '#/$defs/ExecutionTargetReachability'
+                    status:
+                      $ref: '#/$defs/ExecutionTargetStatusKind'
+                  required:
+                  - id
+                  - name
+                  - reachability
+                  - status
+                  title: ExecutionTarget
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecutionTargetCapability:
+                        enum:
+                        - local_exec
+                        - port_lease
+                        - http_proxy_upstream
+                        - websocket_proxy_upstream
+                        type: string
+                      ExecutionTargetReachability:
+                        enum:
+                        - local_host
+                        type: string
+                      ExecutionTargetStatusKind:
+                        enum:
+                        - available
+                        - unavailable
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      capabilities:
+                        default: []
+                        items:
+                          $ref: '#/$defs/ExecutionTargetCapability'
+                        type: array
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      reachability:
+                        $ref: '#/$defs/ExecutionTargetReachability'
+                      status:
+                        $ref: '#/$defs/ExecutionTargetStatusKind'
+                    required:
+                    - id
+                    - name
+                    - reachability
+                    - status
+                    title: ExecutionTarget
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.target.register
+  /rpc/kernel.v1.target.status:
+    post:
+      operationId: targetStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.target.status
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    target_id:
+                      type: string
+                  required:
+                  - target_id
+                  title: TargetIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecutionTargetCapability:
+                        enum:
+                        - local_exec
+                        - port_lease
+                        - http_proxy_upstream
+                        - websocket_proxy_upstream
+                        type: string
+                      ExecutionTargetReachability:
+                        enum:
+                        - local_host
+                        type: string
+                      ExecutionTargetStatusKind:
+                        enum:
+                        - available
+                        - unavailable
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      capabilities:
+                        default: []
+                        items:
+                          $ref: '#/$defs/ExecutionTargetCapability'
+                        type: array
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      reachability:
+                        $ref: '#/$defs/ExecutionTargetReachability'
+                      status:
+                        $ref: '#/$defs/ExecutionTargetStatusKind'
+                    required:
+                    - id
+                    - name
+                    - reachability
+                    - status
+                    title: ExecutionTarget
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.target.status
+  /rpc/kernel.v1.target.unregister:
+    post:
+      operationId: targetUnregister
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: kernel.v1.target.unregister
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  properties:
+                    target_id:
+                      type: string
+                  required:
+                  - target_id
+                  title: TargetIdParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ExecutionTargetCapability:
+                        enum:
+                        - local_exec
+                        - port_lease
+                        - http_proxy_upstream
+                        - websocket_proxy_upstream
+                        type: string
+                      ExecutionTargetReachability:
+                        enum:
+                        - local_host
+                        type: string
+                      ExecutionTargetStatusKind:
+                        enum:
+                        - available
+                        - unavailable
+                        type: string
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      capabilities:
+                        default: []
+                        items:
+                          $ref: '#/$defs/ExecutionTargetCapability'
+                        type: array
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      reachability:
+                        $ref: '#/$defs/ExecutionTargetReachability'
+                      status:
+                        $ref: '#/$defs/ExecutionTargetStatusKind'
+                    required:
+                    - id
+                    - name
+                    - reachability
+                    - status
+                    title: ExecutionTarget
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke kernel.v1.target.unregister

@@ -106,6 +106,66 @@ pub(crate) fn method_schemas() -> Vec<(KernelMethod, Value, Value)> {
                 schema_value::<ProjectIdParams>(),
                 schema_value::<ProjectStatusResult>(),
             ),
+            KernelMethod::TargetList => (
+                schema_value::<EmptyParams>(),
+                json!({"type":"array","items":schema_value::<ExecutionTarget>()}),
+            ),
+            KernelMethod::TargetStatus => (
+                schema_value::<TargetIdParams>(),
+                schema_value::<ExecutionTarget>(),
+            ),
+            KernelMethod::TargetRegister => (
+                schema_value::<ExecutionTarget>(),
+                schema_value::<ExecutionTarget>(),
+            ),
+            KernelMethod::TargetUnregister => (
+                schema_value::<TargetIdParams>(),
+                schema_value::<ExecutionTarget>(),
+            ),
+            KernelMethod::ExecStart => (
+                schema_value::<LocalExecStartRequest>(),
+                schema_value::<LocalExecStartResponse>(),
+            ),
+            KernelMethod::ExecStop => (
+                schema_value::<LocalExecStopRequest>(),
+                schema_value::<LocalExecStopResponse>(),
+            ),
+            KernelMethod::ExecStatus => (
+                schema_value::<ExecIdParams>(),
+                schema_value::<LocalExecStatusResponse>(),
+            ),
+            KernelMethod::ExecLogs => (
+                schema_value::<LocalExecLogsRequest>(),
+                schema_value::<LocalExecLogsResponse>(),
+            ),
+            KernelMethod::ExecList => (
+                schema_value::<EmptyParams>(),
+                schema_value::<LocalExecListResponse>(),
+            ),
+            KernelMethod::PortLease => (
+                schema_value::<PortLeaseRequest>(),
+                schema_value::<PortLeaseResponse>(),
+            ),
+            KernelMethod::PortRelease | KernelMethod::PortStatus => (
+                schema_value::<PortLeaseIdParams>(),
+                schema_value::<PortLeaseRecord>(),
+            ),
+            KernelMethod::PortList => (
+                schema_value::<EmptyParams>(),
+                json!({"type":"array","items":schema_value::<PortLeaseRecord>()}),
+            ),
+            KernelMethod::ProxyRegister => (
+                schema_value::<ProxyRouteRegisterRequest>(),
+                schema_value::<ProxyRouteRegisterResponse>(),
+            ),
+            KernelMethod::ProxyUnregister | KernelMethod::ProxyStatus => (
+                schema_value::<ProxyRouteIdParams>(),
+                schema_value::<ProxyRouteRecord>(),
+            ),
+            KernelMethod::ProxyList => (
+                schema_value::<EmptyParams>(),
+                json!({"type":"array","items":schema_value::<ProxyRouteRecord>()}),
+            ),
             KernelMethod::CapabilityDiscover => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<RegisteredCapability>()}),

@@ -21,6 +21,7 @@ use crate::{
 mod assets_projections;
 mod audit;
 mod capabilities;
+mod local_exec;
 mod outbound_dispatch;
 mod packages;
 mod permissions;
