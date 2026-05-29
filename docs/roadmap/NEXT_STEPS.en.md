@@ -61,7 +61,9 @@ These are known to-dos. Priority follows real friction.
 - Project archive auto-cleanup beyond 30 days.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
-- Deployment descriptor polish: Docker pull progress, health polling, log archival, volume policy, and external-project wizard generation.
+- Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
+- Deployment descriptor polish: Docker pull progress, log archival, volume policy, and external-project wizard generation.
+- Remote targets and multi-client public exposure: ports currently bind to loopback only.
 
 ### Models and outbound
 

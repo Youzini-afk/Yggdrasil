@@ -61,7 +61,9 @@
 - 项目归档超过 30 天自动清理。
 - `yg secret put / list / delete` CLI。
 - OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
-- 部署描述符 polish：Docker pull 进度、健康检查轮询、日志归档、volume 策略与外部项目 wizard 自动生成描述符。
+- 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
+- 部署描述符 polish：Docker pull 进度、日志归档、volume 策略与外部项目 wizard 自动生成描述符。
+- 远程目标与多端公开暴露：当前端口只绑 loopback。
 
 ### 模型与出站
 

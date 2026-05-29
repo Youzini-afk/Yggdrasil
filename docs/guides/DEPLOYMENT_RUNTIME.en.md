@@ -24,6 +24,10 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 - `ygg-service` reverse proxy: `/p/<route_id>/...` routes through `kernel.v1.proxy.*` records and can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped, response bodies are bounded, and HTTP + WebSocket are supported.
 - `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
 - Web project console: shows target / exec / port / proxy diagnostics. If a project declares a Docker deployment descriptor, the user can explicitly click Deploy / Stop.
+- Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
+- Restart reconciliation: after a restart, replayed records are first downgraded (exec → unknown, port → reserved, proxy → stale with `ready=false`), then reconciled against the real world.
+- Readiness gating: proxy routes register with `ready=false`; the reverse proxy returns 503 for routes that are not yet ready, and only forwards once ready.
+- Health supervision: a host background loop periodically probes each active route's upstream, flips `ready=false` on sustained failure and `ready=true` on recovery, and writes an audit event on each transition.
 
 ## Docker deployment descriptor
 
@@ -38,7 +42,7 @@ project:
         container_port: 3000
         port_name: web        # optional, default: web
         route_id: my-app-web  # optional, default: <project_id>-web
-        health_path: /healthz # optional, display only for now
+        health_path: /healthz # optional, used for the readiness probe
         pull_if_missing: false
 ```
 
@@ -46,15 +50,17 @@ The current web broker accepts only these fields. `env`, `volumes`, `mounts`, `b
 
 ## Explicit Deploy flow
 
-The Deploy button in the project console never runs automatically. After user confirmation, the web shell acts as a host broker:
+The Deploy button in the project console never runs automatically. After user confirmation, the request is sent to the host-plane `POST /host/v1/deploy`, where the host broker drives the whole chain server-side (the browser is a thin client and no longer orchestrates):
 
-1. `kernel.v1.port.lease`: lease a loopback port.
-2. `kernel.v1.capability.invoke` → `official/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
-3. `kernel.v1.proxy.register`: bind a route to that port lease.
+1. The host re-validates the request (client fields are not trusted).
+2. `kernel.v1.port.lease`: lease a loopback port.
+3. `kernel.v1.capability.invoke` → `official/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
+4. `kernel.v1.proxy.register`: bind a route to that port lease (registered with `ready=false`).
+5. Readiness probe: TCP-connect to the loopback port (with an optional health_path HTTP probe). The route is flipped to `ready=true` and success returned only if the probe passes within a bounded timeout.
 
-If any step fails, the broker best-effort rolls back: unregister proxy, stop the known container from the current page, and release the port lease.
+If any step fails, the broker rolls back in reverse: unregister proxy, stop the just-started container, release the port lease. Because orchestration is host-side, closing the browser tab does not leave orphan containers or port leases.
 
-Stop deployment only stops the container id known to the current page. It does not stop unknown containers based on a matching `port_name`.
+Stop deployment (`POST /host/v1/deploy/stop`) finds and stops the container by Docker label (`route_id`). It does not rely on a container id remembered by the browser, and does not stop unknown containers based on a matching `port_name`.
 
 ## `project.start` does not deploy
 
@@ -74,5 +80,7 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 ## Next
 
 - Native execution remains trusted/dev-oriented. It is not a full OS sandbox.
-- Docker descriptors still lack pull progress, health polling, log archival, and volume policy.
+- **Auto-restart** is not implemented and is a separate future phase. Health supervision only monitors, flips readiness, and audits; it does not re-deploy a crashed container. Auto-restart first requires durable "deploy intent" (image, etc.) modeled in host-plane terms without leaking Docker semantics into the kernel proxy / port records — a design done on its own.
+- Remote targets and multi-client public exposure are not implemented; ports bind to loopback only.
+- Docker descriptors still lack pull progress, log archival, and volume policy.
 - External project wizards can generate deployment descriptors later, but deployment must remain an explicit user action.
