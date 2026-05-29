@@ -18,6 +18,7 @@ use axum::{Json, Router};
 use futures::{SinkExt, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
@@ -142,6 +143,7 @@ where
         .route("/kernel/v1/host.info", get(host_info))
         .route("/host/v1/deploy", post(deploy_project::<S>))
         .route("/host/v1/deploy/stop", post(stop_project_deployment::<S>))
+        .route("/host/v1/build-deploy", post(build_deploy_project::<S>))
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
@@ -449,10 +451,53 @@ pub struct HostDeployResponse {
     pub container_name: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct DeployBuiltImageResponse {
+    route_id: String,
+    public_url: String,
+    port_lease_id: String,
+    container_id: String,
+    container_name: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct HostDeployStopResponse {
     pub route_id: String,
     pub stopped: bool,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HostBuildDeployRequest {
+    pub project_id: ProjectId,
+    pub source_url: String,
+    pub ref_name: String,
+    #[serde(default)]
+    pub dockerfile: Option<String>,
+    pub container_port: u16,
+    pub port_name: String,
+    pub route_id: String,
+    #[serde(default)]
+    pub health_path: Option<String>,
+    pub approved: bool,
+    #[serde(default)]
+    pub source_commit: Option<String>,
+    #[serde(default)]
+    pub build_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HostBuildDeployResponse {
+    pub route_id: String,
+    pub public_url: String,
+    pub port_lease_id: String,
+    pub container_id: String,
+    pub container_name: Option<String>,
+    pub image: String,
+    pub build_id: String,
+    pub source_commit: String,
+    pub build_descriptor_hash: String,
     pub warnings: Vec<String>,
 }
 
@@ -639,6 +684,95 @@ where
     }))
 }
 
+async fn build_deploy_project<S>(
+    State(state): State<AppState<S>>,
+    Json(request): Json<HostBuildDeployRequest>,
+) -> anyhow::Result<Json<HostBuildDeployResponse>, ServiceError>
+where
+    S: EventStore,
+{
+    build_deploy_project_minimal(&state, request)
+        .await
+        .map(Json)
+        .map_err(redacted_build_deploy_error)
+}
+
+pub async fn build_deploy_project_minimal<S>(
+    state: &AppState<S>,
+    request: HostBuildDeployRequest,
+) -> anyhow::Result<HostBuildDeployResponse>
+where
+    S: EventStore,
+{
+    validate_host_build_deploy_request(&request)?;
+    let clone = clone_project_workspace_from_git(
+        state,
+        ProjectWorkspaceCloneRequest {
+            project_id: request.project_id.clone(),
+            source_url: request.source_url.clone(),
+            ref_name: request.ref_name.clone(),
+        },
+    )
+    .await
+    .context("project workspace clone failed")?;
+
+    let source_commit = request
+        .source_commit
+        .clone()
+        .unwrap_or_else(|| clone.commit_sha.clone());
+    if source_commit != clone.commit_sha {
+        anyhow::bail!("source_commit did not match resolved clone commit");
+    }
+    let build_id = request
+        .build_id
+        .clone()
+        .unwrap_or_else(|| generated_build_id(&source_commit));
+    let dockerfile = request
+        .dockerfile
+        .clone()
+        .unwrap_or_else(|| "Dockerfile".to_string());
+    let build_descriptor_hash = build_deploy_descriptor_hash(&request, &build_id, &source_commit);
+    let workspace_dir = ygg_core::paths::project_workspace_dir(&request.project_id)?;
+    let context = ProtocolContext::host_dev("host_build_deploy");
+    let build_output = invoke_docker_runtime_lab(
+        state,
+        &context,
+        "official/docker-runtime-lab/build_image",
+        serde_json::json!({
+            "approved": true,
+            "strategy": "dockerfile",
+            "project_id": request.project_id.as_str(),
+            "build_id": build_id,
+            "context_dir": workspace_dir.to_string_lossy(),
+            "dockerfile": dockerfile,
+            "source_commit": source_commit,
+            "build_descriptor_hash": build_descriptor_hash,
+        }),
+    )
+    .await
+    .context("docker image build failed")?;
+    let image = require_built_image(&build_output)?;
+
+    let deploy = deploy_built_image(state, &request, &image)
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!("built image was not garbage-collected after deploy failure: {error}")
+        })?;
+
+    Ok(HostBuildDeployResponse {
+        route_id: deploy.route_id,
+        public_url: deploy.public_url,
+        port_lease_id: deploy.port_lease_id,
+        container_id: deploy.container_id,
+        container_name: deploy.container_name,
+        image: image.clone(),
+        build_id,
+        source_commit,
+        build_descriptor_hash,
+        warnings: Vec::new(),
+    })
+}
+
 async fn stop_project_deployment<S>(
     State(state): State<AppState<S>>,
     Json(request): Json<HostDeployStopRequest>,
@@ -765,6 +899,164 @@ where
         .call_protocol(context, method, params)
         .await
         .map_err(protocol_error_to_anyhow)
+}
+
+async fn deploy_built_image<S>(
+    state: &AppState<S>,
+    request: &HostBuildDeployRequest,
+    image: &str,
+) -> anyhow::Result<DeployBuiltImageResponse>
+where
+    S: EventStore,
+{
+    let context = ProtocolContext::host_dev("host_build_deploy");
+    let mut container_id: Option<String> = None;
+    let lease = match call_host_protocol(
+        state,
+        &context,
+        "kernel.v1.port.lease",
+        serde_json::json!({
+            "target_id": "local",
+            "port_name": &request.port_name,
+            "protocol": "tcp",
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))
+    {
+        Ok(lease) => lease,
+        Err(error) => return Err(anyhow::anyhow!("deployment port lease failed: {error}")),
+    };
+    let lease_id = required_string(&lease, "id", "port lease")?;
+    let lease_port = required_u16(&lease, "port", "port lease")?;
+
+    let start_output = match invoke_docker_runtime_lab(
+        state,
+        &context,
+        "official/docker-runtime-lab/start_container",
+        serde_json::json!({
+            "image": image,
+            "container_port": request.container_port,
+            "host_port": lease_port,
+            "route_id": &request.route_id,
+            "port_lease_id": &lease_id,
+            "approved": true,
+            "pull_if_missing": false,
+        }),
+    )
+    .await
+    {
+        Ok(output) => output,
+        Err(error) => {
+            rollback_deploy(
+                state,
+                &context,
+                &request.route_id,
+                false,
+                container_id.as_deref(),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(anyhow::anyhow!("docker container start failed: {error}"));
+        }
+    };
+    let parsed_container_id = match require_started_container(&start_output) {
+        Ok(container_id) => container_id,
+        Err(error) => {
+            rollback_deploy(
+                state,
+                &context,
+                &request.route_id,
+                false,
+                container_id.as_deref(),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(error);
+        }
+    };
+    container_id = Some(parsed_container_id.clone());
+    let container_name = optional_string(&start_output, "container_name");
+
+    let route = match call_host_protocol(
+        state,
+        &context,
+        "kernel.v1.proxy.register",
+        serde_json::json!({
+            "route_id": &request.route_id,
+            "protocol": "http",
+            "upstream": {
+                "port_lease_id": &lease_id,
+                "port_name": &request.port_name,
+            },
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))
+    {
+        Ok(route) => route,
+        Err(error) => {
+            rollback_deploy(
+                state,
+                &context,
+                &request.route_id,
+                false,
+                container_id.as_deref(),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(anyhow::anyhow!("proxy registration failed: {error}"));
+        }
+    };
+    let route_id = required_string(&route, "id", "proxy route")?;
+    let public_url = required_string(&route, "public_url", "proxy route")?;
+
+    if let Err(error) =
+        wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
+    {
+        rollback_deploy(
+            state,
+            &context,
+            &route_id,
+            true,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(anyhow::anyhow!(
+            "deployment did not become ready in time: {error}"
+        ));
+    }
+
+    if state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .set_ready(&route_id, true)
+        .await
+        .is_none()
+    {
+        rollback_deploy(
+            state,
+            &context,
+            &route_id,
+            true,
+            container_id.as_deref(),
+            Some(&lease_id),
+        )
+        .await;
+        return Err(anyhow::anyhow!(
+            "proxy route disappeared before readiness promotion"
+        ));
+    }
+
+    Ok(DeployBuiltImageResponse {
+        route_id,
+        public_url,
+        port_lease_id: lease_id,
+        container_id: parsed_container_id,
+        container_name,
+    })
 }
 
 async fn invoke_docker_runtime_lab<S>(
@@ -1344,6 +1636,132 @@ fn validate_host_deploy_request(request: &HostDeployRequest) -> anyhow::Result<(
         }
     }
     Ok(())
+}
+
+fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyhow::Result<()> {
+    if !request.approved {
+        anyhow::bail!("build-deploy requires approved: true");
+    }
+    validate_workspace_clone_url(&request.source_url)?;
+    validate_workspace_clone_ref(&request.ref_name)?;
+    if let Some(source_commit) = request.source_commit.as_deref() {
+        if !is_full_git_sha(source_commit) {
+            anyhow::bail!("source_commit must be a 40-character hex SHA");
+        }
+    }
+    if let Some(build_id) = request.build_id.as_deref() {
+        validate_build_id(build_id)?;
+    }
+    if let Some(dockerfile) = request.dockerfile.as_deref() {
+        validate_relative_dockerfile(dockerfile)?;
+    }
+    validate_host_deploy_request(&HostDeployRequest {
+        image: "yggdrasil/placeholder:build".to_string(),
+        container_port: request.container_port,
+        port_name: request.port_name.clone(),
+        route_id: request.route_id.clone(),
+        health_path: request.health_path.clone(),
+        pull_if_missing: false,
+    })?;
+    Ok(())
+}
+
+fn validate_build_id(build_id: &str) -> anyhow::Result<()> {
+    if build_id.len() < 3
+        || build_id.len() > 128
+        || build_id.starts_with('-')
+        || build_id.contains("..")
+        || !build_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    {
+        anyhow::bail!("build_id must be label-safe");
+    }
+    Ok(())
+}
+
+fn validate_relative_dockerfile(dockerfile: &str) -> anyhow::Result<()> {
+    let path = FsPath::new(dockerfile);
+    if dockerfile.trim().is_empty()
+        || dockerfile.len() > 255
+        || path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        anyhow::bail!("dockerfile must be a relative path without parent components");
+    }
+    Ok(())
+}
+
+fn is_full_git_sha(value: &str) -> bool {
+    value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn generated_build_id(source_commit: &str) -> String {
+    let prefix: String = source_commit.chars().take(12).collect();
+    format!("build-{prefix}")
+}
+
+fn build_deploy_descriptor_hash(
+    request: &HostBuildDeployRequest,
+    build_id: &str,
+    source_commit: &str,
+) -> String {
+    let canonical = serde_json::json!({
+        "version": 1,
+        "strategy": "dockerfile",
+        "project_id": request.project_id.as_str(),
+        "source_url": request.source_url,
+        "ref_name": request.ref_name,
+        "dockerfile": request.dockerfile.as_deref().unwrap_or("Dockerfile"),
+        "container_port": request.container_port,
+        "port_name": request.port_name,
+        "route_id": request.route_id,
+        "health_path": request.health_path,
+        "build_id": build_id,
+        "source_commit": source_commit,
+    });
+    let bytes = serde_json::to_vec(&canonical).expect("build descriptor serializes");
+    let digest = Sha256::digest(bytes);
+    let mut out = String::from("sha256:");
+    for byte in digest {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
+}
+
+fn require_built_image(output: &Value) -> anyhow::Result<String> {
+    if output
+        .get("docker_performed")
+        .and_then(Value::as_bool)
+        .is_some_and(|performed| !performed)
+        || output
+            .get("image_built")
+            .and_then(Value::as_bool)
+            .is_some_and(|built| !built)
+    {
+        anyhow::bail!(
+            "docker-runtime-lab did not build image: {}",
+            output
+                .get("reason")
+                .or_else(|| output.get("error").and_then(|error| error.get("message")))
+                .and_then(Value::as_str)
+                .unwrap_or("unknown reason")
+        );
+    }
+    required_string(output, "image", "docker-runtime-lab build_image")
+}
+
+fn redacted_build_deploy_error(error: anyhow::Error) -> ServiceError {
+    tracing::warn!(
+        target: "ygg_service::build_deploy",
+        error = %error,
+        "build-deploy failed; public response redacted"
+    );
+    ServiceError(anyhow::anyhow!(
+        "build-deploy failed; details redacted in public response"
+    ))
 }
 
 fn is_safe_docker_image(image: &str) -> bool {
@@ -2298,6 +2716,89 @@ mod tests {
         )
         .is_err());
         Ok(())
+    }
+
+    fn valid_build_deploy_request() -> HostBuildDeployRequest {
+        HostBuildDeployRequest {
+            project_id: ProjectId::new("build__abc123").unwrap(),
+            source_url: "https://example.com/org/repo.git".to_string(),
+            ref_name: "refs/heads/main".to_string(),
+            dockerfile: Some("Dockerfile".to_string()),
+            container_port: 3000,
+            port_name: "web".to_string(),
+            route_id: "route-build".to_string(),
+            health_path: Some("/health".to_string()),
+            approved: true,
+            source_commit: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
+            build_id: Some("build-001".to_string()),
+        }
+    }
+
+    #[test]
+    fn build_deploy_request_validation_blocks_unapproved_and_unsafe() {
+        let mut request = valid_build_deploy_request();
+        assert!(validate_host_build_deploy_request(&request).is_ok());
+
+        request.approved = false;
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.source_url = "file:///tmp/repo".to_string();
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.dockerfile = Some("../Dockerfile".to_string());
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.build_id = Some("../bad".to_string());
+        assert!(validate_host_build_deploy_request(&request).is_err());
+    }
+
+    #[test]
+    fn build_deploy_descriptor_hash_is_deterministic_and_sensitive() {
+        let request = valid_build_deploy_request();
+        let hash1 = build_deploy_descriptor_hash(
+            &request,
+            "build-001",
+            "0123456789abcdef0123456789abcdef01234567",
+        );
+        let hash2 = build_deploy_descriptor_hash(
+            &request,
+            "build-001",
+            "0123456789abcdef0123456789abcdef01234567",
+        );
+        assert_eq!(hash1, hash2);
+        assert!(hash1.starts_with("sha256:"));
+        assert_eq!(hash1.len(), "sha256:".len() + 64);
+
+        let changed = build_deploy_descriptor_hash(
+            &request,
+            "build-002",
+            "0123456789abcdef0123456789abcdef01234567",
+        );
+        assert_ne!(hash1, changed);
+    }
+
+    #[test]
+    fn build_deploy_build_id_generation_is_safe() {
+        assert_eq!(
+            generated_build_id("0123456789abcdef0123456789abcdef01234567"),
+            "build-0123456789ab"
+        );
+        validate_build_id(&generated_build_id(
+            "0123456789abcdef0123456789abcdef01234567",
+        ))
+        .unwrap();
+    }
+
+    #[test]
+    fn build_deploy_public_error_redacts_host_paths() {
+        let response = redacted_build_deploy_error(anyhow::anyhow!(
+            "failed to read /tmp/ygg-secret-workspace/Dockerfile"
+        ))
+        .into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     #[test]
