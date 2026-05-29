@@ -413,6 +413,28 @@ export interface DockerStopContainerOutput {
   reason?: string;
 }
 
+export interface HostDeployProjectInput {
+  image: string;
+  container_port: number;
+  port_name: string;
+  route_id: string;
+  pull_if_missing: boolean;
+}
+
+export interface HostDeployProjectOutput {
+  route_id: string;
+  public_url: string;
+  port_lease_id: string;
+  container_id: string;
+  container_name?: string | null;
+}
+
+export interface HostStopProjectDeploymentOutput {
+  route_id: string;
+  stopped: boolean;
+  warnings: string[];
+}
+
 export interface ExecutionTarget {
   id: string;
   name: string;
@@ -720,6 +742,14 @@ export class YggProtocolClient {
     return await this.invokeDockerRuntimeLab<DockerStopContainerOutput>(DOCKER_RUNTIME_LAB_CAPABILITIES.stopContainer, input);
   }
 
+  deployProject(input: HostDeployProjectInput): Promise<HostDeployProjectOutput> {
+    return this.fetchHostJson("/host/v1/deploy", input);
+  }
+
+  stopProjectDeployment(input: { route_id: string }): Promise<HostStopProjectDeploymentOutput> {
+    return this.fetchHostJson("/host/v1/deploy/stop", input);
+  }
+
   async resolveInstallPlan(source: InstallSource): Promise<InstallPlan> {
     const rootUrl = normalizeInstallRootUrl(source.root_url);
     if (!/^https:\/\//i.test(rootUrl)) {
@@ -816,6 +846,23 @@ export class YggProtocolClient {
         throw new Error(
           "Cannot reach the Yggdrasil host RPC. Check that the host is still running, the access token is valid, and the deployment did not time out while resolving the install plan.",
         );
+      }
+      throw err;
+    }
+  }
+
+  private async fetchHostJson<T>(path: string, body: unknown): Promise<T> {
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: "POST",
+        headers: this.rpcHeaders(),
+        body: JSON.stringify(body),
+      });
+      await throwForHttpError(response);
+      return (await response.json()) as T;
+    } catch (err: unknown) {
+      if (isFetchTransportError(err)) {
+        throw new Error("Cannot reach the Yggdrasil host deployment broker. Check that the host is still running and the access token is valid.");
       }
       throw err;
     }

@@ -15,7 +15,7 @@ use axum::response::Response;
 use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use futures::{SinkExt, Stream, StreamExt};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
@@ -130,6 +130,8 @@ where
         )
         .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
         .route("/kernel/v1/host.info", get(host_info))
+        .route("/host/v1/deploy", post(deploy_project::<S>))
+        .route("/host/v1/deploy/stop", post(stop_project_deployment::<S>))
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
@@ -400,6 +402,463 @@ where
 
 async fn host_info() -> Json<serde_json::Value> {
     Json(serde_json::to_value(runtime_host_info()).expect("host info serializes"))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HostDeployRequest {
+    pub image: String,
+    pub container_port: u16,
+    pub port_name: String,
+    pub route_id: String,
+    #[serde(default)]
+    pub pull_if_missing: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HostDeployStopRequest {
+    pub route_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HostDeployResponse {
+    pub route_id: String,
+    pub public_url: String,
+    pub port_lease_id: String,
+    pub container_id: String,
+    pub container_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HostDeployStopResponse {
+    pub route_id: String,
+    pub stopped: bool,
+    pub warnings: Vec<String>,
+}
+
+async fn deploy_project<S>(
+    State(state): State<AppState<S>>,
+    Json(request): Json<HostDeployRequest>,
+) -> anyhow::Result<Json<HostDeployResponse>, ServiceError>
+where
+    S: EventStore,
+{
+    validate_host_deploy_request(&request)?;
+    let context = ProtocolContext::host_dev("host_deploy");
+    let mut container_id: Option<String> = None;
+
+    let lease = match call_host_protocol(
+        &state,
+        &context,
+        "kernel.v1.port.lease",
+        serde_json::json!({
+            "target_id": "local",
+            "port_name": &request.port_name,
+            "protocol": "tcp",
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))
+    {
+        Ok(lease) => lease,
+        Err(error) => return Err(anyhow::anyhow!("deployment port lease failed: {error}").into()),
+    };
+
+    let lease_id = required_string(&lease, "id", "port lease")?;
+    let lease_port = required_u16(&lease, "port", "port lease")?;
+    let port_lease_id = lease_id.clone();
+
+    let start_output = match invoke_docker_runtime_lab(
+        &state,
+        &context,
+        "official/docker-runtime-lab/start_container",
+        serde_json::json!({
+            "image": &request.image,
+            "container_port": request.container_port,
+            "host_port": lease_port,
+            "route_id": &request.route_id,
+            "port_lease_id": &port_lease_id,
+            "approved": true,
+            "pull_if_missing": request.pull_if_missing,
+        }),
+    )
+    .await
+    {
+        Ok(output) => output,
+        Err(error) => {
+            rollback_deploy(
+                &state,
+                &context,
+                &request.route_id,
+                false,
+                container_id.as_deref(),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(anyhow::anyhow!("docker container start failed: {error}").into());
+        }
+    };
+
+    let parsed_container_id = match require_started_container(&start_output) {
+        Ok(container_id) => container_id,
+        Err(error) => {
+            rollback_deploy(
+                &state,
+                &context,
+                &request.route_id,
+                false,
+                container_id.as_deref(),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(error.into());
+        }
+    };
+    container_id = Some(parsed_container_id.clone());
+    let container_name = optional_string(&start_output, "container_name");
+
+    let route = match call_host_protocol(
+        &state,
+        &context,
+        "kernel.v1.proxy.register",
+        serde_json::json!({
+            "route_id": &request.route_id,
+            "protocol": "http",
+            "upstream": {
+                "port_lease_id": &port_lease_id,
+                "port_name": &request.port_name,
+            },
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))
+    {
+        Ok(route) => route,
+        Err(error) => {
+            rollback_deploy(
+                &state,
+                &context,
+                &request.route_id,
+                false,
+                container_id.as_deref(),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(anyhow::anyhow!("proxy registration failed: {error}").into());
+        }
+    };
+
+    Ok(Json(HostDeployResponse {
+        route_id: required_string(&route, "id", "proxy route")?,
+        public_url: required_string(&route, "public_url", "proxy route")?,
+        port_lease_id,
+        container_id: parsed_container_id,
+        container_name,
+    }))
+}
+
+async fn stop_project_deployment<S>(
+    State(state): State<AppState<S>>,
+    Json(request): Json<HostDeployStopRequest>,
+) -> Json<HostDeployStopResponse>
+where
+    S: EventStore,
+{
+    let context = ProtocolContext::host_dev("host_deploy");
+    let mut warnings = Vec::new();
+    let route_id = request.route_id.trim().to_string();
+    if !is_safe_route_token(&route_id) {
+        return Json(HostDeployStopResponse {
+            route_id,
+            stopped: false,
+            warnings: vec!["route_id must be label-safe".to_string()],
+        });
+    }
+
+    let mut port_lease_id = None;
+    match call_host_protocol(
+        &state,
+        &context,
+        "kernel.v1.proxy.status",
+        serde_json::json!({ "route_id": route_id }),
+    )
+    .await
+    {
+        Ok(route) => {
+            port_lease_id = route
+                .get("upstream")
+                .and_then(|upstream| upstream.get("port_lease_id"))
+                .and_then(Value::as_str)
+                .map(str::to_string);
+        }
+        Err(error) => warnings.push(format!("proxy status unavailable: {error}")),
+    }
+
+    let mut container_ref = None;
+    match invoke_docker_runtime_lab(
+        &state,
+        &context,
+        "official/docker-runtime-lab/list_managed",
+        serde_json::json!({}),
+    )
+    .await
+    {
+        Ok(output) => container_ref = find_managed_container_for_route(&output, &route_id),
+        Err(error) => warnings.push(format!("managed container list unavailable: {error}")),
+    }
+
+    let mut stopped = false;
+    if let Some(container) = container_ref.as_ref() {
+        match invoke_docker_runtime_lab(
+            &state,
+            &context,
+            "official/docker-runtime-lab/stop_container",
+            serde_json::json!({ "container_id": container, "timeout_secs": 10 }),
+        )
+        .await
+        {
+            Ok(output) => {
+                stopped = output
+                    .get("docker_performed")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true);
+                if !stopped {
+                    warnings.push(
+                        output
+                            .get("reason")
+                            .and_then(Value::as_str)
+                            .unwrap_or("docker-runtime-lab did not stop the container")
+                            .to_string(),
+                    );
+                }
+            }
+            Err(error) => warnings.push(format!("container stop failed: {error}")),
+        }
+    } else {
+        warnings.push("no managed container found for route".to_string());
+    }
+
+    if let Err(error) = call_host_protocol(
+        &state,
+        &context,
+        "kernel.v1.proxy.unregister",
+        serde_json::json!({ "route_id": route_id }),
+    )
+    .await
+    {
+        warnings.push(format!("proxy unregister failed: {error}"));
+    }
+
+    if let Some(lease_id) = port_lease_id.as_ref() {
+        if let Err(error) = call_host_protocol(
+            &state,
+            &context,
+            "kernel.v1.port.release",
+            serde_json::json!({ "lease_id": lease_id }),
+        )
+        .await
+        {
+            warnings.push(format!("port release failed: {error}"));
+        }
+    }
+
+    Json(HostDeployStopResponse {
+        route_id,
+        stopped,
+        warnings,
+    })
+}
+
+async fn call_host_protocol<S>(
+    state: &AppState<S>,
+    context: &ProtocolContext,
+    method: &str,
+    params: Value,
+) -> anyhow::Result<Value>
+where
+    S: EventStore,
+{
+    state
+        .runtime
+        .call_protocol(context, method, params)
+        .await
+        .map_err(protocol_error_to_anyhow)
+}
+
+async fn invoke_docker_runtime_lab<S>(
+    state: &AppState<S>,
+    context: &ProtocolContext,
+    capability_id: &str,
+    input: Value,
+) -> anyhow::Result<Value>
+where
+    S: EventStore,
+{
+    let value = call_host_protocol(
+        state,
+        context,
+        "kernel.v1.capability.invoke",
+        serde_json::json!({
+            "capability_id": capability_id,
+            "provider_package_id": "official/docker-runtime-lab",
+            "input": input,
+        }),
+    )
+    .await?;
+    value_field(value, "output", "kernel.v1.capability.invoke")
+}
+
+async fn rollback_deploy<S>(
+    state: &AppState<S>,
+    context: &ProtocolContext,
+    route_id: &str,
+    proxy_registered: bool,
+    container_id: Option<&str>,
+    lease_id: Option<&str>,
+) where
+    S: EventStore,
+{
+    if proxy_registered {
+        let _ = call_host_protocol(
+            state,
+            context,
+            "kernel.v1.proxy.unregister",
+            serde_json::json!({ "route_id": route_id }),
+        )
+        .await;
+    }
+    if let Some(container_id) = container_id {
+        let _ = invoke_docker_runtime_lab(
+            state,
+            context,
+            "official/docker-runtime-lab/stop_container",
+            serde_json::json!({ "container_id": container_id, "timeout_secs": 5 }),
+        )
+        .await;
+    }
+    if let Some(lease_id) = lease_id {
+        let _ = call_host_protocol(
+            state,
+            context,
+            "kernel.v1.port.release",
+            serde_json::json!({ "lease_id": lease_id }),
+        )
+        .await;
+    }
+}
+
+fn validate_host_deploy_request(request: &HostDeployRequest) -> anyhow::Result<()> {
+    let image = request.image.trim();
+    if !is_safe_docker_image(image) {
+        anyhow::bail!("image must be a safe Docker image reference");
+    }
+    if request.container_port == 0 {
+        anyhow::bail!("container_port must be an integer in 1..=65535");
+    }
+    if !is_safe_route_token(&request.port_name) {
+        anyhow::bail!("port_name must be label-safe");
+    }
+    if !is_safe_route_token(&request.route_id) {
+        anyhow::bail!("route_id must be label-safe");
+    }
+    Ok(())
+}
+
+fn is_safe_docker_image(image: &str) -> bool {
+    !image.is_empty()
+        && image.len() <= 255
+        && !image.starts_with('-')
+        && !image.contains("..")
+        && image
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '/' | ':' | '_' | '@' | '-'))
+}
+
+fn is_safe_route_token(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && !value.contains("..")
+        && value
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphanumeric())
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+}
+
+fn require_started_container(output: &Value) -> anyhow::Result<String> {
+    if output
+        .get("docker_performed")
+        .and_then(Value::as_bool)
+        .is_some_and(|performed| !performed)
+        || output
+            .get("container_started")
+            .and_then(Value::as_bool)
+            .is_some_and(|started| !started)
+    {
+        anyhow::bail!(
+            "docker-runtime-lab did not start the container: {}",
+            output
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown reason")
+        );
+    }
+    required_string(output, "container_id", "docker-runtime-lab start_container")
+}
+
+fn find_managed_container_for_route(output: &Value, route_id: &str) -> Option<String> {
+    let managed = output.get("managed")?.as_array()?;
+    for container in managed {
+        if container.get("route_id").and_then(Value::as_str) != Some(route_id) {
+            continue;
+        }
+        for field in ["container_id", "id", "container_name", "name"] {
+            if let Some(value) = optional_string(container, field) {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
+fn value_field(value: Value, field: &str, context: &str) -> anyhow::Result<Value> {
+    value
+        .get(field)
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("{context} response missing {field}"))
+}
+
+fn required_string(value: &Value, field: &str, context: &str) -> anyhow::Result<String> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| anyhow::anyhow!("{context} missing {field}"))
+}
+
+fn optional_string(value: &Value, field: &str) -> Option<String> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+}
+
+fn required_u16(value: &Value, field: &str, context: &str) -> anyhow::Result<u16> {
+    value
+        .get(field)
+        .and_then(Value::as_u64)
+        .and_then(|value| u16::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .ok_or_else(|| anyhow::anyhow!("{context} missing valid {field}"))
+}
+
+fn protocol_error_to_anyhow(error: ProtocolError) -> anyhow::Error {
+    anyhow::anyhow!("{}: {}", error.code, error.message)
 }
 
 async fn surface_bundle_file<S>(
@@ -927,6 +1386,8 @@ fn is_reserved_service_path(path: &str) -> bool {
         || path.starts_with("/kernel/")
         || path == "/p"
         || path.starts_with("/p/")
+        || path == "/host"
+        || path.starts_with("/host/")
         || path == "/surface-bundles"
         || path.starts_with("/surface-bundles/")
 }
@@ -1331,6 +1792,91 @@ mod tests {
             )
             .await?;
         assert_eq!(allowed.status(), StatusCode::OK);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn token_gate_protects_host_deploy() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("deploy-token".to_string()),
+        });
+
+        let denied = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/host/v1/deploy")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({
+                            "image": "example/app:latest",
+                            "container_port": 8080,
+                            "port_name": "web",
+                            "route_id": "route-1",
+                            "pull_if_missing": false,
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn host_deploy_rolls_back_port_lease_when_docker_start_fails() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime: runtime.clone(),
+            static_dir: None,
+            access_token: None,
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/host/v1/deploy")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({
+                            "image": "example/app:latest",
+                            "container_port": 8080,
+                            "port_name": "web",
+                            "route_id": "rollback-route",
+                            "pull_if_missing": false,
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert!(!response.status().is_success());
+
+        let context = ProtocolContext::host_dev("host_deploy_test");
+        let leases = runtime
+            .call_protocol(&context, "kernel.v1.port.list", json!({}))
+            .await
+            .map_err(protocol_error_to_anyhow)?;
+        assert!(leases
+            .as_array()
+            .expect("port.list returns array")
+            .iter()
+            .all(|lease| lease["status"] != "active"));
+
+        let routes = runtime
+            .call_protocol(&context, "kernel.v1.proxy.list", json!({}))
+            .await
+            .map_err(protocol_error_to_anyhow)?;
+        assert!(routes
+            .as_array()
+            .expect("proxy.list returns array")
+            .iter()
+            .all(|route| route["status"] != "active"));
         Ok(())
     }
 

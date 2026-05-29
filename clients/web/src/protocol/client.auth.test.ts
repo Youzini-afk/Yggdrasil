@@ -117,8 +117,25 @@ globalThis.fetch = (async () =>
 await rejectsWithHttpStatus(new YggProtocolClient("http://host.test", "bad-token").diagnostics(), 401);
 
 const capturedRequests: unknown[] = [];
-globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+const capturedFetches: Array<{ input: string; body: unknown; headers?: HeadersInit }> = [];
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const inputString = String(input);
   const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+  capturedFetches.push({ input: inputString, body, headers: init?.headers });
+  if (inputString.endsWith("/host/v1/deploy")) {
+    return Response.json({
+      route_id: body.route_id,
+      public_url: `http://host.test/p/${body.route_id}/`,
+      port_lease_id: "lease-1",
+      container_id: "container-1",
+      container_name: "container-name-1",
+    });
+  }
+
+  if (inputString.endsWith("/host/v1/deploy/stop")) {
+    return Response.json({ route_id: body.route_id, stopped: true, warnings: [] });
+  }
+
   capturedRequests.push(body);
 
   if (body?.method === "kernel.v1.session.open") {
@@ -318,6 +335,22 @@ assertDeepEqual(dockerSessionOpen[0].params?.labels, ["deploy", "official/docker
 assertEqual(dockerInvokes[0].params?.provider_package_id, "official/docker-runtime-lab");
 assertEqual(dockerInvokes[0].params?.capability_id, "official/docker-runtime-lab/start_container");
 assertEqual(dockerInvokes[1].params?.capability_id, "official/docker-runtime-lab/stop_container");
+
+capturedFetches.length = 0;
+await protocolClient.deployProject({
+  image: "example/app:latest",
+  container_port: 8080,
+  port_name: "web",
+  route_id: "route-1",
+  pull_if_missing: false,
+});
+await protocolClient.stopProjectDeployment({ route_id: "route-1" });
+assertEqual(capturedFetches[0].input, "http://host.test/host/v1/deploy");
+assertEqual(capturedFetches[1].input, "http://host.test/host/v1/deploy/stop");
+assertDeepEqual(capturedFetches.map((request) => request.body), [
+  { image: "example/app:latest", container_port: 8080, port_name: "web", route_id: "route-1", pull_if_missing: false },
+  { route_id: "route-1" },
+]);
 
 capturedRequests.length = 0;
 await protocolClient.startProject("project-1");

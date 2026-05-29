@@ -566,7 +566,15 @@ fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
         .ports
         .as_ref()
         .and_then(|ports| ports.iter().find_map(|port| port.public_port));
+    let container_id = container.id.clone();
+    let container_name = container
+        .names
+        .as_ref()
+        .and_then(|names| names.first())
+        .map(|name| name.trim_start_matches('/').to_string());
     Some(serde_json::json!({
+        "container_id": container_id,
+        "container_name": container_name,
         "route_id": route_id,
         "port_lease_id": port_lease_id,
         "running": running,
@@ -899,6 +907,8 @@ mod tests {
     #[test]
     fn docker_runtime_lab_list_managed_shape_from_summary() {
         let container = ContainerSummary {
+            id: Some("container-000001".to_string()),
+            names: Some(vec!["/ygg-container-000001".to_string()]),
             labels: Some(HashMap::from([
                 ("managed-by".to_string(), "yggdrasil".to_string()),
                 (
@@ -920,6 +930,8 @@ mod tests {
             ..ContainerSummary::default()
         };
         let output = managed_container_json(&container).expect("managed container report");
+        assert_eq!(output["container_id"], "container-000001");
+        assert_eq!(output["container_name"], "ygg-container-000001");
         assert_eq!(output["route_id"], "proxy-route-000001");
         assert_eq!(output["port_lease_id"], "port-lease-000001");
         assert_eq!(output["running"], true);
