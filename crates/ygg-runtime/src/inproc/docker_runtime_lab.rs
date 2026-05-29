@@ -1648,6 +1648,34 @@ mod tests {
     }
 
     #[test]
+    fn docker_runtime_lab_start_still_rejects_env_and_secrets() {
+        for input in [
+            serde_json::json!({
+                "approved": true,
+                "image": "nginx:latest",
+                "container_port": 80,
+                "host_port": 8080,
+                "route_id": "route-1",
+                "port_lease_id": "lease-1",
+                "env": ["TOKEN=value"]
+            }),
+            serde_json::json!({
+                "approved": true,
+                "image": "nginx:latest",
+                "container_port": 80,
+                "host_port": 8080,
+                "route_id": "route-1",
+                "port_lease_id": "lease-1",
+                "secrets": ["secret_ref:env:TOKEN"]
+            }),
+        ] {
+            let output = start_container(&request("start_container", input)).unwrap();
+            assert_eq!(output["kind"], "docker_runtime_lab_rejected");
+            assert_eq!(output["docker_performed"], false);
+        }
+    }
+
+    #[test]
     fn docker_runtime_lab_build_image_rejects_unsupported_strategy() {
         let output = build_image(&request(
             "build_image",
@@ -1723,8 +1751,8 @@ mod tests {
             max_context_files: 10,
             build_timeout_secs: 1,
         };
-        let error = prepare_nixpacks_context_with_binary(&spec, "definitely-not-ygg-nixpacks")
-            .unwrap_err();
+        let error =
+            prepare_nixpacks_context_with_binary(&spec, "definitely-not-ygg-nixpacks").unwrap_err();
         assert!(error.contains("nixpacks unavailable") || error.contains("failed to start"));
     }
 

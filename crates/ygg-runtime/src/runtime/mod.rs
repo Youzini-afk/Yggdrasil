@@ -307,6 +307,28 @@ where
         self.resolve_secret_ref_with_session(ref_id, None).await
     }
 
+    /// Resolve a secret reference with an explicit project scope.
+    ///
+    /// This is used by host-owned brokers that operate on a project but do not
+    /// have a project session yet. Raw values must never be written to events,
+    /// proposals, logs, or audit records.
+    pub async fn resolve_secret_ref_for_project(
+        &self,
+        ref_id: &str,
+        project_id: &ygg_core::ProjectId,
+    ) -> anyhow::Result<String> {
+        if ygg_core::secret_ref::is_project_backed_ref(ref_id) {
+            let scope = self.build_project_scope(project_id)?;
+            return self
+                .with_active_project_scope(scope, async {
+                    self.config.secret_resolver.resolver.resolve(ref_id).await
+                })
+                .await;
+        }
+
+        self.config.secret_resolver.resolver.resolve(ref_id).await
+    }
+
     /// Resolve a secret reference with optional session context.
     ///
     /// For `secret_ref:project:NAME`, the `session_id` is used to look up the

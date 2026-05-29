@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::Infallible;
+use std::fmt;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -15,6 +16,9 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::{any, get, post};
 use axum::{Json, Router};
+use bollard::models::{ContainerCreateBody, HostConfig, PortBinding, PortMap};
+use bollard::query_parameters::CreateContainerOptionsBuilder;
+use bollard::Docker;
 use futures::{SinkExt, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -43,6 +47,10 @@ const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(5);
 const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_millis(1000);
 const HEALTH_FAILURE_THRESHOLD: u32 = 3;
 const HEALTH_RECOVERY_THRESHOLD: u32 = 2;
+const MAX_RUNTIME_ENV_ENTRIES: usize = 128;
+const MAX_RUNTIME_ENV_VALUE_LEN: usize = 8192;
+const MAX_RUNTIME_ENV_TOTAL_BYTES: usize = 64 * 1024;
+const DOCKER_RUNTIME_PACKAGE_ID: &str = "official/docker-runtime-lab";
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -487,6 +495,48 @@ pub struct HostBuildDeployRequest {
     pub source_commit: Option<String>,
     #[serde(default)]
     pub build_id: Option<String>,
+    #[serde(default)]
+    pub runtime_env: Vec<RuntimeEnvSpec>,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeEnvSpec {
+    pub name: String,
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub secret_ref: Option<String>,
+}
+
+impl fmt::Debug for RuntimeEnvSpec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RuntimeEnvSpec")
+            .field("name", &self.name)
+            .field(
+                "source",
+                &if self.secret_ref.is_some() {
+                    "secret_ref"
+                } else {
+                    "plain"
+                },
+            )
+            .field("value", &"<redacted>")
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct RuntimeEnvSummary {
+    pub name: String,
+    pub source: RuntimeEnvSourceKind,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeEnvSourceKind {
+    Plain,
+    SecretRef,
 }
 
 #[derive(Debug, Serialize)]
@@ -501,7 +551,42 @@ pub struct HostBuildDeployResponse {
     pub source_commit: String,
     pub build_descriptor_hash: String,
     pub strategy: String,
+    pub runtime_env: Vec<RuntimeEnvSummary>,
     pub warnings: Vec<String>,
+}
+
+struct ResolvedRuntimeEnv {
+    name: String,
+    value: String,
+    source: RuntimeEnvSourceKind,
+}
+
+struct HostDockerStartRequest<'a> {
+    image: &'a str,
+    container_port: u16,
+    host_port: u16,
+    route_id: &'a str,
+    port_lease_id: &'a str,
+    project_id: &'a str,
+    build_id: &'a str,
+    source_commit: &'a str,
+    env: &'a [ResolvedRuntimeEnv],
+}
+
+#[derive(Debug, Clone)]
+struct HostDockerStartedContainer {
+    container_id: String,
+    container_name: Option<String>,
+}
+
+impl fmt::Debug for ResolvedRuntimeEnv {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ResolvedRuntimeEnv")
+            .field("name", &self.name)
+            .field("source", &self.source)
+            .field("value", &"<redacted>")
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -740,6 +825,14 @@ where
         .clone()
         .unwrap_or_else(|| "Dockerfile".to_string());
     let build_descriptor_hash = build_deploy_descriptor_hash(&request, &build_id, &source_commit);
+    let resolved_env = resolve_runtime_env(state, &request).await?;
+    let env_summary = resolved_env
+        .iter()
+        .map(|env| RuntimeEnvSummary {
+            name: env.name.clone(),
+            source: env.source,
+        })
+        .collect::<Vec<_>>();
     let workspace_dir = ygg_core::paths::project_workspace_dir(&request.project_id)?;
     let context = ProtocolContext::host_dev("host_build_deploy");
     let build_output = invoke_docker_runtime_lab(
@@ -761,11 +854,18 @@ where
     .context("docker image build failed")?;
     let image = require_built_image(&build_output)?;
 
-    let deploy = deploy_built_image(state, &request, &image)
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!("built image was not garbage-collected after deploy failure: {error}")
-        })?;
+    let deploy = deploy_built_image(
+        state,
+        &request,
+        &image,
+        &build_id,
+        &source_commit,
+        &resolved_env,
+    )
+    .await
+    .map_err(|error| {
+        anyhow::anyhow!("built image was not garbage-collected after deploy failure: {error}")
+    })?;
 
     Ok(HostBuildDeployResponse {
         route_id: deploy.route_id,
@@ -778,6 +878,7 @@ where
         source_commit,
         build_descriptor_hash,
         strategy,
+        runtime_env: env_summary,
         warnings: Vec::new(),
     })
 }
@@ -910,10 +1011,97 @@ where
         .map_err(protocol_error_to_anyhow)
 }
 
+async fn start_build_deploy_container(
+    request: HostDockerStartRequest<'_>,
+) -> anyhow::Result<HostDockerStartedContainer> {
+    let docker = Docker::connect_with_local_defaults()
+        .or_else(|_| Docker::connect_with_defaults())
+        .context("docker connection unavailable")?;
+    docker.ping().await.context("docker daemon unavailable")?;
+    let container_port_key = format!("{}/tcp", request.container_port);
+    let mut port_bindings: PortMap = HashMap::new();
+    port_bindings.insert(
+        container_port_key.clone(),
+        Some(vec![PortBinding {
+            host_ip: Some("127.0.0.1".to_string()),
+            host_port: Some(request.host_port.to_string()),
+        }]),
+    );
+    let labels = HashMap::from([
+        ("managed-by".to_string(), "yggdrasil".to_string()),
+        (
+            "yggdrasil.package_id".to_string(),
+            DOCKER_RUNTIME_PACKAGE_ID.to_string(),
+        ),
+        (
+            "yggdrasil.route_id".to_string(),
+            request.route_id.to_string(),
+        ),
+        (
+            "yggdrasil.port_lease_id".to_string(),
+            request.port_lease_id.to_string(),
+        ),
+        (
+            "yggdrasil.project_id".to_string(),
+            request.project_id.to_string(),
+        ),
+        (
+            "yggdrasil.build_id".to_string(),
+            request.build_id.to_string(),
+        ),
+        (
+            "yggdrasil.source_commit".to_string(),
+            request.source_commit.to_string(),
+        ),
+    ]);
+    let env = request
+        .env
+        .iter()
+        .map(|entry| format!("{}={}", entry.name, entry.value))
+        .collect::<Vec<_>>();
+    let config = ContainerCreateBody {
+        image: Some(request.image.to_string()),
+        labels: Some(labels),
+        exposed_ports: Some(vec![container_port_key]),
+        env: (!env.is_empty()).then_some(env),
+        host_config: Some(HostConfig {
+            network_mode: Some("bridge".to_string()),
+            port_bindings: Some(port_bindings),
+            publish_all_ports: Some(false),
+            privileged: Some(false),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let container_name = format!(
+        "ygg-build-deploy-{}-{}",
+        sanitize_container_name(request.route_id),
+        request.host_port
+    );
+    let options = CreateContainerOptionsBuilder::default()
+        .name(&container_name)
+        .build();
+    let created = docker
+        .create_container(Some(options), config)
+        .await
+        .context("docker create failed")?;
+    docker
+        .start_container(&created.id, None)
+        .await
+        .context("docker start failed")?;
+    Ok(HostDockerStartedContainer {
+        container_id: created.id,
+        container_name: Some(container_name),
+    })
+}
+
 async fn deploy_built_image<S>(
     state: &AppState<S>,
     request: &HostBuildDeployRequest,
     image: &str,
+    build_id: &str,
+    source_commit: &str,
+    env: &[ResolvedRuntimeEnv],
 ) -> anyhow::Result<DeployBuiltImageResponse>
 where
     S: EventStore,
@@ -939,23 +1127,20 @@ where
     let lease_id = required_string(&lease, "id", "port lease")?;
     let lease_port = required_u16(&lease, "port", "port lease")?;
 
-    let start_output = match invoke_docker_runtime_lab(
-        state,
-        &context,
-        "official/docker-runtime-lab/start_container",
-        serde_json::json!({
-            "image": image,
-            "container_port": request.container_port,
-            "host_port": lease_port,
-            "route_id": &request.route_id,
-            "port_lease_id": &lease_id,
-            "approved": true,
-            "pull_if_missing": false,
-        }),
-    )
+    let started = match start_build_deploy_container(HostDockerStartRequest {
+        image,
+        container_port: request.container_port,
+        host_port: lease_port,
+        route_id: &request.route_id,
+        port_lease_id: &lease_id,
+        project_id: request.project_id.as_str(),
+        build_id,
+        source_commit,
+        env,
+    })
     .await
     {
-        Ok(output) => output,
+        Ok(started) => started,
         Err(error) => {
             rollback_deploy(
                 state,
@@ -966,26 +1151,14 @@ where
                 Some(&lease_id),
             )
             .await;
-            return Err(anyhow::anyhow!("docker container start failed: {error}"));
+            return Err(anyhow::anyhow!(
+                "host docker container start failed: {error}"
+            ));
         }
     };
-    let parsed_container_id = match require_started_container(&start_output) {
-        Ok(container_id) => container_id,
-        Err(error) => {
-            rollback_deploy(
-                state,
-                &context,
-                &request.route_id,
-                false,
-                container_id.as_deref(),
-                Some(&lease_id),
-            )
-            .await;
-            return Err(error);
-        }
-    };
+    let parsed_container_id = started.container_id.clone();
     container_id = Some(parsed_container_id.clone());
-    let container_name = optional_string(&start_output, "container_name");
+    let container_name = started.container_name.clone();
 
     let route = match call_host_protocol(
         state,
@@ -1668,6 +1841,7 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
     if let Some(dockerfile) = request.dockerfile.as_deref() {
         validate_relative_dockerfile(dockerfile)?;
     }
+    validate_runtime_env_specs(&request.runtime_env)?;
     validate_host_deploy_request(&HostDeployRequest {
         image: "yggdrasil/placeholder:build".to_string(),
         container_port: request.container_port,
@@ -1677,6 +1851,100 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
         pull_if_missing: false,
     })?;
     Ok(())
+}
+
+fn validate_runtime_env_specs(specs: &[RuntimeEnvSpec]) -> anyhow::Result<()> {
+    if specs.len() > MAX_RUNTIME_ENV_ENTRIES {
+        anyhow::bail!("runtime_env may contain at most {MAX_RUNTIME_ENV_ENTRIES} entries");
+    }
+    let mut seen = HashSet::new();
+    let mut total = 0usize;
+    for spec in specs {
+        validate_env_name(&spec.name)?;
+        if !seen.insert(spec.name.as_str()) {
+            anyhow::bail!("duplicate runtime_env name");
+        }
+        let has_value = spec.value.is_some();
+        let has_secret_ref = spec.secret_ref.is_some();
+        if has_value == has_secret_ref {
+            anyhow::bail!("runtime_env entry must contain exactly one of value or secret_ref");
+        }
+        if let Some(value) = spec.value.as_deref() {
+            if value.contains('\0') {
+                anyhow::bail!("runtime_env values must not contain NUL bytes");
+            }
+            if value.len() > MAX_RUNTIME_ENV_VALUE_LEN {
+                anyhow::bail!("runtime_env value is too large");
+            }
+            total = total
+                .saturating_add(spec.name.len())
+                .saturating_add(value.len());
+        }
+        if let Some(secret_ref) = spec.secret_ref.as_deref() {
+            if secret_ref.is_empty()
+                || secret_ref.contains('\0')
+                || !ygg_core::SecretRef::is_valid_ref(secret_ref)
+            {
+                anyhow::bail!("runtime_env secret_ref is invalid");
+            }
+            total = total
+                .saturating_add(spec.name.len())
+                .saturating_add(secret_ref.len());
+        }
+        if total > MAX_RUNTIME_ENV_TOTAL_BYTES {
+            anyhow::bail!("runtime_env total size is too large");
+        }
+    }
+    Ok(())
+}
+
+fn validate_env_name(name: &str) -> anyhow::Result<()> {
+    if name.is_empty() || name.len() > 128 || name.contains('\0') {
+        anyhow::bail!("runtime_env name is invalid");
+    }
+    let mut chars = name.chars();
+    let first = chars.next().unwrap();
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        anyhow::bail!("runtime_env name is invalid");
+    }
+    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        anyhow::bail!("runtime_env name is invalid");
+    }
+    Ok(())
+}
+
+async fn resolve_runtime_env<S>(
+    state: &AppState<S>,
+    request: &HostBuildDeployRequest,
+) -> anyhow::Result<Vec<ResolvedRuntimeEnv>>
+where
+    S: EventStore,
+{
+    let mut resolved = Vec::with_capacity(request.runtime_env.len());
+    for spec in &request.runtime_env {
+        if let Some(value) = spec.value.as_deref() {
+            resolved.push(ResolvedRuntimeEnv {
+                name: spec.name.clone(),
+                value: value.to_string(),
+                source: RuntimeEnvSourceKind::Plain,
+            });
+        } else if let Some(secret_ref) = spec.secret_ref.as_deref() {
+            let value = state
+                .runtime
+                .resolve_secret_ref_for_project(secret_ref, &request.project_id)
+                .await
+                .map_err(|_| anyhow::anyhow!("runtime_env secret_ref could not be resolved"))?;
+            if value.contains('\0') || value.len() > MAX_RUNTIME_ENV_VALUE_LEN {
+                anyhow::bail!("runtime_env resolved secret value is invalid");
+            }
+            resolved.push(ResolvedRuntimeEnv {
+                name: spec.name.clone(),
+                value,
+                source: RuntimeEnvSourceKind::SecretRef,
+            });
+        }
+    }
+    Ok(resolved)
 }
 
 fn validate_build_id(build_id: &str) -> anyhow::Result<()> {
@@ -1711,6 +1979,25 @@ fn is_full_git_sha(value: &str) -> bool {
     value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+fn sanitize_container_name(value: &str) -> String {
+    let mut out = String::new();
+    for c in value.chars() {
+        if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push('-');
+        }
+        if out.len() >= 64 {
+            break;
+        }
+    }
+    if out.is_empty() {
+        "container".to_string()
+    } else {
+        out
+    }
+}
+
 fn generated_build_id(source_commit: &str) -> String {
     let prefix: String = source_commit.chars().take(12).collect();
     format!("build-{prefix}")
@@ -1734,6 +2021,10 @@ fn build_deploy_descriptor_hash(
         "health_path": request.health_path,
         "build_id": build_id,
         "source_commit": source_commit,
+        "runtime_env": request.runtime_env.iter().map(|env| serde_json::json!({
+            "name": env.name,
+            "source": if env.secret_ref.is_some() { "secret_ref" } else { "plain" },
+        })).collect::<Vec<_>>(),
     });
     let bytes = serde_json::to_vec(&canonical).expect("build descriptor serializes");
     let digest = Sha256::digest(bytes);
@@ -2745,6 +3036,7 @@ mod tests {
             approved: true,
             source_commit: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
             build_id: Some("build-001".to_string()),
+            runtime_env: Vec::new(),
         }
     }
 
@@ -2775,6 +3067,94 @@ mod tests {
         let mut request = valid_build_deploy_request();
         request.strategy = Some("nixpacks".to_string());
         assert!(validate_host_build_deploy_request(&request).is_ok());
+    }
+
+    #[test]
+    fn build_deploy_runtime_env_validation_rejects_bad_specs() {
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![RuntimeEnvSpec {
+            name: "GOOD_NAME".to_string(),
+            value: Some("ok".to_string()),
+            secret_ref: None,
+        }];
+        assert!(validate_host_build_deploy_request(&request).is_ok());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![RuntimeEnvSpec {
+            name: "1BAD".to_string(),
+            value: Some("ok".to_string()),
+            secret_ref: None,
+        }];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![
+            RuntimeEnvSpec {
+                name: "DUP".to_string(),
+                value: Some("one".to_string()),
+                secret_ref: None,
+            },
+            RuntimeEnvSpec {
+                name: "DUP".to_string(),
+                value: Some("two".to_string()),
+                secret_ref: None,
+            },
+        ];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![RuntimeEnvSpec {
+            name: "BOTH".to_string(),
+            value: Some("plain".to_string()),
+            secret_ref: Some("secret_ref:env:KEY".to_string()),
+        }];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![RuntimeEnvSpec {
+            name: "NEITHER".to_string(),
+            value: None,
+            secret_ref: None,
+        }];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![RuntimeEnvSpec {
+            name: "NUL".to_string(),
+            value: Some("bad\0value".to_string()),
+            secret_ref: None,
+        }];
+        assert!(validate_host_build_deploy_request(&request).is_err());
+
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = (0..=MAX_RUNTIME_ENV_ENTRIES)
+            .map(|idx| RuntimeEnvSpec {
+                name: format!("ENV_{idx}"),
+                value: Some("x".to_string()),
+                secret_ref: None,
+            })
+            .collect();
+        assert!(validate_host_build_deploy_request(&request).is_err());
+    }
+
+    #[test]
+    fn resolved_runtime_env_debug_redacts_values_and_response_has_names_only() {
+        let resolved = ResolvedRuntimeEnv {
+            name: "TOKEN".to_string(),
+            value: "super-secret-value".to_string(),
+            source: RuntimeEnvSourceKind::SecretRef,
+        };
+        let debug = format!("{resolved:?}");
+        assert!(debug.contains("<redacted>"));
+        assert!(!debug.contains("super-secret-value"));
+
+        let summary = RuntimeEnvSummary {
+            name: resolved.name,
+            source: resolved.source,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("TOKEN"));
+        assert!(!json.contains("super-secret-value"));
     }
 
     #[test]

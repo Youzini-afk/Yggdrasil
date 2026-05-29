@@ -8,6 +8,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+bollard = "0.21"
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
