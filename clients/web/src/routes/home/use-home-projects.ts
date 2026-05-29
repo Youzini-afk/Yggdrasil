@@ -32,6 +32,10 @@ export function useHomeProjects({
     () => client.listEvents(TIMELINE_SESSION).catch<KernelEvent[]>(() => []),
     [client],
   );
+  // Deployment runtime records currently expose target/exec/port/proxy state
+  // without a stable project_id/metadata link, so Home stays card-first and
+  // does not guess per-project metricsLine values. ProjectFrame is the source
+  // of truth for read-only deployment diagnostics.
   const { list: recentList } = useRecentlyOpened();
 
   const projectList = projects.data ?? [];

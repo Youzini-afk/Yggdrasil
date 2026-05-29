@@ -162,6 +162,42 @@ globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
 
+  if (body?.method === "kernel.v1.target.list") {
+    return Response.json({ id: body.id, result: [] });
+  }
+
+  if (body?.method === "kernel.v1.target.status") {
+    return Response.json({ id: body.id, result: { id: body.params.target_id, name: "Local", reachability: "local_host", status: "available" } });
+  }
+
+  if (body?.method === "kernel.v1.exec.list") {
+    return Response.json({ id: body.id, result: { executions: [] } });
+  }
+
+  if (body?.method === "kernel.v1.exec.status") {
+    return Response.json({ id: body.id, result: { status: { exec_id: body.params.exec_id, target_id: "local", kind: "running", ready: true } } });
+  }
+
+  if (body?.method === "kernel.v1.exec.logs") {
+    return Response.json({ id: body.id, result: { exec_id: body.params.exec_id, lines: [] } });
+  }
+
+  if (body?.method === "kernel.v1.port.list") {
+    return Response.json({ id: body.id, result: [] });
+  }
+
+  if (body?.method === "kernel.v1.port.status") {
+    return Response.json({ id: body.id, result: { id: body.params.lease_id, target_id: "local", port_name: "web", host: "127.0.0.1", port: 3000, protocol: "tcp", status: "active" } });
+  }
+
+  if (body?.method === "kernel.v1.proxy.list") {
+    return Response.json({ id: body.id, result: [] });
+  }
+
+  if (body?.method === "kernel.v1.proxy.status") {
+    return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", upstream: { port_lease_id: "lease-1", port_name: "web" } } });
+  }
+
   throw new Error(`unexpected method ${body?.method}`);
 }) as typeof fetch;
 
@@ -208,6 +244,30 @@ assertDeepEqual(updateInvoke.params?.input, {
   profile: "default",
   force: false,
 });
+
+capturedRequests.length = 0;
+const protocolClient = new YggProtocolClient("http://host.test", "valid-token");
+await protocolClient.listTargets();
+await protocolClient.targetStatus("local");
+await protocolClient.listExecs();
+await protocolClient.execStatus("exec-1");
+await protocolClient.execLogs("exec-1", 80);
+await protocolClient.listPortLeases();
+await protocolClient.portStatus("lease-1");
+await protocolClient.listProxyRoutes();
+await protocolClient.proxyStatus("route-1");
+assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
+  "kernel.v1.target.list",
+  "kernel.v1.target.status",
+  "kernel.v1.exec.list",
+  "kernel.v1.exec.status",
+  "kernel.v1.exec.logs",
+  "kernel.v1.port.list",
+  "kernel.v1.port.status",
+  "kernel.v1.proxy.list",
+  "kernel.v1.proxy.status",
+]);
+assertDeepEqual((capturedRequests[4] as { params?: Record<string, unknown> }).params, { exec_id: "exec-1", limit: 80 });
 
 globalThis.fetch = originalFetch;
 Object.defineProperty(globalThis, "crypto", {

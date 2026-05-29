@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowsClockwise, BookOpenText, StopCircle } from "@/components/icons";
+import { ArrowLeft, ArrowsClockwise, BookOpenText, Copy, LinkSimple, StopCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { StatusPill, projectStateTone } from "@/components/ui/status-pill";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -11,7 +11,18 @@ import { openProjectInTab } from "@/lib/project-launcher";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle, type ResolvedSurfaceBundle } from "@/surfaces/bundle-resolver";
 import { formatBytes } from "@/lib/format";
-import type { KernelEvent, PackageRecord, ProjectRecord, SurfaceContributionRecord, UpdateCheckResult } from "@/protocol/client";
+import type {
+  ExecStatus,
+  ExecutionTarget,
+  KernelEvent,
+  LocalExecLogLine,
+  PackageRecord,
+  PortLeaseRecord,
+  ProjectRecord,
+  ProxyRouteRecord,
+  SurfaceContributionRecord,
+  UpdateCheckResult,
+} from "@/protocol/client";
 
 const FRAME_CONTAINER_ID = "ygg-project-frame";
 const UPDATE_AVAILABLE_STATUSES = new Set(["available", "update_available", "repair_required"]);
@@ -20,6 +31,10 @@ interface ProjectDiagnostics {
   bundle?: ResolvedSurfaceBundle;
   packages: PackageRecord[];
   events: KernelEvent[];
+  targets: ExecutionTarget[];
+  executions: ExecStatus[];
+  portLeases: PortLeaseRecord[];
+  proxyRoutes: ProxyRouteRecord[];
   updates?: UpdateCheckResult;
   errors: string[];
   refreshedAt: string;
@@ -32,6 +47,11 @@ interface ConsoleSummary {
   recentEvents: number;
   updateAvailable: number;
   updateChecked: boolean;
+  targetTotal: number;
+  execTotal: number;
+  execRunning: number;
+  portActive: number;
+  proxyActive: number;
 }
 
 export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: string; chrome?: "shell" | "none" }) {
@@ -102,6 +122,10 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
             bundle,
             packages: current?.packages ?? [],
             events: current?.events ?? [],
+            targets: current?.targets ?? [],
+            executions: current?.executions ?? [],
+            portLeases: current?.portLeases ?? [],
+            proxyRoutes: current?.proxyRoutes ?? [],
             updates: current?.updates,
             errors: current?.errors ?? [],
             refreshedAt: current?.refreshedAt ?? new Date().toISOString(),
@@ -245,23 +269,35 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     const sessionId = latestProject?.running_session_id ?? currentProject?.running_session_id;
     const declaredPackageRefs = latestProject?.packages ?? currentProject?.packages ?? [];
 
-    const [bundleResult, packageListResult, eventResult, updateResult] = await Promise.allSettled([
+    const [bundleResult, packageListResult, eventResult, updateResult, targetResult, execResult, portResult, proxyResult] = await Promise.allSettled([
       entrySurfaceId ? resolveSurfaceBundle(client, entrySurfaceId) : Promise.resolve(undefined),
       client.packages(),
       sessionId ? client.listEvents(sessionId) : Promise.resolve([]),
       client.checkProjectUpdates(projectId),
+      client.listTargets(),
+      client.listExecs(),
+      client.listPortLeases(),
+      client.listProxyRoutes(),
     ]);
 
     const bundle = unwrapSettled(bundleResult, errors);
     const packageList = unwrapSettled(packageListResult, errors) ?? [];
     const events = unwrapSettled(eventResult, errors) ?? [];
     const updates = unwrapSettled(updateResult, errors);
+    const targets = unwrapSettled(targetResult, errors) ?? [];
+    const executions = unwrapSettled(execResult, errors)?.executions ?? [];
+    const portLeases = unwrapSettled(portResult, errors) ?? [];
+    const proxyRoutes = unwrapSettled(proxyResult, errors) ?? [];
     const projectPackages = filterProjectPackages(packageList, declaredPackageRefs, projectId, updates?.results ?? []);
 
     setDiagnostics({
       bundle,
       packages: projectPackages,
       events: [...events].slice(-8).reverse(),
+      targets,
+      executions,
+      portLeases,
+      proxyRoutes,
       updates,
       errors,
       refreshedAt: new Date().toISOString(),
@@ -432,6 +468,9 @@ export function allowedSurfaceCapabilityIdsForTest(record: SurfaceContributionRe
 export function summarizeConsoleDiagnostics(diagnostics: ProjectDiagnostics | null): ConsoleSummary {
   const packages = diagnostics?.packages ?? [];
   const updateResults = diagnostics?.updates?.results ?? [];
+  const executions = diagnostics?.executions ?? [];
+  const portLeases = diagnostics?.portLeases ?? [];
+  const proxyRoutes = diagnostics?.proxyRoutes ?? [];
   return {
     packageTotal: packages.length,
     packageHealthy: packages.filter((pkg) => pkg.state === "ready" || pkg.state === "running").length,
@@ -439,6 +478,11 @@ export function summarizeConsoleDiagnostics(diagnostics: ProjectDiagnostics | nu
     recentEvents: diagnostics?.events.length ?? 0,
     updateAvailable: updateResults.filter((record) => record.available || UPDATE_AVAILABLE_STATUSES.has(record.status ?? "")).length,
     updateChecked: Boolean(diagnostics?.updates),
+    targetTotal: diagnostics?.targets.length ?? 0,
+    execTotal: executions.length,
+    execRunning: executions.filter((execution) => execution.kind === "running").length,
+    portActive: portLeases.filter((lease) => lease.status === "active").length,
+    proxyActive: proxyRoutes.filter((route) => route.status === "active").length,
   };
 }
 
@@ -483,6 +527,14 @@ function ProjectConsole({
     [t("projectFrameSession"), project?.running_session_id ? t("projectFrameActiveSession") : "—"],
     [t("projectFrameStorage"), project?.storage_summary ? formatBytes(project.storage_summary.total_bytes ?? undefined) : "—"],
   ];
+  const deploymentSummary = t(
+    "projectFrameDeploymentSummary",
+    summary.targetTotal,
+    summary.execTotal,
+    summary.execRunning,
+    summary.portActive,
+    summary.proxyActive,
+  );
 
   if (loading && !diagnostics) return <ProjectConsoleSkeleton />;
 
@@ -507,7 +559,7 @@ function ProjectConsole({
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard label={t("projectFramePackages") } value={t("projectFramePackageHealth", summary.packageHealthy, summary.packageTotal)} warn={summary.packageProblem > 0} />
           <MetricCard label={t("projectFrameUpdates") } value={updateStatus} warn={summary.updateAvailable > 0} />
-          <MetricCard label={t("projectFrameActivity") } value={t("projectFrameRecentEvents", summary.recentEvents)} />
+          <MetricCard label={t("projectFrameDeploymentMetric") } value={deploymentSummary} warn={summary.execRunning === 0 && summary.execTotal > 0} />
         </div>
 
         <dl className="mt-5 grid gap-3 text-[12px] sm:grid-cols-2 xl:grid-cols-4">
@@ -538,6 +590,10 @@ function ProjectConsole({
           </div>
         </ConsoleSection>
       </div>
+
+      <ConsoleSection title={t("projectFrameDeploymentSection")} description={t("projectFrameDeploymentDescription")}>
+        <DeploymentDiagnostics diagnostics={diagnostics} />
+      </ConsoleSection>
 
       <ConsoleSection title={t("projectFramePackagesSection")} description={t("projectFramePackagesDescription")}>
         {diagnostics?.packages.length ? (
@@ -591,6 +647,7 @@ function ProjectConsoleSkeleton() {
         <div className="h-56 rounded-[20px] border border-whisper-border bg-pure-surface shadow-card" />
         <div className="h-56 rounded-[20px] border border-whisper-border bg-pure-surface shadow-card" />
       </div>
+      <div className="h-72 rounded-[20px] border border-whisper-border bg-pure-surface shadow-card" />
       <div className="h-64 rounded-[20px] border border-whisper-border bg-pure-surface shadow-card" />
     </div>
   );
@@ -602,6 +659,196 @@ function ConsoleSection({ title, description, children }: { title: string; descr
 
 function KeyValue({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-[12px] border border-whisper-border bg-warm-bone p-3"><dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{label}</dt><dd className="mt-1 truncate font-mono text-[12px] text-charcoal-ink" title={value}>{value}</dd></div>;
+}
+
+function DeploymentDiagnostics({ diagnostics }: { diagnostics: ProjectDiagnostics | null }) {
+  const t = useT();
+  const [tab, setTab] = useState<"exec" | "ports" | "proxy">("exec");
+  const tabs = [
+    { id: "exec" as const, label: t("projectFrameDeploymentExecutions"), count: diagnostics?.executions.length ?? 0 },
+    { id: "ports" as const, label: t("projectFrameDeploymentPortLeases"), count: diagnostics?.portLeases.length ?? 0 },
+    { id: "proxy" as const, label: t("projectFrameDeploymentProxyRoutes"), count: diagnostics?.proxyRoutes.length ?? 0 },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setTab(item.id)}
+            className={item.id === tab
+              ? "rounded-full bg-charcoal-ink px-3 py-1.5 text-[12px] font-semibold text-pure-surface"
+              : "rounded-full border border-whisper-border bg-warm-bone px-3 py-1.5 text-[12px] font-semibold text-steel-secondary hover:text-charcoal-ink"}
+          >
+            {item.label} · {item.count}
+          </button>
+        ))}
+      </div>
+      {tab === "exec" ? <ExecutionDiagnostics executions={diagnostics?.executions ?? []} /> : null}
+      {tab === "ports" ? <PortLeaseDiagnostics leases={diagnostics?.portLeases ?? []} /> : null}
+      {tab === "proxy" ? <ProxyRouteDiagnostics routes={diagnostics?.proxyRoutes ?? []} /> : null}
+    </div>
+  );
+}
+
+function ExecutionDiagnostics({ executions }: { executions: ExecStatus[] }) {
+  const t = useT();
+  const client = useKernel();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [logs, setLogs] = useState<Record<string, { loading: boolean; lines: LocalExecLogLine[]; error?: string }>>({});
+
+  const toggleLogs = useCallback((execId: string) => {
+    setExpanded((current) => current === execId ? null : execId);
+    if (logs[execId]) return;
+    setLogs((current) => ({ ...current, [execId]: { loading: true, lines: [] } }));
+    client.execLogs(execId, 80)
+      .then((result) => {
+        setLogs((current) => ({ ...current, [execId]: { loading: false, lines: result.lines ?? [], error: result.error ?? undefined } }));
+      })
+      .catch((err: unknown) => {
+        setLogs((current) => ({ ...current, [execId]: { loading: false, lines: [], error: errorMessage(err) } }));
+      });
+  }, [client, logs]);
+
+  if (executions.length === 0) return <QuietEmpty>{t("projectFrameDeploymentEmpty")}</QuietEmpty>;
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {executions.map((execution, index) => {
+        const execId = execution.exec_id ?? `${execution.target_id ?? "exec"}-${index}`;
+        const logState = logs[execId];
+        return (
+          <div key={execId} className="min-w-0 rounded-[14px] border border-whisper-border bg-warm-bone p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[12px] text-charcoal-ink" title={execId}>{execId}</p>
+                <p className="mt-1 truncate font-mono text-[11px] text-muted-tone" title={execution.target_id ?? undefined}>{execution.target_id ?? "—"}</p>
+              </div>
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-whisper-border bg-pure-surface px-2 py-1 text-[11px] text-steel-secondary">
+                <span className={execution.ready ? "size-2 rounded-full bg-aged-brass" : "size-2 rounded-full bg-muted-tone"} />
+                {execution.kind}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 text-[12px] sm:grid-cols-2">
+              <TinyValue label={t("projectFrameDeploymentReady")} value={execution.ready ? t("projectFrameStatusReady") : t("projectFrameStatusNotReady")} />
+              <TinyValue label={t("projectFrameDeploymentExitCode")} value={execution.exit_code === null || execution.exit_code === undefined ? "—" : String(execution.exit_code)} />
+            </div>
+            {execution.message ? <p className="mt-2 rounded-[10px] bg-pure-surface p-2 text-[12px] text-steel-secondary">{execution.message}</p> : null}
+            {execution.exec_id ? (
+              <Button tone="tertiary" size="sm" onClick={() => toggleLogs(execution.exec_id ?? execId)} className="mt-3">
+                {expanded === execId ? t("projectFrameHideLogs") : t("projectFrameShowLogs")}
+              </Button>
+            ) : null}
+            {expanded === execId ? (
+              <pre className="mt-3 max-h-52 overflow-auto rounded-[10px] bg-charcoal-ink p-3 font-mono text-[11px] leading-relaxed text-pure-surface">
+                {logState?.loading
+                  ? t("projectFrameLogsLoading")
+                  : logState?.error
+                    ? logState.error
+                    : logState?.lines.length
+                      ? logState.lines.map((line) => `${line.seq} ${line.stream}: ${line.message_redacted}`).join("\n")
+                      : t("projectFrameNoLogs")}
+              </pre>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PortLeaseDiagnostics({ leases }: { leases: PortLeaseRecord[] }) {
+  const t = useT();
+  if (leases.length === 0) return <QuietEmpty>{t("projectFrameDeploymentEmpty")}</QuietEmpty>;
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {leases.map((lease) => {
+        const address = `${lease.host}:${lease.port}`;
+        return (
+          <div key={lease.id} className="min-w-0 rounded-[14px] border border-whisper-border bg-warm-bone p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[12px] text-charcoal-ink" title={lease.id}>{lease.id}</p>
+                <p className="mt-1 truncate font-mono text-[11px] text-muted-tone">{lease.port_name} · {lease.protocol}</p>
+              </div>
+              <StatusPill tone={lease.status === "active" ? "running" : "neutral"} label={lease.status} />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-[10px] bg-pure-surface p-2">
+              <span className="truncate font-mono text-[12px] text-charcoal-ink" title={address}>{address}</span>
+              <CopyButton value={address} label={t("projectFrameCopyAddress")} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProxyRouteDiagnostics({ routes }: { routes: ProxyRouteRecord[] }) {
+  const t = useT();
+  if (routes.length === 0) return <QuietEmpty>{t("projectFrameDeploymentEmpty")}</QuietEmpty>;
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {routes.map((route) => {
+        const safePublic = safeHttpUrl(route.public_url);
+        const safeIframe = safeHttpUrl(route.iframe_url);
+        return (
+          <div key={route.id} className="min-w-0 rounded-[14px] border border-whisper-border bg-warm-bone p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[12px] text-charcoal-ink" title={route.id}>{route.id}</p>
+                <p className="mt-1 truncate font-mono text-[11px] text-muted-tone">{route.protocol} · {route.upstream.port_name}</p>
+              </div>
+              <StatusPill tone={route.status === "active" ? "running" : "neutral"} label={route.status} />
+            </div>
+            <ProxyUrlRow label={t("projectFramePublicUrl")} value={route.public_url} safeUrl={safePublic} />
+            <ProxyUrlRow label={t("projectFrameIframeUrl")} value={route.iframe_url} safeUrl={safeIframe} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProxyUrlRow({ label, value, safeUrl }: { label: string; value: string; safeUrl?: string }) {
+  const t = useT();
+  return (
+    <div className="mt-3 rounded-[10px] bg-pure-surface p-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{label}</p>
+      <div className="mt-1 flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-charcoal-ink" title={value}>{value || "—"}</span>
+        {value ? <CopyButton value={value} label={t("projectFrameCopyUrl")} /> : null}
+        {safeUrl ? (
+          <a className="rounded-full p-1.5 text-steel-secondary hover:bg-warm-bone hover:text-charcoal-ink" href={safeUrl} target="_blank" rel="noreferrer" aria-label={t("projectFrameOpenUrl")}>
+            <LinkSimple size={14} />
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  return (
+    <button
+      type="button"
+      className="rounded-full p-1.5 text-steel-secondary hover:bg-warm-bone hover:text-charcoal-ink"
+      aria-label={label}
+      onClick={() => void navigator.clipboard?.writeText(value)}
+    >
+      <Copy size={14} />
+    </button>
+  );
+}
+
+function TinyValue({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0 rounded-[10px] bg-pure-surface p-2"><p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{label}</p><p className="mt-1 truncate font-mono text-[12px] text-charcoal-ink" title={value}>{value}</p></div>;
+}
+
+function QuietEmpty({ children }: { children: ReactNode }) {
+  return <p className="text-[13px] text-steel-secondary">{children}</p>;
 }
 
 function PackageDiagnosticCard({ pkg }: { pkg: PackageRecord }) {
@@ -641,6 +888,16 @@ function fingerprintFromUrl(bundleUrl?: string): string | undefined {
   try {
     const url = new URL(bundleUrl, typeof window === "undefined" ? "http://localhost" : window.location.origin);
     return url.searchParams.get("v") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function safeHttpUrl(value?: string): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value, typeof window === "undefined" ? "http://localhost" : window.location.origin);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
   } catch {
     return undefined;
   }

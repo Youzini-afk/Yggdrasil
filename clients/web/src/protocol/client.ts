@@ -345,6 +345,68 @@ export interface ProjectRecord {
   packages?: string[];
 }
 
+export interface ExecutionTarget {
+  id: string;
+  name: string;
+  reachability: "local_host" | string;
+  status: "available" | "unavailable" | string;
+  capabilities?: Array<"local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream" | string>;
+}
+
+export interface ExecStatus {
+  exec_id?: string | null;
+  target_id?: string | null;
+  kind: "pending" | "running" | "stopped" | "exited" | "failed" | "denied" | "unknown" | string;
+  ready: boolean;
+  exit_code?: number | null;
+  message?: string | null;
+}
+
+export interface LocalExecListResponse {
+  executions: ExecStatus[];
+}
+
+export interface LocalExecStatusResponse {
+  status: ExecStatus;
+  error?: string | null;
+}
+
+export interface LocalExecLogLine {
+  seq: number;
+  stream: "stdout" | "stderr" | "system" | string;
+  message_redacted: string;
+}
+
+export interface LocalExecLogsResponse {
+  exec_id: string;
+  lines: LocalExecLogLine[];
+  next_seq?: number | null;
+  error?: string | null;
+}
+
+export interface PortLeaseRecord {
+  id: string;
+  target_id: string;
+  port_name: string;
+  host: string;
+  port: number;
+  protocol: "tcp" | "udp" | string;
+  status: "active" | "released" | string;
+  bind?: "loopback_only" | string;
+}
+
+export interface ProxyRouteRecord {
+  id: string;
+  protocol: "http" | "websocket" | string;
+  public_url: string;
+  iframe_url: string;
+  status: "active" | "removed" | string;
+  upstream: {
+    port_lease_id: string;
+    port_name: string;
+  };
+}
+
 export class YggProtocolClient {
   private readonly accessToken?: string;
 
@@ -394,6 +456,42 @@ export class YggProtocolClient {
 
   diagnostics() {
     return this.call<Record<string, unknown>>("kernel.v1.host.diagnostics");
+  }
+
+  listTargets() {
+    return this.call<ExecutionTarget[]>("kernel.v1.target.list");
+  }
+
+  targetStatus(targetId: string) {
+    return this.call<ExecutionTarget>("kernel.v1.target.status", { target_id: targetId });
+  }
+
+  listExecs() {
+    return this.call<LocalExecListResponse>("kernel.v1.exec.list");
+  }
+
+  execStatus(execId: string) {
+    return this.call<LocalExecStatusResponse>("kernel.v1.exec.status", { exec_id: execId });
+  }
+
+  execLogs(execId: string, limit = 80) {
+    return this.call<LocalExecLogsResponse>("kernel.v1.exec.logs", { exec_id: execId, limit });
+  }
+
+  listPortLeases() {
+    return this.call<PortLeaseRecord[]>("kernel.v1.port.list");
+  }
+
+  portStatus(leaseId: string) {
+    return this.call<PortLeaseRecord>("kernel.v1.port.status", { lease_id: leaseId });
+  }
+
+  listProxyRoutes() {
+    return this.call<ProxyRouteRecord[]>("kernel.v1.proxy.list");
+  }
+
+  proxyStatus(routeId: string) {
+    return this.call<ProxyRouteRecord>("kernel.v1.proxy.status", { route_id: routeId });
   }
 
   assets() {

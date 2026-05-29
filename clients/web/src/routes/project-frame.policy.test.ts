@@ -95,6 +95,20 @@ assertDeepEqual(summarizeConsoleDiagnostics({
     ],
   },
   errors: [],
+  targets: [
+    { id: "local", name: "Local", reachability: "local_host", status: "available" },
+  ],
+  executions: [
+    { exec_id: "exec-1", target_id: "local", kind: "running", ready: true },
+    { exec_id: "exec-2", target_id: "local", kind: "exited", ready: false, exit_code: 0 },
+  ],
+  portLeases: [
+    { id: "lease-1", target_id: "local", port_name: "web", host: "127.0.0.1", port: 3000, protocol: "tcp", status: "active" },
+    { id: "lease-2", target_id: "local", port_name: "old", host: "127.0.0.1", port: 3001, protocol: "tcp", status: "released" },
+  ],
+  proxyRoutes: [
+    { id: "route-1", protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", upstream: { port_lease_id: "lease-1", port_name: "web" } },
+  ],
   refreshedAt: "now",
 }), {
   packageTotal: 2,
@@ -103,6 +117,11 @@ assertDeepEqual(summarizeConsoleDiagnostics({
   recentEvents: 1,
   updateAvailable: 1,
   updateChecked: true,
+  targetTotal: 1,
+  execTotal: 2,
+  execRunning: 1,
+  portActive: 1,
+  proxyActive: 1,
 });
 
 assertDeepEqual(summarizeConsoleDiagnostics(null), {
@@ -112,4 +131,9 @@ assertDeepEqual(summarizeConsoleDiagnostics(null), {
   recentEvents: 0,
   updateAvailable: 0,
   updateChecked: false,
+  targetTotal: 0,
+  execTotal: 0,
+  execRunning: 0,
+  portActive: 0,
+  proxyActive: 0,
 });

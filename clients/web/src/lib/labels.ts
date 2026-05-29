@@ -307,6 +307,8 @@ export interface LocaleDictionary {
   projectFrameUpdatesAvailable: (count: number) => string;
   projectFrameUpdatesCurrent: string;
   projectFrameUpdateUnavailable: string;
+  projectFrameDeploymentMetric: string;
+  projectFrameDeploymentSummary: (targets: number, executions: number, running: number, ports: number, proxies: number) => string;
   projectFrameProjectId: string;
   projectFrameProjectType: string;
   projectFrameSession: string;
@@ -331,6 +333,25 @@ export interface LocaleDictionary {
   projectFrameNoEvents: string;
   projectFrameNoSession: string;
   projectFrameDiagnosticsWarnings: string;
+  projectFrameDeploymentSection: string;
+  projectFrameDeploymentDescription: string;
+  projectFrameDeploymentExecutions: string;
+  projectFrameDeploymentPortLeases: string;
+  projectFrameDeploymentProxyRoutes: string;
+  projectFrameDeploymentEmpty: string;
+  projectFrameDeploymentReady: string;
+  projectFrameDeploymentExitCode: string;
+  projectFrameStatusReady: string;
+  projectFrameStatusNotReady: string;
+  projectFrameShowLogs: string;
+  projectFrameHideLogs: string;
+  projectFrameLogsLoading: string;
+  projectFrameNoLogs: string;
+  projectFrameCopyAddress: string;
+  projectFrameCopyUrl: string;
+  projectFrameOpenUrl: string;
+  projectFramePublicUrl: string;
+  projectFrameIframeUrl: string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -830,6 +851,9 @@ export const labels = {
     projectFrameUpdatesAvailable: (count) => `${count} update${count === 1 ? "" : "s"} available`,
     projectFrameUpdatesCurrent: "Up to date",
     projectFrameUpdateUnavailable: "Update check unavailable",
+    projectFrameDeploymentMetric: "Deployment",
+    projectFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
+      `${targets} targets · ${running}/${executions} exec running · ${ports} ports · ${proxies} proxies`,
     projectFrameProjectId: "Project ID",
     projectFrameProjectType: "Type",
     projectFrameSession: "Session",
@@ -854,6 +878,25 @@ export const labels = {
     projectFrameNoEvents: "No recent events for this session.",
     projectFrameNoSession: "No running session is available yet.",
     projectFrameDiagnosticsWarnings: "Diagnostic warnings",
+    projectFrameDeploymentSection: "Deployment",
+    projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
+    projectFrameDeploymentExecutions: "Executions",
+    projectFrameDeploymentPortLeases: "Port Leases",
+    projectFrameDeploymentProxyRoutes: "Proxy Routes",
+    projectFrameDeploymentEmpty: "No deployment records reported by the host.",
+    projectFrameDeploymentReady: "Ready",
+    projectFrameDeploymentExitCode: "Exit code",
+    projectFrameStatusReady: "Ready",
+    projectFrameStatusNotReady: "Not ready",
+    projectFrameShowLogs: "Show logs",
+    projectFrameHideLogs: "Hide logs",
+    projectFrameLogsLoading: "Loading logs…",
+    projectFrameNoLogs: "No bounded logs returned for this execution.",
+    projectFrameCopyAddress: "Copy address",
+    projectFrameCopyUrl: "Copy URL",
+    projectFrameOpenUrl: "Open URL",
+    projectFramePublicUrl: "Public URL",
+    projectFrameIframeUrl: "Iframe URL",
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -1353,6 +1396,9 @@ export const labels = {
     projectFrameUpdatesAvailable: (count) => `${count} 个更新可用`,
     projectFrameUpdatesCurrent: "已是最新",
     projectFrameUpdateUnavailable: "更新检查不可用",
+    projectFrameDeploymentMetric: "部署",
+    projectFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
+      `${targets} 个目标 · ${running}/${executions} 个执行运行中 · ${ports} 个端口 · ${proxies} 个代理`,
     projectFrameProjectId: "项目 ID",
     projectFrameProjectType: "类型",
     projectFrameSession: "会话",
@@ -1377,6 +1423,25 @@ export const labels = {
     projectFrameNoEvents: "该会话暂无近期事件。",
     projectFrameNoSession: "尚无运行中的会话。",
     projectFrameDiagnosticsWarnings: "诊断警告",
+    projectFrameDeploymentSection: "部署",
+    projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
+    projectFrameDeploymentExecutions: "执行",
+    projectFrameDeploymentPortLeases: "端口租约",
+    projectFrameDeploymentProxyRoutes: "代理路由",
+    projectFrameDeploymentEmpty: "主机未报告部署记录。",
+    projectFrameDeploymentReady: "就绪",
+    projectFrameDeploymentExitCode: "退出码",
+    projectFrameStatusReady: "已就绪",
+    projectFrameStatusNotReady: "未就绪",
+    projectFrameShowLogs: "显示日志",
+    projectFrameHideLogs: "隐藏日志",
+    projectFrameLogsLoading: "正在加载日志…",
+    projectFrameNoLogs: "该执行没有返回限定日志。",
+    projectFrameCopyAddress: "复制地址",
+    projectFrameCopyUrl: "复制 URL",
+    projectFrameOpenUrl: "打开 URL",
+    projectFramePublicUrl: "公共 URL",
+    projectFrameIframeUrl: "Iframe URL",
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",
