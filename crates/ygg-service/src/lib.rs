@@ -1,19 +1,23 @@
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
-use axum::extract::{OriginalUri, Path, Query, Request, State};
-use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
+use axum::body::to_bytes;
+use axum::extract::ws::{Message as AxumWsMessage, WebSocket, WebSocketUpgrade};
+use axum::extract::{FromRequestParts, OriginalUri, Path, Query, Request, State};
+use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::response::Response;
-use axum::routing::{get, post};
+use axum::routing::{any, get, post};
 use axum::{Json, Router};
-use futures::Stream;
+use futures::{SinkExt, Stream, StreamExt};
 use serde::Deserialize;
 use serde_json::Value;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, SessionId};
 use ygg_runtime::{
     host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
@@ -23,6 +27,11 @@ use ygg_runtime::{
 use ygg_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
 };
+use ygg_runtime::{PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteStatusKind};
+
+const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
+const PROXY_RESPONSE_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
+const PROXY_WEBSOCKET_FRAME_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
@@ -122,6 +131,8 @@ where
         .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
         .route("/kernel/v1/host.info", get(host_info))
         .route("/rpc", post(rpc::<S>))
+        .route("/p/:route_id", any(proxy_root::<S>))
+        .route("/p/:route_id/*path", any(proxy_path::<S>))
         .route_layer(middleware::from_fn_with_state(
             state.access_token.clone(),
             require_access_token,
@@ -415,6 +426,435 @@ where
     }
 }
 
+async fn proxy_root<S>(
+    State(state): State<AppState<S>>,
+    Path(route_id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    request: Request,
+) -> impl IntoResponse
+where
+    S: EventStore,
+{
+    proxy_request(state, route_id, String::new(), uri, request).await
+}
+
+async fn proxy_path<S>(
+    State(state): State<AppState<S>>,
+    Path((route_id, path)): Path<(String, String)>,
+    OriginalUri(uri): OriginalUri,
+    request: Request,
+) -> impl IntoResponse
+where
+    S: EventStore,
+{
+    proxy_request(state, route_id, path, uri, request).await
+}
+
+async fn proxy_request<S>(
+    state: AppState<S>,
+    route_id: String,
+    path: String,
+    uri: Uri,
+    request: Request,
+) -> Response
+where
+    S: EventStore,
+{
+    if is_upgrade_request(request.headers()) {
+        if !is_websocket_upgrade_request(request.headers()) {
+            return (
+                StatusCode::NOT_IMPLEMENTED,
+                "upgrade proxy is not implemented",
+            )
+                .into_response();
+        }
+        let resolved = match resolve_proxy_upstream(&state, &route_id).await {
+            Ok(resolved) => resolved,
+            Err(response) => return response,
+        };
+        if resolved.protocol != ProxyProtocol::Websocket {
+            return (
+                StatusCode::NOT_IMPLEMENTED,
+                "websocket proxy is not configured",
+            )
+                .into_response();
+        }
+
+        let target_url = loopback_websocket_url(resolved.port, &path, uri.query());
+        let (mut parts, _) = request.into_parts();
+        let upgrade = match WebSocketUpgrade::from_request_parts(&mut parts, &state).await {
+            Ok(upgrade) => upgrade,
+            Err(rejection) => return rejection.into_response(),
+        };
+        return upgrade
+            .on_upgrade(move |socket| tunnel_websocket(socket, target_url))
+            .into_response();
+    }
+
+    let resolved = match resolve_proxy_upstream(&state, &route_id).await {
+        Ok(resolved) => resolved,
+        Err(response) => return response,
+    };
+    if resolved.protocol != ProxyProtocol::Http {
+        return (
+            StatusCode::NOT_IMPLEMENTED,
+            "websocket proxy is not implemented",
+        )
+            .into_response();
+    }
+
+    let method = request.method().clone();
+    let request_headers = request.headers().clone();
+    let body = match to_bytes(request.into_body(), PROXY_REQUEST_BODY_LIMIT_BYTES).await {
+        Ok(body) => body,
+        Err(_) => {
+            return (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "proxy request body too large",
+            )
+                .into_response()
+        }
+    };
+
+    let target_url = loopback_proxy_url(resolved.port, &path, uri.query());
+    let client = hardened_proxy_client();
+    let mut upstream = client.request(method, target_url).body(body);
+    for (name, value) in request_headers.iter() {
+        if should_forward_request_header(name) {
+            upstream = upstream.header(name, value);
+        }
+    }
+
+    let upstream_response = match upstream.send().await {
+        Ok(response) => response,
+        Err(_) => {
+            return (StatusCode::BAD_GATEWAY, "proxy upstream request failed").into_response()
+        }
+    };
+    let status = upstream_response.status();
+    let headers = proxied_response_headers(upstream_response.headers());
+    match read_limited_response_body(upstream_response, PROXY_RESPONSE_BODY_LIMIT_BYTES).await {
+        Ok(body) => (status, headers, body).into_response(),
+        Err(ProxyReadError::TooLarge) => {
+            (StatusCode::BAD_GATEWAY, "proxy upstream response too large").into_response()
+        }
+        Err(_) => (StatusCode::BAD_GATEWAY, "proxy upstream response failed").into_response(),
+    }
+}
+
+struct ResolvedProxyUpstream {
+    protocol: ProxyProtocol,
+    port: u16,
+}
+
+async fn resolve_proxy_upstream<S>(
+    state: &AppState<S>,
+    route_id: &str,
+) -> Result<ResolvedProxyUpstream, Response>
+where
+    S: EventStore,
+{
+    let route = match state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(route_id)
+        .await
+    {
+        Some(route) if route.status == ProxyRouteStatusKind::Active => route,
+        _ => return Err((StatusCode::NOT_FOUND, "proxy route not found").into_response()),
+    };
+
+    let lease = match state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(&route.upstream.port_lease_id)
+        .await
+    {
+        Some(lease) if lease.status == PortLeaseStatusKind::Active => lease,
+        _ => return Err((StatusCode::NOT_FOUND, "proxy upstream not found").into_response()),
+    };
+
+    if lease.host != "127.0.0.1" || lease.bind != PortBindScope::LoopbackOnly {
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            "proxy upstream is not loopback-only",
+        )
+            .into_response());
+    }
+    if lease.port_name != route.upstream.port_name {
+        return Err((StatusCode::BAD_GATEWAY, "proxy upstream port name mismatch").into_response());
+    }
+    if !matches!(lease.protocol, ygg_runtime::PortProtocol::Tcp) {
+        return Err((StatusCode::BAD_GATEWAY, "proxy upstream must be tcp").into_response());
+    }
+
+    Ok(ResolvedProxyUpstream {
+        protocol: route.protocol,
+        port: lease.port,
+    })
+}
+
+async fn tunnel_websocket(downstream: WebSocket, target_url: String) {
+    let Ok(request) = target_url.as_str().into_client_request() else {
+        return;
+    };
+    let Ok((upstream, _)) = tokio_tungstenite::connect_async(request).await else {
+        return;
+    };
+
+    let (mut downstream_tx, mut downstream_rx) = downstream.split();
+    let (mut upstream_tx, mut upstream_rx) = upstream.split();
+
+    loop {
+        tokio::select! {
+            downstream_msg = downstream_rx.next() => {
+                let Some(Ok(message)) = downstream_msg else { break; };
+                if axum_ws_message_too_large(&message) { break; }
+                match axum_to_tungstenite_message(message) {
+                    Some((message, should_close)) => {
+                        if upstream_tx.send(message).await.is_err() { break; }
+                        if should_close { break; }
+                    }
+                    None => {}
+                }
+            }
+            upstream_msg = upstream_rx.next() => {
+                let Some(Ok(message)) = upstream_msg else { break; };
+                if tungstenite_message_too_large(&message) { break; }
+                match tungstenite_to_axum_message(message) {
+                    Some((message, should_close)) => {
+                        if downstream_tx.send(message).await.is_err() { break; }
+                        if should_close { break; }
+                    }
+                    None => {}
+                }
+            }
+        }
+    }
+
+    let _ = upstream_tx
+        .send(tokio_tungstenite::tungstenite::Message::Close(None))
+        .await;
+    let _ = downstream_tx.send(AxumWsMessage::Close(None)).await;
+}
+
+fn axum_to_tungstenite_message(
+    message: AxumWsMessage,
+) -> Option<(tokio_tungstenite::tungstenite::Message, bool)> {
+    match message {
+        AxumWsMessage::Text(text) => {
+            Some((tokio_tungstenite::tungstenite::Message::Text(text), false))
+        }
+        AxumWsMessage::Binary(bytes) => Some((
+            tokio_tungstenite::tungstenite::Message::Binary(bytes),
+            false,
+        )),
+        AxumWsMessage::Ping(bytes) => {
+            Some((tokio_tungstenite::tungstenite::Message::Ping(bytes), false))
+        }
+        AxumWsMessage::Pong(bytes) => {
+            Some((tokio_tungstenite::tungstenite::Message::Pong(bytes), false))
+        }
+        AxumWsMessage::Close(_) => {
+            Some((tokio_tungstenite::tungstenite::Message::Close(None), true))
+        }
+    }
+}
+
+fn tungstenite_to_axum_message(
+    message: tokio_tungstenite::tungstenite::Message,
+) -> Option<(AxumWsMessage, bool)> {
+    match message {
+        tokio_tungstenite::tungstenite::Message::Text(text) => {
+            Some((AxumWsMessage::Text(text.to_string()), false))
+        }
+        tokio_tungstenite::tungstenite::Message::Binary(bytes) => {
+            Some((AxumWsMessage::Binary(bytes), false))
+        }
+        tokio_tungstenite::tungstenite::Message::Ping(bytes) => {
+            Some((AxumWsMessage::Ping(bytes), false))
+        }
+        tokio_tungstenite::tungstenite::Message::Pong(bytes) => {
+            Some((AxumWsMessage::Pong(bytes), false))
+        }
+        tokio_tungstenite::tungstenite::Message::Close(_) => {
+            Some((AxumWsMessage::Close(None), true))
+        }
+        tokio_tungstenite::tungstenite::Message::Frame(_) => None,
+    }
+}
+
+fn axum_ws_message_too_large(message: &AxumWsMessage) -> bool {
+    (match message {
+        AxumWsMessage::Text(text) => text.len(),
+        AxumWsMessage::Binary(bytes) | AxumWsMessage::Ping(bytes) | AxumWsMessage::Pong(bytes) => {
+            bytes.len()
+        }
+        AxumWsMessage::Close(_) => 0,
+    }) > PROXY_WEBSOCKET_FRAME_LIMIT_BYTES
+}
+
+fn tungstenite_message_too_large(message: &tokio_tungstenite::tungstenite::Message) -> bool {
+    (match message {
+        tokio_tungstenite::tungstenite::Message::Text(text) => text.len(),
+        tokio_tungstenite::tungstenite::Message::Binary(bytes)
+        | tokio_tungstenite::tungstenite::Message::Ping(bytes)
+        | tokio_tungstenite::tungstenite::Message::Pong(bytes) => bytes.len(),
+        tokio_tungstenite::tungstenite::Message::Close(_)
+        | tokio_tungstenite::tungstenite::Message::Frame(_) => 0,
+    }) > PROXY_WEBSOCKET_FRAME_LIMIT_BYTES
+}
+
+fn hardened_proxy_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(5))
+            .build()
+            .expect("hardened proxy client builds")
+    })
+}
+
+#[derive(Debug)]
+enum ProxyReadError {
+    Upstream,
+    TooLarge,
+}
+
+async fn read_limited_response_body(
+    response: reqwest::Response,
+    limit: usize,
+) -> Result<Vec<u8>, ProxyReadError> {
+    let mut stream = response.bytes_stream();
+    let mut body = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|_| ProxyReadError::Upstream)?;
+        if body.len().saturating_add(chunk.len()) > limit {
+            return Err(ProxyReadError::TooLarge);
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+fn loopback_proxy_url(port: u16, path: &str, query: Option<&str>) -> String {
+    loopback_proxy_url_with_scheme("http", port, path, query)
+}
+
+fn loopback_websocket_url(port: u16, path: &str, query: Option<&str>) -> String {
+    loopback_proxy_url_with_scheme("ws", port, path, query)
+}
+
+fn loopback_proxy_url_with_scheme(
+    scheme: &str,
+    port: u16,
+    path: &str,
+    query: Option<&str>,
+) -> String {
+    let path = if path.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{}", path.trim_start_matches('/'))
+    };
+    let mut url = format!("{scheme}://127.0.0.1:{port}{path}");
+    if let Some(query) = sanitized_proxy_query(query) {
+        url.push('?');
+        url.push_str(&query);
+    }
+    url
+}
+
+fn sanitized_proxy_query(query: Option<&str>) -> Option<String> {
+    let query = query?;
+    let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+    let mut any = false;
+    for (key, value) in url::form_urlencoded::parse(query.as_bytes()) {
+        if key == "access_token" {
+            continue;
+        }
+        serializer.append_pair(&key, &value);
+        any = true;
+    }
+    any.then(|| serializer.finish())
+}
+
+fn is_upgrade_request(headers: &HeaderMap) -> bool {
+    headers.contains_key(header::UPGRADE)
+        || headers
+            .get(header::CONNECTION)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| {
+                value
+                    .split(',')
+                    .any(|part| part.trim().eq_ignore_ascii_case("upgrade"))
+            })
+}
+
+fn is_websocket_upgrade_request(headers: &HeaderMap) -> bool {
+    headers
+        .get(header::UPGRADE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("websocket"))
+        && headers
+            .get(header::CONNECTION)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| {
+                value
+                    .split(',')
+                    .any(|part| part.trim().eq_ignore_ascii_case("upgrade"))
+            })
+}
+
+fn should_forward_request_header(name: &header::HeaderName) -> bool {
+    matches!(
+        name,
+        &header::ACCEPT
+            | &header::ACCEPT_LANGUAGE
+            | &header::CACHE_CONTROL
+            | &header::CONTENT_TYPE
+            | &header::IF_MATCH
+            | &header::IF_MODIFIED_SINCE
+            | &header::IF_NONE_MATCH
+            | &header::IF_UNMODIFIED_SINCE
+            | &header::ORIGIN
+            | &header::RANGE
+            | &header::USER_AGENT
+    )
+}
+
+fn proxied_response_headers(headers: &HeaderMap) -> HeaderMap {
+    let mut out = HeaderMap::new();
+    for (name, value) in headers.iter() {
+        if should_forward_response_header(name) {
+            out.append(name, value.clone());
+        }
+    }
+    out
+}
+
+fn should_forward_response_header(name: &header::HeaderName) -> bool {
+    !matches!(
+        name,
+        &header::CONNECTION
+            | &header::PROXY_AUTHENTICATE
+            | &header::PROXY_AUTHORIZATION
+            | &header::TE
+            | &header::TRAILER
+            | &header::TRANSFER_ENCODING
+            | &header::UPGRADE
+            | &header::SET_COOKIE
+            | &header::LOCATION
+    ) && !name.as_str().eq_ignore_ascii_case("keep-alive")
+        && !name
+            .as_str()
+            .to_ascii_lowercase()
+            .starts_with("access-control-")
+}
+
 async fn static_fallback<S>(
     State(state): State<AppState<S>>,
     method: Method,
@@ -485,6 +925,8 @@ fn is_reserved_service_path(path: &str) -> bool {
         || path.starts_with("/rpc/")
         || path == "/kernel"
         || path.starts_with("/kernel/")
+        || path == "/p"
+        || path.starts_with("/p/")
         || path == "/surface-bundles"
         || path.starts_with("/surface-bundles/")
 }
@@ -716,10 +1158,20 @@ impl axum::response::IntoResponse for ServiceError {
 
 #[cfg(test)]
 mod tests {
+    use std::net::SocketAddr;
+
     use axum::body::{to_bytes, Body};
     use axum::http::{Request, StatusCode};
     use serde_json::json;
+    use tokio::net::TcpStream;
+    use tokio::sync::Mutex;
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    use tokio_tungstenite::tungstenite::Message;
     use tower::ServiceExt;
+    use ygg_runtime::{
+        ExecutionTargetId, PortLeaseRequest, PortProtocol, ProxyProtocol,
+        ProxyRouteRegisterRequest, ProxyRouteUpstream,
+    };
 
     use super::*;
 
@@ -914,6 +1366,437 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn proxy_route_is_token_protected() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("proxy-token".to_string()),
+        });
+
+        let denied = app
+            .oneshot(
+                Request::builder()
+                    .uri("/p/missing/app")
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn proxy_route_not_found_returns_404() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("proxy-token".to_string()),
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/p/missing/app")
+                    .header(header::AUTHORIZATION, "Bearer proxy-token")
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        Ok(())
+    }
+
+    #[derive(Debug, Default)]
+    struct ObservedProxyRequest {
+        method: String,
+        path: String,
+        query: Option<String>,
+        authorization: Option<String>,
+        body: Vec<u8>,
+    }
+
+    #[tokio::test]
+    async fn proxy_forwards_request_and_strips_ygg_credentials() -> anyhow::Result<()> {
+        let observed = Arc::new(Mutex::new(None::<ObservedProxyRequest>));
+        let upstream_observed = observed.clone();
+        let upstream = Router::new()
+            .fallback(any(
+                move |State(observed): State<Arc<Mutex<Option<ObservedProxyRequest>>>>,
+                      OriginalUri(uri): OriginalUri,
+                      request: axum::extract::Request| async move {
+                    let method = request.method().to_string();
+                    let authorization = request
+                        .headers()
+                        .get(header::AUTHORIZATION)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
+                    let body = to_bytes(request.into_body(), usize::MAX)
+                        .await
+                        .expect("read upstream body")
+                        .to_vec();
+                    *observed.lock().await = Some(ObservedProxyRequest {
+                        method,
+                        path: uri.path().to_string(),
+                        query: uri.query().map(str::to_string),
+                        authorization,
+                        body,
+                    });
+                    (
+                        StatusCode::CREATED,
+                        [("x-upstream-safe", "yes")],
+                        "proxied response",
+                    )
+                },
+            ))
+            .with_state(upstream_observed);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let upstream_addr: SocketAddr = listener.local_addr()?;
+        tokio::spawn(async move {
+            axum::serve(listener, upstream)
+                .await
+                .expect("test upstream serves");
+        });
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(upstream_addr.port()),
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("route-1".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.lease.id.clone(),
+                    port_name: "web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+            })
+            .await;
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("proxy-token".to_string()),
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/p/route-1/api/widgets?keep=1&access_token=proxy-token")
+                    .header(header::AUTHORIZATION, "Bearer proxy-token")
+                    .header(header::CONTENT_TYPE, "text/plain")
+                    .body(Body::from("hello upstream"))?,
+            )
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        assert_eq!(
+            response.headers().get("x-upstream-safe"),
+            Some(&HeaderValue::from_static("yes"))
+        );
+        let response_body = to_bytes(response.into_body(), usize::MAX).await?;
+        assert_eq!(&response_body[..], b"proxied response");
+
+        let observed = observed.lock().await.take().expect("upstream request");
+        assert_eq!(observed.method, "POST");
+        assert_eq!(observed.path, "/api/widgets");
+        assert_eq!(observed.query.as_deref(), Some("keep=1"));
+        assert_eq!(observed.body, b"hello upstream");
+        assert!(observed.authorization.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn proxy_does_not_forward_referer_or_follow_redirects_and_strips_dangerous_response_headers(
+    ) -> anyhow::Result<()> {
+        let observed_referer = Arc::new(Mutex::new(None::<String>));
+        let upstream_referer = observed_referer.clone();
+        let upstream = Router::new()
+            .fallback(any(
+                move |State(observed_referer): State<Arc<Mutex<Option<String>>>>,
+                      headers: HeaderMap| async move {
+                    *observed_referer.lock().await = headers
+                        .get(header::REFERER)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
+                    (
+                        StatusCode::FOUND,
+                        [
+                            (header::LOCATION, "http://169.254.169.254/latest/meta-data"),
+                            (header::SET_COOKIE, "session=leak; Path=/"),
+                            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                        ],
+                        "redirect body",
+                    )
+                },
+            ))
+            .with_state(upstream_referer);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let upstream_addr: SocketAddr = listener.local_addr()?;
+        tokio::spawn(async move {
+            axum::serve(listener, upstream)
+                .await
+                .expect("test upstream serves");
+        });
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(upstream_addr.port()),
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("redirect-route".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.lease.id.clone(),
+                    port_name: "web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+            })
+            .await;
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("proxy-token".to_string()),
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/p/redirect-route/redirect?access_token=proxy-token")
+                    .header(header::AUTHORIZATION, "Bearer proxy-token")
+                    .header(
+                        header::REFERER,
+                        "http://localhost/p/redirect-route/redirect?access_token=proxy-token",
+                    )
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::FOUND);
+        assert!(response.headers().get(header::LOCATION).is_none());
+        assert!(response.headers().get(header::SET_COOKIE).is_none());
+        assert!(response
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none());
+        let body = to_bytes(response.into_body(), usize::MAX).await?;
+        assert_eq!(&body[..], b"redirect body");
+        assert!(observed_referer.lock().await.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn websocket_proxy_route_is_token_protected() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("ws-token".to_string()),
+        });
+
+        let denied = app
+            .oneshot(
+                Request::builder()
+                    .uri("/p/missing/ws")
+                    .header(header::CONNECTION, "upgrade")
+                    .header(header::UPGRADE, "websocket")
+                    .header("sec-websocket-version", "13")
+                    .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn websocket_proxy_requires_websocket_route() -> anyhow::Result<()> {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let upstream_addr: SocketAddr = listener.local_addr()?;
+        drop(listener);
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(upstream_addr.port()),
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("http-only".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.lease.id.clone(),
+                    port_name: "web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+            })
+            .await;
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/p/http-only/ws")
+                    .header(header::CONNECTION, "upgrade")
+                    .header(header::UPGRADE, "websocket")
+                    .header("sec-websocket-version", "13")
+                    .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn websocket_proxy_echoes_text_and_strips_access_token() -> anyhow::Result<()> {
+        let observed = Arc::new(Mutex::new(
+            None::<(String, Option<String>, Option<String>, Option<String>)>,
+        ));
+        let upstream_observed = observed.clone();
+        let upstream = Router::new()
+            .fallback(any(
+                move |State(observed): State<
+                    Arc<Mutex<Option<(String, Option<String>, Option<String>, Option<String>)>>>,
+                >,
+                      ws: WebSocketUpgrade,
+                      OriginalUri(uri): OriginalUri,
+                      headers: HeaderMap| async move {
+                    let authorization = headers
+                        .get(header::AUTHORIZATION)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
+                    let cookie = headers
+                        .get(header::COOKIE)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
+                    *observed.lock().await = Some((
+                        uri.path().to_string(),
+                        uri.query().map(str::to_string),
+                        authorization,
+                        cookie,
+                    ));
+                    ws.on_upgrade(|mut socket| async move {
+                        if let Some(Ok(message)) = socket.recv().await {
+                            let _ = socket.send(message).await;
+                        }
+                    })
+                },
+            ))
+            .with_state(upstream_observed);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let upstream_addr: SocketAddr = listener.local_addr()?;
+        tokio::spawn(async move {
+            axum::serve(listener, upstream)
+                .await
+                .expect("test upstream serves");
+        });
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "ws".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(upstream_addr.port()),
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("ws-route".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.lease.id.clone(),
+                    port_name: "ws".to_string(),
+                },
+                protocol: ProxyProtocol::Websocket,
+            })
+            .await;
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("ws-token".to_string()),
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let proxy_addr = listener.local_addr()?;
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.expect("test proxy serves");
+        });
+
+        let mut request =
+            format!("ws://{proxy_addr}/p/ws-route/socket/echo?keep=1&access_token=ws-token")
+                .into_client_request()?;
+        request.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer ws-token"),
+        );
+        request
+            .headers_mut()
+            .insert(header::COOKIE, HeaderValue::from_static("session=secret"));
+        let stream = TcpStream::connect(proxy_addr).await?;
+        let (mut socket, _) = tokio_tungstenite::client_async(request, stream).await?;
+        socket.send(Message::Text("hello ws".into())).await?;
+
+        match socket.next().await.transpose()? {
+            Some(Message::Text(text)) => assert_eq!(text, "hello ws"),
+            other => panic!("unexpected websocket response: {other:?}"),
+        }
+
+        let observed = observed
+            .lock()
+            .await
+            .take()
+            .expect("upstream websocket request");
+        assert_eq!(observed.0, "/socket/echo");
+        assert_eq!(observed.1.as_deref(), Some("keep=1"));
+        assert!(observed.2.is_none());
+        assert!(observed.3.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn surface_bundles_are_public_static_artifacts_when_token_gate_enabled(
     ) -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
@@ -1046,6 +1929,7 @@ mod tests {
         for path in [
             "/rpc/anything",
             "/kernel/anything",
+            "/p/anything",
             "/surface-bundles/anything",
             "/surface-bundlesx",
         ] {
