@@ -6,18 +6,23 @@
 //! HostAdmin-only kernel port/proxy capabilities.
 
 use std::collections::HashMap;
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
+use bollard::body_full;
 use bollard::container::LogOutput;
 use bollard::models::{
     ContainerCreateBody, ContainerSummary, ContainerSummaryStateEnum, HostConfig, PortBinding,
     PortMap,
 };
 use bollard::query_parameters::{
-    CreateContainerOptionsBuilder, CreateImageOptionsBuilder, InspectContainerOptionsBuilder,
-    ListContainersOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder,
-    StopContainerOptionsBuilder,
+    BuildImageOptionsBuilder, CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
+    InspectContainerOptionsBuilder, ListContainersOptionsBuilder, LogsOptionsBuilder,
+    RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
 };
 use bollard::Docker;
+use bytes::Bytes;
 use futures::StreamExt;
 use serde_json::Value;
 
@@ -29,6 +34,13 @@ const BIND_HOST: &str = "127.0.0.1";
 const DEFAULT_TAIL: u32 = 200;
 const DEFAULT_MAX_BYTES: usize = 65_536;
 const MAX_TAIL: u32 = 5_000;
+const DEFAULT_MAX_CONTEXT_BYTES: u64 = 256 * 1024 * 1024;
+const DEFAULT_MAX_CONTEXT_FILES: u64 = 25_000;
+const MAX_BUILD_LOG_BYTES: usize = 64 * 1024;
+const DEFAULT_BUILD_TIMEOUT_SECS: u64 = 15 * 60;
+const MAX_BUILD_TIMEOUT_SECS: u64 = 60 * 60;
+const DEFAULT_BUILD_MEMORY_BYTES: i32 = 1024 * 1024 * 1024;
+const DEFAULT_BUILD_CPU_QUOTA: i32 = 100_000;
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
@@ -42,6 +54,8 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(validate_spec(request))
     } else if id.ends_with("/plan_container") {
         Some(plan_container(request))
+    } else if id.ends_with("/build_image") {
+        Some(build_image(request))
     } else if id.ends_with("/start_container") {
         Some(start_container(request))
     } else if id.ends_with("/status") {
@@ -66,6 +80,7 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/docker-runtime-lab/describe_contract", "docker_performed": false},
             {"id": "official/docker-runtime-lab/validate_spec", "docker_performed": false},
             {"id": "official/docker-runtime-lab/plan_container", "docker_performed": false},
+            {"id": "official/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile"]},
             {"id": "official/docker-runtime-lab/start_container", "docker_performed": true, "requires_approved_true": true},
             {"id": "official/docker-runtime-lab/status", "docker_performed": true},
             {"id": "official/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true},
@@ -153,6 +168,31 @@ fn plan_container(request: &InprocInvocation) -> anyhow::Result<Value> {
         },
         "provenance": provenance(request)
     }))
+}
+
+fn build_image(request: &InprocInvocation) -> anyhow::Result<Value> {
+    match parse_build_image_request(&request.input) {
+        Ok(spec) => {
+            let result = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(async move { build_image_async(spec).await })
+            });
+            match result {
+                Ok(value) => Ok(with_provenance(value, request)),
+                Err(error) => Ok(with_provenance(
+                    docker_error_output("build_image", error),
+                    request,
+                )),
+            }
+        }
+        Err(reason) => Ok(serde_json::json!({
+            "kind": "docker_runtime_lab_rejected",
+            "reason": reason,
+            "docker_performed": false,
+            "image_built": false,
+            "provenance": provenance(request)
+        })),
+    }
 }
 
 fn start_container(request: &InprocInvocation) -> anyhow::Result<Value> {
@@ -419,6 +459,96 @@ async fn start_container_async(
     }))
 }
 
+#[derive(Debug, Clone)]
+struct BuildImageSpec {
+    project_id: String,
+    build_id: String,
+    context_dir: PathBuf,
+    dockerfile: String,
+    source_commit: Option<String>,
+    build_descriptor_hash: Option<String>,
+    build_args: HashMap<String, String>,
+    max_context_bytes: u64,
+    max_context_files: u64,
+    build_timeout_secs: u64,
+}
+
+#[derive(Debug, Clone)]
+struct ContextTar {
+    bytes: Vec<u8>,
+    files: u64,
+    total_bytes: u64,
+}
+
+async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
+    let docker = docker().await?;
+    let tag = image_tag(&spec.project_id, &spec.build_id);
+    let context = tokio::task::spawn_blocking({
+        let spec = spec.clone();
+        move || create_context_tar(&spec)
+    })
+    .await
+    .map_err(|e| format!("context tar task failed: {e}"))??;
+
+    let mut labels = build_labels(&spec);
+    labels.insert("managed-by".to_string(), "yggdrasil".to_string());
+    labels.insert("yggdrasil.package_id".to_string(), PACKAGE_ID.to_string());
+
+    let options = BuildImageOptionsBuilder::default()
+        .dockerfile(&spec.dockerfile)
+        .t(&tag)
+        .q(false)
+        .rm(true)
+        .forcerm(true)
+        .memory(DEFAULT_BUILD_MEMORY_BYTES)
+        .cpuquota(DEFAULT_BUILD_CPU_QUOTA)
+        .networkmode("bridge")
+        .labels(&labels)
+        .buildargs(&spec.build_args)
+        .build();
+    let body = body_full(Bytes::from(context.bytes));
+
+    let build = async {
+        let mut stream = docker.build_image(options, None, Some(body));
+        let mut log_tail = String::new();
+        while let Some(item) = stream.next().await {
+            let info = item.map_err(|e| format!("docker build failed: {e}"))?;
+            if let Some(error) = info.error_detail.and_then(|detail| detail.message) {
+                append_log_tail(&mut log_tail, &redact_log_text(&error));
+                return Err(format!("docker build failed: {}", redact_log_line(&error)));
+            }
+            if let Some(stream) = info.stream {
+                append_log_tail(&mut log_tail, &redact_log_text(&stream));
+            } else if let Some(status) = info.status {
+                append_log_tail(&mut log_tail, &redact_log_text(&status));
+            }
+        }
+        Ok(log_tail)
+    };
+
+    let log_tail = tokio::time::timeout(Duration::from_secs(spec.build_timeout_secs), build)
+        .await
+        .map_err(|_| "docker build timed out".to_string())??;
+
+    Ok(serde_json::json!({
+        "kind": "docker_runtime_lab_image_built",
+        "image": tag,
+        "build_id": spec.build_id,
+        "strategy": "dockerfile",
+        "source_commit": spec.source_commit,
+        "build_descriptor_hash": spec.build_descriptor_hash,
+        "context": {
+            "files": context.files,
+            "total_bytes": context.total_bytes,
+            "max_files": spec.max_context_files,
+            "max_bytes": spec.max_context_bytes,
+        },
+        "log_tail": log_tail,
+        "docker_performed": true,
+        "image_built": true,
+    }))
+}
+
 async fn status_async(container: String) -> Result<Value, String> {
     let docker = docker().await?;
     let options = InspectContainerOptionsBuilder::default()
@@ -672,6 +802,412 @@ fn validate_input(input: &Value) -> Vec<Diagnostic> {
         ));
     }
     diagnostics
+}
+
+fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
+    if has_build_secret_request(input) || safety::contains_raw_secret(input) {
+        return Err("build-time secrets are not supported; fail-closed".to_string());
+    }
+    if !input
+        .get("approved")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return Err("build_image requires approved: true; fail-closed".to_string());
+    }
+    let strategy = string_field(input, "strategy").unwrap_or_else(|| "dockerfile".to_string());
+    if strategy != "dockerfile" {
+        return Err(format!(
+            "unsupported build strategy '{strategy}'; only dockerfile is supported"
+        ));
+    }
+    let project_id = string_field(input, "project_id").ok_or("project_id is required")?;
+    if !valid_label_value(&project_id) {
+        return Err("project_id must be label-safe".to_string());
+    }
+    let project = ygg_core::ProjectId::new(&project_id)
+        .map_err(|_| "project_id must be a valid project id".to_string())?;
+    let build_id = string_field(input, "build_id").ok_or("build_id is required")?;
+    if !valid_build_id(&build_id) {
+        return Err("build_id must be label-safe".to_string());
+    }
+    let context_dir = string_field(input, "context_dir").ok_or("context_dir is required")?;
+    let context_dir = PathBuf::from(context_dir);
+    if !context_dir.is_absolute() {
+        return Err("context_dir must be absolute".to_string());
+    }
+    if context_dir
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err("context_dir must not contain parent components".to_string());
+    }
+    let expected_workspace = ygg_core::paths::project_workspace_dir(&project)
+        .map_err(|_| "failed to resolve project workspace".to_string())?;
+    if context_dir != expected_workspace {
+        return Err("context_dir must be the project's managed workspace".to_string());
+    }
+    let dockerfile = string_field(input, "dockerfile").unwrap_or_else(|| "Dockerfile".to_string());
+    validate_dockerfile_path(&dockerfile)?;
+    let source_commit = optional_labelish(input, "source_commit")?;
+    let build_descriptor_hash = optional_labelish(input, "build_descriptor_hash")?;
+    let build_args = parse_build_args(input.get("build_args"))?;
+    let max_context_bytes = input
+        .get("max_context_bytes")
+        .and_then(Value::as_u64)
+        .map(|n| n.min(DEFAULT_MAX_CONTEXT_BYTES))
+        .unwrap_or(DEFAULT_MAX_CONTEXT_BYTES);
+    let max_context_files = input
+        .get("max_context_files")
+        .and_then(Value::as_u64)
+        .map(|n| n.min(DEFAULT_MAX_CONTEXT_FILES))
+        .unwrap_or(DEFAULT_MAX_CONTEXT_FILES);
+    let build_timeout_secs = input
+        .get("build_timeout_secs")
+        .and_then(Value::as_u64)
+        .map(|n| n.clamp(1, MAX_BUILD_TIMEOUT_SECS))
+        .unwrap_or(DEFAULT_BUILD_TIMEOUT_SECS);
+
+    Ok(BuildImageSpec {
+        project_id,
+        build_id,
+        context_dir,
+        dockerfile,
+        source_commit,
+        build_descriptor_hash,
+        build_args,
+        max_context_bytes,
+        max_context_files,
+        build_timeout_secs,
+    })
+}
+
+fn has_build_secret_request(input: &Value) -> bool {
+    const BLOCKED: &[&str] = &[
+        "secret",
+        "secrets",
+        "secret_refs",
+        "build_secrets",
+        "build_secret",
+    ];
+    match input {
+        Value::Object(map) => map.iter().any(|(key, value)| {
+            BLOCKED
+                .iter()
+                .any(|blocked| key.eq_ignore_ascii_case(blocked))
+                || has_build_secret_request(value)
+        }),
+        Value::Array(items) => items.iter().any(has_build_secret_request),
+        Value::String(value) => safety::is_secret_ref_value(value),
+        _ => false,
+    }
+}
+
+fn validate_dockerfile_path(path: &str) -> Result<(), String> {
+    if path.trim().is_empty() || path.len() > 255 {
+        return Err("dockerfile must be non-empty and at most 255 bytes".to_string());
+    }
+    let path = Path::new(path);
+    if path.is_absolute() {
+        return Err("dockerfile must be relative".to_string());
+    }
+    for component in path.components() {
+        match component {
+            Component::Normal(_) => {}
+            _ => return Err("dockerfile must not contain parent or special components".to_string()),
+        }
+    }
+    Ok(())
+}
+
+fn parse_build_args(value: Option<&Value>) -> Result<HashMap<String, String>, String> {
+    let Some(value) = value else {
+        return Ok(HashMap::new());
+    };
+    let object = value
+        .as_object()
+        .ok_or("build_args must be an object of string values")?;
+    if object.len() > 64 {
+        return Err("build_args may contain at most 64 entries".to_string());
+    }
+    let mut args = HashMap::new();
+    for (key, value) in object {
+        if !valid_build_arg_key(key) {
+            return Err(format!("build arg key '{key}' is invalid"));
+        }
+        let Some(value) = value.as_str() else {
+            return Err("build arg values must be strings".to_string());
+        };
+        if value.len() > 4096
+            || safety::is_secret_ref_value(value)
+            || safety::looks_like_raw_secret_value(value)
+        {
+            return Err(format!(
+                "build arg '{key}' contains unsupported secret-like value"
+            ));
+        }
+        args.insert(key.clone(), value.to_string());
+    }
+    Ok(args)
+}
+
+fn valid_build_arg_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.len() <= 128
+        && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        && !key.to_lowercase().contains("secret")
+        && !key.to_lowercase().contains("token")
+        && !key.to_lowercase().contains("key")
+        && !key.to_lowercase().contains("password")
+        && !key.to_lowercase().contains("auth")
+}
+
+fn optional_labelish(input: &Value, field: &str) -> Result<Option<String>, String> {
+    let Some(value) = string_field(input, field) else {
+        return Ok(None);
+    };
+    if value.len() <= 128 && valid_label_value(&value) {
+        Ok(Some(value))
+    } else {
+        Err(format!("{field} must be label-safe"))
+    }
+}
+
+fn valid_build_id(value: &str) -> bool {
+    value.len() <= 128
+        && value.len() >= 3
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        && !value.starts_with('-')
+        && !value.contains("..")
+}
+
+fn image_tag(project_id: &str, build_id: &str) -> String {
+    format!(
+        "yggdrasil/{}:{}",
+        sanitize_image_component(project_id, 80),
+        sanitize_image_component(build_id, 120)
+    )
+}
+
+fn sanitize_image_component(value: &str, max_len: usize) -> String {
+    let mut out = String::new();
+    let mut prev_dash = false;
+    for c in value.chars() {
+        let mapped = if c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-' {
+            c.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+        if mapped == '-' && prev_dash {
+            continue;
+        }
+        prev_dash = mapped == '-';
+        out.push(mapped);
+        if out.len() >= max_len {
+            break;
+        }
+    }
+    let trimmed = out.trim_matches(&['-', '.'][..]).to_string();
+    if trimmed.is_empty() {
+        "build".to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
+    let mut labels = HashMap::from([
+        ("yggdrasil.project_id".to_string(), spec.project_id.clone()),
+        ("yggdrasil.build_id".to_string(), spec.build_id.clone()),
+        ("yggdrasil.strategy".to_string(), "dockerfile".to_string()),
+        (
+            "yggdrasil.dockerfile_path".to_string(),
+            spec.dockerfile.clone(),
+        ),
+    ]);
+    if let Some(value) = &spec.source_commit {
+        labels.insert("yggdrasil.source_commit".to_string(), value.clone());
+    }
+    if let Some(value) = &spec.build_descriptor_hash {
+        labels.insert("yggdrasil.build_descriptor_hash".to_string(), value.clone());
+    }
+    labels
+}
+
+fn create_context_tar(spec: &BuildImageSpec) -> Result<ContextTar, String> {
+    let root = std::fs::canonicalize(&spec.context_dir)
+        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
+    if !root.is_dir() {
+        return Err("context_dir must be a directory".to_string());
+    }
+    let dockerfile = root.join(&spec.dockerfile);
+    let dockerfile = std::fs::canonicalize(&dockerfile)
+        .map_err(|e| format!("dockerfile not found or inaccessible: {e}"))?;
+    if !dockerfile.starts_with(&root) || !dockerfile.is_file() {
+        return Err("dockerfile must resolve inside context_dir".to_string());
+    }
+
+    let ignore =
+        DockerIgnore::load(&root).map_err(|e| format!("failed to read .dockerignore: {e}"))?;
+    let mut tar = tar::Builder::new(Vec::new());
+    let mut stats = ContextStats::default();
+    add_context_dir(&root, &root, &ignore, spec, &mut stats, &mut tar)?;
+    let bytes = tar
+        .into_inner()
+        .map_err(|e| format!("failed to finish context tar: {e}"))?;
+    Ok(ContextTar {
+        bytes,
+        files: stats.files,
+        total_bytes: stats.total_bytes,
+    })
+}
+
+#[derive(Debug, Default)]
+struct ContextStats {
+    files: u64,
+    total_bytes: u64,
+}
+
+#[derive(Debug, Default)]
+struct DockerIgnore {
+    patterns: Vec<String>,
+}
+
+impl DockerIgnore {
+    fn load(root: &Path) -> std::io::Result<Self> {
+        let path = root.join(".dockerignore");
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let raw = std::fs::read_to_string(path)?;
+        let patterns = raw
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#') && !line.starts_with('!'))
+            .map(|line| {
+                line.trim_start_matches('/')
+                    .trim_end_matches('/')
+                    .to_string()
+            })
+            .filter(|line| !line.is_empty() && !line.contains(".."))
+            .collect();
+        Ok(Self { patterns })
+    }
+
+    fn is_ignored(&self, relative: &str, file_name: &str) -> bool {
+        if matches!(file_name, ".git" | "node_modules" | "target" | ".yggdrasil") {
+            return true;
+        }
+        self.patterns.iter().any(|pattern| {
+            relative == pattern
+                || relative.starts_with(&format!("{pattern}/"))
+                || file_name == pattern
+        })
+    }
+}
+
+fn add_context_dir(
+    root: &Path,
+    dir: &Path,
+    ignore: &DockerIgnore,
+    spec: &BuildImageSpec,
+    stats: &mut ContextStats,
+    tar: &mut tar::Builder<Vec<u8>>,
+) -> Result<(), String> {
+    let mut entries = std::fs::read_dir(dir)
+        .map_err(|e| format!("failed to read context dir {}: {e}", dir.display()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("failed to read context entry: {e}"))?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        let rel = relative_tar_path(root, &path)?;
+        if ignore.is_ignored(&rel, &file_name) {
+            continue;
+        }
+        let metadata = std::fs::symlink_metadata(&path)
+            .map_err(|e| format!("failed to stat {}: {e}", path.display()))?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "symlinks are not supported in build context: {rel}"
+            ));
+        }
+        if metadata.is_dir() {
+            let canonical = std::fs::canonicalize(&path)
+                .map_err(|e| format!("failed to canonicalize context dir {rel}: {e}"))?;
+            if !canonical.starts_with(root) {
+                return Err(format!("context directory escaped root: {rel}"));
+            }
+            add_context_dir(root, &path, ignore, spec, stats, tar)?;
+        } else if metadata.is_file() {
+            stats.files += 1;
+            stats.total_bytes = stats.total_bytes.saturating_add(metadata.len());
+            if stats.files > spec.max_context_files {
+                return Err("build context file count limit exceeded".to_string());
+            }
+            if stats.total_bytes > spec.max_context_bytes {
+                return Err("build context byte limit exceeded".to_string());
+            }
+            let mut file = std::fs::File::open(&path)
+                .map_err(|e| format!("failed to open context file {rel}: {e}"))?;
+            let mut data = Vec::with_capacity(metadata.len().min(1024 * 1024) as usize);
+            file.read_to_end(&mut data)
+                .map_err(|e| format!("failed to read context file {rel}: {e}"))?;
+            tar_append_file(tar, &rel, &data, metadata.len())?;
+        } else {
+            return Err(format!(
+                "special files are not supported in build context: {rel}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn relative_tar_path(root: &Path, path: &Path) -> Result<String, String> {
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|_| "context path escaped root".to_string())?;
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err("context path must be relative without parent components".to_string());
+    }
+    Ok(relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/"))
+}
+
+fn tar_append_file(
+    tar: &mut tar::Builder<Vec<u8>>,
+    relative: &str,
+    data: &[u8],
+    size: u64,
+) -> Result<(), String> {
+    let mut header = tar::Header::new_gnu();
+    header.set_size(size);
+    header.set_mode(0o644);
+    header.set_cksum();
+    tar.append_data(&mut header, relative, data)
+        .map_err(|e| format!("failed to append {relative} to context tar: {e}"))
+}
+
+fn append_log_tail(tail: &mut String, chunk: &str) {
+    tail.push_str(chunk);
+    if tail.len() > MAX_BUILD_LOG_BYTES {
+        let drop_bytes = tail.len() - MAX_BUILD_LOG_BYTES;
+        let drop_at = tail
+            .char_indices()
+            .find_map(|(idx, _)| (idx >= drop_bytes).then_some(idx))
+            .unwrap_or(drop_bytes);
+        tail.drain(..drop_at);
+    }
 }
 
 fn error(code: &'static str, message: impl Into<String>) -> Diagnostic {
@@ -953,6 +1489,121 @@ mod tests {
         .unwrap();
         assert_eq!(output["kind"], "docker_runtime_lab_rejected");
         assert_eq!(output["docker_performed"], false);
+    }
+
+    #[test]
+    fn docker_runtime_lab_build_image_rejects_unsupported_strategy() {
+        let output = build_image(&request(
+            "build_image",
+            serde_json::json!({
+                "approved": true,
+                "strategy": "nixpacks",
+                "project_id": "project-1",
+                "build_id": "build-1",
+                "context_dir": "/tmp/project"
+            }),
+        ))
+        .unwrap();
+        assert_eq!(output["kind"], "docker_runtime_lab_rejected");
+        assert_eq!(output["docker_performed"], false);
+        assert!(output["reason"].as_str().unwrap().contains("unsupported"));
+    }
+
+    #[test]
+    fn docker_runtime_lab_build_image_rejects_build_secrets() {
+        for input in [
+            serde_json::json!({
+                "approved": true,
+                "project_id": "project-1",
+                "build_id": "build-1",
+                "context_dir": "/tmp/project",
+                "secrets": ["secret_ref:env:TOKEN"]
+            }),
+            serde_json::json!({
+                "approved": true,
+                "project_id": "project-1",
+                "build_id": "build-1",
+                "context_dir": "/tmp/project",
+                "build_args": {"TOKEN": "secret_ref:env:TOKEN"}
+            }),
+        ] {
+            let output = build_image(&request("build_image", input)).unwrap();
+            assert_eq!(output["kind"], "docker_runtime_lab_rejected");
+            assert_eq!(output["docker_performed"], false);
+        }
+    }
+
+    #[test]
+    fn docker_runtime_lab_image_tag_sanitizes_project_and_build() {
+        assert_eq!(
+            image_tag("My Project/Alpha", "Build_001"),
+            "yggdrasil/my-project-alpha:build_001"
+        );
+        assert_eq!(image_tag("***", "---"), "yggdrasil/build:build");
+    }
+
+    #[test]
+    fn docker_runtime_lab_dockerfile_path_policy() {
+        assert!(validate_dockerfile_path("Dockerfile").is_ok());
+        assert!(validate_dockerfile_path("docker/Dockerfile").is_ok());
+        assert!(validate_dockerfile_path("/tmp/Dockerfile").is_err());
+        assert!(validate_dockerfile_path("../Dockerfile").is_err());
+        assert!(validate_dockerfile_path("docker/../Dockerfile").is_err());
+    }
+
+    #[test]
+    fn docker_runtime_lab_context_tar_rejects_symlink_and_oversize() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        std::fs::write(tmp.path().join("app.txt"), "hello").unwrap();
+        let spec = BuildImageSpec {
+            project_id: "project-1".to_string(),
+            build_id: "build-1".to_string(),
+            context_dir: tmp.path().to_path_buf(),
+            dockerfile: "Dockerfile".to_string(),
+            source_commit: None,
+            build_descriptor_hash: None,
+            build_args: HashMap::new(),
+            max_context_bytes: 1024,
+            max_context_files: 10,
+            build_timeout_secs: 1,
+        };
+        let tar = create_context_tar(&spec).expect("context tar builds");
+        assert_eq!(tar.files, 2);
+        assert!(tar.total_bytes > 0);
+
+        let mut tiny = spec.clone();
+        tiny.max_context_bytes = 1;
+        assert!(create_context_tar(&tiny).is_err());
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            symlink("app.txt", tmp.path().join("link.txt")).unwrap();
+            assert!(create_context_tar(&spec).is_err());
+        }
+    }
+
+    #[test]
+    fn docker_runtime_lab_context_tar_skips_default_heavy_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        std::fs::create_dir(tmp.path().join("node_modules")).unwrap();
+        std::fs::write(tmp.path().join("node_modules/huge.js"), "ignored").unwrap();
+        let spec = BuildImageSpec {
+            project_id: "project-1".to_string(),
+            build_id: "build-1".to_string(),
+            context_dir: tmp.path().to_path_buf(),
+            dockerfile: "Dockerfile".to_string(),
+            source_commit: None,
+            build_descriptor_hash: None,
+            build_args: HashMap::new(),
+            max_context_bytes: 1024,
+            max_context_files: 10,
+            build_timeout_secs: 1,
+        };
+        let tar = create_context_tar(&spec).expect("context tar builds");
+        assert_eq!(tar.files, 1);
     }
 
     #[test]

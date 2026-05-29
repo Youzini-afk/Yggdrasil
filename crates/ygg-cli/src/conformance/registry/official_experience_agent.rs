@@ -39,6 +39,11 @@ pub(super) fn official_foundation_labs_cases() -> Vec<ConformanceCase> {
             ["deployment_hub", "docker", "official", "security"],
             crate::conformance::official_labs::docker_runtime_lab_blocks_dangerous_spec
         ),
+        c!(
+            "docker_runtime_lab.build_image_blocks_secret_and_non_dockerfile",
+            ["deployment_hub", "docker", "official", "security", "build"],
+            crate::conformance::official_labs::docker_runtime_lab_build_image_blocks_secret_and_non_dockerfile
+        ),
     ]
 }
 

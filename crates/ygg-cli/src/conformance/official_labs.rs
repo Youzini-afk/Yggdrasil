@@ -198,6 +198,51 @@ pub(crate) async fn docker_runtime_lab_blocks_dangerous_spec() -> anyhow::Result
     Ok(())
 }
 
+pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerfile(
+) -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(
+            manifest::read_manifest(PathBuf::from(
+                "packages/official/docker-runtime-lab/manifest.yaml",
+            ))
+            .await?,
+        )
+        .await?;
+
+    for input in [
+        json!({
+            "approved": true,
+            "project_id": "build-test__abc123",
+            "build_id": "build-001",
+            "context_dir": "/tmp/not-used",
+            "strategy": "nixpacks"
+        }),
+        json!({
+            "approved": true,
+            "project_id": "build-test__abc123",
+            "build_id": "build-001",
+            "context_dir": "/tmp/not-used",
+            "build_args": {"API_KEY": "secret_ref:env:API_KEY"}
+        }),
+    ] {
+        let result = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                handle: None,
+                capability_id: Some("official/docker-runtime-lab/build_image".to_string()),
+                caller_package_id: None,
+                provider_package_id: Some("official/docker-runtime-lab".to_string()),
+                version: None,
+                session_id: None,
+                input,
+            })
+            .await?;
+        anyhow::ensure!(result.output["kind"] == json!("docker_runtime_lab_rejected"));
+        anyhow::ensure!(result.output["docker_performed"] == json!(false));
+    }
+    Ok(())
+}
+
 pub(crate) async fn deployment_hub_local_exec_default_deny_all() -> anyhow::Result<()> {
     let store = std::sync::Arc::new(ygg_runtime::InMemoryEventStore::default());
     let runtime = ygg_runtime::Runtime::new(store, RuntimeConfig::default());

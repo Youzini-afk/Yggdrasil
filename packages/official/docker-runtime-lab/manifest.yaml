@@ -27,6 +27,13 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
+  - id: official/docker-runtime-lab/build_image
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_image_build
   - id: official/docker-runtime-lab/start_container
     version: 0.1.0
     input_schema: {}
