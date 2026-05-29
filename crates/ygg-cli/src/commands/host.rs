@@ -113,6 +113,10 @@ pub(crate) async fn host_serve(
                     })?),
                     runtime_config,
                 ));
+                runtime
+                    .hydrate_substrate_from_events()
+                    .await
+                    .context("failed to rehydrate substrate from sqlite event log")?;
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
                 serve_runtime(http, runtime, "sqlite", static_dir, access_token).await
             }
@@ -126,6 +130,10 @@ pub(crate) async fn host_serve(
                     })?;
                     let store = ygg_runtime::PostgresEventStore::connect(&url).await?;
                     let runtime = Arc::new(Runtime::new(Arc::new(store), runtime_config));
+                    runtime
+                        .hydrate_substrate_from_events()
+                        .await
+                        .context("failed to rehydrate substrate from postgres event log")?;
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
                     serve_runtime(http, runtime, "postgres", static_dir, access_token).await
                 }
