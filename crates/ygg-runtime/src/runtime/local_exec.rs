@@ -224,6 +224,15 @@ impl ExecRegistry {
         }
     }
 
+    pub async fn restore(&self, status: ExecStatus) {
+        if let Some(exec_id) = &status.exec_id {
+            self.executions
+                .write()
+                .await
+                .insert(exec_id.clone(), status);
+        }
+    }
+
     pub async fn status(&self, exec_id: &str) -> Option<ExecStatus> {
         self.executions.read().await.get(exec_id).cloned()
     }
@@ -1282,6 +1291,7 @@ pub enum PortBindScope {
 #[serde(rename_all = "snake_case")]
 pub enum PortLeaseStatusKind {
     Active,
+    Reserved,
     Released,
 }
 
@@ -1350,6 +1360,11 @@ impl PortLeaseRegistry {
         Some(lease.clone())
     }
 
+    pub async fn restore(&self, record: PortLeaseRecord) {
+        bump_restored_sequence(&self.next_id, &record.id, "port-lease-");
+        self.leases.write().await.insert(record.id.clone(), record);
+    }
+
     pub async fn status(&self, lease_id: &str) -> Option<PortLeaseRecord> {
         self.leases.read().await.get(lease_id).cloned()
     }
@@ -1380,6 +1395,7 @@ pub enum ProxyProtocol {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyRouteStatusKind {
     Active,
+    Stale,
     Removed,
 }
 
@@ -1449,6 +1465,11 @@ impl ProxyRouteRegistry {
         Some(route.clone())
     }
 
+    pub async fn restore(&self, record: ProxyRouteRecord) {
+        bump_restored_sequence(&self.next_id, &record.id, "proxy-route-");
+        self.routes.write().await.insert(record.id.clone(), record);
+    }
+
     pub async fn status(&self, route_id: &str) -> Option<ProxyRouteRecord> {
         self.routes.read().await.get(route_id).cloned()
     }
@@ -1466,4 +1487,17 @@ impl Default for ProxyRouteRegistry {
 
 fn default_proxy_protocol() -> ProxyProtocol {
     ProxyProtocol::Http
+}
+
+fn bump_restored_sequence(next_id: &AtomicU64, id: &str, prefix: &str) {
+    let Some(suffix) = id.strip_prefix(prefix) else {
+        return;
+    };
+    let Ok(sequence) = suffix.parse::<u64>() else {
+        return;
+    };
+    let desired_next = sequence.saturating_add(1);
+    let _ = next_id.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+        (desired_next > current).then_some(desired_next)
+    });
 }

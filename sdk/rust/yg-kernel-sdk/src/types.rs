@@ -27805,6 +27805,7 @@ pub struct PortLeaseResponse {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "reserved",
 ///    "released"
 ///  ]
 ///}
@@ -27826,6 +27827,8 @@ pub struct PortLeaseResponse {
 pub enum PortLeaseStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "reserved")]
+    Reserved,
     #[serde(rename = "released")]
     Released,
 }
@@ -27833,6 +27836,7 @@ impl ::std::fmt::Display for PortLeaseStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Reserved => f.write_str("reserved"),
             Self::Released => f.write_str("released"),
         }
     }
@@ -27844,6 +27848,7 @@ impl ::std::str::FromStr for PortLeaseStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "reserved" => Ok(Self::Reserved),
             "released" => Ok(Self::Released),
             _ => Err("invalid value".into()),
         }
@@ -27882,6 +27887,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "reserved",
 ///    "released"
 ///  ]
 ///}
@@ -27903,6 +27909,8 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 pub enum PortLeaseStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "reserved")]
+    Reserved,
     #[serde(rename = "released")]
     Released,
 }
@@ -27910,6 +27918,7 @@ impl ::std::fmt::Display for PortLeaseStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Reserved => f.write_str("reserved"),
             Self::Released => f.write_str("released"),
         }
     }
@@ -27921,6 +27930,7 @@ impl ::std::str::FromStr for PortLeaseStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "reserved" => Ok(Self::Reserved),
             "released" => Ok(Self::Released),
             _ => Err("invalid value".into()),
         }
@@ -27959,6 +27969,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "reserved",
 ///    "released"
 ///  ]
 ///}
@@ -27980,6 +27991,8 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 pub enum PortLeaseStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "reserved")]
+    Reserved,
     #[serde(rename = "released")]
     Released,
 }
@@ -27987,6 +28000,7 @@ impl ::std::fmt::Display for PortLeaseStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Reserved => f.write_str("reserved"),
             Self::Released => f.write_str("released"),
         }
     }
@@ -27998,6 +28012,7 @@ impl ::std::str::FromStr for PortLeaseStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "reserved" => Ok(Self::Reserved),
             "released" => Ok(Self::Released),
             _ => Err("invalid value".into()),
         }
@@ -28036,6 +28051,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "reserved",
 ///    "released"
 ///  ]
 ///}
@@ -28057,6 +28073,8 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 pub enum PortLeaseStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "reserved")]
+    Reserved,
     #[serde(rename = "released")]
     Released,
 }
@@ -28064,6 +28082,7 @@ impl ::std::fmt::Display for PortLeaseStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Reserved => f.write_str("reserved"),
             Self::Released => f.write_str("released"),
         }
     }
@@ -28075,6 +28094,7 @@ impl ::std::str::FromStr for PortLeaseStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "reserved" => Ok(Self::Reserved),
             "released" => Ok(Self::Released),
             _ => Err("invalid value".into()),
         }
@@ -28201,6 +28221,7 @@ for PortLeasedPayload {
 ///      "PortLeaseStatusKind": {
 ///        "enum": [
 ///          "active",
+///          "reserved",
 ///          "released"
 ///        ],
 ///        "type": "string"
@@ -39820,6 +39841,7 @@ for ProxyDeniedPayload {
 ///      "ProxyRouteStatusKind": {
 ///        "enum": [
 ///          "active",
+///          "stale",
 ///          "removed"
 ///        ],
 ///        "type": "string"
@@ -40734,6 +40756,7 @@ pub struct ProxyRouteIdParams {
 ///    "ProxyRouteStatusKind": {
 ///      "enum": [
 ///        "active",
+///        "stale",
 ///        "removed"
 ///      ],
 ///      "type": "string"
@@ -40988,6 +41011,7 @@ pub struct ProxyRouteRegisterResponse {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "stale",
 ///    "removed"
 ///  ]
 ///}
@@ -41009,6 +41033,8 @@ pub struct ProxyRouteRegisterResponse {
 pub enum ProxyRouteStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "stale")]
+    Stale,
     #[serde(rename = "removed")]
     Removed,
 }
@@ -41016,6 +41042,7 @@ impl ::std::fmt::Display for ProxyRouteStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Stale => f.write_str("stale"),
             Self::Removed => f.write_str("removed"),
         }
     }
@@ -41027,6 +41054,7 @@ impl ::std::str::FromStr for ProxyRouteStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "stale" => Ok(Self::Stale),
             "removed" => Ok(Self::Removed),
             _ => Err("invalid value".into()),
         }
@@ -41065,6 +41093,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "stale",
 ///    "removed"
 ///  ]
 ///}
@@ -41086,6 +41115,8 @@ impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
 pub enum ProxyRouteStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "stale")]
+    Stale,
     #[serde(rename = "removed")]
     Removed,
 }
@@ -41093,6 +41124,7 @@ impl ::std::fmt::Display for ProxyRouteStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Stale => f.write_str("stale"),
             Self::Removed => f.write_str("removed"),
         }
     }
@@ -41104,6 +41136,7 @@ impl ::std::str::FromStr for ProxyRouteStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "stale" => Ok(Self::Stale),
             "removed" => Ok(Self::Removed),
             _ => Err("invalid value".into()),
         }
@@ -41142,6 +41175,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "stale",
 ///    "removed"
 ///  ]
 ///}
@@ -41163,6 +41197,8 @@ impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
 pub enum ProxyRouteStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "stale")]
+    Stale,
     #[serde(rename = "removed")]
     Removed,
 }
@@ -41170,6 +41206,7 @@ impl ::std::fmt::Display for ProxyRouteStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Stale => f.write_str("stale"),
             Self::Removed => f.write_str("removed"),
         }
     }
@@ -41181,6 +41218,7 @@ impl ::std::str::FromStr for ProxyRouteStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "stale" => Ok(Self::Stale),
             "removed" => Ok(Self::Removed),
             _ => Err("invalid value".into()),
         }
@@ -41219,6 +41257,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
 ///  "type": "string",
 ///  "enum": [
 ///    "active",
+///    "stale",
 ///    "removed"
 ///  ]
 ///}
@@ -41240,6 +41279,8 @@ impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteStatusKind {
 pub enum ProxyRouteStatusKind {
     #[serde(rename = "active")]
     Active,
+    #[serde(rename = "stale")]
+    Stale,
     #[serde(rename = "removed")]
     Removed,
 }
@@ -41247,6 +41288,7 @@ impl ::std::fmt::Display for ProxyRouteStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::Active => f.write_str("active"),
+            Self::Stale => f.write_str("stale"),
             Self::Removed => f.write_str("removed"),
         }
     }
@@ -41258,6 +41300,7 @@ impl ::std::str::FromStr for ProxyRouteStatusKind {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
+            "stale" => Ok(Self::Stale),
             "removed" => Ok(Self::Removed),
             _ => Err("invalid value".into()),
         }

@@ -11832,6 +11832,7 @@ paths:
                       PortLeaseStatusKind:
                         enum:
                         - active
+                        - reserved
                         - released
                         type: string
                       PortProtocol:
@@ -11917,6 +11918,7 @@ paths:
                         PortLeaseStatusKind:
                           enum:
                           - active
+                          - reserved
                           - released
                           type: string
                         PortProtocol:
@@ -12030,6 +12032,7 @@ paths:
                       PortLeaseStatusKind:
                         enum:
                         - active
+                        - reserved
                         - released
                         type: string
                       PortProtocol:
@@ -12142,6 +12145,7 @@ paths:
                       PortLeaseStatusKind:
                         enum:
                         - active
+                        - reserved
                         - released
                         type: string
                       PortProtocol:
@@ -14971,6 +14975,7 @@ paths:
                         ProxyRouteStatusKind:
                           enum:
                           - active
+                          - stale
                           - removed
                           type: string
                         ProxyRouteUpstream:
@@ -15128,6 +15133,7 @@ paths:
                       ProxyRouteStatusKind:
                         enum:
                         - active
+                        - stale
                         - removed
                         type: string
                       ProxyRouteUpstream:
@@ -15223,6 +15229,7 @@ paths:
                       ProxyRouteStatusKind:
                         enum:
                         - active
+                        - stale
                         - removed
                         type: string
                       ProxyRouteUpstream:
@@ -15333,6 +15340,7 @@ paths:
                       ProxyRouteStatusKind:
                         enum:
                         - active
+                        - stale
                         - removed
                         type: string
                       ProxyRouteUpstream:

@@ -116,6 +116,7 @@
         "PortLeaseStatusKind": {
           "enum": [
             "active",
+            "reserved",
             "released"
           ],
           "type": "string"

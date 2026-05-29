@@ -100,6 +100,11 @@ pub(super) fn core_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::deployment_hub_proxy_requires_matching_lease_port
         ),
         c!(
+            "deployment.sqlite_rehydrate",
+            ["deployment", "deployment_hub", "sqlite", "slow"],
+            crate::conformance::protocol::deployment_sqlite_rehydrate
+        ),
+        c!(
             "capability.ambiguous_provider_denied",
             ["runtime", "capability"],
             crate::conformance::core::ambiguous_provider_denied

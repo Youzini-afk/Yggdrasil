@@ -7,8 +7,10 @@ use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
     project::ProjectId, AssetRecord, EventEnvelope, KernelSession, PackageId, SessionId,
-    SessionStatus, EVENT_ASSET_PUT, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
-    EVENT_PROJECTION_UPDATED, EVENT_SESSION_FORKED,
+    SessionStatus, EVENT_ASSET_PUT, EVENT_EXEC_DENIED, EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED,
+    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED, EVENT_PORT_RELEASED,
+    EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED,
+    EVENT_SESSION_FORKED,
 };
 
 use crate::{
@@ -411,6 +413,100 @@ where
         Ok(())
     }
 
+    pub async fn hydrate_deployment_from_events(&self) -> anyhow::Result<()> {
+        let events = self.store.list_all().await?;
+        let mut port_leases: HashMap<PortLeaseId, PortLeaseRecord> = HashMap::new();
+        let mut proxy_routes: HashMap<ProxyRouteId, ProxyRouteRecord> = HashMap::new();
+        let mut executions: HashMap<ExecId, ExecStatus> = HashMap::new();
+
+        for event in events {
+            let payload = &event.payload;
+            match event.kind.as_str() {
+                EVENT_PORT_LEASED => {
+                    if let Some(record) = port_lease_record_from_payload(payload) {
+                        port_leases.insert(record.id.clone(), record);
+                    }
+                }
+                EVENT_PORT_RELEASED => {
+                    if let Some(lease_id) = payload_str(payload, "lease_id") {
+                        if let Some(lease) = port_leases.get_mut(&lease_id) {
+                            lease.status = PortLeaseStatusKind::Released;
+                        }
+                    }
+                }
+                EVENT_PROXY_REGISTERED => {
+                    if let Some(record) = proxy_route_record_from_payload(payload) {
+                        proxy_routes.insert(record.id.clone(), record);
+                    }
+                }
+                EVENT_PROXY_UNREGISTERED => {
+                    if let Some(route_id) = payload_str(payload, "route_id") {
+                        if let Some(route) = proxy_routes.get_mut(&route_id) {
+                            route.status = ProxyRouteStatusKind::Removed;
+                        }
+                    }
+                }
+                EVENT_EXEC_STARTED | EVENT_EXEC_DENIED => {
+                    if let Some(status) = exec_status_from_payload(payload) {
+                        if let Some(exec_id) = status.exec_id.clone() {
+                            executions.insert(exec_id, status);
+                        }
+                    }
+                }
+                EVENT_EXEC_STOPPED => {
+                    if let Some(exec_id) = payload_str(payload, "exec_id") {
+                        let message = payload_str(payload, "error");
+                        let status =
+                            executions
+                                .entry(exec_id.clone())
+                                .or_insert_with(|| ExecStatus {
+                                    exec_id: Some(exec_id),
+                                    target_id: None,
+                                    kind: ExecStatusKind::Stopped,
+                                    exit_code: None,
+                                    message: None,
+                                    ready: false,
+                                });
+                        status.kind = ExecStatusKind::Stopped;
+                        status.ready = false;
+                        if message.is_some() {
+                            status.message = message;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        for mut lease in port_leases.into_values() {
+            if lease.status == PortLeaseStatusKind::Active {
+                lease.status = PortLeaseStatusKind::Reserved;
+            }
+            self.config.port_lease_registry.restore(lease).await;
+        }
+
+        for mut route in proxy_routes.into_values() {
+            if route.status == ProxyRouteStatusKind::Active {
+                route.status = ProxyRouteStatusKind::Stale;
+            }
+            self.config.proxy_route_registry.restore(route).await;
+        }
+
+        for mut status in executions.into_values() {
+            if matches!(
+                status.kind,
+                ExecStatusKind::Running | ExecStatusKind::Pending
+            ) || status.ready
+            {
+                status.kind = ExecStatusKind::Unknown;
+                status.ready = false;
+            }
+            self.config.exec_registry.restore(status).await;
+        }
+
+        Ok(())
+    }
+
     // Private helper used across submodules — event-appending via kernel identity.
     pub(crate) async fn append_kernel_event(
         &self,
@@ -438,4 +534,72 @@ where
         })
         .await
     }
+}
+
+fn payload_str(payload: &Value, field: &str) -> Option<String> {
+    payload
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn payload_u16(payload: &Value, field: &str) -> Option<u16> {
+    payload
+        .get(field)
+        .and_then(Value::as_u64)
+        .and_then(|value| u16::try_from(value).ok())
+}
+
+fn payload_bool(payload: &Value, field: &str) -> bool {
+    payload.get(field).and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn enum_from_payload<T>(payload: &Value, field: &str) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    payload
+        .get(field)
+        .cloned()
+        .and_then(|value| serde_json::from_value(value).ok())
+}
+
+fn port_lease_record_from_payload(payload: &Value) -> Option<PortLeaseRecord> {
+    Some(PortLeaseRecord {
+        id: payload_str(payload, "lease_id")?,
+        target_id: payload_str(payload, "target_id")?,
+        port_name: payload_str(payload, "port_name")?,
+        host: payload_str(payload, "host")?,
+        port: payload_u16(payload, "port")?,
+        protocol: enum_from_payload(payload, "protocol").unwrap_or(PortProtocol::Tcp),
+        bind: enum_from_payload(payload, "bind").unwrap_or(PortBindScope::LoopbackOnly),
+        status: enum_from_payload(payload, "status").unwrap_or(PortLeaseStatusKind::Active),
+    })
+}
+
+fn proxy_route_record_from_payload(payload: &Value) -> Option<ProxyRouteRecord> {
+    Some(ProxyRouteRecord {
+        id: payload_str(payload, "route_id")?,
+        upstream: ProxyRouteUpstream {
+            port_lease_id: payload_str(payload, "port_lease_id")?,
+            port_name: payload_str(payload, "port_name")?,
+        },
+        protocol: enum_from_payload(payload, "protocol").unwrap_or(ProxyProtocol::Http),
+        public_url: payload_str(payload, "public_url")?,
+        iframe_url: payload_str(payload, "iframe_url")?,
+        status: enum_from_payload(payload, "status").unwrap_or(ProxyRouteStatusKind::Active),
+    })
+}
+
+fn exec_status_from_payload(payload: &Value) -> Option<ExecStatus> {
+    Some(ExecStatus {
+        exec_id: Some(payload_str(payload, "exec_id")?),
+        target_id: payload_str(payload, "target_id"),
+        kind: enum_from_payload(payload, "status").unwrap_or(ExecStatusKind::Unknown),
+        exit_code: None,
+        message: payload_str(payload, "error"),
+        ready: payload_bool(payload, "ready"),
+    })
 }

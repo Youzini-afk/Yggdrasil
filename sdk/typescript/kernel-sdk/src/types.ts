@@ -1161,7 +1161,7 @@ export interface PortLeaseResponse {
   "lease": PortLeaseRecord;
 }
 
-export type PortLeaseStatusKind = "active" | "released";
+export type PortLeaseStatusKind = "active" | "reserved" | "released";
 
 export type PortLeasedPayload = Record<string, unknown>;
 
@@ -1430,7 +1430,7 @@ export interface ProxyRouteRegisterResponse {
   "route": ProxyRouteRecord;
 }
 
-export type ProxyRouteStatusKind = "active" | "removed";
+export type ProxyRouteStatusKind = "active" | "stale" | "removed";
 
 export interface ProxyRouteUpstream {
   "port_lease_id": string;

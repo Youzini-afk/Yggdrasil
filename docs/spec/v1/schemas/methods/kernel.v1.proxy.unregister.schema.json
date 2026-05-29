@@ -47,6 +47,7 @@
         "ProxyRouteStatusKind": {
           "enum": [
             "active",
+            "stale",
             "removed"
           ],
           "type": "string"
