@@ -21,7 +21,7 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 
 - `LocalExecExecutor` trait: defaults to `DenyAllLocalExecExecutor`; profiles may opt into `LiveLocalExecExecutor`.
 - `LiveLocalExecExecutor`: accepts argv arrays only, never shell strings. cwd, env, logs, timeout, and kill behavior are host-controlled.
-- `ygg-service` reverse proxy: `/p/<route_id>/...` routes through `kernel.v1.proxy.*` records and can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped, response bodies are bounded, and HTTP + WebSocket are supported.
+- `ygg-service` reverse proxy: `/p/<route_id>/...` remains available; if `YGG_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is set, `<slug>.apps.example.com/` virtual-host routes are also supported so community apps can own the root path `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
 - `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
 - Web project console: shows target / exec / port / proxy diagnostics. If a project declares deployment metadata, the user can explicitly click Deploy / Stop, or start a Build & Deploy job.
 - Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
@@ -100,6 +100,28 @@ If any step fails, the broker rolls back in reverse: unregister proxy, stop the 
 
 Stop deployment (`POST /host/v1/deploy/stop`) finds and stops the container by Docker label (`route_id`). It does not rely on a container id remembered by the browser, and does not stop unknown containers based on a matching `port_name`.
 
+## Virtual-host routes
+
+Path-prefix proxying (`/p/<route_id>/...`) is convenient for platform diagnostics, but real community apps often assume they own `/`. Frontends call `fetch('/api/...')`, load assets from `/assets/...`, and open WebSockets at `/ws`. ygg-service therefore supports an optional virtual-host entry:
+
+```bash
+ygg host serve --app-base-domain apps.example.com
+# or
+YGG_APP_BASE_DOMAIN=apps.example.com ygg host serve
+```
+
+When enabled, the service derives a DNS-safe slug from `route_id` and presents the public URL as `https://<slug>.apps.example.com/`. Without a base domain, it keeps returning `/p/<route_id>/`.
+
+Boundary rules:
+
+- Hostnames are a service-layer access mode, not kernel schema. `kernel.v1.proxy.*` does not know DNS.
+- Only `<slug>.<app_base_domain>` matches. Arbitrary hosts, the bare base domain, and fake suffixes such as `foo.apps.example.com.evil.com` do not match.
+- `X-Forwarded-Host` is not trusted.
+- vhost app entry does not require the Ygg shell token; it is the deployed app's public entry. Ygg RPC / host APIs still live on the main host and remain token-protected.
+- Upstream must still be a loopback lease, and the route must be active + ready.
+- vhost requests set upstream `Host` to the app hostname; `Authorization`, Ygg `access_token` query values, and `Referer` are not forwarded.
+- vhost responses strip the `Domain` attribute from `Set-Cookie`, making cookies host-only. `Location` is only rewritten for same-upstream redirects; external absolute redirects are still stripped.
+
 ## Build & Deploy flow
 
 Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediately with `job_id`, a status URL, and an SSE events URL. Long-running work stays in the host broker:
@@ -124,7 +146,7 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 - Deny-all by default. No profile opt-in means no real local process start.
 - Ports bind to loopback only.
 - Proxy upstreams must reference active port leases, and `port_name` must match.
-- The reverse proxy does not follow upstream redirects and strips `Set-Cookie`, `Location`, CORS, and other dangerous response headers.
+- Path-prefix proxying does not follow upstream redirects and strips `Set-Cookie`, `Location`, CORS, and other dangerous response headers. Vhost proxying only allows host-only cookies and same-upstream `Location` rewrites.
 - Prebuilt-image deployment does not accept env / volume / secret fields. Source Build & Deploy accepts only explicitly approved runtime env / volume fields; raw runtime secrets are injected only inside the host-private runner, and build-time secrets are not supported yet.
 - Docker is implemented by an ordinary capability package. No official fast path.
 

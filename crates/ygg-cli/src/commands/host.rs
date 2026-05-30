@@ -64,6 +64,7 @@ pub(crate) async fn host_serve(
     static_dir: Option<PathBuf>,
     data_dir: Option<PathBuf>,
     access_token: Option<String>,
+    app_base_domain: Option<String>,
 ) -> Result<()> {
     if let Some(data_dir) = data_dir.as_ref() {
         println!("host data dir: {}", data_dir.display());
@@ -95,7 +96,7 @@ pub(crate) async fn host_serve(
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(http, runtime, "memory", static_dir, access_token).await
+                serve_runtime(http, runtime, "memory", static_dir, access_token, app_base_domain).await
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
@@ -126,7 +127,7 @@ pub(crate) async fn host_serve(
                     .await
                     .context("failed to reconcile deployment from sqlite event log")?;
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(http, runtime, "sqlite", static_dir, access_token).await
+                serve_runtime(http, runtime, "sqlite", static_dir, access_token, app_base_domain).await
             }
             HostEventStoreProfile::Postgres { env } => {
                 #[cfg(feature = "postgres")]
@@ -151,7 +152,8 @@ pub(crate) async fn host_serve(
                         .await
                         .context("failed to reconcile deployment from postgres event log")?;
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                    serve_runtime(http, runtime, "postgres", static_dir, access_token).await
+                    serve_runtime(http, runtime, "postgres", static_dir, access_token, app_base_domain)
+                        .await
                 }
                 #[cfg(not(feature = "postgres"))]
                 {
@@ -165,7 +167,7 @@ pub(crate) async fn host_serve(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         ));
-        serve_runtime(http, runtime, "memory", static_dir, access_token).await
+        serve_runtime(http, runtime, "memory", static_dir, access_token, app_base_domain).await
     }
 }
 
@@ -628,6 +630,8 @@ mod tests {
             "/data",
             "--access-token",
             "token",
+            "--app-base-domain",
+            "apps.example.com",
         ])
         .unwrap();
 
@@ -640,6 +644,7 @@ mod tests {
                         static_dir,
                         data_dir,
                         access_token,
+                        app_base_domain,
                     },
             } => {
                 assert_eq!(http, "0.0.0.0:8080".parse().unwrap());
@@ -647,6 +652,7 @@ mod tests {
                 assert_eq!(static_dir, Some(PathBuf::from("/app/public")));
                 assert_eq!(data_dir, Some(PathBuf::from("/data")));
                 assert_eq!(access_token, Some("token".to_string()));
+                assert_eq!(app_base_domain, Some("apps.example.com".to_string()));
             }
             other => panic!("unexpected command: {other:?}"),
         }
@@ -697,6 +703,7 @@ async fn serve_runtime<S>(
     backend_kind: &'static str,
     static_dir: Option<PathBuf>,
     access_token: Option<String>,
+    app_base_domain: Option<String>,
 ) -> Result<()>
 where
     S: EventStore,
@@ -730,10 +737,14 @@ where
     } else {
         println!("  access token: disabled (local/dev only)");
     }
+    if let Some(domain) = app_base_domain.as_deref().filter(|domain| !domain.is_empty()) {
+        println!("  app vhost base domain: {domain}");
+    }
     let state = ygg_service::AppState {
         runtime,
         static_dir,
         access_token,
+        app_base_domain,
         build_jobs: ygg_service::build_deploy_job_registry(),
     };
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());

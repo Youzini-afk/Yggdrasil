@@ -62,6 +62,12 @@ const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
 const BUILD_DEPLOY_LOG_RING: usize = 256;
 const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProxyAccessMode {
+    PathPrefix,
+    Vhost,
+}
+
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
 pub struct AppState<S = InMemoryEventStore>
@@ -71,6 +77,7 @@ where
     pub runtime: Arc<Runtime<S>>,
     pub static_dir: Option<PathBuf>,
     pub access_token: Option<String>,
+    pub app_base_domain: Option<String>,
     pub build_jobs: Arc<BuildDeployJobRegistry>,
 }
 
@@ -83,6 +90,7 @@ where
             runtime: self.runtime.clone(),
             static_dir: self.static_dir.clone(),
             access_token: self.access_token.clone(),
+            app_base_domain: self.app_base_domain.clone(),
             build_jobs: self.build_jobs.clone(),
         }
     }
@@ -127,6 +135,7 @@ pub fn app() -> Router {
         runtime,
         static_dir: None,
         access_token: None,
+        app_base_domain: None,
         build_jobs: Arc::new(BuildDeployJobRegistry::default()),
     })
 }
@@ -194,7 +203,11 @@ where
         )
         .merge(protected)
         .fallback(static_fallback::<S>)
-        .with_state(state)
+        .with_state(state.clone())
+        .layer(middleware::from_fn_with_state(
+            state,
+            vhost_proxy_middleware::<S>,
+        ))
 }
 
 pub fn spawn_health_supervisor<S>(state: AppState<S>) -> tokio::task::JoinHandle<()>
@@ -222,6 +235,191 @@ async fn require_access_token(
     }
 
     (StatusCode::UNAUTHORIZED, "missing or invalid access token").into_response()
+}
+
+async fn vhost_proxy_middleware<S>(
+    State(state): State<AppState<S>>,
+    request: Request,
+    next: Next,
+) -> Response
+where
+    S: EventStore,
+{
+    let host = request.headers().get(header::HOST).cloned();
+    let Some(match_result) = vhost_route_match(&state, host.as_ref()).await else {
+        return next.run(request).await;
+    };
+
+    match match_result {
+        Ok(route_id) => {
+            let uri = request.uri().clone();
+            let path = uri.path().trim_start_matches('/').to_string();
+            proxy_request(state, route_id, path, uri, request, ProxyAccessMode::Vhost).await
+        }
+        Err(status) => status.into_response(),
+    }
+}
+
+async fn vhost_route_match<S>(
+    state: &AppState<S>,
+    host_header: Option<&HeaderValue>,
+) -> Option<Result<String, StatusCode>>
+where
+    S: EventStore,
+{
+    let base = state
+        .app_base_domain
+        .as_deref()
+        .and_then(normalize_app_base_domain)?;
+    let host = match host_header.and_then(|value| value.to_str().ok()) {
+        Some(value) => value,
+        None => return Some(Err(StatusCode::BAD_REQUEST)),
+    };
+    let Some(host) = normalize_host_authority(host) else {
+        return Some(Err(StatusCode::BAD_REQUEST));
+    };
+    let suffix = format!(".{base}");
+    if host == base {
+        return None;
+    }
+    let Some(slug) = host.strip_suffix(&suffix) else {
+        return None;
+    };
+    if !valid_vhost_slug(slug) {
+        return Some(Err(StatusCode::BAD_REQUEST));
+    }
+    for route in state.runtime.config().proxy_route_registry.list().await {
+        if route_slug(&route.id) == slug {
+            return Some(Ok(route.id));
+        }
+    }
+    Some(Err(StatusCode::NOT_FOUND))
+}
+
+fn normalize_app_base_domain(input: &str) -> Option<String> {
+    let trimmed = input.trim().trim_end_matches('.').to_ascii_lowercase();
+    if trimmed.is_empty()
+        || trimmed.contains("://")
+        || trimmed.contains('/')
+        || trimmed.contains('@')
+        || trimmed.contains(':')
+        || !trimmed.is_ascii()
+    {
+        return None;
+    }
+    if !trimmed
+        .split('.')
+        .all(|label| valid_dns_label(label) && !is_reserved_vhost_slug(label))
+    {
+        return None;
+    }
+    Some(trimmed)
+}
+
+fn normalize_host_authority(input: &str) -> Option<String> {
+    let trimmed = input.trim().trim_end_matches('.').to_ascii_lowercase();
+    if trimmed.is_empty()
+        || !trimmed.is_ascii()
+        || trimmed.contains("\r")
+        || trimmed.contains("\n")
+        || trimmed.contains("://")
+        || trimmed.contains('/')
+        || trimmed.contains('@')
+    {
+        return None;
+    }
+    let host = if let Some((host, port)) = trimmed.rsplit_once(':') {
+        if port.is_empty() || !port.chars().all(|ch| ch.is_ascii_digit()) {
+            return None;
+        }
+        host
+    } else {
+        trimmed.as_str()
+    };
+    if host.is_empty() || !host.split('.').all(valid_dns_label) {
+        return None;
+    }
+    Some(host.to_string())
+}
+
+fn route_slug(route_id: &str) -> String {
+    let mut slug = String::new();
+    let mut last_dash = false;
+    for ch in route_id.chars().flat_map(|ch| ch.to_lowercase()) {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch);
+            last_dash = false;
+        } else if !last_dash {
+            slug.push('-');
+            last_dash = true;
+        }
+    }
+    let slug = slug.trim_matches('-');
+    let prefix = if slug.is_empty() || is_reserved_vhost_slug(slug) {
+        "app"
+    } else {
+        slug
+    };
+    let max_prefix_len = 54usize;
+    let mut prefix = prefix.chars().take(max_prefix_len).collect::<String>();
+    while prefix.ends_with('-') {
+        prefix.pop();
+    }
+    if prefix.is_empty() {
+        prefix.push_str("app");
+    }
+    let hash = short_route_hash(route_id);
+    format!("{prefix}-{hash}")
+}
+
+fn service_public_url_for_route<S>(
+    state: &AppState<S>,
+    route_id: &str,
+    fallback_public_url: &str,
+) -> String
+where
+    S: EventStore,
+{
+    let Some(base) = state
+        .app_base_domain
+        .as_deref()
+        .and_then(normalize_app_base_domain)
+    else {
+        return fallback_public_url.to_string();
+    };
+    format!("https://{}.{base}/", route_slug(route_id))
+}
+
+fn short_route_hash(route_id: &str) -> String {
+    let digest = Sha256::digest(route_id.as_bytes());
+    digest[..4]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>()
+}
+
+fn valid_vhost_slug(slug: &str) -> bool {
+    valid_dns_label(slug) && !is_reserved_vhost_slug(slug)
+}
+
+fn valid_dns_label(label: &str) -> bool {
+    if label.is_empty() || label.len() > 63 || !label.is_ascii() {
+        return false;
+    }
+    let bytes = label.as_bytes();
+    if !bytes[0].is_ascii_alphanumeric() || !bytes[label.len() - 1].is_ascii_alphanumeric() {
+        return false;
+    }
+    bytes
+        .iter()
+        .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'-')
+}
+
+fn is_reserved_vhost_slug(slug: &str) -> bool {
+    matches!(
+        slug,
+        "www" | "api" | "admin" | "host" | "kernel" | "rpc" | "health" | "surface-bundles" | "p" | "static"
+    )
 }
 
 fn request_access_token_matches(request: &Request, expected: &str) -> bool {
@@ -1141,7 +1339,8 @@ where
         }
     };
     let route_id = required_string(&route, "id", "proxy route")?;
-    let public_url = required_string(&route, "public_url", "proxy route")?;
+    let fallback_public_url = required_string(&route, "public_url", "proxy route")?;
+    let public_url = service_public_url_for_route(&state, &request.route_id, &fallback_public_url);
 
     if let Err(error) =
         wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
@@ -1887,7 +2086,8 @@ where
         }
     };
     let route_id = required_string(&route, "id", "proxy route")?;
-    let public_url = required_string(&route, "public_url", "proxy route")?;
+    let fallback_public_url = required_string(&route, "public_url", "proxy route")?;
+    let public_url = service_public_url_for_route(state, &request.route_id, &fallback_public_url);
     if let Err(error) = check_job_cancel(state, job_id) {
         rollback_deploy(
             state,
@@ -3125,7 +3325,15 @@ async fn proxy_root<S>(
 where
     S: EventStore,
 {
-    proxy_request(state, route_id, String::new(), uri, request).await
+    proxy_request(
+        state,
+        route_id,
+        String::new(),
+        uri,
+        request,
+        ProxyAccessMode::PathPrefix,
+    )
+    .await
 }
 
 async fn proxy_path<S>(
@@ -3137,7 +3345,7 @@ async fn proxy_path<S>(
 where
     S: EventStore,
 {
-    proxy_request(state, route_id, path, uri, request).await
+    proxy_request(state, route_id, path, uri, request, ProxyAccessMode::PathPrefix).await
 }
 
 async fn proxy_request<S>(
@@ -3146,6 +3354,7 @@ async fn proxy_request<S>(
     path: String,
     uri: Uri,
     request: Request,
+    access_mode: ProxyAccessMode,
 ) -> Response
 where
     S: EventStore,
@@ -3195,6 +3404,13 @@ where
 
     let method = request.method().clone();
     let request_headers = request.headers().clone();
+    let vhost_authority = match access_mode {
+        ProxyAccessMode::Vhost => request_headers
+            .get(header::HOST)
+            .and_then(|value| value.to_str().ok())
+            .and_then(normalize_host_authority),
+        ProxyAccessMode::PathPrefix => None,
+    };
     let body = match to_bytes(request.into_body(), PROXY_REQUEST_BODY_LIMIT_BYTES).await {
         Ok(body) => body,
         Err(_) => {
@@ -3214,6 +3430,9 @@ where
             upstream = upstream.header(name, value);
         }
     }
+    if let Some(authority) = &vhost_authority {
+        upstream = upstream.header(header::HOST, authority);
+    }
 
     let upstream_response = match upstream.send().await {
         Ok(response) => response,
@@ -3222,7 +3441,12 @@ where
         }
     };
     let status = upstream_response.status();
-    let headers = proxied_response_headers(upstream_response.headers());
+    let headers = proxied_response_headers(
+        upstream_response.headers(),
+        access_mode,
+        vhost_authority.as_deref(),
+        resolved.port,
+    );
     match read_limited_response_body(upstream_response, PROXY_RESPONSE_BODY_LIMIT_BYTES).await {
         Ok(body) => (status, headers, body).into_response(),
         Err(ProxyReadError::TooLarge) => {
@@ -3519,11 +3743,33 @@ fn should_forward_request_header(name: &header::HeaderName) -> bool {
     )
 }
 
-fn proxied_response_headers(headers: &HeaderMap) -> HeaderMap {
+fn proxied_response_headers(
+    headers: &HeaderMap,
+    access_mode: ProxyAccessMode,
+    vhost_authority: Option<&str>,
+    upstream_port: u16,
+) -> HeaderMap {
     let mut out = HeaderMap::new();
     for (name, value) in headers.iter() {
         if should_forward_response_header(name) {
             out.append(name, value.clone());
+        }
+    }
+    if access_mode == ProxyAccessMode::Vhost {
+        for value in headers.get_all(header::SET_COOKIE).iter() {
+            if let Some(rewritten) = rewrite_vhost_set_cookie(value) {
+                out.append(header::SET_COOKIE, rewritten);
+            }
+        }
+        if let (Some(authority), Some(location)) = (
+            vhost_authority,
+            headers
+                .get(header::LOCATION)
+                .and_then(|value| value.to_str().ok()),
+        ) {
+            if let Some(rewritten) = rewrite_vhost_location(location, authority, upstream_port) {
+                out.insert(header::LOCATION, rewritten);
+            }
         }
     }
     out
@@ -3546,6 +3792,45 @@ fn should_forward_response_header(name: &header::HeaderName) -> bool {
             .as_str()
             .to_ascii_lowercase()
             .starts_with("access-control-")
+}
+
+fn rewrite_vhost_set_cookie(value: &HeaderValue) -> Option<HeaderValue> {
+    let raw = value.to_str().ok()?;
+    let mut parts = Vec::new();
+    for part in raw.split(';') {
+        let trimmed = part.trim();
+        if trimmed.is_empty() || trimmed.to_ascii_lowercase().starts_with("domain=") {
+            continue;
+        }
+        parts.push(trimmed);
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    HeaderValue::from_str(&parts.join("; ")).ok()
+}
+
+fn rewrite_vhost_location(
+    location: &str,
+    authority: &str,
+    upstream_port: u16,
+) -> Option<HeaderValue> {
+    if location.starts_with('/') && !location.starts_with("//") {
+        return HeaderValue::from_str(location).ok();
+    }
+    let parsed = url::Url::parse(location).ok()?;
+    if parsed.scheme() != "http"
+        || parsed.host_str() != Some("127.0.0.1")
+        || parsed.port_or_known_default() != Some(upstream_port)
+    {
+        return None;
+    }
+    let mut rewritten = format!("https://{authority}{}", parsed.path());
+    if let Some(query) = parsed.query().and_then(|query| sanitized_proxy_query(Some(query))) {
+        rewritten.push('?');
+        rewritten.push_str(&query);
+    }
+    HeaderValue::from_str(&rewritten).ok()
 }
 
 async fn static_fallback<S>(
@@ -4405,6 +4690,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4456,6 +4742,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: Some("secret-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4509,6 +4796,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("deploy-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4542,6 +4830,7 @@ mod tests {
             runtime: runtime.clone(),
             static_dir: None,
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4596,6 +4885,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("event-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4628,6 +4918,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4651,6 +4942,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4706,6 +4998,7 @@ mod tests {
             runtime: runtime.clone(),
             static_dir: None,
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4745,6 +5038,7 @@ mod tests {
         method: String,
         path: String,
         query: Option<String>,
+        host: Option<String>,
         authorization: Option<String>,
         body: Vec<u8>,
     }
@@ -4764,6 +5058,11 @@ mod tests {
                         .get(header::AUTHORIZATION)
                         .and_then(|value| value.to_str().ok())
                         .map(str::to_string);
+                    let host = request
+                        .headers()
+                        .get(header::HOST)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
                     let body = to_bytes(request.into_body(), usize::MAX)
                         .await
                         .expect("read upstream body")
@@ -4772,6 +5071,7 @@ mod tests {
                         method,
                         path: uri.path().to_string(),
                         query: uri.query().map(str::to_string),
+                        host,
                         authorization,
                         body,
                     });
@@ -4824,6 +5124,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4852,6 +5153,200 @@ mod tests {
         assert_eq!(observed.query.as_deref(), Some("keep=1"));
         assert_eq!(observed.body, b"hello upstream");
         assert!(observed.authorization.is_none());
+        assert!(observed
+            .host
+            .as_deref()
+            .is_some_and(|host| host.starts_with("127.0.0.1:")));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn vhost_proxy_owns_root_paths_and_sets_host_header() -> anyhow::Result<()> {
+        let observed = Arc::new(Mutex::new(None::<ObservedProxyRequest>));
+        let upstream_observed = observed.clone();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let upstream_addr: SocketAddr = listener.local_addr()?;
+        let redirect_location = format!(
+            "http://127.0.0.1:{}/next?access_token=leak&keep=1",
+            upstream_addr.port()
+        );
+        let upstream = Router::new()
+            .fallback(any(
+                move |State(observed): State<Arc<Mutex<Option<ObservedProxyRequest>>>>,
+                      OriginalUri(uri): OriginalUri,
+                      request: axum::extract::Request| {
+                    let redirect_location = redirect_location.clone();
+                    async move {
+                        let location_header = HeaderValue::from_str(&redirect_location)
+                            .expect("test redirect header is valid");
+                        let method = request.method().to_string();
+                        let host = request
+                            .headers()
+                            .get(header::HOST)
+                            .and_then(|value| value.to_str().ok())
+                            .map(str::to_string);
+                        let authorization = request
+                            .headers()
+                            .get(header::AUTHORIZATION)
+                            .and_then(|value| value.to_str().ok())
+                            .map(str::to_string);
+                        let body = to_bytes(request.into_body(), usize::MAX)
+                            .await
+                            .expect("read upstream body")
+                            .to_vec();
+                        *observed.lock().await = Some(ObservedProxyRequest {
+                            method,
+                            path: uri.path().to_string(),
+                            query: uri.query().map(str::to_string),
+                            host,
+                            authorization,
+                            body,
+                        });
+                        (
+                            StatusCode::OK,
+                            [
+                                (
+                                    header::SET_COOKIE,
+                                    HeaderValue::from_static(
+                                        "sid=abc; Domain=.apps.example.test; Path=/",
+                                    ),
+                                ),
+                                (header::LOCATION, location_header),
+                            ],
+                            "vhost response",
+                        )
+                    }
+                },
+            ))
+            .with_state(upstream_observed);
+        tokio::spawn(async move {
+            axum::serve(listener, upstream)
+                .await
+                .expect("test upstream serves");
+        });
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(upstream_addr.port()),
+            })
+            .await;
+        let route_id = "My_App/Main";
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some(route_id.to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.lease.id.clone(),
+                    port_name: "web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready(route_id, true)
+            .await;
+        let slug = route_slug(route_id);
+        let vhost = format!("{slug}.apps.example.test");
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("proxy-token".to_string()),
+            app_base_domain: Some("apps.example.test".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc?keep=1&access_token=proxy-token")
+                    .header(header::HOST, &vhost)
+                    .header(header::AUTHORIZATION, "Bearer proxy-token")
+                    .body(Body::from("vhost body"))?,
+            )
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::SET_COOKIE).unwrap(),
+            "sid=abc; Path=/"
+        );
+        assert_eq!(
+            response.headers().get(header::LOCATION).unwrap(),
+            &HeaderValue::from_str(&format!("https://{vhost}/next?keep=1"))?
+        );
+        let body = to_bytes(response.into_body(), usize::MAX).await?;
+        assert_eq!(&body[..], b"vhost response");
+
+        let observed = observed.lock().await.take().expect("upstream request");
+        assert_eq!(observed.method, "POST");
+        assert_eq!(observed.path, "/rpc");
+        assert_eq!(observed.query.as_deref(), Some("keep=1"));
+        assert_eq!(observed.host.as_deref(), Some(vhost.as_str()));
+        assert!(observed.authorization.is_none());
+        assert_eq!(observed.body, b"vhost body");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn vhost_does_not_trust_arbitrary_hosts() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("proxy-token".to_string()),
+            app_base_domain: Some("apps.example.test".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+        });
+
+        let evil_suffix = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/rpc")
+                    .header(header::HOST, "route.apps.example.test.evil.test")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(evil_suffix.status(), StatusCode::UNAUTHORIZED);
+
+        let unknown_route = app
+            .oneshot(
+                Request::builder()
+                    .uri("/rpc")
+                    .header(header::HOST, "unknown.apps.example.test")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(unknown_route.status(), StatusCode::NOT_FOUND);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn vhost_public_url_is_derived_without_kernel_schema_change() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let state = AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+            app_base_domain: Some("apps.example.test".to_string()),
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+        };
+        let route_id = "My_App/Main";
+        let url = service_public_url_for_route(&state, route_id, "/p/My_App/Main/");
+        assert_eq!(url, format!("https://{}.apps.example.test/", route_slug(route_id)));
         Ok(())
     }
 
@@ -4921,6 +5416,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -4958,6 +5454,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("ws-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -5016,6 +5513,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -5112,6 +5610,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("ws-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
@@ -5169,6 +5668,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: Some("bundle-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -5222,6 +5722,7 @@ mod tests {
             runtime,
             static_dir: None,
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -5250,6 +5751,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: Some("static-token".to_string()),
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -5282,6 +5784,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 
@@ -5332,6 +5835,7 @@ mod tests {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
+            app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         });
 

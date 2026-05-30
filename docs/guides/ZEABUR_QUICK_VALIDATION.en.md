@@ -46,10 +46,13 @@ Recommended environment variables:
 | `YGG_STATIC_DIR` | `/app/public` | Built web static directory to serve. |
 | `YGG_HTTP_ACCESS_TOKEN` | unset | Strongly recommended for any public URL; protects RPC/SSE/service routes. |
 | `YGG_REQUIRE_ACCESS_TOKEN` | `0` | Set to `1` to make the container fail fast if `YGG_HTTP_ACCESS_TOKEN` is absent. |
+| `YGG_APP_BASE_DOMAIN` | unset | Optional wildcard app domain such as `apps.example.com`; deployed apps can then open at `<slug>.apps.example.com/`. |
 
 If `/data/profiles/$YGG_PROFILE.yaml` does not exist, the entrypoint creates a small SQLite-backed profile. You can replace it by mounting or writing your own profile into the same path.
 
 For Zeabur/public validation, set a random token, open the app URL, and enter that token on the login screen. Do not reuse production credentials and do not store real provider secrets in this validation instance. URL tokens (`?ygg_token=<token>` or `?access_token=<token>`) remain available as an optional one-time bootstrap path.
+
+To validate virtual-host app entry, point wildcard DNS such as `*.apps.example.com` at this Zeabur service and set `YGG_APP_BASE_DOMAIN=apps.example.com`. The Ygg management UI still uses the main domain and token; app vhost domains do not require the Ygg token.
 
 ## Local smoke test
 

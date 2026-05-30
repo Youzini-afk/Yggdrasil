@@ -209,6 +209,11 @@ controls. Deploy leases a loopback port, invokes `official/docker-runtime-lab`,
 then registers a reverse-proxy route. `kernel.v1.project.start` does not deploy
 anything automatically.
 
+The host may expose deployed apps through `/p/<route_id>/...` or, when
+`YGG_APP_BASE_DOMAIN` / `--app-base-domain` is configured, through a virtual
+host such as `https://<slug>.apps.example.com/`. The Web shell displays and
+opens the URL returned by the host broker; the vhost decision stays service-side.
+
 If a project exposes `project.metadata.deployment.build_deploy`, the console can
 start a Build & Deploy job instead: clone source, build with Dockerfile or
 nixpacks, inject approved runtime env / volumes, deploy the built image, and

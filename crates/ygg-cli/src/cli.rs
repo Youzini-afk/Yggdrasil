@@ -238,6 +238,9 @@ pub enum HostCommand {
         /// Optional HTTP access token. When set, RPC/SSE/service routes require it.
         #[arg(long, env = "YGG_HTTP_ACCESS_TOKEN")]
         access_token: Option<String>,
+        /// Optional wildcard app base domain for vhost proxy routes, e.g. apps.example.com.
+        #[arg(long, env = "YGG_APP_BASE_DOMAIN")]
+        app_base_domain: Option<String>,
     },
 }
 

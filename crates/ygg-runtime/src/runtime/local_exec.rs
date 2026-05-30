@@ -1530,8 +1530,8 @@ impl ProxyRouteRegistry {
             .route_id
             .unwrap_or_else(|| format!("proxy-route-{sequence:06}"));
         let route = ProxyRouteRecord {
-            public_url: format!("/_ygg/app/{id}/"),
-            iframe_url: format!("/_ygg/app/{id}/"),
+            public_url: format!("/p/{id}/"),
+            iframe_url: format!("/p/{id}/"),
             id: id.clone(),
             upstream: request.upstream,
             protocol: request.protocol,

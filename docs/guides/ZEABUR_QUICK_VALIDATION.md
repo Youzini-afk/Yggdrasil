@@ -46,10 +46,13 @@ ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/de
 | `YGG_STATIC_DIR` | `/app/public` | 要服务的已构建 Web 静态目录。 |
 | `YGG_HTTP_ACCESS_TOKEN` | 未设置 | 公网 URL 强烈建议设置；保护 RPC/SSE/service 路由。 |
 | `YGG_REQUIRE_ACCESS_TOKEN` | `0` | 设为 `1` 时，如果缺少 `YGG_HTTP_ACCESS_TOKEN`，容器会启动失败。 |
+| `YGG_APP_BASE_DOMAIN` | 未设置 | 可选 wildcard app 域名，例如 `apps.example.com`；启用后部署项目可通过 `<slug>.apps.example.com/` 访问。 |
 
 如果 `/data/profiles/$YGG_PROFILE.yaml` 不存在，entrypoint 会创建一个轻量 SQLite profile。也可以通过挂载或写入同一路径来替换为自定义 profile。
 
 在 Zeabur/公网验证时，请设置随机 token，打开应用 URL 后在登录页输入该 token。不要复用生产凭据，也不要在该验证实例中保存真实 provider secret。URL token（`?ygg_token=<token>` 或 `?access_token=<token>`）仍可作为可选的一次性 bootstrap 路径使用。
+
+如果要验证虚拟主机部署入口，需要把 wildcard DNS（例如 `*.apps.example.com`）指向该 Zeabur 服务，并设置 `YGG_APP_BASE_DOMAIN=apps.example.com`。Ygg 管理 UI 仍在主域上使用 token；项目应用域不要求 Ygg token。
 
 ## 本地 smoke test
 
