@@ -114,12 +114,22 @@
   "title": "kernel.v1.surface.resolve_bundle",
   "type": "object",
   "x-yggdrasil-contract": {
-    "aliases": [],
-    "canonical_id": "kernel.v1.surface.resolve_bundle",
+    "aliases": [
+      {
+        "canonical_id": "host.surface.bundle.resolve",
+        "id": "kernel.v1.surface.resolve_bundle",
+        "introduced_in": "kernel.v1@0.1.0",
+        "maturity": "legacy_adapter",
+        "replacement": "host.surface.bundle.resolve",
+        "request_adapter": "identity",
+        "response_adapter": "identity"
+      }
+    ],
+    "canonical_id": "host.surface.bundle.resolve",
     "implementation_status": "partial",
-    "introduced_in": "kernel.v1@0.1.0",
+    "introduced_in": "ygg.contract.default/v1@0.2.0",
     "maturity": "experimental",
-    "owner_layer": "cross_layer",
+    "owner_layer": "host",
     "request_adapter": "identity",
     "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.surface.resolve_bundle.schema.json#/$defs/Params",
     "response_adapter": "identity",

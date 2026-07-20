@@ -125,12 +125,26 @@ impl KernelClient {
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn exec_list(&self, params: EmptyParams) -> Result<LocalExecListResponse> {
+        let raw = self.invoke("host.exec.list", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_exec_list(
+        &self,
+        params: EmptyParams,
+    ) -> Result<LocalExecListResponse> {
         let raw = self
             .invoke("kernel.v1.exec.list", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn exec_logs(
+        &self,
+        params: LocalExecLogsRequest,
+    ) -> Result<LocalExecLogsResponse> {
+        let raw = self.invoke("host.exec.logs", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_exec_logs(
         &self,
         params: LocalExecLogsRequest,
     ) -> Result<LocalExecLogsResponse> {
@@ -143,6 +157,13 @@ impl KernelClient {
         &self,
         params: LocalExecStartRequest,
     ) -> Result<LocalExecStartResponse> {
+        let raw = self.invoke("host.exec.start", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_exec_start(
+        &self,
+        params: LocalExecStartRequest,
+    ) -> Result<LocalExecStartResponse> {
         let raw = self
             .invoke("kernel.v1.exec.start", serde_json::to_value(params)?)
             .await?;
@@ -152,12 +173,26 @@ impl KernelClient {
         &self,
         params: ExecIdParams,
     ) -> Result<LocalExecStatusResponse> {
+        let raw = self.invoke("host.exec.status", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_exec_status(
+        &self,
+        params: ExecIdParams,
+    ) -> Result<LocalExecStatusResponse> {
         let raw = self
             .invoke("kernel.v1.exec.status", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn exec_stop(
+        &self,
+        params: LocalExecStopRequest,
+    ) -> Result<LocalExecStopResponse> {
+        let raw = self.invoke("host.exec.stop", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_exec_stop(
         &self,
         params: LocalExecStopRequest,
     ) -> Result<LocalExecStopResponse> {
@@ -378,18 +413,39 @@ impl KernelClient {
         &self,
         params: PortLeaseRequest,
     ) -> Result<PortLeaseResponse> {
+        let raw = self.invoke("host.port.lease", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_port_lease(
+        &self,
+        params: PortLeaseRequest,
+    ) -> Result<PortLeaseResponse> {
         let raw = self
             .invoke("kernel.v1.port.lease", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn port_list(&self, params: EmptyParams) -> Result<PortListResult> {
+        let raw = self.invoke("host.port.list", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_port_list(
+        &self,
+        params: EmptyParams,
+    ) -> Result<PortListResult> {
         let raw = self
             .invoke("kernel.v1.port.list", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn port_release(
+        &self,
+        params: PortLeaseIdParams,
+    ) -> Result<PortLeaseRecord2> {
+        let raw = self.invoke("host.port.release", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_port_release(
         &self,
         params: PortLeaseIdParams,
     ) -> Result<PortLeaseRecord2> {
@@ -402,6 +458,13 @@ impl KernelClient {
         &self,
         params: PortLeaseIdParams,
     ) -> Result<PortLeaseRecord2> {
+        let raw = self.invoke("host.port.status", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_port_status(
+        &self,
+        params: PortLeaseIdParams,
+    ) -> Result<PortLeaseRecord2> {
         let raw = self
             .invoke("kernel.v1.port.status", serde_json::to_value(params)?)
             .await?;
@@ -411,12 +474,26 @@ impl KernelClient {
         &self,
         params: ProjectIdParams,
     ) -> Result<ProjectGetResult> {
+        let raw = self.invoke("host.project.get", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_project_get(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectGetResult> {
         let raw = self
             .invoke("kernel.v1.project.get", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn project_list(
+        &self,
+        params: ProjectListParams,
+    ) -> Result<ProjectListResultSchema> {
+        let raw = self.invoke("host.project.list", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_project_list(
         &self,
         params: ProjectListParams,
     ) -> Result<ProjectListResultSchema> {
@@ -430,11 +507,29 @@ impl KernelClient {
         params: ProjectIdParams,
     ) -> Result<ProjectStartResult> {
         let raw = self
+            .invoke("host.project.start", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_project_start(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectStartResult> {
+        let raw = self
             .invoke("kernel.v1.project.start", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn project_status(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectStatusResult> {
+        let raw = self
+            .invoke("host.project.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_project_status(
         &self,
         params: ProjectIdParams,
     ) -> Result<ProjectStatusResult> {
@@ -447,6 +542,13 @@ impl KernelClient {
         &self,
         params: ProjectIdParams,
     ) -> Result<ProjectStopResult> {
+        let raw = self.invoke("host.project.stop", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_project_stop(
+        &self,
+        params: ProjectIdParams,
+    ) -> Result<ProjectStopResult> {
         let raw = self
             .invoke("kernel.v1.project.stop", serde_json::to_value(params)?)
             .await?;
@@ -456,12 +558,26 @@ impl KernelClient {
         &self,
         params: ProjectionIdParams,
     ) -> Result<ProjectionDefinition> {
+        let raw = self.invoke("projection.get", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_projection_get(
+        &self,
+        params: ProjectionIdParams,
+    ) -> Result<ProjectionDefinition> {
         let raw = self
             .invoke("kernel.v1.projection.get", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn projection_list(
+        &self,
+        params: EmptyParams,
+    ) -> Result<ProjectionListResult> {
+        let raw = self.invoke("projection.list", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_projection_list(
         &self,
         params: EmptyParams,
     ) -> Result<ProjectionListResult> {
@@ -475,11 +591,29 @@ impl KernelClient {
         params: ProjectionIdParams,
     ) -> Result<ProjectionDefinition> {
         let raw = self
+            .invoke("projection.rebuild", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_projection_rebuild(
+        &self,
+        params: ProjectionIdParams,
+    ) -> Result<ProjectionDefinition> {
+        let raw = self
             .invoke("kernel.v1.projection.rebuild", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn projection_register(
+        &self,
+        params: ProjectionDefinition,
+    ) -> Result<ProjectionDefinition> {
+        let raw = self
+            .invoke("projection.register", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_projection_register(
         &self,
         params: ProjectionDefinition,
     ) -> Result<ProjectionDefinition> {
@@ -493,11 +627,29 @@ impl KernelClient {
         params: ProposalIdParams,
     ) -> Result<ProposalRecord> {
         let raw = self
+            .invoke("change.proposal.apply", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proposal_apply(
+        &self,
+        params: ProposalIdParams,
+    ) -> Result<ProposalRecord> {
+        let raw = self
             .invoke("kernel.v1.proposal.apply", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn proposal_approve(
+        &self,
+        params: ProposalDecisionParams,
+    ) -> Result<ProposalRecord> {
+        let raw = self
+            .invoke("change.proposal.approve", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proposal_approve(
         &self,
         params: ProposalDecisionParams,
     ) -> Result<ProposalRecord> {
@@ -511,11 +663,29 @@ impl KernelClient {
         params: ProposalRecord,
     ) -> Result<ProposalRecord> {
         let raw = self
+            .invoke("change.proposal.create", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proposal_create(
+        &self,
+        params: ProposalRecord,
+    ) -> Result<ProposalRecord> {
+        let raw = self
             .invoke("kernel.v1.proposal.create", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn proposal_get(
+        &self,
+        params: ProposalIdParams,
+    ) -> Result<ProposalRecord> {
+        let raw = self
+            .invoke("change.proposal.get", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proposal_get(
         &self,
         params: ProposalIdParams,
     ) -> Result<ProposalRecord> {
@@ -529,6 +699,15 @@ impl KernelClient {
         params: EmptyParams,
     ) -> Result<ProposalListResult> {
         let raw = self
+            .invoke("change.proposal.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proposal_list(
+        &self,
+        params: EmptyParams,
+    ) -> Result<ProposalListResult> {
+        let raw = self
             .invoke("kernel.v1.proposal.list", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
@@ -538,17 +717,42 @@ impl KernelClient {
         params: ProposalDecisionParams,
     ) -> Result<ProposalRecord> {
         let raw = self
+            .invoke("change.proposal.reject", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proposal_reject(
+        &self,
+        params: ProposalDecisionParams,
+    ) -> Result<ProposalRecord> {
+        let raw = self
             .invoke("kernel.v1.proposal.reject", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn proxy_list(&self, params: EmptyParams) -> Result<ProxyListResult> {
+        let raw = self.invoke("host.proxy.list", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proxy_list(
+        &self,
+        params: EmptyParams,
+    ) -> Result<ProxyListResult> {
         let raw = self
             .invoke("kernel.v1.proxy.list", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn proxy_register(
+        &self,
+        params: ProxyRouteRegisterRequest,
+    ) -> Result<ProxyRouteRegisterResponse> {
+        let raw = self
+            .invoke("host.proxy.register", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proxy_register(
         &self,
         params: ProxyRouteRegisterRequest,
     ) -> Result<ProxyRouteRegisterResponse> {
@@ -561,12 +765,28 @@ impl KernelClient {
         &self,
         params: ProxyRouteIdParams,
     ) -> Result<ProxyRouteRecord2> {
+        let raw = self.invoke("host.proxy.status", serde_json::to_value(params)?).await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proxy_status(
+        &self,
+        params: ProxyRouteIdParams,
+    ) -> Result<ProxyRouteRecord2> {
         let raw = self
             .invoke("kernel.v1.proxy.status", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn proxy_unregister(
+        &self,
+        params: ProxyRouteIdParams,
+    ) -> Result<ProxyRouteRecord2> {
+        let raw = self
+            .invoke("host.proxy.unregister", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_proxy_unregister(
         &self,
         params: ProxyRouteIdParams,
     ) -> Result<ProxyRouteRecord2> {
@@ -625,6 +845,15 @@ impl KernelClient {
         params: SurfaceDescribeParams,
     ) -> Result<SurfaceContributionDescribeResult> {
         let raw = self
+            .invoke("shell.contribution.describe", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_surface_contribution_describe(
+        &self,
+        params: SurfaceDescribeParams,
+    ) -> Result<SurfaceContributionDescribeResult> {
+        let raw = self
             .invoke(
                 "kernel.v1.surface.contribution.describe",
                 serde_json::to_value(params)?,
@@ -637,11 +866,29 @@ impl KernelClient {
         params: SurfaceListParams,
     ) -> Result<SurfaceContributionListResult> {
         let raw = self
+            .invoke("shell.contribution.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_surface_contribution_list(
+        &self,
+        params: SurfaceListParams,
+    ) -> Result<SurfaceContributionListResult> {
+        let raw = self
             .invoke("kernel.v1.surface.contribution.list", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn surface_resolve_bundle(
+        &self,
+        params: SurfaceResolveBundleParams,
+    ) -> Result<SurfaceResolveBundleResult> {
+        let raw = self
+            .invoke("host.surface.bundle.resolve", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_surface_resolve_bundle(
         &self,
         params: SurfaceResolveBundleParams,
     ) -> Result<SurfaceResolveBundleResult> {
@@ -668,6 +915,15 @@ impl KernelClient {
         params: ExecutionTarget,
     ) -> Result<ExecutionTarget> {
         let raw = self
+            .invoke("host.target.register", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_target_register(
+        &self,
+        params: ExecutionTarget,
+    ) -> Result<ExecutionTarget> {
+        let raw = self
             .invoke("kernel.v1.target.register", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
@@ -677,11 +933,29 @@ impl KernelClient {
         params: TargetIdParams,
     ) -> Result<ExecutionTarget> {
         let raw = self
+            .invoke("host.target.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_target_status(
+        &self,
+        params: TargetIdParams,
+    ) -> Result<ExecutionTarget> {
+        let raw = self
             .invoke("kernel.v1.target.status", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn target_unregister(
+        &self,
+        params: TargetIdParams,
+    ) -> Result<ExecutionTarget> {
+        let raw = self
+            .invoke("host.target.unregister", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn legacy_kernel_v1_target_unregister(
         &self,
         params: TargetIdParams,
     ) -> Result<ExecutionTarget> {

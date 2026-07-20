@@ -30,16 +30,29 @@ Each `ContractMethod` advertises:
 - introduced, deprecated, and replacement metadata;
 - current implementation status and streaming metadata.
 
-The initial identity aliases are:
+Registry `0.2.0` currently publishes 36 identity aliases:
 
 | Canonical | Legacy alias | Owner |
 |---|---|---|
 | `host.info` | `kernel.v1.host.info` | `host` |
-| `host.target.list` | `kernel.v1.target.list` | `host` |
+| `host.project.{list,get,start,stop,status}` | `kernel.v1.project.*` | `host` |
+| `host.target.{list,status,register,unregister}` | `kernel.v1.target.*` | `host` |
+| `host.exec.{start,stop,status,logs,list}` | `kernel.v1.exec.*` | `host` |
+| `host.port.{lease,release,status,list}` | `kernel.v1.port.*` | `host` |
+| `host.proxy.{register,unregister,status,list}` | `kernel.v1.proxy.*` | `host` |
+| `host.surface.bundle.resolve` | `kernel.v1.surface.resolve_bundle` | `host` |
+| `shell.contribution.{list,describe}` | `kernel.v1.surface.contribution.*` | `shell` |
+| `change.proposal.{create,get,list,approve,reject,apply}` | `kernel.v1.proposal.*` | `protocol` |
+| `projection.{register,rebuild,get,list}` | `kernel.v1.projection.*` | `protocol` |
 
+The `*` and `{...}` notation is documentation shorthand; every suffix is registered explicitly.
 Until migrated, every other method keeps its existing `kernel.v1.*` ID as its canonical ID. New
 aliases must be registered centrally; dispatchers, clients, and transports must not add string
 special cases.
+
+Phase 3 changes only ownership and namespace. Payloads, permissions, events, and handlers remain
+unchanged. In particular, `change.proposal.*` still uses the existing `ProposalRecord`; it does not
+pretend to provide the Intent, ChangeSet, Commit, or EffectReceipt primitives introduced in Phase 5.
 
 ## Explicit negotiation
 
@@ -60,6 +73,8 @@ The RPC envelope may include an optional field:
 ```
 
 - Omitting `contract` selects the `kernel.v1` legacy profile for old clients.
+- The advertised profiles are currently `ygg.contract.default/v1`, `ygg.shell.default/v1`, and
+  `kernel.v1`. Shell Default requires the published host, protocol, and shell layer versions.
 - Once a client explicitly requests a profile or layer version, the host must satisfy it exactly.
 - Unknown profiles, layers outside the profile, and version mismatches return
   `kernel/v1/error/unsupported_contract` with a structured reason.
@@ -86,6 +101,7 @@ The generator reads `x-yggdrasil-contract` metadata from every method schema:
 - each legacy wire ID gets an explicit `legacyKernelV1...` / `legacy_kernel_v1_...` wrapper;
 - a negotiated client is enabled only when its transport can carry contract selection, so a
   requirement is never silently ignored.
+- generation rejects duplicate canonical/alias wire IDs, TypeScript/Rust function names, and
+  OpenAPI operation IDs, and validates each alias target and replacement.
 
 Schemas, SDKs, and OpenAPI are regenerated together; generated artifacts are not edited manually.
-

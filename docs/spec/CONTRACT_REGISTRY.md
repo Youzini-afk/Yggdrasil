@@ -29,15 +29,28 @@ Alias 不创建新 handler、principal、permission 或 audit 分支。
 - introduced / deprecated / replacement metadata；
 - 当前实现状态与 streaming 标记。
 
-当前第一批 identity alias 为：
+Registry `0.2.0` 当前发布 36 条 identity alias：
 
 | Canonical | Legacy alias | Owner |
 |---|---|---|
 | `host.info` | `kernel.v1.host.info` | `host` |
-| `host.target.list` | `kernel.v1.target.list` | `host` |
+| `host.project.{list,get,start,stop,status}` | `kernel.v1.project.*` | `host` |
+| `host.target.{list,status,register,unregister}` | `kernel.v1.target.*` | `host` |
+| `host.exec.{start,stop,status,logs,list}` | `kernel.v1.exec.*` | `host` |
+| `host.port.{lease,release,status,list}` | `kernel.v1.port.*` | `host` |
+| `host.proxy.{register,unregister,status,list}` | `kernel.v1.proxy.*` | `host` |
+| `host.surface.bundle.resolve` | `kernel.v1.surface.resolve_bundle` | `host` |
+| `shell.contribution.{list,describe}` | `kernel.v1.surface.contribution.*` | `shell` |
+| `change.proposal.{create,get,list,approve,reject,apply}` | `kernel.v1.proposal.*` | `protocol` |
+| `projection.{register,rebuild,get,list}` | `kernel.v1.projection.*` | `protocol` |
 
-其他方法在迁移前继续以现有 `kernel.v1.*` ID 作为 canonical ID。新增 alias 必须进入
-registry，不能在 dispatcher、客户端或 transport 中加入字符串特判。
+表中的 `*` / `{...}` 仅是文档缩写，每个后缀都在 registry 中逐项注册。其他方法在迁移前
+继续以现有 `kernel.v1.*` ID 作为 canonical ID。新增 alias 必须进入 registry，不能在
+dispatcher、客户端或 transport 中加入字符串特判。
+
+Phase 3 只迁移 owner 与 namespace：payload、权限、事件与 handler 不变。尤其
+`change.proposal.*` 仍使用现有 `ProposalRecord`，不提前冒充 Phase 5 才引入的
+Intent / ChangeSet / Commit / EffectReceipt。
 
 ## 显式协商
 
@@ -58,6 +71,8 @@ RPC envelope 可带可选字段：
 ```
 
 - 省略 `contract` 时，为旧客户端使用 `kernel.v1` legacy profile。
+- 当前公开 `ygg.contract.default/v1`、`ygg.shell.default/v1` 与 `kernel.v1`；Shell Default
+  精确要求 host、protocol、shell 三层的已发布版本。
 - 一旦客户端显式给出 profile 或 layer version，host 必须精确满足。
 - 未知 profile、profile 不包含所需 layer、或 version 不匹配时返回
   `kernel/v1/error/unsupported_contract`，并在结构化 details 中报告原因。
@@ -82,6 +97,7 @@ additive optional 字段：
 - 每个 legacy wire ID 生成显式 `legacyKernelV1...` / `legacy_kernel_v1_...`
   wrapper；
 - negotiated client 只有在 transport 能携带 contract selection 时才启用，不能静默忽略选择。
+- 生成前校验 canonical/alias wire ID、TypeScript/Rust 函数名和 OpenAPI operation ID
+  全局唯一，并校验 alias 的 canonical target 与 replacement。
 
 Schema、SDK 与 OpenAPI 必须通过生成器更新，不手工修改生成物。
-

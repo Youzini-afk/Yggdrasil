@@ -5,9 +5,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use ygg_runtime::{
     ContractOwnerLayer, ContractSelection, ContractVersionRequirement, DeploymentReconcileSource,
-    EventStore, ExecStatusKind, LocalExecExecutorConfig, ManagedContainerReport,
-    PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProxyRouteStatusKind, Runtime,
-    RuntimeConfig, SqliteEventStore, CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE,
+    EventStore, ExecStatusKind, InMemoryEventStore, LocalExecExecutorConfig,
+    ManagedContainerReport, PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal,
+    ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore, CONTRACT_LAYER_VERSION,
+    DEFAULT_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
 };
 
 use super::fixtures::*;
@@ -30,7 +31,12 @@ pub(crate) async fn call_host_info() -> anyhow::Result<()> {
 }
 
 pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
-    let (store, runtime) = runtime();
+    let store = Arc::new(InMemoryEventStore::default());
+    let mut config = RuntimeConfig::default();
+    config
+        .surface_dev_paths
+        .insert("smoke".to_string(), ".".to_string());
+    let runtime = Runtime::new(store.clone(), config);
     let context = ProtocolContext::host_dev("conformance");
     let canonical = runtime
         .call_protocol(&context, "host.info", json!({}))
@@ -50,18 +56,38 @@ pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
         "host.info did not advertise its legacy alias"
     );
 
-    let canonical_targets = runtime
-        .call_protocol(&context, "host.target.list", json!({}))
-        .await
-        .map_err(|error| anyhow::anyhow!(error.message))?;
-    let legacy_targets = runtime
-        .call_protocol(&context, "kernel.v1.target.list", json!({}))
-        .await
-        .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(
-        canonical_targets == legacy_targets,
-        "canonical and legacy target.list differ"
-    );
+    for (canonical_id, legacy_id, params) in [
+        ("host.project.list", "kernel.v1.project.list", json!({})),
+        ("host.target.list", "kernel.v1.target.list", json!({})),
+        ("host.exec.list", "kernel.v1.exec.list", json!({})),
+        ("host.port.list", "kernel.v1.port.list", json!({})),
+        ("host.proxy.list", "kernel.v1.proxy.list", json!({})),
+        (
+            "host.surface.bundle.resolve",
+            "kernel.v1.surface.resolve_bundle",
+            json!({"surface_id": "smoke/entry"}),
+        ),
+        (
+            "shell.contribution.list",
+            "kernel.v1.surface.contribution.list",
+            json!({}),
+        ),
+        ("change.proposal.list", "kernel.v1.proposal.list", json!({})),
+        ("projection.list", "kernel.v1.projection.list", json!({})),
+    ] {
+        let canonical = runtime
+            .call_protocol(&context, canonical_id, params.clone())
+            .await
+            .map_err(|error| anyhow::anyhow!(error.message))?;
+        let legacy = runtime
+            .call_protocol(&context, legacy_id, params)
+            .await
+            .map_err(|error| anyhow::anyhow!(error.message))?;
+        anyhow::ensure!(
+            canonical == legacy,
+            "canonical {canonical_id} and legacy {legacy_id} differ"
+        );
+    }
 
     let denied_context = ProtocolContext {
         principal: ProtocolPrincipal::Anonymous,
@@ -85,6 +111,60 @@ pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
     anyhow::ensure!(
         store.list_all().await?.is_empty(),
         "identity aliases must not create a distinct audit/event path"
+    );
+    Ok(())
+}
+
+pub(crate) async fn layered_namespace_smoke() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let mut config = RuntimeConfig::default();
+    config
+        .surface_dev_paths
+        .insert("smoke".to_string(), ".".to_string());
+    let runtime = Runtime::new(store.clone(), config);
+    let context = ProtocolContext::host_dev("layered_namespace_smoke");
+    let default_selection = ContractSelection {
+        profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+        versions: Vec::new(),
+    };
+
+    for (method, params) in [
+        ("host.info", json!({})),
+        ("host.project.list", json!({})),
+        ("host.target.list", json!({})),
+        ("host.exec.list", json!({})),
+        ("host.port.list", json!({})),
+        ("host.proxy.list", json!({})),
+        (
+            "host.surface.bundle.resolve",
+            json!({"surface_id": "smoke/entry"}),
+        ),
+        ("change.proposal.list", json!({})),
+        ("projection.list", json!({})),
+    ] {
+        runtime
+            .call_protocol_negotiated(&context, method, params, Some(&default_selection))
+            .await
+            .map_err(|error| anyhow::anyhow!("{method}: {}", error.message))?;
+    }
+
+    let shell_selection = ContractSelection {
+        profile: SHELL_DEFAULT_PROFILE.to_string(),
+        versions: Vec::new(),
+    };
+    runtime
+        .call_protocol_negotiated(
+            &context,
+            "shell.contribution.list",
+            json!({}),
+            Some(&shell_selection),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+
+    anyhow::ensure!(
+        store.list_all().await?.is_empty(),
+        "read-only layered namespace smoke created events"
     );
     Ok(())
 }

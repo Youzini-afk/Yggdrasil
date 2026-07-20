@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**450**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**451**。
 
 ## Conformance Feedback Loop
 
@@ -143,6 +143,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | protocol | 方法列表不包含内容方法 | implemented in unit tests |
 | protocol | 结构化权限错误码 | implemented |
 | protocol / legacy | canonical 与 legacy alias 结果、permission 和 error mapping 等价 | implemented |
+| protocol / canonical | 分层 namespace smoke 只调用 canonical Host/Shell/Change/Projection ID，并显式协商 default 与 Shell Default profile | implemented |
 | protocol / negotiation | 未知 layer version 明确返回 `unsupported_contract` | implemented |
 | protocol / negotiation | 协商失败不静默回退，且业务 handler 零副作用 | implemented |
 | protocol | in-process 协议分发器调用 host.info | implemented |
@@ -412,6 +413,7 @@ permission.grant_revoke_audit              PASS
 permission.assistant_capability_grant      PASS
 protocol.call_host_info                    PASS
 protocol.alias_equivalent                  PASS
+protocol.layered_namespace_smoke           PASS
 protocol.unsupported_version_rejected      PASS
 protocol.no_silent_downgrade               PASS
 protocol.call_capability_in_process        PASS

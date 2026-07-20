@@ -41,7 +41,8 @@
 
 - [x] Phase 1：修复 v1 事实漂移、SDK/CI/Windows 基线。
 - [x] Phase 2：建立 Experimental Contract Registry、集中 alias、显式 profile/version 协商与 SDK/conformance 生成链。
-- [ ] Phase 3–9：owner 双栈、object/artifact、receipt/change、Protocol Commons、component identity、World Bundle 与客户端弃用迁移。
+- [x] Phase 3：为 Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 建立 owner namespace 双栈；36 条 legacy alias 仍进入原 handler。
+- [ ] Phase 4–9：object/artifact、receipt/change primitives、Protocol Commons、component identity、World Bundle 与客户端弃用迁移。
 
 ## 立即冻结线
 

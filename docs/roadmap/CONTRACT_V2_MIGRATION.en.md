@@ -41,7 +41,8 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 
 - [x] Phase 1: repair v1 factual drift and the SDK/CI/Windows baselines.
 - [x] Phase 2: implement the Experimental Contract Registry, centralized aliases, explicit profile/version negotiation, and the generated SDK/conformance chain.
-- [ ] Phases 3–9: owner dual stack, objects/artifacts, receipts/change, Protocol Commons, component identity, World Bundle, and client/deprecation migration.
+- [x] Phase 3: add owner-namespace dual stacks for the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection; all 36 legacy aliases still reach the original handlers.
+- [ ] Phases 4–9: object/artifact foundations, receipt/change primitives, Protocol Commons, component identity, World Bundle, and client/deprecation migration.
 
 ## Immediate freeze line
 

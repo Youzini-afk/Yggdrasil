@@ -6,6 +6,7 @@ import {
   storeBrowserAccessToken,
   YggProtocolClient,
 } from "./client";
+import { resolveSurfaceBundle } from "../surfaces/bundle-resolver";
 
 function assertEqual<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -261,6 +262,22 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return Response.json({ id: body.id, result: { project_id: body.params.project_id, previous_state: "installed", new_state: "running", session_id: "session-1", already_running: false } });
   }
 
+  if (body?.method === "kernel.v1.project.list") {
+    return Response.json({ id: body.id, result: { projects: [] } });
+  }
+
+  if (body?.method === "kernel.v1.projection.list" || body?.method === "kernel.v1.proposal.list" || body?.method === "kernel.v1.surface.contribution.list") {
+    return Response.json({ id: body.id, result: [] });
+  }
+
+  if (body?.method === "kernel.v1.surface.contribution.describe") {
+    return Response.json({ id: body.id, result: { package_id: "official/test", entry_kind: "in_process", package_state: "loaded", surface: { id: body.params.surface_id, slot: "experience_entry", kind: "module", source: "bundle.mjs" } } });
+  }
+
+  if (body?.method === "kernel.v1.surface.resolve_bundle") {
+    return Response.json({ id: body.id, result: { surface_id: body.params.surface_id, bundle_url: "/surface-bundles/test/bundle.mjs", export_name: "default", stylesheets: [], source: "dev_path" } });
+  }
+
   throw new Error(`unexpected method ${body?.method}`);
 }) as typeof fetch;
 
@@ -387,6 +404,22 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
 capturedRequests.length = 0;
 await protocolClient.startProject("project-1");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), ["kernel.v1.project.start"]);
+
+capturedRequests.length = 0;
+await protocolClient.listProjects();
+await protocolClient.projections();
+await protocolClient.proposals();
+await protocolClient.surfaceContributions();
+await protocolClient.describeSurface("official/test.entry");
+await resolveSurfaceBundle(protocolClient, "official/test.entry");
+assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
+  "kernel.v1.project.list",
+  "kernel.v1.projection.list",
+  "kernel.v1.proposal.list",
+  "kernel.v1.surface.contribution.list",
+  "kernel.v1.surface.contribution.describe",
+  "kernel.v1.surface.resolve_bundle",
+]);
 
 capturedRequests.length = 0;
 const negotiatedClient = new YggProtocolClient("http://host.test", "valid-token");

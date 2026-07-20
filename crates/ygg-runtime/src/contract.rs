@@ -8,10 +8,13 @@ use serde_json::{json, Value};
 
 use crate::{KernelMethod, MethodStatus, ProtocolError};
 
-pub const CONTRACT_REGISTRY_VERSION: &str = "0.1.0";
+pub const CONTRACT_REGISTRY_VERSION: &str = "0.2.0";
 pub const CONTRACT_LAYER_VERSION: &str = "0.1.0";
 pub const DEFAULT_CONTRACT_PROFILE: &str = "ygg.contract.default/v1";
+pub const SHELL_DEFAULT_PROFILE: &str = "ygg.shell.default/v1";
 pub const LEGACY_CONTRACT_PROFILE: &str = "kernel.v1";
+
+const INITIAL_CANONICAL_REGISTRY_VERSION: &str = "0.1.0";
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord,
@@ -282,6 +285,18 @@ pub fn contract_profiles() -> Vec<ContractProfileInfo> {
             .collect(),
         },
         ContractProfileInfo {
+            id: SHELL_DEFAULT_PROFILE.to_string(),
+            maturity: ContractMaturity::Experimental,
+            versions: [
+                ContractOwnerLayer::Host,
+                ContractOwnerLayer::Protocol,
+                ContractOwnerLayer::Shell,
+            ]
+            .into_iter()
+            .map(version_requirement)
+            .collect(),
+        },
+        ContractProfileInfo {
             id: LEGACY_CONTRACT_PROFILE.to_string(),
             maturity: ContractMaturity::LegacyAdapter,
             versions: vec![version_requirement(ContractOwnerLayer::LegacyAdapter)],
@@ -371,7 +386,41 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
     let legacy_id = method.id();
     let canonical_id = match method {
         KernelMethod::HostInfo => "host.info",
+        KernelMethod::ProjectList => "host.project.list",
+        KernelMethod::ProjectGet => "host.project.get",
+        KernelMethod::ProjectStart => "host.project.start",
+        KernelMethod::ProjectStop => "host.project.stop",
+        KernelMethod::ProjectStatus => "host.project.status",
         KernelMethod::TargetList => "host.target.list",
+        KernelMethod::TargetStatus => "host.target.status",
+        KernelMethod::TargetRegister => "host.target.register",
+        KernelMethod::TargetUnregister => "host.target.unregister",
+        KernelMethod::ExecStart => "host.exec.start",
+        KernelMethod::ExecStop => "host.exec.stop",
+        KernelMethod::ExecStatus => "host.exec.status",
+        KernelMethod::ExecLogs => "host.exec.logs",
+        KernelMethod::ExecList => "host.exec.list",
+        KernelMethod::PortLease => "host.port.lease",
+        KernelMethod::PortRelease => "host.port.release",
+        KernelMethod::PortStatus => "host.port.status",
+        KernelMethod::PortList => "host.port.list",
+        KernelMethod::ProxyRegister => "host.proxy.register",
+        KernelMethod::ProxyUnregister => "host.proxy.unregister",
+        KernelMethod::ProxyStatus => "host.proxy.status",
+        KernelMethod::ProxyList => "host.proxy.list",
+        KernelMethod::SurfaceResolveBundle => "host.surface.bundle.resolve",
+        KernelMethod::SurfaceContributionList => "shell.contribution.list",
+        KernelMethod::SurfaceContributionDescribe => "shell.contribution.describe",
+        KernelMethod::ProposalCreate => "change.proposal.create",
+        KernelMethod::ProposalGet => "change.proposal.get",
+        KernelMethod::ProposalList => "change.proposal.list",
+        KernelMethod::ProposalApprove => "change.proposal.approve",
+        KernelMethod::ProposalReject => "change.proposal.reject",
+        KernelMethod::ProposalApply => "change.proposal.apply",
+        KernelMethod::ProjectionRegister => "projection.register",
+        KernelMethod::ProjectionRebuild => "projection.rebuild",
+        KernelMethod::ProjectionGet => "projection.get",
+        KernelMethod::ProjectionList => "projection.list",
         _ => legacy_id,
     };
     let aliases = if canonical_id == legacy_id {
@@ -399,11 +448,7 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
         response_schema: format!("{schema}#/$defs/Result"),
         request_adapter: ContractAdapter::Identity,
         response_adapter: ContractAdapter::Identity,
-        introduced_in: if canonical_id == legacy_id {
-            "kernel.v1@0.1.0".to_string()
-        } else {
-            format!("{DEFAULT_CONTRACT_PROFILE}@{CONTRACT_REGISTRY_VERSION}")
-        },
+        introduced_in: canonical_introduced_in(method, canonical_id, legacy_id),
         deprecated_in: None,
         replacement: None,
         implementation_status: method.status(),
@@ -493,13 +538,30 @@ fn owner_layer(method: KernelMethod) -> ContractOwnerLayer {
         | KernelMethod::PackageStatus
         | KernelMethod::PackageDescribe
         | KernelMethod::AuditPackage
-        | KernelMethod::SurfaceResolveBundle
         | KernelMethod::OutboundExecute
         | KernelMethod::OutboundStream
         | KernelMethod::OutboundWebSocketOpen
         | KernelMethod::OutboundWebSocketSend
         | KernelMethod::OutboundWebSocketClose => ContractOwnerLayer::CrossLayer,
+
+        KernelMethod::SurfaceResolveBundle => ContractOwnerLayer::Host,
     }
+}
+
+fn canonical_introduced_in(method: KernelMethod, canonical_id: &str, legacy_id: &str) -> String {
+    if canonical_id == legacy_id {
+        return "kernel.v1@0.1.0".to_string();
+    }
+    if matches!(
+        method,
+        KernelMethod::SurfaceContributionList | KernelMethod::SurfaceContributionDescribe
+    ) {
+        return format!("{SHELL_DEFAULT_PROFILE}@{CONTRACT_LAYER_VERSION}");
+    }
+    if matches!(method, KernelMethod::HostInfo | KernelMethod::TargetList) {
+        return format!("{DEFAULT_CONTRACT_PROFILE}@{INITIAL_CANONICAL_REGISTRY_VERSION}");
+    }
+    format!("{DEFAULT_CONTRACT_PROFILE}@{CONTRACT_REGISTRY_VERSION}")
 }
 
 fn version_requirement(layer: ContractOwnerLayer) -> ContractVersionRequirement {
@@ -549,14 +611,105 @@ mod tests {
     }
 
     #[test]
-    fn canonical_and_legacy_host_info_resolve_to_one_handler() {
-        let canonical = resolve_contract_method("host.info").unwrap();
-        let legacy = resolve_contract_method("kernel.v1.host.info").unwrap();
-        assert_eq!(canonical.method, KernelMethod::HostInfo);
-        assert_eq!(legacy.method, canonical.method);
-        assert!(canonical.alias.is_none());
-        assert!(legacy.alias.is_some());
-        assert_eq!(legacy.contract.canonical_id, "host.info");
+    fn every_legacy_alias_resolves_to_its_canonical_handler() {
+        for contract in contract_methods() {
+            let canonical = resolve_contract_method(&contract.canonical_id).unwrap();
+            assert_eq!(canonical.method, contract.method);
+            assert!(canonical.alias.is_none());
+            for alias in &contract.aliases {
+                let legacy = resolve_contract_method(&alias.id).unwrap();
+                assert_eq!(legacy.method, canonical.method);
+                assert_eq!(legacy.contract.canonical_id, contract.canonical_id);
+                assert_eq!(legacy.alias, Some(alias));
+            }
+        }
+    }
+
+    #[test]
+    fn phase_three_namespaces_are_exact() {
+        let expected = [
+            (KernelMethod::HostInfo, "host.info"),
+            (KernelMethod::ProjectList, "host.project.list"),
+            (KernelMethod::ProjectGet, "host.project.get"),
+            (KernelMethod::ProjectStart, "host.project.start"),
+            (KernelMethod::ProjectStop, "host.project.stop"),
+            (KernelMethod::ProjectStatus, "host.project.status"),
+            (KernelMethod::TargetList, "host.target.list"),
+            (KernelMethod::TargetStatus, "host.target.status"),
+            (KernelMethod::TargetRegister, "host.target.register"),
+            (KernelMethod::TargetUnregister, "host.target.unregister"),
+            (KernelMethod::ExecStart, "host.exec.start"),
+            (KernelMethod::ExecStop, "host.exec.stop"),
+            (KernelMethod::ExecStatus, "host.exec.status"),
+            (KernelMethod::ExecLogs, "host.exec.logs"),
+            (KernelMethod::ExecList, "host.exec.list"),
+            (KernelMethod::PortLease, "host.port.lease"),
+            (KernelMethod::PortRelease, "host.port.release"),
+            (KernelMethod::PortStatus, "host.port.status"),
+            (KernelMethod::PortList, "host.port.list"),
+            (KernelMethod::ProxyRegister, "host.proxy.register"),
+            (KernelMethod::ProxyUnregister, "host.proxy.unregister"),
+            (KernelMethod::ProxyStatus, "host.proxy.status"),
+            (KernelMethod::ProxyList, "host.proxy.list"),
+            (
+                KernelMethod::SurfaceResolveBundle,
+                "host.surface.bundle.resolve",
+            ),
+            (
+                KernelMethod::SurfaceContributionList,
+                "shell.contribution.list",
+            ),
+            (
+                KernelMethod::SurfaceContributionDescribe,
+                "shell.contribution.describe",
+            ),
+            (KernelMethod::ProposalCreate, "change.proposal.create"),
+            (KernelMethod::ProposalGet, "change.proposal.get"),
+            (KernelMethod::ProposalList, "change.proposal.list"),
+            (KernelMethod::ProposalApprove, "change.proposal.approve"),
+            (KernelMethod::ProposalReject, "change.proposal.reject"),
+            (KernelMethod::ProposalApply, "change.proposal.apply"),
+            (KernelMethod::ProjectionRegister, "projection.register"),
+            (KernelMethod::ProjectionRebuild, "projection.rebuild"),
+            (KernelMethod::ProjectionGet, "projection.get"),
+            (KernelMethod::ProjectionList, "projection.list"),
+        ];
+        for (method, canonical_id) in expected {
+            assert_eq!(contract_method(method).canonical_id, canonical_id);
+        }
+        assert_eq!(contract_aliases().len(), expected.len());
+    }
+
+    #[test]
+    fn shell_default_profile_and_registry_history_are_advertised() {
+        let shell_profile = contract_profiles()
+            .into_iter()
+            .find(|profile| profile.id == SHELL_DEFAULT_PROFILE)
+            .expect("shell default profile must be advertised");
+        assert_eq!(
+            shell_profile
+                .versions
+                .iter()
+                .map(|requirement| requirement.layer)
+                .collect::<Vec<_>>(),
+            vec![
+                ContractOwnerLayer::Host,
+                ContractOwnerLayer::Protocol,
+                ContractOwnerLayer::Shell,
+            ]
+        );
+        assert_eq!(
+            contract_method(KernelMethod::HostInfo).introduced_in,
+            "ygg.contract.default/v1@0.1.0"
+        );
+        assert_eq!(
+            contract_method(KernelMethod::ProjectList).introduced_in,
+            "ygg.contract.default/v1@0.2.0"
+        );
+        assert_eq!(
+            contract_method(KernelMethod::SurfaceContributionList).introduced_in,
+            "ygg.shell.default/v1@0.1.0"
+        );
     }
 
     #[test]

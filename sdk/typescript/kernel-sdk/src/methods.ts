@@ -20,10 +20,15 @@ export interface KernelMethods {
   eventList(params: EventListRequest): Promise<EventListResult>;
   eventSubscribe(params: EmptyParams): Promise<EventSubscribeResult>;
   execList(params: EmptyParams): Promise<LocalExecListResponse>;
+  legacyKernelV1ExecList(params: EmptyParams): Promise<LocalExecListResponse>;
   execLogs(params: LocalExecLogsRequest): Promise<LocalExecLogsResponse>;
+  legacyKernelV1ExecLogs(params: LocalExecLogsRequest): Promise<LocalExecLogsResponse>;
   execStart(params: LocalExecStartRequest): Promise<LocalExecStartResponse>;
+  legacyKernelV1ExecStart(params: LocalExecStartRequest): Promise<LocalExecStartResponse>;
   execStatus(params: ExecIdParams): Promise<LocalExecStatusResponse>;
+  legacyKernelV1ExecStatus(params: ExecIdParams): Promise<LocalExecStatusResponse>;
   execStop(params: LocalExecStopRequest): Promise<LocalExecStopResponse>;
+  legacyKernelV1ExecStop(params: LocalExecStopRequest): Promise<LocalExecStopResponse>;
   extensionPointDescribe(params: EmptyParams): Promise<ExtensionPointDescribeResult>;
   extensionPointList(params: EmptyParams): Promise<ExtensionPointListResult>;
   hookList(params: EmptyParams): Promise<HookListResult>;
@@ -50,28 +55,51 @@ export interface KernelMethods {
   permissionList(params: PermissionListParams): Promise<PermissionListResult>;
   permissionRevoke(params: PermissionRevokeParams): Promise<PermissionGrantRecord>;
   portLease(params: PortLeaseRequest): Promise<PortLeaseResponse>;
+  legacyKernelV1PortLease(params: PortLeaseRequest): Promise<PortLeaseResponse>;
   portList(params: EmptyParams): Promise<PortListResult>;
+  legacyKernelV1PortList(params: EmptyParams): Promise<PortListResult>;
   portRelease(params: PortLeaseIdParams): Promise<PortLeaseRecord2>;
+  legacyKernelV1PortRelease(params: PortLeaseIdParams): Promise<PortLeaseRecord2>;
   portStatus(params: PortLeaseIdParams): Promise<PortLeaseRecord2>;
+  legacyKernelV1PortStatus(params: PortLeaseIdParams): Promise<PortLeaseRecord2>;
   projectGet(params: ProjectIdParams): Promise<ProjectGetResult>;
+  legacyKernelV1ProjectGet(params: ProjectIdParams): Promise<ProjectGetResult>;
   projectList(params: ProjectListParams): Promise<ProjectListResultSchema>;
+  legacyKernelV1ProjectList(params: ProjectListParams): Promise<ProjectListResultSchema>;
   projectStart(params: ProjectIdParams): Promise<ProjectStartResult>;
+  legacyKernelV1ProjectStart(params: ProjectIdParams): Promise<ProjectStartResult>;
   projectStatus(params: ProjectIdParams): Promise<ProjectStatusResult>;
+  legacyKernelV1ProjectStatus(params: ProjectIdParams): Promise<ProjectStatusResult>;
   projectStop(params: ProjectIdParams): Promise<ProjectStopResult>;
+  legacyKernelV1ProjectStop(params: ProjectIdParams): Promise<ProjectStopResult>;
   projectionGet(params: ProjectionIdParams): Promise<ProjectionDefinition>;
+  legacyKernelV1ProjectionGet(params: ProjectionIdParams): Promise<ProjectionDefinition>;
   projectionList(params: EmptyParams): Promise<ProjectionListResult>;
+  legacyKernelV1ProjectionList(params: EmptyParams): Promise<ProjectionListResult>;
   projectionRebuild(params: ProjectionIdParams): Promise<ProjectionDefinition>;
+  legacyKernelV1ProjectionRebuild(params: ProjectionIdParams): Promise<ProjectionDefinition>;
   projectionRegister(params: ProjectionDefinition): Promise<ProjectionDefinition>;
+  legacyKernelV1ProjectionRegister(params: ProjectionDefinition): Promise<ProjectionDefinition>;
   proposalApply(params: ProposalIdParams): Promise<ProposalRecord>;
+  legacyKernelV1ProposalApply(params: ProposalIdParams): Promise<ProposalRecord>;
   proposalApprove(params: ProposalDecisionParams): Promise<ProposalRecord>;
+  legacyKernelV1ProposalApprove(params: ProposalDecisionParams): Promise<ProposalRecord>;
   proposalCreate(params: ProposalRecord): Promise<ProposalRecord>;
+  legacyKernelV1ProposalCreate(params: ProposalRecord): Promise<ProposalRecord>;
   proposalGet(params: ProposalIdParams): Promise<ProposalRecord>;
+  legacyKernelV1ProposalGet(params: ProposalIdParams): Promise<ProposalRecord>;
   proposalList(params: EmptyParams): Promise<ProposalListResult>;
+  legacyKernelV1ProposalList(params: EmptyParams): Promise<ProposalListResult>;
   proposalReject(params: ProposalDecisionParams): Promise<ProposalRecord>;
+  legacyKernelV1ProposalReject(params: ProposalDecisionParams): Promise<ProposalRecord>;
   proxyList(params: EmptyParams): Promise<ProxyListResult>;
+  legacyKernelV1ProxyList(params: EmptyParams): Promise<ProxyListResult>;
   proxyRegister(params: ProxyRouteRegisterRequest): Promise<ProxyRouteRegisterResponse>;
+  legacyKernelV1ProxyRegister(params: ProxyRouteRegisterRequest): Promise<ProxyRouteRegisterResponse>;
   proxyStatus(params: ProxyRouteIdParams): Promise<ProxyRouteRecord2>;
+  legacyKernelV1ProxyStatus(params: ProxyRouteIdParams): Promise<ProxyRouteRecord2>;
   proxyUnregister(params: ProxyRouteIdParams): Promise<ProxyRouteRecord2>;
+  legacyKernelV1ProxyUnregister(params: ProxyRouteIdParams): Promise<ProxyRouteRecord2>;
   sessionBranchList(params: SessionBranchListParams): Promise<SessionBranchListResult>;
   sessionClose(params: SessionCloseParams): Promise<EventEnvelope>;
   sessionFork(params: SessionForkParams): Promise<BranchRecord>;
@@ -79,13 +107,19 @@ export interface KernelMethods {
   sessionList(params: EmptyParams): Promise<SessionListResult>;
   sessionOpen(params: OpenSessionRequest): Promise<KernelSession>;
   surfaceContributionDescribe(params: SurfaceDescribeParams): Promise<SurfaceContributionDescribeResult>;
+  legacyKernelV1SurfaceContributionDescribe(params: SurfaceDescribeParams): Promise<SurfaceContributionDescribeResult>;
   surfaceContributionList(params: SurfaceListParams): Promise<SurfaceContributionListResult>;
+  legacyKernelV1SurfaceContributionList(params: SurfaceListParams): Promise<SurfaceContributionListResult>;
   surfaceResolveBundle(params: SurfaceResolveBundleParams): Promise<SurfaceResolveBundleResult>;
+  legacyKernelV1SurfaceResolveBundle(params: SurfaceResolveBundleParams): Promise<SurfaceResolveBundleResult>;
   targetList(params: EmptyParams): Promise<TargetListResult>;
   legacyKernelV1TargetList(params: EmptyParams): Promise<TargetListResult>;
   targetRegister(params: ExecutionTarget): Promise<ExecutionTarget>;
+  legacyKernelV1TargetRegister(params: ExecutionTarget): Promise<ExecutionTarget>;
   targetStatus(params: TargetIdParams): Promise<ExecutionTarget>;
+  legacyKernelV1TargetStatus(params: TargetIdParams): Promise<ExecutionTarget>;
   targetUnregister(params: TargetIdParams): Promise<ExecutionTarget>;
+  legacyKernelV1TargetUnregister(params: TargetIdParams): Promise<ExecutionTarget>;
 }
 
 declare module "./client" {
@@ -201,10 +235,24 @@ export async function execList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<LocalExecListResponse> {
+  return this.invoke("host.exec.list", params) as Promise<LocalExecListResponse>;
+}
+
+export async function legacyKernelV1ExecList(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<LocalExecListResponse> {
   return this.invoke("kernel.v1.exec.list", params) as Promise<LocalExecListResponse>;
 }
 
 export async function execLogs(
+  this: KernelClient,
+  params: LocalExecLogsRequest,
+): Promise<LocalExecLogsResponse> {
+  return this.invoke("host.exec.logs", params) as Promise<LocalExecLogsResponse>;
+}
+
+export async function legacyKernelV1ExecLogs(
   this: KernelClient,
   params: LocalExecLogsRequest,
 ): Promise<LocalExecLogsResponse> {
@@ -215,6 +263,13 @@ export async function execStart(
   this: KernelClient,
   params: LocalExecStartRequest,
 ): Promise<LocalExecStartResponse> {
+  return this.invoke("host.exec.start", params) as Promise<LocalExecStartResponse>;
+}
+
+export async function legacyKernelV1ExecStart(
+  this: KernelClient,
+  params: LocalExecStartRequest,
+): Promise<LocalExecStartResponse> {
   return this.invoke("kernel.v1.exec.start", params) as Promise<LocalExecStartResponse>;
 }
 
@@ -222,10 +277,24 @@ export async function execStatus(
   this: KernelClient,
   params: ExecIdParams,
 ): Promise<LocalExecStatusResponse> {
+  return this.invoke("host.exec.status", params) as Promise<LocalExecStatusResponse>;
+}
+
+export async function legacyKernelV1ExecStatus(
+  this: KernelClient,
+  params: ExecIdParams,
+): Promise<LocalExecStatusResponse> {
   return this.invoke("kernel.v1.exec.status", params) as Promise<LocalExecStatusResponse>;
 }
 
 export async function execStop(
+  this: KernelClient,
+  params: LocalExecStopRequest,
+): Promise<LocalExecStopResponse> {
+  return this.invoke("host.exec.stop", params) as Promise<LocalExecStopResponse>;
+}
+
+export async function legacyKernelV1ExecStop(
   this: KernelClient,
   params: LocalExecStopRequest,
 ): Promise<LocalExecStopResponse> {
@@ -411,10 +480,24 @@ export async function portLease(
   this: KernelClient,
   params: PortLeaseRequest,
 ): Promise<PortLeaseResponse> {
+  return this.invoke("host.port.lease", params) as Promise<PortLeaseResponse>;
+}
+
+export async function legacyKernelV1PortLease(
+  this: KernelClient,
+  params: PortLeaseRequest,
+): Promise<PortLeaseResponse> {
   return this.invoke("kernel.v1.port.lease", params) as Promise<PortLeaseResponse>;
 }
 
 export async function portList(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<PortListResult> {
+  return this.invoke("host.port.list", params) as Promise<PortListResult>;
+}
+
+export async function legacyKernelV1PortList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<PortListResult> {
@@ -425,10 +508,24 @@ export async function portRelease(
   this: KernelClient,
   params: PortLeaseIdParams,
 ): Promise<PortLeaseRecord2> {
+  return this.invoke("host.port.release", params) as Promise<PortLeaseRecord2>;
+}
+
+export async function legacyKernelV1PortRelease(
+  this: KernelClient,
+  params: PortLeaseIdParams,
+): Promise<PortLeaseRecord2> {
   return this.invoke("kernel.v1.port.release", params) as Promise<PortLeaseRecord2>;
 }
 
 export async function portStatus(
+  this: KernelClient,
+  params: PortLeaseIdParams,
+): Promise<PortLeaseRecord2> {
+  return this.invoke("host.port.status", params) as Promise<PortLeaseRecord2>;
+}
+
+export async function legacyKernelV1PortStatus(
   this: KernelClient,
   params: PortLeaseIdParams,
 ): Promise<PortLeaseRecord2> {
@@ -439,10 +536,24 @@ export async function projectGet(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectGetResult> {
+  return this.invoke("host.project.get", params) as Promise<ProjectGetResult>;
+}
+
+export async function legacyKernelV1ProjectGet(
+  this: KernelClient,
+  params: ProjectIdParams,
+): Promise<ProjectGetResult> {
   return this.invoke("kernel.v1.project.get", params) as Promise<ProjectGetResult>;
 }
 
 export async function projectList(
+  this: KernelClient,
+  params: ProjectListParams,
+): Promise<ProjectListResultSchema> {
+  return this.invoke("host.project.list", params) as Promise<ProjectListResultSchema>;
+}
+
+export async function legacyKernelV1ProjectList(
   this: KernelClient,
   params: ProjectListParams,
 ): Promise<ProjectListResultSchema> {
@@ -453,10 +564,24 @@ export async function projectStart(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectStartResult> {
+  return this.invoke("host.project.start", params) as Promise<ProjectStartResult>;
+}
+
+export async function legacyKernelV1ProjectStart(
+  this: KernelClient,
+  params: ProjectIdParams,
+): Promise<ProjectStartResult> {
   return this.invoke("kernel.v1.project.start", params) as Promise<ProjectStartResult>;
 }
 
 export async function projectStatus(
+  this: KernelClient,
+  params: ProjectIdParams,
+): Promise<ProjectStatusResult> {
+  return this.invoke("host.project.status", params) as Promise<ProjectStatusResult>;
+}
+
+export async function legacyKernelV1ProjectStatus(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectStatusResult> {
@@ -467,10 +592,24 @@ export async function projectStop(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectStopResult> {
+  return this.invoke("host.project.stop", params) as Promise<ProjectStopResult>;
+}
+
+export async function legacyKernelV1ProjectStop(
+  this: KernelClient,
+  params: ProjectIdParams,
+): Promise<ProjectStopResult> {
   return this.invoke("kernel.v1.project.stop", params) as Promise<ProjectStopResult>;
 }
 
 export async function projectionGet(
+  this: KernelClient,
+  params: ProjectionIdParams,
+): Promise<ProjectionDefinition> {
+  return this.invoke("projection.get", params) as Promise<ProjectionDefinition>;
+}
+
+export async function legacyKernelV1ProjectionGet(
   this: KernelClient,
   params: ProjectionIdParams,
 ): Promise<ProjectionDefinition> {
@@ -481,10 +620,24 @@ export async function projectionList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ProjectionListResult> {
+  return this.invoke("projection.list", params) as Promise<ProjectionListResult>;
+}
+
+export async function legacyKernelV1ProjectionList(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<ProjectionListResult> {
   return this.invoke("kernel.v1.projection.list", params) as Promise<ProjectionListResult>;
 }
 
 export async function projectionRebuild(
+  this: KernelClient,
+  params: ProjectionIdParams,
+): Promise<ProjectionDefinition> {
+  return this.invoke("projection.rebuild", params) as Promise<ProjectionDefinition>;
+}
+
+export async function legacyKernelV1ProjectionRebuild(
   this: KernelClient,
   params: ProjectionIdParams,
 ): Promise<ProjectionDefinition> {
@@ -495,10 +648,24 @@ export async function projectionRegister(
   this: KernelClient,
   params: ProjectionDefinition,
 ): Promise<ProjectionDefinition> {
+  return this.invoke("projection.register", params) as Promise<ProjectionDefinition>;
+}
+
+export async function legacyKernelV1ProjectionRegister(
+  this: KernelClient,
+  params: ProjectionDefinition,
+): Promise<ProjectionDefinition> {
   return this.invoke("kernel.v1.projection.register", params) as Promise<ProjectionDefinition>;
 }
 
 export async function proposalApply(
+  this: KernelClient,
+  params: ProposalIdParams,
+): Promise<ProposalRecord> {
+  return this.invoke("change.proposal.apply", params) as Promise<ProposalRecord>;
+}
+
+export async function legacyKernelV1ProposalApply(
   this: KernelClient,
   params: ProposalIdParams,
 ): Promise<ProposalRecord> {
@@ -509,10 +676,24 @@ export async function proposalApprove(
   this: KernelClient,
   params: ProposalDecisionParams,
 ): Promise<ProposalRecord> {
+  return this.invoke("change.proposal.approve", params) as Promise<ProposalRecord>;
+}
+
+export async function legacyKernelV1ProposalApprove(
+  this: KernelClient,
+  params: ProposalDecisionParams,
+): Promise<ProposalRecord> {
   return this.invoke("kernel.v1.proposal.approve", params) as Promise<ProposalRecord>;
 }
 
 export async function proposalCreate(
+  this: KernelClient,
+  params: ProposalRecord,
+): Promise<ProposalRecord> {
+  return this.invoke("change.proposal.create", params) as Promise<ProposalRecord>;
+}
+
+export async function legacyKernelV1ProposalCreate(
   this: KernelClient,
   params: ProposalRecord,
 ): Promise<ProposalRecord> {
@@ -523,10 +704,24 @@ export async function proposalGet(
   this: KernelClient,
   params: ProposalIdParams,
 ): Promise<ProposalRecord> {
+  return this.invoke("change.proposal.get", params) as Promise<ProposalRecord>;
+}
+
+export async function legacyKernelV1ProposalGet(
+  this: KernelClient,
+  params: ProposalIdParams,
+): Promise<ProposalRecord> {
   return this.invoke("kernel.v1.proposal.get", params) as Promise<ProposalRecord>;
 }
 
 export async function proposalList(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<ProposalListResult> {
+  return this.invoke("change.proposal.list", params) as Promise<ProposalListResult>;
+}
+
+export async function legacyKernelV1ProposalList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ProposalListResult> {
@@ -537,10 +732,24 @@ export async function proposalReject(
   this: KernelClient,
   params: ProposalDecisionParams,
 ): Promise<ProposalRecord> {
+  return this.invoke("change.proposal.reject", params) as Promise<ProposalRecord>;
+}
+
+export async function legacyKernelV1ProposalReject(
+  this: KernelClient,
+  params: ProposalDecisionParams,
+): Promise<ProposalRecord> {
   return this.invoke("kernel.v1.proposal.reject", params) as Promise<ProposalRecord>;
 }
 
 export async function proxyList(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<ProxyListResult> {
+  return this.invoke("host.proxy.list", params) as Promise<ProxyListResult>;
+}
+
+export async function legacyKernelV1ProxyList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ProxyListResult> {
@@ -551,6 +760,13 @@ export async function proxyRegister(
   this: KernelClient,
   params: ProxyRouteRegisterRequest,
 ): Promise<ProxyRouteRegisterResponse> {
+  return this.invoke("host.proxy.register", params) as Promise<ProxyRouteRegisterResponse>;
+}
+
+export async function legacyKernelV1ProxyRegister(
+  this: KernelClient,
+  params: ProxyRouteRegisterRequest,
+): Promise<ProxyRouteRegisterResponse> {
   return this.invoke("kernel.v1.proxy.register", params) as Promise<ProxyRouteRegisterResponse>;
 }
 
@@ -558,10 +774,24 @@ export async function proxyStatus(
   this: KernelClient,
   params: ProxyRouteIdParams,
 ): Promise<ProxyRouteRecord2> {
+  return this.invoke("host.proxy.status", params) as Promise<ProxyRouteRecord2>;
+}
+
+export async function legacyKernelV1ProxyStatus(
+  this: KernelClient,
+  params: ProxyRouteIdParams,
+): Promise<ProxyRouteRecord2> {
   return this.invoke("kernel.v1.proxy.status", params) as Promise<ProxyRouteRecord2>;
 }
 
 export async function proxyUnregister(
+  this: KernelClient,
+  params: ProxyRouteIdParams,
+): Promise<ProxyRouteRecord2> {
+  return this.invoke("host.proxy.unregister", params) as Promise<ProxyRouteRecord2>;
+}
+
+export async function legacyKernelV1ProxyUnregister(
   this: KernelClient,
   params: ProxyRouteIdParams,
 ): Promise<ProxyRouteRecord2> {
@@ -614,6 +844,13 @@ export async function surfaceContributionDescribe(
   this: KernelClient,
   params: SurfaceDescribeParams,
 ): Promise<SurfaceContributionDescribeResult> {
+  return this.invoke("shell.contribution.describe", params) as Promise<SurfaceContributionDescribeResult>;
+}
+
+export async function legacyKernelV1SurfaceContributionDescribe(
+  this: KernelClient,
+  params: SurfaceDescribeParams,
+): Promise<SurfaceContributionDescribeResult> {
   return this.invoke("kernel.v1.surface.contribution.describe", params) as Promise<SurfaceContributionDescribeResult>;
 }
 
@@ -621,10 +858,24 @@ export async function surfaceContributionList(
   this: KernelClient,
   params: SurfaceListParams,
 ): Promise<SurfaceContributionListResult> {
+  return this.invoke("shell.contribution.list", params) as Promise<SurfaceContributionListResult>;
+}
+
+export async function legacyKernelV1SurfaceContributionList(
+  this: KernelClient,
+  params: SurfaceListParams,
+): Promise<SurfaceContributionListResult> {
   return this.invoke("kernel.v1.surface.contribution.list", params) as Promise<SurfaceContributionListResult>;
 }
 
 export async function surfaceResolveBundle(
+  this: KernelClient,
+  params: SurfaceResolveBundleParams,
+): Promise<SurfaceResolveBundleResult> {
+  return this.invoke("host.surface.bundle.resolve", params) as Promise<SurfaceResolveBundleResult>;
+}
+
+export async function legacyKernelV1SurfaceResolveBundle(
   this: KernelClient,
   params: SurfaceResolveBundleParams,
 ): Promise<SurfaceResolveBundleResult> {
@@ -649,6 +900,13 @@ export async function targetRegister(
   this: KernelClient,
   params: ExecutionTarget,
 ): Promise<ExecutionTarget> {
+  return this.invoke("host.target.register", params) as Promise<ExecutionTarget>;
+}
+
+export async function legacyKernelV1TargetRegister(
+  this: KernelClient,
+  params: ExecutionTarget,
+): Promise<ExecutionTarget> {
   return this.invoke("kernel.v1.target.register", params) as Promise<ExecutionTarget>;
 }
 
@@ -656,10 +914,24 @@ export async function targetStatus(
   this: KernelClient,
   params: TargetIdParams,
 ): Promise<ExecutionTarget> {
+  return this.invoke("host.target.status", params) as Promise<ExecutionTarget>;
+}
+
+export async function legacyKernelV1TargetStatus(
+  this: KernelClient,
+  params: TargetIdParams,
+): Promise<ExecutionTarget> {
   return this.invoke("kernel.v1.target.status", params) as Promise<ExecutionTarget>;
 }
 
 export async function targetUnregister(
+  this: KernelClient,
+  params: TargetIdParams,
+): Promise<ExecutionTarget> {
+  return this.invoke("host.target.unregister", params) as Promise<ExecutionTarget>;
+}
+
+export async function legacyKernelV1TargetUnregister(
   this: KernelClient,
   params: TargetIdParams,
 ): Promise<ExecutionTarget> {
@@ -683,10 +955,15 @@ export function attach<T extends KernelClient>(client: T): T & KernelMethods {
   (client as T & KernelMethods).eventList = eventList.bind(client);
   (client as T & KernelMethods).eventSubscribe = eventSubscribe.bind(client);
   (client as T & KernelMethods).execList = execList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ExecList = legacyKernelV1ExecList.bind(client);
   (client as T & KernelMethods).execLogs = execLogs.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ExecLogs = legacyKernelV1ExecLogs.bind(client);
   (client as T & KernelMethods).execStart = execStart.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ExecStart = legacyKernelV1ExecStart.bind(client);
   (client as T & KernelMethods).execStatus = execStatus.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ExecStatus = legacyKernelV1ExecStatus.bind(client);
   (client as T & KernelMethods).execStop = execStop.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ExecStop = legacyKernelV1ExecStop.bind(client);
   (client as T & KernelMethods).extensionPointDescribe = extensionPointDescribe.bind(client);
   (client as T & KernelMethods).extensionPointList = extensionPointList.bind(client);
   (client as T & KernelMethods).hookList = hookList.bind(client);
@@ -713,28 +990,51 @@ export function attach<T extends KernelClient>(client: T): T & KernelMethods {
   (client as T & KernelMethods).permissionList = permissionList.bind(client);
   (client as T & KernelMethods).permissionRevoke = permissionRevoke.bind(client);
   (client as T & KernelMethods).portLease = portLease.bind(client);
+  (client as T & KernelMethods).legacyKernelV1PortLease = legacyKernelV1PortLease.bind(client);
   (client as T & KernelMethods).portList = portList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1PortList = legacyKernelV1PortList.bind(client);
   (client as T & KernelMethods).portRelease = portRelease.bind(client);
+  (client as T & KernelMethods).legacyKernelV1PortRelease = legacyKernelV1PortRelease.bind(client);
   (client as T & KernelMethods).portStatus = portStatus.bind(client);
+  (client as T & KernelMethods).legacyKernelV1PortStatus = legacyKernelV1PortStatus.bind(client);
   (client as T & KernelMethods).projectGet = projectGet.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectGet = legacyKernelV1ProjectGet.bind(client);
   (client as T & KernelMethods).projectList = projectList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectList = legacyKernelV1ProjectList.bind(client);
   (client as T & KernelMethods).projectStart = projectStart.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectStart = legacyKernelV1ProjectStart.bind(client);
   (client as T & KernelMethods).projectStatus = projectStatus.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectStatus = legacyKernelV1ProjectStatus.bind(client);
   (client as T & KernelMethods).projectStop = projectStop.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectStop = legacyKernelV1ProjectStop.bind(client);
   (client as T & KernelMethods).projectionGet = projectionGet.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectionGet = legacyKernelV1ProjectionGet.bind(client);
   (client as T & KernelMethods).projectionList = projectionList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectionList = legacyKernelV1ProjectionList.bind(client);
   (client as T & KernelMethods).projectionRebuild = projectionRebuild.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectionRebuild = legacyKernelV1ProjectionRebuild.bind(client);
   (client as T & KernelMethods).projectionRegister = projectionRegister.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProjectionRegister = legacyKernelV1ProjectionRegister.bind(client);
   (client as T & KernelMethods).proposalApply = proposalApply.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProposalApply = legacyKernelV1ProposalApply.bind(client);
   (client as T & KernelMethods).proposalApprove = proposalApprove.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProposalApprove = legacyKernelV1ProposalApprove.bind(client);
   (client as T & KernelMethods).proposalCreate = proposalCreate.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProposalCreate = legacyKernelV1ProposalCreate.bind(client);
   (client as T & KernelMethods).proposalGet = proposalGet.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProposalGet = legacyKernelV1ProposalGet.bind(client);
   (client as T & KernelMethods).proposalList = proposalList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProposalList = legacyKernelV1ProposalList.bind(client);
   (client as T & KernelMethods).proposalReject = proposalReject.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProposalReject = legacyKernelV1ProposalReject.bind(client);
   (client as T & KernelMethods).proxyList = proxyList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProxyList = legacyKernelV1ProxyList.bind(client);
   (client as T & KernelMethods).proxyRegister = proxyRegister.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProxyRegister = legacyKernelV1ProxyRegister.bind(client);
   (client as T & KernelMethods).proxyStatus = proxyStatus.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProxyStatus = legacyKernelV1ProxyStatus.bind(client);
   (client as T & KernelMethods).proxyUnregister = proxyUnregister.bind(client);
+  (client as T & KernelMethods).legacyKernelV1ProxyUnregister = legacyKernelV1ProxyUnregister.bind(client);
   (client as T & KernelMethods).sessionBranchList = sessionBranchList.bind(client);
   (client as T & KernelMethods).sessionClose = sessionClose.bind(client);
   (client as T & KernelMethods).sessionFork = sessionFork.bind(client);
@@ -742,12 +1042,18 @@ export function attach<T extends KernelClient>(client: T): T & KernelMethods {
   (client as T & KernelMethods).sessionList = sessionList.bind(client);
   (client as T & KernelMethods).sessionOpen = sessionOpen.bind(client);
   (client as T & KernelMethods).surfaceContributionDescribe = surfaceContributionDescribe.bind(client);
+  (client as T & KernelMethods).legacyKernelV1SurfaceContributionDescribe = legacyKernelV1SurfaceContributionDescribe.bind(client);
   (client as T & KernelMethods).surfaceContributionList = surfaceContributionList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1SurfaceContributionList = legacyKernelV1SurfaceContributionList.bind(client);
   (client as T & KernelMethods).surfaceResolveBundle = surfaceResolveBundle.bind(client);
+  (client as T & KernelMethods).legacyKernelV1SurfaceResolveBundle = legacyKernelV1SurfaceResolveBundle.bind(client);
   (client as T & KernelMethods).targetList = targetList.bind(client);
   (client as T & KernelMethods).legacyKernelV1TargetList = legacyKernelV1TargetList.bind(client);
   (client as T & KernelMethods).targetRegister = targetRegister.bind(client);
+  (client as T & KernelMethods).legacyKernelV1TargetRegister = legacyKernelV1TargetRegister.bind(client);
   (client as T & KernelMethods).targetStatus = targetStatus.bind(client);
+  (client as T & KernelMethods).legacyKernelV1TargetStatus = legacyKernelV1TargetStatus.bind(client);
   (client as T & KernelMethods).targetUnregister = targetUnregister.bind(client);
+  (client as T & KernelMethods).legacyKernelV1TargetUnregister = legacyKernelV1TargetUnregister.bind(client);
   return client as T & KernelMethods;
 }

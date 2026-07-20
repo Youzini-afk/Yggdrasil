@@ -289,6 +289,11 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::alias_equivalent
         ),
         c!(
+            "protocol.layered_namespace_smoke",
+            ["protocol", "canonical", "cli-smoke"],
+            crate::conformance::protocol::layered_namespace_smoke
+        ),
+        c!(
             "protocol.unsupported_version_rejected",
             ["protocol", "version", "compatibility"],
             crate::conformance::protocol::unsupported_version_rejected

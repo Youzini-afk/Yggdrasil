@@ -307,10 +307,20 @@
   "title": "kernel.v1.proposal.approve",
   "type": "object",
   "x-yggdrasil-contract": {
-    "aliases": [],
-    "canonical_id": "kernel.v1.proposal.approve",
+    "aliases": [
+      {
+        "canonical_id": "change.proposal.approve",
+        "id": "kernel.v1.proposal.approve",
+        "introduced_in": "kernel.v1@0.1.0",
+        "maturity": "legacy_adapter",
+        "replacement": "change.proposal.approve",
+        "request_adapter": "identity",
+        "response_adapter": "identity"
+      }
+    ],
+    "canonical_id": "change.proposal.approve",
     "implementation_status": "partial",
-    "introduced_in": "kernel.v1@0.1.0",
+    "introduced_in": "ygg.contract.default/v1@0.2.0",
     "maturity": "experimental",
     "owner_layer": "protocol",
     "request_adapter": "identity",

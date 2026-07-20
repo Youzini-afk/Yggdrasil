@@ -336,10 +336,20 @@
   "title": "kernel.v1.project.list",
   "type": "object",
   "x-yggdrasil-contract": {
-    "aliases": [],
-    "canonical_id": "kernel.v1.project.list",
+    "aliases": [
+      {
+        "canonical_id": "host.project.list",
+        "id": "kernel.v1.project.list",
+        "introduced_in": "kernel.v1@0.1.0",
+        "maturity": "legacy_adapter",
+        "replacement": "host.project.list",
+        "request_adapter": "identity",
+        "response_adapter": "identity"
+      }
+    ],
+    "canonical_id": "host.project.list",
     "implementation_status": "implemented",
-    "introduced_in": "kernel.v1@0.1.0",
+    "introduced_in": "ygg.contract.default/v1@0.2.0",
     "maturity": "experimental",
     "owner_layer": "host",
     "request_adapter": "identity",

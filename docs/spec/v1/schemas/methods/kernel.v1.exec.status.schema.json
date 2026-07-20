@@ -134,10 +134,20 @@
   "title": "kernel.v1.exec.status",
   "type": "object",
   "x-yggdrasil-contract": {
-    "aliases": [],
-    "canonical_id": "kernel.v1.exec.status",
+    "aliases": [
+      {
+        "canonical_id": "host.exec.status",
+        "id": "kernel.v1.exec.status",
+        "introduced_in": "kernel.v1@0.1.0",
+        "maturity": "legacy_adapter",
+        "replacement": "host.exec.status",
+        "request_adapter": "identity",
+        "response_adapter": "identity"
+      }
+    ],
+    "canonical_id": "host.exec.status",
     "implementation_status": "partial",
-    "introduced_in": "kernel.v1@0.1.0",
+    "introduced_in": "ygg.contract.default/v1@0.2.0",
     "maturity": "experimental",
     "owner_layer": "host",
     "request_adapter": "identity",

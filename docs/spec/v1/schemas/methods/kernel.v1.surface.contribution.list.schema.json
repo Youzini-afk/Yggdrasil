@@ -64,10 +64,20 @@
   "title": "kernel.v1.surface.contribution.list",
   "type": "object",
   "x-yggdrasil-contract": {
-    "aliases": [],
-    "canonical_id": "kernel.v1.surface.contribution.list",
+    "aliases": [
+      {
+        "canonical_id": "shell.contribution.list",
+        "id": "kernel.v1.surface.contribution.list",
+        "introduced_in": "kernel.v1@0.1.0",
+        "maturity": "legacy_adapter",
+        "replacement": "shell.contribution.list",
+        "request_adapter": "identity",
+        "response_adapter": "identity"
+      }
+    ],
+    "canonical_id": "shell.contribution.list",
     "implementation_status": "partial",
-    "introduced_in": "kernel.v1@0.1.0",
+    "introduced_in": "ygg.shell.default/v1@0.1.0",
     "maturity": "experimental",
     "owner_layer": "shell",
     "request_adapter": "identity",

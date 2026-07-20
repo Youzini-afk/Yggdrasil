@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **450**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **451**.
 
 ## Conformance Feedback Loop
 
@@ -143,6 +143,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
 | protocol / legacy | canonical and legacy alias results, permissions, and error mapping are equivalent | implemented |
+| protocol / canonical | layered-namespace smoke calls only canonical Host/Shell/Change/Projection IDs and explicitly negotiates the default and Shell Default profiles | implemented |
 | protocol / negotiation | unknown layer versions return `unsupported_contract` explicitly | implemented |
 | protocol / negotiation | failed negotiation never silently downgrades and has zero handler side effects | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
@@ -421,6 +422,7 @@ permission.grant_revoke_audit              PASS
 permission.assistant_capability_grant      PASS
 protocol.call_host_info                    PASS
 protocol.alias_equivalent                  PASS
+protocol.layered_namespace_smoke           PASS
 protocol.unsupported_version_rejected      PASS
 protocol.no_silent_downgrade               PASS
 protocol.call_capability_in_process        PASS

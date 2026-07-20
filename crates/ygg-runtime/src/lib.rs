@@ -27,6 +27,7 @@ pub use contract::{
     ContractProfileInfo, ContractSelection, ContractVersionInfo, ContractVersionRequirement,
     ResolvedContractMethod, UnknownContractMethod, CONTRACT_LAYER_VERSION,
     CONTRACT_REGISTRY_VERSION, DEFAULT_CONTRACT_PROFILE, LEGACY_CONTRACT_PROFILE,
+    SHELL_DEFAULT_PROFILE,
 };
 #[cfg(feature = "postgres")]
 pub use event_store::PostgresEventStore;

@@ -44,8 +44,8 @@ Dispositions:
 - Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
 - There are 8 top-level schemas; additive `contract-selection.schema.json` is now included.
 - Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
-- An Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters now exist; the first canonical/legacy dual-stack routes are `host.info` and `host.target.list`.
-- The Web client still defaults to legacy `kernel.v1.*` IDs; generated SDKs now derive canonical clients and explicit legacy wrappers from schema metadata.
+- The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. Phase 3 publishes 36 canonical/legacy dual-stack routes across the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection.
+- The Web client still defaults to legacy `kernel.v1.*` IDs; generated SDKs derive canonical clients and explicit legacy wrappers from schema metadata and reject duplicate wire IDs, function names, or operation IDs before generation.
 
 The first migration requirement is therefore a testable compatibility router, not code deletion.
 

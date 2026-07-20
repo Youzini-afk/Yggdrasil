@@ -44,6 +44,8 @@ struct MethodSpec {
 #[derive(Clone)]
 struct MethodAliasSpec {
     id: String,
+    canonical_id: String,
+    replacement: Option<String>,
     function_ts: String,
     function_rs: String,
 }
@@ -108,6 +110,7 @@ fn main() -> Result<()> {
 
     let top_level = collect_top_level_types(&schemas, &mut registry);
     let methods = collect_methods(&schemas, &mut registry)?;
+    validate_method_specs(&methods)?;
     let events = collect_events(&schemas, &mut registry)?;
 
     write_typescript(&registry, &methods, &events)?;
@@ -190,14 +193,29 @@ fn collect_methods(
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
-            .filter_map(|alias| alias.get("id").and_then(Value::as_str))
-            .filter(|alias| *alias != id)
-            .map(|alias| MethodAliasSpec {
-                id: alias.to_string(),
-                function_ts: legacy_method_function_ts(alias),
-                function_rs: legacy_method_function_rs(alias),
+            .map(|alias| {
+                let alias_id = alias
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow!("method schema {schema_id} has an alias without id"))?;
+                let canonical_id = alias
+                    .get("canonical_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        anyhow!("method schema {schema_id} alias {alias_id} has no canonical_id")
+                    })?;
+                Ok(MethodAliasSpec {
+                    id: alias_id.to_string(),
+                    canonical_id: canonical_id.to_string(),
+                    replacement: alias
+                        .get("replacement")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                    function_ts: legacy_method_function_ts(alias_id),
+                    function_rs: legacy_method_function_rs(alias_id),
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
         let defs = schema.get("$defs").or_else(|| schema.get("definitions"));
         let params_schema = defs
             .and_then(|d| d.get("Params"))
@@ -234,6 +252,112 @@ fn collect_methods(
     }
     methods.sort_by(|a, b| a.schema_id.cmp(&b.schema_id));
     Ok(methods)
+}
+
+fn validate_method_specs(methods: &[MethodSpec]) -> Result<()> {
+    let mut exposed_ids = BTreeMap::new();
+    let mut typescript_functions = BTreeMap::new();
+    let mut rust_functions = BTreeMap::new();
+
+    for method in methods {
+        reserve_unique(
+            &mut exposed_ids,
+            &method.id,
+            &method.schema_id,
+            "RPC method id",
+        )?;
+        reserve_unique(
+            &mut typescript_functions,
+            &method.function_ts,
+            &method.schema_id,
+            "TypeScript method name / OpenAPI operationId",
+        )?;
+        reserve_unique(
+            &mut rust_functions,
+            &method.function_rs,
+            &method.schema_id,
+            "Rust method name",
+        )?;
+
+        if method.id != method.schema_id
+            && !method
+                .aliases
+                .iter()
+                .any(|alias| alias.id == method.schema_id)
+        {
+            return Err(anyhow!(
+                "method schema {} changed canonical id to {} without retaining its v1 id as an alias",
+                method.schema_id,
+                method.id
+            ));
+        }
+
+        for alias in &method.aliases {
+            if alias.id == method.id {
+                return Err(anyhow!(
+                    "method schema {} repeats canonical id {} as an alias",
+                    method.schema_id,
+                    method.id
+                ));
+            }
+            if alias.canonical_id != method.id {
+                return Err(anyhow!(
+                    "method schema {} alias {} points to {}, expected {}",
+                    method.schema_id,
+                    alias.id,
+                    alias.canonical_id,
+                    method.id
+                ));
+            }
+            if let Some(replacement) = &alias.replacement {
+                if replacement != &method.id {
+                    return Err(anyhow!(
+                        "method schema {} alias {} replacement is {}, expected {}",
+                        method.schema_id,
+                        alias.id,
+                        replacement,
+                        method.id
+                    ));
+                }
+            }
+            reserve_unique(
+                &mut exposed_ids,
+                &alias.id,
+                &method.schema_id,
+                "RPC method id",
+            )?;
+            reserve_unique(
+                &mut typescript_functions,
+                &alias.function_ts,
+                &method.schema_id,
+                "TypeScript method name / OpenAPI operationId",
+            )?;
+            reserve_unique(
+                &mut rust_functions,
+                &alias.function_rs,
+                &method.schema_id,
+                "Rust method name",
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn reserve_unique(
+    registry: &mut BTreeMap<String, String>,
+    value: &str,
+    owner: &str,
+    kind: &str,
+) -> Result<()> {
+    if value.is_empty() {
+        return Err(anyhow!("method schema {owner} has an empty {kind}"));
+    }
+    if let Some(existing_owner) = registry.insert(value.to_string(), owner.to_string()) {
+        return Err(anyhow!(
+            "duplicate {kind} {value}: declared by {existing_owner} and {owner}"
+        ));
+    }
+    Ok(())
 }
 
 fn collect_events(

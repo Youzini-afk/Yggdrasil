@@ -43,8 +43,8 @@
 - 代码、schema 与 `EVENT_KIND_REGISTRY.md` 均有 59 个 kernel event，包含 `kernel/v1/deployment.health`。
 - 有 8 个顶层 schema；新增 additive `contract-selection.schema.json`。
 - `KernelMethod::status()`、Contract 文档状态和 actual dispatch 的已知漂移已对齐，并由测试约束。
-- 已有 Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter；首批 canonical/legacy 双栈为 `host.info`、`host.target.list`。
-- Web 默认仍发送 legacy `kernel.v1.*` method ID；生成 SDK 已从 schema metadata 生成 canonical client 与显式 legacy wrapper。
+- Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter 已落地；Phase 3 已为 Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 发布 36 条 canonical/legacy 双栈。
+- Web 默认仍发送 legacy `kernel.v1.*` method ID；生成 SDK 已从 schema metadata 生成 canonical client 与显式 legacy wrapper，并在生成前校验所有 wire ID、函数名与 operation ID 全局唯一。
 
 因此迁移的第一要求不是删除旧代码，而是建立可测试的兼容路由。
 
