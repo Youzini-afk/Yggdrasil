@@ -9,6 +9,7 @@ The kernel + packages + projects three-tier architecture, capability package con
 - [`VISION.md`](VISION.en.md) — what the platform is for
 - [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — kernel + packages + projects layering
 - [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — what the kernel does and does not do
+- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate v2 constitution: long-term layers, invariants, and anti-rigidity constraints; it does not yet replace the current contract
 
 ## Capability package contract
 

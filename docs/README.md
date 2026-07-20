@@ -25,6 +25,7 @@
 - [`architecture/`](architecture/README.md) — kernel + packages + projects 三层架构、能力包契约、扩展点、事件模型、生命周期
 - [`protocol/`](protocol/README.md) — 公开协议规范
 - [`spec/`](spec/README.md) — 可执行 v1 契约矩阵、conformance 路线图、schemas
+- [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.md) — 候选 v2 宪法与逐项合同归属；尚未替代 v1
 
 ## 创作
 
@@ -42,6 +43,7 @@
 
 - [`performance/`](performance/README.md) — 性能基线、conformance 反馈环、代码健康
 - [`roadmap/`](roadmap/README.md) — 当前与下一阶段、模型推理前置条件
+- [`roadmap/CONTRACT_V2_MIGRATION.md`](roadmap/CONTRACT_V2_MIGRATION.md) — 分层合同迁移顺序、兼容门与完成定义
 - [`tavern/`](tavern/README.md) — Yggdrasil 与 SillyTavern 兼容接入项目 YdlTavern 的关系
 
 ## 最短读路径
@@ -50,6 +52,7 @@
 |---|---|
 | 理解平台立场 | [`CHARTER.md`](CHARTER.md) → [`architecture/VISION.md`](architecture/VISION.md) → [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.md) |
 | 理解架构 | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md) |
+| 审阅候选 v2 边界 | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.md) → [`roadmap/CONTRACT_V2_MIGRATION.md`](roadmap/CONTRACT_V2_MIGRATION.md) |
 | 接入公开协议 | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.md) |
 | 写第一个能力包 | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 安装能力包/项目 | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) |

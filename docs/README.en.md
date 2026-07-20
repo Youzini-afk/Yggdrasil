@@ -25,6 +25,7 @@ After that, hop into the relevant guide / spec / roadmap on demand.
 - [`architecture/`](architecture/README.en.md) — kernel + packages + projects layering, capability contract, extension points, event model, lifecycles
 - [`protocol/`](protocol/README.en.md) — public protocol spec
 - [`spec/`](spec/README.en.md) — executable v1 contract matrix, conformance roadmap, schemas
+- [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) — candidate v2 constitution and item-by-item contract ownership; v1 remains current
 
 ## Authoring
 
@@ -42,6 +43,7 @@ After that, hop into the relevant guide / spec / roadmap on demand.
 
 - [`performance/`](performance/README.en.md) — performance baseline, conformance feedback loop, code health
 - [`roadmap/`](roadmap/README.en.md) — current and upcoming work, model inference prerequisites
+- [`roadmap/CONTRACT_V2_MIGRATION.md`](roadmap/CONTRACT_V2_MIGRATION.en.md) — layered-contract migration order, compatibility gates, and definition of done
 - [`tavern/`](tavern/README.en.md) — how Yggdrasil relates to YdlTavern, the SillyTavern-compatible integration project
 
 ## Shortest path by intent
@@ -50,6 +52,7 @@ After that, hop into the relevant guide / spec / roadmap on demand.
 |---|---|
 | Understand the platform stance | [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) → [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.en.md) |
 | Understand the architecture | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
+| Review the candidate v2 boundaries | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) → [`roadmap/CONTRACT_V2_MIGRATION.md`](roadmap/CONTRACT_V2_MIGRATION.en.md) |
 | Use the public protocol | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.en.md) |
 | Write your first package | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Install capability packages/projects | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) |

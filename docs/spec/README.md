@@ -5,6 +5,7 @@
 可执行 v1 契约和 hostile conformance 路线图。规范文件以代码 + 用例支撑——不是愿景文档。
 
 - [`KERNEL_V1_CONTRACT.md`](KERNEL_V1_CONTRACT.md) — kernel v1 公开契约：80 个方法、59 个事件、能力句柄、Path A / Path B、SDK 与 conformance
+- [`CONTRACT_LAYERING_MATRIX.md`](CONTRACT_LAYERING_MATRIX.md) — 候选 v2 分层矩阵：逐项归类 80 个方法、59 个事件与 7 个顶层 schema；不改变 v1 现行状态
 - [`CONFORMANCE_MATRIX.md`](CONFORMANCE_MATRIX.md) — hostile conformance 用例清单（按 tag 与领域索引）
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md) — v1 事件类型 registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.md) — v1 错误码

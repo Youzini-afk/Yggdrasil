@@ -14,6 +14,11 @@
 
 下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。
 
+> 这里的「完整」指当前 v1 运行闭环，不代表现有 `kernel.v1.*` 边界已经成为永久宪法。
+> 长期分层候选见 [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)，逐项归属与临时实施顺序见
+> [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 和
+> [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.md)。候选方案在显式采纳前不改变当前工作状态。
+
 ## 长期方向
 
 平台立场见 [`../product/PLAY_CREATION_MODEL.md`](../product/PLAY_CREATION_MODEL.md)。

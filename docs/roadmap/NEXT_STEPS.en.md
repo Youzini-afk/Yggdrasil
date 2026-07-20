@@ -14,6 +14,12 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 
 The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 
+> “Complete” here means current v1 operational closure, not that every `kernel.v1.*`
+> boundary is permanent constitutional substrate. The long-term layering candidate is
+> [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md), with item-level ownership and temporary implementation order in
+> [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) and
+> [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md). The candidate changes no current status before explicit adoption.
+
 ## Long-term direction
 
 The platform stance lives in [`../product/PLAY_CREATION_MODEL.md`](../product/PLAY_CREATION_MODEL.en.md).

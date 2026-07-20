@@ -9,6 +9,7 @@
 - [`VISION.md`](VISION.md) — 平台为何而存在
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — kernel + packages + projects 三层架构
 - [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.md) — 内核做什么、不做什么
+- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) — 候选 v2 宪法：长期分层、不变量与反僵化约束；尚未替代现行契约
 
 ## 能力包契约
 
