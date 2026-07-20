@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**447**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**450**。
 
 ## Conformance Feedback Loop
 
@@ -142,6 +142,9 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | secret store | 10 个 secret_store 用例：put / has / list / delete / health + env/store/composite resolver paths | implemented |
 | protocol | 方法列表不包含内容方法 | implemented in unit tests |
 | protocol | 结构化权限错误码 | implemented |
+| protocol / legacy | canonical 与 legacy alias 结果、permission 和 error mapping 等价 | implemented |
+| protocol / negotiation | 未知 layer version 明确返回 `unsupported_contract` | implemented |
+| protocol / negotiation | 协商失败不静默回退，且业务 handler 零副作用 | implemented |
 | protocol | in-process 协议分发器调用 host.info | implemented |
 | protocol | in-process 协议分发器调用 capability | implemented |
 | protocol | HTTP `/rpc` 返回协议信封 | implemented in service tests |
@@ -408,6 +411,9 @@ protocol.structured_permission_error       PASS
 permission.grant_revoke_audit              PASS
 permission.assistant_capability_grant      PASS
 protocol.call_host_info                    PASS
+protocol.alias_equivalent                  PASS
+protocol.unsupported_version_rejected      PASS
+protocol.no_silent_downgrade               PASS
 protocol.call_capability_in_process        PASS
 principal.package_cannot_self_assert_writer PASS
 principal.package_cannot_self_assert_capability_caller PASS

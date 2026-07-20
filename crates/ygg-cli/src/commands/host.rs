@@ -853,21 +853,37 @@ pub(crate) async fn host_stdio() -> Result<()> {
             continue;
         }
         let response = match serde_json::from_str::<ygg_runtime::ProtocolRequest>(&line) {
-            Ok(request) => match runtime
-                .call_protocol(&context, &request.method, request.params)
-                .await
-            {
-                Ok(result) => ygg_runtime::ProtocolResponse {
-                    id: request.id,
-                    result: Some(result),
-                    error: None,
-                },
-                Err(error) => ygg_runtime::ProtocolResponse {
-                    id: request.id,
-                    result: None,
-                    error: Some(error),
-                },
-            },
+            Ok(request) => {
+                let ygg_runtime::ProtocolRequest {
+                    id,
+                    method,
+                    session_id,
+                    contract,
+                    params,
+                } = request;
+                let mut request_context = context.clone();
+                request_context.session_id = session_id;
+                match runtime
+                    .call_protocol_negotiated(
+                        &request_context,
+                        &method,
+                        params,
+                        contract.as_ref(),
+                    )
+                    .await
+                {
+                    Ok(result) => ygg_runtime::ProtocolResponse {
+                        id,
+                        result: Some(result),
+                        error: None,
+                    },
+                    Err(error) => ygg_runtime::ProtocolResponse {
+                        id,
+                        result: None,
+                        error: Some(error),
+                    },
+                }
+            }
             Err(error) => ygg_runtime::ProtocolResponse {
                 id: "invalid".to_string(),
                 result: None,

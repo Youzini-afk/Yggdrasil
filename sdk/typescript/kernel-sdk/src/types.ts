@@ -173,7 +173,69 @@ export interface CapabilityStreamParams {
 
 export type CapabilityStreamResult = Record<string, unknown>;
 
+export type ContractAdapter = "identity";
+
+export interface ContractAlias {
+  "canonical_id": string;
+  "deprecated_in"?: null | string;
+  "id": string;
+  "introduced_in": string;
+  "maturity": ContractMaturity;
+  "replacement"?: null | string;
+  "request_adapter": ContractAdapter;
+  "response_adapter": ContractAdapter;
+  "support_until"?: null | string;
+}
+
+export interface ContractLayerInfo {
+  "description": string;
+  "id": ContractOwnerLayer;
+  "maturity": ContractMaturity;
+}
+
+export type ContractMaturity = "experimental" | "candidate" | "stable" | "deprecated" | "legacy_adapter";
+
+export interface ContractMethod {
+  "aliases": Array<ContractAlias>;
+  "canonical_id": string;
+  "deprecated_in"?: null | string;
+  "implementation_status": MethodStatus;
+  "introduced_in": string;
+  "maturity": ContractMaturity;
+  "owner_layer": ContractOwnerLayer;
+  "replacement"?: null | string;
+  "request_adapter": ContractAdapter;
+  "request_schema": string;
+  "response_adapter": ContractAdapter;
+  "response_schema": string;
+  "streaming": boolean;
+}
+
 export type ContractMode = "none" | "v1";
+
+export type ContractOwnerLayer = "substrate" | "host" | "protocol" | "shell" | "cross_layer" | "legacy_adapter";
+
+export interface ContractProfileInfo {
+  "id": string;
+  "maturity": ContractMaturity;
+  "versions": Array<ContractVersionRequirement>;
+}
+
+export interface ContractSelection {
+  "profile": string;
+  "versions"?: Array<ContractVersionRequirement>;
+}
+
+export interface ContractVersionInfo {
+  "layer": ContractOwnerLayer;
+  "maturity": ContractMaturity;
+  "version": string;
+}
+
+export interface ContractVersionRequirement {
+  "layer": ContractOwnerLayer;
+  "version": string;
+}
 
 export interface DeclaredAuthority {
   "assets_read": boolean;
@@ -430,9 +492,17 @@ export type HookTiming = "sync" | "async";
 export type HostDiagnosticsResult = Record<string, unknown>;
 
 export interface HostInfo {
+  "aliases"?: Array<ContractAlias> | null;
+  "contract_methods"?: Array<ContractMethod> | null;
+  "contract_registry_version"?: null | string;
+  "default_profile"?: null | string;
+  "layers"?: Array<ContractLayerInfo> | null;
+  "maturity"?: ContractMaturity | null;
   "methods": Array<ProtocolMethod>;
+  "profiles"?: Array<ContractProfileInfo> | null;
   "protocol_version": string;
   "supported_transports": Array<string>;
+  "versions"?: Array<ContractVersionInfo> | null;
 }
 
 export interface HostPingResult {

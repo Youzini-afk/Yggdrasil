@@ -95,6 +95,39 @@ components:
       - provider_package_id
       title: CapabilityInvocationResult
       type: object
+    ContractSelection:
+      $defs:
+        ContractOwnerLayer:
+          enum:
+          - substrate
+          - host
+          - protocol
+          - shell
+          - cross_layer
+          - legacy_adapter
+          type: string
+        ContractVersionRequirement:
+          properties:
+            layer:
+              $ref: '#/$defs/ContractOwnerLayer'
+            version:
+              type: string
+          required:
+          - layer
+          - version
+          type: object
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        profile:
+          type: string
+        versions:
+          items:
+            $ref: '#/$defs/ContractVersionRequirement'
+          type: array
+      required:
+      - profile
+      title: ContractSelection
+      type: object
     EventEnvelope:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -1247,6 +1280,406 @@ info:
   version: 1.0.0
 openapi: 3.1.0
 paths:
+  /rpc/host.info:
+    post:
+      operationId: hostInfo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.info
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  title: EmptyParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $defs:
+                      ContractAdapter:
+                        enum:
+                        - identity
+                        type: string
+                      ContractAlias:
+                        properties:
+                          canonical_id:
+                            type: string
+                          deprecated_in:
+                            type:
+                            - string
+                            - 'null'
+                          id:
+                            type: string
+                          introduced_in:
+                            type: string
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          replacement:
+                            type:
+                            - string
+                            - 'null'
+                          request_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          response_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          support_until:
+                            type:
+                            - string
+                            - 'null'
+                        required:
+                        - canonical_id
+                        - id
+                        - introduced_in
+                        - maturity
+                        - request_adapter
+                        - response_adapter
+                        type: object
+                      ContractLayerInfo:
+                        properties:
+                          description:
+                            type: string
+                          id:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                        required:
+                        - description
+                        - id
+                        - maturity
+                        type: object
+                      ContractMaturity:
+                        enum:
+                        - experimental
+                        - candidate
+                        - stable
+                        - deprecated
+                        - legacy_adapter
+                        type: string
+                      ContractMethod:
+                        properties:
+                          aliases:
+                            items:
+                              $ref: '#/$defs/ContractAlias'
+                            type: array
+                          canonical_id:
+                            type: string
+                          deprecated_in:
+                            type:
+                            - string
+                            - 'null'
+                          implementation_status:
+                            $ref: '#/$defs/MethodStatus'
+                          introduced_in:
+                            type: string
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          owner_layer:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          replacement:
+                            type:
+                            - string
+                            - 'null'
+                          request_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          request_schema:
+                            type: string
+                          response_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          response_schema:
+                            type: string
+                          streaming:
+                            type: boolean
+                        required:
+                        - aliases
+                        - canonical_id
+                        - implementation_status
+                        - introduced_in
+                        - maturity
+                        - owner_layer
+                        - request_adapter
+                        - request_schema
+                        - response_adapter
+                        - response_schema
+                        - streaming
+                        type: object
+                      ContractOwnerLayer:
+                        enum:
+                        - substrate
+                        - host
+                        - protocol
+                        - shell
+                        - cross_layer
+                        - legacy_adapter
+                        type: string
+                      ContractProfileInfo:
+                        properties:
+                          id:
+                            type: string
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          versions:
+                            items:
+                              $ref: '#/$defs/ContractVersionRequirement'
+                            type: array
+                        required:
+                        - id
+                        - maturity
+                        - versions
+                        type: object
+                      ContractVersionInfo:
+                        properties:
+                          layer:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          version:
+                            type: string
+                        required:
+                        - layer
+                        - maturity
+                        - version
+                        type: object
+                      ContractVersionRequirement:
+                        properties:
+                          layer:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          version:
+                            type: string
+                        required:
+                        - layer
+                        - version
+                        type: object
+                      MethodStatus:
+                        enum:
+                        - implemented
+                        - partial
+                        - planned
+                        type: string
+                      ProtocolMethod:
+                        properties:
+                          id:
+                            type: string
+                          status:
+                            $ref: '#/$defs/MethodStatus'
+                          streaming:
+                            type: boolean
+                        required:
+                        - id
+                        - status
+                        - streaming
+                        type: object
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      aliases:
+                        items:
+                          $ref: '#/$defs/ContractAlias'
+                        type:
+                        - array
+                        - 'null'
+                      contract_methods:
+                        items:
+                          $ref: '#/$defs/ContractMethod'
+                        type:
+                        - array
+                        - 'null'
+                      contract_registry_version:
+                        type:
+                        - string
+                        - 'null'
+                      default_profile:
+                        type:
+                        - string
+                        - 'null'
+                      layers:
+                        items:
+                          $ref: '#/$defs/ContractLayerInfo'
+                        type:
+                        - array
+                        - 'null'
+                      maturity:
+                        anyOf:
+                        - $ref: '#/$defs/ContractMaturity'
+                        - type: 'null'
+                      methods:
+                        items:
+                          $ref: '#/$defs/ProtocolMethod'
+                        type: array
+                      profiles:
+                        items:
+                          $ref: '#/$defs/ContractProfileInfo'
+                        type:
+                        - array
+                        - 'null'
+                      protocol_version:
+                        type: string
+                      supported_transports:
+                        items:
+                          type: string
+                        type: array
+                      versions:
+                        items:
+                          $ref: '#/$defs/ContractVersionInfo'
+                        type:
+                        - array
+                        - 'null'
+                    required:
+                    - methods
+                    - protocol_version
+                    - supported_transports
+                    title: HostInfo
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.info
+  /rpc/host.target.list:
+    post:
+      operationId: targetList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.target.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  title: EmptyParams
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $defs:
+                        ExecutionTargetCapability:
+                          enum:
+                          - local_exec
+                          - port_lease
+                          - http_proxy_upstream
+                          - websocket_proxy_upstream
+                          type: string
+                        ExecutionTargetReachability:
+                          enum:
+                          - local_host
+                          type: string
+                        ExecutionTargetStatusKind:
+                          enum:
+                          - available
+                          - unavailable
+                          type: string
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        capabilities:
+                          default: []
+                          items:
+                            $ref: '#/$defs/ExecutionTargetCapability'
+                          type: array
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        reachability:
+                          $ref: '#/$defs/ExecutionTargetReachability'
+                        status:
+                          $ref: '#/$defs/ExecutionTargetStatusKind'
+                      required:
+                      - id
+                      - name
+                      - reachability
+                      - status
+                      title: ExecutionTarget
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.target.list
   /rpc/kernel.v1.asset.get:
     post:
       operationId: assetGet
@@ -1256,6 +1689,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -1361,6 +1796,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -1452,6 +1889,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -1556,6 +1995,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -1771,6 +2212,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -1933,6 +2376,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2091,6 +2536,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2162,6 +2609,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2337,6 +2786,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2399,6 +2850,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2501,6 +2954,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2623,6 +3078,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2696,6 +3153,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2807,6 +3266,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2934,6 +3395,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -2996,6 +3459,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3105,6 +3570,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3228,6 +3695,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3468,6 +3937,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3584,6 +4055,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3707,6 +4180,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3769,6 +4244,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3833,6 +4310,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3930,6 +4409,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -3985,13 +4466,16 @@ paths:
       summary: Invoke kernel.v1.host.diagnostics
   /rpc/kernel.v1.host.info:
     post:
-      operationId: hostInfo
+      deprecated: true
+      operationId: legacyKernelV1HostInfo
       requestBody:
         content:
           application/json:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4039,6 +4523,159 @@ paths:
                     const: '2.0'
                   result:
                     $defs:
+                      ContractAdapter:
+                        enum:
+                        - identity
+                        type: string
+                      ContractAlias:
+                        properties:
+                          canonical_id:
+                            type: string
+                          deprecated_in:
+                            type:
+                            - string
+                            - 'null'
+                          id:
+                            type: string
+                          introduced_in:
+                            type: string
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          replacement:
+                            type:
+                            - string
+                            - 'null'
+                          request_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          response_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          support_until:
+                            type:
+                            - string
+                            - 'null'
+                        required:
+                        - canonical_id
+                        - id
+                        - introduced_in
+                        - maturity
+                        - request_adapter
+                        - response_adapter
+                        type: object
+                      ContractLayerInfo:
+                        properties:
+                          description:
+                            type: string
+                          id:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                        required:
+                        - description
+                        - id
+                        - maturity
+                        type: object
+                      ContractMaturity:
+                        enum:
+                        - experimental
+                        - candidate
+                        - stable
+                        - deprecated
+                        - legacy_adapter
+                        type: string
+                      ContractMethod:
+                        properties:
+                          aliases:
+                            items:
+                              $ref: '#/$defs/ContractAlias'
+                            type: array
+                          canonical_id:
+                            type: string
+                          deprecated_in:
+                            type:
+                            - string
+                            - 'null'
+                          implementation_status:
+                            $ref: '#/$defs/MethodStatus'
+                          introduced_in:
+                            type: string
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          owner_layer:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          replacement:
+                            type:
+                            - string
+                            - 'null'
+                          request_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          request_schema:
+                            type: string
+                          response_adapter:
+                            $ref: '#/$defs/ContractAdapter'
+                          response_schema:
+                            type: string
+                          streaming:
+                            type: boolean
+                        required:
+                        - aliases
+                        - canonical_id
+                        - implementation_status
+                        - introduced_in
+                        - maturity
+                        - owner_layer
+                        - request_adapter
+                        - request_schema
+                        - response_adapter
+                        - response_schema
+                        - streaming
+                        type: object
+                      ContractOwnerLayer:
+                        enum:
+                        - substrate
+                        - host
+                        - protocol
+                        - shell
+                        - cross_layer
+                        - legacy_adapter
+                        type: string
+                      ContractProfileInfo:
+                        properties:
+                          id:
+                            type: string
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          versions:
+                            items:
+                              $ref: '#/$defs/ContractVersionRequirement'
+                            type: array
+                        required:
+                        - id
+                        - maturity
+                        - versions
+                        type: object
+                      ContractVersionInfo:
+                        properties:
+                          layer:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          maturity:
+                            $ref: '#/$defs/ContractMaturity'
+                          version:
+                            type: string
+                        required:
+                        - layer
+                        - maturity
+                        - version
+                        type: object
+                      ContractVersionRequirement:
+                        properties:
+                          layer:
+                            $ref: '#/$defs/ContractOwnerLayer'
+                          version:
+                            type: string
+                        required:
+                        - layer
+                        - version
+                        type: object
                       MethodStatus:
                         enum:
                         - implemented
@@ -4060,16 +4697,58 @@ paths:
                         type: object
                     $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
+                      aliases:
+                        items:
+                          $ref: '#/$defs/ContractAlias'
+                        type:
+                        - array
+                        - 'null'
+                      contract_methods:
+                        items:
+                          $ref: '#/$defs/ContractMethod'
+                        type:
+                        - array
+                        - 'null'
+                      contract_registry_version:
+                        type:
+                        - string
+                        - 'null'
+                      default_profile:
+                        type:
+                        - string
+                        - 'null'
+                      layers:
+                        items:
+                          $ref: '#/$defs/ContractLayerInfo'
+                        type:
+                        - array
+                        - 'null'
+                      maturity:
+                        anyOf:
+                        - $ref: '#/$defs/ContractMaturity'
+                        - type: 'null'
                       methods:
                         items:
                           $ref: '#/$defs/ProtocolMethod'
                         type: array
+                      profiles:
+                        items:
+                          $ref: '#/$defs/ContractProfileInfo'
+                        type:
+                        - array
+                        - 'null'
                       protocol_version:
                         type: string
                       supported_transports:
                         items:
                           type: string
                         type: array
+                      versions:
+                        items:
+                          $ref: '#/$defs/ContractVersionInfo'
+                        type:
+                        - array
+                        - 'null'
                     required:
                     - methods
                     - protocol_version
@@ -4081,7 +4760,8 @@ paths:
                 - id
                 type: object
           description: JSON-RPC response envelope
-      summary: Invoke kernel.v1.host.info
+      summary: Invoke legacy alias kernel.v1.host.info for host.info
+      x-yggdrasil-canonical-method: host.info
   /rpc/kernel.v1.host.ping:
     post:
       operationId: hostPing
@@ -4091,6 +4771,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4158,6 +4840,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4220,6 +4904,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4381,6 +5067,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4617,6 +5305,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4884,6 +5574,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -4983,6 +5675,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -5113,6 +5807,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -5212,6 +5908,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -5274,6 +5972,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -6248,6 +6948,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -7980,6 +8682,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -8062,6 +8766,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -9039,6 +9745,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -10016,6 +10724,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -10993,6 +11703,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -11091,6 +11803,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -11330,6 +12044,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -11560,6 +12276,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -11724,6 +12442,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -11863,6 +12583,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -11973,6 +12695,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -12086,6 +12810,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -12199,6 +12925,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -12492,6 +13220,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -12727,6 +13457,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -12845,6 +13577,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13018,6 +13752,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13133,6 +13869,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13217,6 +13955,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13298,6 +14038,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13382,6 +14124,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13476,6 +14220,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13692,6 +14438,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -13912,6 +14660,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -14270,6 +15020,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -14486,6 +15238,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -14699,6 +15453,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -14919,6 +15675,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15030,6 +15788,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15175,6 +15935,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15289,6 +16051,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15403,6 +16167,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15496,6 +16262,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15597,6 +16365,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15695,6 +16465,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15802,6 +16574,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15864,6 +16638,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -15980,6 +16756,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -16047,6 +16825,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -16114,6 +16894,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -16209,13 +16991,16 @@ paths:
       summary: Invoke kernel.v1.surface.resolve_bundle
   /rpc/kernel.v1.target.list:
     post:
-      operationId: targetList
+      deprecated: true
+      operationId: legacyKernelV1TargetList
       requestBody:
         content:
           application/json:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -16308,7 +17093,8 @@ paths:
                 - id
                 type: object
           description: JSON-RPC response envelope
-      summary: Invoke kernel.v1.target.list
+      summary: Invoke legacy alias kernel.v1.target.list for host.target.list
+      x-yggdrasil-canonical-method: host.target.list
   /rpc/kernel.v1.target.register:
     post:
       operationId: targetRegister
@@ -16318,6 +17104,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -16454,6 +17242,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string
@@ -16559,6 +17349,8 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
                 id:
                   oneOf:
                   - type: string

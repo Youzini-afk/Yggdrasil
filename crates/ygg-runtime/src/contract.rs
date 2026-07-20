@@ -1,0 +1,582 @@
+use std::collections::HashSet;
+use std::fmt;
+use std::sync::OnceLock;
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+
+use crate::{KernelMethod, MethodStatus, ProtocolError};
+
+pub const CONTRACT_REGISTRY_VERSION: &str = "0.1.0";
+pub const CONTRACT_LAYER_VERSION: &str = "0.1.0";
+pub const DEFAULT_CONTRACT_PROFILE: &str = "ygg.contract.default/v1";
+pub const LEGACY_CONTRACT_PROFILE: &str = "kernel.v1";
+
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractOwnerLayer {
+    Substrate,
+    Host,
+    Protocol,
+    Shell,
+    CrossLayer,
+    LegacyAdapter,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractMaturity {
+    Experimental,
+    Candidate,
+    Stable,
+    Deprecated,
+    LegacyAdapter,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractAdapter {
+    Identity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractAlias {
+    pub id: String,
+    pub canonical_id: String,
+    pub maturity: ContractMaturity,
+    pub request_adapter: ContractAdapter,
+    pub response_adapter: ContractAdapter,
+    pub introduced_in: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated_in: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replacement: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub support_until: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractMethod {
+    pub canonical_id: String,
+    pub aliases: Vec<ContractAlias>,
+    pub owner_layer: ContractOwnerLayer,
+    pub maturity: ContractMaturity,
+    pub request_schema: String,
+    pub response_schema: String,
+    pub request_adapter: ContractAdapter,
+    pub response_adapter: ContractAdapter,
+    pub introduced_in: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated_in: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replacement: Option<String>,
+    pub implementation_status: MethodStatus,
+    pub streaming: bool,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) method: KernelMethod,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractLayerInfo {
+    pub id: ContractOwnerLayer,
+    pub description: String,
+    pub maturity: ContractMaturity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractVersionInfo {
+    pub layer: ContractOwnerLayer,
+    pub version: String,
+    pub maturity: ContractMaturity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractVersionRequirement {
+    pub layer: ContractOwnerLayer,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractProfileInfo {
+    pub id: String,
+    pub maturity: ContractMaturity,
+    pub versions: Vec<ContractVersionRequirement>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractSelection {
+    pub profile: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub versions: Vec<ContractVersionRequirement>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractNegotiation {
+    pub profile: String,
+    pub maturity: ContractMaturity,
+    pub versions: Vec<ContractVersionRequirement>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ResolvedContractMethod {
+    pub method: KernelMethod,
+    pub contract: &'static ContractMethod,
+    pub alias: Option<&'static ContractAlias>,
+}
+
+impl ResolvedContractMethod {
+    pub fn requested_id(&self) -> &str {
+        self.alias
+            .map_or(self.contract.canonical_id.as_str(), |alias| {
+                alias.id.as_str()
+            })
+    }
+
+    pub fn adapt_request(&self, value: Value) -> Result<Value, ProtocolError> {
+        let adapter = self
+            .alias
+            .map_or(self.contract.request_adapter, |alias| alias.request_adapter);
+        apply_adapter(adapter, value)
+    }
+
+    pub fn adapt_response(&self, value: Value) -> Result<Value, ProtocolError> {
+        let adapter = self.alias.map_or(self.contract.response_adapter, |alias| {
+            alias.response_adapter
+        });
+        apply_adapter(adapter, value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownContractMethod {
+    id: String,
+}
+
+impl fmt::Display for UnknownContractMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown contract method: {}", self.id)
+    }
+}
+
+impl std::error::Error for UnknownContractMethod {}
+
+static CONTRACT_METHODS: OnceLock<Vec<ContractMethod>> = OnceLock::new();
+static CONTRACT_ALIASES: OnceLock<Vec<ContractAlias>> = OnceLock::new();
+
+pub fn contract_methods() -> &'static [ContractMethod] {
+    CONTRACT_METHODS
+        .get_or_init(|| {
+            KernelMethod::all()
+                .iter()
+                .copied()
+                .map(contract_descriptor)
+                .collect()
+        })
+        .as_slice()
+}
+
+pub fn contract_aliases() -> &'static [ContractAlias] {
+    CONTRACT_ALIASES
+        .get_or_init(|| {
+            contract_methods()
+                .iter()
+                .flat_map(|method| method.aliases.iter().cloned())
+                .collect()
+        })
+        .as_slice()
+}
+
+pub fn contract_method(method: KernelMethod) -> &'static ContractMethod {
+    contract_methods()
+        .iter()
+        .find(|descriptor| descriptor.method == method)
+        .expect("every KernelMethod must have a contract descriptor")
+}
+
+pub fn resolve_contract_method(id: &str) -> Result<ResolvedContractMethod, UnknownContractMethod> {
+    for contract in contract_methods() {
+        if contract.canonical_id == id {
+            return Ok(ResolvedContractMethod {
+                method: contract.method,
+                contract,
+                alias: None,
+            });
+        }
+        if let Some(alias) = contract.aliases.iter().find(|alias| alias.id == id) {
+            return Ok(ResolvedContractMethod {
+                method: contract.method,
+                contract,
+                alias: Some(alias),
+            });
+        }
+    }
+    Err(UnknownContractMethod { id: id.to_string() })
+}
+
+pub fn contract_layers() -> Vec<ContractLayerInfo> {
+    vec![
+        ContractLayerInfo {
+            id: ContractOwnerLayer::Substrate,
+            description: "Identity, authority, objects, journal, invocation, streams, and receipts"
+                .to_string(),
+            maturity: ContractMaturity::Experimental,
+        },
+        ContractLayerInfo {
+            id: ContractOwnerLayer::Host,
+            description:
+                "Host-local installation, execution, ports, proxies, secrets, and diagnostics"
+                    .to_string(),
+            maturity: ContractMaturity::Experimental,
+        },
+        ContractLayerInfo {
+            id: ContractOwnerLayer::Protocol,
+            description: "Shared semantic protocols and compatibility profiles".to_string(),
+            maturity: ContractMaturity::Experimental,
+        },
+        ContractLayerInfo {
+            id: ContractOwnerLayer::Shell,
+            description: "Product and shell interaction profiles".to_string(),
+            maturity: ContractMaturity::Experimental,
+        },
+        ContractLayerInfo {
+            id: ContractOwnerLayer::CrossLayer,
+            description: "Transitional methods that still combine multiple owners".to_string(),
+            maturity: ContractMaturity::Experimental,
+        },
+        ContractLayerInfo {
+            id: ContractOwnerLayer::LegacyAdapter,
+            description: "Compatibility routes for the kernel.v1 operational contract".to_string(),
+            maturity: ContractMaturity::LegacyAdapter,
+        },
+    ]
+}
+
+pub fn contract_versions() -> Vec<ContractVersionInfo> {
+    contract_layers()
+        .into_iter()
+        .map(|layer| ContractVersionInfo {
+            layer: layer.id,
+            version: CONTRACT_LAYER_VERSION.to_string(),
+            maturity: layer.maturity,
+        })
+        .collect()
+}
+
+pub fn contract_profiles() -> Vec<ContractProfileInfo> {
+    vec![
+        ContractProfileInfo {
+            id: DEFAULT_CONTRACT_PROFILE.to_string(),
+            maturity: ContractMaturity::Experimental,
+            versions: [
+                ContractOwnerLayer::Substrate,
+                ContractOwnerLayer::Host,
+                ContractOwnerLayer::Protocol,
+                ContractOwnerLayer::Shell,
+            ]
+            .into_iter()
+            .map(version_requirement)
+            .collect(),
+        },
+        ContractProfileInfo {
+            id: LEGACY_CONTRACT_PROFILE.to_string(),
+            maturity: ContractMaturity::LegacyAdapter,
+            versions: vec![version_requirement(ContractOwnerLayer::LegacyAdapter)],
+        },
+    ]
+}
+
+pub fn negotiate_contract(
+    selection: Option<&ContractSelection>,
+) -> Result<ContractNegotiation, ProtocolError> {
+    let requested_profile = selection
+        .map(|selection| selection.profile.as_str())
+        .unwrap_or(LEGACY_CONTRACT_PROFILE);
+    let profiles = contract_profiles();
+    let Some(profile) = profiles
+        .iter()
+        .find(|profile| profile.id == requested_profile)
+    else {
+        return Err(unsupported_contract_error(
+            "unknown_profile",
+            selection,
+            json!({
+                "requested_profile": requested_profile,
+                "supported_profiles": profiles.iter().map(|profile| profile.id.as_str()).collect::<Vec<_>>(),
+            }),
+        ));
+    };
+
+    if let Some(selection) = selection {
+        let mut seen = HashSet::new();
+        for requested in &selection.versions {
+            if !seen.insert(requested.layer) {
+                return Err(ProtocolError::invalid_request(format!(
+                    "contract selection contains duplicate version requirement for {:?}",
+                    requested.layer
+                )));
+            }
+            let Some(supported) = profile
+                .versions
+                .iter()
+                .find(|supported| supported.layer == requested.layer)
+            else {
+                return Err(unsupported_contract_error(
+                    "layer_not_in_profile",
+                    Some(selection),
+                    json!({
+                        "requested_layer": requested.layer,
+                        "requested_version": requested.version,
+                        "profile": profile.id,
+                        "profile_versions": profile.versions,
+                    }),
+                ));
+            };
+            if supported.version != requested.version {
+                return Err(unsupported_contract_error(
+                    "unsupported_version",
+                    Some(selection),
+                    json!({
+                        "requested_layer": requested.layer,
+                        "requested_version": requested.version,
+                        "supported_version": supported.version,
+                        "profile": profile.id,
+                    }),
+                ));
+            }
+        }
+    }
+
+    Ok(ContractNegotiation {
+        profile: profile.id.clone(),
+        maturity: profile.maturity,
+        versions: profile.versions.clone(),
+    })
+}
+
+impl KernelMethod {
+    pub fn contract(&self) -> &'static ContractMethod {
+        contract_method(*self)
+    }
+
+    pub fn canonical_id(&self) -> &'static str {
+        self.contract().canonical_id.as_str()
+    }
+}
+
+fn contract_descriptor(method: KernelMethod) -> ContractMethod {
+    let legacy_id = method.id();
+    let canonical_id = match method {
+        KernelMethod::HostInfo => "host.info",
+        KernelMethod::TargetList => "host.target.list",
+        _ => legacy_id,
+    };
+    let aliases = if canonical_id == legacy_id {
+        Vec::new()
+    } else {
+        vec![ContractAlias {
+            id: legacy_id.to_string(),
+            canonical_id: canonical_id.to_string(),
+            maturity: ContractMaturity::LegacyAdapter,
+            request_adapter: ContractAdapter::Identity,
+            response_adapter: ContractAdapter::Identity,
+            introduced_in: "kernel.v1@0.1.0".to_string(),
+            deprecated_in: None,
+            replacement: Some(canonical_id.to_string()),
+            support_until: None,
+        }]
+    };
+    let schema = format!("https://yggdrasil.dev/spec/v1/methods/{legacy_id}.schema.json");
+    ContractMethod {
+        canonical_id: canonical_id.to_string(),
+        aliases,
+        owner_layer: owner_layer(method),
+        maturity: ContractMaturity::Experimental,
+        request_schema: format!("{schema}#/$defs/Params"),
+        response_schema: format!("{schema}#/$defs/Result"),
+        request_adapter: ContractAdapter::Identity,
+        response_adapter: ContractAdapter::Identity,
+        introduced_in: if canonical_id == legacy_id {
+            "kernel.v1@0.1.0".to_string()
+        } else {
+            format!("{DEFAULT_CONTRACT_PROFILE}@{CONTRACT_REGISTRY_VERSION}")
+        },
+        deprecated_in: None,
+        replacement: None,
+        implementation_status: method.status(),
+        streaming: method.streaming(),
+        method,
+    }
+}
+
+fn owner_layer(method: KernelMethod) -> ContractOwnerLayer {
+    match method {
+        KernelMethod::SessionOpen
+        | KernelMethod::SessionClose
+        | KernelMethod::SessionFork
+        | KernelMethod::SessionBranchList
+        | KernelMethod::SessionGet
+        | KernelMethod::SessionList
+        | KernelMethod::EventAppend
+        | KernelMethod::EventList
+        | KernelMethod::EventSubscribe
+        | KernelMethod::PackageUnload
+        | KernelMethod::PackageRestart
+        | KernelMethod::CapabilityDiscover
+        | KernelMethod::CapabilityDescribe
+        | KernelMethod::CapabilityInvoke
+        | KernelMethod::CapabilityHandleAttenuate
+        | KernelMethod::CapabilityHandleRevoke
+        | KernelMethod::CapabilityHandleListFor
+        | KernelMethod::CapabilityStream
+        | KernelMethod::CapabilityCancel
+        | KernelMethod::AssetPut
+        | KernelMethod::AssetGet
+        | KernelMethod::HostPrincipal
+        | KernelMethod::PermissionGrant
+        | KernelMethod::PermissionRevoke
+        | KernelMethod::PermissionList
+        | KernelMethod::PermissionAudit
+        | KernelMethod::OutboundAudit => ContractOwnerLayer::Substrate,
+
+        KernelMethod::PackageLogs
+        | KernelMethod::ProjectList
+        | KernelMethod::ProjectGet
+        | KernelMethod::ProjectStart
+        | KernelMethod::ProjectStop
+        | KernelMethod::ProjectStatus
+        | KernelMethod::TargetList
+        | KernelMethod::TargetStatus
+        | KernelMethod::TargetRegister
+        | KernelMethod::TargetUnregister
+        | KernelMethod::ExecStart
+        | KernelMethod::ExecStop
+        | KernelMethod::ExecStatus
+        | KernelMethod::ExecLogs
+        | KernelMethod::ExecList
+        | KernelMethod::PortLease
+        | KernelMethod::PortRelease
+        | KernelMethod::PortStatus
+        | KernelMethod::PortList
+        | KernelMethod::ProxyRegister
+        | KernelMethod::ProxyUnregister
+        | KernelMethod::ProxyStatus
+        | KernelMethod::ProxyList
+        | KernelMethod::AssetList
+        | KernelMethod::HostInfo
+        | KernelMethod::HostPing
+        | KernelMethod::HostDiagnostics => ContractOwnerLayer::Host,
+
+        KernelMethod::ExtensionPointList
+        | KernelMethod::ExtensionPointDescribe
+        | KernelMethod::HookList
+        | KernelMethod::ProjectionRegister
+        | KernelMethod::ProjectionRebuild
+        | KernelMethod::ProjectionGet
+        | KernelMethod::ProjectionList
+        | KernelMethod::ProposalCreate
+        | KernelMethod::ProposalGet
+        | KernelMethod::ProposalList
+        | KernelMethod::ProposalApprove
+        | KernelMethod::ProposalReject
+        | KernelMethod::ProposalApply => ContractOwnerLayer::Protocol,
+
+        KernelMethod::SurfaceContributionList | KernelMethod::SurfaceContributionDescribe => {
+            ContractOwnerLayer::Shell
+        }
+
+        KernelMethod::PackageLoad
+        | KernelMethod::PackageList
+        | KernelMethod::PackageStatus
+        | KernelMethod::PackageDescribe
+        | KernelMethod::AuditPackage
+        | KernelMethod::SurfaceResolveBundle
+        | KernelMethod::OutboundExecute
+        | KernelMethod::OutboundStream
+        | KernelMethod::OutboundWebSocketOpen
+        | KernelMethod::OutboundWebSocketSend
+        | KernelMethod::OutboundWebSocketClose => ContractOwnerLayer::CrossLayer,
+    }
+}
+
+fn version_requirement(layer: ContractOwnerLayer) -> ContractVersionRequirement {
+    ContractVersionRequirement {
+        layer,
+        version: CONTRACT_LAYER_VERSION.to_string(),
+    }
+}
+
+fn apply_adapter(adapter: ContractAdapter, value: Value) -> Result<Value, ProtocolError> {
+    match adapter {
+        ContractAdapter::Identity => Ok(value),
+    }
+}
+
+fn unsupported_contract_error(
+    reason: &str,
+    selection: Option<&ContractSelection>,
+    details: Value,
+) -> ProtocolError {
+    ProtocolError::new(
+        "kernel/v1/error/unsupported_contract",
+        format!("requested contract cannot be satisfied: {reason}"),
+        json!({
+            "reason": reason,
+            "selection": selection,
+            "details": details,
+        }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registry_is_complete_and_ids_are_globally_unique() {
+        assert_eq!(contract_methods().len(), KernelMethod::all().len());
+        let mut ids = HashSet::new();
+        for contract in contract_methods() {
+            assert!(ids.insert(contract.canonical_id.as_str()));
+            for alias in &contract.aliases {
+                assert!(ids.insert(alias.id.as_str()));
+                assert_eq!(alias.canonical_id, contract.canonical_id);
+            }
+        }
+    }
+
+    #[test]
+    fn canonical_and_legacy_host_info_resolve_to_one_handler() {
+        let canonical = resolve_contract_method("host.info").unwrap();
+        let legacy = resolve_contract_method("kernel.v1.host.info").unwrap();
+        assert_eq!(canonical.method, KernelMethod::HostInfo);
+        assert_eq!(legacy.method, canonical.method);
+        assert!(canonical.alias.is_none());
+        assert!(legacy.alias.is_some());
+        assert_eq!(legacy.contract.canonical_id, "host.info");
+    }
+
+    #[test]
+    fn negotiation_rejects_unknown_profile_and_version() {
+        let unknown_profile = ContractSelection {
+            profile: "missing/profile".to_string(),
+            versions: Vec::new(),
+        };
+        let error = negotiate_contract(Some(&unknown_profile)).unwrap_err();
+        assert_eq!(error.code, "kernel/v1/error/unsupported_contract");
+
+        let unsupported_version = ContractSelection {
+            profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+            versions: vec![ContractVersionRequirement {
+                layer: ContractOwnerLayer::Host,
+                version: "999.0.0".to_string(),
+            }],
+        };
+        let error = negotiate_contract(Some(&unsupported_version)).unwrap_err();
+        assert_eq!(error.code, "kernel/v1/error/unsupported_contract");
+        assert_eq!(error.details["reason"], "unsupported_version");
+    }
+}

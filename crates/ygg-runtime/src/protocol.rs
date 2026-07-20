@@ -10,12 +10,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
+use crate::{
+    contract_aliases, contract_layers, contract_methods, contract_profiles, contract_versions,
+    resolve_contract_method, ContractLayerInfo, ContractMaturity, ContractMethod,
+    ContractProfileInfo, ContractSelection, ContractVersionInfo, CONTRACT_REGISTRY_VERSION,
+    DEFAULT_CONTRACT_PROFILE,
+};
+
 // ---------------------------------------------------------------------------
-// KernelMethod — single source of truth for protocol method identity, status,
-// and streaming flag. Every method that appears in KERNEL_METHODS must have a
-// variant here; every variant must be covered in FromStr, Display, id(),
-// status(), streaming(), and all(). The runtime dispatch matches on these
-// variants instead of raw string literals.
+// KernelMethod — single source of truth for handler identity, v1 schema id,
+// implementation status, and streaming flag. The layered contract registry
+// projects canonical ids and aliases onto these variants. Runtime dispatch
+// always matches the normalized variant rather than a raw wire string.
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -103,7 +109,8 @@ pub enum KernelMethod {
 }
 
 impl KernelMethod {
-    /// Canonical dotted method identifier (e.g. `"kernel.v1.session.open"`).
+    /// Current `kernel.v1.*` compatibility identifier used by the v1 schemas.
+    /// Use [`KernelMethod::canonical_id`] for the layered contract identifier.
     pub const fn id(&self) -> &'static str {
         match self {
             Self::SessionOpen => "kernel.v1.session.open",
@@ -382,7 +389,7 @@ impl KernelMethod {
     }
 
     /// Whether this method has a dispatch branch in the runtime
-    /// (`call_protocol_inner`). Kept in sync with the dispatch match in
+    /// (`dispatch_protocol_method`). Kept in sync with the dispatch match in
     /// `runtime.rs` — update both sides together.
     pub const fn is_dispatched(&self) -> bool {
         match self {
@@ -482,89 +489,9 @@ impl FromStr for KernelMethod {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "kernel.v1.session.open" => Ok(Self::SessionOpen),
-            "kernel.v1.session.close" => Ok(Self::SessionClose),
-            "kernel.v1.session.fork" => Ok(Self::SessionFork),
-            "kernel.v1.session.branch.list" => Ok(Self::SessionBranchList),
-            "kernel.v1.session.get" => Ok(Self::SessionGet),
-            "kernel.v1.session.list" => Ok(Self::SessionList),
-            "kernel.v1.event.append" => Ok(Self::EventAppend),
-            "kernel.v1.event.list" => Ok(Self::EventList),
-            "kernel.v1.event.subscribe" => Ok(Self::EventSubscribe),
-            "kernel.v1.package.load" => Ok(Self::PackageLoad),
-            "kernel.v1.package.unload" => Ok(Self::PackageUnload),
-            "kernel.v1.package.restart" => Ok(Self::PackageRestart),
-            "kernel.v1.package.logs" => Ok(Self::PackageLogs),
-            "kernel.v1.package.list" => Ok(Self::PackageList),
-            "kernel.v1.package.status" => Ok(Self::PackageStatus),
-            "kernel.v1.package.describe" => Ok(Self::PackageDescribe),
-            "kernel.v1.project.list" => Ok(Self::ProjectList),
-            "kernel.v1.project.get" => Ok(Self::ProjectGet),
-            "kernel.v1.project.start" => Ok(Self::ProjectStart),
-            "kernel.v1.project.stop" => Ok(Self::ProjectStop),
-            "kernel.v1.project.status" => Ok(Self::ProjectStatus),
-            "kernel.v1.target.list" => Ok(Self::TargetList),
-            "kernel.v1.target.status" => Ok(Self::TargetStatus),
-            "kernel.v1.target.register" => Ok(Self::TargetRegister),
-            "kernel.v1.target.unregister" => Ok(Self::TargetUnregister),
-            "kernel.v1.exec.start" => Ok(Self::ExecStart),
-            "kernel.v1.exec.stop" => Ok(Self::ExecStop),
-            "kernel.v1.exec.status" => Ok(Self::ExecStatus),
-            "kernel.v1.exec.logs" => Ok(Self::ExecLogs),
-            "kernel.v1.exec.list" => Ok(Self::ExecList),
-            "kernel.v1.port.lease" => Ok(Self::PortLease),
-            "kernel.v1.port.release" => Ok(Self::PortRelease),
-            "kernel.v1.port.status" => Ok(Self::PortStatus),
-            "kernel.v1.port.list" => Ok(Self::PortList),
-            "kernel.v1.proxy.register" => Ok(Self::ProxyRegister),
-            "kernel.v1.proxy.unregister" => Ok(Self::ProxyUnregister),
-            "kernel.v1.proxy.status" => Ok(Self::ProxyStatus),
-            "kernel.v1.proxy.list" => Ok(Self::ProxyList),
-            "kernel.v1.capability.discover" => Ok(Self::CapabilityDiscover),
-            "kernel.v1.capability.describe" => Ok(Self::CapabilityDescribe),
-            "kernel.v1.capability.invoke" => Ok(Self::CapabilityInvoke),
-            "kernel.v1.cap.attenuate" => Ok(Self::CapabilityHandleAttenuate),
-            "kernel.v1.cap.revoke" => Ok(Self::CapabilityHandleRevoke),
-            "kernel.v1.cap.list_for" => Ok(Self::CapabilityHandleListFor),
-            "kernel.v1.capability.stream" => Ok(Self::CapabilityStream),
-            "kernel.v1.capability.cancel" => Ok(Self::CapabilityCancel),
-            "kernel.v1.extension_point.list" => Ok(Self::ExtensionPointList),
-            "kernel.v1.extension_point.describe" => Ok(Self::ExtensionPointDescribe),
-            "kernel.v1.hook.list" => Ok(Self::HookList),
-            "kernel.v1.asset.put" => Ok(Self::AssetPut),
-            "kernel.v1.asset.get" => Ok(Self::AssetGet),
-            "kernel.v1.asset.list" => Ok(Self::AssetList),
-            "kernel.v1.projection.register" => Ok(Self::ProjectionRegister),
-            "kernel.v1.projection.rebuild" => Ok(Self::ProjectionRebuild),
-            "kernel.v1.projection.get" => Ok(Self::ProjectionGet),
-            "kernel.v1.projection.list" => Ok(Self::ProjectionList),
-            "kernel.v1.host.info" => Ok(Self::HostInfo),
-            "kernel.v1.host.ping" => Ok(Self::HostPing),
-            "kernel.v1.host.diagnostics" => Ok(Self::HostDiagnostics),
-            "kernel.v1.host.principal" => Ok(Self::HostPrincipal),
-            "kernel.v1.permission.grant" => Ok(Self::PermissionGrant),
-            "kernel.v1.permission.revoke" => Ok(Self::PermissionRevoke),
-            "kernel.v1.permission.list" => Ok(Self::PermissionList),
-            "kernel.v1.permission.audit" => Ok(Self::PermissionAudit),
-            "kernel.v1.audit.package" => Ok(Self::AuditPackage),
-            "kernel.v1.proposal.create" => Ok(Self::ProposalCreate),
-            "kernel.v1.proposal.get" => Ok(Self::ProposalGet),
-            "kernel.v1.proposal.list" => Ok(Self::ProposalList),
-            "kernel.v1.proposal.approve" => Ok(Self::ProposalApprove),
-            "kernel.v1.proposal.reject" => Ok(Self::ProposalReject),
-            "kernel.v1.proposal.apply" => Ok(Self::ProposalApply),
-            "kernel.v1.surface.resolve_bundle" => Ok(Self::SurfaceResolveBundle),
-            "kernel.v1.surface.contribution.list" => Ok(Self::SurfaceContributionList),
-            "kernel.v1.surface.contribution.describe" => Ok(Self::SurfaceContributionDescribe),
-            "kernel.v1.outbound.audit" => Ok(Self::OutboundAudit),
-            "kernel.v1.outbound.execute" => Ok(Self::OutboundExecute),
-            "kernel.v1.outbound.stream" => Ok(Self::OutboundStream),
-            "kernel.v1.outbound.websocket.open" => Ok(Self::OutboundWebSocketOpen),
-            "kernel.v1.outbound.websocket.send" => Ok(Self::OutboundWebSocketSend),
-            "kernel.v1.outbound.websocket.close" => Ok(Self::OutboundWebSocketClose),
-            other => Err(format!("unknown kernel method: {other}")),
-        }
+        resolve_contract_method(s)
+            .map(|resolved| resolved.method)
+            .map_err(|error| error.to_string())
     }
 }
 
@@ -672,6 +599,8 @@ pub struct ProtocolRequest {
     pub method: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract: Option<ContractSelection>,
     #[serde(default)]
     pub params: Value,
 }
@@ -739,6 +668,22 @@ pub struct HostInfo {
     pub protocol_version: &'static str,
     pub methods: &'static [ProtocolMethod],
     pub supported_transports: Vec<&'static str>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_registry_version: Option<&'static str>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_profile: Option<&'static str>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layers: Option<Vec<ContractLayerInfo>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub versions: Option<Vec<ContractVersionInfo>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profiles: Option<Vec<ContractProfileInfo>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maturity: Option<ContractMaturity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aliases: Option<&'static [crate::ContractAlias]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_methods: Option<&'static [ContractMethod]>,
 }
 
 pub const KERNEL_PROTOCOL_VERSION: &str = "0.1.0";
@@ -1158,6 +1103,14 @@ pub fn host_info() -> HostInfo {
         protocol_version: KERNEL_PROTOCOL_VERSION,
         methods: KERNEL_METHODS,
         supported_transports: vec!["in_process", "http_rpc", "host_stdio", "http_ad_hoc"],
+        contract_registry_version: Some(CONTRACT_REGISTRY_VERSION),
+        default_profile: Some(DEFAULT_CONTRACT_PROFILE),
+        layers: Some(contract_layers()),
+        versions: Some(contract_versions()),
+        profiles: Some(contract_profiles()),
+        maturity: Some(ContractMaturity::Experimental),
+        aliases: Some(contract_aliases()),
+        contract_methods: Some(contract_methods()),
     }
 }
 

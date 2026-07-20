@@ -4,6 +4,38 @@ export interface ProtocolResponse<T = unknown> {
   error?: { code: string; message: string; details?: unknown };
 }
 
+export type ContractOwnerLayer =
+  | "substrate"
+  | "host"
+  | "protocol"
+  | "shell"
+  | "cross_layer"
+  | "legacy_adapter";
+
+export interface ContractVersionRequirement {
+  layer: ContractOwnerLayer;
+  version: string;
+}
+
+export interface ContractSelection {
+  profile: string;
+  versions?: ContractVersionRequirement[];
+}
+
+export interface HostContractInfo {
+  protocol_version: string;
+  supported_transports: string[];
+  contract_registry_version?: string;
+  default_profile?: string;
+  layers?: unknown[];
+  versions?: unknown[];
+  profiles?: unknown[];
+  aliases?: Array<{ id: string; canonical_id: string; replacement?: string }>;
+  contract_methods?: unknown[];
+  maturity?: string;
+  methods: unknown[];
+}
+
 export const BROWSER_ACCESS_TOKEN_STORAGE_KEY = "ygg_http_access_token";
 
 export class ProtocolHttpError extends Error {
@@ -600,6 +632,7 @@ export interface ProxyRouteRecord {
 
 export class YggProtocolClient {
   private readonly accessToken?: string;
+  private contractSelection?: ContractSelection;
 
   constructor(private readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string | null) {
     this.accessToken = accessToken === undefined ? resolveBrowserAccessToken() : accessToken || undefined;
@@ -610,7 +643,13 @@ export class YggProtocolClient {
   }
 
   async invokeWithSession(method: string, params: unknown = {}, sessionId: string): Promise<unknown> {
-    const response = await this.fetchRpc({ id: crypto.randomUUID(), method, params, session_id: sessionId });
+    const response = await this.fetchRpc({
+      id: crypto.randomUUID(),
+      method,
+      params,
+      session_id: sessionId,
+      ...(this.contractSelection ? { contract: this.contractSelection } : {}),
+    });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
     if (envelope.error) {
@@ -620,13 +659,38 @@ export class YggProtocolClient {
   }
 
   async call<T>(method: string, params: unknown = {}): Promise<T> {
-    const response = await this.fetchRpc({ id: crypto.randomUUID(), method, params });
+    const response = await this.fetchRpc({
+      id: crypto.randomUUID(),
+      method,
+      params,
+      ...(this.contractSelection ? { contract: this.contractSelection } : {}),
+    });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<T>;
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
     return envelope.result as T;
+  }
+
+  async negotiateHost(selection: ContractSelection): Promise<HostContractInfo> {
+    const response = await this.fetchRpc({
+      id: crypto.randomUUID(),
+      method: "host.info",
+      params: {},
+      contract: selection,
+    });
+    await throwForHttpError(response);
+    const envelope = (await response.json()) as ProtocolResponse<HostContractInfo>;
+    if (envelope.error) {
+      throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
+    }
+    this.contractSelection = selection;
+    return envelope.result as HostContractInfo;
+  }
+
+  clearContractSelection(): void {
+    this.contractSelection = undefined;
   }
 
   packages() {

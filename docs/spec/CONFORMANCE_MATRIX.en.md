@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **447**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **450**.
 
 ## Conformance Feedback Loop
 
@@ -142,6 +142,9 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | secret store | 10 secret_store cases: put / has / list / delete / health plus env/store/composite resolver paths | implemented |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
+| protocol / legacy | canonical and legacy alias results, permissions, and error mapping are equivalent | implemented |
+| protocol / negotiation | unknown layer versions return `unsupported_contract` explicitly | implemented |
+| protocol / negotiation | failed negotiation never silently downgrades and has zero handler side effects | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
 | protocol | in-process protocol dispatcher invokes capability | implemented |
 | protocol | HTTP `/rpc` returns protocol envelope | implemented in service tests |
@@ -417,6 +420,9 @@ protocol.structured_permission_error       PASS
 permission.grant_revoke_audit              PASS
 permission.assistant_capability_grant      PASS
 protocol.call_host_info                    PASS
+protocol.alias_equivalent                  PASS
+protocol.unsupported_version_rejected      PASS
+protocol.no_silent_downgrade               PASS
 protocol.call_capability_in_process        PASS
 principal.package_cannot_self_assert_writer PASS
 principal.package_cannot_self_assert_capability_caller PASS

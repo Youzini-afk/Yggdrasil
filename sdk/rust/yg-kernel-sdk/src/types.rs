@@ -1354,6 +1354,372 @@ for CapabilityStreamResult {
         Self(value)
     }
 }
+///`ContractAdapter`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractAdapter",
+///  "type": "string",
+///  "enum": [
+///    "identity"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ContractAdapter {
+    #[serde(rename = "identity")]
+    Identity,
+}
+impl ::std::fmt::Display for ContractAdapter {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Identity => f.write_str("identity"),
+        }
+    }
+}
+impl ::std::str::FromStr for ContractAdapter {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "identity" => Ok(Self::Identity),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ContractAdapter {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ContractAdapter {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ContractAdapter {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ContractAlias`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractAlias",
+///  "type": "object",
+///  "required": [
+///    "canonical_id",
+///    "id",
+///    "introduced_in",
+///    "maturity",
+///    "request_adapter",
+///    "response_adapter"
+///  ],
+///  "properties": {
+///    "canonical_id": {
+///      "type": "string"
+///    },
+///    "deprecated_in": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "introduced_in": {
+///      "type": "string"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ContractMaturity"
+///    },
+///    "replacement": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "request_adapter": {
+///      "$ref": "#/definitions/ContractAdapter"
+///    },
+///    "response_adapter": {
+///      "$ref": "#/definitions/ContractAdapter"
+///    },
+///    "support_until": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractAlias {
+    pub canonical_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub deprecated_in: ::std::option::Option<::std::string::String>,
+    pub id: ::std::string::String,
+    pub introduced_in: ::std::string::String,
+    pub maturity: ContractMaturity,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub replacement: ::std::option::Option<::std::string::String>,
+    pub request_adapter: ContractAdapter,
+    pub response_adapter: ContractAdapter,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub support_until: ::std::option::Option<::std::string::String>,
+}
+///`ContractLayerInfo`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractLayerInfo",
+///  "type": "object",
+///  "required": [
+///    "description",
+///    "id",
+///    "maturity"
+///  ],
+///  "properties": {
+///    "description": {
+///      "type": "string"
+///    },
+///    "id": {
+///      "$ref": "#/definitions/ContractOwnerLayer"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ContractMaturity"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractLayerInfo {
+    pub description: ::std::string::String,
+    pub id: ContractOwnerLayer,
+    pub maturity: ContractMaturity,
+}
+///`ContractMaturity`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractMaturity",
+///  "type": "string",
+///  "enum": [
+///    "experimental",
+///    "candidate",
+///    "stable",
+///    "deprecated",
+///    "legacy_adapter"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ContractMaturity {
+    #[serde(rename = "experimental")]
+    Experimental,
+    #[serde(rename = "candidate")]
+    Candidate,
+    #[serde(rename = "stable")]
+    Stable,
+    #[serde(rename = "deprecated")]
+    Deprecated,
+    #[serde(rename = "legacy_adapter")]
+    LegacyAdapter,
+}
+impl ::std::fmt::Display for ContractMaturity {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Experimental => f.write_str("experimental"),
+            Self::Candidate => f.write_str("candidate"),
+            Self::Stable => f.write_str("stable"),
+            Self::Deprecated => f.write_str("deprecated"),
+            Self::LegacyAdapter => f.write_str("legacy_adapter"),
+        }
+    }
+}
+impl ::std::str::FromStr for ContractMaturity {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "experimental" => Ok(Self::Experimental),
+            "candidate" => Ok(Self::Candidate),
+            "stable" => Ok(Self::Stable),
+            "deprecated" => Ok(Self::Deprecated),
+            "legacy_adapter" => Ok(Self::LegacyAdapter),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ContractMaturity {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ContractMaturity {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ContractMaturity {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ContractMethod`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractMethod",
+///  "type": "object",
+///  "required": [
+///    "aliases",
+///    "canonical_id",
+///    "implementation_status",
+///    "introduced_in",
+///    "maturity",
+///    "owner_layer",
+///    "request_adapter",
+///    "request_schema",
+///    "response_adapter",
+///    "response_schema",
+///    "streaming"
+///  ],
+///  "properties": {
+///    "aliases": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ContractAlias"
+///      }
+///    },
+///    "canonical_id": {
+///      "type": "string"
+///    },
+///    "deprecated_in": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "implementation_status": {
+///      "$ref": "#/definitions/MethodStatus"
+///    },
+///    "introduced_in": {
+///      "type": "string"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ContractMaturity"
+///    },
+///    "owner_layer": {
+///      "$ref": "#/definitions/ContractOwnerLayer"
+///    },
+///    "replacement": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "request_adapter": {
+///      "$ref": "#/definitions/ContractAdapter"
+///    },
+///    "request_schema": {
+///      "type": "string"
+///    },
+///    "response_adapter": {
+///      "$ref": "#/definitions/ContractAdapter"
+///    },
+///    "response_schema": {
+///      "type": "string"
+///    },
+///    "streaming": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractMethod {
+    pub aliases: ::std::vec::Vec<ContractAlias>,
+    pub canonical_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub deprecated_in: ::std::option::Option<::std::string::String>,
+    pub implementation_status: MethodStatus,
+    pub introduced_in: ::std::string::String,
+    pub maturity: ContractMaturity,
+    pub owner_layer: ContractOwnerLayer,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub replacement: ::std::option::Option<::std::string::String>,
+    pub request_adapter: ContractAdapter,
+    pub request_schema: ::std::string::String,
+    pub response_adapter: ContractAdapter,
+    pub response_schema: ::std::string::String,
+    pub streaming: bool,
+}
 ///`ContractMode`
 ///
 /// <details><summary>JSON schema</summary>
@@ -1444,6 +1810,237 @@ impl ::std::convert::TryFrom<::std::string::String> for ContractMode {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`ContractOwnerLayer`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractOwnerLayer",
+///  "type": "string",
+///  "enum": [
+///    "substrate",
+///    "host",
+///    "protocol",
+///    "shell",
+///    "cross_layer",
+///    "legacy_adapter"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ContractOwnerLayer {
+    #[serde(rename = "substrate")]
+    Substrate,
+    #[serde(rename = "host")]
+    Host,
+    #[serde(rename = "protocol")]
+    Protocol,
+    #[serde(rename = "shell")]
+    Shell,
+    #[serde(rename = "cross_layer")]
+    CrossLayer,
+    #[serde(rename = "legacy_adapter")]
+    LegacyAdapter,
+}
+impl ::std::fmt::Display for ContractOwnerLayer {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Substrate => f.write_str("substrate"),
+            Self::Host => f.write_str("host"),
+            Self::Protocol => f.write_str("protocol"),
+            Self::Shell => f.write_str("shell"),
+            Self::CrossLayer => f.write_str("cross_layer"),
+            Self::LegacyAdapter => f.write_str("legacy_adapter"),
+        }
+    }
+}
+impl ::std::str::FromStr for ContractOwnerLayer {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "substrate" => Ok(Self::Substrate),
+            "host" => Ok(Self::Host),
+            "protocol" => Ok(Self::Protocol),
+            "shell" => Ok(Self::Shell),
+            "cross_layer" => Ok(Self::CrossLayer),
+            "legacy_adapter" => Ok(Self::LegacyAdapter),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ContractOwnerLayer {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ContractOwnerLayer {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ContractOwnerLayer {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ContractProfileInfo`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractProfileInfo",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "maturity",
+///    "versions"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ContractMaturity"
+///    },
+///    "versions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ContractVersionRequirement"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractProfileInfo {
+    pub id: ::std::string::String,
+    pub maturity: ContractMaturity,
+    pub versions: ::std::vec::Vec<ContractVersionRequirement>,
+}
+///`ContractSelection`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractSelection",
+///  "type": "object",
+///  "required": [
+///    "profile"
+///  ],
+///  "properties": {
+///    "profile": {
+///      "type": "string"
+///    },
+///    "versions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ContractVersionRequirement"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractSelection {
+    pub profile: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub versions: ::std::vec::Vec<ContractVersionRequirement>,
+}
+///`ContractVersionInfo`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractVersionInfo",
+///  "type": "object",
+///  "required": [
+///    "layer",
+///    "maturity",
+///    "version"
+///  ],
+///  "properties": {
+///    "layer": {
+///      "$ref": "#/definitions/ContractOwnerLayer"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ContractMaturity"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractVersionInfo {
+    pub layer: ContractOwnerLayer,
+    pub maturity: ContractMaturity,
+    pub version: ::std::string::String,
+}
+///`ContractVersionRequirement`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractVersionRequirement",
+///  "type": "object",
+///  "required": [
+///    "layer",
+///    "version"
+///  ],
+///  "properties": {
+///    "layer": {
+///      "$ref": "#/definitions/ContractOwnerLayer"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractVersionRequirement {
+    pub layer: ContractOwnerLayer,
+    pub version: ::std::string::String,
 }
 ///`DeclaredAuthority`
 ///
@@ -4348,10 +4945,68 @@ for HostDiagnosticsResult {
 ///    "supported_transports"
 ///  ],
 ///  "properties": {
+///    "aliases": {
+///      "type": [
+///        "array",
+///        "null"
+///      ],
+///      "items": {
+///        "$ref": "#/definitions/ContractAlias"
+///      }
+///    },
+///    "contract_methods": {
+///      "type": [
+///        "array",
+///        "null"
+///      ],
+///      "items": {
+///        "$ref": "#/definitions/ContractMethod"
+///      }
+///    },
+///    "contract_registry_version": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "default_profile": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "layers": {
+///      "type": [
+///        "array",
+///        "null"
+///      ],
+///      "items": {
+///        "$ref": "#/definitions/ContractLayerInfo"
+///      }
+///    },
+///    "maturity": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ContractMaturity"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "methods": {
 ///      "type": "array",
 ///      "items": {
 ///        "$ref": "#/definitions/ProtocolMethod"
+///      }
+///    },
+///    "profiles": {
+///      "type": [
+///        "array",
+///        "null"
+///      ],
+///      "items": {
+///        "$ref": "#/definitions/ContractProfileInfo"
 ///      }
 ///    },
 ///    "protocol_version": {
@@ -4362,6 +5017,15 @@ for HostDiagnosticsResult {
 ///      "items": {
 ///        "type": "string"
 ///      }
+///    },
+///    "versions": {
+///      "type": [
+///        "array",
+///        "null"
+///      ],
+///      "items": {
+///        "$ref": "#/definitions/ContractVersionInfo"
+///      }
 ///    }
 ///  },
 ///  "$schema": "https://json-schema.org/draft/2020-12/schema"
@@ -4371,9 +5035,25 @@ for HostDiagnosticsResult {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct HostInfo {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub aliases: ::std::option::Option<::std::vec::Vec<ContractAlias>>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub contract_methods: ::std::option::Option<::std::vec::Vec<ContractMethod>>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub contract_registry_version: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub default_profile: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub layers: ::std::option::Option<::std::vec::Vec<ContractLayerInfo>>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub maturity: ::std::option::Option<ContractMaturity>,
     pub methods: ::std::vec::Vec<ProtocolMethod>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub profiles: ::std::option::Option<::std::vec::Vec<ContractProfileInfo>>,
     pub protocol_version: ::std::string::String,
     pub supported_transports: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub versions: ::std::option::Option<::std::vec::Vec<ContractVersionInfo>>,
 }
 ///`HostPingResult`
 ///

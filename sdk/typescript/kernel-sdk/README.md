@@ -9,6 +9,19 @@ const client = attach(fromHttpRpc("http://localhost:8080/rpc"));
 const info = await client.hostInfo({});
 ```
 
+`hostInfo()` uses the layered canonical route. Explicit legacy wire wrappers are generated when
+an alias exists, for example `legacyKernelV1HostInfo({})`. To require an exact host contract before
+subsequent calls:
+
+```ts
+await client.negotiateHost({
+  profile: "ygg.contract.default/v1",
+  versions: [{ layer: "host", version: "0.1.0" }],
+});
+```
+
+Negotiation fails if the transport cannot carry the selection; it is never silently ignored.
+
 The generated types come from `docs/spec/v1/schemas/`. Regenerate with:
 
 ```bash

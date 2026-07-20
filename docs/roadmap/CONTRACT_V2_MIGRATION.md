@@ -37,9 +37,15 @@
 6. 历史重放不得触发网络、模型、进程或其他外部效果。
 7. 每项结构变化都需要 schema、SDK 和 conformance 同步。
 
+## 当前实施状态
+
+- [x] Phase 1：修复 v1 事实漂移、SDK/CI/Windows 基线。
+- [x] Phase 2：建立 Experimental Contract Registry、集中 alias、显式 profile/version 协商与 SDK/conformance 生成链。
+- [ ] Phase 3–9：owner 双栈、object/artifact、receipt/change、Protocol Commons、component identity、World Bundle 与客户端弃用迁移。
+
 ## 立即冻结线
 
-在分层 registry 落地前：
+在分层迁移完成前：
 
 - 除安全修复、正确性修复和兼容字段外，不新增 `kernel.v1.*` 方法或事件；
 - 新实验放在明确 owner 的实验 namespace，不扩大 v1 稳定承诺；

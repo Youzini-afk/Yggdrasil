@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use ygg_runtime::{
-    DeploymentReconcileSource, ExecStatusKind, LocalExecExecutorConfig, ManagedContainerReport,
+    ContractOwnerLayer, ContractSelection, ContractVersionRequirement, DeploymentReconcileSource,
+    EventStore, ExecStatusKind, LocalExecExecutorConfig, ManagedContainerReport,
     PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProxyRouteStatusKind, Runtime,
-    RuntimeConfig, SqliteEventStore,
+    RuntimeConfig, SqliteEventStore, CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE,
 };
 
 use super::fixtures::*;
@@ -24,6 +25,119 @@ pub(crate) async fn call_host_info() -> anyhow::Result<()> {
     anyhow::ensure!(
         value.get("supported_transports").is_some(),
         "host.info missing transports"
+    );
+    Ok(())
+}
+
+pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    let context = ProtocolContext::host_dev("conformance");
+    let canonical = runtime
+        .call_protocol(&context, "host.info", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let legacy = runtime
+        .call_protocol(&context, "kernel.v1.host.info", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(canonical == legacy, "canonical and legacy host.info differ");
+    anyhow::ensure!(
+        canonical["aliases"].as_array().is_some_and(|aliases| {
+            aliases.iter().any(|alias| {
+                alias["id"] == "kernel.v1.host.info" && alias["canonical_id"] == "host.info"
+            })
+        }),
+        "host.info did not advertise its legacy alias"
+    );
+
+    let canonical_targets = runtime
+        .call_protocol(&context, "host.target.list", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let legacy_targets = runtime
+        .call_protocol(&context, "kernel.v1.target.list", json!({}))
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(
+        canonical_targets == legacy_targets,
+        "canonical and legacy target.list differ"
+    );
+
+    let denied_context = ProtocolContext {
+        principal: ProtocolPrincipal::Anonymous,
+        transport: "conformance".to_string(),
+        session_id: None,
+        correlation_id: None,
+        parent_invocation_id: None,
+    };
+    let canonical_error = runtime
+        .call_protocol(&denied_context, "host.target.list", json!({}))
+        .await
+        .expect_err("canonical target.list must preserve the permission gate");
+    let legacy_error = runtime
+        .call_protocol(&denied_context, "kernel.v1.target.list", json!({}))
+        .await
+        .expect_err("legacy target.list must preserve the permission gate");
+    anyhow::ensure!(
+        canonical_error == legacy_error,
+        "canonical and legacy permission/error mapping differ"
+    );
+    anyhow::ensure!(
+        store.list_all().await?.is_empty(),
+        "identity aliases must not create a distinct audit/event path"
+    );
+    Ok(())
+}
+
+pub(crate) async fn unsupported_version_rejected() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let selection = ContractSelection {
+        profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+        versions: vec![ContractVersionRequirement {
+            layer: ContractOwnerLayer::Host,
+            version: "999.0.0".to_string(),
+        }],
+    };
+    let error = runtime
+        .call_protocol_negotiated(
+            &ProtocolContext::host_dev("conformance"),
+            "host.info",
+            json!({}),
+            Some(&selection),
+        )
+        .await
+        .expect_err("unsupported contract version must fail");
+    anyhow::ensure!(error.code == "kernel/v1/error/unsupported_contract");
+    anyhow::ensure!(error.details["reason"] == "unsupported_version");
+    anyhow::ensure!(
+        error.details["details"]["supported_version"] == CONTRACT_LAYER_VERSION,
+        "supported version missing from structured error"
+    );
+    Ok(())
+}
+
+pub(crate) async fn no_silent_downgrade() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    let selection = ContractSelection {
+        profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+        versions: vec![ContractVersionRequirement {
+            layer: ContractOwnerLayer::Substrate,
+            version: "999.0.0".to_string(),
+        }],
+    };
+    let error = runtime
+        .call_protocol_negotiated(
+            &ProtocolContext::host_dev("conformance"),
+            "kernel.v1.session.open",
+            json!({"labels": [], "metadata": {}, "active_package_set": []}),
+            Some(&selection),
+        )
+        .await
+        .expect_err("unsupported selection must not fall back to kernel.v1");
+    anyhow::ensure!(error.code == "kernel/v1/error/unsupported_contract");
+    anyhow::ensure!(
+        store.list_all().await?.is_empty(),
+        "rejected negotiation still reached the session handler"
     );
     Ok(())
 }

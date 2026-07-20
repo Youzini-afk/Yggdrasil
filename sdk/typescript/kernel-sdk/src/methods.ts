@@ -29,6 +29,7 @@ export interface KernelMethods {
   hookList(params: EmptyParams): Promise<HookListResult>;
   hostDiagnostics(params: EmptyParams): Promise<HostDiagnosticsResult>;
   hostInfo(params: EmptyParams): Promise<HostInfo>;
+  legacyKernelV1HostInfo(params: EmptyParams): Promise<HostInfo>;
   hostPing(params: EmptyParams): Promise<HostPingResult>;
   hostPrincipal(params: EmptyParams): Promise<HostPrincipalResult>;
   outboundAudit(params: OutboundAuditParams): Promise<OutboundAuditResult>;
@@ -81,6 +82,7 @@ export interface KernelMethods {
   surfaceContributionList(params: SurfaceListParams): Promise<SurfaceContributionListResult>;
   surfaceResolveBundle(params: SurfaceResolveBundleParams): Promise<SurfaceResolveBundleResult>;
   targetList(params: EmptyParams): Promise<TargetListResult>;
+  legacyKernelV1TargetList(params: EmptyParams): Promise<TargetListResult>;
   targetRegister(params: ExecutionTarget): Promise<ExecutionTarget>;
   targetStatus(params: TargetIdParams): Promise<ExecutionTarget>;
   targetUnregister(params: TargetIdParams): Promise<ExecutionTarget>;
@@ -94,560 +96,574 @@ export async function assetGet(
   this: KernelClient,
   params: AssetGetParams,
 ): Promise<AssetGetResponse> {
-  return this.transport.invoke("kernel.v1.asset.get", params) as Promise<AssetGetResponse>;
+  return this.invoke("kernel.v1.asset.get", params) as Promise<AssetGetResponse>;
 }
 
 export async function assetList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<AssetListResult> {
-  return this.transport.invoke("kernel.v1.asset.list", params) as Promise<AssetListResult>;
+  return this.invoke("kernel.v1.asset.list", params) as Promise<AssetListResult>;
 }
 
 export async function assetPut(
   this: KernelClient,
   params: AssetPutRequest,
 ): Promise<AssetRecord> {
-  return this.transport.invoke("kernel.v1.asset.put", params) as Promise<AssetRecord>;
+  return this.invoke("kernel.v1.asset.put", params) as Promise<AssetRecord>;
 }
 
 export async function auditPackage(
   this: KernelClient,
   params: AuditPackageParams,
 ): Promise<PackageAuditReport> {
-  return this.transport.invoke("kernel.v1.audit.package", params) as Promise<PackageAuditReport>;
+  return this.invoke("kernel.v1.audit.package", params) as Promise<PackageAuditReport>;
 }
 
 export async function capAttenuate(
   this: KernelClient,
   params: CapAttenuateParams,
 ): Promise<CapHandleResult> {
-  return this.transport.invoke("kernel.v1.cap.attenuate", params) as Promise<CapHandleResult>;
+  return this.invoke("kernel.v1.cap.attenuate", params) as Promise<CapHandleResult>;
 }
 
 export async function capListFor(
   this: KernelClient,
   params: CapListForParams,
 ): Promise<CapHandlesResult> {
-  return this.transport.invoke("kernel.v1.cap.list_for", params) as Promise<CapHandlesResult>;
+  return this.invoke("kernel.v1.cap.list_for", params) as Promise<CapHandlesResult>;
 }
 
 export async function capRevoke(
   this: KernelClient,
   params: CapRevokeParams,
 ): Promise<CapRevokeResult> {
-  return this.transport.invoke("kernel.v1.cap.revoke", params) as Promise<CapRevokeResult>;
+  return this.invoke("kernel.v1.cap.revoke", params) as Promise<CapRevokeResult>;
 }
 
 export async function capabilityCancel(
   this: KernelClient,
   params: CapabilityCancelParams,
 ): Promise<StreamFrameEnvelope> {
-  return this.transport.invoke("kernel.v1.capability.cancel", params) as Promise<StreamFrameEnvelope>;
+  return this.invoke("kernel.v1.capability.cancel", params) as Promise<StreamFrameEnvelope>;
 }
 
 export async function capabilityDescribe(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<CapabilityDescribeResult> {
-  return this.transport.invoke("kernel.v1.capability.describe", params) as Promise<CapabilityDescribeResult>;
+  return this.invoke("kernel.v1.capability.describe", params) as Promise<CapabilityDescribeResult>;
 }
 
 export async function capabilityDiscover(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<CapabilityDiscoverResult> {
-  return this.transport.invoke("kernel.v1.capability.discover", params) as Promise<CapabilityDiscoverResult>;
+  return this.invoke("kernel.v1.capability.discover", params) as Promise<CapabilityDiscoverResult>;
 }
 
 export async function capabilityInvoke(
   this: KernelClient,
   params: CapabilityInvocationRequest,
 ): Promise<CapabilityInvocationResult> {
-  return this.transport.invoke("kernel.v1.capability.invoke", params) as Promise<CapabilityInvocationResult>;
+  return this.invoke("kernel.v1.capability.invoke", params) as Promise<CapabilityInvocationResult>;
 }
 
 export async function capabilityStream(
   this: KernelClient,
   params: CapabilityStreamParams,
 ): Promise<CapabilityStreamResult> {
-  return this.transport.invoke("kernel.v1.capability.stream", params) as Promise<CapabilityStreamResult>;
+  return this.invoke("kernel.v1.capability.stream", params) as Promise<CapabilityStreamResult>;
 }
 
 export async function eventAppend(
   this: KernelClient,
   params: AppendEventRequest,
 ): Promise<EventEnvelope> {
-  return this.transport.invoke("kernel.v1.event.append", params) as Promise<EventEnvelope>;
+  return this.invoke("kernel.v1.event.append", params) as Promise<EventEnvelope>;
 }
 
 export async function eventList(
   this: KernelClient,
   params: EventListRequest,
 ): Promise<EventListResult> {
-  return this.transport.invoke("kernel.v1.event.list", params) as Promise<EventListResult>;
+  return this.invoke("kernel.v1.event.list", params) as Promise<EventListResult>;
 }
 
 export async function eventSubscribe(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<EventSubscribeResult> {
-  return this.transport.invoke("kernel.v1.event.subscribe", params) as Promise<EventSubscribeResult>;
+  return this.invoke("kernel.v1.event.subscribe", params) as Promise<EventSubscribeResult>;
 }
 
 export async function execList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<LocalExecListResponse> {
-  return this.transport.invoke("kernel.v1.exec.list", params) as Promise<LocalExecListResponse>;
+  return this.invoke("kernel.v1.exec.list", params) as Promise<LocalExecListResponse>;
 }
 
 export async function execLogs(
   this: KernelClient,
   params: LocalExecLogsRequest,
 ): Promise<LocalExecLogsResponse> {
-  return this.transport.invoke("kernel.v1.exec.logs", params) as Promise<LocalExecLogsResponse>;
+  return this.invoke("kernel.v1.exec.logs", params) as Promise<LocalExecLogsResponse>;
 }
 
 export async function execStart(
   this: KernelClient,
   params: LocalExecStartRequest,
 ): Promise<LocalExecStartResponse> {
-  return this.transport.invoke("kernel.v1.exec.start", params) as Promise<LocalExecStartResponse>;
+  return this.invoke("kernel.v1.exec.start", params) as Promise<LocalExecStartResponse>;
 }
 
 export async function execStatus(
   this: KernelClient,
   params: ExecIdParams,
 ): Promise<LocalExecStatusResponse> {
-  return this.transport.invoke("kernel.v1.exec.status", params) as Promise<LocalExecStatusResponse>;
+  return this.invoke("kernel.v1.exec.status", params) as Promise<LocalExecStatusResponse>;
 }
 
 export async function execStop(
   this: KernelClient,
   params: LocalExecStopRequest,
 ): Promise<LocalExecStopResponse> {
-  return this.transport.invoke("kernel.v1.exec.stop", params) as Promise<LocalExecStopResponse>;
+  return this.invoke("kernel.v1.exec.stop", params) as Promise<LocalExecStopResponse>;
 }
 
 export async function extensionPointDescribe(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ExtensionPointDescribeResult> {
-  return this.transport.invoke("kernel.v1.extension_point.describe", params) as Promise<ExtensionPointDescribeResult>;
+  return this.invoke("kernel.v1.extension_point.describe", params) as Promise<ExtensionPointDescribeResult>;
 }
 
 export async function extensionPointList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ExtensionPointListResult> {
-  return this.transport.invoke("kernel.v1.extension_point.list", params) as Promise<ExtensionPointListResult>;
+  return this.invoke("kernel.v1.extension_point.list", params) as Promise<ExtensionPointListResult>;
 }
 
 export async function hookList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<HookListResult> {
-  return this.transport.invoke("kernel.v1.hook.list", params) as Promise<HookListResult>;
+  return this.invoke("kernel.v1.hook.list", params) as Promise<HookListResult>;
 }
 
 export async function hostDiagnostics(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<HostDiagnosticsResult> {
-  return this.transport.invoke("kernel.v1.host.diagnostics", params) as Promise<HostDiagnosticsResult>;
+  return this.invoke("kernel.v1.host.diagnostics", params) as Promise<HostDiagnosticsResult>;
 }
 
 export async function hostInfo(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<HostInfo> {
-  return this.transport.invoke("kernel.v1.host.info", params) as Promise<HostInfo>;
+  return this.invoke("host.info", params) as Promise<HostInfo>;
+}
+
+export async function legacyKernelV1HostInfo(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<HostInfo> {
+  return this.invoke("kernel.v1.host.info", params) as Promise<HostInfo>;
 }
 
 export async function hostPing(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<HostPingResult> {
-  return this.transport.invoke("kernel.v1.host.ping", params) as Promise<HostPingResult>;
+  return this.invoke("kernel.v1.host.ping", params) as Promise<HostPingResult>;
 }
 
 export async function hostPrincipal(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<HostPrincipalResult> {
-  return this.transport.invoke("kernel.v1.host.principal", params) as Promise<HostPrincipalResult>;
+  return this.invoke("kernel.v1.host.principal", params) as Promise<HostPrincipalResult>;
 }
 
 export async function outboundAudit(
   this: KernelClient,
   params: OutboundAuditParams,
 ): Promise<OutboundAuditResult> {
-  return this.transport.invoke("kernel.v1.outbound.audit", params) as Promise<OutboundAuditResult>;
+  return this.invoke("kernel.v1.outbound.audit", params) as Promise<OutboundAuditResult>;
 }
 
 export async function outboundExecute(
   this: KernelClient,
   params: OutboundExecuteParams,
 ): Promise<OutboundExecutorResponse> {
-  return this.transport.invoke("kernel.v1.outbound.execute", params) as Promise<OutboundExecutorResponse>;
+  return this.invoke("kernel.v1.outbound.execute", params) as Promise<OutboundExecutorResponse>;
 }
 
 export async function outboundStream(
   this: KernelClient,
   params: OutboundStreamParams,
 ): Promise<KernelOutboundStreamResponse> {
-  return this.transport.invoke("kernel.v1.outbound.stream", params) as Promise<KernelOutboundStreamResponse>;
+  return this.invoke("kernel.v1.outbound.stream", params) as Promise<KernelOutboundStreamResponse>;
 }
 
 export async function outboundWebsocketClose(
   this: KernelClient,
   params: OutboundWebSocketSendParams,
 ): Promise<OutboundWebsocketCloseResult> {
-  return this.transport.invoke("kernel.v1.outbound.websocket.close", params) as Promise<OutboundWebsocketCloseResult>;
+  return this.invoke("kernel.v1.outbound.websocket.close", params) as Promise<OutboundWebsocketCloseResult>;
 }
 
 export async function outboundWebsocketOpen(
   this: KernelClient,
   params: OutboundWebSocketOpenRequest,
 ): Promise<OutboundWebsocketOpenResult> {
-  return this.transport.invoke("kernel.v1.outbound.websocket.open", params) as Promise<OutboundWebsocketOpenResult>;
+  return this.invoke("kernel.v1.outbound.websocket.open", params) as Promise<OutboundWebsocketOpenResult>;
 }
 
 export async function outboundWebsocketSend(
   this: KernelClient,
   params: OutboundWebSocketSendParams,
 ): Promise<OutboundWebsocketSendResult> {
-  return this.transport.invoke("kernel.v1.outbound.websocket.send", params) as Promise<OutboundWebsocketSendResult>;
+  return this.invoke("kernel.v1.outbound.websocket.send", params) as Promise<OutboundWebsocketSendResult>;
 }
 
 export async function packageDescribe(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<PackageDescribeResult> {
-  return this.transport.invoke("kernel.v1.package.describe", params) as Promise<PackageDescribeResult>;
+  return this.invoke("kernel.v1.package.describe", params) as Promise<PackageDescribeResult>;
 }
 
 export async function packageList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<PackageListResult> {
-  return this.transport.invoke("kernel.v1.package.list", params) as Promise<PackageListResult>;
+  return this.invoke("kernel.v1.package.list", params) as Promise<PackageListResult>;
 }
 
 export async function packageLoad(
   this: KernelClient,
   params: PackageManifest,
 ): Promise<PackageRecord> {
-  return this.transport.invoke("kernel.v1.package.load", params) as Promise<PackageRecord>;
+  return this.invoke("kernel.v1.package.load", params) as Promise<PackageRecord>;
 }
 
 export async function packageLogs(
   this: KernelClient,
   params: PackageIdParams,
 ): Promise<PackageLogsResult> {
-  return this.transport.invoke("kernel.v1.package.logs", params) as Promise<PackageLogsResult>;
+  return this.invoke("kernel.v1.package.logs", params) as Promise<PackageLogsResult>;
 }
 
 export async function packageRestart(
   this: KernelClient,
   params: PackageIdParams,
 ): Promise<PackageRecord> {
-  return this.transport.invoke("kernel.v1.package.restart", params) as Promise<PackageRecord>;
+  return this.invoke("kernel.v1.package.restart", params) as Promise<PackageRecord>;
 }
 
 export async function packageStatus(
   this: KernelClient,
   params: PackageIdParams,
 ): Promise<PackageRecord> {
-  return this.transport.invoke("kernel.v1.package.status", params) as Promise<PackageRecord>;
+  return this.invoke("kernel.v1.package.status", params) as Promise<PackageRecord>;
 }
 
 export async function packageUnload(
   this: KernelClient,
   params: PackageIdParams,
 ): Promise<PackageRecord> {
-  return this.transport.invoke("kernel.v1.package.unload", params) as Promise<PackageRecord>;
+  return this.invoke("kernel.v1.package.unload", params) as Promise<PackageRecord>;
 }
 
 export async function permissionAudit(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<PermissionAuditResult> {
-  return this.transport.invoke("kernel.v1.permission.audit", params) as Promise<PermissionAuditResult>;
+  return this.invoke("kernel.v1.permission.audit", params) as Promise<PermissionAuditResult>;
 }
 
 export async function permissionGrant(
   this: KernelClient,
   params: PermissionGrantParams,
 ): Promise<PermissionGrantRecord> {
-  return this.transport.invoke("kernel.v1.permission.grant", params) as Promise<PermissionGrantRecord>;
+  return this.invoke("kernel.v1.permission.grant", params) as Promise<PermissionGrantRecord>;
 }
 
 export async function permissionList(
   this: KernelClient,
   params: PermissionListParams,
 ): Promise<PermissionListResult> {
-  return this.transport.invoke("kernel.v1.permission.list", params) as Promise<PermissionListResult>;
+  return this.invoke("kernel.v1.permission.list", params) as Promise<PermissionListResult>;
 }
 
 export async function permissionRevoke(
   this: KernelClient,
   params: PermissionRevokeParams,
 ): Promise<PermissionGrantRecord> {
-  return this.transport.invoke("kernel.v1.permission.revoke", params) as Promise<PermissionGrantRecord>;
+  return this.invoke("kernel.v1.permission.revoke", params) as Promise<PermissionGrantRecord>;
 }
 
 export async function portLease(
   this: KernelClient,
   params: PortLeaseRequest,
 ): Promise<PortLeaseResponse> {
-  return this.transport.invoke("kernel.v1.port.lease", params) as Promise<PortLeaseResponse>;
+  return this.invoke("kernel.v1.port.lease", params) as Promise<PortLeaseResponse>;
 }
 
 export async function portList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<PortListResult> {
-  return this.transport.invoke("kernel.v1.port.list", params) as Promise<PortListResult>;
+  return this.invoke("kernel.v1.port.list", params) as Promise<PortListResult>;
 }
 
 export async function portRelease(
   this: KernelClient,
   params: PortLeaseIdParams,
 ): Promise<PortLeaseRecord2> {
-  return this.transport.invoke("kernel.v1.port.release", params) as Promise<PortLeaseRecord2>;
+  return this.invoke("kernel.v1.port.release", params) as Promise<PortLeaseRecord2>;
 }
 
 export async function portStatus(
   this: KernelClient,
   params: PortLeaseIdParams,
 ): Promise<PortLeaseRecord2> {
-  return this.transport.invoke("kernel.v1.port.status", params) as Promise<PortLeaseRecord2>;
+  return this.invoke("kernel.v1.port.status", params) as Promise<PortLeaseRecord2>;
 }
 
 export async function projectGet(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectGetResult> {
-  return this.transport.invoke("kernel.v1.project.get", params) as Promise<ProjectGetResult>;
+  return this.invoke("kernel.v1.project.get", params) as Promise<ProjectGetResult>;
 }
 
 export async function projectList(
   this: KernelClient,
   params: ProjectListParams,
 ): Promise<ProjectListResultSchema> {
-  return this.transport.invoke("kernel.v1.project.list", params) as Promise<ProjectListResultSchema>;
+  return this.invoke("kernel.v1.project.list", params) as Promise<ProjectListResultSchema>;
 }
 
 export async function projectStart(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectStartResult> {
-  return this.transport.invoke("kernel.v1.project.start", params) as Promise<ProjectStartResult>;
+  return this.invoke("kernel.v1.project.start", params) as Promise<ProjectStartResult>;
 }
 
 export async function projectStatus(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectStatusResult> {
-  return this.transport.invoke("kernel.v1.project.status", params) as Promise<ProjectStatusResult>;
+  return this.invoke("kernel.v1.project.status", params) as Promise<ProjectStatusResult>;
 }
 
 export async function projectStop(
   this: KernelClient,
   params: ProjectIdParams,
 ): Promise<ProjectStopResult> {
-  return this.transport.invoke("kernel.v1.project.stop", params) as Promise<ProjectStopResult>;
+  return this.invoke("kernel.v1.project.stop", params) as Promise<ProjectStopResult>;
 }
 
 export async function projectionGet(
   this: KernelClient,
   params: ProjectionIdParams,
 ): Promise<ProjectionDefinition> {
-  return this.transport.invoke("kernel.v1.projection.get", params) as Promise<ProjectionDefinition>;
+  return this.invoke("kernel.v1.projection.get", params) as Promise<ProjectionDefinition>;
 }
 
 export async function projectionList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ProjectionListResult> {
-  return this.transport.invoke("kernel.v1.projection.list", params) as Promise<ProjectionListResult>;
+  return this.invoke("kernel.v1.projection.list", params) as Promise<ProjectionListResult>;
 }
 
 export async function projectionRebuild(
   this: KernelClient,
   params: ProjectionIdParams,
 ): Promise<ProjectionDefinition> {
-  return this.transport.invoke("kernel.v1.projection.rebuild", params) as Promise<ProjectionDefinition>;
+  return this.invoke("kernel.v1.projection.rebuild", params) as Promise<ProjectionDefinition>;
 }
 
 export async function projectionRegister(
   this: KernelClient,
   params: ProjectionDefinition,
 ): Promise<ProjectionDefinition> {
-  return this.transport.invoke("kernel.v1.projection.register", params) as Promise<ProjectionDefinition>;
+  return this.invoke("kernel.v1.projection.register", params) as Promise<ProjectionDefinition>;
 }
 
 export async function proposalApply(
   this: KernelClient,
   params: ProposalIdParams,
 ): Promise<ProposalRecord> {
-  return this.transport.invoke("kernel.v1.proposal.apply", params) as Promise<ProposalRecord>;
+  return this.invoke("kernel.v1.proposal.apply", params) as Promise<ProposalRecord>;
 }
 
 export async function proposalApprove(
   this: KernelClient,
   params: ProposalDecisionParams,
 ): Promise<ProposalRecord> {
-  return this.transport.invoke("kernel.v1.proposal.approve", params) as Promise<ProposalRecord>;
+  return this.invoke("kernel.v1.proposal.approve", params) as Promise<ProposalRecord>;
 }
 
 export async function proposalCreate(
   this: KernelClient,
   params: ProposalRecord,
 ): Promise<ProposalRecord> {
-  return this.transport.invoke("kernel.v1.proposal.create", params) as Promise<ProposalRecord>;
+  return this.invoke("kernel.v1.proposal.create", params) as Promise<ProposalRecord>;
 }
 
 export async function proposalGet(
   this: KernelClient,
   params: ProposalIdParams,
 ): Promise<ProposalRecord> {
-  return this.transport.invoke("kernel.v1.proposal.get", params) as Promise<ProposalRecord>;
+  return this.invoke("kernel.v1.proposal.get", params) as Promise<ProposalRecord>;
 }
 
 export async function proposalList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ProposalListResult> {
-  return this.transport.invoke("kernel.v1.proposal.list", params) as Promise<ProposalListResult>;
+  return this.invoke("kernel.v1.proposal.list", params) as Promise<ProposalListResult>;
 }
 
 export async function proposalReject(
   this: KernelClient,
   params: ProposalDecisionParams,
 ): Promise<ProposalRecord> {
-  return this.transport.invoke("kernel.v1.proposal.reject", params) as Promise<ProposalRecord>;
+  return this.invoke("kernel.v1.proposal.reject", params) as Promise<ProposalRecord>;
 }
 
 export async function proxyList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<ProxyListResult> {
-  return this.transport.invoke("kernel.v1.proxy.list", params) as Promise<ProxyListResult>;
+  return this.invoke("kernel.v1.proxy.list", params) as Promise<ProxyListResult>;
 }
 
 export async function proxyRegister(
   this: KernelClient,
   params: ProxyRouteRegisterRequest,
 ): Promise<ProxyRouteRegisterResponse> {
-  return this.transport.invoke("kernel.v1.proxy.register", params) as Promise<ProxyRouteRegisterResponse>;
+  return this.invoke("kernel.v1.proxy.register", params) as Promise<ProxyRouteRegisterResponse>;
 }
 
 export async function proxyStatus(
   this: KernelClient,
   params: ProxyRouteIdParams,
 ): Promise<ProxyRouteRecord2> {
-  return this.transport.invoke("kernel.v1.proxy.status", params) as Promise<ProxyRouteRecord2>;
+  return this.invoke("kernel.v1.proxy.status", params) as Promise<ProxyRouteRecord2>;
 }
 
 export async function proxyUnregister(
   this: KernelClient,
   params: ProxyRouteIdParams,
 ): Promise<ProxyRouteRecord2> {
-  return this.transport.invoke("kernel.v1.proxy.unregister", params) as Promise<ProxyRouteRecord2>;
+  return this.invoke("kernel.v1.proxy.unregister", params) as Promise<ProxyRouteRecord2>;
 }
 
 export async function sessionBranchList(
   this: KernelClient,
   params: SessionBranchListParams,
 ): Promise<SessionBranchListResult> {
-  return this.transport.invoke("kernel.v1.session.branch.list", params) as Promise<SessionBranchListResult>;
+  return this.invoke("kernel.v1.session.branch.list", params) as Promise<SessionBranchListResult>;
 }
 
 export async function sessionClose(
   this: KernelClient,
   params: SessionCloseParams,
 ): Promise<EventEnvelope> {
-  return this.transport.invoke("kernel.v1.session.close", params) as Promise<EventEnvelope>;
+  return this.invoke("kernel.v1.session.close", params) as Promise<EventEnvelope>;
 }
 
 export async function sessionFork(
   this: KernelClient,
   params: SessionForkParams,
 ): Promise<BranchRecord> {
-  return this.transport.invoke("kernel.v1.session.fork", params) as Promise<BranchRecord>;
+  return this.invoke("kernel.v1.session.fork", params) as Promise<BranchRecord>;
 }
 
 export async function sessionGet(
   this: KernelClient,
   params: SessionGetParams,
 ): Promise<KernelSession> {
-  return this.transport.invoke("kernel.v1.session.get", params) as Promise<KernelSession>;
+  return this.invoke("kernel.v1.session.get", params) as Promise<KernelSession>;
 }
 
 export async function sessionList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<SessionListResult> {
-  return this.transport.invoke("kernel.v1.session.list", params) as Promise<SessionListResult>;
+  return this.invoke("kernel.v1.session.list", params) as Promise<SessionListResult>;
 }
 
 export async function sessionOpen(
   this: KernelClient,
   params: OpenSessionRequest,
 ): Promise<KernelSession> {
-  return this.transport.invoke("kernel.v1.session.open", params) as Promise<KernelSession>;
+  return this.invoke("kernel.v1.session.open", params) as Promise<KernelSession>;
 }
 
 export async function surfaceContributionDescribe(
   this: KernelClient,
   params: SurfaceDescribeParams,
 ): Promise<SurfaceContributionDescribeResult> {
-  return this.transport.invoke("kernel.v1.surface.contribution.describe", params) as Promise<SurfaceContributionDescribeResult>;
+  return this.invoke("kernel.v1.surface.contribution.describe", params) as Promise<SurfaceContributionDescribeResult>;
 }
 
 export async function surfaceContributionList(
   this: KernelClient,
   params: SurfaceListParams,
 ): Promise<SurfaceContributionListResult> {
-  return this.transport.invoke("kernel.v1.surface.contribution.list", params) as Promise<SurfaceContributionListResult>;
+  return this.invoke("kernel.v1.surface.contribution.list", params) as Promise<SurfaceContributionListResult>;
 }
 
 export async function surfaceResolveBundle(
   this: KernelClient,
   params: SurfaceResolveBundleParams,
 ): Promise<SurfaceResolveBundleResult> {
-  return this.transport.invoke("kernel.v1.surface.resolve_bundle", params) as Promise<SurfaceResolveBundleResult>;
+  return this.invoke("kernel.v1.surface.resolve_bundle", params) as Promise<SurfaceResolveBundleResult>;
 }
 
 export async function targetList(
   this: KernelClient,
   params: EmptyParams,
 ): Promise<TargetListResult> {
-  return this.transport.invoke("kernel.v1.target.list", params) as Promise<TargetListResult>;
+  return this.invoke("host.target.list", params) as Promise<TargetListResult>;
+}
+
+export async function legacyKernelV1TargetList(
+  this: KernelClient,
+  params: EmptyParams,
+): Promise<TargetListResult> {
+  return this.invoke("kernel.v1.target.list", params) as Promise<TargetListResult>;
 }
 
 export async function targetRegister(
   this: KernelClient,
   params: ExecutionTarget,
 ): Promise<ExecutionTarget> {
-  return this.transport.invoke("kernel.v1.target.register", params) as Promise<ExecutionTarget>;
+  return this.invoke("kernel.v1.target.register", params) as Promise<ExecutionTarget>;
 }
 
 export async function targetStatus(
   this: KernelClient,
   params: TargetIdParams,
 ): Promise<ExecutionTarget> {
-  return this.transport.invoke("kernel.v1.target.status", params) as Promise<ExecutionTarget>;
+  return this.invoke("kernel.v1.target.status", params) as Promise<ExecutionTarget>;
 }
 
 export async function targetUnregister(
   this: KernelClient,
   params: TargetIdParams,
 ): Promise<ExecutionTarget> {
-  return this.transport.invoke("kernel.v1.target.unregister", params) as Promise<ExecutionTarget>;
+  return this.invoke("kernel.v1.target.unregister", params) as Promise<ExecutionTarget>;
 }
 
 export function attach<T extends KernelClient>(client: T): T & KernelMethods {
@@ -676,6 +692,7 @@ export function attach<T extends KernelClient>(client: T): T & KernelMethods {
   (client as T & KernelMethods).hookList = hookList.bind(client);
   (client as T & KernelMethods).hostDiagnostics = hostDiagnostics.bind(client);
   (client as T & KernelMethods).hostInfo = hostInfo.bind(client);
+  (client as T & KernelMethods).legacyKernelV1HostInfo = legacyKernelV1HostInfo.bind(client);
   (client as T & KernelMethods).hostPing = hostPing.bind(client);
   (client as T & KernelMethods).hostPrincipal = hostPrincipal.bind(client);
   (client as T & KernelMethods).outboundAudit = outboundAudit.bind(client);
@@ -728,6 +745,7 @@ export function attach<T extends KernelClient>(client: T): T & KernelMethods {
   (client as T & KernelMethods).surfaceContributionList = surfaceContributionList.bind(client);
   (client as T & KernelMethods).surfaceResolveBundle = surfaceResolveBundle.bind(client);
   (client as T & KernelMethods).targetList = targetList.bind(client);
+  (client as T & KernelMethods).legacyKernelV1TargetList = legacyKernelV1TargetList.bind(client);
   (client as T & KernelMethods).targetRegister = targetRegister.bind(client);
   (client as T & KernelMethods).targetStatus = targetStatus.bind(client);
   (client as T & KernelMethods).targetUnregister = targetUnregister.bind(client);

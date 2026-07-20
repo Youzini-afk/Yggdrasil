@@ -110,5 +110,28 @@
     "params"
   ],
   "title": "kernel.v1.target.list",
-  "type": "object"
+  "type": "object",
+  "x-yggdrasil-contract": {
+    "aliases": [
+      {
+        "canonical_id": "host.target.list",
+        "id": "kernel.v1.target.list",
+        "introduced_in": "kernel.v1@0.1.0",
+        "maturity": "legacy_adapter",
+        "replacement": "host.target.list",
+        "request_adapter": "identity",
+        "response_adapter": "identity"
+      }
+    ],
+    "canonical_id": "host.target.list",
+    "implementation_status": "partial",
+    "introduced_in": "ygg.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_adapter": "identity",
+    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.list.schema.json#/$defs/Params",
+    "response_adapter": "identity",
+    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.list.schema.json#/$defs/Result",
+    "streaming": false
+  }
 }

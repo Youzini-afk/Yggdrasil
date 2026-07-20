@@ -104,5 +104,18 @@
     "params"
   ],
   "title": "kernel.v1.hook.list",
-  "type": "object"
+  "type": "object",
+  "x-yggdrasil-contract": {
+    "aliases": [],
+    "canonical_id": "kernel.v1.hook.list",
+    "implementation_status": "partial",
+    "introduced_in": "kernel.v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "protocol",
+    "request_adapter": "identity",
+    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.hook.list.schema.json#/$defs/Params",
+    "response_adapter": "identity",
+    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.hook.list.schema.json#/$defs/Result",
+    "streaming": false
+  }
 }

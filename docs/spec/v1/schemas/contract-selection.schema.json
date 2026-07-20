@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "ContractOwnerLayer": {
+      "enum": [
+        "substrate",
+        "host",
+        "protocol",
+        "shell",
+        "cross_layer",
+        "legacy_adapter"
+      ],
+      "type": "string"
+    },
+    "ContractVersionRequirement": {
+      "properties": {
+        "layer": {
+          "$ref": "#/definitions/ContractOwnerLayer"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "profile": {
+      "type": "string"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/definitions/ContractVersionRequirement"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "profile"
+  ],
+  "title": "ContractSelection",
+  "type": "object"
+}

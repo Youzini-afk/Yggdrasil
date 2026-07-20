@@ -148,6 +148,18 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 
   capturedRequests.push(body);
 
+  if (body?.method === "host.info") {
+    return Response.json({
+      id: body.id,
+      result: {
+        protocol_version: "0.1.0",
+        supported_transports: ["http_rpc"],
+        methods: [],
+        default_profile: "ygg.contract.default/v1",
+      },
+    });
+  }
+
   if (body?.method === "kernel.v1.session.open") {
     return Response.json({ id: body.id, result: { id: "install-session" } });
   }
@@ -375,6 +387,19 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
 capturedRequests.length = 0;
 await protocolClient.startProject("project-1");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), ["kernel.v1.project.start"]);
+
+capturedRequests.length = 0;
+const negotiatedClient = new YggProtocolClient("http://host.test", "valid-token");
+const contract = {
+  profile: "ygg.contract.default/v1",
+  versions: [{ layer: "host" as const, version: "0.1.0" }],
+};
+await negotiatedClient.negotiateHost(contract);
+await negotiatedClient.listTargets();
+assertDeepEqual(capturedRequests, [
+  { id: "request-id", method: "host.info", params: {}, contract },
+  { id: "request-id", method: "kernel.v1.target.list", params: {}, contract },
+]);
 
 globalThis.fetch = originalFetch;
 Object.defineProperty(globalThis, "crypto", {

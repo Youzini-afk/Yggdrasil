@@ -1,4 +1,5 @@
 pub mod capability;
+pub mod contract;
 pub mod event_store;
 pub mod inproc;
 pub mod package;
@@ -18,6 +19,14 @@ pub mod tavern;
 pub use capability::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult,
     ExtensionDispatchResult, ExtensionRegistry, RegisteredCapability, RegisteredHook,
+};
+pub use contract::{
+    contract_aliases, contract_layers, contract_method, contract_methods, contract_profiles,
+    contract_versions, negotiate_contract, resolve_contract_method, ContractAdapter, ContractAlias,
+    ContractLayerInfo, ContractMaturity, ContractMethod, ContractNegotiation, ContractOwnerLayer,
+    ContractProfileInfo, ContractSelection, ContractVersionInfo, ContractVersionRequirement,
+    ResolvedContractMethod, UnknownContractMethod, CONTRACT_LAYER_VERSION,
+    CONTRACT_REGISTRY_VERSION, DEFAULT_CONTRACT_PROFILE, LEGACY_CONTRACT_PROFILE,
 };
 #[cfg(feature = "postgres")]
 pub use event_store::PostgresEventStore;

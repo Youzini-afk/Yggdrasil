@@ -280,12 +280,12 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 ## Schemas and error codes
 
 - Method schemas: `docs/spec/v1/schemas/methods/` (80).
-- Event schemas: `docs/spec/v1/schemas/events/` (58).
-- Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (7).
+- Event schemas: `docs/spec/v1/schemas/events/` (59).
+- Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (8).
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 146 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 147 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -365,6 +365,10 @@ Reserved rules:
 - `kernel.v2.*` and `kernel/v2/*` are reserved for breaking changes.
 - Packages must not declare capability ids that look like kernel namespaces.
 
+Experimental canonical IDs and legacy aliases introduced by the layered migration are managed
+centrally by [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.en.md). They do not remove or rename any
+`kernel.v1.*` v1 entry point.
+
 ## Schema rules
 
 v1 schemas are release artifacts. Each method schema describes request and response. Each event schema describes payload. Top-level schemas describe manifest, permission, protocol context, capability descriptor, and shared objects.
@@ -382,7 +386,7 @@ Schema change rules:
 
 The same protocol envelope can be carried by in-process dispatcher, HTTP `/rpc`, host JSON-RPC stdio, and future transports. Transport must not alter authorization semantics.
 
-HTTP and stdio can frame differently, but request id, method, params, context, result/error semantics must match. Conformance will keep expanding cross-transport parity coverage.
+HTTP and stdio can frame differently, but request id, method, params, optional contract selection, context, and result/error semantics must match. An unsatisfied explicit selection returns `unsupported_contract` and never silently downgrades. See [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.en.md).
 
 ## Package lifecycle
 
@@ -457,7 +461,7 @@ A v1 implementation must at least prove:
 
 1. 80 method schemas export.
 2. 59 event schemas validate.
-3. 7 top-level schemas validate.
+3. 8 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
 6. Invoke instrumentation emits lifecycle events.

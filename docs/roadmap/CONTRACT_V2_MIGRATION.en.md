@@ -37,9 +37,15 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 6. Historical replay never triggers network, model, process, or other external effects.
 7. Every structural change updates schemas, SDKs, and conformance together.
 
+## Current implementation status
+
+- [x] Phase 1: repair v1 factual drift and the SDK/CI/Windows baselines.
+- [x] Phase 2: implement the Experimental Contract Registry, centralized aliases, explicit profile/version negotiation, and the generated SDK/conformance chain.
+- [ ] Phases 3–9: owner dual stack, objects/artifacts, receipts/change, Protocol Commons, component identity, World Bundle, and client/deprecation migration.
+
 ## Immediate freeze line
 
-Until the layering registry exists:
+Until the layering migration is complete:
 
 - add no `kernel.v1.*` methods or events except security fixes, correctness fixes, and compatibility fields;
 - put new experiments in an Experimental namespace with an explicit owner rather than expanding v1 stability;

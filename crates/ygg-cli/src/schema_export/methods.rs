@@ -12,6 +12,7 @@ pub(crate) fn method_schema(method: KernelMethod, params: Value, result: Value) 
         "$id": format!("{BASE}/methods/{}.schema.json", method.id()),
         "title": method.id(),
         "description": format!("Yggdrasil public kernel method {}.", method.id()),
+        "x-yggdrasil-contract": method.contract(),
         "type": "object",
         "additionalProperties": false,
         "required": ["method", "params"],

@@ -331,10 +331,6 @@ impl SubprocessHandle {
             let Some(method) = frame.get("method").and_then(Value::as_str) else {
                 continue;
             };
-            if !method.starts_with("kernel.v1.") {
-                continue;
-            }
-
             let id = frame.get("id").cloned().unwrap_or(Value::Null);
             let request_id = id_to_key(&id);
             self.reverse_kernel_requests
@@ -571,7 +567,7 @@ pub(crate) fn id_to_key(id: &Value) -> String {
     }
 }
 
-/// Dispatch one reverse `kernel.v1.*` JSON-RPC frame from a subprocess child.
+/// Dispatch one reverse contract JSON-RPC frame from a subprocess child.
 /// The caller principal is always locked to `package_id`; any package_id in
 /// params is treated as untrusted request data by downstream dispatch.
 pub async fn dispatch_reverse_kernel_frame<S>(
@@ -591,24 +587,90 @@ where
             "error": ProtocolError::invalid_request("reverse kernel frame missing method"),
         });
     };
-    if !method.starts_with("kernel.v1.") {
-        return json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "error": ProtocolError::invalid_request("reverse subprocess request method must start with kernel.v1."),
-        });
-    }
+    let contract = match frame.get("contract") {
+        Some(value) => match serde_json::from_value::<crate::ContractSelection>(value.clone()) {
+            Ok(contract) => Some(contract),
+            Err(error) => {
+                return json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "error": ProtocolError::invalid_request(format!("invalid contract selection: {error}")),
+                });
+            }
+        },
+        None => None,
+    };
     let mut context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
     context.session_id = session_id;
     match runtime
-        .call_subprocess_protocol(
+        .call_subprocess_protocol_negotiated(
             &context,
             method,
             frame.get("params").cloned().unwrap_or(Value::Null),
+            contract.as_ref(),
         )
         .await
     {
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
         Err(error) => json!({"jsonrpc": "2.0", "id": id, "error": error}),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::{InMemoryEventStore, RuntimeConfig, DEFAULT_CONTRACT_PROFILE};
+
+    #[tokio::test]
+    async fn reverse_dispatch_resolves_aliases_before_the_shared_handler() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let canonical = dispatch_reverse_kernel_frame(
+            &runtime,
+            "example/reverse",
+            None,
+            json!({"id":"canonical","method":"host.info","params":{}}),
+        )
+        .await;
+        let legacy = dispatch_reverse_kernel_frame(
+            &runtime,
+            "example/reverse",
+            None,
+            json!({"id":"legacy","method":"kernel.v1.host.info","params":{}}),
+        )
+        .await;
+        assert_eq!(canonical["result"], legacy["result"]);
+    }
+
+    #[tokio::test]
+    async fn reverse_dispatch_rejects_unsupported_contract_versions() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let response = dispatch_reverse_kernel_frame(
+            &runtime,
+            "example/reverse",
+            None,
+            json!({
+                "id": "unsupported",
+                "method": "host.info",
+                "params": {},
+                "contract": {
+                    "profile": DEFAULT_CONTRACT_PROFILE,
+                    "versions": [{"layer":"host","version":"999.0.0"}]
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            response["error"]["code"],
+            "kernel/v1/error/unsupported_contract"
+        );
+        assert!(response.get("result").is_none());
     }
 }

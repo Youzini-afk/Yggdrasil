@@ -40,11 +40,11 @@
 ## 当前事实基线
 
 - 代码中有 80 个 `KernelMethod`、80 个 method schema。
-- 代码与 schema 中有 59 个 kernel event；`EVENT_KIND_REGISTRY.md` 只列 58 个，遗漏 `kernel/v1/deployment.health`。
-- 有 7 个顶层 schema。
-- `KernelMethod::status()`、Contract 文档状态和实际 dispatch 有多处漂移。
-- 当前没有通用 method alias registry、弃用状态、双栈 dispatch 或 v1→v2 request/response adapter。
-- Web 与生成 SDK 都直接发送硬编码 `kernel.v1.*` method ID。
+- 代码、schema 与 `EVENT_KIND_REGISTRY.md` 均有 59 个 kernel event，包含 `kernel/v1/deployment.health`。
+- 有 8 个顶层 schema；新增 additive `contract-selection.schema.json`。
+- `KernelMethod::status()`、Contract 文档状态和 actual dispatch 的已知漂移已对齐，并由测试约束。
+- 已有 Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter；首批 canonical/legacy 双栈为 `host.info`、`host.target.list`。
+- Web 默认仍发送 legacy `kernel.v1.*` method ID；生成 SDK 已从 schema metadata 生成 canonical client 与显式 legacy wrapper。
 
 因此迁移的第一要求不是删除旧代码，而是建立可测试的兼容路由。
 
@@ -273,12 +273,13 @@
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | host deployment health；补入 v1 registry |
 
-## 7 个顶层 schema
+## 8 个顶层 schema
 
 | 当前 schema | 目标层 | 处置 | 目标形状 |
 |---|---:|---|---|
 | `event-envelope.schema.json` | `S` | 重塑 | journal envelope + object refs + explicit causation/receipt refs；保留原始 v1 envelope |
 | `protocol-context.schema.json` | `S` | 强化 | authenticated principal、contract/profile negotiation、trace 与 parent invocation |
+| `contract-selection.schema.json` | `S` | 保留 | 显式 profile 与逐 layer version requirement；不允许静默降级 |
 | `capability-descriptor.schema.json` | `S` | 重塑 | component export + protocol claim + trust/conformance metadata |
 | `capability-invocation-request.schema.json` | `S` | 强化 | handle-first、idempotency、deadline、input refs、requested profile |
 | `capability-invocation-result.schema.json` | `S` | 强化 | output refs、receipt ref、terminal status；避免大 payload 常驻 envelope |

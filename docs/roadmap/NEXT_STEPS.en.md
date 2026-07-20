@@ -10,7 +10,8 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
 - The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, explicit Docker Deploy broker, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
-- Contract V1 is the public platform spec; all 146 schemas (80 methods + 59 events + 7 top-level) validate, and 447 conformance cases pass.
+- Contract V1 is the public platform spec; all 147 schemas (80 methods + 59 events + 8 top-level) validate, and 450 conformance cases pass.
+- The first two layering-migration steps are complete: v1 factual drift repair, followed by the Experimental Contract Registry, aliases, and explicit profile/version negotiation. Owner dual-stack migration continues through [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md).
 
 The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 

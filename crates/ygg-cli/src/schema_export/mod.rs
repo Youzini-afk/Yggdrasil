@@ -45,6 +45,10 @@ pub fn export_all() -> anyhow::Result<()> {
         &schema_value::<ProtocolContext>(),
     )?;
     write_json(
+        out.join("contract-selection.schema.json"),
+        &schema_value::<ContractSelection>(),
+    )?;
+    write_json(
         out.join("capability-invocation-request.schema.json"),
         &schema_value::<CapabilityInvocationRequest>(),
     )?;

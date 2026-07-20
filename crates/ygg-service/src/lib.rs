@@ -2905,7 +2905,7 @@ fn validate_runtime_mount_specs(specs: &[RuntimeMountSpec]) -> anyhow::Result<()
 }
 
 fn canonical_runtime_mount_source(source: &str) -> anyhow::Result<PathBuf> {
-    if source.is_empty() || source.contains('\0') || source.contains(':') {
+    if source.is_empty() || source.contains('\0') {
         anyhow::bail!("runtime mount source_host_path is invalid");
     }
     let path = FsPath::new(source);
@@ -2917,15 +2917,17 @@ fn canonical_runtime_mount_source(source: &str) -> anyhow::Result<PathBuf> {
 }
 
 fn validate_container_mount_path(path: &str) -> anyhow::Result<()> {
-    if path.is_empty() || path.contains('\0') || path.contains(':') {
-        anyhow::bail!("runtime mount container_path is invalid");
-    }
-    let p = FsPath::new(path);
-    if !p.is_absolute()
-        || p.components()
-            .any(|component| !matches!(component, Component::RootDir | Component::Normal(_)))
+    if path.is_empty()
+        || path.contains('\0')
+        || path.contains(':')
+        || path.contains('\\')
+        || !path.starts_with('/')
+        || path
+            .split('/')
+            .skip(1)
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
     {
-        anyhow::bail!("runtime mount container_path must be absolute without parent components");
+        anyhow::bail!("runtime mount container_path is invalid");
     }
     const DENIED_TARGETS: &[&str] = &[
         "/", "/proc", "/sys", "/dev", "/run", "/var/run", "/etc", "/root", "/home", "/tmp",
@@ -4087,20 +4089,27 @@ async fn rpc<S>(
 where
     S: EventStore,
 {
+    let ProtocolRequest {
+        id,
+        method,
+        session_id,
+        contract,
+        params,
+    } = request;
     let mut context = ProtocolContext::host_dev("http_rpc");
-    context.session_id = request.session_id.clone();
+    context.session_id = session_id;
     match state
         .runtime
-        .call_protocol(&context, &request.method, request.params)
+        .call_protocol_negotiated(&context, &method, params, contract.as_ref())
         .await
     {
         Ok(result) => Json(ProtocolResponse {
-            id: request.id,
+            id,
             result: Some(result),
             error: None,
         }),
         Err(error) => Json(ProtocolResponse {
-            id: request.id,
+            id,
             result: None,
             error: Some(error),
         }),
@@ -4403,6 +4412,21 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    fn create_test_file_symlink(source: &FsPath, target: &FsPath) -> std::io::Result<bool> {
+        std::os::unix::fs::symlink(source, target)?;
+        Ok(true)
+    }
+
+    #[cfg(windows)]
+    fn create_test_file_symlink(source: &FsPath, target: &FsPath) -> std::io::Result<bool> {
+        match std::os::windows::fs::symlink_file(source, target) {
+            Ok(()) => Ok(true),
+            Err(error) if error.raw_os_error() == Some(1314) => Ok(false),
+            Err(error) => Err(error),
+        }
+    }
+
     #[test]
     fn runtime_mount_validation_accepts_temp_ro_mount_and_redacts_summary() -> anyhow::Result<()> {
         let tmp = tempfile::tempdir()?;
@@ -4644,6 +4668,51 @@ mod tests {
         let value: serde_json::Value = serde_json::from_slice(&bytes)?;
         assert_eq!(value["id"], "1");
         assert!(value["result"]["supported_transports"].is_array());
+        assert_eq!(
+            value["result"]["default_profile"],
+            ygg_runtime::DEFAULT_CONTRACT_PROFILE
+        );
+        assert!(value["result"]["aliases"]
+            .as_array()
+            .is_some_and(|aliases| {
+                aliases.iter().any(|alias| {
+                    alias["id"] == "kernel.v1.host.info" && alias["canonical_id"] == "host.info"
+                })
+            }));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rpc_rejects_unsupported_contract_without_downgrade() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({
+                            "id": "contract-1",
+                            "method": "host.info",
+                            "params": {},
+                            "contract": {
+                                "profile": ygg_runtime::DEFAULT_CONTRACT_PROFILE,
+                                "versions": [{"layer": "host", "version": "999.0.0"}]
+                            }
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert!(value["result"].is_null());
+        assert_eq!(
+            value["error"]["code"],
+            "kernel/v1/error/unsupported_contract"
+        );
+        assert_eq!(value["error"]["details"]["reason"], "unsupported_version");
         Ok(())
     }
 
@@ -5346,7 +5415,10 @@ mod tests {
         };
         let route_id = "My_App/Main";
         let url = service_public_url_for_route(&state, route_id, "/p/My_App/Main/");
-        assert_eq!(url, format!("https://{}.apps.example.test/", route_slug(route_id)));
+        assert_eq!(
+            url,
+            format!("https://{}.apps.example.test/", route_slug(route_id))
+        );
         Ok(())
     }
 
@@ -5701,16 +5773,12 @@ mod tests {
         std::fs::create_dir_all(&bundle_dir)?;
         std::fs::write(outside.path().join("secret.mjs"), "do-not-serve")?;
 
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(
-            outside.path().join("secret.mjs"),
-            bundle_dir.join("leak.mjs"),
-        )?;
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_file(
-            outside.path().join("secret.mjs"),
-            bundle_dir.join("leak.mjs"),
-        )?;
+        if !create_test_file_symlink(
+            &outside.path().join("secret.mjs"),
+            &bundle_dir.join("leak.mjs"),
+        )? {
+            return Ok(());
+        }
 
         let store = Arc::new(InMemoryEventStore::default());
         let mut config = RuntimeConfig::default();
@@ -5818,16 +5886,12 @@ mod tests {
         std::fs::write(dir.path().join("index.html"), "public")?;
         std::fs::write(outside.path().join("secret.txt"), "do-not-serve")?;
 
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(
-            outside.path().join("secret.txt"),
-            dir.path().join("leak.txt"),
-        )?;
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_file(
-            outside.path().join("secret.txt"),
-            dir.path().join("leak.txt"),
-        )?;
+        if !create_test_file_symlink(
+            &outside.path().join("secret.txt"),
+            &dir.path().join("leak.txt"),
+        )? {
+            return Ok(());
+        }
 
         let store = Arc::new(InMemoryEventStore::default());
         let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));

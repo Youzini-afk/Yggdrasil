@@ -1,7 +1,10 @@
 use serde_json::{json, Value};
 
 use super::Runtime;
-use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolPrincipal};
+use crate::{
+    negotiate_contract, resolve_contract_method, ContractSelection, EventStore, KernelMethod,
+    ProtocolContext, ProtocolPrincipal,
+};
 
 impl<S> Runtime<S>
 where
@@ -13,9 +16,30 @@ where
         method: &str,
         params: Value,
     ) -> Result<Value, crate::ProtocolError> {
-        self.call_protocol_inner(context, method, params)
+        self.call_protocol_negotiated(context, method, params, None)
             .await
-            .map_err(crate::ProtocolError::from_anyhow)
+    }
+
+    pub async fn call_protocol_negotiated(
+        &self,
+        context: &ProtocolContext,
+        method: &str,
+        params: Value,
+        selection: Option<&ContractSelection>,
+    ) -> Result<Value, crate::ProtocolError> {
+        negotiate_contract(selection)?;
+        let resolved = resolve_contract_method(method).map_err(|_| {
+            crate::ProtocolError::invalid_request(format!(
+                "protocol method '{}' is not a known contract method",
+                method
+            ))
+        })?;
+        let params = resolved.adapt_request(params)?;
+        let result = self
+            .dispatch_protocol_method(context, resolved.method, params)
+            .await
+            .map_err(crate::ProtocolError::from_anyhow)?;
+        resolved.adapt_response(result)
     }
 
     pub async fn call_subprocess_protocol(
@@ -24,12 +48,26 @@ where
         method: &str,
         params: Value,
     ) -> Result<Value, crate::ProtocolError> {
-        let kernel_method: KernelMethod = method.parse().map_err(|_| {
+        self.call_subprocess_protocol_negotiated(context, method, params, None)
+            .await
+    }
+
+    pub async fn call_subprocess_protocol_negotiated(
+        &self,
+        context: &ProtocolContext,
+        method: &str,
+        params: Value,
+        selection: Option<&ContractSelection>,
+    ) -> Result<Value, crate::ProtocolError> {
+        negotiate_contract(selection)?;
+        let resolved = resolve_contract_method(method).map_err(|_| {
             crate::ProtocolError::invalid_request(format!(
-                "protocol method '{}' is not a known kernel method",
+                "protocol method '{}' is not a known contract method",
                 method
             ))
         })?;
+        let kernel_method = resolved.method;
+        let params = resolved.adapt_request(params)?;
         if is_deployment_hub_method(kernel_method) {
             ensure_deployment_hub_control_allowed(context)
                 .map_err(crate::ProtocolError::from_anyhow)?;
@@ -85,18 +123,16 @@ where
                 other
             )),
         };
-        result.map_err(crate::ProtocolError::from_anyhow)
+        let result = result.map_err(crate::ProtocolError::from_anyhow)?;
+        resolved.adapt_response(result)
     }
 
-    pub(crate) async fn call_protocol_inner(
+    pub(crate) async fn dispatch_protocol_method(
         &self,
         context: &ProtocolContext,
-        method: &str,
+        kernel_method: KernelMethod,
         params: Value,
     ) -> anyhow::Result<Value> {
-        let kernel_method: KernelMethod = method.parse().map_err(|_| {
-            anyhow::anyhow!("protocol method '{}' is not a known kernel method", method)
-        })?;
         if is_deployment_hub_method(kernel_method) {
             ensure_deployment_hub_control_allowed(context)?;
         }

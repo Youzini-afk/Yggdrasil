@@ -28,7 +28,9 @@ struct NamedSchema {
 
 #[derive(Clone)]
 struct MethodSpec {
+    schema_id: String,
     id: String,
+    aliases: Vec<MethodAliasSpec>,
     function_ts: String,
     function_rs: String,
     params_ts: String,
@@ -37,6 +39,13 @@ struct MethodSpec {
     result_rs: String,
     params_schema: Value,
     result_schema: Value,
+}
+
+#[derive(Clone)]
+struct MethodAliasSpec {
+    id: String,
+    function_ts: String,
+    function_rs: String,
 }
 
 #[derive(Clone)]
@@ -165,34 +174,56 @@ fn collect_methods(
         if !path.components().any(|c| c.as_os_str() == "methods") {
             continue;
         }
-        let id = schema
+        let schema_id = schema
             .pointer("/properties/method/const")
             .and_then(Value::as_str)
             .or_else(|| schema.get("title").and_then(Value::as_str))
             .ok_or_else(|| anyhow!("method schema {} has no method const", path.display()))?
             .to_string();
+        let id = schema
+            .pointer("/x-yggdrasil-contract/canonical_id")
+            .and_then(Value::as_str)
+            .unwrap_or(&schema_id)
+            .to_string();
+        let aliases = schema
+            .pointer("/x-yggdrasil-contract/aliases")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|alias| alias.get("id").and_then(Value::as_str))
+            .filter(|alias| *alias != id)
+            .map(|alias| MethodAliasSpec {
+                id: alias.to_string(),
+                function_ts: legacy_method_function_ts(alias),
+                function_rs: legacy_method_function_rs(alias),
+            })
+            .collect::<Vec<_>>();
         let defs = schema.get("$defs").or_else(|| schema.get("definitions"));
         let params_schema = defs
             .and_then(|d| d.get("Params"))
-            .ok_or_else(|| anyhow!("method schema {id} has no Params"))?
+            .ok_or_else(|| anyhow!("method schema {schema_id} has no Params"))?
             .clone();
         let result_schema = defs
             .and_then(|d| d.get("Result"))
-            .ok_or_else(|| anyhow!("method schema {id} has no Result"))?
+            .ok_or_else(|| anyhow!("method schema {schema_id} has no Result"))?
             .clone();
 
         collect_defs(&params_schema, registry);
         collect_defs(&result_schema, registry);
 
-        let base = method_base_name(&id);
+        let base = method_base_name(&schema_id);
         let params_name = schema_title(&params_schema).unwrap_or_else(|| format!("{base}Params"));
         let result_name = schema_title(&result_schema).unwrap_or_else(|| format!("{base}Result"));
         let params_ts = registry.register(params_name, &params_schema);
         let result_ts = registry.register(result_name, &result_schema);
+        let function_ts = method_function_ts(&schema_id);
+        let function_rs = method_function_rs(&schema_id);
         methods.push(MethodSpec {
+            schema_id,
             id: id.clone(),
-            function_ts: method_function_ts(&id),
-            function_rs: id.trim_start_matches("kernel.v1.").to_snake_case(),
+            aliases,
+            function_ts,
+            function_rs,
             params_rs: params_ts.clone(),
             result_rs: result_ts.clone(),
             params_ts,
@@ -201,7 +232,7 @@ fn collect_methods(
             result_schema,
         });
     }
-    methods.sort_by(|a, b| a.id.cmp(&b.id));
+    methods.sort_by(|a, b| a.schema_id.cmp(&b.schema_id));
     Ok(methods)
 }
 
@@ -338,6 +369,12 @@ fn emit_ts_methods(methods: &[MethodSpec]) -> String {
             "  {}(params: {}): Promise<{}>;\n",
             method.function_ts, method.params_ts, method.result_ts
         ));
+        for alias in &method.aliases {
+            out.push_str(&format!(
+                "  {}(params: {}): Promise<{}>;\n",
+                alias.function_ts, method.params_ts, method.result_ts
+            ));
+        }
     }
     out.push_str("}\n\n");
 
@@ -347,9 +384,19 @@ fn emit_ts_methods(methods: &[MethodSpec]) -> String {
 
     for method in methods {
         out.push_str(&format!(
-            "export async function {}(\n  this: KernelClient,\n  params: {},\n): Promise<{}> {{\n  return this.transport.invoke(\"{}\", params) as Promise<{}>;\n}}\n\n",
+            "export async function {}(\n  this: KernelClient,\n  params: {},\n): Promise<{}> {{\n  return this.invoke(\"{}\", params) as Promise<{}>;\n}}\n\n",
             method.function_ts, method.params_ts, method.result_ts, method.id, method.result_ts
         ));
+        for alias in &method.aliases {
+            out.push_str(&format!(
+                "export async function {}(\n  this: KernelClient,\n  params: {},\n): Promise<{}> {{\n  return this.invoke(\"{}\", params) as Promise<{}>;\n}}\n\n",
+                alias.function_ts,
+                method.params_ts,
+                method.result_ts,
+                alias.id,
+                method.result_ts
+            ));
+        }
     }
 
     out.push_str(
@@ -360,6 +407,12 @@ fn emit_ts_methods(methods: &[MethodSpec]) -> String {
             "  (client as T & KernelMethods).{} = {}.bind(client);\n",
             method.function_ts, method.function_ts
         ));
+        for alias in &method.aliases {
+            out.push_str(&format!(
+                "  (client as T & KernelMethods).{} = {}.bind(client);\n",
+                alias.function_ts, alias.function_ts
+            ));
+        }
     }
     out.push_str("  return client as T & KernelMethods;\n}\n");
     out
@@ -807,9 +860,18 @@ fn emit_rust_methods(methods: &[MethodSpec]) -> Result<String> {
     out.push_str("impl KernelClient {\n");
     for method in methods {
         out.push_str(&format!(
-            "    pub async fn {}(&self, params: {}) -> Result<{}> {{\n        let raw = self.transport.invoke(\"{}\", serde_json::to_value(params)?).await?;\n        Ok(serde_json::from_value(raw)?)\n    }}\n\n",
+            "    pub async fn {}(&self, params: {}) -> Result<{}> {{\n        let raw = self.invoke(\"{}\", serde_json::to_value(params)?).await?;\n        Ok(serde_json::from_value(raw)?)\n    }}\n\n",
             method.function_rs, method.params_rs, method.result_rs, method.id
         ));
+        for alias in &method.aliases {
+            out.push_str(&format!(
+                "    pub async fn {}(&self, params: {}) -> Result<{}> {{\n        let raw = self.invoke(\"{}\", serde_json::to_value(params)?).await?;\n        Ok(serde_json::from_value(raw)?)\n    }}\n\n",
+                alias.function_rs,
+                method.params_rs,
+                method.result_rs,
+                alias.id
+            ));
+        }
     }
     out.push_str("}\n");
     Ok(format!("{}{}", header, format_rust(out)?))
@@ -873,6 +935,33 @@ fn write_openapi(methods: &[MethodSpec], top_level: &[NamedSchema]) -> Result<()
                 }
             }),
         );
+        for alias in &method.aliases {
+            let mut request_schema = json_rpc_request_schema(&alias.id, &method.params_schema);
+            let mut response_schema = json_rpc_response_schema(&method.result_schema);
+            normalize_openapi_refs(&mut request_schema);
+            normalize_openapi_refs(&mut response_schema);
+            paths.insert(
+                format!("/rpc/{}", alias.id),
+                json!({
+                    "post": {
+                        "operationId": alias.function_ts,
+                        "summary": format!("Invoke legacy alias {} for {}", alias.id, method.id),
+                        "deprecated": true,
+                        "x-yggdrasil-canonical-method": method.id,
+                        "requestBody": {
+                            "required": true,
+                            "content": { "application/json": { "schema": request_schema } }
+                        },
+                        "responses": {
+                            "200": {
+                                "description": "JSON-RPC response envelope",
+                                "content": { "application/json": { "schema": response_schema } }
+                            }
+                        }
+                    }
+                }),
+            );
+        }
     }
 
     let mut components = Map::new();
@@ -929,7 +1018,8 @@ fn json_rpc_request_schema(method: &str, params: &Value) -> Value {
             "jsonrpc": { "const": "2.0" },
             "id": { "oneOf": [{"type":"string"}, {"type":"integer"}, {"type":"null"}] },
             "method": { "const": method },
-            "params": params
+            "params": params,
+            "contract": { "$ref": "#/components/schemas/ContractSelection" }
         }
     })
 }
@@ -996,6 +1086,26 @@ fn method_function_ts(id: &str) -> String {
     id.trim_start_matches("kernel.v1.")
         .replace(['.', '-', '/'], "_")
         .to_lower_camel_case()
+}
+
+fn method_function_rs(id: &str) -> String {
+    id.trim_start_matches("kernel.v1.")
+        .replace(['.', '-', '/'], "_")
+        .to_snake_case()
+}
+
+fn legacy_method_function_ts(id: &str) -> String {
+    format!(
+        "legacy{}",
+        id.replace(['.', '-', '/'], "_").to_pascal_case()
+    )
+}
+
+fn legacy_method_function_rs(id: &str) -> String {
+    format!(
+        "legacy_{}",
+        id.replace(['.', '-', '/'], "_").to_snake_case()
+    )
 }
 
 fn schemas_equivalent(a: &Value, b: &Value) -> bool {

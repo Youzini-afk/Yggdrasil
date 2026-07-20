@@ -57,7 +57,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: clients/web/package-lock.json
+          cache-dependency-path: |
+            clients/web/package-lock.json
+            sdk/typescript/kernel-sdk/package-lock.json
+
+      - name: Install TypeScript SDK deps
+        run: npm ci --prefix sdk/typescript/kernel-sdk
+
+      - name: Test generated TypeScript SDK
+        run: npm test --prefix sdk/typescript/kernel-sdk
 
       - name: Install web deps
         run: npm ci --prefix clients/web

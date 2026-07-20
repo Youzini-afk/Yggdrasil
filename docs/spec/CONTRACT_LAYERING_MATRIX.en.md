@@ -41,11 +41,11 @@ Dispositions:
 ## Current factual baseline
 
 - Code contains 80 `KernelMethod` variants and 80 method schemas.
-- Code and schemas contain 59 kernel events. `EVENT_KIND_REGISTRY.md` lists only 58 and omits `kernel/v1/deployment.health`.
-- There are 7 top-level schemas.
-- `KernelMethod::status()`, Contract documentation, and actual dispatch disagree in multiple places.
-- There is no general method-alias registry, deprecation lifecycle, dual-stack dispatcher, or v1-to-v2 request/response adapter.
-- The Web client and generated SDKs send hard-coded `kernel.v1.*` method IDs.
+- Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
+- There are 8 top-level schemas; additive `contract-selection.schema.json` is now included.
+- Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
+- An Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters now exist; the first canonical/legacy dual-stack routes are `host.info` and `host.target.list`.
+- The Web client still defaults to legacy `kernel.v1.*` IDs; generated SDKs now derive canonical clients and explicit legacy wrappers from schema metadata.
 
 The first migration requirement is therefore a testable compatibility router, not code deletion.
 
@@ -274,12 +274,13 @@ The first migration requirement is therefore a testable compatibility router, no
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | Host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | Host deployment health; add to v1 registry |
 
-## 7 top-level schemas
+## 8 top-level schemas
 
 | Current schema | Target | Disposition | Target shape |
 |---|---:|---|---|
 | `event-envelope.schema.json` | `S` | Reshape | Journal envelope + object references + explicit causation/receipt references; retain original v1 envelope |
 | `protocol-context.schema.json` | `S` | Strengthen | Authenticated principal, contract/profile negotiation, trace, and parent invocation |
+| `contract-selection.schema.json` | `S` | Retain | Explicit profile and per-layer version requirements; no silent downgrade |
 | `capability-descriptor.schema.json` | `S` | Reshape | Component export + protocol claim + trust/conformance metadata |
 | `capability-invocation-request.schema.json` | `S` | Strengthen | Handle-first, idempotency, deadline, input references, requested profile |
 | `capability-invocation-result.schema.json` | `S` | Strengthen | Output references, receipt reference, terminal status; avoid permanent large payloads in envelope |

@@ -4,6 +4,11 @@ Generated SDKs for the public kernel contract live in this directory. The source
 of truth is `docs/spec/v1/schemas/`; run `scripts/regen-sdks.sh` after changing
 Rust contract types or schema exports.
 
+Method schemas carry `x-yggdrasil-contract` metadata. Generated source-level method names invoke
+the canonical wire ID, while explicit legacy wrappers preserve old wire IDs. Both SDKs support
+exact profile/layer-version selection; transports that cannot carry a selection fail rather than
+silently downgrading.
+
 Three distribution channels — pick what fits your workflow:
 
 ## Channel 1: npm (TypeScript only)
