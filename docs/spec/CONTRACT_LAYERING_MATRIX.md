@@ -41,7 +41,7 @@
 
 - 代码中有 80 个 `KernelMethod`、80 个 method schema。
 - 代码、schema 与 `EVENT_KIND_REGISTRY.md` 均有 59 个 kernel event，包含 `kernel/v1/deployment.health`。
-- 有 8 个顶层 schema；新增 additive `contract-selection.schema.json`。
+- 有 9 个顶层 schema；Phase 2 新增 additive `contract-selection.schema.json`，Phase 4 新增 `artifact-descriptor.schema.json`。
 - `KernelMethod::status()`、Contract 文档状态和 actual dispatch 的已知漂移已对齐，并由测试约束。
 - Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter 已落地；Phase 3 已为 Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 发布 36 条 canonical/legacy 双栈。
 - Web 默认仍发送 legacy `kernel.v1.*` method ID；生成 SDK 已从 schema metadata 生成 canonical client 与显式 legacy wrapper，并在生成前校验所有 wire ID、函数名与 operation ID 全局唯一。
@@ -273,13 +273,14 @@
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | host deployment health；补入 v1 registry |
 
-## 8 个顶层 schema
+## 9 个顶层 schema
 
 | 当前 schema | 目标层 | 处置 | 目标形状 |
 |---|---:|---|---|
 | `event-envelope.schema.json` | `S` | 重塑 | journal envelope + object refs + explicit causation/receipt refs；保留原始 v1 envelope |
 | `protocol-context.schema.json` | `S` | 强化 | authenticated principal、contract/profile negotiation、trace 与 parent invocation |
 | `contract-selection.schema.json` | `S` | 保留 | 显式 profile 与逐 layer version requirement；不允许静默降级 |
+| `artifact-descriptor.schema.json` | `S` | 新增 | 开放 artifact type、SHA-256 digest、size、references 与 annotations；bytes 位于 ObjectStore |
 | `capability-descriptor.schema.json` | `S` | 重塑 | component export + protocol claim + trust/conformance metadata |
 | `capability-invocation-request.schema.json` | `S` | 强化 | handle-first、idempotency、deadline、input refs、requested profile |
 | `capability-invocation-result.schema.json` | `S` | 强化 | output refs、receipt ref、terminal status；避免大 payload 常驻 envelope |

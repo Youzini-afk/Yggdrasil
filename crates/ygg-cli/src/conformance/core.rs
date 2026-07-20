@@ -591,18 +591,31 @@ pub(crate) async fn host_profile_autoload() -> anyhow::Result<()> {
 }
 
 pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
-    let (_store, runtime) = runtime();
+    let (store, runtime) = runtime();
+    let sentinel = format!("phase4-large-content-sentinel:{}", "x".repeat(1024 * 1024));
     let record_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
             "kernel.v1.asset.put",
-            json!({"mime": "application/json", "content": "{\"hello\":true}", "metadata": {"purpose": "conformance"}}),
+            json!({"mime": "text/plain", "content": sentinel.clone(), "metadata": {"purpose": "conformance"}}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     let asset_id = record_value["id"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("asset put returned no id"))?;
+    let digest = record_value["hash"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("asset put returned no digest"))?;
+    anyhow::ensure!(
+        digest.starts_with("sha256:") && digest.len() == 71,
+        "asset digest is not canonical sha256"
+    );
+    anyhow::ensure!(
+        record_value["descriptor"]["digest"] == json!(digest)
+            && record_value["descriptor"]["size_bytes"] == json!(sentinel.len()),
+        "asset descriptor does not match legacy record fields"
+    );
     let get_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
@@ -612,7 +625,7 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(
-        get_value["content"] == json!("{\"hello\":true}"),
+        get_value["content"] == json!(sentinel),
         "asset get content mismatch"
     );
     let list_value = runtime
@@ -626,6 +639,21 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
     anyhow::ensure!(
         list_value.as_array().map(|items| items.len()).unwrap_or(0) == 1,
         "asset list missing record"
+    );
+    let events = store.list_all().await?;
+    let event = events
+        .iter()
+        .find(|event| event.kind == ygg_core::EVENT_ASSET_PUT)
+        .ok_or_else(|| anyhow::anyhow!("asset put event missing"))?;
+    anyhow::ensure!(
+        event.metadata.get("content").is_none()
+            && event.metadata["content_included"] == json!(false)
+            && event.metadata["artifact_digest"] == json!(digest),
+        "asset event persisted inline content or omitted its object reference"
+    );
+    anyhow::ensure!(
+        !serde_json::to_string(event)?.contains(&sentinel),
+        "asset content leaked into the journal event"
     );
     Ok(())
 }

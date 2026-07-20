@@ -10,8 +10,8 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
 - The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, explicit Docker Deploy broker, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
-- Contract V1 is the public platform spec; all 147 schemas (80 methods + 59 events + 8 top-level) validate, and 451 conformance cases pass.
-- The first three layering-migration steps are complete: v1 factual-drift repair, the Experimental Contract Registry with explicit negotiation, and 36 owner-namespace canonical/legacy dual stacks. The next step in [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md) establishes the object/artifact foundation.
+- Contract V1 is the public platform spec; all 148 schemas (80 methods + 59 events + 9 top-level) validate, and 453 conformance cases pass.
+- The first four layering-migration steps are complete: v1 factual-drift repair, the Experimental Contract Registry with explicit negotiation, 36 owner-namespace canonical/legacy dual stacks, and the SHA-256 object/artifact foundation. The next step in [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md) introduces EffectReceipt and change primitives.
 
 The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 
@@ -59,7 +59,7 @@ These are known to-dos. Priority follows real friction.
 - `event.subscribe` permission for package principals.
 - Timeout and error audit for hook handlers.
 - Persistent capability-provider selection policy beyond explicit per-call selection.
-- Content-addressed blob storage and runtime-level asset permissions.
+- Runtime object/artifact permissions, quotas, and reachability GC; content-addressed blob storage itself is complete.
 - Broader transport-consistency coverage in conformance.
 
 ### Project and multi-tenancy

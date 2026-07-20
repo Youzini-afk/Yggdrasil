@@ -22,6 +22,28 @@
       },
       "type": "array"
     },
+    "ExecutionTargetCapability": {
+      "enum": [
+        "local_exec",
+        "port_lease",
+        "http_proxy_upstream",
+        "websocket_proxy_upstream"
+      ],
+      "type": "string"
+    },
+    "ExecutionTargetReachability": {
+      "enum": [
+        "local_host"
+      ],
+      "type": "string"
+    },
+    "ExecutionTargetStatusKind": {
+      "enum": [
+        "available",
+        "unavailable"
+      ],
+      "type": "string"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "EmptyParams",
@@ -29,36 +51,12 @@
     },
     "Result": {
       "items": {
-        "$defs": {
-          "ExecutionTargetCapability": {
-            "enum": [
-              "local_exec",
-              "port_lease",
-              "http_proxy_upstream",
-              "websocket_proxy_upstream"
-            ],
-            "type": "string"
-          },
-          "ExecutionTargetReachability": {
-            "enum": [
-              "local_host"
-            ],
-            "type": "string"
-          },
-          "ExecutionTargetStatusKind": {
-            "enum": [
-              "available",
-              "unavailable"
-            ],
-            "type": "string"
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "capabilities": {
             "default": [],
             "items": {
-              "$ref": "#/definitions/ExecutionTargetCapability"
+              "$ref": "#/$defs/ExecutionTargetCapability"
             },
             "type": "array"
           },
@@ -69,10 +67,10 @@
             "type": "string"
           },
           "reachability": {
-            "$ref": "#/definitions/ExecutionTargetReachability"
+            "$ref": "#/$defs/ExecutionTargetReachability"
           },
           "status": {
-            "$ref": "#/definitions/ExecutionTargetStatusKind"
+            "$ref": "#/$defs/ExecutionTargetStatusKind"
           }
         },
         "required": [

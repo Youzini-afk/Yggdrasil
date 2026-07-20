@@ -19,12 +19,12 @@ const SCHEMA_DIR: &str = "docs/spec/v1/schemas";
 const TS_DIR: &str = "sdk/typescript/kernel-sdk/src";
 const RUST_DIR: &str = "sdk/rust/yg-kernel-sdk/src";
 const OPENAPI: &str = "sdk/openapi.yaml";
-
-#[derive(Clone)]
-struct NamedSchema {
-    name: String,
-    schema: Value,
-}
+const COMPAT_TYPE_ALIASES: &[(&str, &str)] = &[
+    ("PackageManifest2", "PackageManifest"),
+    ("PermissionSet2", "PermissionSet"),
+    ("PortLeaseRecord2", "PortLeaseRecord"),
+    ("ProxyRouteRecord2", "ProxyRouteRecord"),
+];
 
 #[derive(Clone)]
 struct MethodSpec {
@@ -39,6 +39,7 @@ struct MethodSpec {
     result_rs: String,
     params_schema: Value,
     result_schema: Value,
+    openapi_aliases: BTreeMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -108,14 +109,14 @@ fn main() -> Result<()> {
     let schemas = read_schema_files(Path::new(SCHEMA_DIR))?;
     let mut registry = TypeRegistry::new();
 
-    let top_level = collect_top_level_types(&schemas, &mut registry);
+    collect_top_level_types(&schemas, &mut registry);
     let methods = collect_methods(&schemas, &mut registry)?;
     validate_method_specs(&methods)?;
     let events = collect_events(&schemas, &mut registry)?;
 
     write_typescript(&registry, &methods, &events)?;
     write_rust(&registry, &methods, &events)?;
-    write_openapi(&methods, &top_level)?;
+    write_openapi(&methods, &registry)?;
 
     Ok(())
 }
@@ -146,11 +147,7 @@ fn visit_schema_files(dir: &Path, out: &mut BTreeMap<PathBuf, Value>) -> Result<
     Ok(())
 }
 
-fn collect_top_level_types(
-    schemas: &BTreeMap<PathBuf, Value>,
-    registry: &mut TypeRegistry,
-) -> Vec<NamedSchema> {
-    let mut top_level = Vec::new();
+fn collect_top_level_types(schemas: &BTreeMap<PathBuf, Value>, registry: &mut TypeRegistry) {
     for (path, schema) in schemas {
         if path.components().any(|c| c.as_os_str() == "methods")
             || path.components().any(|c| c.as_os_str() == "events")
@@ -158,14 +155,9 @@ fn collect_top_level_types(
             continue;
         }
         let name = schema_title(schema).unwrap_or_else(|| file_stem_type_name(path));
-        let name = registry.register(&name, schema);
-        top_level.push(NamedSchema {
-            name,
-            schema: schema.clone(),
-        });
+        registry.register(&name, schema);
         collect_defs(schema, registry);
     }
-    top_level
 }
 
 fn collect_methods(
@@ -226,6 +218,7 @@ fn collect_methods(
             .ok_or_else(|| anyhow!("method schema {schema_id} has no Result"))?
             .clone();
 
+        collect_document_defs(schema, &["Params", "Result", "Errors"], registry);
         collect_defs(&params_schema, registry);
         collect_defs(&result_schema, registry);
 
@@ -234,6 +227,8 @@ fn collect_methods(
         let result_name = schema_title(&result_schema).unwrap_or_else(|| format!("{base}Result"));
         let params_ts = registry.register(params_name, &params_schema);
         let result_ts = registry.register(result_name, &result_schema);
+        let openapi_aliases =
+            referenced_definition_aliases([&params_schema, &result_schema], schema, registry)?;
         let function_ts = method_function_ts(&schema_id);
         let function_rs = method_function_rs(&schema_id);
         methods.push(MethodSpec {
@@ -248,6 +243,7 @@ fn collect_methods(
             result_ts,
             params_schema,
             result_schema,
+            openapi_aliases,
         });
     }
     methods.sort_by(|a, b| a.schema_id.cmp(&b.schema_id));
@@ -381,6 +377,7 @@ fn collect_events(
             .and_then(|d| d.get("Payload"))
             .ok_or_else(|| anyhow!("event schema {kind} has no Payload"))?
             .clone();
+        collect_document_defs(schema, &["Payload"], registry);
         collect_defs(&payload_schema, registry);
         let event_name = event_base_name(&kind);
         let payload_name =
@@ -419,6 +416,81 @@ fn collect_defs(schema: &Value, registry: &mut TypeRegistry) {
         Value::Array(values) => {
             for value in values {
                 collect_defs(value, registry);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_document_defs(schema: &Value, excluded: &[&str], registry: &mut TypeRegistry) {
+    let Some(definitions) = schema
+        .get("$defs")
+        .or_else(|| schema.get("definitions"))
+        .and_then(Value::as_object)
+    else {
+        return;
+    };
+    for (key, value) in definitions {
+        if excluded.contains(&key.as_str()) {
+            continue;
+        }
+        let name = schema_title(value).unwrap_or_else(|| key.to_pascal_case());
+        registry.register(name, value);
+        collect_defs(value, registry);
+    }
+}
+
+fn referenced_definition_aliases<'a>(
+    schemas: impl IntoIterator<Item = &'a Value>,
+    document: &Value,
+    registry: &TypeRegistry,
+) -> Result<BTreeMap<String, String>> {
+    let mut referenced = BTreeSet::new();
+    for schema in schemas {
+        collect_local_ref_names(schema, &mut referenced);
+    }
+    let definitions = document
+        .get("$defs")
+        .or_else(|| document.get("definitions"))
+        .and_then(Value::as_object);
+    let mut aliases = BTreeMap::new();
+    for local_name in referenced {
+        if let Some(schema) = definitions.and_then(|definitions| definitions.get(&local_name)) {
+            let preferred = schema_title(schema).unwrap_or_else(|| local_name.to_pascal_case());
+            aliases.insert(
+                local_name,
+                registered_schema_name(registry, &preferred, schema)?,
+            );
+        } else {
+            let candidate = sanitize_type_name(&local_name);
+            if registry.schemas.contains_key(&candidate) {
+                aliases.insert(local_name, candidate);
+            }
+        }
+    }
+    Ok(aliases)
+}
+
+fn collect_local_ref_names(value: &Value, names: &mut BTreeSet<String>) {
+    match value {
+        Value::Object(map) => {
+            if let Some(reference) = map.get("$ref").and_then(Value::as_str) {
+                if let Some(local) = reference
+                    .strip_prefix("#/$defs/")
+                    .or_else(|| reference.strip_prefix("#/definitions/"))
+                {
+                    if let Some(name) = local.split('/').next() {
+                        names.insert(name.to_string());
+                    }
+                }
+            }
+            for child in map.values() {
+                collect_local_ref_names(child, names);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                collect_local_ref_names(child, names);
             }
         }
         _ => {}
@@ -467,6 +539,11 @@ fn emit_ts_types(registry: &TypeRegistry) -> String {
                 "export type {name} = {};\n",
                 ctx.type_expr(schema)
             ));
+        }
+    }
+    for (legacy, canonical) in COMPAT_TYPE_ALIASES {
+        if !registry.schemas.contains_key(*legacy) && registry.schemas.contains_key(*canonical) {
+            out.push_str(&format!("\nexport type {legacy} = {canonical};\n"));
         }
     }
     out
@@ -761,6 +838,11 @@ fn write_rust(registry: &TypeRegistry, methods: &[MethodSpec], events: &[EventSp
     let mut types = generated_rust_header("Rust types generated from docs/spec/v1/schemas/.");
     types.push_str("#![allow(clippy::large_enum_variant)]\n#![allow(clippy::derive_partial_eq_without_eq)]\n#![allow(clippy::module_name_repetitions)]\n\n");
     types.push_str(&format_rust_tokens(type_space.to_stream().to_string())?);
+    for (legacy, canonical) in COMPAT_TYPE_ALIASES {
+        if !registry.schemas.contains_key(*legacy) && registry.schemas.contains_key(*canonical) {
+            types.push_str(&format!("\npub type {legacy} = {canonical};\n"));
+        }
+    }
     fs::write(Path::new(RUST_DIR).join("types.rs"), types)?;
     fs::write(
         Path::new(RUST_DIR).join("methods.rs"),
@@ -1024,12 +1106,16 @@ fn emit_rust_events(events: &[EventSpec]) -> Result<String> {
     Ok(format!("{}{}", header, format_rust(out)?))
 }
 
-fn write_openapi(methods: &[MethodSpec], top_level: &[NamedSchema]) -> Result<()> {
+fn write_openapi(methods: &[MethodSpec], registry: &TypeRegistry) -> Result<()> {
     let mut paths = Map::new();
     for method in methods {
         let operation_id = method.function_ts.clone();
         let mut request_schema = json_rpc_request_schema(&method.id, &method.params_schema);
         let mut response_schema = json_rpc_response_schema(&method.result_schema);
+        rewrite_local_definition_refs(&mut request_schema, &method.openapi_aliases, registry)?;
+        rewrite_local_definition_refs(&mut response_schema, &method.openapi_aliases, registry)?;
+        strip_definition_blocks(&mut request_schema);
+        strip_definition_blocks(&mut response_schema);
         normalize_openapi_refs(&mut request_schema);
         normalize_openapi_refs(&mut response_schema);
         paths.insert(
@@ -1062,6 +1148,10 @@ fn write_openapi(methods: &[MethodSpec], top_level: &[NamedSchema]) -> Result<()
         for alias in &method.aliases {
             let mut request_schema = json_rpc_request_schema(&alias.id, &method.params_schema);
             let mut response_schema = json_rpc_response_schema(&method.result_schema);
+            rewrite_local_definition_refs(&mut request_schema, &method.openapi_aliases, registry)?;
+            rewrite_local_definition_refs(&mut response_schema, &method.openapi_aliases, registry)?;
+            strip_definition_blocks(&mut request_schema);
+            strip_definition_blocks(&mut response_schema);
             normalize_openapi_refs(&mut request_schema);
             normalize_openapi_refs(&mut response_schema);
             paths.insert(
@@ -1089,10 +1179,21 @@ fn write_openapi(methods: &[MethodSpec], top_level: &[NamedSchema]) -> Result<()
     }
 
     let mut components = Map::new();
-    for schema in top_level {
-        let mut component = schema.schema.clone();
+    for (name, schema) in &registry.schemas {
+        let aliases = definition_aliases(schema, registry)?;
+        let mut component = schema.clone();
+        rewrite_local_definition_refs(&mut component, &aliases, registry)?;
+        strip_definition_blocks(&mut component);
         normalize_openapi_refs(&mut component);
-        components.insert(schema.name.clone(), component);
+        components.insert(name.clone(), component);
+    }
+    for (legacy, canonical) in COMPAT_TYPE_ALIASES {
+        if !registry.schemas.contains_key(*legacy) && registry.schemas.contains_key(*canonical) {
+            components.insert(
+                (*legacy).to_string(),
+                json!({ "$ref": format!("#/components/schemas/{canonical}") }),
+            );
+        }
     }
 
     let openapi = json!({
@@ -1105,7 +1206,32 @@ fn write_openapi(methods: &[MethodSpec], top_level: &[NamedSchema]) -> Result<()
         "paths": paths,
         "components": { "schemas": components }
     });
+    validate_local_document_refs(&openapi, &openapi, "generated OpenAPI")?;
     fs::write(OPENAPI, serde_yaml::to_string(&openapi)?)?;
+    Ok(())
+}
+
+fn validate_local_document_refs(value: &Value, root: &Value, label: &str) -> Result<()> {
+    match value {
+        Value::Object(map) => {
+            if let Some(reference) = map.get("$ref").and_then(Value::as_str) {
+                if let Some(pointer) = reference.strip_prefix('#') {
+                    if !pointer.is_empty() && root.pointer(pointer).is_none() {
+                        anyhow::bail!("{label} contains unresolved local reference {reference}");
+                    }
+                }
+            }
+            for child in map.values() {
+                validate_local_document_refs(child, root, label)?;
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                validate_local_document_refs(child, root, label)?;
+            }
+        }
+        _ => {}
+    }
     Ok(())
 }
 
@@ -1117,7 +1243,9 @@ fn normalize_openapi_refs(value: &mut Value) {
             }
             if let Some(Value::String(reference)) = map.get_mut("$ref") {
                 if let Some(rest) = reference.strip_prefix("#/definitions/") {
-                    *reference = format!("#/$defs/{rest}");
+                    *reference = format!("#/components/schemas/{rest}");
+                } else if let Some(rest) = reference.strip_prefix("#/$defs/") {
+                    *reference = format!("#/components/schemas/{rest}");
                 }
             }
             for value in map.values_mut() {
@@ -1247,6 +1375,8 @@ fn strip_metadata(value: &mut Value) {
             map.remove("description");
             map.remove("$schema");
             map.remove("$id");
+            map.remove("$defs");
+            map.remove("definitions");
             for value in map.values_mut() {
                 strip_metadata(value);
             }

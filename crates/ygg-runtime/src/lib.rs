@@ -2,6 +2,7 @@ pub mod capability;
 pub mod contract;
 pub mod event_store;
 pub mod inproc;
+pub mod object_store;
 pub mod package;
 pub mod pi;
 pub mod project_registry;
@@ -33,6 +34,10 @@ pub use contract::{
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{InprocInvocation, InprocPackage, InprocPackageCatalog, KernelEnv};
+pub use object_store::{
+    sha256_digest, FilesystemObjectStore, InMemoryObjectStore, ObjectInfo, ObjectStore,
+    ObjectStoreError, ObjectStream, SHA256_DIGEST_PREFIX,
+};
 pub use package::{
     entry_kind, trust_level, HostPolicy, PackageFailureSummary, PackageRecord, PackageRegistry,
     PackageState, TrustLevel,
@@ -51,34 +56,35 @@ pub use redaction::{
 };
 pub use runtime::{
     check_network_policy, content_address, is_secret_header_name, is_static_header_allowed,
-    standard_asset_metadata, AppendEventRequest, AssetGetResponse, AssetPutRequest,
-    AuditPackageParams, BranchRecord, CancelSignal, DeclaredAuthority, DenyAllLocalExecExecutor,
-    DenyAllOutboundExecutor, DenyAllWebSocketExecutor, DeploymentHealthEventPayload,
-    DeploymentHealthProbe, DeploymentReconcileSource, DeploymentReconcileSummary,
-    EmptyReconcileSource, EventListRequest, ExecCommand, ExecId, ExecLifecyclePolicy, ExecRegistry,
-    ExecResourceLimits, ExecStatus, ExecStatusKind, ExecutionTarget, ExecutionTargetCapability,
-    ExecutionTargetId, ExecutionTargetReachability, ExecutionTargetRegistry,
-    ExecutionTargetStatusKind, ExecutorKind, FakeLocalExecExecutor, FakeOutboundExecutor,
-    FakeWebSocketExecutor, FrameDirection, FrameKind, KernelOutboundStreamResponse,
-    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, LiveLocalExecExecutor,
-    LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketExecutorConfig,
-    LiveWebSocketProfile, LocalExecExecutor, LocalExecExecutorConfig, LocalExecListResponse,
-    LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest, LocalExecLogsResponse,
-    LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse,
-    LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport, NetworkPolicyDecision,
-    OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind, OutboundRequest,
-    OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame, OutboundStreamSummary,
-    OutboundWebSocketFrame, OutboundWebSocketOpenRequest, OutboundWebSocketSession,
-    PackageAuditReport, PermissionGrantRecord, PortBindScope, PortLeaseId, PortLeaseRecord,
-    PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse, PortLeaseStatusKind, PortProtocol,
-    ProjectionDefinition, ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus,
-    ProxyProtocol, ProxyRouteId, ProxyRouteRecord, ProxyRouteRegisterRequest,
-    ProxyRouteRegisterResponse, ProxyRouteRegistry, ProxyRouteStatusKind, ProxyRouteUpstream,
-    ReadinessProbe, ReadinessProbeKind, RedactedHeaderValue, ResolvedSecretHeader, Runtime,
-    RuntimeConfig, SecretHeaderSpec, SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter,
-    StreamFormat, StreamRegistry, StreamStartStatus, TighteningSuggestion, UnusedAuthority,
-    UsedAuthority, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload, ACTIVE_PROJECT_SCOPE,
+    legacy_content_address, standard_asset_metadata, AppendEventRequest, ArtifactCommitRequest,
+    AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord, CancelSignal,
+    DeclaredAuthority, DenyAllLocalExecExecutor, DenyAllOutboundExecutor, DenyAllWebSocketExecutor,
+    DeploymentHealthEventPayload, DeploymentHealthProbe, DeploymentReconcileSource,
+    DeploymentReconcileSummary, EmptyReconcileSource, EventListRequest, ExecCommand, ExecId,
+    ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
+    ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetReachability,
+    ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind, FakeLocalExecExecutor,
+    FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
+    KernelOutboundStreamResponse, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    LiveLocalExecExecutor, LiveLocalExecExecutorConfig, LiveWebSocketExecutor,
+    LiveWebSocketExecutorConfig, LiveWebSocketProfile, LocalExecExecutor, LocalExecExecutorConfig,
+    LocalExecListResponse, LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest,
+    LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
+    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
+    NetworkPolicyDecision, OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutor,
+    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind,
+    OutboundRequest, OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame,
+    OutboundStreamSummary, OutboundWebSocketFrame, OutboundWebSocketOpenRequest,
+    OutboundWebSocketSession, PackageAuditReport, PermissionGrantRecord, PortBindScope,
+    PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse,
+    PortLeaseStatusKind, PortProtocol, ProjectionDefinition, ProposalApproval, ProposalOperation,
+    ProposalRecord, ProposalStatus, ProxyProtocol, ProxyRouteId, ProxyRouteRecord,
+    ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteRegistry,
+    ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe, ReadinessProbeKind,
+    RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
+    SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter, StreamFormat, StreamRegistry,
+    StreamStartStatus, TighteningSuggestion, UnusedAuthority, UsedAuthority, WebSocketEvent,
+    WebSocketExecutor, WebSocketFramePayload, ACTIVE_PROJECT_SCOPE, GENERIC_BLOB_ARTIFACT_TYPE_URI,
     STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;

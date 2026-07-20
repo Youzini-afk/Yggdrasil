@@ -239,6 +239,16 @@ pub(super) fn asset_cases() -> Vec<ConformanceCase> {
             ["runtime", "asset"],
             crate::conformance::core::asset_put_get_list
         ),
+        c!(
+            "asset.legacy_fnv_migration",
+            ["runtime", "asset", "migration"],
+            crate::conformance::artifact_store::asset_legacy_fnv_migration
+        ),
+        c!(
+            "object_store.portability_integrity",
+            ["runtime", "asset", "object_store"],
+            crate::conformance::artifact_store::object_store_portability_integrity
+        ),
     ]
 }
 

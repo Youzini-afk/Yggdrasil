@@ -22,6 +22,35 @@
       },
       "type": "array"
     },
+    "LocalExecLogLine": {
+      "properties": {
+        "message_redacted": {
+          "type": "string"
+        },
+        "seq": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "stream": {
+          "$ref": "#/$defs/LocalExecLogStream"
+        }
+      },
+      "required": [
+        "message_redacted",
+        "seq",
+        "stream"
+      ],
+      "type": "object"
+    },
+    "LocalExecLogStream": {
+      "enum": [
+        "stdout",
+        "stderr",
+        "system"
+      ],
+      "type": "string"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -52,37 +81,6 @@
       "type": "object"
     },
     "Result": {
-      "$defs": {
-        "LocalExecLogLine": {
-          "properties": {
-            "message_redacted": {
-              "type": "string"
-            },
-            "seq": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "stream": {
-              "$ref": "#/definitions/LocalExecLogStream"
-            }
-          },
-          "required": [
-            "message_redacted",
-            "seq",
-            "stream"
-          ],
-          "type": "object"
-        },
-        "LocalExecLogStream": {
-          "enum": [
-            "stdout",
-            "stderr",
-            "system"
-          ],
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "error": {
@@ -96,7 +94,7 @@
         },
         "lines": {
           "items": {
-            "$ref": "#/definitions/LocalExecLogLine"
+            "$ref": "#/$defs/LocalExecLogLine"
           },
           "type": "array"
         },

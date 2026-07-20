@@ -8,7 +8,7 @@
 
 ## 概要
 
-- **Conformance：** 451 个具名 CLI 用例通过，外加 crate / service 单元测试；147 个 v1 schema（80 methods + 59 events + 8 top-level）通过校验。
+- **Conformance：** 453 个具名 CLI 用例通过，外加 crate / service 单元测试；148 个 v1 schema（80 methods + 59 events + 9 top-level）通过校验。
 - **章程纪律：** 内核对内容无意见；官方包没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
 - **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `yg update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；自托管部署底座已落地：target / exec / port / proxy 原语、ygg-service HTTP/WebSocket 反代、LiveLocalExecExecutor、`official/docker-runtime-lab` 与显式 Web Deploy broker。
@@ -19,11 +19,12 @@
 
 - 不带内容的会话、只追加的不透明事件、清单驱动的能力包、能力机制、钩子机制、surface 贡献、提案生命周期、资产 / 分支 / projection 底座。
 - SQLite 事件日志，每会话单调递增的序号，可重新水化的底座。
+- Experimental SHA-256 ObjectStore 与 ArtifactDescriptor 已落地：内存/文件系统 CAS、读取后校验、stream、旧 FNV asset 事件幂等迁移；asset 事件只保存 descriptor/ref，不再保存正文。
 - 用 JSON Schema 子集校验能力 I/O 与能力包声明的事件 payload。
 - 身份模型：`host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。human 与 assistant 身份支持作用域授权。
 - 审计事件：`kernel/v1/permission.granted|revoked|denied`、`kernel/v1/package.*` 生命周期、`kernel/v1/proposal.*` 生命周期。
 - 持久授权：grant / revoke 事件可在 SQLite-backed 运行时中重新水化。
-- Contract V1 是公开平台规范：80 个协议方法、59 个事件类型、147 个 JSON Schema。`kernel.v1.cap.*`、`kernel.v1.audit.package`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。
+- Contract V1 是公开平台规范：80 个协议方法、59 个事件类型、148 个 JSON Schema。`kernel.v1.cap.*`、`kernel.v1.audit.package`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。
 
 ## 安全执行
 
@@ -215,7 +216,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 ## Contract v1 与 SDK 生成
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` 是公开平台规范。
-- `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：80 methods、59 events、8 top-level，共 147 个 schema。
+- `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：80 methods、59 events、9 top-level，共 148 个 schema。
 - `sdk/typescript/kernel-sdk/` 与 `sdk/rust/yg-kernel-sdk/` 由 schema 生成；TypeScript 包可通过 npm、工作空间路径或自行 codegen 使用。
 - `yg conformance package --contract v1 --path <package>` 提供第三方包 8 项验收检查。
 
@@ -261,7 +262,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## 代码组织
 
-- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 451 个 `ConformanceCase { id, tags, run }`。
+- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 453 个 `ConformanceCase { id, tags, run }`。
 - `crates/ygg-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `KernelMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
@@ -272,7 +273,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` 跑 451 个具名 CLI 用例。支持：
+`cargo run -p ygg-cli -- conformance` 跑 453 个具名 CLI 用例。支持：
 
 - `--list` 列出 id 与 tag；
 - `--case <pattern>` 子串过滤；

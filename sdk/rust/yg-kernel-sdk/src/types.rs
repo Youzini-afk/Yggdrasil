@@ -77,6 +77,64 @@ pub struct AppendEventRequest {
     pub session_id: ::std::string::String,
     pub writer_package_id: ::std::string::String,
 }
+///`ArtifactDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ArtifactDescriptor",
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ArtifactDescriptor {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
+}
 ///`AssetGetParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -155,6 +213,16 @@ pub struct AssetGetResponse {
 ///        "type": "string",
 ///        "format": "date-time"
 ///      },
+///      "descriptor": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/ArtifactDescriptor"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
 ///      "hash": {
 ///        "type": "string"
 ///      },
@@ -220,6 +288,16 @@ impl ::std::convert::From<::std::vec::Vec<AssetListResultItem>> for AssetListRes
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
+///    "descriptor": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "hash": {
 ///      "type": "string"
 ///    },
@@ -248,6 +326,8 @@ impl ::std::convert::From<::std::vec::Vec<AssetListResultItem>> for AssetListRes
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct AssetListResultItem {
     pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub descriptor: ::std::option::Option<ArtifactDescriptor>,
     pub hash: ::std::string::String,
     pub id: ::std::string::String,
     #[serde(default = "defaults::asset_list_result_item_metadata")]
@@ -358,6 +438,16 @@ pub struct AssetPutRequest {
 ///      "type": "string",
 ///      "format": "date-time"
 ///    },
+///    "descriptor": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "hash": {
 ///      "type": "string"
 ///    },
@@ -386,6 +476,8 @@ pub struct AssetPutRequest {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct AssetRecord {
     pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub descriptor: ::std::option::Option<ArtifactDescriptor>,
     pub hash: ::std::string::String,
     pub id: ::std::string::String,
     #[serde(default = "defaults::asset_record_metadata")]
@@ -7947,7 +8039,7 @@ pub struct PackageLifecyclePayload {
 ///        "format": "date-time"
 ///      },
 ///      "manifest": {
-///        "$ref": "#/definitions/PackageManifest2"
+///        "$ref": "#/definitions/PackageManifest"
 ///      },
 ///      "state": {
 ///        "$ref": "#/definitions/PackageState"
@@ -8044,7 +8136,7 @@ impl ::std::convert::From<::std::vec::Vec<PackageListResultItem>> for PackageLis
 ///      "format": "date-time"
 ///    },
 ///    "manifest": {
-///      "$ref": "#/definitions/PackageManifest2"
+///      "$ref": "#/definitions/PackageManifest"
 ///    },
 ///    "state": {
 ///      "$ref": "#/definitions/PackageState"
@@ -8074,7 +8166,7 @@ pub struct PackageListResultItem {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
-    pub manifest: PackageManifest2,
+    pub manifest: PackageManifest,
     pub state: PackageState,
     pub trust_level: TrustLevel,
     pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
@@ -8344,186 +8436,6 @@ pub struct PackageManifest {
     pub schema_version: u16,
     pub version: ::std::string::String,
 }
-///`PackageManifest2`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "PackageManifest2",
-///  "type": "object",
-///  "required": [
-///    "entry",
-///    "id",
-///    "schema_version",
-///    "version"
-///  ],
-///  "properties": {
-///    "author": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "consumes": {
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/CapabilityRequirement"
-///      }
-///    },
-///    "contributes": {
-///      "default": {
-///        "extension_points": [],
-///        "hooks": [],
-///        "schemas": [],
-///        "surfaces": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/PackageContributions"
-///        }
-///      ]
-///    },
-///    "description": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "display_name": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "entry": {
-///      "$ref": "#/definitions/EntryDescriptor"
-///    },
-///    "id": {
-///      "type": "string"
-///    },
-///    "license": {
-///      "default": null,
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "permissions": {
-///      "default": {
-///        "assets": {
-///          "read": false,
-///          "write": false
-///        },
-///        "capabilities": {
-///          "invoke": []
-///        },
-///        "events": {
-///          "append": false,
-///          "read": false
-///        },
-///        "filesystem": {
-///          "read": [],
-///          "write": []
-///        },
-///        "local_exec": {
-///          "declarations": [],
-///          "max_count": null
-///        },
-///        "network": {
-///          "declarations": [],
-///          "hosts": []
-///        },
-///        "packages": {
-///          "call": []
-///        },
-///        "ports": {
-///          "declarations": [],
-///          "max_count": null
-///        },
-///        "proxy": {
-///          "declarations": [],
-///          "max_count": null
-///        },
-///        "secret_refs": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/PermissionSet"
-///        }
-///      ]
-///    },
-///    "provides": {
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/CapabilityDescriptor"
-///      }
-///    },
-///    "requires": {
-///      "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/PackageDependency"
-///      }
-///    },
-///    "sandbox_policy": {
-///      "default": {
-///        "cpu_quota_ms_per_invoke": 5000,
-///        "memory_mb": 128,
-///        "wall_clock_ms": 30000
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/SandboxPolicy"
-///        }
-///      ]
-///    },
-///    "schema_version": {
-///      "type": "integer",
-///      "format": "uint16",
-///      "minimum": 0.0
-///    },
-///    "version": {
-///      "type": "string"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct PackageManifest2 {
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub author: ::std::option::Option<::std::string::String>,
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub consumes: ::std::vec::Vec<CapabilityRequirement>,
-    #[serde(default = "defaults::package_manifest2_contributes")]
-    pub contributes: PackageContributions,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub description: ::std::option::Option<::std::string::String>,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub display_name: ::std::option::Option<::std::string::String>,
-    pub entry: EntryDescriptor,
-    pub id: ::std::string::String,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub license: ::std::option::Option<::std::string::String>,
-    #[serde(default = "defaults::package_manifest2_permissions")]
-    pub permissions: PermissionSet,
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub provides: ::std::vec::Vec<CapabilityDescriptor>,
-    ///First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub requires: ::std::vec::Vec<PackageDependency>,
-    #[serde(default = "defaults::package_manifest2_sandbox_policy")]
-    pub sandbox_policy: SandboxPolicy,
-    pub schema_version: u16,
-    pub version: ::std::string::String,
-}
 ///`PackagePermissions`
 ///
 /// <details><summary>JSON schema</summary>
@@ -8613,7 +8525,7 @@ impl ::std::default::Default for PackagePermissions {
 ///      "format": "date-time"
 ///    },
 ///    "manifest": {
-///      "$ref": "#/definitions/PackageManifest2"
+///      "$ref": "#/definitions/PackageManifest"
 ///    },
 ///    "state": {
 ///      "$ref": "#/definitions/PackageState"
@@ -8644,7 +8556,7 @@ pub struct PackageRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
-    pub manifest: PackageManifest2,
+    pub manifest: PackageManifest,
     pub state: PackageState,
     pub trust_level: TrustLevel,
     pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
@@ -9423,170 +9335,6 @@ impl ::std::default::Default for PermissionSet {
         }
     }
 }
-///`PermissionSet2`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "PermissionSet2",
-///  "type": "object",
-///  "properties": {
-///    "assets": {
-///      "default": {
-///        "read": false,
-///        "write": false
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/AssetPermissions"
-///        }
-///      ]
-///    },
-///    "capabilities": {
-///      "default": {
-///        "invoke": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/CapabilityPermissions"
-///        }
-///      ]
-///    },
-///    "events": {
-///      "default": {
-///        "append": false,
-///        "read": false
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/EventPermissions"
-///        }
-///      ]
-///    },
-///    "filesystem": {
-///      "default": {
-///        "read": [],
-///        "write": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/FilesystemPermissions"
-///        }
-///      ]
-///    },
-///    "local_exec": {
-///      "default": {
-///        "declarations": [],
-///        "max_count": null
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/LocalExecPermissions"
-///        }
-///      ]
-///    },
-///    "network": {
-///      "default": {
-///        "declarations": [],
-///        "hosts": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/NetworkPermissions"
-///        }
-///      ]
-///    },
-///    "packages": {
-///      "default": {
-///        "call": []
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/PackagePermissions"
-///        }
-///      ]
-///    },
-///    "ports": {
-///      "default": {
-///        "declarations": [],
-///        "max_count": null
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/PortPermissions"
-///        }
-///      ]
-///    },
-///    "proxy": {
-///      "default": {
-///        "declarations": [],
-///        "max_count": null
-///      },
-///      "allOf": [
-///        {
-///          "$ref": "#/definitions/ProxyPermissions"
-///        }
-///      ]
-///    },
-///    "secret_refs": {
-///      "description": "Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
-///      "default": [],
-///      "type": "array",
-///      "items": {
-///        "type": "string"
-///      }
-///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct PermissionSet2 {
-    #[serde(default = "defaults::permission_set2_assets")]
-    pub assets: AssetPermissions,
-    #[serde(default = "defaults::permission_set2_capabilities")]
-    pub capabilities: CapabilityPermissions,
-    #[serde(default = "defaults::permission_set2_events")]
-    pub events: EventPermissions,
-    #[serde(default = "defaults::permission_set2_filesystem")]
-    pub filesystem: FilesystemPermissions,
-    #[serde(default = "defaults::permission_set2_local_exec")]
-    pub local_exec: LocalExecPermissions,
-    #[serde(default = "defaults::permission_set2_network")]
-    pub network: NetworkPermissions,
-    #[serde(default = "defaults::permission_set2_packages")]
-    pub packages: PackagePermissions,
-    #[serde(default = "defaults::permission_set2_ports")]
-    pub ports: PortPermissions,
-    #[serde(default = "defaults::permission_set2_proxy")]
-    pub proxy: ProxyPermissions,
-    /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
-
-The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
-
-Default: empty vec (no secret refs allowed; backward compatible).*/
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub secret_refs: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for PermissionSet2 {
-    fn default() -> Self {
-        Self {
-            assets: defaults::permission_set2_assets(),
-            capabilities: defaults::permission_set2_capabilities(),
-            events: defaults::permission_set2_events(),
-            filesystem: defaults::permission_set2_filesystem(),
-            local_exec: defaults::permission_set2_local_exec(),
-            network: defaults::permission_set2_network(),
-            packages: defaults::permission_set2_packages(),
-            ports: defaults::permission_set2_ports(),
-            proxy: defaults::permission_set2_proxy(),
-            secret_refs: Default::default(),
-        }
-    }
-}
 ///`PortBindScope`
 ///
 /// <details><summary>JSON schema</summary>
@@ -9818,68 +9566,6 @@ pub struct PortLeaseIdParams {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct PortLeaseRecord {
-    pub bind: PortBindScope,
-    pub host: ::std::string::String,
-    pub id: ::std::string::String,
-    pub port: u16,
-    pub port_name: ::std::string::String,
-    pub protocol: PortProtocol,
-    pub status: PortLeaseStatusKind,
-    pub target_id: ::std::string::String,
-}
-///`PortLeaseRecord2`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "PortLeaseRecord2",
-///  "type": "object",
-///  "required": [
-///    "bind",
-///    "host",
-///    "id",
-///    "port",
-///    "port_name",
-///    "protocol",
-///    "status",
-///    "target_id"
-///  ],
-///  "properties": {
-///    "bind": {
-///      "$ref": "#/definitions/PortBindScope"
-///    },
-///    "host": {
-///      "type": "string"
-///    },
-///    "id": {
-///      "type": "string"
-///    },
-///    "port": {
-///      "type": "integer",
-///      "format": "uint16",
-///      "minimum": 0.0
-///    },
-///    "port_name": {
-///      "type": "string"
-///    },
-///    "protocol": {
-///      "$ref": "#/definitions/PortProtocol"
-///    },
-///    "status": {
-///      "$ref": "#/definitions/PortLeaseStatusKind"
-///    },
-///    "target_id": {
-///      "type": "string"
-///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct PortLeaseRecord2 {
     pub bind: PortBindScope,
     pub host: ::std::string::String,
     pub id: ::std::string::String,
@@ -13056,61 +12742,6 @@ pub struct ProxyRouteRecord {
     pub status: ProxyRouteStatusKind,
     pub upstream: ProxyRouteUpstream,
 }
-///`ProxyRouteRecord2`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "ProxyRouteRecord2",
-///  "type": "object",
-///  "required": [
-///    "id",
-///    "iframe_url",
-///    "protocol",
-///    "public_url",
-///    "ready",
-///    "status",
-///    "upstream"
-///  ],
-///  "properties": {
-///    "id": {
-///      "type": "string"
-///    },
-///    "iframe_url": {
-///      "type": "string"
-///    },
-///    "protocol": {
-///      "$ref": "#/definitions/ProxyProtocol"
-///    },
-///    "public_url": {
-///      "type": "string"
-///    },
-///    "ready": {
-///      "type": "boolean"
-///    },
-///    "status": {
-///      "$ref": "#/definitions/ProxyRouteStatusKind"
-///    },
-///    "upstream": {
-///      "$ref": "#/definitions/ProxyRouteUpstream"
-///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct ProxyRouteRecord2 {
-    pub id: ::std::string::String,
-    pub iframe_url: ::std::string::String,
-    pub protocol: ProxyProtocol,
-    pub public_url: ::std::string::String,
-    pub ready: bool,
-    pub status: ProxyRouteStatusKind,
-    pub upstream: ProxyRouteUpstream,
-}
 ///`ProxyRouteRegisterRequest`
 ///
 /// <details><summary>JSON schema</summary>
@@ -16171,60 +15802,6 @@ pub mod defaults {
             wall_clock_ms: 30000_u64,
         }
     }
-    pub(super) fn package_manifest2_contributes() -> super::PackageContributions {
-        super::PackageContributions {
-            extension_points: vec![],
-            hooks: vec![],
-            schemas: vec![],
-            surfaces: vec![],
-        }
-    }
-    pub(super) fn package_manifest2_permissions() -> super::PermissionSet {
-        super::PermissionSet {
-            assets: super::AssetPermissions {
-                read: false,
-                write: false,
-            },
-            capabilities: super::CapabilityPermissions {
-                invoke: vec![],
-            },
-            events: super::EventPermissions {
-                append: false,
-                read: false,
-            },
-            filesystem: super::FilesystemPermissions {
-                read: vec![],
-                write: vec![],
-            },
-            local_exec: super::LocalExecPermissions {
-                declarations: vec![],
-                max_count: ::std::option::Option::None,
-            },
-            network: super::NetworkPermissions {
-                declarations: vec![],
-                hosts: vec![],
-            },
-            packages: super::PackagePermissions {
-                call: vec![],
-            },
-            ports: super::PortPermissions {
-                declarations: vec![],
-                max_count: ::std::option::Option::None,
-            },
-            proxy: super::ProxyPermissions {
-                declarations: vec![],
-                max_count: ::std::option::Option::None,
-            },
-            secret_refs: vec![],
-        }
-    }
-    pub(super) fn package_manifest2_sandbox_policy() -> super::SandboxPolicy {
-        super::SandboxPolicy {
-            cpu_quota_ms_per_invoke: 5000_u64,
-            memory_mb: 128_u64,
-            wall_clock_ms: 30000_u64,
-        }
-    }
     pub(super) fn permission_audit_result_item_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -16275,58 +15852,6 @@ pub mod defaults {
         }
     }
     pub(super) fn permission_set_proxy() -> super::ProxyPermissions {
-        super::ProxyPermissions {
-            declarations: vec![],
-            max_count: ::std::option::Option::None,
-        }
-    }
-    pub(super) fn permission_set2_assets() -> super::AssetPermissions {
-        super::AssetPermissions {
-            read: false,
-            write: false,
-        }
-    }
-    pub(super) fn permission_set2_capabilities() -> super::CapabilityPermissions {
-        super::CapabilityPermissions {
-            invoke: vec![],
-        }
-    }
-    pub(super) fn permission_set2_events() -> super::EventPermissions {
-        super::EventPermissions {
-            append: false,
-            read: false,
-        }
-    }
-    pub(super) fn permission_set2_filesystem() -> super::FilesystemPermissions {
-        super::FilesystemPermissions {
-            read: vec![],
-            write: vec![],
-        }
-    }
-    pub(super) fn permission_set2_local_exec() -> super::LocalExecPermissions {
-        super::LocalExecPermissions {
-            declarations: vec![],
-            max_count: ::std::option::Option::None,
-        }
-    }
-    pub(super) fn permission_set2_network() -> super::NetworkPermissions {
-        super::NetworkPermissions {
-            declarations: vec![],
-            hosts: vec![],
-        }
-    }
-    pub(super) fn permission_set2_packages() -> super::PackagePermissions {
-        super::PackagePermissions {
-            call: vec![],
-        }
-    }
-    pub(super) fn permission_set2_ports() -> super::PortPermissions {
-        super::PortPermissions {
-            declarations: vec![],
-            max_count: ::std::option::Option::None,
-        }
-    }
-    pub(super) fn permission_set2_proxy() -> super::ProxyPermissions {
         super::ProxyPermissions {
             declarations: vec![],
             max_count: ::std::option::Option::None,
@@ -16416,3 +15941,11 @@ pub mod defaults {
         super::SurfaceRisk::Low
     }
 }
+
+pub type PackageManifest2 = PackageManifest;
+
+pub type PermissionSet2 = PermissionSet;
+
+pub type PortLeaseRecord2 = PortLeaseRecord;
+
+pub type ProxyRouteRecord2 = ProxyRouteRecord;

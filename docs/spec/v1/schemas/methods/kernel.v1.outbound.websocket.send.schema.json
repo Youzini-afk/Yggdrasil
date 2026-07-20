@@ -22,16 +22,14 @@
       },
       "type": "array"
     },
+    "FrameKind": {
+      "enum": [
+        "text",
+        "binary"
+      ],
+      "type": "string"
+    },
     "Params": {
-      "$defs": {
-        "FrameKind": {
-          "enum": [
-            "text",
-            "binary"
-          ],
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "bytes": {
@@ -65,7 +63,7 @@
         "kind": {
           "anyOf": [
             {
-              "$ref": "#/definitions/FrameKind"
+              "$ref": "#/$defs/FrameKind"
             },
             {
               "type": "null"

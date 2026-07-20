@@ -198,7 +198,7 @@ pub(super) async fn uninstall(input: Value, session_id: Option<&str>) -> Result<
         let mut value: Value = serde_yaml::from_str(&raw)?;
         if let Some(autoload) = value.get_mut("autoload").and_then(Value::as_array_mut) {
             let before = autoload.len();
-            let orphaned_manifest_paths = orphaned
+            let removed_manifest_paths = orphaned
                 .iter()
                 .flat_map(|store| {
                     [
@@ -206,15 +206,12 @@ pub(super) async fn uninstall(input: Value, session_id: Option<&str>) -> Result<
                         format!("{store}/manifest.json"),
                     ]
                 })
-                .collect::<Vec<_>>();
+                .chain(manifest_paths_for_removed.iter().cloned())
+                .map(|path| portable_profile_path(&path))
+                .collect::<std::collections::HashSet<_>>();
             autoload.retain(|entry| {
-                !entry.as_str().is_some_and(|s| {
-                    orphaned_manifest_paths
-                        .iter()
-                        .any(|candidate| candidate == s)
-                        || manifest_paths_for_removed
-                            .iter()
-                            .any(|candidate| candidate == s)
+                !entry.as_str().is_some_and(|path| {
+                    removed_manifest_paths.contains(&portable_profile_path(path))
                 })
             });
             removed |= before != autoload.len();
@@ -570,13 +567,15 @@ fn write_profile(
     let existing = autoload
         .iter()
         .filter_map(Value::as_str)
-        .map(str::to_string)
+        .map(portable_profile_path)
         .collect::<std::collections::HashSet<_>>();
     let mut existing = existing;
     for pkg in &plan.packages {
         let package_store = store_path_for_hash(&pkg.tree_hash, data_dir_override)?;
         let manifest = installed_manifest_path(pkg, &package_store)?;
-        let entry = manifest.to_string_lossy().to_string();
+        // Profiles are portable text artifacts. Persist slash-separated paths so
+        // the same profile can be copied between Windows and Unix hosts.
+        let entry = portable_profile_path(manifest.to_string_lossy().as_ref());
         if !existing.contains(&entry) {
             existing.insert(entry.clone());
             autoload.push(Value::String(entry));
@@ -587,6 +586,10 @@ fn write_profile(
     }
     profile["autoload"] = Value::Array(autoload);
     atomic_write(profile_path, serde_yaml::to_string(&profile)?.as_bytes())
+}
+
+fn portable_profile_path(path: &str) -> String {
+    path.replace('\\', "/")
 }
 
 fn build_lockfile(

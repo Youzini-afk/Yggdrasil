@@ -1,11 +1,11 @@
 {
   "kind": "branch_session_bundle",
-  "bundle_id": "branch-bundle:example-session:branch:main:fnv1a64:example",
+  "bundle_id": "branch-bundle:example-session:branch:main:sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c",
   "format_version": "1",
   "session_id": "sess:example-play-session",
   "branch_ref": "branch:main",
   "sequence": 42,
-  "content_address": "fnv1a64:example-branch-session-bundle",
+  "content_address": "sha256:0a175ccf18d248893d55ec7d12244f326f9c9f9db5fa0a21d36304fbebcff856",
   "ai_disclosure": {
     "disclosure_id": "ai-disclosure:branch-bundle:example-session",
     "items": [
@@ -15,7 +15,7 @@
         "description": "Session state includes both player-initiated and AI-assisted actions"
       }
     ],
-    "content_address": "fnv1a64:disclosure-example-branch-session"
+    "content_address": "sha256:c925fdacaf0ac489956518567b7a8e4992f9df1562d08ac2c0f9058d49df291f"
   },
   "requires_user_approval": true,
   "plan_only": true

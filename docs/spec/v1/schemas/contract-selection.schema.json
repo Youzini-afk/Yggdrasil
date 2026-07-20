@@ -14,7 +14,7 @@
     "ContractVersionRequirement": {
       "properties": {
         "layer": {
-          "$ref": "#/definitions/ContractOwnerLayer"
+          "$ref": "#/$defs/ContractOwnerLayer"
         },
         "version": {
           "type": "string"
@@ -34,7 +34,7 @@
     },
     "versions": {
       "items": {
-        "$ref": "#/definitions/ContractVersionRequirement"
+        "$ref": "#/$defs/ContractVersionRequirement"
       },
       "type": "array"
     }

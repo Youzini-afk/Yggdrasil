@@ -1,26 +1,24 @@
 {
   "$defs": {
-    "Payload": {
-      "$defs": {
-        "ContractMode": {
-          "oneOf": [
-            {
-              "description": "Path A: full v1 contract enforcement (default).",
-              "enum": [
-                "v1"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Path B: self-contained app — kernel hosts process, no contract enforcement.",
-              "enum": [
-                "none"
-              ],
-              "type": "string"
-            }
-          ]
+    "ContractMode": {
+      "oneOf": [
+        {
+          "description": "Path A: full v1 contract enforcement (default).",
+          "enum": [
+            "v1"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Path B: self-contained app — kernel hosts process, no contract enforcement.",
+          "enum": [
+            "none"
+          ],
+          "type": "string"
         }
-      },
+      ]
+    },
+    "Payload": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "capability_count": {
@@ -31,7 +29,7 @@
         "contract_mode": {
           "allOf": [
             {
-              "$ref": "#/definitions/ContractMode"
+              "$ref": "#/$defs/ContractMode"
             }
           ],
           "description": "Contract mode selected by the package entry. `none` marks Path B: a self-contained app hosted without contract enforcement."

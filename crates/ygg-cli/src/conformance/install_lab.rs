@@ -225,7 +225,7 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
         json!({ "root_url": fixture_path("project-root") }),
     )
     .await?;
-    let plan = out.output["plan"].clone();
+    let plan = take_plan(out)?;
     let packages = plan["packages"].as_array().context("packages")?;
     anyhow::ensure!(packages.len() == 2);
     anyhow::ensure!(packages.iter().any(|pkg| {
@@ -270,14 +270,12 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
     anyhow::ensure!(checked.output["ok"] == json!(true));
 
     let lockfile = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
+    let lockfile: ygg_core::Lockfile = toml::from_str(&lockfile)?;
     let surface_store = lockfile
-        .lines()
-        .skip_while(|line| !line.trim().starts_with("id = \"fixture/project-surface\""))
-        .find_map(|line| {
-            line.trim()
-                .strip_prefix("installed_at_store = ")
-                .and_then(|value| value.trim().trim_matches('"').parse::<String>().ok())
-        })
+        .package
+        .iter()
+        .find(|entry| entry.id == "fixture/project-surface")
+        .map(|entry| entry.installed_at_store.as_str())
         .context("surface installed_at_store in lockfile")?;
     fs::write(
         Path::new(&surface_store).join("packages/surface/dist/bundle.mjs"),
@@ -331,14 +329,20 @@ pub(crate) async fn execute_plan_consent_mismatch() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let tmp = TempDir::new()?;
     let plan = plan_for(&rt, "pkg-local").await?;
+    let mut input = serde_json::Map::with_capacity(3);
+    input.insert("plan".to_string(), plan);
+    input.insert(
+        "consent".to_string(),
+        json!({ "approved_capabilities": [], "approved_network_hosts": [], "approved_secret_refs": [] }),
+    );
+    input.insert(
+        "data_dir".to_string(),
+        Value::String(tmp.path().to_string_lossy().into_owned()),
+    );
     let err = invoke(
         &rt,
         "official/install-lab/execute_plan",
-        json!({
-            "plan": plan,
-            "consent": { "approved_capabilities": [], "approved_network_hosts": [], "approved_secret_refs": [] },
-            "data_dir": tmp.path(),
-        }),
+        Value::Object(input),
     )
     .await
     .expect_err("consent mismatch should fail");
@@ -438,14 +442,14 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
         "schema_version: 1\nid: fixture/update-local\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions: {}\n",
     )?;
     fs::write(source.join("content.txt"), "one")?;
-    let plan = invoke(
-        &rt,
-        "official/install-lab/resolve_plan",
-        json!({ "root_url": source }),
-    )
-    .await?
-    .output["plan"]
-        .clone();
+    let plan = take_plan(
+        invoke(
+            &rt,
+            "official/install-lab/resolve_plan",
+            json!({ "root_url": source }),
+        )
+        .await?,
+    )?;
     let executed = execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let store = PathBuf::from(
         executed.output["installed"][0]["store_path"]
@@ -556,14 +560,14 @@ pub(crate) async fn update_project_local_replaces_dist_and_lockfile() -> anyhow:
     let source = tmp.path().join("project-source");
     copy_dir_all(Path::new(&fixture_path("project-root")), &source)?;
 
-    let plan = invoke(
-        &rt,
-        "official/install-lab/resolve_plan",
-        json!({ "root_url": source }),
-    )
-    .await?
-    .output["plan"]
-        .clone();
+    let plan = take_plan(
+        invoke(
+            &rt,
+            "official/install-lab/resolve_plan",
+            json!({ "root_url": source }),
+        )
+        .await?,
+    )?;
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let lock_path = tmp.path().join("profiles/default.lock.toml");
     let before_lock = fs::read_to_string(&lock_path)?;
@@ -619,14 +623,14 @@ pub(crate) async fn update_project_local_current_noop() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let source = tmp.path().join("project-source");
     copy_dir_all(Path::new(&fixture_path("project-root")), &source)?;
-    let plan = invoke(
-        &rt,
-        "official/install-lab/resolve_plan",
-        json!({ "root_url": source }),
-    )
-    .await?
-    .output["plan"]
-        .clone();
+    let plan = take_plan(
+        invoke(
+            &rt,
+            "official/install-lab/resolve_plan",
+            json!({ "root_url": source }),
+        )
+        .await?,
+    )?;
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let before = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
     let out = invoke(
@@ -646,14 +650,14 @@ pub(crate) async fn update_project_local_force_reinstalls_current() -> anyhow::R
     let tmp = TempDir::new()?;
     let source = tmp.path().join("project-source");
     copy_dir_all(Path::new(&fixture_path("project-root")), &source)?;
-    let plan = invoke(
-        &rt,
-        "official/install-lab/resolve_plan",
-        json!({ "root_url": source }),
-    )
-    .await?
-    .output["plan"]
-        .clone();
+    let plan = take_plan(
+        invoke(
+            &rt,
+            "official/install-lab/resolve_plan",
+            json!({ "root_url": source }),
+        )
+        .await?,
+    )?;
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let out = invoke(
         &rt,
@@ -707,14 +711,14 @@ pub(crate) async fn update_project_permission_drift_blocks_before_mutation() -> 
         "schema_version: 1\nid: fixture/perm-update\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions: {}\n",
     )?;
     fs::write(source.join("content.txt"), "one")?;
-    let plan = invoke(
-        &rt,
-        "official/install-lab/resolve_plan",
-        json!({ "root_url": source }),
-    )
-    .await?
-    .output["plan"]
-        .clone();
+    let plan = take_plan(
+        invoke(
+            &rt,
+            "official/install-lab/resolve_plan",
+            json!({ "root_url": source }),
+        )
+        .await?,
+    )?;
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let lock_path = tmp.path().join("profiles/default.lock.toml");
     let before_lock = fs::read_to_string(&lock_path)?;
@@ -744,14 +748,22 @@ async fn plan_for(
     runtime: &ygg_runtime::Runtime<ygg_runtime::InMemoryEventStore>,
     fixture: &str,
 ) -> anyhow::Result<Value> {
-    Ok(invoke(
-        runtime,
-        "official/install-lab/resolve_plan",
-        json!({ "root_url": fixture_path(fixture) }),
+    take_plan(
+        invoke(
+            runtime,
+            "official/install-lab/resolve_plan",
+            json!({ "root_url": fixture_path(fixture) }),
+        )
+        .await?,
     )
-    .await?
-    .output["plan"]
-        .clone())
+}
+
+fn take_plan(mut result: ygg_runtime::CapabilityInvocationResult) -> anyhow::Result<Value> {
+    result
+        .output
+        .get_mut("plan")
+        .map(Value::take)
+        .context("install-lab resolve_plan response missing plan")
 }
 
 async fn execute_with_full_consent(
@@ -760,18 +772,22 @@ async fn execute_with_full_consent(
     data_dir: &Path,
 ) -> anyhow::Result<ygg_runtime::CapabilityInvocationResult> {
     let summary = &plan["permissions_summary"];
+    let consent = json!({
+        "approved_capabilities": summary["new_capabilities"].clone(),
+        "approved_network_hosts": summary["new_network_hosts"].clone(),
+        "approved_secret_refs": summary["new_secret_refs"].clone(),
+    });
+    let mut input = serde_json::Map::with_capacity(3);
+    input.insert("plan".to_string(), plan);
+    input.insert("consent".to_string(), consent);
+    input.insert(
+        "data_dir".to_string(),
+        Value::String(data_dir.to_string_lossy().into_owned()),
+    );
     invoke(
         runtime,
         "official/install-lab/execute_plan",
-        json!({
-            "plan": plan,
-            "consent": {
-                "approved_capabilities": summary["new_capabilities"].clone(),
-                "approved_network_hosts": summary["new_network_hosts"].clone(),
-                "approved_secret_refs": summary["new_secret_refs"].clone(),
-            },
-            "data_dir": data_dir,
-        }),
+        Value::Object(input),
     )
     .await
 }

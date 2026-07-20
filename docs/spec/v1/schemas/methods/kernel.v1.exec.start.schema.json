@@ -22,123 +22,126 @@
       },
       "type": "array"
     },
-    "Params": {
-      "$defs": {
-        "ExecCommand": {
-          "properties": {
-            "args": {
-              "default": [],
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "program": {
-              "type": "string"
-            }
+    "ExecCommand": {
+      "properties": {
+        "args": {
+          "default": [],
+          "items": {
+            "type": "string"
           },
-          "required": [
-            "program"
-          ],
-          "type": "object"
+          "type": "array"
         },
-        "ExecLifecyclePolicy": {
-          "enum": [
-            "stop_on_session_close",
-            "keep_alive",
-            "stop_on_idle"
-          ],
-          "type": "string"
-        },
-        "ExecResourceLimits": {
-          "properties": {
-            "max_cpu_millis": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "max_duration_ms": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "max_log_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "max_memory_mb": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            }
-          },
-          "type": "object"
-        },
-        "ReadinessProbe": {
-          "properties": {
-            "initial_delay_ms": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "kind": {
-              "$ref": "#/definitions/ReadinessProbeKind"
-            },
-            "path": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "port_name": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "timeout_ms": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "type": "object"
-        },
-        "ReadinessProbeKind": {
-          "enum": [
-            "none",
-            "tcp_port",
-            "http_get"
-          ],
+        "program": {
           "type": "string"
         }
       },
+      "required": [
+        "program"
+      ],
+      "type": "object"
+    },
+    "ExecLifecyclePolicy": {
+      "enum": [
+        "stop_on_session_close",
+        "keep_alive",
+        "stop_on_idle"
+      ],
+      "type": "string"
+    },
+    "ExecResourceLimits": {
+      "properties": {
+        "max_cpu_millis": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_duration_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_log_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_memory_mb": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ExecStatus": {
+      "properties": {
+        "exec_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exit_code": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/ExecStatusKind"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "ready"
+      ],
+      "type": "object"
+    },
+    "ExecStatusKind": {
+      "enum": [
+        "pending",
+        "running",
+        "stopped",
+        "exited",
+        "failed",
+        "denied",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "command": {
-          "$ref": "#/definitions/ExecCommand"
+          "$ref": "#/$defs/ExecCommand"
         },
         "cwd": {
           "default": null,
@@ -159,7 +162,7 @@
         "lifecycle": {
           "allOf": [
             {
-              "$ref": "#/definitions/ExecLifecyclePolicy"
+              "$ref": "#/$defs/ExecLifecyclePolicy"
             }
           ],
           "default": "stop_on_session_close"
@@ -174,7 +177,7 @@
         "readiness_probe": {
           "allOf": [
             {
-              "$ref": "#/definitions/ReadinessProbe"
+              "$ref": "#/$defs/ReadinessProbe"
             }
           ],
           "default": {
@@ -188,7 +191,7 @@
         "resource_limits": {
           "allOf": [
             {
-              "$ref": "#/definitions/ExecResourceLimits"
+              "$ref": "#/$defs/ExecResourceLimits"
             }
           ],
           "default": {
@@ -209,61 +212,54 @@
       "title": "LocalExecStartRequest",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ExecStatus": {
-          "properties": {
-            "exec_id": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "exit_code": {
-              "format": "int32",
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "kind": {
-              "$ref": "#/definitions/ExecStatusKind"
-            },
-            "message": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "ready": {
-              "type": "boolean"
-            },
-            "target_id": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "kind",
-            "ready"
-          ],
-          "type": "object"
+    "ReadinessProbe": {
+      "properties": {
+        "initial_delay_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
         },
-        "ExecStatusKind": {
-          "enum": [
-            "pending",
-            "running",
-            "stopped",
-            "exited",
-            "failed",
-            "denied",
-            "unknown"
-          ],
-          "type": "string"
+        "kind": {
+          "$ref": "#/$defs/ReadinessProbeKind"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "port_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ReadinessProbeKind": {
+      "enum": [
+        "none",
+        "tcp_port",
+        "http_get"
+      ],
+      "type": "string"
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "error": {
@@ -279,7 +275,7 @@
           ]
         },
         "status": {
-          "$ref": "#/definitions/ExecStatus"
+          "$ref": "#/$defs/ExecStatus"
         }
       },
       "required": [

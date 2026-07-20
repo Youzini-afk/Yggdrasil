@@ -1,4 +1,5 @@
 mod agentic_forge;
+mod artifact_store;
 mod audit;
 mod core;
 mod creator_loop;

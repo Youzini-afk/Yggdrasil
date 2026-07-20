@@ -1,48 +1,6 @@
 {
   "$defs": {
     "Payload": {
-      "$defs": {
-        "RedactionState": {
-          "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-          "oneOf": [
-            {
-              "description": "Raw data was not captured (default).",
-              "enum": [
-                "not_captured"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Raw data was redacted before recording.",
-              "enum": [
-                "redacted"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Only a policy reference is stored; no data captured.",
-              "enum": [
-                "policy_ref"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Request was blocked as unsafe; no data recorded.",
-              "enum": [
-                "unsafe_blocked"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Explicit user/host approval to capture raw data (rare).",
-              "enum": [
-                "explicitly_approved"
-              ],
-              "type": "string"
-            }
-          ]
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
       "properties": {
@@ -93,7 +51,7 @@
         "redaction_state": {
           "allOf": [
             {
-              "$ref": "#/definitions/RedactionState"
+              "$ref": "#/$defs/RedactionState"
             }
           ],
           "default": "not_captured",
@@ -127,6 +85,46 @@
       ],
       "title": "OutboundAuditRecord",
       "type": "object"
+    },
+    "RedactionState": {
+      "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+      "oneOf": [
+        {
+          "description": "Raw data was not captured (default).",
+          "enum": [
+            "not_captured"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Raw data was redacted before recording.",
+          "enum": [
+            "redacted"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Only a policy reference is stored; no data captured.",
+          "enum": [
+            "policy_ref"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Request was blocked as unsafe; no data recorded.",
+          "enum": [
+            "unsafe_blocked"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Explicit user/host approval to capture raw data (rare).",
+          "enum": [
+            "explicitly_approved"
+          ],
+          "type": "string"
+        }
+      ]
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__outbound.denied.schema.json",

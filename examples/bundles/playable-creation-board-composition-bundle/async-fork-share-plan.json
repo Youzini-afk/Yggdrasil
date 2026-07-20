@@ -1,6 +1,6 @@
 {
   "kind": "async_fork_share_plan",
-  "plan_id": "async-fork-plan:example-session:sess:friend-fork:fnv1a64:example",
+  "plan_id": "async-fork-plan:example-session:sess:friend-fork:sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c",
   "format_version": "1",
   "source_session": "sess:example-play-session",
   "target_session": "sess:friend-fork-session",
@@ -11,5 +11,5 @@
   "no_remote_service": true,
   "requires_user_approval": true,
   "plan_only": true,
-  "content_address": "fnv1a64:async-fork-example"
+  "content_address": "sha256:3ad61e477fccae099ca620881dfc208c9a096a3618c3da3ec165610467619b99"
 }

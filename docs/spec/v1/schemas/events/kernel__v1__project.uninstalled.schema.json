@@ -1,96 +1,15 @@
 {
   "$defs": {
     "Payload": {
-      "$defs": {
-        "ProjectState": {
-          "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
-          "oneOf": [
-            {
-              "description": "Installed but not running.",
-              "enum": [
-                "installed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Stopped after running.",
-              "enum": [
-                "stopped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to running.",
-              "enum": [
-                "starting"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently running and serving.",
-              "enum": [
-                "running"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to stopped.",
-              "enum": [
-                "stopping"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Failed to start or crashed.",
-              "enum": [
-                "failed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Soft-deleted, awaiting cleanup.",
-              "enum": [
-                "archived"
-              ],
-              "type": "string"
-            }
-          ]
-        },
-        "ProjectType": {
-          "oneOf": [
-            {
-              "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
-              "enum": [
-                "yggdrasil_native"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "External project wrapped by an adapter package.",
-              "enum": [
-                "external_wrapped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "External project running in an agent workspace (no wrapping).",
-              "enum": [
-                "external_workspace"
-              ],
-              "type": "string"
-            }
-          ]
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "new_state": {
-          "$ref": "#/definitions/ProjectState"
+          "$ref": "#/$defs/ProjectState"
         },
         "previous_state": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProjectState"
+              "$ref": "#/$defs/ProjectState"
             },
             {
               "type": "null"
@@ -104,7 +23,7 @@
           "type": "string"
         },
         "type": {
-          "$ref": "#/definitions/ProjectType"
+          "$ref": "#/$defs/ProjectType"
         }
       },
       "required": [
@@ -115,6 +34,85 @@
       ],
       "title": "ProjectLifecyclePayloadSchema",
       "type": "object"
+    },
+    "ProjectState": {
+      "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+      "oneOf": [
+        {
+          "description": "Installed but not running.",
+          "enum": [
+            "installed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stopped after running.",
+          "enum": [
+            "stopped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to running.",
+          "enum": [
+            "starting"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently running and serving.",
+          "enum": [
+            "running"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to stopped.",
+          "enum": [
+            "stopping"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Failed to start or crashed.",
+          "enum": [
+            "failed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Soft-deleted, awaiting cleanup.",
+          "enum": [
+            "archived"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "ProjectType": {
+      "oneOf": [
+        {
+          "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+          "enum": [
+            "yggdrasil_native"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project wrapped by an adapter package.",
+          "enum": [
+            "external_wrapped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project running in an agent workspace (no wrapping).",
+          "enum": [
+            "external_workspace"
+          ],
+          "type": "string"
+        }
+      ]
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__project.uninstalled.schema.json",

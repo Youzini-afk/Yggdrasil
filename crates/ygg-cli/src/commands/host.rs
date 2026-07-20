@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use ygg_runtime::{
     DenyAllWebSocketExecutor, EventStore, FakeOutboundExecutor, FakeWebSocketExecutor,
-    InMemoryEventStore, LiveHttpOutboundExecutor, LiveLocalExecExecutor,
+    FilesystemObjectStore, InMemoryEventStore, LiveHttpOutboundExecutor, LiveLocalExecExecutor,
     LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketProfile,
     LocalExecExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext,
     Runtime, RuntimeConfig, SqliteEventStore, WebSocketExecutor,
@@ -88,6 +88,8 @@ pub(crate) async fn host_serve(
         let profile: HostProfile = serde_yaml::from_str(&raw)
             .with_context(|| format!("failed to parse host profile {}", profile_path.display()))?;
         let mut runtime_config = runtime_config_from_profile(&profile)?;
+        runtime_config.object_store =
+            Arc::new(FilesystemObjectStore::new(schema_data_dir.join("objects")));
         register_profile_package_roots(&mut runtime_config, &profile, Some(&profile_path)).await?;
         match &profile.event_store {
             HostEventStoreProfile::Memory => {
@@ -96,7 +98,15 @@ pub(crate) async fn host_serve(
                     runtime_config,
                 ));
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(http, runtime, "memory", static_dir, access_token, app_base_domain).await
+                serve_runtime(
+                    http,
+                    runtime,
+                    "memory",
+                    static_dir,
+                    access_token,
+                    app_base_domain,
+                )
+                .await
             }
             HostEventStoreProfile::Sqlite { path } => {
                 let resolved = resolve_profile_path(&profile_path, path.clone());
@@ -127,7 +137,15 @@ pub(crate) async fn host_serve(
                     .await
                     .context("failed to reconcile deployment from sqlite event log")?;
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
-                serve_runtime(http, runtime, "sqlite", static_dir, access_token, app_base_domain).await
+                serve_runtime(
+                    http,
+                    runtime,
+                    "sqlite",
+                    static_dir,
+                    access_token,
+                    app_base_domain,
+                )
+                .await
             }
             HostEventStoreProfile::Postgres { env } => {
                 #[cfg(feature = "postgres")]
@@ -152,8 +170,15 @@ pub(crate) async fn host_serve(
                         .await
                         .context("failed to reconcile deployment from postgres event log")?;
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
-                    serve_runtime(http, runtime, "postgres", static_dir, access_token, app_base_domain)
-                        .await
+                    serve_runtime(
+                        http,
+                        runtime,
+                        "postgres",
+                        static_dir,
+                        access_token,
+                        app_base_domain,
+                    )
+                    .await
                 }
                 #[cfg(not(feature = "postgres"))]
                 {
@@ -163,11 +188,22 @@ pub(crate) async fn host_serve(
             }
         }
     } else {
+        let mut runtime_config = RuntimeConfig::default();
+        runtime_config.object_store =
+            Arc::new(FilesystemObjectStore::new(schema_data_dir.join("objects")));
         let runtime = Arc::new(Runtime::new(
             Arc::new(InMemoryEventStore::default()),
-            RuntimeConfig::default(),
+            runtime_config,
         ));
-        serve_runtime(http, runtime, "memory", static_dir, access_token, app_base_domain).await
+        serve_runtime(
+            http,
+            runtime,
+            "memory",
+            static_dir,
+            access_token,
+            app_base_domain,
+        )
+        .await
     }
 }
 
@@ -737,7 +773,10 @@ where
     } else {
         println!("  access token: disabled (local/dev only)");
     }
-    if let Some(domain) = app_base_domain.as_deref().filter(|domain| !domain.is_empty()) {
+    if let Some(domain) = app_base_domain
+        .as_deref()
+        .filter(|domain| !domain.is_empty())
+    {
         println!("  app vhost base domain: {domain}");
     }
     let state = ygg_service::AppState {
@@ -864,12 +903,7 @@ pub(crate) async fn host_stdio() -> Result<()> {
                 let mut request_context = context.clone();
                 request_context.session_id = session_id;
                 match runtime
-                    .call_protocol_negotiated(
-                        &request_context,
-                        &method,
-                        params,
-                        contract.as_ref(),
-                    )
+                    .call_protocol_negotiated(&request_context, &method, params, contract.as_ref())
                     .await
                 {
                     Ok(result) => ygg_runtime::ProtocolResponse {

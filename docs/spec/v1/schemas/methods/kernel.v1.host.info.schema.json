@@ -1,5 +1,222 @@
 {
   "$defs": {
+    "ContractAdapter": {
+      "enum": [
+        "identity"
+      ],
+      "type": "string"
+    },
+    "ContractAlias": {
+      "properties": {
+        "canonical_id": {
+          "type": "string"
+        },
+        "deprecated_in": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "introduced_in": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "replacement": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request_adapter": {
+          "$ref": "#/$defs/ContractAdapter"
+        },
+        "response_adapter": {
+          "$ref": "#/$defs/ContractAdapter"
+        },
+        "support_until": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "canonical_id",
+        "id",
+        "introduced_in",
+        "maturity",
+        "request_adapter",
+        "response_adapter"
+      ],
+      "type": "object"
+    },
+    "ContractLayerInfo": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "maturity"
+      ],
+      "type": "object"
+    },
+    "ContractMaturity": {
+      "enum": [
+        "experimental",
+        "candidate",
+        "stable",
+        "deprecated",
+        "legacy_adapter"
+      ],
+      "type": "string"
+    },
+    "ContractMethod": {
+      "properties": {
+        "aliases": {
+          "items": {
+            "$ref": "#/$defs/ContractAlias"
+          },
+          "type": "array"
+        },
+        "canonical_id": {
+          "type": "string"
+        },
+        "deprecated_in": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "implementation_status": {
+          "$ref": "#/$defs/MethodStatus"
+        },
+        "introduced_in": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "owner_layer": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "replacement": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request_adapter": {
+          "$ref": "#/$defs/ContractAdapter"
+        },
+        "request_schema": {
+          "type": "string"
+        },
+        "response_adapter": {
+          "$ref": "#/$defs/ContractAdapter"
+        },
+        "response_schema": {
+          "type": "string"
+        },
+        "streaming": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "aliases",
+        "canonical_id",
+        "implementation_status",
+        "introduced_in",
+        "maturity",
+        "owner_layer",
+        "request_adapter",
+        "request_schema",
+        "response_adapter",
+        "response_schema",
+        "streaming"
+      ],
+      "type": "object"
+    },
+    "ContractOwnerLayer": {
+      "enum": [
+        "substrate",
+        "host",
+        "protocol",
+        "shell",
+        "cross_layer",
+        "legacy_adapter"
+      ],
+      "type": "string"
+    },
+    "ContractProfileInfo": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/ContractVersionRequirement"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "maturity",
+        "versions"
+      ],
+      "type": "object"
+    },
+    "ContractVersionInfo": {
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer",
+        "maturity",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ContractVersionRequirement": {
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer",
+        "version"
+      ],
+      "type": "object"
+    },
     "Errors": {
       "items": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -22,263 +239,44 @@
       },
       "type": "array"
     },
+    "MethodStatus": {
+      "enum": [
+        "implemented",
+        "partial",
+        "planned"
+      ],
+      "type": "string"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "EmptyParams",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ContractAdapter": {
-          "enum": [
-            "identity"
-          ],
+    "ProtocolMethod": {
+      "properties": {
+        "id": {
           "type": "string"
         },
-        "ContractAlias": {
-          "properties": {
-            "canonical_id": {
-              "type": "string"
-            },
-            "deprecated_in": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "id": {
-              "type": "string"
-            },
-            "introduced_in": {
-              "type": "string"
-            },
-            "maturity": {
-              "$ref": "#/definitions/ContractMaturity"
-            },
-            "replacement": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "request_adapter": {
-              "$ref": "#/definitions/ContractAdapter"
-            },
-            "response_adapter": {
-              "$ref": "#/definitions/ContractAdapter"
-            },
-            "support_until": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "canonical_id",
-            "id",
-            "introduced_in",
-            "maturity",
-            "request_adapter",
-            "response_adapter"
-          ],
-          "type": "object"
+        "status": {
+          "$ref": "#/$defs/MethodStatus"
         },
-        "ContractLayerInfo": {
-          "properties": {
-            "description": {
-              "type": "string"
-            },
-            "id": {
-              "$ref": "#/definitions/ContractOwnerLayer"
-            },
-            "maturity": {
-              "$ref": "#/definitions/ContractMaturity"
-            }
-          },
-          "required": [
-            "description",
-            "id",
-            "maturity"
-          ],
-          "type": "object"
-        },
-        "ContractMaturity": {
-          "enum": [
-            "experimental",
-            "candidate",
-            "stable",
-            "deprecated",
-            "legacy_adapter"
-          ],
-          "type": "string"
-        },
-        "ContractMethod": {
-          "properties": {
-            "aliases": {
-              "items": {
-                "$ref": "#/definitions/ContractAlias"
-              },
-              "type": "array"
-            },
-            "canonical_id": {
-              "type": "string"
-            },
-            "deprecated_in": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "implementation_status": {
-              "$ref": "#/definitions/MethodStatus"
-            },
-            "introduced_in": {
-              "type": "string"
-            },
-            "maturity": {
-              "$ref": "#/definitions/ContractMaturity"
-            },
-            "owner_layer": {
-              "$ref": "#/definitions/ContractOwnerLayer"
-            },
-            "replacement": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "request_adapter": {
-              "$ref": "#/definitions/ContractAdapter"
-            },
-            "request_schema": {
-              "type": "string"
-            },
-            "response_adapter": {
-              "$ref": "#/definitions/ContractAdapter"
-            },
-            "response_schema": {
-              "type": "string"
-            },
-            "streaming": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "aliases",
-            "canonical_id",
-            "implementation_status",
-            "introduced_in",
-            "maturity",
-            "owner_layer",
-            "request_adapter",
-            "request_schema",
-            "response_adapter",
-            "response_schema",
-            "streaming"
-          ],
-          "type": "object"
-        },
-        "ContractOwnerLayer": {
-          "enum": [
-            "substrate",
-            "host",
-            "protocol",
-            "shell",
-            "cross_layer",
-            "legacy_adapter"
-          ],
-          "type": "string"
-        },
-        "ContractProfileInfo": {
-          "properties": {
-            "id": {
-              "type": "string"
-            },
-            "maturity": {
-              "$ref": "#/definitions/ContractMaturity"
-            },
-            "versions": {
-              "items": {
-                "$ref": "#/definitions/ContractVersionRequirement"
-              },
-              "type": "array"
-            }
-          },
-          "required": [
-            "id",
-            "maturity",
-            "versions"
-          ],
-          "type": "object"
-        },
-        "ContractVersionInfo": {
-          "properties": {
-            "layer": {
-              "$ref": "#/definitions/ContractOwnerLayer"
-            },
-            "maturity": {
-              "$ref": "#/definitions/ContractMaturity"
-            },
-            "version": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "layer",
-            "maturity",
-            "version"
-          ],
-          "type": "object"
-        },
-        "ContractVersionRequirement": {
-          "properties": {
-            "layer": {
-              "$ref": "#/definitions/ContractOwnerLayer"
-            },
-            "version": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "layer",
-            "version"
-          ],
-          "type": "object"
-        },
-        "MethodStatus": {
-          "enum": [
-            "implemented",
-            "partial",
-            "planned"
-          ],
-          "type": "string"
-        },
-        "ProtocolMethod": {
-          "properties": {
-            "id": {
-              "type": "string"
-            },
-            "status": {
-              "$ref": "#/definitions/MethodStatus"
-            },
-            "streaming": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "id",
-            "status",
-            "streaming"
-          ],
-          "type": "object"
+        "streaming": {
+          "type": "boolean"
         }
       },
+      "required": [
+        "id",
+        "status",
+        "streaming"
+      ],
+      "type": "object"
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "aliases": {
           "items": {
-            "$ref": "#/definitions/ContractAlias"
+            "$ref": "#/$defs/ContractAlias"
           },
           "type": [
             "array",
@@ -287,7 +285,7 @@
         },
         "contract_methods": {
           "items": {
-            "$ref": "#/definitions/ContractMethod"
+            "$ref": "#/$defs/ContractMethod"
           },
           "type": [
             "array",
@@ -308,7 +306,7 @@
         },
         "layers": {
           "items": {
-            "$ref": "#/definitions/ContractLayerInfo"
+            "$ref": "#/$defs/ContractLayerInfo"
           },
           "type": [
             "array",
@@ -318,7 +316,7 @@
         "maturity": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ContractMaturity"
+              "$ref": "#/$defs/ContractMaturity"
             },
             {
               "type": "null"
@@ -327,13 +325,13 @@
         },
         "methods": {
           "items": {
-            "$ref": "#/definitions/ProtocolMethod"
+            "$ref": "#/$defs/ProtocolMethod"
           },
           "type": "array"
         },
         "profiles": {
           "items": {
-            "$ref": "#/definitions/ContractProfileInfo"
+            "$ref": "#/$defs/ContractProfileInfo"
           },
           "type": [
             "array",
@@ -351,7 +349,7 @@
         },
         "versions": {
           "items": {
-            "$ref": "#/definitions/ContractVersionInfo"
+            "$ref": "#/$defs/ContractVersionInfo"
           },
           "type": [
             "array",

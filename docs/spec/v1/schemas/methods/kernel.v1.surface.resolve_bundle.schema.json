@@ -36,15 +36,6 @@
       "type": "object"
     },
     "Result": {
-      "$defs": {
-        "SurfaceBundleSourceSchema": {
-          "enum": [
-            "installed_project",
-            "dev_path"
-          ],
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "bundle_url": {
@@ -60,7 +51,7 @@
           ]
         },
         "source": {
-          "$ref": "#/definitions/SurfaceBundleSourceSchema"
+          "$ref": "#/$defs/SurfaceBundleSourceSchema"
         },
         "stylesheets": {
           "items": {
@@ -87,6 +78,13 @@
       ],
       "title": "SurfaceResolveBundleResult",
       "type": "object"
+    },
+    "SurfaceBundleSourceSchema": {
+      "enum": [
+        "installed_project",
+        "dev_path"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.surface.resolve_bundle.schema.json",

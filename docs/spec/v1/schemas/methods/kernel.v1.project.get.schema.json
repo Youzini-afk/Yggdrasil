@@ -22,6 +22,39 @@
       },
       "type": "array"
     },
+    "ExternalProjectData": {
+      "properties": {
+        "adapter_manifest": {
+          "description": "For external_wrapped: the path to the adapter package's manifest.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Source URL or path the external project was installed from.",
+          "type": "string"
+        },
+        "source_ref": {
+          "description": "Resolved commit SHA or version (for git sources).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workspace_root": {
+          "description": "For external_workspace: path to the fetched project tree under the workspace.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -35,199 +68,146 @@
       "title": "ProjectIdParams",
       "type": "object"
     },
+    "ProjectInner": {
+      "properties": {
+        "description": {
+          "default": "",
+          "description": "Description for tooltip / detail view.",
+          "type": "string"
+        },
+        "entry_surface_id": {
+          "description": "Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "external": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalProjectData"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Project type-specific data."
+        },
+        "icon": {
+          "description": "Optional icon path (relative to project root for native, optional for external).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "default": {},
+          "description": "Free-form metadata for forward compat.",
+          "type": "object"
+        },
+        "optional_packages": {
+          "default": [],
+          "description": "Optional packages that may be loaded if available.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "default": [],
+          "description": "Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required_capabilities": {
+          "default": [],
+          "description": "Required capabilities (composition-style validation).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required_surfaces": {
+          "default": [],
+          "description": "Required surface ids (composition-style validation).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secret_policy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SecretPolicy"
+            }
+          ],
+          "default": {
+            "fallback_to_platform": true,
+            "require_per_project": []
+          },
+          "description": "Secret policy for this project."
+        },
+        "title": {
+          "description": "Display title for Home card.",
+          "type": "string"
+        },
+        "type": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProjectType"
+            }
+          ],
+          "description": "Project type discriminator."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type"
+      ],
+      "type": "object"
+    },
+    "ProjectType": {
+      "oneOf": [
+        {
+          "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+          "enum": [
+            "yggdrasil_native"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project wrapped by an adapter package.",
+          "enum": [
+            "external_wrapped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project running in an agent workspace (no wrapping).",
+          "enum": [
+            "external_workspace"
+          ],
+          "type": "string"
+        }
+      ]
+    },
     "Result": {
       "allOf": [
         {
-          "$defs": {
-            "ExternalProjectData": {
-              "properties": {
-                "adapter_manifest": {
-                  "description": "For external_wrapped: the path to the adapter package's manifest.",
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "source": {
-                  "description": "Source URL or path the external project was installed from.",
-                  "type": "string"
-                },
-                "source_ref": {
-                  "description": "Resolved commit SHA or version (for git sources).",
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "workspace_root": {
-                  "description": "For external_workspace: path to the fetched project tree under the workspace.",
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                }
-              },
-              "required": [
-                "source"
-              ],
-              "type": "object"
-            },
-            "ProjectInner": {
-              "properties": {
-                "description": {
-                  "default": "",
-                  "description": "Description for tooltip / detail view.",
-                  "type": "string"
-                },
-                "entry_surface_id": {
-                  "description": "Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.",
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "external": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/ExternalProjectData"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Project type-specific data."
-                },
-                "icon": {
-                  "description": "Optional icon path (relative to project root for native, optional for external).",
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "id": {
-                  "description": "Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.",
-                  "type": "string"
-                },
-                "metadata": {
-                  "additionalProperties": true,
-                  "default": {},
-                  "description": "Free-form metadata for forward compat.",
-                  "type": "object"
-                },
-                "optional_packages": {
-                  "default": [],
-                  "description": "Optional packages that may be loaded if available.",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "packages": {
-                  "default": [],
-                  "description": "Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "required_capabilities": {
-                  "default": [],
-                  "description": "Required capabilities (composition-style validation).",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "required_surfaces": {
-                  "default": [],
-                  "description": "Required surface ids (composition-style validation).",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "secret_policy": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/SecretPolicy"
-                    }
-                  ],
-                  "default": {
-                    "fallback_to_platform": true,
-                    "require_per_project": []
-                  },
-                  "description": "Secret policy for this project."
-                },
-                "title": {
-                  "description": "Display title for Home card.",
-                  "type": "string"
-                },
-                "type": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/ProjectType"
-                    }
-                  ],
-                  "description": "Project type discriminator."
-                }
-              },
-              "required": [
-                "id",
-                "title",
-                "type"
-              ],
-              "type": "object"
-            },
-            "ProjectType": {
-              "oneOf": [
-                {
-                  "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
-                  "enum": [
-                    "yggdrasil_native"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "description": "External project wrapped by an adapter package.",
-                  "enum": [
-                    "external_wrapped"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "description": "External project running in an agent workspace (no wrapping).",
-                  "enum": [
-                    "external_workspace"
-                  ],
-                  "type": "string"
-                }
-              ]
-            },
-            "SecretPolicy": {
-              "properties": {
-                "fallback_to_platform": {
-                  "default": true,
-                  "description": "If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).",
-                  "type": "boolean"
-                },
-                "require_per_project": {
-                  "default": [],
-                  "description": "Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                }
-              },
-              "type": "object"
-            }
-          },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "properties": {
             "project": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/ProjectInner"
+                  "$ref": "#/$defs/ProjectInner"
                 }
               ],
               "description": "The actual project content."
@@ -309,15 +289,6 @@
           "title": "ProjectState"
         },
         "storage_summary": {
-          "$defs": {
-            "StorageMeasurementStateSchema": {
-              "enum": [
-                "measured",
-                "unknown"
-              ],
-              "type": "string"
-            }
-          },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "properties": {
             "bundle_bytes": {
@@ -360,7 +331,7 @@
               ]
             },
             "measurement_state": {
-              "$ref": "#/definitions/StorageMeasurementStateSchema"
+              "$ref": "#/$defs/StorageMeasurementStateSchema"
             },
             "total_bytes": {
               "format": "uint64",
@@ -378,6 +349,31 @@
           "type": "object"
         }
       }
+    },
+    "SecretPolicy": {
+      "properties": {
+        "fallback_to_platform": {
+          "default": true,
+          "description": "If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).",
+          "type": "boolean"
+        },
+        "require_per_project": {
+          "default": [],
+          "description": "Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "StorageMeasurementStateSchema": {
+      "enum": [
+        "measured",
+        "unknown"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.project.get.schema.json",

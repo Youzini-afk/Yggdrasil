@@ -48,15 +48,6 @@
       "type": "object"
     },
     "Result": {
-      "$defs": {
-        "SessionStatus": {
-          "enum": [
-            "open",
-            "closed"
-          ],
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "active_package_set": {
@@ -88,7 +79,7 @@
           ]
         },
         "status": {
-          "$ref": "#/definitions/SessionStatus"
+          "$ref": "#/$defs/SessionStatus"
         },
         "updated_at": {
           "format": "date-time",
@@ -105,6 +96,13 @@
       ],
       "title": "KernelSession",
       "type": "object"
+    },
+    "SessionStatus": {
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.session.open.schema.json",

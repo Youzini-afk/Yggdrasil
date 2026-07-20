@@ -56,6 +56,10 @@ pub fn export_all() -> anyhow::Result<()> {
         out.join("capability-invocation-result.schema.json"),
         &schema_value::<CapabilityInvocationResult>(),
     )?;
+    write_json(
+        out.join("artifact-descriptor.schema.json"),
+        &schema_value::<ArtifactDescriptor>(),
+    )?;
 
     for (method, params, result) in method_schemas() {
         write_method(&out, method, params, result)?;

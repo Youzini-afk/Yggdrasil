@@ -28,37 +28,49 @@ pub fn ensure_store_schema(data_dir: &Path) -> Result<Option<StoreSchemaMigratio
     layout::ensure_store_schema(data_dir)
 }
 
-pub async fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
+pub async fn try_handle(request: &mut InprocInvocation) -> Option<Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
         return None;
     }
     match request.capability_id.as_str() {
         "install.resolve_plan" | "official/install-lab/resolve_plan" => {
-            Some(planner::resolve_plan(request.input.clone()).await)
+            Some(planner::resolve_plan(std::mem::take(&mut request.input)).await)
         }
-        "install.execute_plan" | "official/install-lab/execute_plan" => {
-            Some(executor::execute_plan(request.input.clone(), request.session_id.as_deref()).await)
-        }
+        "install.execute_plan" | "official/install-lab/execute_plan" => Some(
+            executor::execute_plan(
+                std::mem::take(&mut request.input),
+                request.session_id.as_deref(),
+            )
+            .await,
+        ),
         "install.detect_kind" | "official/install-lab/detect_kind" => {
-            Some(project_kind::detect_kind(request.input.clone()).await)
+            Some(project_kind::detect_kind(std::mem::take(&mut request.input)).await)
         }
         "install.register_project" | "official/install-lab/register_project" => {
-            Some(executor::register_project_capability(request.input.clone()).await)
+            Some(executor::register_project_capability(std::mem::take(&mut request.input)).await)
         }
-        "install.uninstall" | "official/install-lab/uninstall" => {
-            Some(executor::uninstall(request.input.clone(), request.session_id.as_deref()).await)
-        }
+        "install.uninstall" | "official/install-lab/uninstall" => Some(
+            executor::uninstall(
+                std::mem::take(&mut request.input),
+                request.session_id.as_deref(),
+            )
+            .await,
+        ),
         "install.list_installed" | "official/install-lab/list_installed" => {
-            Some(executor::list_installed(request.input.clone()).await)
+            Some(executor::list_installed(std::mem::take(&mut request.input)).await)
         }
         "install.check_lockfile" | "official/install-lab/check_lockfile" => {
-            Some(executor::check_lockfile(request.input.clone()).await)
+            Some(executor::check_lockfile(std::mem::take(&mut request.input)).await)
         }
         "install.check_for_updates" | "official/install-lab/check_for_updates" => {
-            Some(update_check::check_for_updates(request.input.clone()).await)
+            Some(update_check::check_for_updates(std::mem::take(&mut request.input)).await)
         }
         "install.update_project" | "official/install-lab/update_project" => Some(
-            updater::update_project(request.input.clone(), request.session_id.as_deref()).await,
+            updater::update_project(
+                std::mem::take(&mut request.input),
+                request.session_id.as_deref(),
+            )
+            .await,
         ),
         _ => None,
     }

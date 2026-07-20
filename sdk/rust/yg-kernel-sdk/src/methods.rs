@@ -441,14 +441,14 @@ impl KernelClient {
     pub async fn port_release(
         &self,
         params: PortLeaseIdParams,
-    ) -> Result<PortLeaseRecord2> {
+    ) -> Result<PortLeaseRecord> {
         let raw = self.invoke("host.port.release", serde_json::to_value(params)?).await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn legacy_kernel_v1_port_release(
         &self,
         params: PortLeaseIdParams,
-    ) -> Result<PortLeaseRecord2> {
+    ) -> Result<PortLeaseRecord> {
         let raw = self
             .invoke("kernel.v1.port.release", serde_json::to_value(params)?)
             .await?;
@@ -457,14 +457,14 @@ impl KernelClient {
     pub async fn port_status(
         &self,
         params: PortLeaseIdParams,
-    ) -> Result<PortLeaseRecord2> {
+    ) -> Result<PortLeaseRecord> {
         let raw = self.invoke("host.port.status", serde_json::to_value(params)?).await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn legacy_kernel_v1_port_status(
         &self,
         params: PortLeaseIdParams,
-    ) -> Result<PortLeaseRecord2> {
+    ) -> Result<PortLeaseRecord> {
         let raw = self
             .invoke("kernel.v1.port.status", serde_json::to_value(params)?)
             .await?;
@@ -764,14 +764,14 @@ impl KernelClient {
     pub async fn proxy_status(
         &self,
         params: ProxyRouteIdParams,
-    ) -> Result<ProxyRouteRecord2> {
+    ) -> Result<ProxyRouteRecord> {
         let raw = self.invoke("host.proxy.status", serde_json::to_value(params)?).await?;
         Ok(serde_json::from_value(raw)?)
     }
     pub async fn legacy_kernel_v1_proxy_status(
         &self,
         params: ProxyRouteIdParams,
-    ) -> Result<ProxyRouteRecord2> {
+    ) -> Result<ProxyRouteRecord> {
         let raw = self
             .invoke("kernel.v1.proxy.status", serde_json::to_value(params)?)
             .await?;
@@ -780,7 +780,7 @@ impl KernelClient {
     pub async fn proxy_unregister(
         &self,
         params: ProxyRouteIdParams,
-    ) -> Result<ProxyRouteRecord2> {
+    ) -> Result<ProxyRouteRecord> {
         let raw = self
             .invoke("host.proxy.unregister", serde_json::to_value(params)?)
             .await?;
@@ -789,7 +789,7 @@ impl KernelClient {
     pub async fn legacy_kernel_v1_proxy_unregister(
         &self,
         params: ProxyRouteIdParams,
-    ) -> Result<ProxyRouteRecord2> {
+    ) -> Result<ProxyRouteRecord> {
         let raw = self
             .invoke("kernel.v1.proxy.unregister", serde_json::to_value(params)?)
             .await?;

@@ -1181,7 +1181,7 @@ fn describe_asset_provenance(request: &InprocInvocation) -> anyhow::Result<Value
             "proposal_ref": request.input.get("proposal_ref").cloned().unwrap_or(Value::Null),
             "inference_ref": request.input.get("inference_ref").cloned().unwrap_or(Value::Null),
             "disclosure": disclosure,
-            "large_output_policy": request.input.get("large_output_policy").and_then(Value::as_str).unwrap_or("inline"),
+            "large_output_policy": request.input.get("large_output_policy").and_then(Value::as_str).unwrap_or("object_ref"),
         },
         "inference_performed": false,
         "network_performed": false,
@@ -1596,7 +1596,7 @@ mod tests {
         assert!(result["content_address"]
             .as_str()
             .unwrap()
-            .starts_with("fnv1a64:"));
+            .starts_with("sha256:"));
         assert!(
             result["state_snapshot_asset_ref"].is_string(),
             "must have state_snapshot_asset_ref"
@@ -1623,7 +1623,7 @@ mod tests {
         assert!(result["content_address"]
             .as_str()
             .unwrap()
-            .starts_with("fnv1a64:"));
+            .starts_with("sha256:"));
         assert!(
             result["state_snapshot_asset_ref"].is_string(),
             "must have state_snapshot_asset_ref"
@@ -1714,7 +1714,7 @@ mod tests {
         let ca1 = crate::runtime::content_address(content);
         let ca2 = crate::runtime::content_address(content);
         assert_eq!(ca1, ca2, "content address must be deterministic");
-        assert!(ca1.starts_with("fnv1a64:"));
+        assert!(ca1.starts_with("sha256:"));
     }
 
     #[test]

@@ -79,7 +79,7 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     };
 
     let runtime = load_install_runtime().await?;
-    let resolved = invoke_install_lab(
+    let mut resolved = invoke_install_lab(
         &runtime,
         "official/install-lab/resolve_plan",
         json!({
@@ -93,8 +93,8 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     .await?;
     let plan = resolved
         .output
-        .get("plan")
-        .cloned()
+        .get_mut("plan")
+        .map(Value::take)
         .context("install-lab resolve_plan response missing plan")?;
     print_conformance_warnings(&plan, args.strict);
 
@@ -136,16 +136,18 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     };
 
     let result = invoke_install_lab(&runtime, "official/install-lab/execute_plan", {
-        let mut input = json!({
-        "plan": plan,
-        "consent": consent,
-        "profile": args.profile,
-        "data_dir": data_dir.display().to_string(),
-        });
-        if let Some(descriptor) = project_descriptor.clone() {
-            input["project_descriptor"] = descriptor;
+        let mut input = serde_json::Map::with_capacity(5);
+        input.insert("plan".to_string(), plan);
+        input.insert("consent".to_string(), consent);
+        input.insert("profile".to_string(), Value::String(args.profile));
+        input.insert(
+            "data_dir".to_string(),
+            Value::String(data_dir.display().to_string()),
+        );
+        if let Some(descriptor) = project_descriptor {
+            input.insert("project_descriptor".to_string(), descriptor);
         }
-        input
+        Value::Object(input)
     })
     .await?
     .output;

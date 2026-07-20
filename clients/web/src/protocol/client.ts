@@ -338,7 +338,18 @@ export interface AssetRecord {
   mime: string;
   hash: string;
   size_bytes: number;
-  metadata: unknown;
+  created_at: string;
+  metadata?: unknown;
+  descriptor?: ArtifactDescriptor | null;
+}
+
+export interface ArtifactDescriptor {
+  artifact_type_uri: string;
+  media_type: string;
+  digest: string;
+  size_bytes: number;
+  references?: string[];
+  annotations?: Record<string, unknown>;
 }
 
 export interface ProjectionRecord {

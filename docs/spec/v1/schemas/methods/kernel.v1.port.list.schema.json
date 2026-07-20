@@ -27,35 +27,33 @@
       "title": "EmptyParams",
       "type": "object"
     },
+    "PortBindScope": {
+      "enum": [
+        "loopback_only"
+      ],
+      "type": "string"
+    },
+    "PortLeaseStatusKind": {
+      "enum": [
+        "active",
+        "reserved",
+        "released"
+      ],
+      "type": "string"
+    },
+    "PortProtocol": {
+      "enum": [
+        "tcp",
+        "udp"
+      ],
+      "type": "string"
+    },
     "Result": {
       "items": {
-        "$defs": {
-          "PortBindScope": {
-            "enum": [
-              "loopback_only"
-            ],
-            "type": "string"
-          },
-          "PortLeaseStatusKind": {
-            "enum": [
-              "active",
-              "reserved",
-              "released"
-            ],
-            "type": "string"
-          },
-          "PortProtocol": {
-            "enum": [
-              "tcp",
-              "udp"
-            ],
-            "type": "string"
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "bind": {
-            "$ref": "#/definitions/PortBindScope"
+            "$ref": "#/$defs/PortBindScope"
           },
           "host": {
             "type": "string"
@@ -72,10 +70,10 @@
             "type": "string"
           },
           "protocol": {
-            "$ref": "#/definitions/PortProtocol"
+            "$ref": "#/$defs/PortProtocol"
           },
           "status": {
-            "$ref": "#/definitions/PortLeaseStatusKind"
+            "$ref": "#/$defs/PortLeaseStatusKind"
           },
           "target_id": {
             "type": "string"

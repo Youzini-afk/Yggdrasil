@@ -23,68 +23,12 @@
       "type": "array"
     },
     "Params": {
-      "$defs": {
-        "ProjectState": {
-          "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
-          "oneOf": [
-            {
-              "description": "Installed but not running.",
-              "enum": [
-                "installed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Stopped after running.",
-              "enum": [
-                "stopped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to running.",
-              "enum": [
-                "starting"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently running and serving.",
-              "enum": [
-                "running"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to stopped.",
-              "enum": [
-                "stopping"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Failed to start or crashed.",
-              "enum": [
-                "failed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Soft-deleted, awaiting cleanup.",
-              "enum": [
-                "archived"
-              ],
-              "type": "string"
-            }
-          ]
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "filter_state": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProjectState"
+              "$ref": "#/$defs/ProjectState"
             },
             {
               "type": "null"
@@ -95,211 +39,202 @@
       "title": "ProjectListParams",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ProjectListItemSchema": {
-          "properties": {
-            "description": {
-              "type": "string"
-            },
-            "entry_surface_id": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "icon": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "id": {
-              "type": "string"
-            },
-            "running_session_id": {
-              "type": "string"
-            },
-            "state": {
-              "$ref": "#/definitions/ProjectState"
-            },
-            "storage_summary": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/ProjectStorageSummarySchema"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": {
-              "type": "string"
-            },
-            "type": {
-              "$ref": "#/definitions/ProjectType"
-            }
-          },
-          "required": [
-            "description",
-            "id",
-            "running_session_id",
-            "state",
-            "title",
-            "type"
-          ],
-          "type": "object"
+    "ProjectListItemSchema": {
+      "properties": {
+        "description": {
+          "type": "string"
         },
-        "ProjectState": {
-          "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
-          "oneOf": [
+        "entry_surface_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "running_session_id": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ProjectState"
+        },
+        "storage_summary": {
+          "anyOf": [
             {
-              "description": "Installed but not running.",
-              "enum": [
-                "installed"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/ProjectStorageSummarySchema"
             },
             {
-              "description": "Stopped after running.",
-              "enum": [
-                "stopped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to running.",
-              "enum": [
-                "starting"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently running and serving.",
-              "enum": [
-                "running"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to stopped.",
-              "enum": [
-                "stopping"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Failed to start or crashed.",
-              "enum": [
-                "failed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Soft-deleted, awaiting cleanup.",
-              "enum": [
-                "archived"
-              ],
-              "type": "string"
+              "type": "null"
             }
           ]
         },
-        "ProjectStorageSummarySchema": {
-          "properties": {
-            "bundle_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "cache_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "data_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "log_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "measured_at": {
-              "format": "date-time",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "measurement_state": {
-              "$ref": "#/definitions/StorageMeasurementStateSchema"
-            },
-            "total_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "measurement_state"
-          ],
-          "type": "object"
+        "title": {
+          "type": "string"
         },
-        "ProjectType": {
-          "oneOf": [
-            {
-              "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
-              "enum": [
-                "yggdrasil_native"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "External project wrapped by an adapter package.",
-              "enum": [
-                "external_wrapped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "External project running in an agent workspace (no wrapping).",
-              "enum": [
-                "external_workspace"
-              ],
-              "type": "string"
-            }
-          ]
-        },
-        "StorageMeasurementStateSchema": {
+        "type": {
+          "$ref": "#/$defs/ProjectType"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "running_session_id",
+        "state",
+        "title",
+        "type"
+      ],
+      "type": "object"
+    },
+    "ProjectState": {
+      "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+      "oneOf": [
+        {
+          "description": "Installed but not running.",
           "enum": [
-            "measured",
-            "unknown"
+            "installed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stopped after running.",
+          "enum": [
+            "stopped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to running.",
+          "enum": [
+            "starting"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently running and serving.",
+          "enum": [
+            "running"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to stopped.",
+          "enum": [
+            "stopping"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Failed to start or crashed.",
+          "enum": [
+            "failed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Soft-deleted, awaiting cleanup.",
+          "enum": [
+            "archived"
           ],
           "type": "string"
         }
+      ]
+    },
+    "ProjectStorageSummarySchema": {
+      "properties": {
+        "bundle_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cache_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "data_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "log_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "measured_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "measurement_state": {
+          "$ref": "#/$defs/StorageMeasurementStateSchema"
+        },
+        "total_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
       },
+      "required": [
+        "measurement_state"
+      ],
+      "type": "object"
+    },
+    "ProjectType": {
+      "oneOf": [
+        {
+          "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+          "enum": [
+            "yggdrasil_native"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project wrapped by an adapter package.",
+          "enum": [
+            "external_wrapped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project running in an agent workspace (no wrapping).",
+          "enum": [
+            "external_workspace"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "projects": {
           "items": {
-            "$ref": "#/definitions/ProjectListItemSchema"
+            "$ref": "#/$defs/ProjectListItemSchema"
           },
           "type": "array"
         }
@@ -309,6 +244,13 @@
       ],
       "title": "ProjectListResultSchema",
       "type": "object"
+    },
+    "StorageMeasurementStateSchema": {
+      "enum": [
+        "measured",
+        "unknown"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.project.list.schema.json",

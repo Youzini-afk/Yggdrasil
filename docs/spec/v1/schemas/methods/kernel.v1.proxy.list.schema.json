@@ -27,40 +27,38 @@
       "title": "EmptyParams",
       "type": "object"
     },
+    "ProxyProtocol": {
+      "enum": [
+        "http",
+        "websocket"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteStatusKind": {
+      "enum": [
+        "active",
+        "stale",
+        "removed"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteUpstream": {
+      "properties": {
+        "port_lease_id": {
+          "type": "string"
+        },
+        "port_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "port_lease_id",
+        "port_name"
+      ],
+      "type": "object"
+    },
     "Result": {
       "items": {
-        "$defs": {
-          "ProxyProtocol": {
-            "enum": [
-              "http",
-              "websocket"
-            ],
-            "type": "string"
-          },
-          "ProxyRouteStatusKind": {
-            "enum": [
-              "active",
-              "stale",
-              "removed"
-            ],
-            "type": "string"
-          },
-          "ProxyRouteUpstream": {
-            "properties": {
-              "port_lease_id": {
-                "type": "string"
-              },
-              "port_name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "port_lease_id",
-              "port_name"
-            ],
-            "type": "object"
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "id": {
@@ -70,7 +68,7 @@
             "type": "string"
           },
           "protocol": {
-            "$ref": "#/definitions/ProxyProtocol"
+            "$ref": "#/$defs/ProxyProtocol"
           },
           "public_url": {
             "type": "string"
@@ -79,10 +77,10 @@
             "type": "boolean"
           },
           "status": {
-            "$ref": "#/definitions/ProxyRouteStatusKind"
+            "$ref": "#/$defs/ProxyRouteStatusKind"
           },
           "upstream": {
-            "$ref": "#/definitions/ProxyRouteUpstream"
+            "$ref": "#/$defs/ProxyRouteUpstream"
           }
         },
         "required": [

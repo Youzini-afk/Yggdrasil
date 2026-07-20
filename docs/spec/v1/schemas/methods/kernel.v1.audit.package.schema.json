@@ -1,5 +1,49 @@
 {
   "$defs": {
+    "DeclaredAuthority": {
+      "properties": {
+        "assets_read": {
+          "type": "boolean"
+        },
+        "assets_write": {
+          "type": "boolean"
+        },
+        "capabilities_invoke": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "events_append": {
+          "type": "boolean"
+        },
+        "events_read": {
+          "type": "boolean"
+        },
+        "network_hosts": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secret_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "assets_read",
+        "assets_write",
+        "capabilities_invoke",
+        "events_append",
+        "events_read",
+        "network_hosts",
+        "secret_refs"
+      ],
+      "type": "object"
+    },
     "Errors": {
       "items": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -50,161 +94,10 @@
       "type": "object"
     },
     "Result": {
-      "$defs": {
-        "DeclaredAuthority": {
-          "properties": {
-            "assets_read": {
-              "type": "boolean"
-            },
-            "assets_write": {
-              "type": "boolean"
-            },
-            "capabilities_invoke": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "events_append": {
-              "type": "boolean"
-            },
-            "events_read": {
-              "type": "boolean"
-            },
-            "network_hosts": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "secret_refs": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          "required": [
-            "assets_read",
-            "assets_write",
-            "capabilities_invoke",
-            "events_append",
-            "events_read",
-            "network_hosts",
-            "secret_refs"
-          ],
-          "type": "object"
-        },
-        "TighteningSuggestion": {
-          "properties": {
-            "kind": {
-              "type": "string"
-            },
-            "rationale": {
-              "type": "string"
-            },
-            "target": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind",
-            "rationale",
-            "target"
-          ],
-          "type": "object"
-        },
-        "UnusedAuthority": {
-          "properties": {
-            "capabilities_unused": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "network_hosts_unused": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "secret_refs_unused": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          "required": [
-            "capabilities_unused",
-            "network_hosts_unused",
-            "secret_refs_unused"
-          ],
-          "type": "object"
-        },
-        "UsedAuthority": {
-          "properties": {
-            "assets_read_count": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "assets_write_count": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "capabilities_invoked": {
-              "additionalProperties": {
-                "format": "uint64",
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              "type": "object"
-            },
-            "events_append_count": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "events_read_count": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "network_hosts_used": {
-              "additionalProperties": {
-                "format": "uint64",
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              "type": "object"
-            },
-            "secret_refs_used": {
-              "additionalProperties": {
-                "format": "uint64",
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "assets_read_count",
-            "assets_write_count",
-            "capabilities_invoked",
-            "events_append_count",
-            "events_read_count",
-            "network_hosts_used",
-            "secret_refs_used"
-          ],
-          "type": "object"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "declared": {
-          "$ref": "#/definitions/DeclaredAuthority"
+          "$ref": "#/$defs/DeclaredAuthority"
         },
         "package_id": {
           "type": "string"
@@ -215,7 +108,7 @@
         },
         "suggestions": {
           "items": {
-            "$ref": "#/definitions/TighteningSuggestion"
+            "$ref": "#/$defs/TighteningSuggestion"
           },
           "type": "array"
         },
@@ -224,10 +117,10 @@
           "type": "string"
         },
         "unused": {
-          "$ref": "#/definitions/UnusedAuthority"
+          "$ref": "#/$defs/UnusedAuthority"
         },
         "used": {
-          "$ref": "#/definitions/UsedAuthority"
+          "$ref": "#/$defs/UsedAuthority"
         }
       },
       "required": [
@@ -240,6 +133,111 @@
         "used"
       ],
       "title": "PackageAuditReport",
+      "type": "object"
+    },
+    "TighteningSuggestion": {
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "rationale",
+        "target"
+      ],
+      "type": "object"
+    },
+    "UnusedAuthority": {
+      "properties": {
+        "capabilities_unused": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "network_hosts_unused": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secret_refs_unused": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capabilities_unused",
+        "network_hosts_unused",
+        "secret_refs_unused"
+      ],
+      "type": "object"
+    },
+    "UsedAuthority": {
+      "properties": {
+        "assets_read_count": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "assets_write_count": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "capabilities_invoked": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "events_append_count": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "events_read_count": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "network_hosts_used": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "secret_refs_used": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "assets_read_count",
+        "assets_write_count",
+        "capabilities_invoked",
+        "events_append_count",
+        "events_read_count",
+        "network_hosts_used",
+        "secret_refs_used"
+      ],
       "type": "object"
     }
   },

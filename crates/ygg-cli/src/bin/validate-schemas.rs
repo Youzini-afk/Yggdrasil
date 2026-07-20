@@ -25,6 +25,7 @@ fn main() -> anyhow::Result<()> {
             "{} is not JSON Schema 2020-12",
             file.display()
         );
+        validate_local_refs(&schema, &schema, file)?;
         JSONSchema::compile(&schema).map_err(|error| {
             anyhow::anyhow!("{} failed to compile as schema: {error}", file.display())
         })?;
@@ -38,6 +39,10 @@ fn main() -> anyhow::Result<()> {
         .filter_map(Result::ok)
         .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json"))
         .count();
+    let top_level_count = fs::read_dir(root)?
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json"))
+        .count();
     anyhow::ensure!(
         method_count == ygg_runtime::KernelMethod::all().len(),
         "method schema count {method_count} does not match registry {}",
@@ -46,6 +51,14 @@ fn main() -> anyhow::Result<()> {
     anyhow::ensure!(
         event_count >= 30,
         "event schema count {event_count} is unexpectedly low"
+    );
+    anyhow::ensure!(
+        top_level_count == 9,
+        "top-level schema count {top_level_count} does not match the canonical set"
+    );
+    anyhow::ensure!(
+        root.join("artifact-descriptor.schema.json").exists(),
+        "artifact descriptor schema is missing"
     );
 
     // Additive-only diff hook for CI. Without a previous checkout, we validate the
@@ -71,6 +84,33 @@ fn main() -> anyhow::Result<()> {
         "validated {} schemas (methods: {method_count}, events: {event_count})",
         files.len()
     );
+    Ok(())
+}
+
+fn validate_local_refs(value: &Value, root: &Value, file: &Path) -> anyhow::Result<()> {
+    match value {
+        Value::Object(map) => {
+            if let Some(reference) = map.get("$ref").and_then(Value::as_str) {
+                if let Some(pointer) = reference.strip_prefix('#') {
+                    anyhow::ensure!(
+                        pointer.is_empty() || root.pointer(pointer).is_some(),
+                        "{} contains unresolved local schema reference {}",
+                        file.display(),
+                        reference
+                    );
+                }
+            }
+            for child in map.values() {
+                validate_local_refs(child, root, file)?;
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                validate_local_refs(child, root, file)?;
+            }
+        }
+        _ => {}
+    }
     Ok(())
 }
 

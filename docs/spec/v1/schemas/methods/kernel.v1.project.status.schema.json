@@ -35,128 +35,119 @@
       "title": "ProjectIdParams",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ProjectState": {
-          "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
-          "oneOf": [
-            {
-              "description": "Installed but not running.",
-              "enum": [
-                "installed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Stopped after running.",
-              "enum": [
-                "stopped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to running.",
-              "enum": [
-                "starting"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently running and serving.",
-              "enum": [
-                "running"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to stopped.",
-              "enum": [
-                "stopping"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Failed to start or crashed.",
-              "enum": [
-                "failed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Soft-deleted, awaiting cleanup.",
-              "enum": [
-                "archived"
-              ],
-              "type": "string"
-            }
-          ]
-        },
-        "ProjectStorageSummarySchema": {
-          "properties": {
-            "bundle_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "cache_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "data_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "log_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "measured_at": {
-              "format": "date-time",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "measurement_state": {
-              "$ref": "#/definitions/StorageMeasurementStateSchema"
-            },
-            "total_bytes": {
-              "format": "uint64",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "measurement_state"
-          ],
-          "type": "object"
-        },
-        "StorageMeasurementStateSchema": {
+    "ProjectState": {
+      "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+      "oneOf": [
+        {
+          "description": "Installed but not running.",
           "enum": [
-            "measured",
-            "unknown"
+            "installed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stopped after running.",
+          "enum": [
+            "stopped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to running.",
+          "enum": [
+            "starting"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently running and serving.",
+          "enum": [
+            "running"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to stopped.",
+          "enum": [
+            "stopping"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Failed to start or crashed.",
+          "enum": [
+            "failed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Soft-deleted, awaiting cleanup.",
+          "enum": [
+            "archived"
           ],
           "type": "string"
         }
+      ]
+    },
+    "ProjectStorageSummarySchema": {
+      "properties": {
+        "bundle_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cache_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "data_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "log_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "measured_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "measurement_state": {
+          "$ref": "#/$defs/StorageMeasurementStateSchema"
+        },
+        "total_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
       },
+      "required": [
+        "measurement_state"
+      ],
+      "type": "object"
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "project_id": {
@@ -176,12 +167,12 @@
           "type": "integer"
         },
         "state": {
-          "$ref": "#/definitions/ProjectState"
+          "$ref": "#/$defs/ProjectState"
         },
         "storage_summary": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProjectStorageSummarySchema"
+              "$ref": "#/$defs/ProjectStorageSummarySchema"
             },
             {
               "type": "null"
@@ -198,6 +189,13 @@
       ],
       "title": "ProjectStatusResult",
       "type": "object"
+    },
+    "StorageMeasurementStateSchema": {
+      "enum": [
+        "measured",
+        "unknown"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.project.status.schema.json",

@@ -299,48 +299,48 @@ impl InprocPackage for HookInprocPackage {
 /// falling through to `common::try_handle` when the specific handler returns `None`
 /// or when the package_id is an unknown official package.
 /// Non-official packages are never served by `common::try_handle`.
-async fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> {
+async fn dispatch_official(mut request: InprocInvocation) -> anyhow::Result<Value> {
     // Try the package-specific handler first, then fall through to common
     // namespace-scoped handlers if the specific handler doesn't match.
     if request.provider_package_id == "official/install-lab" {
-        if let Some(result) = install_lab::try_handle(request).await {
+        if let Some(result) = install_lab::try_handle(&mut request).await {
             return result;
         }
     }
 
     let specific_result = match request.provider_package_id.as_str() {
-        "official/persona-lab" => persona_lab::try_handle(request),
-        "official/knowledge-lab" => knowledge_lab::try_handle(request),
-        "official/context-lab" => context_lab::try_handle(request),
-        "official/docker-runtime-lab" => docker_runtime_lab::try_handle(request),
-        "official/text-transform-lab" => text_transform_lab::try_handle(request),
-        "official/model-connector-lab" => model_connector_lab::try_handle(request),
-        "official/model-provider-lab" => model_provider_lab::try_handle(request),
-        "official/model-routing-lab" => model_routing_lab::try_handle(request),
-        "official/pi-agent-runtime-lab" => pi_agent_runtime_lab::try_handle(request),
-        "official/agentic-forge-lab" => agentic_forge_lab::try_handle(request),
+        "official/persona-lab" => persona_lab::try_handle(&request),
+        "official/knowledge-lab" => knowledge_lab::try_handle(&request),
+        "official/context-lab" => context_lab::try_handle(&request),
+        "official/docker-runtime-lab" => docker_runtime_lab::try_handle(&request),
+        "official/text-transform-lab" => text_transform_lab::try_handle(&request),
+        "official/model-connector-lab" => model_connector_lab::try_handle(&request),
+        "official/model-provider-lab" => model_provider_lab::try_handle(&request),
+        "official/model-routing-lab" => model_routing_lab::try_handle(&request),
+        "official/pi-agent-runtime-lab" => pi_agent_runtime_lab::try_handle(&request),
+        "official/agentic-forge-lab" => agentic_forge_lab::try_handle(&request),
         // projection-lab /diff must be tried before the generic /diff
-        "official/projection-lab" => projection_lab::try_handle(request),
+        "official/projection-lab" => projection_lab::try_handle(&request),
         // playable-seed handlers checked before generic capability suffixes
-        "official/playable-seed" => playable_seed::try_handle(request),
+        "official/playable-seed" => playable_seed::try_handle(&request),
         // capability-tool-bridge-lab handlers checked before generic capability suffixes
-        "official/capability-tool-bridge-lab" => capability_tool_bridge_lab::try_handle(request),
-        "official/inference-local-lab" => inference_local_lab::try_handle(request),
-        "official/inference-playtest-lab" => inference_playtest_lab::try_handle(request),
-        "official/experience-runtime-lab" => experience_runtime_lab::try_handle(request),
-        "official/playable-creation-board" => playable_creation_board::try_handle(request),
-        "official/memory-lab" => memory_lab::try_handle(request),
+        "official/capability-tool-bridge-lab" => capability_tool_bridge_lab::try_handle(&request),
+        "official/inference-local-lab" => inference_local_lab::try_handle(&request),
+        "official/inference-playtest-lab" => inference_playtest_lab::try_handle(&request),
+        "official/experience-runtime-lab" => experience_runtime_lab::try_handle(&request),
+        "official/playable-creation-board" => playable_creation_board::try_handle(&request),
+        "official/memory-lab" => memory_lab::try_handle(&request),
         "official/experience-observability-lab" => {
-            experience_observability_lab::try_handle(request)
+            experience_observability_lab::try_handle(&request)
         }
-        "official/sharing-lab" => sharing_lab::try_handle(request),
-        "official/storage-lab" => storage_lab::try_handle(request),
-        "official/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(request),
-        "official/project-intake-lab" => project_intake_lab::try_handle(request),
-        "official/workspace-lab" => workspace_lab::try_handle(request),
-        "official/git-tools-lab" => git_tools_lab::try_handle(request),
-        "official/integrity-lab" => integrity_lab::try_handle(request),
-        "official/secret-store-lab" => secret_store_lab::try_handle(request),
+        "official/sharing-lab" => sharing_lab::try_handle(&request),
+        "official/storage-lab" => storage_lab::try_handle(&request),
+        "official/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(&request),
+        "official/project-intake-lab" => project_intake_lab::try_handle(&request),
+        "official/workspace-lab" => workspace_lab::try_handle(&request),
+        "official/git-tools-lab" => git_tools_lab::try_handle(&request),
+        "official/integrity-lab" => integrity_lab::try_handle(&request),
+        "official/secret-store-lab" => secret_store_lab::try_handle(&request),
         _ => None,
     };
 
@@ -350,12 +350,12 @@ async fn dispatch_official(request: &InprocInvocation) -> anyhow::Result<Value> 
 
     // Fall through to common namespace-scoped handlers for any official package.
     // Non-official packages are rejected by common::try_handle (it checks the prefix).
-    if let Some(result) = common::try_handle(request) {
+    if let Some(result) = common::try_handle(&mut request) {
         return result;
     }
 
     // No handler matched — fail loudly
-    common::unhandled_capability(request)
+    common::unhandled_capability(&request)
 }
 
 struct OfficialFoundationPackage;
@@ -363,7 +363,7 @@ struct OfficialFoundationPackage;
 #[async_trait]
 impl InprocPackage for OfficialFoundationPackage {
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
-        dispatch_official(&request).await
+        dispatch_official(request).await
     }
 }
 

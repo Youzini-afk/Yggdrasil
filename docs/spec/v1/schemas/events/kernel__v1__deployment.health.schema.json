@@ -1,19 +1,17 @@
 {
   "$defs": {
-    "Payload": {
-      "$defs": {
-        "DeploymentHealthProbe": {
-          "properties": {
-            "kind": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "type": "object"
+    "DeploymentHealthProbe": {
+      "properties": {
+        "kind": {
+          "type": "string"
         }
       },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "Payload": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "failure_count": {
@@ -31,7 +29,7 @@
           "type": "boolean"
         },
         "probe": {
-          "$ref": "#/definitions/DeploymentHealthProbe"
+          "$ref": "#/$defs/DeploymentHealthProbe"
         },
         "ready": {
           "type": "boolean"

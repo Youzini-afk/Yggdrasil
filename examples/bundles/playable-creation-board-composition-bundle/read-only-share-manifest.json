@@ -1,6 +1,6 @@
 {
   "kind": "read_only_share_manifest",
-  "manifest_id": "readonly-share:example-session:fnv1a64:example",
+  "manifest_id": "readonly-share:example-session:sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c",
   "format_version": "1",
   "session_ref": "sess:example-play-session",
   "branch_ref": "branch:main",
@@ -8,5 +8,5 @@
   "readonly": true,
   "share_scope": "local_file",
   "no_remote_service": true,
-  "content_address": "fnv1a64:readonly-share-example-session"
+  "content_address": "sha256:60ce8077bd80c9262f95159ae989f82b8fac14a7f73a1d6da5c3585b9a610914"
 }

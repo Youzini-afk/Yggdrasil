@@ -23,120 +23,12 @@
       "type": "array"
     },
     "Params": {
-      "$defs": {
-        "ProtocolPrincipal": {
-          "oneOf": [
-            {
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "host_admin"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "host_dev"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "package"
-                  ],
-                  "type": "string"
-                },
-                "package_id": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind",
-                "package_id"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "human"
-                  ],
-                  "type": "string"
-                },
-                "user_id": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind",
-                "user_id"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "assistant_id": {
-                  "type": "string"
-                },
-                "delegated_user_id": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "kind": {
-                  "enum": [
-                    "assistant"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "assistant_id",
-                "kind"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "anonymous"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "type": "object"
-            }
-          ]
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "principal": {
           "anyOf": [
             {
-              "$ref": "#/definitions/ProtocolPrincipal"
+              "$ref": "#/$defs/ProtocolPrincipal"
             },
             {
               "type": "null"
@@ -147,116 +39,114 @@
       "title": "PermissionListParams",
       "type": "object"
     },
+    "ProtocolPrincipal": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "Result": {
       "items": {
-        "$defs": {
-          "ProtocolPrincipal": {
-            "oneOf": [
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "host_admin"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "host_dev"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "package"
-                    ],
-                    "type": "string"
-                  },
-                  "package_id": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "package_id"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "human"
-                    ],
-                    "type": "string"
-                  },
-                  "user_id": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "user_id"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "assistant_id": {
-                    "type": "string"
-                  },
-                  "delegated_user_id": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "kind": {
-                    "enum": [
-                      "assistant"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "assistant_id",
-                  "kind"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "anonymous"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": "object"
-              }
-            ]
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "granted_at": {
@@ -270,7 +160,7 @@
             "type": "string"
           },
           "principal": {
-            "$ref": "#/definitions/ProtocolPrincipal"
+            "$ref": "#/$defs/ProtocolPrincipal"
           },
           "reason": {
             "default": null,

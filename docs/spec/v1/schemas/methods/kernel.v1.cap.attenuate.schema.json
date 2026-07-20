@@ -1,5 +1,56 @@
 {
   "$defs": {
+    "CapHandle": {
+      "properties": {
+        "cap_type": {
+          "type": "string"
+        },
+        "cap_version": {
+          "type": "string"
+        },
+        "constraints": true,
+        "id": {
+          "$ref": "#/$defs/CapHandleId"
+        },
+        "lease": {
+          "$ref": "#/$defs/HandleLease"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CapHandleId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/HandleProvenance"
+        },
+        "revoked": {
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "#/$defs/HandleScope"
+        }
+      },
+      "required": [
+        "cap_type",
+        "cap_version",
+        "constraints",
+        "id",
+        "lease",
+        "provenance",
+        "revoked",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "CapHandleId": {
+      "format": "uint128",
+      "type": "string"
+    },
     "Errors": {
       "items": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -22,18 +73,79 @@
       },
       "type": "array"
     },
-    "Params": {
-      "$defs": {
-        "CapHandleId": {
-          "format": "uint128",
+    "HandleLease": {
+      "properties": {
+        "expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "invocations_used": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "max_invocations": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "invocations_used"
+      ],
+      "type": "object"
+    },
+    "HandleProvenance": {
+      "properties": {
+        "granted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "granted_by_package_id": {
+          "description": "\"kernel\" if minted by kernel itself.",
+          "type": "string"
+        },
+        "via_method": {
+          "description": "e.g. \"auto_mint\", \"package_load\", \"attenuate\", \"delegate\".",
           "type": "string"
         }
       },
+      "required": [
+        "granted_at",
+        "granted_by_package_id",
+        "via_method"
+      ],
+      "type": "object"
+    },
+    "HandleScope": {
+      "properties": {
+        "holder_package_id": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "holder_package_id"
+      ],
+      "type": "object"
+    },
+    "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "constraints": true,
         "parent_handle": {
-          "$ref": "#/definitions/CapHandleId"
+          "$ref": "#/$defs/CapHandleId"
         }
       },
       "required": [
@@ -44,130 +156,10 @@
       "type": "object"
     },
     "Result": {
-      "$defs": {
-        "CapHandle": {
-          "properties": {
-            "cap_type": {
-              "type": "string"
-            },
-            "cap_version": {
-              "type": "string"
-            },
-            "constraints": true,
-            "id": {
-              "$ref": "#/definitions/CapHandleId"
-            },
-            "lease": {
-              "$ref": "#/definitions/HandleLease"
-            },
-            "parent": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/CapHandleId"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "provenance": {
-              "$ref": "#/definitions/HandleProvenance"
-            },
-            "revoked": {
-              "type": "boolean"
-            },
-            "scope": {
-              "$ref": "#/definitions/HandleScope"
-            }
-          },
-          "required": [
-            "cap_type",
-            "cap_version",
-            "constraints",
-            "id",
-            "lease",
-            "provenance",
-            "revoked",
-            "scope"
-          ],
-          "type": "object"
-        },
-        "CapHandleId": {
-          "format": "uint128",
-          "type": "string"
-        },
-        "HandleLease": {
-          "properties": {
-            "expires_at": {
-              "format": "date-time",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "invocations_used": {
-              "format": "uint32",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "max_invocations": {
-              "format": "uint32",
-              "minimum": 0.0,
-              "type": [
-                "integer",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "invocations_used"
-          ],
-          "type": "object"
-        },
-        "HandleProvenance": {
-          "properties": {
-            "granted_at": {
-              "format": "date-time",
-              "type": "string"
-            },
-            "granted_by_package_id": {
-              "description": "\"kernel\" if minted by kernel itself.",
-              "type": "string"
-            },
-            "via_method": {
-              "description": "e.g. \"auto_mint\", \"package_load\", \"attenuate\", \"delegate\".",
-              "type": "string"
-            }
-          },
-          "required": [
-            "granted_at",
-            "granted_by_package_id",
-            "via_method"
-          ],
-          "type": "object"
-        },
-        "HandleScope": {
-          "properties": {
-            "holder_package_id": {
-              "type": "string"
-            },
-            "session_id": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "holder_package_id"
-          ],
-          "type": "object"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "handle": {
-          "$ref": "#/definitions/CapHandle"
+          "$ref": "#/$defs/CapHandle"
         }
       },
       "required": [

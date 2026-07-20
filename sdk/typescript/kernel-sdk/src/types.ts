@@ -9,6 +9,15 @@ export interface AppendEventRequest {
   "writer_package_id": string;
 }
 
+export interface ArtifactDescriptor {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+}
+
 export interface AssetGetParams {
   "asset_id": string;
 }
@@ -20,6 +29,7 @@ export interface AssetGetResponse {
 
 export type AssetListResult = Array<{
   "created_at": string;
+  "descriptor"?: ArtifactDescriptor | null;
   "hash": string;
   "id": string;
   "metadata"?: unknown;
@@ -42,6 +52,7 @@ export interface AssetPutRequest {
 
 export interface AssetRecord {
   "created_at": string;
+  "descriptor"?: ArtifactDescriptor | null;
   "hash": string;
   "id": string;
   "metadata"?: unknown;
@@ -1092,26 +1103,6 @@ export interface PackageManifest {
   "version": string;
 }
 
-export interface PackageManifest2 {
-  "author"?: null | string;
-  "consumes"?: Array<CapabilityRequirement>;
-  "contributes"?: PackageContributions;
-  "description"?: null | string;
-  "display_name"?: null | string;
-  "entry": EntryDescriptor;
-  "id": string;
-  "license"?: null | string;
-  "permissions"?: PermissionSet;
-  "provides"?: Array<CapabilityDescriptor>;
-  /**
-   * First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.
-   */
-  "requires"?: Array<PackageDependency>;
-  "sandbox_policy"?: SandboxPolicy;
-  "schema_version": number;
-  "version": string;
-}
-
 export interface PackagePermissions {
   "call"?: Array<string>;
 }
@@ -1205,26 +1196,6 @@ export interface PermissionSet {
   "secret_refs"?: Array<string>;
 }
 
-export interface PermissionSet2 {
-  "assets"?: AssetPermissions;
-  "capabilities"?: CapabilityPermissions;
-  "events"?: EventPermissions;
-  "filesystem"?: FilesystemPermissions;
-  "local_exec"?: LocalExecPermissions;
-  "network"?: NetworkPermissions;
-  "packages"?: PackagePermissions;
-  "ports"?: PortPermissions;
-  "proxy"?: ProxyPermissions;
-  /**
-   * Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
-   * 
-   * The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
-   * 
-   * Default: empty vec (no secret refs allowed; backward compatible).
-   */
-  "secret_refs"?: Array<string>;
-}
-
 export type PortBindScope = "loopback_only";
 
 export interface PortDeclaration {
@@ -1240,17 +1211,6 @@ export interface PortLeaseIdParams {
 }
 
 export interface PortLeaseRecord {
-  "bind": PortBindScope;
-  "host": string;
-  "id": string;
-  "port": number;
-  "port_name": string;
-  "protocol": PortProtocol;
-  "status": PortLeaseStatusKind;
-  "target_id": string;
-}
-
-export interface PortLeaseRecord2 {
   "bind": PortBindScope;
   "host": string;
   "id": string;
@@ -1579,16 +1539,6 @@ export interface ProxyRouteRecord {
   "upstream": ProxyRouteUpstream;
 }
 
-export interface ProxyRouteRecord2 {
-  "id": string;
-  "iframe_url": string;
-  "protocol": ProxyProtocol;
-  "public_url": string;
-  "ready": boolean;
-  "status": ProxyRouteStatusKind;
-  "upstream": ProxyRouteUpstream;
-}
-
 export interface ProxyRouteRegisterRequest {
   "protocol"?: ProxyProtocol;
   "route_id"?: null | string;
@@ -1853,3 +1803,11 @@ export interface UsedAuthority {
   "network_hosts_used": Record<string, number>;
   "secret_refs_used": Record<string, number>;
 }
+
+export type PackageManifest2 = PackageManifest;
+
+export type PermissionSet2 = PermissionSet;
+
+export type PortLeaseRecord2 = PortLeaseRecord;
+
+export type ProxyRouteRecord2 = ProxyRouteRecord;

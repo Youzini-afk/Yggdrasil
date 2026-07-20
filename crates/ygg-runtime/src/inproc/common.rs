@@ -28,7 +28,7 @@ fn extract_local_name<'a>(capability_id: &'a str, provider_package_id: &str) -> 
     Some(&rest[1..])
 }
 
-pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
+pub fn try_handle(request: &mut InprocInvocation) -> Option<anyhow::Result<Value>> {
     // Only serve official/ packages through the shared handlers.
     if !request.provider_package_id.starts_with("official/") {
         return None;
@@ -353,13 +353,19 @@ fn suggest() -> anyhow::Result<Value> {
     }))
 }
 
-fn draft_branch_change(request: &InprocInvocation) -> anyhow::Result<Value> {
-    Ok(serde_json::json!({
-        "kind": "assistant_proposal",
-        "requires_user_approval": true,
-        "recommended_operation": "kernel.v1.session.fork",
-        "proposal": request.input,
-    }))
+fn draft_branch_change(request: &mut InprocInvocation) -> anyhow::Result<Value> {
+    Ok(Value::Object(serde_json::Map::from_iter([
+        (
+            "kind".to_string(),
+            Value::String("assistant_proposal".to_string()),
+        ),
+        ("requires_user_approval".to_string(), Value::Bool(true)),
+        (
+            "recommended_operation".to_string(),
+            Value::String("kernel.v1.session.fork".to_string()),
+        ),
+        ("proposal".to_string(), std::mem::take(&mut request.input)),
+    ])))
 }
 
 fn create_seed(request: &InprocInvocation) -> anyhow::Result<Value> {
@@ -390,8 +396,12 @@ fn content_address(request: &InprocInvocation) -> anyhow::Result<Value> {
         .input
         .get("scheme")
         .and_then(Value::as_str)
-        .unwrap_or("fnv1a64");
-    let ca = crate::runtime::content_address(content);
+        .unwrap_or("sha256");
+    let ca = match scheme {
+        "sha256" => crate::runtime::content_address(content),
+        "fnv1a64" => crate::runtime::legacy_content_address(content),
+        other => anyhow::bail!("unsupported content address scheme '{other}'"),
+    };
     Ok(serde_json::json!({
         "kind": "asset_content_address",
         "package_id": request.provider_package_id,
@@ -412,7 +422,7 @@ fn content_address(request: &InprocInvocation) -> anyhow::Result<Value> {
             "projection_ref": request.input.get("projection_ref").cloned().unwrap_or(Value::Null),
             "proposal_ref": request.input.get("proposal_ref").cloned().unwrap_or(Value::Null),
             "inference_ref": request.input.get("inference_ref").cloned().unwrap_or(Value::Null),
-            "large_output_policy": request.input.get("large_output_policy").and_then(Value::as_str).unwrap_or("inline"),
+            "large_output_policy": request.input.get("large_output_policy").and_then(Value::as_str).unwrap_or("object_ref"),
         },
         "inference_performed": false,
         "network_performed": false,
@@ -541,8 +551,8 @@ mod tests {
 
     #[test]
     fn try_handle_official_preview() {
-        let request = make_request("official/asset-lab", "official/asset-lab/preview");
-        let result = try_handle(&request);
+        let mut request = make_request("official/asset-lab", "official/asset-lab/preview");
+        let result = try_handle(&mut request);
         assert!(
             result.is_some(),
             "official package preview should be handled"
@@ -552,28 +562,49 @@ mod tests {
     }
 
     #[test]
+    fn draft_branch_change_preserves_nested_input_without_reserializing() {
+        let mut request = make_request(
+            "official/assistant-lab",
+            "official/assistant-lab/draft_branch_change",
+        );
+        request.input = serde_json::json!({
+            "seed": {
+                "kind": "blank_experience_seed",
+                "seed": { "title": "Blank Loop", "intent": "prove substrate" }
+            },
+            "change": "try a first branch"
+        });
+
+        let output = try_handle(&mut request).unwrap().unwrap();
+
+        assert_eq!(output["proposal"]["change"], "try a first branch");
+        assert_eq!(output["proposal"]["seed"]["kind"], "blank_experience_seed");
+        assert_eq!(output["requires_user_approval"], true);
+    }
+
+    #[test]
     fn try_handle_rejects_non_official() {
-        let request = make_request("thirdparty/pkg", "thirdparty/pkg/preview");
+        let mut request = make_request("thirdparty/pkg", "thirdparty/pkg/preview");
         assert!(
-            try_handle(&request).is_none(),
+            try_handle(&mut request).is_none(),
             "non-official package should not be handled by common"
         );
     }
 
     #[test]
     fn try_handle_rejects_wrong_namespace() {
-        let request = make_request("official/other", "official/asset-lab/preview");
+        let mut request = make_request("official/other", "official/asset-lab/preview");
         assert!(
-            try_handle(&request).is_none(),
+            try_handle(&mut request).is_none(),
             "wrong namespace should not be handled"
         );
     }
 
     #[test]
     fn try_handle_unknown_local_name_returns_none() {
-        let request = make_request("official/package-lab", "official/package-lab/nonexistent");
+        let mut request = make_request("official/package-lab", "official/package-lab/nonexistent");
         assert!(
-            try_handle(&request).is_none(),
+            try_handle(&mut request).is_none(),
             "unknown local name should return None"
         );
     }

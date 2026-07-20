@@ -22,6 +22,37 @@
       },
       "type": "array"
     },
+    "HookSubscription": {
+      "properties": {
+        "extension_point": {
+          "type": "string"
+        },
+        "handler": {
+          "type": "string"
+        },
+        "precedence": {
+          "default": 0,
+          "format": "int32",
+          "type": "integer"
+        },
+        "timing": {
+          "$ref": "#/$defs/HookTiming"
+        }
+      },
+      "required": [
+        "extension_point",
+        "handler",
+        "timing"
+      ],
+      "type": "object"
+    },
+    "HookTiming": {
+      "enum": [
+        "sync",
+        "async"
+      ],
+      "type": "string"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "EmptyParams",
@@ -29,46 +60,13 @@
     },
     "Result": {
       "items": {
-        "$defs": {
-          "HookSubscription": {
-            "properties": {
-              "extension_point": {
-                "type": "string"
-              },
-              "handler": {
-                "type": "string"
-              },
-              "precedence": {
-                "default": 0,
-                "format": "int32",
-                "type": "integer"
-              },
-              "timing": {
-                "$ref": "#/definitions/HookTiming"
-              }
-            },
-            "required": [
-              "extension_point",
-              "handler",
-              "timing"
-            ],
-            "type": "object"
-          },
-          "HookTiming": {
-            "enum": [
-              "sync",
-              "async"
-            ],
-            "type": "string"
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "subscriber_package_id": {
             "type": "string"
           },
           "subscription": {
-            "$ref": "#/definitions/HookSubscription"
+            "$ref": "#/$defs/HookSubscription"
           }
         },
         "required": [

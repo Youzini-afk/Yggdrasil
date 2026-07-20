@@ -211,26 +211,41 @@ where
 
     async fn invoke_capability_prepared(
         &self,
-        request: CapabilityInvocationRequest,
+        mut request: CapabilityInvocationRequest,
         capability_id: CapabilityId,
         version: Option<String>,
         active_handle: CapHandleId,
         correlation_id: Uuid,
         started: Instant,
     ) -> anyhow::Result<CapabilityInvocationResult> {
-        let before = self
+        let mut before_payload = serde_json::Map::with_capacity(3);
+        before_payload.insert(
+            "capability_id".to_string(),
+            Value::String(capability_id.clone()),
+        );
+        before_payload.insert(
+            "caller_package_id".to_string(),
+            request
+                .caller_package_id
+                .take()
+                .map(Value::String)
+                .unwrap_or(Value::Null),
+        );
+        before_payload.insert("input".to_string(), std::mem::take(&mut request.input));
+        let mut before = self
             .dispatch_extension_handlers(
                 "kernel/v1/capability.before_invoke",
-                json!({
-                    "capability_id": capability_id,
-                    "caller_package_id": request.caller_package_id,
-                    "input": request.input,
-                }),
+                Value::Object(before_payload),
             )
             .await;
-        if let Some(vetoed_by) = before.vetoed_by {
+        if let Some(vetoed_by) = before.vetoed_by.as_deref() {
             anyhow::bail!("capability invoke vetoed by hook package '{vetoed_by}'");
         }
+        request.input = before
+            .payload
+            .get_mut("input")
+            .map(Value::take)
+            .ok_or_else(|| anyhow::anyhow!("before-invoke hook payload lost capability input"))?;
 
         let provider = self
             .capabilities

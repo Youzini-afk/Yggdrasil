@@ -22,71 +22,69 @@
       },
       "type": "array"
     },
-    "Params": {
-      "$defs": {
-        "OutboundSecretHeaderSpec": {
-          "description": "Specification for a secret-derived HTTP header to be injected by the host during outbound execution. Packages declare these in `kernel.v1.outbound.execute` params as `secret_headers`; the host resolves the `secret_ref` at execution time and injects the resulting header value into the live HTTP request.\n\nRaw secret values never appear in audit, response, or Debug output.",
-          "properties": {
-            "header_name": {
-              "type": "string"
-            },
-            "scheme": {
-              "type": "string"
-            },
-            "secret_ref": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "header_name",
-            "scheme",
-            "secret_ref"
+    "ExecutorKind": {
+      "description": "The kind of outbound executor that produced a response.",
+      "oneOf": [
+        {
+          "description": "All outbound is denied; no network performed.",
+          "enum": [
+            "deny_all"
           ],
-          "type": "object"
+          "type": "string"
         },
-        "OutboundStaticHeader": {
-          "description": "A safe non-secret static header for outbound requests (L5).\n\nOnly header names on the `STATIC_HEADER_ALLOWLIST` are permitted. Secret-bearing header names (Authorization, x-api-key, Cookie, etc.) are rejected at parse time. Values must be plain strings that do not look like raw secrets.",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "value": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "name",
-            "value"
+        {
+          "description": "Fake/deterministic fixture executor; no real network.",
+          "enum": [
+            "fake"
           ],
-          "type": "object"
+          "type": "string"
         },
-        "StreamFormat": {
-          "description": "The format of a streaming response for `kernel.v1.outbound.stream`.",
-          "oneOf": [
-            {
-              "description": "Server-Sent Events (`text/event-stream`). Parses `data: ...\\n\\n` events.",
-              "enum": [
-                "sse"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Newline-delimited JSON. Splits on `\\n` and emits each line as a frame.",
-              "enum": [
-                "ndjson"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Raw binary stream. Emits chunks as they arrive.",
-              "enum": [
-                "raw"
-              ],
-              "type": "string"
-            }
-          ]
+        {
+          "description": "Real network executor (future M4+).",
+          "enum": [
+            "real"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "OutboundSecretHeaderSpec": {
+      "description": "Specification for a secret-derived HTTP header to be injected by the host during outbound execution. Packages declare these in `kernel.v1.outbound.execute` params as `secret_headers`; the host resolves the `secret_ref` at execution time and injects the resulting header value into the live HTTP request.\n\nRaw secret values never appear in audit, response, or Debug output.",
+      "properties": {
+        "header_name": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        },
+        "secret_ref": {
+          "type": "string"
         }
       },
+      "required": [
+        "header_name",
+        "scheme",
+        "secret_ref"
+      ],
+      "type": "object"
+    },
+    "OutboundStaticHeader": {
+      "description": "A safe non-secret static header for outbound requests (L5).\n\nOnly header names on the `STATIC_HEADER_ALLOWLIST` are permitted. Secret-bearing header names (Authorization, x-api-key, Cookie, etc.) are rejected at parse time. Values must be plain strings that do not look like raw secrets.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "body_shape": true,
@@ -144,7 +142,7 @@
         },
         "secret_headers": {
           "items": {
-            "$ref": "#/definitions/OutboundSecretHeaderSpec"
+            "$ref": "#/$defs/OutboundSecretHeaderSpec"
           },
           "type": "array"
         },
@@ -156,14 +154,14 @@
         },
         "static_headers": {
           "items": {
-            "$ref": "#/definitions/OutboundStaticHeader"
+            "$ref": "#/$defs/OutboundStaticHeader"
           },
           "type": "array"
         },
         "stream_format": {
           "anyOf": [
             {
-              "$ref": "#/definitions/StreamFormat"
+              "$ref": "#/$defs/StreamFormat"
             },
             {
               "type": "null"
@@ -192,108 +190,54 @@
       "title": "OutboundStreamParams",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ExecutorKind": {
-          "description": "The kind of outbound executor that produced a response.",
-          "oneOf": [
-            {
-              "description": "All outbound is denied; no network performed.",
-              "enum": [
-                "deny_all"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Fake/deterministic fixture executor; no real network.",
-              "enum": [
-                "fake"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Real network executor (future M4+).",
-              "enum": [
-                "real"
-              ],
-              "type": "string"
-            }
-          ]
+    "RedactionState": {
+      "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+      "oneOf": [
+        {
+          "description": "Raw data was not captured (default).",
+          "enum": [
+            "not_captured"
+          ],
+          "type": "string"
         },
-        "RedactionState": {
-          "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-          "oneOf": [
-            {
-              "description": "Raw data was not captured (default).",
-              "enum": [
-                "not_captured"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Raw data was redacted before recording.",
-              "enum": [
-                "redacted"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Only a policy reference is stored; no data captured.",
-              "enum": [
-                "policy_ref"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Request was blocked as unsafe; no data recorded.",
-              "enum": [
-                "unsafe_blocked"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Explicit user/host approval to capture raw data (rare).",
-              "enum": [
-                "explicitly_approved"
-              ],
-              "type": "string"
-            }
-          ]
+        {
+          "description": "Raw data was redacted before recording.",
+          "enum": [
+            "redacted"
+          ],
+          "type": "string"
         },
-        "StreamStartStatus": {
-          "description": "Status returned when a streaming outbound request starts.",
-          "oneOf": [
-            {
-              "description": "Stream started successfully.",
-              "enum": [
-                "ok"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Stream request was denied by policy.",
-              "enum": [
-                "denied"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Stream request encountered an error before starting.",
-              "enum": [
-                "error"
-              ],
-              "type": "string"
-            }
-          ]
+        {
+          "description": "Only a policy reference is stored; no data captured.",
+          "enum": [
+            "policy_ref"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Request was blocked as unsafe; no data recorded.",
+          "enum": [
+            "unsafe_blocked"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Explicit user/host approval to capture raw data (rare).",
+          "enum": [
+            "explicitly_approved"
+          ],
+          "type": "string"
         }
-      },
+      ]
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "description": "Response returned by `kernel.v1.outbound.stream` on the initial call.\n\nContains the stream_id for subscribing to events, the start status, and metadata about the executor that will handle the stream.",
       "properties": {
         "executor_kind": {
           "allOf": [
             {
-              "$ref": "#/definitions/ExecutorKind"
+              "$ref": "#/$defs/ExecutorKind"
             }
           ],
           "description": "What kind of executor is handling the stream."
@@ -305,7 +249,7 @@
         "redaction_state": {
           "allOf": [
             {
-              "$ref": "#/definitions/RedactionState"
+              "$ref": "#/$defs/RedactionState"
             }
           ],
           "default": "not_captured",
@@ -314,7 +258,7 @@
         "status": {
           "allOf": [
             {
-              "$ref": "#/definitions/StreamStartStatus"
+              "$ref": "#/$defs/StreamStartStatus"
             }
           ],
           "description": "Whether the stream started successfully."
@@ -332,6 +276,58 @@
       ],
       "title": "KernelOutboundStreamResponse",
       "type": "object"
+    },
+    "StreamFormat": {
+      "description": "The format of a streaming response for `kernel.v1.outbound.stream`.",
+      "oneOf": [
+        {
+          "description": "Server-Sent Events (`text/event-stream`). Parses `data: ...\\n\\n` events.",
+          "enum": [
+            "sse"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Newline-delimited JSON. Splits on `\\n` and emits each line as a frame.",
+          "enum": [
+            "ndjson"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Raw binary stream. Emits chunks as they arrive.",
+          "enum": [
+            "raw"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "StreamStartStatus": {
+      "description": "Status returned when a streaming outbound request starts.",
+      "oneOf": [
+        {
+          "description": "Stream started successfully.",
+          "enum": [
+            "ok"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stream request was denied by policy.",
+          "enum": [
+            "denied"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stream request encountered an error before starting.",
+          "enum": [
+            "error"
+          ],
+          "type": "string"
+        }
+      ]
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.outbound.stream.schema.json",

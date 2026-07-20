@@ -22,6 +22,58 @@
       },
       "type": "array"
     },
+    "ExecStatus": {
+      "properties": {
+        "exec_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exit_code": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/ExecStatusKind"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "ready"
+      ],
+      "type": "object"
+    },
+    "ExecStatusKind": {
+      "enum": [
+        "pending",
+        "running",
+        "stopped",
+        "exited",
+        "failed",
+        "denied",
+        "unknown"
+      ],
+      "type": "string"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -36,60 +88,6 @@
       "type": "object"
     },
     "Result": {
-      "$defs": {
-        "ExecStatus": {
-          "properties": {
-            "exec_id": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "exit_code": {
-              "format": "int32",
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "kind": {
-              "$ref": "#/definitions/ExecStatusKind"
-            },
-            "message": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "ready": {
-              "type": "boolean"
-            },
-            "target_id": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "kind",
-            "ready"
-          ],
-          "type": "object"
-        },
-        "ExecStatusKind": {
-          "enum": [
-            "pending",
-            "running",
-            "stopped",
-            "exited",
-            "failed",
-            "denied",
-            "unknown"
-          ],
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "error": {
@@ -99,7 +97,7 @@
           ]
         },
         "status": {
-          "$ref": "#/definitions/ExecStatus"
+          "$ref": "#/$defs/ExecStatus"
         }
       },
       "required": [

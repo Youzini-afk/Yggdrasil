@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**451**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**453**。
 
 ## Conformance Feedback Loop
 
@@ -127,7 +127,9 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | hooks | 包拥有的 hook handler capability 被调用 | implemented |
 | hooks | unload 移除 hook 订阅 | implemented |
 | storage | SQLite 持久化/replay 事件 | implemented in unit tests |
-| assets | put/get/list 不透明 asset | implemented |
+| assets | put/get/list 通过 SHA-256 descriptor 适配，事件不含正文 | implemented |
+| assets | 旧 FNV inline event 幂等迁移并保留旧 id/hash/event provenance | implemented |
+| object store | 跨宿主同摘要、未知类型可复制/stream、篡改拒绝 | implemented |
 | sessions | fork session 并列出 branch 族系 | implemented |
 | projections | 注册并 rebuild 通用事件计数 projection | implemented |
 | substrate | SQLite 事件日志 rehydrate asset、branch 和 projection | implemented |
@@ -433,6 +435,8 @@ play_creation.blank_loop                   PASS
 proposal.lifecycle_apply                   PASS
 proposal.reject_and_apply_denied           PASS
 asset.put_get_list                         PASS
+asset.legacy_fnv_migration                 PASS
+object_store.portability_integrity         PASS
 session.fork_branch                        PASS
 projection.rebuild                         PASS
 substrate.sqlite_rehydrate                 PASS

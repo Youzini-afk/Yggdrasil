@@ -42,7 +42,8 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 - [x] Phase 1: repair v1 factual drift and the SDK/CI/Windows baselines.
 - [x] Phase 2: implement the Experimental Contract Registry, centralized aliases, explicit profile/version negotiation, and the generated SDK/conformance chain.
 - [x] Phase 3: add owner-namespace dual stacks for the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection; all 36 legacy aliases still reach the original handlers.
-- [ ] Phases 4–9: object/artifact foundations, receipt/change primitives, Protocol Commons, component identity, World Bundle, and client/deprecation migration.
+- [x] Phase 4: implement the SHA-256 ObjectStore, ArtifactDescriptor, asset adapter, legacy FNV event migration, and an independent persistent object directory.
+- [ ] Phases 5–9: receipt/change primitives, Protocol Commons, component identity, World Bundle, and client/deprecation migration.
 
 ## Immediate freeze line
 
@@ -138,7 +139,7 @@ Acceptance:
 
 ### 4. Establish content-addressed object/artifact foundations
 
-Current `AssetRecord.hash` uses `fnv1a64:`. It is deterministic for tests but unsuitable as collision-resistant, cross-host persistent identity. Current `asset.put` also places full content in event metadata. v2 object identity uses a collision-resistant digest, and journals reference objects.
+Before migration, `AssetRecord.hash` used `fnv1a64:` and `asset.put` placed full content in event metadata. That legacy shape was deterministic for tests but unsuitable as collision-resistant, cross-host persistent identity. v2 object identity uses a collision-resistant digest, and journals reference objects.
 
 Deliverables:
 
@@ -163,6 +164,8 @@ Acceptance:
 - modified bytes fail verification;
 - objects can be copied and inspected without loading the originating package;
 - large objects no longer appear in full inside event metadata.
+
+Implementation result (2026-07-21): all deliverables and acceptance items above are implemented. See [`OBJECT_STORE.md`](../spec/OBJECT_STORE.en.md); executable evidence is provided by `asset.put_get_list`, `asset.legacy_fnv_migration`, `object_store.portability_integrity`, and `substrate.sqlite_rehydrate`.
 
 ### 5. Introduce EffectReceipt and change primitives
 

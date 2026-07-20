@@ -23,36 +23,12 @@
       "type": "array"
     },
     "Params": {
-      "$defs": {
-        "ProxyProtocol": {
-          "enum": [
-            "http",
-            "websocket"
-          ],
-          "type": "string"
-        },
-        "ProxyRouteUpstream": {
-          "properties": {
-            "port_lease_id": {
-              "type": "string"
-            },
-            "port_name": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "port_lease_id",
-            "port_name"
-          ],
-          "type": "object"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "protocol": {
           "allOf": [
             {
-              "$ref": "#/definitions/ProxyProtocol"
+              "$ref": "#/$defs/ProxyProtocol"
             }
           ],
           "default": "http"
@@ -64,7 +40,7 @@
           ]
         },
         "upstream": {
-          "$ref": "#/definitions/ProxyRouteUpstream"
+          "$ref": "#/$defs/ProxyRouteUpstream"
         }
       },
       "required": [
@@ -73,78 +49,76 @@
       "title": "ProxyRouteRegisterRequest",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ProxyProtocol": {
-          "enum": [
-            "http",
-            "websocket"
-          ],
+    "ProxyProtocol": {
+      "enum": [
+        "http",
+        "websocket"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteRecord": {
+      "properties": {
+        "id": {
           "type": "string"
         },
-        "ProxyRouteRecord": {
-          "properties": {
-            "id": {
-              "type": "string"
-            },
-            "iframe_url": {
-              "type": "string"
-            },
-            "protocol": {
-              "$ref": "#/definitions/ProxyProtocol"
-            },
-            "public_url": {
-              "type": "string"
-            },
-            "ready": {
-              "type": "boolean"
-            },
-            "status": {
-              "$ref": "#/definitions/ProxyRouteStatusKind"
-            },
-            "upstream": {
-              "$ref": "#/definitions/ProxyRouteUpstream"
-            }
-          },
-          "required": [
-            "id",
-            "iframe_url",
-            "protocol",
-            "public_url",
-            "ready",
-            "status",
-            "upstream"
-          ],
-          "type": "object"
-        },
-        "ProxyRouteStatusKind": {
-          "enum": [
-            "active",
-            "stale",
-            "removed"
-          ],
+        "iframe_url": {
           "type": "string"
         },
-        "ProxyRouteUpstream": {
-          "properties": {
-            "port_lease_id": {
-              "type": "string"
-            },
-            "port_name": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "port_lease_id",
-            "port_name"
-          ],
-          "type": "object"
+        "protocol": {
+          "$ref": "#/$defs/ProxyProtocol"
+        },
+        "public_url": {
+          "type": "string"
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/ProxyRouteStatusKind"
+        },
+        "upstream": {
+          "$ref": "#/$defs/ProxyRouteUpstream"
         }
       },
+      "required": [
+        "id",
+        "iframe_url",
+        "protocol",
+        "public_url",
+        "ready",
+        "status",
+        "upstream"
+      ],
+      "type": "object"
+    },
+    "ProxyRouteStatusKind": {
+      "enum": [
+        "active",
+        "stale",
+        "removed"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteUpstream": {
+      "properties": {
+        "port_lease_id": {
+          "type": "string"
+        },
+        "port_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "port_lease_id",
+        "port_name"
+      ],
+      "type": "object"
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "route": {
-          "$ref": "#/definitions/ProxyRouteRecord"
+          "$ref": "#/$defs/ProxyRouteRecord"
         }
       },
       "required": [

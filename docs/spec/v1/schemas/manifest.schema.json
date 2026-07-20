@@ -206,7 +206,7 @@
             "transport": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/SubprocessTransport"
+                  "$ref": "#/$defs/SubprocessTransport"
                 }
               ],
               "default": "json_rpc_stdio"
@@ -251,7 +251,7 @@
         {
           "properties": {
             "auth": {
-              "$ref": "#/definitions/RemoteAuth"
+              "$ref": "#/$defs/RemoteAuth"
             },
             "endpoint": {
               "type": "string"
@@ -294,7 +294,7 @@
         "contract": {
           "allOf": [
             {
-              "$ref": "#/definitions/ContractMode"
+              "$ref": "#/$defs/ContractMode"
             }
           ],
           "default": "v1",
@@ -331,7 +331,7 @@
           "type": "boolean"
         },
         "timing": {
-          "$ref": "#/definitions/HookTiming"
+          "$ref": "#/$defs/HookTiming"
         },
         "version": {
           "type": "string"
@@ -379,7 +379,7 @@
           "type": "integer"
         },
         "timing": {
-          "$ref": "#/definitions/HookTiming"
+          "$ref": "#/$defs/HookTiming"
         }
       },
       "required": [
@@ -428,7 +428,7 @@
         "declarations": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/LocalExecDeclaration"
+            "$ref": "#/$defs/LocalExecDeclaration"
           },
           "type": "array"
         },
@@ -479,7 +479,7 @@
           "default": [],
           "description": "Structured network declarations (host, methods, purpose).",
           "items": {
-            "$ref": "#/definitions/NetworkDeclaration"
+            "$ref": "#/$defs/NetworkDeclaration"
           },
           "type": "array"
         },
@@ -499,28 +499,28 @@
         "extension_points": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/ExtensionPointDescriptor"
+            "$ref": "#/$defs/ExtensionPointDescriptor"
           },
           "type": "array"
         },
         "hooks": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/HookSubscription"
+            "$ref": "#/$defs/HookSubscription"
           },
           "type": "array"
         },
         "schemas": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/SchemaContribution"
+            "$ref": "#/$defs/SchemaContribution"
           },
           "type": "array"
         },
         "surfaces": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/SurfaceContribution"
+            "$ref": "#/$defs/SurfaceContribution"
           },
           "type": "array"
         }
@@ -543,7 +543,7 @@
         "source": {
           "allOf": [
             {
-              "$ref": "#/definitions/DependencySource"
+              "$ref": "#/$defs/DependencySource"
             }
           ],
           "description": "Where the package comes from"
@@ -577,7 +577,7 @@
         "assets": {
           "allOf": [
             {
-              "$ref": "#/definitions/AssetPermissions"
+              "$ref": "#/$defs/AssetPermissions"
             }
           ],
           "default": {
@@ -588,7 +588,7 @@
         "capabilities": {
           "allOf": [
             {
-              "$ref": "#/definitions/CapabilityPermissions"
+              "$ref": "#/$defs/CapabilityPermissions"
             }
           ],
           "default": {
@@ -598,7 +598,7 @@
         "events": {
           "allOf": [
             {
-              "$ref": "#/definitions/EventPermissions"
+              "$ref": "#/$defs/EventPermissions"
             }
           ],
           "default": {
@@ -609,7 +609,7 @@
         "filesystem": {
           "allOf": [
             {
-              "$ref": "#/definitions/FilesystemPermissions"
+              "$ref": "#/$defs/FilesystemPermissions"
             }
           ],
           "default": {
@@ -620,7 +620,7 @@
         "local_exec": {
           "allOf": [
             {
-              "$ref": "#/definitions/LocalExecPermissions"
+              "$ref": "#/$defs/LocalExecPermissions"
             }
           ],
           "default": {
@@ -631,7 +631,7 @@
         "network": {
           "allOf": [
             {
-              "$ref": "#/definitions/NetworkPermissions"
+              "$ref": "#/$defs/NetworkPermissions"
             }
           ],
           "default": {
@@ -642,7 +642,7 @@
         "packages": {
           "allOf": [
             {
-              "$ref": "#/definitions/PackagePermissions"
+              "$ref": "#/$defs/PackagePermissions"
             }
           ],
           "default": {
@@ -652,7 +652,7 @@
         "ports": {
           "allOf": [
             {
-              "$ref": "#/definitions/PortPermissions"
+              "$ref": "#/$defs/PortPermissions"
             }
           ],
           "default": {
@@ -663,7 +663,7 @@
         "proxy": {
           "allOf": [
             {
-              "$ref": "#/definitions/ProxyPermissions"
+              "$ref": "#/$defs/ProxyPermissions"
             }
           ],
           "default": {
@@ -714,7 +714,7 @@
         "declarations": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/PortDeclaration"
+            "$ref": "#/$defs/PortDeclaration"
           },
           "type": "array"
         },
@@ -756,7 +756,7 @@
         "declarations": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/ProxyDeclaration"
+            "$ref": "#/$defs/ProxyDeclaration"
           },
           "type": "array"
         },
@@ -860,7 +860,7 @@
         "activation": {
           "allOf": [
             {
-              "$ref": "#/definitions/SurfaceActivation"
+              "$ref": "#/$defs/SurfaceActivation"
             }
           ],
           "default": {
@@ -879,7 +879,7 @@
         "approval_policy": {
           "anyOf": [
             {
-              "$ref": "#/definitions/SurfaceApprovalPolicy"
+              "$ref": "#/$defs/SurfaceApprovalPolicy"
             },
             {
               "type": "null"
@@ -910,12 +910,12 @@
         "required_permissions": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/SurfacePermissionRequirement"
+            "$ref": "#/$defs/SurfacePermissionRequirement"
           },
           "type": "array"
         },
         "slot": {
-          "$ref": "#/definitions/SurfaceSlot"
+          "$ref": "#/$defs/SurfaceSlot"
         },
         "title": {
           "type": "string"
@@ -947,7 +947,7 @@
         "risk": {
           "allOf": [
             {
-              "$ref": "#/definitions/SurfaceRisk"
+              "$ref": "#/$defs/SurfaceRisk"
             }
           ],
           "default": "low"
@@ -999,14 +999,14 @@
     "consumes": {
       "default": [],
       "items": {
-        "$ref": "#/definitions/CapabilityRequirement"
+        "$ref": "#/$defs/CapabilityRequirement"
       },
       "type": "array"
     },
     "contributes": {
       "allOf": [
         {
-          "$ref": "#/definitions/PackageContributions"
+          "$ref": "#/$defs/PackageContributions"
         }
       ],
       "default": {
@@ -1031,7 +1031,7 @@
       ]
     },
     "entry": {
-      "$ref": "#/definitions/EntryDescriptor"
+      "$ref": "#/$defs/EntryDescriptor"
     },
     "id": {
       "type": "string"
@@ -1046,7 +1046,7 @@
     "permissions": {
       "allOf": [
         {
-          "$ref": "#/definitions/PermissionSet"
+          "$ref": "#/$defs/PermissionSet"
         }
       ],
       "default": {
@@ -1090,21 +1090,21 @@
     "provides": {
       "default": [],
       "items": {
-        "$ref": "#/definitions/CapabilityDescriptor"
+        "$ref": "#/$defs/CapabilityDescriptor"
       },
       "type": "array"
     },
     "requires": {
       "description": "First-class package dependency declarations. Distinct from `consumes` (which declares capability requirements). Empty by default for backward compat.",
       "items": {
-        "$ref": "#/definitions/PackageDependency"
+        "$ref": "#/$defs/PackageDependency"
       },
       "type": "array"
     },
     "sandbox_policy": {
       "allOf": [
         {
-          "$ref": "#/definitions/SandboxPolicy"
+          "$ref": "#/$defs/SandboxPolicy"
         }
       ],
       "default": {

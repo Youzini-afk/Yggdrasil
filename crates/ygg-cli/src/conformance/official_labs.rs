@@ -3093,9 +3093,9 @@ pub(crate) async fn asset_lab_content_address() -> anyhow::Result<()> {
     anyhow::ensure!(
         ca1.output["content_address"]
             .as_str()
-            .map(|s| s.starts_with("fnv1a64:"))
+            .map(|s| s.starts_with("sha256:"))
             .unwrap_or(false),
-        "content_address must use fnv1a64 scheme"
+        "content_address must use sha256 scheme"
     );
     anyhow::ensure!(
         ca1.output["metadata_convention"].is_object(),

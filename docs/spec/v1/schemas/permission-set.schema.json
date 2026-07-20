@@ -89,7 +89,7 @@
         "declarations": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/LocalExecDeclaration"
+            "$ref": "#/$defs/LocalExecDeclaration"
           },
           "type": "array"
         },
@@ -140,7 +140,7 @@
           "default": [],
           "description": "Structured network declarations (host, methods, purpose).",
           "items": {
-            "$ref": "#/definitions/NetworkDeclaration"
+            "$ref": "#/$defs/NetworkDeclaration"
           },
           "type": "array"
         },
@@ -199,7 +199,7 @@
         "declarations": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/PortDeclaration"
+            "$ref": "#/$defs/PortDeclaration"
           },
           "type": "array"
         },
@@ -241,7 +241,7 @@
         "declarations": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/ProxyDeclaration"
+            "$ref": "#/$defs/ProxyDeclaration"
           },
           "type": "array"
         },
@@ -263,7 +263,7 @@
     "assets": {
       "allOf": [
         {
-          "$ref": "#/definitions/AssetPermissions"
+          "$ref": "#/$defs/AssetPermissions"
         }
       ],
       "default": {
@@ -274,7 +274,7 @@
     "capabilities": {
       "allOf": [
         {
-          "$ref": "#/definitions/CapabilityPermissions"
+          "$ref": "#/$defs/CapabilityPermissions"
         }
       ],
       "default": {
@@ -284,7 +284,7 @@
     "events": {
       "allOf": [
         {
-          "$ref": "#/definitions/EventPermissions"
+          "$ref": "#/$defs/EventPermissions"
         }
       ],
       "default": {
@@ -295,7 +295,7 @@
     "filesystem": {
       "allOf": [
         {
-          "$ref": "#/definitions/FilesystemPermissions"
+          "$ref": "#/$defs/FilesystemPermissions"
         }
       ],
       "default": {
@@ -306,7 +306,7 @@
     "local_exec": {
       "allOf": [
         {
-          "$ref": "#/definitions/LocalExecPermissions"
+          "$ref": "#/$defs/LocalExecPermissions"
         }
       ],
       "default": {
@@ -317,7 +317,7 @@
     "network": {
       "allOf": [
         {
-          "$ref": "#/definitions/NetworkPermissions"
+          "$ref": "#/$defs/NetworkPermissions"
         }
       ],
       "default": {
@@ -328,7 +328,7 @@
     "packages": {
       "allOf": [
         {
-          "$ref": "#/definitions/PackagePermissions"
+          "$ref": "#/$defs/PackagePermissions"
         }
       ],
       "default": {
@@ -338,7 +338,7 @@
     "ports": {
       "allOf": [
         {
-          "$ref": "#/definitions/PortPermissions"
+          "$ref": "#/$defs/PortPermissions"
         }
       ],
       "default": {
@@ -349,7 +349,7 @@
     "proxy": {
       "allOf": [
         {
-          "$ref": "#/definitions/ProxyPermissions"
+          "$ref": "#/$defs/ProxyPermissions"
         }
       ],
       "default": {

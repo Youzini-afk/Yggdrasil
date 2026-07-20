@@ -1,5 +1,44 @@
 {
   "$defs": {
+    "CapabilityDescriptor": {
+      "properties": {
+        "description": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "input_schema": {
+          "default": null
+        },
+        "output_schema": {
+          "default": null
+        },
+        "side_effects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "streaming": {
+          "default": false,
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
     "Errors": {
       "items": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -29,51 +68,10 @@
     },
     "Result": {
       "items": {
-        "$defs": {
-          "CapabilityDescriptor": {
-            "properties": {
-              "description": {
-                "default": null,
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "id": {
-                "type": "string"
-              },
-              "input_schema": {
-                "default": null
-              },
-              "output_schema": {
-                "default": null
-              },
-              "side_effects": {
-                "default": [],
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              "streaming": {
-                "default": false,
-                "type": "boolean"
-              },
-              "version": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "version"
-            ],
-            "type": "object"
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "descriptor": {
-            "$ref": "#/definitions/CapabilityDescriptor"
+            "$ref": "#/$defs/CapabilityDescriptor"
           },
           "provider_package_id": {
             "type": "string"

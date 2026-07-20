@@ -645,9 +645,9 @@ pub(crate) async fn playable_board_content_address_stable() -> anyhow::Result<()
     anyhow::ensure!(
         action1.output["content_address"]
             .as_str()
-            .map(|s| s.starts_with("fnv1a64:"))
+            .map(|s| s.starts_with("sha256:"))
             .unwrap_or(false),
-        "content_address must use fnv1a64 scheme"
+        "content_address must use sha256 scheme"
     );
     anyhow::ensure!(
         action1.output["state_snapshot_asset_ref"].is_string(),
@@ -678,9 +678,9 @@ pub(crate) async fn playable_board_checkpoint_metadata() -> anyhow::Result<()> {
     anyhow::ensure!(
         checkpoint.output["content_address"]
             .as_str()
-            .map(|s| s.starts_with("fnv1a64:"))
+            .map(|s| s.starts_with("sha256:"))
             .unwrap_or(false),
-        "checkpoint must have fnv1a64 content_address"
+        "checkpoint must have sha256 content_address"
     );
     anyhow::ensure!(
         checkpoint.output["state_snapshot_asset_ref"].is_string(),

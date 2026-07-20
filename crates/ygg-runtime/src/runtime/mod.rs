@@ -15,10 +15,11 @@ use ygg_core::{
 };
 
 use crate::{
-    EventStore, HostPolicy, InprocPackageCatalog, ProjectRegistry, ProjectScopeContext,
-    SecretResolverConfig,
+    EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, ObjectStore,
+    ProjectRegistry, ProjectScopeContext, SecretResolverConfig,
 };
 
+mod artifacts;
 mod assets;
 mod audit;
 mod branches;
@@ -43,8 +44,10 @@ mod streaming;
 mod wasm;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
+pub use self::artifacts::{ArtifactCommitRequest, GENERIC_BLOB_ARTIFACT_TYPE_URI};
 pub use self::assets::{
-    content_address, standard_asset_metadata, AssetGetResponse, AssetPutRequest,
+    content_address, legacy_content_address, standard_asset_metadata, AssetGetResponse,
+    AssetPutRequest,
 };
 pub use self::audit::{
     AuditPackageParams, DeclaredAuthority, PackageAuditReport, TighteningSuggestion,
@@ -107,6 +110,8 @@ pub struct RuntimeConfig {
     pub host_policy: HostPolicy,
     pub inproc_packages: InprocPackageCatalog,
     pub secret_resolver: SecretResolverConfig,
+    /// Content-addressed object storage. Defaults to an in-memory SHA-256 store.
+    pub object_store: Arc<dyn ObjectStore>,
     /// In-memory project registry. Default: empty.
     pub project_registry: Arc<ProjectRegistry>,
     /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
@@ -144,6 +149,7 @@ impl Default for RuntimeConfig {
             host_policy: HostPolicy::default(),
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
+            object_store: Arc::new(InMemoryObjectStore::new()),
             project_registry: Arc::new(ProjectRegistry::new()),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
@@ -167,7 +173,6 @@ impl Default for RuntimeConfig {
 #[derive(Debug, Clone)]
 pub(crate) struct StoredAsset {
     pub record: AssetRecord,
-    pub content: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
@@ -268,6 +273,10 @@ where
 
     pub fn store(&self) -> Arc<S> {
         self.store.clone()
+    }
+
+    pub fn object_store(&self) -> Arc<dyn ObjectStore> {
+        self.config.object_store.clone()
     }
 
     pub fn packages(&self) -> Arc<crate::PackageRegistry> {
@@ -425,14 +434,8 @@ where
         for event in events {
             match event.kind.as_str() {
                 EVENT_ASSET_PUT => {
-                    let record: AssetRecord = serde_json::from_value(event.payload.clone())?;
-                    let content = event
-                        .metadata
-                        .get("content")
-                        .and_then(Value::as_str)
-                        .unwrap_or_default()
-                        .to_string();
-                    assets.insert(record.id.clone(), StoredAsset { record, content });
+                    let record = self.hydrate_asset_event(&event).await?;
+                    assets.insert(record.id.clone(), StoredAsset { record });
                 }
                 EVENT_SESSION_FORKED => {
                     let branch: BranchRecord = serde_json::from_value(event.payload.clone())?;

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **451**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **453**.
 
 ## Conformance Feedback Loop
 
@@ -127,7 +127,9 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | hooks | package-owned hook handler capability is invoked | implemented |
 | hooks | unload removes hook subscription | implemented |
 | storage | SQLite persists/replays events | implemented in unit tests |
-| assets | put/get/list opaque assets | implemented |
+| assets | put/get/list adapt through SHA-256 descriptors and keep event bodies out of the journal | implemented |
+| assets | legacy FNV inline events migrate idempotently while retaining old id/hash/event provenance | implemented |
+| object store | cross-host digest equality, unknown-type copy/stream, and tamper rejection | implemented |
 | sessions | fork session and list branch lineage | implemented |
 | projections | register and rebuild generic event-count projection | implemented |
 | substrate | SQLite event log rehydrates assets, branches, and projections | implemented |
@@ -442,6 +444,8 @@ play_creation.blank_loop                   PASS
 proposal.lifecycle_apply                   PASS
 proposal.reject_and_apply_denied           PASS
 asset.put_get_list                         PASS
+asset.legacy_fnv_migration                 PASS
+object_store.portability_integrity         PASS
 session.fork_branch                        PASS
 projection.rebuild                         PASS
 substrate.sqlite_rehydrate                 PASS

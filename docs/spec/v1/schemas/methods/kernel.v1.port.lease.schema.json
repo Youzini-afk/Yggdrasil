@@ -23,15 +23,6 @@
       "type": "array"
     },
     "Params": {
-      "$defs": {
-        "PortProtocol": {
-          "enum": [
-            "tcp",
-            "udp"
-          ],
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "port_name": {
@@ -40,7 +31,7 @@
         "protocol": {
           "allOf": [
             {
-              "$ref": "#/definitions/PortProtocol"
+              "$ref": "#/$defs/PortProtocol"
             }
           ],
           "default": "tcp"
@@ -64,75 +55,73 @@
       "title": "PortLeaseRequest",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "PortBindScope": {
-          "enum": [
-            "loopback_only"
-          ],
+    "PortBindScope": {
+      "enum": [
+        "loopback_only"
+      ],
+      "type": "string"
+    },
+    "PortLeaseRecord": {
+      "properties": {
+        "bind": {
+          "$ref": "#/$defs/PortBindScope"
+        },
+        "host": {
           "type": "string"
         },
-        "PortLeaseRecord": {
-          "properties": {
-            "bind": {
-              "$ref": "#/definitions/PortBindScope"
-            },
-            "host": {
-              "type": "string"
-            },
-            "id": {
-              "type": "string"
-            },
-            "port": {
-              "format": "uint16",
-              "minimum": 0.0,
-              "type": "integer"
-            },
-            "port_name": {
-              "type": "string"
-            },
-            "protocol": {
-              "$ref": "#/definitions/PortProtocol"
-            },
-            "status": {
-              "$ref": "#/definitions/PortLeaseStatusKind"
-            },
-            "target_id": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "bind",
-            "host",
-            "id",
-            "port",
-            "port_name",
-            "protocol",
-            "status",
-            "target_id"
-          ],
-          "type": "object"
-        },
-        "PortLeaseStatusKind": {
-          "enum": [
-            "active",
-            "reserved",
-            "released"
-          ],
+        "id": {
           "type": "string"
         },
-        "PortProtocol": {
-          "enum": [
-            "tcp",
-            "udp"
-          ],
+        "port": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "port_name": {
+          "type": "string"
+        },
+        "protocol": {
+          "$ref": "#/$defs/PortProtocol"
+        },
+        "status": {
+          "$ref": "#/$defs/PortLeaseStatusKind"
+        },
+        "target_id": {
           "type": "string"
         }
       },
+      "required": [
+        "bind",
+        "host",
+        "id",
+        "port",
+        "port_name",
+        "protocol",
+        "status",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "PortLeaseStatusKind": {
+      "enum": [
+        "active",
+        "reserved",
+        "released"
+      ],
+      "type": "string"
+    },
+    "PortProtocol": {
+      "enum": [
+        "tcp",
+        "udp"
+      ],
+      "type": "string"
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "lease": {
-          "$ref": "#/definitions/PortLeaseRecord"
+          "$ref": "#/$defs/PortLeaseRecord"
         }
       },
       "required": [

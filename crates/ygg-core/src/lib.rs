@@ -10,7 +10,7 @@ pub mod project;
 pub mod secret_ref;
 pub mod session;
 
-pub use asset::AssetRecord;
+pub use asset::{ArtifactDescriptor, AssetRecord};
 pub use capability_handle::{CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope};
 pub use event::{
     EventEnvelope, EventKind, EventSequence, OutboundAuditRecord, PackageLifecyclePayload,

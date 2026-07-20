@@ -1,16 +1,18 @@
-use std::fs;
 use std::sync::Arc;
 
 use serde_json::json;
-use ygg_runtime::{OpenSessionRequest, Runtime, RuntimeConfig, SqliteEventStore};
+use ygg_runtime::{
+    FilesystemObjectStore, OpenSessionRequest, Runtime, RuntimeConfig, SqliteEventStore,
+};
 
 pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
-    let path = std::env::temp_dir().join(format!("ygg-substrate-{}.db", std::process::id()));
-    if path.exists() {
-        fs::remove_file(&path)?;
-    }
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("events.db");
+    let object_root = directory.path().join("objects");
     let store = Arc::new(SqliteEventStore::open(&path)?);
-    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let mut config = RuntimeConfig::default();
+    config.object_store = Arc::new(FilesystemObjectStore::new(&object_root));
+    let runtime = Runtime::new(store.clone(), config);
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
     let asset = runtime
         .put_asset(ygg_runtime::runtime::AssetPutRequest {
@@ -38,11 +40,23 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
     drop(store);
 
     let reopened = Arc::new(SqliteEventStore::open(&path)?);
-    let hydrated = Runtime::new(reopened, RuntimeConfig::default());
+    let mut reopened_config = RuntimeConfig::default();
+    reopened_config.object_store = Arc::new(FilesystemObjectStore::new(&object_root));
+    let hydrated = Runtime::new(reopened, reopened_config);
     hydrated.hydrate_substrate_from_events().await?;
+    let hydrated_asset = hydrated.get_asset(&asset.id).await?;
     anyhow::ensure!(
-        hydrated.get_asset(&asset.id).await?.content == "durable",
+        hydrated_asset.content == "durable",
         "asset did not rehydrate"
+    );
+    anyhow::ensure!(
+        hydrated_asset
+            .record
+            .descriptor
+            .as_ref()
+            .map(|descriptor| descriptor.digest.as_str())
+            == Some(asset.hash.as_str()),
+        "rehydrated asset descriptor changed"
     );
     anyhow::ensure!(
         hydrated
@@ -59,6 +73,5 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
         projection.state["event_count"].as_u64().unwrap_or(0) >= 1,
         "projection did not rehydrate"
     );
-    let _ = fs::remove_file(path);
     Ok(())
 }

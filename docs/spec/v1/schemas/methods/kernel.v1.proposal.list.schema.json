@@ -27,176 +27,174 @@
       "title": "EmptyParams",
       "type": "object"
     },
+    "ProposalApproval": {
+      "properties": {
+        "decided_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/ProtocolPrincipal"
+        },
+        "reason": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "decided_at",
+        "principal"
+      ],
+      "type": "object"
+    },
+    "ProposalOperation": {
+      "properties": {
+        "op": {
+          "type": "string"
+        },
+        "payload": {
+          "default": null
+        },
+        "target": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    "ProposalStatus": {
+      "enum": [
+        "created",
+        "approved",
+        "rejected",
+        "applied",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "ProtocolPrincipal": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "Result": {
       "items": {
-        "$defs": {
-          "ProposalApproval": {
-            "properties": {
-              "decided_at": {
-                "format": "date-time",
-                "type": "string"
-              },
-              "principal": {
-                "$ref": "#/definitions/ProtocolPrincipal"
-              },
-              "reason": {
-                "default": null,
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "decided_at",
-              "principal"
-            ],
-            "type": "object"
-          },
-          "ProposalOperation": {
-            "properties": {
-              "op": {
-                "type": "string"
-              },
-              "payload": {
-                "default": null
-              },
-              "target": {
-                "default": null,
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "op"
-            ],
-            "type": "object"
-          },
-          "ProposalStatus": {
-            "enum": [
-              "created",
-              "approved",
-              "rejected",
-              "applied",
-              "failed"
-            ],
-            "type": "string"
-          },
-          "ProtocolPrincipal": {
-            "oneOf": [
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "host_admin"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "host_dev"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "package"
-                    ],
-                    "type": "string"
-                  },
-                  "package_id": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "package_id"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "human"
-                    ],
-                    "type": "string"
-                  },
-                  "user_id": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "user_id"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "assistant_id": {
-                    "type": "string"
-                  },
-                  "delegated_user_id": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "kind": {
-                    "enum": [
-                      "assistant"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "assistant_id",
-                  "kind"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "anonymous"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": "object"
-              }
-            ]
-          }
-        },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "approval": {
             "anyOf": [
               {
-                "$ref": "#/definitions/ProposalApproval"
+                "$ref": "#/$defs/ProposalApproval"
               },
               {
                 "type": "null"
@@ -211,7 +209,7 @@
           "created_by": {
             "allOf": [
               {
-                "$ref": "#/definitions/ProtocolPrincipal"
+                "$ref": "#/$defs/ProtocolPrincipal"
               }
             ],
             "default": {
@@ -228,7 +226,7 @@
           "operations": {
             "default": [],
             "items": {
-              "$ref": "#/definitions/ProposalOperation"
+              "$ref": "#/$defs/ProposalOperation"
             },
             "type": "array"
           },
@@ -245,7 +243,7 @@
           "status": {
             "allOf": [
               {
-                "$ref": "#/definitions/ProposalStatus"
+                "$ref": "#/$defs/ProposalStatus"
               }
             ],
             "default": "created"

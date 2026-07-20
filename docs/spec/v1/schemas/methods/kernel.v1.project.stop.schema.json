@@ -35,70 +35,68 @@
       "title": "ProjectIdParams",
       "type": "object"
     },
-    "Result": {
-      "$defs": {
-        "ProjectState": {
-          "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
-          "oneOf": [
-            {
-              "description": "Installed but not running.",
-              "enum": [
-                "installed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Stopped after running.",
-              "enum": [
-                "stopped"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to running.",
-              "enum": [
-                "starting"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently running and serving.",
-              "enum": [
-                "running"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Currently transitioning to stopped.",
-              "enum": [
-                "stopping"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Failed to start or crashed.",
-              "enum": [
-                "failed"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Soft-deleted, awaiting cleanup.",
-              "enum": [
-                "archived"
-              ],
-              "type": "string"
-            }
-          ]
+    "ProjectState": {
+      "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+      "oneOf": [
+        {
+          "description": "Installed but not running.",
+          "enum": [
+            "installed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stopped after running.",
+          "enum": [
+            "stopped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to running.",
+          "enum": [
+            "starting"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently running and serving.",
+          "enum": [
+            "running"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Currently transitioning to stopped.",
+          "enum": [
+            "stopping"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Failed to start or crashed.",
+          "enum": [
+            "failed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Soft-deleted, awaiting cleanup.",
+          "enum": [
+            "archived"
+          ],
+          "type": "string"
         }
-      },
+      ]
+    },
+    "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "new_state": {
-          "$ref": "#/definitions/ProjectState"
+          "$ref": "#/$defs/ProjectState"
         },
         "previous_state": {
-          "$ref": "#/definitions/ProjectState"
+          "$ref": "#/$defs/ProjectState"
         },
         "project_id": {
           "type": "string"

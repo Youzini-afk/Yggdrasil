@@ -1,109 +1,13 @@
 {
   "$defs": {
     "Payload": {
-      "$defs": {
-        "RedactionState": {
-          "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
-          "oneOf": [
-            {
-              "description": "Raw data was not captured (default).",
-              "enum": [
-                "not_captured"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Raw data was redacted before recording.",
-              "enum": [
-                "redacted"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Only a policy reference is stored; no data captured.",
-              "enum": [
-                "policy_ref"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Request was blocked as unsafe; no data recorded.",
-              "enum": [
-                "unsafe_blocked"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Explicit user/host approval to capture raw data (rare).",
-              "enum": [
-                "explicitly_approved"
-              ],
-              "type": "string"
-            }
-          ]
-        },
-        "StreamFrameType": {
-          "description": "The type of a stream frame — content-free, no model/prompt semantics.",
-          "oneOf": [
-            {
-              "description": "First frame of a streaming invocation.",
-              "enum": [
-                "start"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "A data chunk in the stream.",
-              "enum": [
-                "chunk"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Progress indication (no data payload).",
-              "enum": [
-                "progress"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Normal terminal frame.",
-              "enum": [
-                "end"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Error terminal frame.",
-              "enum": [
-                "error"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Cancelled terminal frame.",
-              "enum": [
-                "cancelled"
-              ],
-              "type": "string"
-            },
-            {
-              "description": "Timeout terminal frame.",
-              "enum": [
-                "timeout"
-              ],
-              "type": "string"
-            }
-          ]
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "description": "Generic stream frame envelope — the unit of streaming capability output.\n\nThis is a content-free protocol shape. It carries invocation/stream identifiers, sequencing, and redaction state, but no model, prompt, agent, or message semantics. The `payload` field is opaque JSON controlled by the capability provider.",
       "properties": {
         "frame_type": {
           "allOf": [
             {
-              "$ref": "#/definitions/StreamFrameType"
+              "$ref": "#/$defs/StreamFrameType"
             }
           ],
           "description": "Frame type discriminant."
@@ -123,7 +27,7 @@
         "redaction_state": {
           "allOf": [
             {
-              "$ref": "#/definitions/RedactionState"
+              "$ref": "#/$defs/RedactionState"
             }
           ],
           "default": "not_captured",
@@ -153,6 +57,100 @@
       ],
       "title": "StreamFrameEnvelope",
       "type": "object"
+    },
+    "RedactionState": {
+      "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+      "oneOf": [
+        {
+          "description": "Raw data was not captured (default).",
+          "enum": [
+            "not_captured"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Raw data was redacted before recording.",
+          "enum": [
+            "redacted"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Only a policy reference is stored; no data captured.",
+          "enum": [
+            "policy_ref"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Request was blocked as unsafe; no data recorded.",
+          "enum": [
+            "unsafe_blocked"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Explicit user/host approval to capture raw data (rare).",
+          "enum": [
+            "explicitly_approved"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "StreamFrameType": {
+      "description": "The type of a stream frame — content-free, no model/prompt semantics.",
+      "oneOf": [
+        {
+          "description": "First frame of a streaming invocation.",
+          "enum": [
+            "start"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "A data chunk in the stream.",
+          "enum": [
+            "chunk"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Progress indication (no data payload).",
+          "enum": [
+            "progress"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Normal terminal frame.",
+          "enum": [
+            "end"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Error terminal frame.",
+          "enum": [
+            "error"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Cancelled terminal frame.",
+          "enum": [
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Timeout terminal frame.",
+          "enum": [
+            "timeout"
+          ],
+          "type": "string"
+        }
+      ]
     }
   },
   "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__stream.error.schema.json",

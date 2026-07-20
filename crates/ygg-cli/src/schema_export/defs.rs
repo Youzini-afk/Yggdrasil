@@ -1,5 +1,7 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use schemars::{schema_for, JsonSchema};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use ygg_core::*;
 use ygg_runtime::*;
 
@@ -314,6 +316,7 @@ pub(crate) fn schema_value<T: JsonSchema>() -> Value {
 
 pub(crate) fn normalize_schema(value: &mut Value) {
     normalize_schema_with_key(None, value);
+    hoist_nested_definitions(value);
 }
 
 fn normalize_schema_with_key(parent_key: Option<&str>, value: &mut Value) {
@@ -341,6 +344,285 @@ fn normalize_schema_with_key(parent_key: Option<&str>, value: &mut Value) {
                 normalize_schema_with_key(parent_key, v);
             }
         }
+        Value::String(reference) if parent_key == Some("$ref") => {
+            if let Some(rest) = reference.strip_prefix("#/definitions/") {
+                *reference = format!("#/$defs/{rest}");
+            }
+        }
         _ => {}
+    }
+}
+
+fn hoist_nested_definitions(value: &mut Value) {
+    let Value::Object(root) = value else {
+        return;
+    };
+    let root_entries = root
+        .remove("$defs")
+        .and_then(|value| value.as_object().cloned())
+        .unwrap_or_default();
+    let mut state = DefinitionHoistState::default();
+
+    for (name, schema) in &root_entries {
+        state.reserve_exact(name, schema, &root_entries);
+    }
+    for (name, mut schema) in root_entries {
+        process_definition_scope(&mut schema, &BTreeMap::new(), &mut state);
+        state.definitions.insert(name.clone(), schema);
+        state.materialized.insert(name);
+    }
+    for child in root.values_mut() {
+        process_definition_scope(child, &BTreeMap::new(), &mut state);
+    }
+    if !state.definitions.is_empty() {
+        root.insert("$defs".to_string(), Value::Object(state.definitions));
+    }
+}
+
+#[derive(Default)]
+struct DefinitionHoistState {
+    definitions: Map<String, Value>,
+    origins: BTreeMap<String, Value>,
+    materialized: BTreeSet<String>,
+}
+
+impl DefinitionHoistState {
+    fn reserve_exact(&mut self, name: &str, schema: &Value, scope: &Map<String, Value>) {
+        self.origins
+            .insert(name.to_string(), definition_origin(schema, scope));
+    }
+
+    fn reserve(&mut self, preferred: &str, schema: &Value, scope: &Map<String, Value>) -> String {
+        let origin = definition_origin(schema, scope);
+        let mut candidate = preferred.to_string();
+        let mut suffix = 2;
+        loop {
+            match self.origins.get(&candidate) {
+                Some(existing) if schemas_equivalent(existing, &origin) => return candidate,
+                Some(_) => {
+                    candidate = format!("{preferred}{suffix}");
+                    suffix += 1;
+                }
+                None => {
+                    self.origins.insert(candidate.clone(), origin.clone());
+                    return candidate;
+                }
+            }
+        }
+    }
+}
+
+fn process_definition_scope(
+    value: &mut Value,
+    inherited: &BTreeMap<String, String>,
+    state: &mut DefinitionHoistState,
+) {
+    match value {
+        Value::Object(map) => {
+            let local_entries = map
+                .remove("$defs")
+                .and_then(|value| value.as_object().cloned())
+                .unwrap_or_default();
+            let mut scope = inherited.clone();
+            let mut reservations = Vec::new();
+            for (local_name, schema) in &local_entries {
+                let global_name = state.reserve(local_name, schema, &local_entries);
+                scope.insert(local_name.clone(), global_name.clone());
+                reservations.push((local_name.clone(), global_name));
+            }
+            for ((_, mut schema), (_, global_name)) in
+                local_entries.into_iter().zip(reservations.iter())
+            {
+                if !state.materialized.contains(global_name) {
+                    process_definition_scope(&mut schema, &scope, state);
+                    state.definitions.insert(global_name.clone(), schema);
+                    state.materialized.insert(global_name.clone());
+                }
+            }
+            if let Some(Value::String(reference)) = map.get_mut("$ref") {
+                rewrite_scoped_reference(reference, &scope);
+            }
+            for child in map.values_mut() {
+                process_definition_scope(child, &scope, state);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                process_definition_scope(child, inherited, state);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn definition_origin(schema: &Value, scope: &Map<String, Value>) -> Value {
+    let mut dependencies = Map::new();
+    let mut visited = BTreeSet::new();
+    collect_definition_dependencies(schema, scope, &mut visited, &mut dependencies);
+    let mut origin = Value::Object(Map::from_iter([
+        ("schema".to_string(), schema.clone()),
+        ("dependencies".to_string(), Value::Object(dependencies)),
+    ]));
+    strip_schema_metadata(&mut origin);
+    origin
+}
+
+fn collect_definition_dependencies(
+    value: &Value,
+    scope: &Map<String, Value>,
+    visited: &mut BTreeSet<String>,
+    dependencies: &mut Map<String, Value>,
+) {
+    let mut referenced = BTreeSet::new();
+    collect_scoped_reference_names(value, &mut referenced);
+    for name in referenced {
+        if !visited.insert(name.clone()) {
+            continue;
+        }
+        if let Some(schema) = scope.get(&name) {
+            dependencies.insert(name, schema.clone());
+            collect_definition_dependencies(schema, scope, visited, dependencies);
+        }
+    }
+}
+
+fn collect_scoped_reference_names(value: &Value, names: &mut BTreeSet<String>) {
+    match value {
+        Value::Object(map) => {
+            if let Some(reference) = map.get("$ref").and_then(Value::as_str) {
+                if let Some(rest) = reference.strip_prefix("#/$defs/") {
+                    if let Some(name) = rest.split('/').next() {
+                        names.insert(name.to_string());
+                    }
+                }
+            }
+            for child in map.values() {
+                collect_scoped_reference_names(child, names);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                collect_scoped_reference_names(child, names);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rewrite_scoped_reference(reference: &mut String, scope: &BTreeMap<String, String>) {
+    let Some(rest) = reference.strip_prefix("#/$defs/") else {
+        return;
+    };
+    let (local_name, suffix) = rest
+        .split_once('/')
+        .map_or((rest, None), |(name, suffix)| (name, Some(suffix)));
+    let Some(global_name) = scope.get(local_name) else {
+        return;
+    };
+    *reference = match suffix {
+        Some(suffix) => format!("#/$defs/{global_name}/{suffix}"),
+        None => format!("#/$defs/{global_name}"),
+    };
+}
+
+fn schemas_equivalent(left: &Value, right: &Value) -> bool {
+    let mut left = left.clone();
+    let mut right = right.clone();
+    strip_schema_metadata(&mut left);
+    strip_schema_metadata(&mut right);
+    left == right
+}
+
+fn strip_schema_metadata(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.remove("title");
+            map.remove("description");
+            map.remove("$schema");
+            map.remove("$id");
+            for child in map.values_mut() {
+                strip_schema_metadata(child);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                strip_schema_metadata(child);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::normalize_schema;
+
+    #[test]
+    fn normalize_hoists_nested_definitions_and_rebases_refs() {
+        let mut schema = json!({
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "$defs": {
+                "Result": {
+                    "type": "object",
+                    "definitions": {
+                        "Artifact": { "type": "string" }
+                    },
+                    "properties": {
+                        "artifact": { "$ref": "#/definitions/Artifact" }
+                    }
+                }
+            },
+            "properties": {
+                "result": { "$ref": "#/$defs/Result" }
+            }
+        });
+
+        normalize_schema(&mut schema);
+
+        assert_eq!(
+            schema.pointer("/$defs/Result/properties/artifact/$ref"),
+            Some(&json!("#/$defs/Artifact"))
+        );
+        assert_eq!(
+            schema.pointer("/$defs/Artifact/type"),
+            Some(&json!("string"))
+        );
+        assert!(schema.pointer("/$defs/Result/$defs").is_none());
+    }
+
+    #[test]
+    fn normalize_keeps_contextually_different_definition_closures_distinct() {
+        let scoped = |bar_type: &str| {
+            json!({
+                "type": "object",
+                "$defs": {
+                    "Foo": { "$ref": "#/$defs/Bar" },
+                    "Bar": { "type": bar_type }
+                },
+                "properties": { "foo": { "$ref": "#/$defs/Foo" } }
+            })
+        };
+        let mut schema = json!({
+            "$defs": {
+                "ResultA": scoped("string"),
+                "ResultB": scoped("integer")
+            }
+        });
+
+        normalize_schema(&mut schema);
+
+        let left = schema
+            .pointer("/$defs/ResultA/properties/foo/$ref")
+            .and_then(|value| value.as_str())
+            .unwrap();
+        let right = schema
+            .pointer("/$defs/ResultB/properties/foo/$ref")
+            .and_then(|value| value.as_str())
+            .unwrap();
+        assert_ne!(left, right);
+        assert!(schema.pointer("/$defs/Foo").is_some());
+        assert!(schema.pointer("/$defs/Foo2").is_some());
     }
 }

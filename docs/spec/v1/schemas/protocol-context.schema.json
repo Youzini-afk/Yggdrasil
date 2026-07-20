@@ -126,7 +126,7 @@
       ]
     },
     "principal": {
-      "$ref": "#/definitions/ProtocolPrincipal"
+      "$ref": "#/$defs/ProtocolPrincipal"
     },
     "session_id": {
       "description": "Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.",

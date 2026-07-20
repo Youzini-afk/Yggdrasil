@@ -1,5 +1,9 @@
 {
   "$defs": {
+    "CapHandleId": {
+      "format": "uint128",
+      "type": "string"
+    },
     "Errors": {
       "items": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -23,16 +27,10 @@
       "type": "array"
     },
     "Params": {
-      "$defs": {
-        "CapHandleId": {
-          "format": "uint128",
-          "type": "string"
-        }
-      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "handle": {
-          "$ref": "#/definitions/CapHandleId"
+          "$ref": "#/$defs/CapHandleId"
         }
       },
       "required": [

@@ -42,7 +42,8 @@
 - [x] Phase 1：修复 v1 事实漂移、SDK/CI/Windows 基线。
 - [x] Phase 2：建立 Experimental Contract Registry、集中 alias、显式 profile/version 协商与 SDK/conformance 生成链。
 - [x] Phase 3：为 Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 建立 owner namespace 双栈；36 条 legacy alias 仍进入原 handler。
-- [ ] Phase 4–9：object/artifact、receipt/change primitives、Protocol Commons、component identity、World Bundle 与客户端弃用迁移。
+- [x] Phase 4：建立 SHA-256 ObjectStore、ArtifactDescriptor、asset adapter、旧 FNV 事件迁移与独立持久对象目录。
+- [ ] Phase 5–9：receipt/change primitives、Protocol Commons、component identity、World Bundle 与客户端弃用迁移。
 
 ## 立即冻结线
 
@@ -138,7 +139,7 @@ ContractMethod
 
 ### 4. 建立内容寻址 object/artifact 基础
 
-当前 `AssetRecord.hash` 使用 `fnv1a64:`，适合确定性测试，不适合作为跨宿主、对抗碰撞的持久身份。当前 `asset.put` 还把完整 content 写进 event metadata。v2 object identity 必须改用碰撞安全摘要，并让日志引用对象。
+迁移前 `AssetRecord.hash` 使用 `fnv1a64:`，且 `asset.put` 把完整 content 写进 event metadata。该旧形状只适合确定性测试，不适合作为跨宿主、对抗碰撞的持久身份。v2 object identity 改用碰撞安全摘要，并让日志引用对象。
 
 交付：
 
@@ -163,6 +164,8 @@ ContractMethod
 - 篡改 bytes 必须验证失败；
 - 不加载原 package 也能复制和检查对象；
 - 大对象不再完整进入 event metadata。
+
+实施结果（2026-07-21）：上述交付与验收已落地。公开细节见 [`OBJECT_STORE.md`](../spec/OBJECT_STORE.md)，可执行证据为 `asset.put_get_list`、`asset.legacy_fnv_migration`、`object_store.portability_integrity` 与 `substrate.sqlite_rehydrate`。
 
 ### 5. 引入 EffectReceipt 与 change primitives
 

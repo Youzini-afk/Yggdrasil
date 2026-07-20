@@ -66,7 +66,8 @@ impl SubprocessSupervisor {
             .split_first()
             .ok_or_else(|| anyhow::anyhow!("subprocess command must not be empty"))?;
 
-        let mut command_builder = Command::new(program);
+        let resolved_program = resolve_subprocess_program(program);
+        let mut command_builder = Command::new(&resolved_program);
         command_builder
             .args(args)
             .stdin(std::process::Stdio::piped())
@@ -614,6 +615,14 @@ where
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
         Err(error) => json!({"jsonrpc": "2.0", "id": id, "error": error}),
     }
+}
+
+fn resolve_subprocess_program(program: &str) -> String {
+    #[cfg(windows)]
+    if program == "python3" {
+        return std::env::var("YGG_PYTHON").unwrap_or_else(|_| "python".to_string());
+    }
+    program.to_string()
 }
 
 #[cfg(test)]

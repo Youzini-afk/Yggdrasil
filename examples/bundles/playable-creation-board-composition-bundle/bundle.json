@@ -1,5 +1,5 @@
 {
-  "bundle_id": "bundle:playable-creation-board-composition:fnv1a64:example",
+  "bundle_id": "bundle:playable-creation-board-composition:sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c",
   "format_version": "1",
   "composition_id": "playable-creation-board-composition",
   "composition_manifest": {
@@ -36,41 +36,41 @@
     ]
   },
   "package_set_lockfile": {
-    "lockfile_id": "lockfile:fnv1a64:playable-creation-board-composition",
+    "lockfile_id": "lockfile:sha256:be3d2f1344d4b0adb935e692c4cd03ac0abc857df0f0d1def8c6734282c38dec",
     "format_version": "1",
     "packages": [
       {
         "package_id": "official/playable-creation-board",
         "version": "0.1.0",
-        "content_address": "fnv1a64:locked-playable-creation-board-0.1.0"
+        "content_address": "sha256:ea9c2de79d9c6a4fd71c9d7b8898f5b66ba4897446710ecfe7721a720a9f8bb4"
       },
       {
         "package_id": "official/agentic-forge-lab",
         "version": "0.1.0",
-        "content_address": "fnv1a64:locked-agentic-forge-lab-0.1.0"
+        "content_address": "sha256:e762e4366de6e4551570608345030f8b2b00b4f9011156b2cdf7a785f2600866"
       },
       {
         "package_id": "official/blank-experience",
         "version": "0.1.0",
-        "content_address": "fnv1a64:locked-blank-experience-0.1.0"
+        "content_address": "sha256:b5474e65ac4934d01a063f0b32ec5b7d4476a88e04b7a46785e29ba93a036dea"
       },
       {
         "package_id": "official/memory-lab",
         "version": "0.1.0",
-        "content_address": "fnv1a64:locked-memory-lab-0.1.0"
+        "content_address": "sha256:5d39096943b63602b8d0e6cc68a8a72d8c894f566f7513eede80b859a5894892"
       },
       {
         "package_id": "official/experience-observability-lab",
         "version": "0.1.0",
-        "content_address": "fnv1a64:locked-experience-observability-lab-0.1.0"
+        "content_address": "sha256:098a1f4bf3d92b3e25ec7138790fe298d97f5e64ffa18242b655f897c8c75b4a"
       },
       {
         "package_id": "official/experience-runtime-lab",
         "version": "0.1.0",
-        "content_address": "fnv1a64:locked-experience-runtime-lab-0.1.0"
+        "content_address": "sha256:6c57a188bd5edce11d6d06e4862523c9fd365e4cb5bcc94b2c63bf015c5c3169"
       }
     ],
-    "content_address": "fnv1a64:lockfile-playable-creation-board-composition"
+    "content_address": "sha256:02ab3e782e76a97b878400b8c7c6e3f2c86814e1d9d2d09b0f0912f12844b81d"
   },
   "compatibility_report": {
     "report_id": "compat-report:playable-creation-board-composition:self-check",
@@ -104,7 +104,7 @@
         "description": "Composition manifest authored by a human creator"
       }
     ],
-    "content_address": "fnv1a64:disclosure-playable-creation-board-composition"
+    "content_address": "sha256:82477e07e03cb3f041a38ba4fd4c2b6aa4d34e3896a8444f78b63574f9f45e4d"
   },
   "no_marketplace_fields": true,
   "no_billing_fields": true,

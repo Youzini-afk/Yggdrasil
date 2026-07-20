@@ -42,16 +42,16 @@ This document describes the shareable, reproducible, importable composition and 
     "lockfile_id": "lockfile:<content_address>",
     "format_version": "1",
     "packages": [
-      { "package_id": "...", "version": "...", "content_address": "fnv1a64:..." }
+      { "package_id": "...", "version": "...", "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
     ],
-    "content_address": "fnv1a64:..."
+    "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
   },
   "ai_disclosure": {
     "disclosure_id": "disclosure:<bundle_id>",
     "items": [
       { "content_ref": "...", "disclosure_kind": "ai_generated|ai_assisted|human_created|mixed", "description": "..." }
     ],
-    "content_address": "fnv1a64:..."
+    "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
   },
   "no_marketplace_fields": true,
   "no_billing_fields": true,
@@ -68,7 +68,7 @@ This document describes the shareable, reproducible, importable composition and 
   "session_id": "...",
   "branch_ref": "branch:main",
   "sequence": 42,
-  "content_address": "fnv1a64:...",
+  "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   "ai_disclosure": { ... }
 }
 ```
@@ -80,9 +80,9 @@ This document describes the shareable, reproducible, importable composition and 
   "lockfile_id": "lockfile:<content_address>",
   "format_version": "1",
   "packages": [
-    { "package_id": "...", "version": "...", "content_address": "fnv1a64:..." }
+    { "package_id": "...", "version": "...", "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
   ],
-  "content_address": "fnv1a64:..."
+  "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 }
 ```
 
