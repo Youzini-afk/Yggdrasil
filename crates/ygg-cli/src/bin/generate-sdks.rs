@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use heck::{ToLowerCamelCase, ToPascalCase, ToSnakeCase};
-use schemars::schema::RootSchema;
+use schemars::schema::Schema;
 use serde_json::{json, Map, Value};
 use typify::{TypeSpace, TypeSpaceSettings};
 
@@ -46,7 +46,6 @@ struct EventSpec {
     event_name: String,
     payload_ts: String,
     payload_rs: String,
-    payload_schema: Value,
 }
 
 struct TypeRegistry {
@@ -99,11 +98,11 @@ fn main() -> Result<()> {
     let mut registry = TypeRegistry::new();
 
     let top_level = collect_top_level_types(&schemas, &mut registry);
-    let mut methods = collect_methods(&schemas, &mut registry)?;
-    let mut events = collect_events(&schemas, &mut registry)?;
+    let methods = collect_methods(&schemas, &mut registry)?;
+    let events = collect_events(&schemas, &mut registry)?;
 
     write_typescript(&registry, &methods, &events)?;
-    write_rust(&top_level, &mut methods, &mut events)?;
+    write_rust(&registry, &methods, &events)?;
     write_openapi(&methods, &top_level)?;
 
     Ok(())
@@ -238,7 +237,6 @@ fn collect_events(
             event_name: format!("{event_name}Event"),
             payload_rs: payload_ts.clone(),
             payload_ts,
-            payload_schema,
         });
     }
     events.sort_by(|a, b| a.kind.cmp(&b.kind));
@@ -246,14 +244,29 @@ fn collect_events(
 }
 
 fn collect_defs(schema: &Value, registry: &mut TypeRegistry) {
-    if let Some(defs) = schema.get("$defs").or_else(|| schema.get("definitions")) {
-        if let Some(map) = defs.as_object() {
+    match schema {
+        Value::Object(map) => {
+            for definitions_key in ["$defs", "definitions"] {
+                if let Some(Value::Object(definitions)) = map.get(definitions_key) {
+                    for (key, value) in definitions {
+                        let name = schema_title(value).unwrap_or_else(|| key.to_pascal_case());
+                        registry.register(name, value);
+                        collect_defs(value, registry);
+                    }
+                }
+            }
             for (key, value) in map {
-                let name = schema_title(value).unwrap_or_else(|| key.to_pascal_case());
-                registry.register(name, value);
+                if key != "$defs" && key != "definitions" {
+                    collect_defs(value, registry);
+                }
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
                 collect_defs(value, registry);
             }
         }
+        _ => {}
     }
 }
 
@@ -548,30 +561,25 @@ impl TsContext<'_> {
     }
 }
 
-fn write_rust(
-    top_level: &[NamedSchema],
-    methods: &mut [MethodSpec],
-    events: &mut [EventSpec],
-) -> Result<()> {
+fn write_rust(registry: &TypeRegistry, methods: &[MethodSpec], events: &[EventSpec]) -> Result<()> {
     let mut settings = TypeSpaceSettings::default();
     settings
         .with_derive("PartialEq".to_string())
         .with_attr("#[allow(clippy::large_enum_variant)]".to_string());
     let mut type_space = TypeSpace::new(&settings);
-
-    for item in top_level {
-        add_rust_type(&mut type_space, &item.schema, &item.name)?;
-    }
-    for method in methods.iter_mut() {
-        method.params_rs =
-            add_rust_type(&mut type_space, &method.params_schema, &method.params_rs)?;
-        method.result_rs =
-            add_rust_type(&mut type_space, &method.result_schema, &method.result_rs)?;
-    }
-    for event in events.iter_mut() {
-        event.payload_rs =
-            add_rust_type(&mut type_space, &event.payload_schema, &event.payload_rs)?;
-    }
+    let type_defs = registry
+        .schemas
+        .iter()
+        .map(|(name, schema)| {
+            Ok((
+                name.clone(),
+                schema_for_shared_rust_types(name, schema, registry)?,
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    type_space
+        .add_ref_types(type_defs)
+        .map_err(|e| anyhow!("typify failed for shared schema registry: {e}"))?;
 
     let mut types = generated_rust_header("Rust types generated from docs/spec/v1/schemas/.");
     types.push_str("#![allow(clippy::large_enum_variant)]\n#![allow(clippy::derive_partial_eq_without_eq)]\n#![allow(clippy::module_name_repetitions)]\n\n");
@@ -587,71 +595,178 @@ fn write_rust(
     )?;
     fs::write(
         Path::new(RUST_DIR).join("lib.rs"),
-        "pub mod client;\npub mod events;\npub mod methods;\npub mod types;\n\npub use client::{KernelClient, KernelTransport};\npub use events::*;\npub use methods::*;\npub use types::*;\n",
+        "pub mod client;\npub mod events;\npub mod methods;\npub mod types;\n\npub use client::{KernelClient, KernelTransport};\npub use events::*;\npub use types::*;\n",
     )?;
     Ok(())
 }
 
-fn add_rust_type(type_space: &mut TypeSpace, schema: &Value, name_hint: &str) -> Result<String> {
-    let root = root_schema_for_typify(schema, name_hint)?;
-    let type_id = type_space
-        .add_root_schema(root)
-        .map_err(|e| anyhow!("typify failed for {name_hint}: {e}"))?
-        .ok_or_else(|| anyhow!("typify did not create root type for {name_hint}"))?;
-    Ok(type_space
-        .get_type(&type_id)
-        .map_err(|e| anyhow!("typify lookup failed for {name_hint}: {e}"))?
-        .ident()
-        .to_string())
-}
-
-fn root_schema_for_typify(schema: &Value, name_hint: &str) -> Result<RootSchema> {
+fn schema_for_shared_rust_types(
+    name: &str,
+    schema: &Value,
+    registry: &TypeRegistry,
+) -> Result<Schema> {
+    let aliases = definition_aliases(schema, registry)?;
     let mut value = schema.clone();
+    rewrite_local_definition_refs(&mut value, &aliases, registry)?;
+    strip_definition_blocks(&mut value);
+    strip_nested_schema_titles(&mut value, true);
     if let Some(map) = value.as_object_mut() {
-        map.entry("title".to_string())
-            .or_insert_with(|| Value::String(sanitize_type_name(name_hint)));
+        map.insert("title".to_string(), Value::String(name.to_string()));
     }
-    flatten_definitions(&mut value);
     normalize_for_typify(&mut value);
-    serde_json::from_value(value).with_context(|| format!("building RootSchema for {name_hint}"))
+    serde_json::from_value(value).with_context(|| format!("building shared schema for {name}"))
 }
 
-fn flatten_definitions(value: &mut Value) {
-    let mut defs = Map::new();
-    collect_definition_entries(value, &mut defs);
-    if !defs.is_empty() {
-        let map = value.as_object_mut().expect("schema root is object");
-        let entry = map
-            .entry("$defs".to_string())
-            .or_insert_with(|| Value::Object(Map::new()));
-        if let Some(existing) = entry.as_object_mut() {
-            for (key, value) in defs {
-                existing.entry(key).or_insert(value);
-            }
-        }
-    }
+fn definition_aliases(schema: &Value, registry: &TypeRegistry) -> Result<BTreeMap<String, String>> {
+    let mut aliases = BTreeMap::new();
+    collect_definition_aliases(schema, registry, &mut aliases)?;
+    Ok(aliases)
 }
 
-fn collect_definition_entries(value: &Value, defs: &mut Map<String, Value>) {
+fn collect_definition_aliases(
+    value: &Value,
+    registry: &TypeRegistry,
+    aliases: &mut BTreeMap<String, String>,
+) -> Result<()> {
     match value {
         Value::Object(map) => {
             for key in ["$defs", "definitions"] {
-                if let Some(Value::Object(local_defs)) = map.get(key) {
-                    for (name, schema) in local_defs {
-                        defs.entry(name.clone()).or_insert_with(|| schema.clone());
-                        collect_definition_entries(schema, defs);
+                if let Some(Value::Object(definitions)) = map.get(key) {
+                    for (local_name, schema) in definitions {
+                        let preferred =
+                            schema_title(schema).unwrap_or_else(|| local_name.to_pascal_case());
+                        let canonical = registered_schema_name(registry, &preferred, schema)?;
+                        if let Some(existing) =
+                            aliases.insert(local_name.clone(), canonical.clone())
+                        {
+                            if existing != canonical {
+                                anyhow::bail!(
+                                    "definition {local_name} resolves to both {existing} and {canonical}"
+                                );
+                            }
+                        }
+                        collect_definition_aliases(schema, registry, aliases)?;
                     }
                 }
             }
             for (key, child) in map {
                 if key != "$defs" && key != "definitions" {
-                    collect_definition_entries(child, defs);
+                    collect_definition_aliases(child, registry, aliases)?;
                 }
             }
         }
         Value::Array(values) => {
             for value in values {
-                collect_definition_entries(value, defs);
+                collect_definition_aliases(value, registry, aliases)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn registered_schema_name(
+    registry: &TypeRegistry,
+    preferred: &str,
+    schema: &Value,
+) -> Result<String> {
+    let base = sanitize_type_name(preferred);
+    let mut candidate = base.clone();
+    let mut index = 2;
+    loop {
+        match registry.schemas.get(&candidate) {
+            Some(existing) if schemas_equivalent(existing, schema) => return Ok(candidate),
+            Some(_) => {
+                candidate = format!("{base}{index}");
+                index += 1;
+            }
+            None => anyhow::bail!(
+                "definition {preferred} has no canonical entry in the shared type registry"
+            ),
+        }
+    }
+}
+
+fn rewrite_local_definition_refs(
+    value: &mut Value,
+    aliases: &BTreeMap<String, String>,
+    registry: &TypeRegistry,
+) -> Result<()> {
+    match value {
+        Value::Object(map) => {
+            if let Some(Value::String(reference)) = map.get_mut("$ref") {
+                let local = reference
+                    .strip_prefix("#/$defs/")
+                    .or_else(|| reference.strip_prefix("#/definitions/"));
+                if let Some(local) = local {
+                    let (local_name, suffix) = local
+                        .split_once('/')
+                        .map_or((local, ""), |(name, suffix)| (name, suffix));
+                    let canonical = aliases
+                        .get(local_name)
+                        .cloned()
+                        .or_else(|| {
+                            let candidate = sanitize_type_name(local_name);
+                            registry
+                                .schemas
+                                .contains_key(&candidate)
+                                .then_some(candidate)
+                        })
+                        .ok_or_else(|| anyhow!("unresolved local schema reference {reference}"))?;
+                    *reference = if suffix.is_empty() {
+                        format!("#/definitions/{canonical}")
+                    } else {
+                        format!("#/definitions/{canonical}/{suffix}")
+                    };
+                }
+            }
+            for child in map.values_mut() {
+                rewrite_local_definition_refs(child, aliases, registry)?;
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                rewrite_local_definition_refs(value, aliases, registry)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn strip_definition_blocks(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.remove("$defs");
+            map.remove("definitions");
+            for child in map.values_mut() {
+                strip_definition_blocks(child);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                strip_definition_blocks(value);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn strip_nested_schema_titles(value: &mut Value, is_root: bool) {
+    match value {
+        Value::Object(map) => {
+            if !is_root {
+                map.remove("title");
+                map.remove("$id");
+                map.remove("$schema");
+            }
+            for child in map.values_mut() {
+                strip_nested_schema_titles(child, false);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                strip_nested_schema_titles(value, false);
             }
         }
         _ => {}

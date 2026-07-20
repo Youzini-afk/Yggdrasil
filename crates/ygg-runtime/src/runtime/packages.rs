@@ -645,6 +645,13 @@ for line in sys.stdin:
             .package_roots
             .insert("example/cwd".to_string(), tmp.path().to_path_buf());
         let runtime = Runtime::new(store, config);
+        let python = std::env::var("YGG_TEST_PYTHON").unwrap_or_else(|_| {
+            if cfg!(windows) {
+                "python".to_string()
+            } else {
+                "python3".to_string()
+            }
+        });
 
         let record = runtime
             .load_package(ygg_core::PackageManifest {
@@ -656,7 +663,7 @@ for line in sys.stdin:
                 author: None,
                 license: None,
                 entry: EntryDescriptor::v1(PackageEntry::Subprocess {
-                    command: vec!["python3".to_string(), "server.py".to_string()],
+                    command: vec![python, "server.py".to_string()],
                     transport: ygg_core::SubprocessTransport::JsonRpcStdio,
                 }),
                 provides: Vec::new(),

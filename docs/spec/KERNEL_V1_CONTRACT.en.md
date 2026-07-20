@@ -33,7 +33,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `kernel.v1.session.close` | implemented | Close a session and write `kernel/v1/session.closed`. |
 | `kernel.v1.session.fork` | partial | Create branch lineage from a parent session/sequence without interpreting content. |
 | `kernel.v1.session.branch.list` | partial | List branch records related to a session. |
-| `kernel.v1.session.get` | planned | Reserved single-session query. |
+| `kernel.v1.session.get` | partial | Query one session; behavior and error contracts continue to harden. |
 | `kernel.v1.session.list` | planned | Reserved host-management list. |
 
 ### `kernel.v1.event.*` (3)
@@ -41,37 +41,37 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | Method | Status | Contract |
 |---|---:|---|
 | `kernel.v1.event.append` | implemented | Enforce writer namespace and `events.append` for non-kernel writers. |
-| `kernel.v1.event.list` | implemented | List events with sequence, limit, kind, writer filters, and permission gates. |
-| `kernel.v1.event.subscribe` | partial | SSE replay/tail exists; package-principal subscribe permission needs hardening. |
+| `kernel.v1.event.list` | partial | List events with sequence, limit, kind, writer filters, and permission gates; backend parity continues to harden. |
+| `kernel.v1.event.subscribe` | planned | The SSE replay/tail route exists; public method dispatch and package-principal subscribe permission are not implemented. |
 
 ### `kernel.v1.package.*` (7)
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.package.load` | implemented | Validate manifest, host policy, Path A/Path B, entry constraints, register declarations, emit lifecycle. |
-| `kernel.v1.package.unload` | implemented | Stop execution, remove declarations, revoke runtime handles, emit stop/unload events. |
+| `kernel.v1.package.load` | partial | Validate manifest, host policy, Path A/Path B, entry constraints, register declarations, and emit lifecycle; some entry forms remain placeholders. |
+| `kernel.v1.package.unload` | partial | Stop execution, remove declarations, revoke runtime handles, and emit stop/unload events; full symmetry across entry forms continues to harden. |
 | `kernel.v1.package.list` | implemented | List in-memory package records. |
 | `kernel.v1.package.status` | implemented | Return one package record. |
 | `kernel.v1.package.restart` | partial | Supports subprocess restart; other entries are rejected by policy. |
 | `kernel.v1.package.logs` | partial | Captures subprocess stderr; stdout remains JSON-RPC frames. |
 | `kernel.v1.package.describe` | planned | Reserved descriptor query derivable from status manifest. |
 
-### `kernel.v1.capability.*` (4)
+### `kernel.v1.capability.*` (5)
 
 | Method | Status | Contract |
 |---|---:|---|
 | `kernel.v1.capability.discover` | implemented | List registered capability descriptors. |
 | `kernel.v1.capability.describe` | planned | Reserved single-descriptor query. |
-| `kernel.v1.capability.invoke` | implemented | Enforce caller context and capability handle, validate schema, emit invoke/completed/failed audit. |
+| `kernel.v1.capability.invoke` | partial | Enforce caller context and capability handle, validate schema, and emit invoke/completed/failed audit; parity across entries and transports continues to harden. |
 | `kernel.v1.capability.stream` / `cancel` | partial | Streaming lifecycle, cancel, timeout, and events exist; transport parity continues to harden. |
 
 ### `kernel.v1.cap.*` (3)
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.cap.attenuate` | implemented | Derive a narrower child handle from a parent handle. |
-| `kernel.v1.cap.revoke` | implemented | Immediately revoke a handle and configurable descendants. |
-| `kernel.v1.cap.list_for` | implemented | List all live handles held by a package. |
+| `kernel.v1.cap.attenuate` | partial | Derive a child handle from a parent; constraint-subset validation needs hardening. |
+| `kernel.v1.cap.revoke` | partial | Immediately revoke a handle; complete descendant propagation needs hardening. |
+| `kernel.v1.cap.list_for` | partial | List live handles held by a package; delegation and lease refresh are not complete. |
 
 ### `kernel.v1.permission.*` (4)
 
@@ -110,14 +110,14 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `kernel.v1.projection.get` | partial | Read projection state. |
 | `kernel.v1.projection.list` | partial | List projections. |
 
-### `kernel.v1.outbound.*` (4)
+### `kernel.v1.outbound.*` (6)
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.outbound.audit` | implemented | Query outbound audit. |
-| `kernel.v1.outbound.execute` | implemented | Manifest-gated unary HTTPS outbound with `secret_ref` support. |
-| `kernel.v1.outbound.stream` | implemented | Manifest-gated SSE/NDJSON/raw streaming outbound. |
-| `kernel.v1.outbound.websocket.*` | implemented | Manifest-gated WSS open/send/close. |
+| `kernel.v1.outbound.audit` | partial | Query outbound audit; receipt and cross-executor parity continue to harden. |
+| `kernel.v1.outbound.execute` | partial | Manifest-gated unary HTTPS outbound with `secret_ref` support. |
+| `kernel.v1.outbound.stream` | partial | Manifest-gated SSE/NDJSON/raw streaming outbound. |
+| `kernel.v1.outbound.websocket.*` | partial | Manifest-gated WSS open/send/close; connection lifecycle and event coverage continue to harden. |
 
 Git installation is not a kernel transport; future support belongs in the ordinary official capability package `official/git-tools-lab` using `kernel.v1.outbound.execute` plus `permissions.filesystem.write`.
 
@@ -125,23 +125,23 @@ Git installation is not a kernel transport; future support belongs in the ordina
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.target.list` | implemented | HostAdmin/HostDev only; list execution targets. |
-| `kernel.v1.target.status` | implemented | HostAdmin/HostDev only; inspect one target. |
-| `kernel.v1.target.register` | implemented | HostAdmin/HostDev only; register a controlled target. |
-| `kernel.v1.target.unregister` | implemented | HostAdmin/HostDev only; unregister a target. |
-| `kernel.v1.exec.start` | implemented | HostAdmin/HostDev only; start controlled execution through the host `LocalExecExecutor`; deny-all by default. |
-| `kernel.v1.exec.stop` | implemented | HostAdmin/HostDev only; stop a known execution. |
-| `kernel.v1.exec.status` | implemented | HostAdmin/HostDev only; inspect execution state. |
-| `kernel.v1.exec.logs` | implemented | HostAdmin/HostDev only; read redacted log tail. |
-| `kernel.v1.exec.list` | implemented | HostAdmin/HostDev only; list execution records. |
-| `kernel.v1.port.lease` | implemented | HostAdmin/HostDev only; lease a loopback port. |
-| `kernel.v1.port.release` | implemented | HostAdmin/HostDev only; release a port lease. |
-| `kernel.v1.port.status` | implemented | HostAdmin/HostDev only; inspect a port lease. |
-| `kernel.v1.port.list` | implemented | HostAdmin/HostDev only; list port leases. |
-| `kernel.v1.proxy.register` | implemented | HostAdmin/HostDev only; register an HTTP/WebSocket route; upstream must reference an active port lease and matching `port_name`. |
-| `kernel.v1.proxy.unregister` | implemented | HostAdmin/HostDev only; unregister a route. |
-| `kernel.v1.proxy.status` | implemented | HostAdmin/HostDev only; inspect a route. |
-| `kernel.v1.proxy.list` | implemented | HostAdmin/HostDev only; list routes. |
+| `kernel.v1.target.list` | partial | HostAdmin/HostDev only; list execution targets. |
+| `kernel.v1.target.status` | partial | HostAdmin/HostDev only; inspect one target. |
+| `kernel.v1.target.register` | partial | HostAdmin/HostDev only; register a controlled target. |
+| `kernel.v1.target.unregister` | partial | HostAdmin/HostDev only; unregister a target. |
+| `kernel.v1.exec.start` | partial | HostAdmin/HostDev only; start controlled execution through the host `LocalExecExecutor`; deny-all by default. |
+| `kernel.v1.exec.stop` | partial | HostAdmin/HostDev only; stop a known execution. |
+| `kernel.v1.exec.status` | partial | HostAdmin/HostDev only; inspect execution state. |
+| `kernel.v1.exec.logs` | partial | HostAdmin/HostDev only; read redacted log tail. |
+| `kernel.v1.exec.list` | partial | HostAdmin/HostDev only; list execution records. |
+| `kernel.v1.port.lease` | partial | HostAdmin/HostDev only; lease a loopback port. |
+| `kernel.v1.port.release` | partial | HostAdmin/HostDev only; release a port lease. |
+| `kernel.v1.port.status` | partial | HostAdmin/HostDev only; inspect a port lease. |
+| `kernel.v1.port.list` | partial | HostAdmin/HostDev only; list port leases. |
+| `kernel.v1.proxy.register` | partial | HostAdmin/HostDev only; register an HTTP/WebSocket route; upstream must reference an active port lease and matching `port_name`. |
+| `kernel.v1.proxy.unregister` | partial | HostAdmin/HostDev only; unregister a route. |
+| `kernel.v1.proxy.status` | partial | HostAdmin/HostDev only; inspect a route. |
+| `kernel.v1.proxy.list` | partial | HostAdmin/HostDev only; list routes. |
 
 
 ### `kernel.v1.project.*` (5)
@@ -167,7 +167,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.audit.package` | implemented | Report declared vs used authority for `yg audit --package <id>`. |
+| `kernel.v1.audit.package` | partial | Report declared vs used authority for `yg audit --package <id>`; actual-use tracking continues to expand. |
 
 ### Surface / extension point / hook (6)
 
@@ -175,12 +175,12 @@ Git installation is not a kernel transport; future support belongs in the ordina
 |---|---:|---|
 | `kernel.v1.surface.contribution.list` | partial | List typed package-declared surface contributions. |
 | `kernel.v1.surface.contribution.describe` | partial | Describe one contribution. |
-| `kernel.v1.surface.resolve_bundle` | implemented | HostAdmin/HostDev only; resolve a mountable bundle URL from a surface contribution, project dev path, or installed project. |
+| `kernel.v1.surface.resolve_bundle` | partial | HostAdmin/HostDev only; resolve a mountable bundle URL from a surface contribution, project dev path, or installed project; cross-source parity continues to harden. |
 | `kernel.v1.extension_point.list` | implemented | List extension points. |
 | `kernel.v1.extension_point.describe` | planned | Describe one extension point. |
 | `kernel.v1.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (58)
+## Event kind matrix (59)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -198,7 +198,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | exec | 6 | `exec.request`, `.started`, `.completed`, `.failed`, `.stopped`, `.denied` |
 | port | 3 | `port.leased`, `.released`, `.denied` |
 | proxy | 3 | `proxy.registered`, `.unregistered`, `.denied` |
-| deployment | 1 | `deployment.reconciled` |
+| deployment | 2 | `deployment.reconciled`, `deployment.health` |
 | error | 1 | `kernel/v1/error` |
 
 Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/v1/...` or another package namespace.
@@ -487,13 +487,17 @@ The old alpha contract has been replaced by this file. Long-term references shou
 | `kernel.v1.session.*` | 6 |
 | `kernel.v1.event.*` | 3 |
 | `kernel.v1.package.*` | 7 |
-| `kernel.v1.capability.*` | 4 |
+| `kernel.v1.capability.*` | 5 |
 | `kernel.v1.cap.*` | 3 |
 | `kernel.v1.permission.*` | 4 |
 | `kernel.v1.proposal.*` | 6 |
 | `kernel.v1.asset.*` | 3 |
 | `kernel.v1.projection.*` | 4 |
-| `kernel.v1.outbound.*` | 4 |
+| `kernel.v1.outbound.*` | 6 |
+| `kernel.v1.target.*` | 4 |
+| `kernel.v1.exec.*` | 5 |
+| `kernel.v1.port.*` | 4 |
+| `kernel.v1.proxy.*` | 4 |
 | `kernel.v1.project.*` | 5 |
 | `kernel.v1.host.*` | 4 |
 | `kernel.v1.audit.*` | 1 |

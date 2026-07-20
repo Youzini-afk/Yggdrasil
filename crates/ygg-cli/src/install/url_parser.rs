@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 
@@ -69,17 +69,15 @@ pub fn parse_install_url(input: &str) -> Result<InstallUrl> {
 }
 
 fn is_local_path(input: &str) -> bool {
-    input.starts_with("./")
+    Path::new(input).is_absolute()
+        || input.starts_with("./")
         || input.starts_with("../")
-        || input.starts_with('/')
         || input.starts_with("~/")
 }
 
 fn expand_home(input: &str) -> Result<PathBuf> {
     if let Some(rest) = input.strip_prefix("~/") {
-        let home = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .ok_or_else(|| anyhow!("home dir unavailable for ~/ path"))?;
+        let home = dirs::home_dir().ok_or_else(|| anyhow!("home dir unavailable for ~/ path"))?;
         Ok(home.join(rest))
     } else {
         Ok(PathBuf::from(input))
@@ -172,6 +170,16 @@ mod tests {
         let parsed = parse_install_url("./packages/my-pkg").unwrap();
         match parsed.source {
             InstallSource::Local { path } => assert_eq!(path, PathBuf::from("./packages/my-pkg")),
+            InstallSource::Git { .. } => panic!("expected local source"),
+        }
+    }
+
+    #[test]
+    fn parses_absolute_local_path() {
+        let path = std::env::current_dir().unwrap().join("packages/my-pkg");
+        let parsed = parse_install_url(&path.to_string_lossy()).unwrap();
+        match parsed.source {
+            InstallSource::Local { path: parsed_path } => assert_eq!(parsed_path, path),
             InstallSource::Git { .. } => panic!("expected local source"),
         }
     }

@@ -6,9 +6,6 @@ license.workspace = true
 rust-version.workspace = true
 description = "Generated Rust SDK for the Yggdrasil kernel contract"
 
-[lib]
-path = "src/client.rs"
-
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true

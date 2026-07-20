@@ -431,7 +431,7 @@ impl KernelClient {
     pub async fn port_release(
         &self,
         params: PortLeaseIdParams,
-    ) -> Result<PortLeaseRecord> {
+    ) -> Result<PortLeaseRecord2> {
         let raw = self
             .transport
             .invoke("kernel.v1.port.release", serde_json::to_value(params)?)
@@ -441,7 +441,7 @@ impl KernelClient {
     pub async fn port_status(
         &self,
         params: PortLeaseIdParams,
-    ) -> Result<PortLeaseRecord> {
+    ) -> Result<PortLeaseRecord2> {
         let raw = self
             .transport
             .invoke("kernel.v1.port.status", serde_json::to_value(params)?)
@@ -618,7 +618,7 @@ impl KernelClient {
     pub async fn proxy_status(
         &self,
         params: ProxyRouteIdParams,
-    ) -> Result<ProxyRouteRecord> {
+    ) -> Result<ProxyRouteRecord2> {
         let raw = self
             .transport
             .invoke("kernel.v1.proxy.status", serde_json::to_value(params)?)
@@ -628,7 +628,7 @@ impl KernelClient {
     pub async fn proxy_unregister(
         &self,
         params: ProxyRouteIdParams,
-    ) -> Result<ProxyRouteRecord> {
+    ) -> Result<ProxyRouteRecord2> {
         let raw = self
             .transport
             .invoke("kernel.v1.proxy.unregister", serde_json::to_value(params)?)

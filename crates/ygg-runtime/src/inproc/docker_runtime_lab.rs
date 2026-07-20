@@ -1713,18 +1713,23 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_build_image_accepts_nixpacks_strategy_shape() {
-        let data_dir = PathBuf::from("/tmp/ygg-runtime-nixpacks-test-data");
+        let temp = tempfile::tempdir().unwrap();
+        let data_dir = temp.path().to_path_buf();
+        let previous_data_dir = std::env::var_os("YGG_DATA_DIR");
         std::env::set_var("YGG_DATA_DIR", &data_dir);
         let context_dir = data_dir.join("projects/project-1/workspace");
-        let spec = parse_build_image_request(&serde_json::json!({
+        let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "nixpacks",
             "project_id": "project-1",
             "build_id": "build-1",
             "context_dir": context_dir.to_string_lossy()
-        }))
-        .unwrap();
-        std::env::remove_var("YGG_DATA_DIR");
+        }));
+        match previous_data_dir {
+            Some(value) => std::env::set_var("YGG_DATA_DIR", value),
+            None => std::env::remove_var("YGG_DATA_DIR"),
+        }
+        let spec = result.unwrap();
         assert_eq!(spec.strategy, BuildStrategy::Nixpacks);
         assert_eq!(spec.dockerfile, "Dockerfile");
     }

@@ -33,7 +33,7 @@ v1 契约支持两种参与方式：
 | `kernel.v1.session.close` | implemented | 关闭 session，写入 `kernel/v1/session.closed`。 |
 | `kernel.v1.session.fork` | partial | 从父 session 与 sequence 创建 branch lineage，不解释内容。 |
 | `kernel.v1.session.branch.list` | partial | 列出与 session 相关的 branch 记录。 |
-| `kernel.v1.session.get` | planned | 预留单 session 查询。 |
+| `kernel.v1.session.get` | partial | 查询单个 session；行为与错误契约仍在加固。 |
 | `kernel.v1.session.list` | planned | 预留 host 管理列表。 |
 
 ### `kernel.v1.event.*`（3）
@@ -41,37 +41,37 @@ v1 契约支持两种参与方式：
 | 方法 | 状态 | 契约 |
 |---|---:|---|
 | `kernel.v1.event.append` | implemented | 对非内核 writer 强制 namespace 和 `events.append`。 |
-| `kernel.v1.event.list` | implemented | 按 session 列出事件，支持 sequence、limit、kind、writer 过滤与权限门控。 |
-| `kernel.v1.event.subscribe` | partial | SSE replay/tail 已存在；package-principal subscribe 权限仍需加固。 |
+| `kernel.v1.event.list` | partial | 按 session 列出事件，支持 sequence、limit、kind、writer 过滤与权限门控；跨后端一致性仍在加固。 |
+| `kernel.v1.event.subscribe` | planned | SSE replay/tail 路由已存在；公开 method dispatch 与 package-principal subscribe 权限尚未落地。 |
 
 ### `kernel.v1.package.*`（7）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.package.load` | implemented | 验证 manifest、host policy、路径 A/路径 B、入口约束，注册声明并发出生命周期事件。 |
-| `kernel.v1.package.unload` | implemented | 停止执行、移除注册、撤销运行时句柄、发出停止/卸载事件。 |
+| `kernel.v1.package.load` | partial | 验证 manifest、host policy、路径 A/路径 B、入口约束，注册声明并发出生命周期事件；部分 entry form 仍是占位。 |
+| `kernel.v1.package.unload` | partial | 停止执行、移除注册、撤销运行时句柄、发出停止/卸载事件；不同 entry form 的完整对称性仍在加固。 |
 | `kernel.v1.package.list` | implemented | 列出内存 package record。 |
 | `kernel.v1.package.status` | implemented | 返回单个 package record。 |
 | `kernel.v1.package.restart` | partial | 已支持 subprocess restart；其他 entry 形式按策略拒绝。 |
 | `kernel.v1.package.logs` | partial | 捕获 subprocess stderr；stdout 保留给 JSON-RPC 帧。 |
 | `kernel.v1.package.describe` | planned | 可由 status manifest 派生，公开方法预留。 |
 
-### `kernel.v1.capability.*`（4）
+### `kernel.v1.capability.*`（5）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
 | `kernel.v1.capability.discover` | implemented | 列出注册的 capability descriptor。 |
 | `kernel.v1.capability.describe` | planned | 预留 descriptor 单项查询。 |
-| `kernel.v1.capability.invoke` | implemented | 用调用者上下文与 capability handle 强制权限；验证 schema；发出 invoke/completed/failed 审计。 |
+| `kernel.v1.capability.invoke` | partial | 用调用者上下文与 capability handle 强制权限；验证 schema；发出 invoke/completed/failed 审计；跨 entry/transport 一致性仍在加固。 |
 | `kernel.v1.capability.stream` / `cancel` | partial | 流式生命周期、取消、超时与事件已存在；跨传输一致性继续加固。 |
 
 ### `kernel.v1.cap.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.cap.attenuate` | implemented | 从父句柄派生更窄的子句柄。 |
-| `kernel.v1.cap.revoke` | implemented | 立刻撤销句柄及其可配置子树。 |
-| `kernel.v1.cap.list_for` | implemented | 列出 package 当前持有的 live handles。 |
+| `kernel.v1.cap.attenuate` | partial | 从父句柄派生子句柄；约束子集验证仍需加固。 |
+| `kernel.v1.cap.revoke` | partial | 立刻撤销句柄；完整子树传播仍需加固。 |
+| `kernel.v1.cap.list_for` | partial | 列出 package 当前持有的 live handles；delegate/lease refresh 尚未完成。 |
 
 ### `kernel.v1.permission.*`（4）
 
@@ -110,14 +110,14 @@ v1 契约支持两种参与方式：
 | `kernel.v1.projection.get` | partial | 读取 projection state。 |
 | `kernel.v1.projection.list` | partial | 列出 projection。 |
 
-### `kernel.v1.outbound.*`（4）
+### `kernel.v1.outbound.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.outbound.audit` | implemented | 查询出站审计。 |
-| `kernel.v1.outbound.execute` | implemented | 受 manifest network/secret_ref 约束的一元 HTTPS 出站。 |
-| `kernel.v1.outbound.stream` | implemented | 受约束 SSE/NDJSON/raw 流式出站。 |
-| `kernel.v1.outbound.websocket.*` | implemented | 受约束 WSS open/send/close。 |
+| `kernel.v1.outbound.audit` | partial | 查询出站审计；receipt 与跨执行器一致性仍在加固。 |
+| `kernel.v1.outbound.execute` | partial | 受 manifest network/secret_ref 约束的一元 HTTPS 出站。 |
+| `kernel.v1.outbound.stream` | partial | 受约束 SSE/NDJSON/raw 流式出站。 |
+| `kernel.v1.outbound.websocket.*` | partial | 受约束 WSS open/send/close；连接生命周期与事件覆盖仍在加固。 |
 
 Git 安装不是内核传输；未来由普通官方能力包 `official/git-tools-lab` 通过 `kernel.v1.outbound.execute` 与 `permissions.filesystem.write` 实现。
 
@@ -125,23 +125,23 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.target.list` | implemented | HostAdmin/HostDev only；列出可运行目标。 |
-| `kernel.v1.target.status` | implemented | HostAdmin/HostDev only；查询单个目标。 |
-| `kernel.v1.target.register` | implemented | HostAdmin/HostDev only；注册受控目标。 |
-| `kernel.v1.target.unregister` | implemented | HostAdmin/HostDev only；注销目标。 |
-| `kernel.v1.exec.start` | implemented | HostAdmin/HostDev only；通过 host `LocalExecExecutor` 启动受控执行；默认 deny-all。 |
-| `kernel.v1.exec.stop` | implemented | HostAdmin/HostDev only；停止已知执行。 |
-| `kernel.v1.exec.status` | implemented | HostAdmin/HostDev only；查询执行状态。 |
-| `kernel.v1.exec.logs` | implemented | HostAdmin/HostDev only；读取脱敏日志尾部。 |
-| `kernel.v1.exec.list` | implemented | HostAdmin/HostDev only；列出执行记录。 |
-| `kernel.v1.port.lease` | implemented | HostAdmin/HostDev only；租用 loopback 端口。 |
-| `kernel.v1.port.release` | implemented | HostAdmin/HostDev only；释放端口租约。 |
-| `kernel.v1.port.status` | implemented | HostAdmin/HostDev only；查询端口租约。 |
-| `kernel.v1.port.list` | implemented | HostAdmin/HostDev only；列出端口租约。 |
-| `kernel.v1.proxy.register` | implemented | HostAdmin/HostDev only；注册 HTTP/WebSocket route，upstream 必须引用 active port lease，且 `port_name` 匹配。 |
-| `kernel.v1.proxy.unregister` | implemented | HostAdmin/HostDev only；注销 route。 |
-| `kernel.v1.proxy.status` | implemented | HostAdmin/HostDev only；查询 route。 |
-| `kernel.v1.proxy.list` | implemented | HostAdmin/HostDev only；列出 route。 |
+| `kernel.v1.target.list` | partial | HostAdmin/HostDev only；列出可运行目标。 |
+| `kernel.v1.target.status` | partial | HostAdmin/HostDev only；查询单个目标。 |
+| `kernel.v1.target.register` | partial | HostAdmin/HostDev only；注册受控目标。 |
+| `kernel.v1.target.unregister` | partial | HostAdmin/HostDev only；注销目标。 |
+| `kernel.v1.exec.start` | partial | HostAdmin/HostDev only；通过 host `LocalExecExecutor` 启动受控执行；默认 deny-all。 |
+| `kernel.v1.exec.stop` | partial | HostAdmin/HostDev only；停止已知执行。 |
+| `kernel.v1.exec.status` | partial | HostAdmin/HostDev only；查询执行状态。 |
+| `kernel.v1.exec.logs` | partial | HostAdmin/HostDev only；读取脱敏日志尾部。 |
+| `kernel.v1.exec.list` | partial | HostAdmin/HostDev only；列出执行记录。 |
+| `kernel.v1.port.lease` | partial | HostAdmin/HostDev only；租用 loopback 端口。 |
+| `kernel.v1.port.release` | partial | HostAdmin/HostDev only；释放端口租约。 |
+| `kernel.v1.port.status` | partial | HostAdmin/HostDev only；查询端口租约。 |
+| `kernel.v1.port.list` | partial | HostAdmin/HostDev only；列出端口租约。 |
+| `kernel.v1.proxy.register` | partial | HostAdmin/HostDev only；注册 HTTP/WebSocket route，upstream 必须引用 active port lease，且 `port_name` 匹配。 |
+| `kernel.v1.proxy.unregister` | partial | HostAdmin/HostDev only；注销 route。 |
+| `kernel.v1.proxy.status` | partial | HostAdmin/HostDev only；查询 route。 |
+| `kernel.v1.proxy.list` | partial | HostAdmin/HostDev only；列出 route。 |
 
 
 ### `kernel.v1.project.*`（5）
@@ -167,7 +167,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.audit.package` | implemented | 报告 package declared vs used authority，供 `yg audit --package <id>` 使用。 |
+| `kernel.v1.audit.package` | partial | 报告 package declared vs used authority，供 `yg audit --package <id>` 使用；实际使用追踪仍在扩展。 |
 
 ### Surface / extension point / hook（6）
 
@@ -175,12 +175,12 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 |---|---:|---|
 | `kernel.v1.surface.contribution.list` | partial | 列出 package 声明的 typed surface contributions。 |
 | `kernel.v1.surface.contribution.describe` | partial | 描述单个 contribution。 |
-| `kernel.v1.surface.resolve_bundle` | implemented | HostAdmin/HostDev only；按 surface contribution / project dev path / installed project 解析可挂载 bundle URL。 |
+| `kernel.v1.surface.resolve_bundle` | partial | HostAdmin/HostDev only；按 surface contribution / project dev path / installed project 解析可挂载 bundle URL；跨来源一致性仍在加固。 |
 | `kernel.v1.extension_point.list` | implemented | 列出 extension points。 |
 | `kernel.v1.extension_point.describe` | planned | 描述单个 extension point。 |
 | `kernel.v1.hook.list` | partial | 列出 hook subscriptions。 |
 
-## 事件类型矩阵（58）
+## 事件类型矩阵（59）
 
 完整 registry 见 [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。事件 payload schema 位于 `docs/spec/v1/schemas/events/`。事件分组如下：
 
@@ -198,7 +198,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 | exec | 6 | `exec.request`、`.started`、`.completed`、`.failed`、`.stopped`、`.denied` |
 | port | 3 | `port.leased`、`.released`、`.denied` |
 | proxy | 3 | `proxy.registered`、`.unregistered`、`.denied` |
-| deployment | 1 | `deployment.reconciled` |
+| deployment | 2 | `deployment.reconciled`、`deployment.health` |
 | error | 1 | `kernel/v1/error` |
 
 非内核事件类型必须以 writer package id 加 `/` 开头。内核必须拒绝包写入 `kernel/v1/...` 或其他包 namespace。
@@ -487,13 +487,17 @@ Host operator 应能通过公开方法或 CLI 看见：
 | `kernel.v1.session.*` | 6 |
 | `kernel.v1.event.*` | 3 |
 | `kernel.v1.package.*` | 7 |
-| `kernel.v1.capability.*` | 4 |
+| `kernel.v1.capability.*` | 5 |
 | `kernel.v1.cap.*` | 3 |
 | `kernel.v1.permission.*` | 4 |
 | `kernel.v1.proposal.*` | 6 |
 | `kernel.v1.asset.*` | 3 |
 | `kernel.v1.projection.*` | 4 |
-| `kernel.v1.outbound.*` | 4 |
+| `kernel.v1.outbound.*` | 6 |
+| `kernel.v1.target.*` | 4 |
+| `kernel.v1.exec.*` | 5 |
+| `kernel.v1.port.*` | 4 |
+| `kernel.v1.proxy.*` | 4 |
 | `kernel.v1.project.*` | 5 |
 | `kernel.v1.host.*` | 4 |
 | `kernel.v1.audit.*` | 1 |

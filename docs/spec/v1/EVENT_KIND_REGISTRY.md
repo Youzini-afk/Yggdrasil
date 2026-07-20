@@ -62,3 +62,4 @@
 | `kernel/v1/proxy.unregistered` | [`./schemas/events/kernel__v1__proxy.unregistered.schema.json`](./schemas/events/kernel__v1__proxy.unregistered.schema.json) | kernel | proxy route 已移除 | implemented |
 | `kernel/v1/proxy.denied` | [`./schemas/events/kernel__v1__proxy.denied.schema.json`](./schemas/events/kernel__v1__proxy.denied.schema.json) | kernel | proxy 注册被拒绝 | implemented |
 | `kernel/v1/deployment.reconciled` | [`./schemas/events/kernel__v1__deployment.reconciled.schema.json`](./schemas/events/kernel__v1__deployment.reconciled.schema.json) | kernel | 启动后部署状态 reconcile 汇总 | implemented |
+| `kernel/v1/deployment.health` | [`./schemas/events/kernel__v1__deployment.health.schema.json`](./schemas/events/kernel__v1__deployment.health.schema.json) | kernel | host TCP 健康探测触发部署 ready 状态变化 | implemented |

@@ -27,6 +27,9 @@ jobs:
       - name: cargo check workspace
         run: cargo check --workspace
 
+      - name: cargo test generated Rust SDK
+        run: cargo test -p yg-kernel-sdk
+
       - name: cargo test ygg-runtime
         run: cargo test -p ygg-runtime --lib
 
@@ -45,7 +48,7 @@ jobs:
           test -z "$(git status --porcelain -- docs/spec/v1/schemas sdk)"
 
   web:
-    name: Web typecheck + build
+    name: Web typecheck + test + build
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +64,9 @@ jobs:
 
       - name: Typecheck
         run: npm run check --prefix clients/web
+
+      - name: Test
+        run: npm run test --prefix clients/web
 
       - name: Build
         run: npm run build --prefix clients/web

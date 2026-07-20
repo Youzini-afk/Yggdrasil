@@ -364,6 +364,25 @@ export interface ExtensionPointDescriptor {
 
 export type ExtensionPointListResult = Array<string>;
 
+export interface ExternalProjectData {
+  /**
+   * For external_wrapped: the path to the adapter package's manifest.
+   */
+  "adapter_manifest"?: null | string;
+  /**
+   * Source URL or path the external project was installed from.
+   */
+  "source": string;
+  /**
+   * Resolved commit SHA or version (for git sources).
+   */
+  "source_ref"?: null | string;
+  /**
+   * For external_workspace: path to the fetched project tree under the workspace.
+   */
+  "workspace_root"?: null | string;
+}
+
 export interface FilesystemPermissions {
   "read"?: Array<string>;
   "write"?: Array<string>;
@@ -1222,6 +1241,61 @@ export interface ProjectIdParams {
   "project_id": string;
 }
 
+export interface ProjectInner {
+  /**
+   * Description for tooltip / detail view.
+   */
+  "description"?: string;
+  /**
+   * Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.
+   */
+  "entry_surface_id"?: null | string;
+  /**
+   * Project type-specific data.
+   */
+  "external"?: ExternalProjectData | null;
+  /**
+   * Optional icon path (relative to project root for native, optional for external).
+   */
+  "icon"?: null | string;
+  /**
+   * Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.
+   */
+  "id": string;
+  /**
+   * Free-form metadata for forward compat.
+   */
+  "metadata"?: Record<string, unknown>;
+  /**
+   * Optional packages that may be loaded if available.
+   */
+  "optional_packages"?: Array<string>;
+  /**
+   * Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling
+   */
+  "packages"?: Array<string>;
+  /**
+   * Required capabilities (composition-style validation).
+   */
+  "required_capabilities"?: Array<string>;
+  /**
+   * Required surface ids (composition-style validation).
+   */
+  "required_surfaces"?: Array<string>;
+  /**
+   * Secret policy for this project.
+   */
+  "secret_policy"?: SecretPolicy;
+  /**
+   * Display title for Home card.
+   */
+  "title": string;
+  /**
+   * Project type discriminator.
+   */
+  "type": ProjectType;
+}
+
 export interface ProjectLifecyclePayloadSchema {
   "new_state": ProjectState;
   "previous_state"?: ProjectState | null;
@@ -1495,6 +1569,17 @@ export interface SandboxPolicy {
 export interface SchemaContribution {
   "id": string;
   "schema": unknown;
+}
+
+export interface SecretPolicy {
+  /**
+   * If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).
+   */
+  "fallback_to_platform"?: boolean;
+  /**
+   * Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.
+   */
+  "require_per_project"?: Array<string>;
 }
 
 export interface SessionBranchListParams {

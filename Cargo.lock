@@ -9117,6 +9117,7 @@ dependencies = [
  "clap",
  "console",
  "dialoguer",
+ "dirs 5.0.1",
  "heck 0.5.0",
  "jsonschema",
  "prettyplease",

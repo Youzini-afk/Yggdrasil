@@ -5,5 +5,4 @@ pub mod types;
 
 pub use client::{KernelClient, KernelTransport};
 pub use events::*;
-pub use methods::*;
 pub use types::*;

@@ -62,3 +62,4 @@ This table lists kernel-reserved `kernel/v1/*` event kinds. Non-kernel packages 
 | `kernel/v1/proxy.unregistered` | [`./schemas/events/kernel__v1__proxy.unregistered.schema.json`](./schemas/events/kernel__v1__proxy.unregistered.schema.json) | kernel | Proxy route removed | implemented |
 | `kernel/v1/proxy.denied` | [`./schemas/events/kernel__v1__proxy.denied.schema.json`](./schemas/events/kernel__v1__proxy.denied.schema.json) | kernel | Proxy registration denied | implemented |
 | `kernel/v1/deployment.reconciled` | [`./schemas/events/kernel__v1__deployment.reconciled.schema.json`](./schemas/events/kernel__v1__deployment.reconciled.schema.json) | kernel | Deployment state reconciled after startup | implemented |
+| `kernel/v1/deployment.health` | [`./schemas/events/kernel__v1__deployment.health.schema.json`](./schemas/events/kernel__v1__deployment.health.schema.json) | kernel | Host TCP health probe changes deployment ready state | implemented |

@@ -5,7 +5,8 @@ const { readFileSync } = await importNode("node:fs") as { readFileSync(path: str
 const { resolve } = await importNode("node:path") as { resolve(...parts: string[]): string };
 const { cwd } = await importNode("node:process") as { cwd(): string };
 
-const bootstrap = readFileSync(resolve(cwd(), "public/surface-frame-bootstrap.js"), "utf8");
+const bootstrap = readFileSync(resolve(cwd(), "public/surface-frame-bootstrap.js"), "utf8")
+  .replace(/\r\n/g, "\n");
 
 function assertContains(fragment: string) {
   if (!bootstrap.includes(fragment)) {
