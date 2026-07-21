@@ -5,7 +5,8 @@ use async_trait::async_trait;
 use futures::Stream;
 use yg_kernel_sdk::{
     AppendEventRequest, AssetGetParams, ContractOwnerLayer, ContractSelection,
-    ContractVersionRequirement, EmptyParams, KernelClient, KernelTransport, KERNEL_V1_ASSET_PUT,
+    ContractVersionRequirement, EmptyParams, KernelClient, KernelTransport, ProtocolDescriptor,
+    ProtocolSelection, KERNEL_V1_ASSET_PUT,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -74,6 +75,8 @@ fn generated_modules_are_exported_from_the_crate_root() {
     assert_eq!(KERNEL_V1_ASSET_PUT, "kernel/v1/asset.put");
     let _ = std::mem::size_of::<AppendEventRequest>();
     let _ = std::mem::size_of::<ContractSelection>();
+    let _ = std::mem::size_of::<ProtocolSelection>();
+    let _ = std::mem::size_of::<ProtocolDescriptor>();
     let _ = generated_method_is_available;
     let _ = canonical_and_legacy_methods_are_available;
 }
@@ -90,6 +93,11 @@ fn negotiated_client_never_drops_the_contract_selection() {
             versions: vec![ContractVersionRequirement {
                 layer: ContractOwnerLayer::Host,
                 version: "0.1.0".to_string(),
+            }],
+            protocols: vec![ProtocolSelection {
+                protocol_id: "ygg.change".to_string(),
+                version: "1.0.0".to_string(),
+                profile: Some("ygg.change/default/v1".to_string()),
             }],
         };
         client.negotiate_host(selection.clone()).await.unwrap();

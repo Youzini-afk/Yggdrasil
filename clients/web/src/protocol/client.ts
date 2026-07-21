@@ -17,9 +17,16 @@ export interface ContractVersionRequirement {
   version: string;
 }
 
+export interface ProtocolSelection {
+  protocol_id: string;
+  version: string;
+  profile?: string;
+}
+
 export interface ContractSelection {
   profile: string;
   versions?: ContractVersionRequirement[];
+  protocols?: ProtocolSelection[];
 }
 
 export interface HostContractInfo {
@@ -32,6 +39,8 @@ export interface HostContractInfo {
   profiles?: unknown[];
   aliases?: Array<{ id: string; canonical_id: string; replacement?: string }>;
   contract_methods?: unknown[];
+  protocol_commons_registry_version?: string;
+  protocols?: unknown[];
   maturity?: string;
   methods: unknown[];
 }

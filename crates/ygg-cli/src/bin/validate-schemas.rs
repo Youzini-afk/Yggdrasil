@@ -20,6 +20,7 @@ const TOP_LEVEL_SCHEMAS: &[&str] = &[
     "permission-set.schema.json",
     "policy-decision.schema.json",
     "protocol-context.schema.json",
+    "protocol-descriptor.schema.json",
 ];
 
 fn main() -> anyhow::Result<()> {

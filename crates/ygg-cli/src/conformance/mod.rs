@@ -46,4 +46,4 @@ mod tdb_rust_adapter;
 mod workspace_lab;
 
 #[allow(unused_imports)]
-pub(crate) use runner::{run, ConformanceOptions};
+pub(crate) use runner::{run, run_protocol_report, ConformanceOptions};

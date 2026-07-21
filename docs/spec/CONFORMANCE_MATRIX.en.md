@@ -429,6 +429,10 @@ protocol.structured_permission_error       PASS
 permission.grant_revoke_audit              PASS
 permission.assistant_capability_grant      PASS
 protocol.call_host_info                    PASS
+protocol.commons_advertised                PASS
+protocol.major_mismatch_rejected           PASS
+protocol.legacy_adapter_is_explicit        PASS
+protocol.reports_are_separate              PASS
 protocol.alias_equivalent                  PASS
 protocol.layered_namespace_smoke           PASS
 protocol.unsupported_version_rejected      PASS

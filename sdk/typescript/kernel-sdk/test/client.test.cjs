@@ -25,6 +25,11 @@ async function main() {
   try {
     const selection = {
       profile: "ygg.contract.default/v1",
+      protocols: [{
+        protocol_id: "ygg.change",
+        version: "1.0.0",
+        profile: "ygg.change/default/v1",
+      }],
       versions: [{ layer: "host", version: "0.1.0" }],
     };
     const client = fromHttpRpc("http://host.test/rpc");
@@ -53,4 +58,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-

@@ -10,11 +10,12 @@ Executable v1 contracts and the hostile conformance roadmap. These docs are back
 - [`OBJECT_STORE.md`](OBJECT_STORE.en.md) — Experimental SHA-256 ObjectStore, ArtifactDescriptor, v1 asset adapter, and legacy FNV migration
 - [`EFFECT_RECEIPTS.md`](EFFECT_RECEIPTS.en.md) — Experimental EffectReceipt, terminal evidence, historical replay, and branch re-execution
 - [`CHANGE_WORKFLOW.md`](CHANGE_WORKFLOW.en.md) — Intent/ChangeSet/PolicyDecision/Commit and the v1 Proposal adapter
+- [`PROTOCOL_COMMONS.md`](PROTOCOL_COMMONS.en.md) — protocol descriptors, semantic/profile negotiation, adapters, and separate protocol/implementation reports
 - [`CONFORMANCE_MATRIX.md`](CONFORMANCE_MATRIX.en.md) — hostile conformance case inventory, indexed by tag and domain
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md) — v1 event kind registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md) — v1 error codes
 - [`v1/VERSIONING.md`](v1/VERSIONING.en.md) — v1 additive-only versioning strategy
-- [`v1/schemas/`](v1/schemas/) — 153 JSON Schemas (80 methods + 59 events + 14 top-level), the SDK source of truth
+- [`v1/schemas/`](v1/schemas/) — 154 JSON Schemas (80 methods + 59 events + 15 top-level), the SDK source of truth
 
 Run the full suite:
 

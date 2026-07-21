@@ -9,6 +9,7 @@ pub mod lockfile;
 pub mod manifest;
 pub mod paths;
 pub mod project;
+pub mod protocol_descriptor;
 pub mod secret_ref;
 pub mod session;
 
@@ -18,6 +19,10 @@ pub use change::{
     ChangeCommit, ChangeCommitStatus, ChangeOperation, ChangePrecondition, ChangeSet, Intent,
     PolicyDecision, PolicyDecisionOutcome, CHANGE_COMMIT_TYPE_URI, CHANGE_SET_TYPE_URI,
     INTENT_TYPE_URI,
+};
+pub use conformance::{
+    CheckResult, CheckStatus, ConformanceSummary, ImplementationConformanceReport,
+    PackageConformanceReport, ProtocolConformanceReport, SubReport,
 };
 pub use effect::{
     EffectReceipt, EffectReplayMode, EffectScope, EffectTerminalStatus, PrincipalIdentity,
@@ -71,6 +76,12 @@ pub use paths::{
 pub use project::{
     ExternalProjectData, ProjectDescriptor, ProjectId, ProjectInner, ProjectState, ProjectType,
     SecretPolicy,
+};
+pub use protocol_descriptor::{
+    NegotiatedProtocol, ProtocolAuthorityRequirement, ProtocolCompatibilityProfile,
+    ProtocolConformanceVector, ProtocolDescriptor, ProtocolDocumentReference,
+    ProtocolImplementationClaim, ProtocolMaturity, ProtocolMigration, ProtocolMigrationKind,
+    ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
 };
 pub use secret_ref::{
     extract_project_name, extract_store_name, is_env_backed_ref, is_project_backed_ref,

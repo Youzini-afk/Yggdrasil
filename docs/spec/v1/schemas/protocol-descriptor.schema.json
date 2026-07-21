@@ -1,0 +1,296 @@
+{
+  "$defs": {
+    "ProtocolAuthorityRequirement": {
+      "properties": {
+        "authority": {
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scope": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "authority",
+        "operations",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "ProtocolCompatibilityProfile": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ProtocolMaturity"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "maturity",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ProtocolConformanceVector": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "required"
+      ],
+      "type": "object"
+    },
+    "ProtocolDocumentReference": {
+      "properties": {
+        "digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "media_type",
+        "uri"
+      ],
+      "type": "object"
+    },
+    "ProtocolImplementationClaim": {
+      "properties": {
+        "conformance_vectors": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "implementation_id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "test_only": {
+          "default": false,
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conformance_vectors",
+        "implementation_id",
+        "profiles",
+        "provider",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ProtocolMaturity": {
+      "enum": [
+        "experimental",
+        "candidate",
+        "stable",
+        "deprecated",
+        "legacy_adapter"
+      ],
+      "type": "string"
+    },
+    "ProtocolMigration": {
+      "properties": {
+        "adapter_id": {
+          "type": "string"
+        },
+        "from_protocol_id": {
+          "type": "string"
+        },
+        "from_version": {
+          "type": "string"
+        },
+        "instructions": {
+          "$ref": "#/$defs/ProtocolDocumentReference"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProtocolMigrationKind"
+        },
+        "lossless": {
+          "type": "boolean"
+        },
+        "to_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter_id",
+        "from_protocol_id",
+        "from_version",
+        "instructions",
+        "kind",
+        "lossless",
+        "to_version"
+      ],
+      "type": "object"
+    },
+    "ProtocolMigrationKind": {
+      "enum": [
+        "identity_adapter",
+        "semantic_adapter",
+        "data_migration"
+      ],
+      "type": "string"
+    },
+    "ProtocolSchemaKind": {
+      "enum": [
+        "json_schema",
+        "wit_world",
+        "other"
+      ],
+      "type": "string"
+    },
+    "ProtocolSchemaReference": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProtocolSchemaKind"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "uri",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "authority_requirements": {
+      "items": {
+        "$ref": "#/$defs/ProtocolAuthorityRequirement"
+      },
+      "type": "array"
+    },
+    "compatibility_profiles": {
+      "items": {
+        "$ref": "#/$defs/ProtocolCompatibilityProfile"
+      },
+      "type": "array"
+    },
+    "conformance_vectors": {
+      "items": {
+        "$ref": "#/$defs/ProtocolConformanceVector"
+      },
+      "type": "array"
+    },
+    "conforming_implementations": {
+      "items": {
+        "$ref": "#/$defs/ProtocolImplementationClaim"
+      },
+      "type": "array"
+    },
+    "descriptor_type_uri": {
+      "type": "string"
+    },
+    "error_model": {
+      "$ref": "#/$defs/ProtocolDocumentReference"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/ProtocolDocumentReference"
+    },
+    "maturity": {
+      "$ref": "#/$defs/ProtocolMaturity"
+    },
+    "migrations": {
+      "items": {
+        "$ref": "#/$defs/ProtocolMigration"
+      },
+      "type": "array"
+    },
+    "protocol_id": {
+      "type": "string"
+    },
+    "schemas": {
+      "items": {
+        "$ref": "#/$defs/ProtocolSchemaReference"
+      },
+      "type": "array"
+    },
+    "semantic_specification": {
+      "$ref": "#/$defs/ProtocolDocumentReference"
+    },
+    "version": {
+      "type": "string"
+    },
+    "wit_worlds": {
+      "items": {
+        "$ref": "#/$defs/ProtocolSchemaReference"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "compatibility_profiles",
+    "conformance_vectors",
+    "descriptor_type_uri",
+    "error_model",
+    "lifecycle",
+    "maturity",
+    "protocol_id",
+    "schemas",
+    "semantic_specification",
+    "version"
+  ],
+  "title": "ProtocolDescriptor",
+  "type": "object"
+}

@@ -83,6 +83,14 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
             Some(ConformanceCommand::Package(package_args)) => {
                 conformance_package::run(package_args).await
             }
+            Some(ConformanceCommand::Protocol(protocol_args)) => {
+                conformance::run_protocol_report(
+                    &protocol_args.protocol,
+                    protocol_args.implementation.as_deref(),
+                    protocol_args.json,
+                )
+                .await
+            }
             None => {
                 conformance::run(conformance::ConformanceOptions {
                     list: args.list,

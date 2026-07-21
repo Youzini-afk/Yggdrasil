@@ -319,6 +319,26 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::call_host_info
         ),
         c!(
+            "protocol.commons_advertised",
+            ["protocol", "commons", "registry"],
+            crate::conformance::protocol::protocol_commons_advertised
+        ),
+        c!(
+            "protocol.major_mismatch_rejected",
+            ["protocol", "commons", "version", "compatibility"],
+            crate::conformance::protocol::protocol_major_mismatch_rejected
+        ),
+        c!(
+            "protocol.legacy_adapter_is_explicit",
+            ["protocol", "commons", "legacy", "adapter"],
+            crate::conformance::protocol::protocol_legacy_adapter_is_explicit
+        ),
+        c!(
+            "protocol.reports_are_separate",
+            ["protocol", "commons", "conformance"],
+            crate::conformance::protocol::protocol_and_implementation_reports_are_separate
+        ),
+        c!(
             "protocol.alias_equivalent",
             ["protocol", "legacy", "alias"],
             crate::conformance::protocol::alias_equivalent

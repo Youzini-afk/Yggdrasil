@@ -5,16 +5,18 @@ use std::sync::OnceLock;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use ygg_core::{NegotiatedProtocol, ProtocolSelection};
 
-use crate::{KernelMethod, MethodStatus, ProtocolError};
+use crate::{negotiate_protocols, KernelMethod, MethodStatus, ProtocolError};
 
-pub const CONTRACT_REGISTRY_VERSION: &str = "0.2.0";
+pub const CONTRACT_REGISTRY_VERSION: &str = "0.3.0";
 pub const CONTRACT_LAYER_VERSION: &str = "0.1.0";
 pub const DEFAULT_CONTRACT_PROFILE: &str = "ygg.contract.default/v1";
 pub const SHELL_DEFAULT_PROFILE: &str = "ygg.shell.default/v1";
 pub const LEGACY_CONTRACT_PROFILE: &str = "kernel.v1";
 
 const INITIAL_CANONICAL_REGISTRY_VERSION: &str = "0.1.0";
+const OWNER_NAMESPACE_REGISTRY_VERSION: &str = "0.2.0";
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord,
@@ -115,6 +117,8 @@ pub struct ContractSelection {
     pub profile: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub versions: Vec<ContractVersionRequirement>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub protocols: Vec<ProtocolSelection>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -122,6 +126,8 @@ pub struct ContractNegotiation {
     pub profile: String,
     pub maturity: ContractMaturity,
     pub versions: Vec<ContractVersionRequirement>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub protocols: Vec<NegotiatedProtocol>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -365,10 +371,16 @@ pub fn negotiate_contract(
         }
     }
 
+    let protocols = selection
+        .map(|selection| negotiate_protocols(&selection.protocols))
+        .transpose()?
+        .unwrap_or_default();
+
     Ok(ContractNegotiation {
         profile: profile.id.clone(),
         maturity: profile.maturity,
         versions: profile.versions.clone(),
+        protocols,
     })
 }
 
@@ -561,7 +573,7 @@ fn canonical_introduced_in(method: KernelMethod, canonical_id: &str, legacy_id: 
     if matches!(method, KernelMethod::HostInfo | KernelMethod::TargetList) {
         return format!("{DEFAULT_CONTRACT_PROFILE}@{INITIAL_CANONICAL_REGISTRY_VERSION}");
     }
-    format!("{DEFAULT_CONTRACT_PROFILE}@{CONTRACT_REGISTRY_VERSION}")
+    format!("{DEFAULT_CONTRACT_PROFILE}@{OWNER_NAMESPACE_REGISTRY_VERSION}")
 }
 
 fn version_requirement(layer: ContractOwnerLayer) -> ContractVersionRequirement {
@@ -717,6 +729,7 @@ mod tests {
         let unknown_profile = ContractSelection {
             profile: "missing/profile".to_string(),
             versions: Vec::new(),
+            protocols: Vec::new(),
         };
         let error = negotiate_contract(Some(&unknown_profile)).unwrap_err();
         assert_eq!(error.code, "kernel/v1/error/unsupported_contract");
@@ -727,9 +740,29 @@ mod tests {
                 layer: ContractOwnerLayer::Host,
                 version: "999.0.0".to_string(),
             }],
+            protocols: Vec::new(),
         };
         let error = negotiate_contract(Some(&unsupported_version)).unwrap_err();
         assert_eq!(error.code, "kernel/v1/error/unsupported_contract");
         assert_eq!(error.details["reason"], "unsupported_version");
+    }
+
+    #[test]
+    fn negotiation_includes_explicit_protocol_profiles() {
+        let selection = ContractSelection {
+            profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+            versions: Vec::new(),
+            protocols: vec![ProtocolSelection {
+                protocol_id: crate::CHANGE_PROTOCOL_ID.to_string(),
+                version: crate::CHANGE_PROTOCOL_VERSION.to_string(),
+                profile: Some(crate::CHANGE_DEFAULT_PROFILE.to_string()),
+            }],
+        };
+        let negotiation = negotiate_contract(Some(&selection)).unwrap();
+        assert_eq!(negotiation.protocols.len(), 1);
+        assert_eq!(
+            negotiation.protocols[0].protocol_id,
+            crate::CHANGE_PROTOCOL_ID
+        );
     }
 }

@@ -21,6 +21,26 @@ pub struct PackageConformanceReport {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProtocolConformanceReport {
+    pub protocol_id: String,
+    pub protocol_version: String,
+    pub profile: String,
+    pub vector_results: Vec<CheckResult>,
+    pub summary: ConformanceSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImplementationConformanceReport {
+    pub implementation_id: String,
+    pub provider: String,
+    pub protocol_id: String,
+    pub protocol_version: String,
+    pub profiles: Vec<String>,
+    pub vector_results: Vec<CheckResult>,
+    pub summary: ConformanceSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckResult {
     pub id: String,
     pub status: CheckStatus,

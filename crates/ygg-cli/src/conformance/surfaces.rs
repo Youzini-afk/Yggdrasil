@@ -228,7 +228,9 @@ contributes:
           en: Same package
 "#,
     )?;
-    crate::commands::manifest::validate_manifest(same_package_path).await?;
+    crate::commands::manifest::read_manifest(same_package_path)
+        .await?
+        .validate_basic()?;
 
     let cross_surface_path = temp.path().join("cross-surface.yaml");
     std::fs::write(

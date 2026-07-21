@@ -2510,6 +2510,12 @@ pub struct ContractProfileInfo {
 ///    "profile": {
 ///      "type": "string"
 ///    },
+///    "protocols": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolSelection"
+///      }
+///    },
 ///    "versions": {
 ///      "type": "array",
 ///      "items": {
@@ -2525,6 +2531,8 @@ pub struct ContractProfileInfo {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ContractSelection {
     pub profile: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocols: ::std::vec::Vec<ProtocolSelection>,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub versions: ::std::vec::Vec<ContractVersionRequirement>,
 }
@@ -6344,8 +6352,23 @@ for HostDiagnosticsResult {
 ///        "$ref": "#/definitions/ContractProfileInfo"
 ///      }
 ///    },
+///    "protocol_commons_registry_version": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
 ///    "protocol_version": {
 ///      "type": "string"
+///    },
+///    "protocols": {
+///      "type": [
+///        "array",
+///        "null"
+///      ],
+///      "items": {
+///        "$ref": "#/definitions/ProtocolDescriptor"
+///      }
 ///    },
 ///    "supported_transports": {
 ///      "type": "array",
@@ -6385,7 +6408,11 @@ pub struct HostInfo {
     pub methods: ::std::vec::Vec<ProtocolMethod>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub profiles: ::std::option::Option<::std::vec::Vec<ContractProfileInfo>>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub protocol_commons_registry_version: ::std::option::Option<::std::string::String>,
     pub protocol_version: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub protocols: ::std::option::Option<::std::vec::Vec<ProtocolDescriptor>>,
     pub supported_transports: ::std::vec::Vec<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub versions: ::std::option::Option<::std::vec::Vec<ContractVersionInfo>>,
@@ -14408,6 +14435,124 @@ impl ::std::convert::TryFrom<::std::string::String> for ProposalStatus {
         value.parse()
     }
 }
+///`ProtocolAuthorityRequirement`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolAuthorityRequirement",
+///  "type": "object",
+///  "required": [
+///    "authority",
+///    "operations",
+///    "scope"
+///  ],
+///  "properties": {
+///    "authority": {
+///      "type": "string"
+///    },
+///    "operations": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "scope": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolAuthorityRequirement {
+    pub authority: ::std::string::String,
+    pub operations: ::std::vec::Vec<::std::string::String>,
+    pub scope: ::std::string::String,
+}
+///`ProtocolCompatibilityProfile`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolCompatibilityProfile",
+///  "type": "object",
+///  "required": [
+///    "description",
+///    "id",
+///    "maturity",
+///    "version"
+///  ],
+///  "properties": {
+///    "description": {
+///      "type": "string"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ProtocolMaturity"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolCompatibilityProfile {
+    pub description: ::std::string::String,
+    pub id: ::std::string::String,
+    pub maturity: ProtocolMaturity,
+    pub version: ::std::string::String,
+}
+///`ProtocolConformanceVector`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolConformanceVector",
+///  "type": "object",
+///  "required": [
+///    "description",
+///    "id",
+///    "required"
+///  ],
+///  "properties": {
+///    "description": {
+///      "type": "string"
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "profiles": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "required": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolConformanceVector {
+    pub description: ::std::string::String,
+    pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub profiles: ::std::vec::Vec<::std::string::String>,
+    pub required: bool,
+}
 ///`ProtocolContext`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14468,6 +14613,303 @@ pub struct ProtocolContext {
     pub session_id: ::std::option::Option<::std::string::String>,
     pub transport: ::std::string::String,
 }
+///`ProtocolDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolDescriptor",
+///  "type": "object",
+///  "required": [
+///    "compatibility_profiles",
+///    "conformance_vectors",
+///    "descriptor_type_uri",
+///    "error_model",
+///    "lifecycle",
+///    "maturity",
+///    "protocol_id",
+///    "schemas",
+///    "semantic_specification",
+///    "version"
+///  ],
+///  "properties": {
+///    "authority_requirements": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolAuthorityRequirement"
+///      }
+///    },
+///    "compatibility_profiles": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolCompatibilityProfile"
+///      }
+///    },
+///    "conformance_vectors": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolConformanceVector"
+///      }
+///    },
+///    "conforming_implementations": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolImplementationClaim"
+///      }
+///    },
+///    "descriptor_type_uri": {
+///      "type": "string"
+///    },
+///    "error_model": {
+///      "$ref": "#/definitions/ProtocolDocumentReference"
+///    },
+///    "lifecycle": {
+///      "$ref": "#/definitions/ProtocolDocumentReference"
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ProtocolMaturity"
+///    },
+///    "migrations": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolMigration"
+///      }
+///    },
+///    "protocol_id": {
+///      "type": "string"
+///    },
+///    "schemas": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolSchemaReference"
+///      }
+///    },
+///    "semantic_specification": {
+///      "$ref": "#/definitions/ProtocolDocumentReference"
+///    },
+///    "version": {
+///      "type": "string"
+///    },
+///    "wit_worlds": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolSchemaReference"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolDescriptor {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub authority_requirements: ::std::vec::Vec<ProtocolAuthorityRequirement>,
+    pub compatibility_profiles: ::std::vec::Vec<ProtocolCompatibilityProfile>,
+    pub conformance_vectors: ::std::vec::Vec<ProtocolConformanceVector>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub conforming_implementations: ::std::vec::Vec<ProtocolImplementationClaim>,
+    pub descriptor_type_uri: ::std::string::String,
+    pub error_model: ProtocolDocumentReference,
+    pub lifecycle: ProtocolDocumentReference,
+    pub maturity: ProtocolMaturity,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub migrations: ::std::vec::Vec<ProtocolMigration>,
+    pub protocol_id: ::std::string::String,
+    pub schemas: ::std::vec::Vec<ProtocolSchemaReference>,
+    pub semantic_specification: ProtocolDocumentReference,
+    pub version: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub wit_worlds: ::std::vec::Vec<ProtocolSchemaReference>,
+}
+///`ProtocolDocumentReference`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolDocumentReference",
+///  "type": "object",
+///  "required": [
+///    "media_type",
+///    "uri"
+///  ],
+///  "properties": {
+///    "digest": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "uri": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolDocumentReference {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub digest: ::std::option::Option<::std::string::String>,
+    pub media_type: ::std::string::String,
+    pub uri: ::std::string::String,
+}
+///`ProtocolImplementationClaim`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolImplementationClaim",
+///  "type": "object",
+///  "required": [
+///    "conformance_vectors",
+///    "implementation_id",
+///    "profiles",
+///    "provider",
+///    "version"
+///  ],
+///  "properties": {
+///    "conformance_vectors": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "implementation_id": {
+///      "type": "string"
+///    },
+///    "profiles": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "provider": {
+///      "type": "string"
+///    },
+///    "test_only": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolImplementationClaim {
+    pub conformance_vectors: ::std::vec::Vec<::std::string::String>,
+    pub implementation_id: ::std::string::String,
+    pub profiles: ::std::vec::Vec<::std::string::String>,
+    pub provider: ::std::string::String,
+    #[serde(default)]
+    pub test_only: bool,
+    pub version: ::std::string::String,
+}
+///`ProtocolMaturity`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolMaturity",
+///  "type": "string",
+///  "enum": [
+///    "experimental",
+///    "candidate",
+///    "stable",
+///    "deprecated",
+///    "legacy_adapter"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProtocolMaturity {
+    #[serde(rename = "experimental")]
+    Experimental,
+    #[serde(rename = "candidate")]
+    Candidate,
+    #[serde(rename = "stable")]
+    Stable,
+    #[serde(rename = "deprecated")]
+    Deprecated,
+    #[serde(rename = "legacy_adapter")]
+    LegacyAdapter,
+}
+impl ::std::fmt::Display for ProtocolMaturity {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Experimental => f.write_str("experimental"),
+            Self::Candidate => f.write_str("candidate"),
+            Self::Stable => f.write_str("stable"),
+            Self::Deprecated => f.write_str("deprecated"),
+            Self::LegacyAdapter => f.write_str("legacy_adapter"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProtocolMaturity {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "experimental" => Ok(Self::Experimental),
+            "candidate" => Ok(Self::Candidate),
+            "stable" => Ok(Self::Stable),
+            "deprecated" => Ok(Self::Deprecated),
+            "legacy_adapter" => Ok(Self::LegacyAdapter),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProtocolMaturity {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProtocolMaturity {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProtocolMaturity {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`ProtocolMethod`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14501,6 +14943,143 @@ pub struct ProtocolMethod {
     pub id: ::std::string::String,
     pub status: MethodStatus,
     pub streaming: bool,
+}
+///`ProtocolMigration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolMigration",
+///  "type": "object",
+///  "required": [
+///    "adapter_id",
+///    "from_protocol_id",
+///    "from_version",
+///    "instructions",
+///    "kind",
+///    "lossless",
+///    "to_version"
+///  ],
+///  "properties": {
+///    "adapter_id": {
+///      "type": "string"
+///    },
+///    "from_protocol_id": {
+///      "type": "string"
+///    },
+///    "from_version": {
+///      "type": "string"
+///    },
+///    "instructions": {
+///      "$ref": "#/definitions/ProtocolDocumentReference"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ProtocolMigrationKind"
+///    },
+///    "lossless": {
+///      "type": "boolean"
+///    },
+///    "to_version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolMigration {
+    pub adapter_id: ::std::string::String,
+    pub from_protocol_id: ::std::string::String,
+    pub from_version: ::std::string::String,
+    pub instructions: ProtocolDocumentReference,
+    pub kind: ProtocolMigrationKind,
+    pub lossless: bool,
+    pub to_version: ::std::string::String,
+}
+///`ProtocolMigrationKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolMigrationKind",
+///  "type": "string",
+///  "enum": [
+///    "identity_adapter",
+///    "semantic_adapter",
+///    "data_migration"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProtocolMigrationKind {
+    #[serde(rename = "identity_adapter")]
+    IdentityAdapter,
+    #[serde(rename = "semantic_adapter")]
+    SemanticAdapter,
+    #[serde(rename = "data_migration")]
+    DataMigration,
+}
+impl ::std::fmt::Display for ProtocolMigrationKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::IdentityAdapter => f.write_str("identity_adapter"),
+            Self::SemanticAdapter => f.write_str("semantic_adapter"),
+            Self::DataMigration => f.write_str("data_migration"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProtocolMigrationKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "identity_adapter" => Ok(Self::IdentityAdapter),
+            "semantic_adapter" => Ok(Self::SemanticAdapter),
+            "data_migration" => Ok(Self::DataMigration),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProtocolMigrationKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProtocolMigrationKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProtocolMigrationKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`ProtocolPrincipal`
 ///
@@ -14636,6 +15215,165 @@ pub enum ProtocolPrincipal {
     },
     #[serde(rename = "anonymous")]
     Anonymous,
+}
+///`ProtocolSchemaKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolSchemaKind",
+///  "type": "string",
+///  "enum": [
+///    "json_schema",
+///    "wit_world",
+///    "other"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProtocolSchemaKind {
+    #[serde(rename = "json_schema")]
+    JsonSchema,
+    #[serde(rename = "wit_world")]
+    WitWorld,
+    #[serde(rename = "other")]
+    Other,
+}
+impl ::std::fmt::Display for ProtocolSchemaKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::JsonSchema => f.write_str("json_schema"),
+            Self::WitWorld => f.write_str("wit_world"),
+            Self::Other => f.write_str("other"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProtocolSchemaKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "json_schema" => Ok(Self::JsonSchema),
+            "wit_world" => Ok(Self::WitWorld),
+            "other" => Ok(Self::Other),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProtocolSchemaKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProtocolSchemaKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProtocolSchemaKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ProtocolSchemaReference`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolSchemaReference",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "kind",
+///    "uri",
+///    "version"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/ProtocolSchemaKind"
+///    },
+///    "uri": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolSchemaReference {
+    pub id: ::std::string::String,
+    pub kind: ProtocolSchemaKind,
+    pub uri: ::std::string::String,
+    pub version: ::std::string::String,
+}
+///`ProtocolSelection`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolSelection",
+///  "type": "object",
+///  "required": [
+///    "protocol_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "profile": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "protocol_id": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolSelection {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub profile: ::std::option::Option<::std::string::String>,
+    pub protocol_id: ::std::string::String,
+    pub version: ::std::string::String,
 }
 ///`ProxyDeclaration`
 ///

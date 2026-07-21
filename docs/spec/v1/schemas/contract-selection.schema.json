@@ -25,12 +25,39 @@
         "version"
       ],
       "type": "object"
+    },
+    "ProtocolSelection": {
+      "properties": {
+        "profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "profile": {
       "type": "string"
+    },
+    "protocols": {
+      "items": {
+        "$ref": "#/$defs/ProtocolSelection"
+      },
+      "type": "array"
     },
     "versions": {
       "items": {

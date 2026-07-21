@@ -4,14 +4,20 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use ygg_core::{
+    CheckResult, CheckStatus, ConformanceSummary, ImplementationConformanceReport,
+    ProtocolConformanceReport,
+};
 use ygg_runtime::{
-    ContractOwnerLayer, ContractSelection, ContractVersionRequirement, DeploymentReconcileSource,
-    EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore, LocalExecExecutor,
-    LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse, LocalExecStartRequest,
-    LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse, LocalExecStopRequest,
-    LocalExecStopResponse, ManagedContainerReport, PortLeaseStatusKind, ProtocolContext,
-    ProtocolPrincipal, ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore,
-    CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
+    negotiate_contract, protocol_descriptor, ContractOwnerLayer, ContractSelection,
+    ContractVersionRequirement, DeploymentReconcileSource, EventStore, ExecStatus, ExecStatusKind,
+    InMemoryEventStore, LocalExecExecutor, LocalExecExecutorConfig, LocalExecLogsRequest,
+    LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
+    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
+    PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProtocolSelection,
+    ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore, CHANGE_DEFAULT_PROFILE,
+    CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION, CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE,
+    PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_DEFAULT_PROFILE,
 };
 
 use super::fixtures::*;
@@ -30,6 +36,151 @@ pub(crate) async fn call_host_info() -> anyhow::Result<()> {
         value.get("supported_transports").is_some(),
         "host.info missing transports"
     );
+    Ok(())
+}
+
+pub(crate) async fn protocol_commons_advertised() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    let value = runtime
+        .call_protocol(
+            &ProtocolContext::host_dev("protocol_commons_advertised"),
+            "host.info",
+            json!({}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(
+        value["protocol_commons_registry_version"] == PROTOCOL_COMMONS_REGISTRY_VERSION,
+        "host.info did not advertise the Protocol Commons registry version"
+    );
+    let protocols = value["protocols"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("host.info missing protocol descriptors"))?;
+    anyhow::ensure!(
+        protocols.len() == 3,
+        "expected exactly three Phase 6 protocols"
+    );
+    for id in ["ygg.change", "ygg.shell.default", "ygg.world.bundle"] {
+        anyhow::ensure!(
+            protocols
+                .iter()
+                .any(|descriptor| descriptor["protocol_id"] == id),
+            "missing protocol descriptor {id}"
+        );
+    }
+
+    let change = protocol_descriptor(CHANGE_PROTOCOL_ID)
+        .ok_or_else(|| anyhow::anyhow!("change descriptor missing"))?;
+    let required = change
+        .conformance_vectors
+        .iter()
+        .filter(|vector| vector.required)
+        .map(|vector| vector.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    anyhow::ensure!(
+        change.conforming_implementations.len() == 2,
+        "change protocol must prove official and third-party vector parity"
+    );
+    for implementation in &change.conforming_implementations {
+        let claimed = implementation
+            .conformance_vectors
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        anyhow::ensure!(
+            claimed == required,
+            "{} does not use the protocol-owned vector set",
+            implementation.implementation_id
+        );
+    }
+    Ok(())
+}
+
+pub(crate) async fn protocol_major_mismatch_rejected() -> anyhow::Result<()> {
+    let (store, runtime) = runtime();
+    let selection = ContractSelection {
+        profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+        versions: Vec::new(),
+        protocols: vec![ProtocolSelection {
+            protocol_id: CHANGE_PROTOCOL_ID.to_string(),
+            version: "2.0.0".to_string(),
+            profile: None,
+        }],
+    };
+    let error = runtime
+        .call_protocol_negotiated(
+            &ProtocolContext::host_dev("protocol_major_mismatch_rejected"),
+            "host.info",
+            json!({}),
+            Some(&selection),
+        )
+        .await
+        .expect_err("unsupported protocol major must be rejected");
+    anyhow::ensure!(error.code == "kernel/v1/error/unsupported_protocol");
+    anyhow::ensure!(error.details["reason"] == "protocol_major_mismatch");
+    anyhow::ensure!(
+        store.list_all().await?.is_empty(),
+        "protocol mismatch reached the requested handler"
+    );
+    Ok(())
+}
+
+pub(crate) async fn protocol_legacy_adapter_is_explicit() -> anyhow::Result<()> {
+    let selection = ContractSelection {
+        profile: DEFAULT_CONTRACT_PROFILE.to_string(),
+        versions: Vec::new(),
+        protocols: vec![ProtocolSelection {
+            protocol_id: "kernel.v1.proposal".to_string(),
+            version: "1.0.0".to_string(),
+            profile: Some(CHANGE_DEFAULT_PROFILE.to_string()),
+        }],
+    };
+    let negotiation = negotiate_contract(Some(&selection))
+        .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
+    anyhow::ensure!(negotiation.protocols.len() == 1);
+    anyhow::ensure!(negotiation.protocols[0].protocol_id == CHANGE_PROTOCOL_ID);
+    anyhow::ensure!(negotiation.protocols[0].negotiated_version == CHANGE_PROTOCOL_VERSION);
+    anyhow::ensure!(negotiation.protocols[0].adapter_id.as_deref() == Some("change.proposal.v1"));
+    Ok(())
+}
+
+pub(crate) async fn protocol_and_implementation_reports_are_separate() -> anyhow::Result<()> {
+    let vector = CheckResult {
+        id: "proposal.lifecycle_apply".to_string(),
+        status: CheckStatus::Pass,
+        details: None,
+        subreports: Vec::new(),
+    };
+    let summary = ConformanceSummary {
+        total: 1,
+        passed: 1,
+        failed: 0,
+        skipped: 0,
+        warnings: 0,
+        compliance_pct: 100.0,
+    };
+    let protocol = ProtocolConformanceReport {
+        protocol_id: CHANGE_PROTOCOL_ID.to_string(),
+        protocol_version: CHANGE_PROTOCOL_VERSION.to_string(),
+        profile: CHANGE_DEFAULT_PROFILE.to_string(),
+        vector_results: vec![vector.clone()],
+        summary: summary.clone(),
+    };
+    let implementation = ImplementationConformanceReport {
+        implementation_id: "org.example.change-reference".to_string(),
+        provider: "third-party-conformance-fixture".to_string(),
+        protocol_id: CHANGE_PROTOCOL_ID.to_string(),
+        protocol_version: CHANGE_PROTOCOL_VERSION.to_string(),
+        profiles: vec![CHANGE_DEFAULT_PROFILE.to_string()],
+        vector_results: vec![vector],
+        summary,
+    };
+    let protocol_json = serde_json::to_value(protocol)?;
+    let implementation_json = serde_json::to_value(implementation)?;
+    anyhow::ensure!(protocol_json.get("implementation_id").is_none());
+    anyhow::ensure!(implementation_json.get("implementation_id").is_some());
+    anyhow::ensure!(protocol_json["protocol_id"] == implementation_json["protocol_id"]);
+    anyhow::ensure!(protocol_json["vector_results"] == implementation_json["vector_results"]);
     Ok(())
 }
 
@@ -129,6 +280,7 @@ pub(crate) async fn layered_namespace_smoke() -> anyhow::Result<()> {
     let default_selection = ContractSelection {
         profile: DEFAULT_CONTRACT_PROFILE.to_string(),
         versions: Vec::new(),
+        protocols: Vec::new(),
     };
 
     for (method, params) in [
@@ -154,6 +306,7 @@ pub(crate) async fn layered_namespace_smoke() -> anyhow::Result<()> {
     let shell_selection = ContractSelection {
         profile: SHELL_DEFAULT_PROFILE.to_string(),
         versions: Vec::new(),
+        protocols: Vec::new(),
     };
     runtime
         .call_protocol_negotiated(
@@ -180,6 +333,7 @@ pub(crate) async fn unsupported_version_rejected() -> anyhow::Result<()> {
             layer: ContractOwnerLayer::Host,
             version: "999.0.0".to_string(),
         }],
+        protocols: Vec::new(),
     };
     let error = runtime
         .call_protocol_negotiated(
@@ -207,6 +361,7 @@ pub(crate) async fn no_silent_downgrade() -> anyhow::Result<()> {
             layer: ContractOwnerLayer::Substrate,
             version: "999.0.0".to_string(),
         }],
+        protocols: Vec::new(),
     };
     let error = runtime
         .call_protocol_negotiated(

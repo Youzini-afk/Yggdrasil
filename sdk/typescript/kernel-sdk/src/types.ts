@@ -286,6 +286,7 @@ export interface ContractProfileInfo {
 
 export interface ContractSelection {
   "profile": string;
+  "protocols"?: Array<ProtocolSelection>;
   "versions"?: Array<ContractVersionRequirement>;
 }
 
@@ -637,7 +638,9 @@ export interface HostInfo {
   "maturity"?: ContractMaturity | null;
   "methods": Array<ProtocolMethod>;
   "profiles"?: Array<ContractProfileInfo> | null;
+  "protocol_commons_registry_version"?: null | string;
   "protocol_version": string;
+  "protocols"?: Array<ProtocolDescriptor> | null;
   "supported_transports": Array<string>;
   "versions"?: Array<ContractVersionInfo> | null;
 }
@@ -1739,6 +1742,26 @@ export interface ProposalRecord {
 
 export type ProposalStatus = "created" | "approved" | "applying" | "rejected" | "applied" | "partial" | "failed";
 
+export interface ProtocolAuthorityRequirement {
+  "authority": string;
+  "operations": Array<string>;
+  "scope": string;
+}
+
+export interface ProtocolCompatibilityProfile {
+  "description": string;
+  "id": string;
+  "maturity": ProtocolMaturity;
+  "version": string;
+}
+
+export interface ProtocolConformanceVector {
+  "description": string;
+  "id": string;
+  "profiles"?: Array<string>;
+  "required": boolean;
+}
+
 export interface ProtocolContext {
   "correlation_id"?: null | string;
   "parent_invocation_id"?: null | string;
@@ -1750,11 +1773,57 @@ export interface ProtocolContext {
   "transport": string;
 }
 
+export interface ProtocolDescriptor {
+  "authority_requirements"?: Array<ProtocolAuthorityRequirement>;
+  "compatibility_profiles": Array<ProtocolCompatibilityProfile>;
+  "conformance_vectors": Array<ProtocolConformanceVector>;
+  "conforming_implementations"?: Array<ProtocolImplementationClaim>;
+  "descriptor_type_uri": string;
+  "error_model": ProtocolDocumentReference;
+  "lifecycle": ProtocolDocumentReference;
+  "maturity": ProtocolMaturity;
+  "migrations"?: Array<ProtocolMigration>;
+  "protocol_id": string;
+  "schemas": Array<ProtocolSchemaReference>;
+  "semantic_specification": ProtocolDocumentReference;
+  "version": string;
+  "wit_worlds"?: Array<ProtocolSchemaReference>;
+}
+
+export interface ProtocolDocumentReference {
+  "digest"?: null | string;
+  "media_type": string;
+  "uri": string;
+}
+
+export interface ProtocolImplementationClaim {
+  "conformance_vectors": Array<string>;
+  "implementation_id": string;
+  "profiles": Array<string>;
+  "provider": string;
+  "test_only"?: boolean;
+  "version": string;
+}
+
+export type ProtocolMaturity = "experimental" | "candidate" | "stable" | "deprecated" | "legacy_adapter";
+
 export interface ProtocolMethod {
   "id": string;
   "status": MethodStatus;
   "streaming": boolean;
 }
+
+export interface ProtocolMigration {
+  "adapter_id": string;
+  "from_protocol_id": string;
+  "from_version": string;
+  "instructions": ProtocolDocumentReference;
+  "kind": ProtocolMigrationKind;
+  "lossless": boolean;
+  "to_version": string;
+}
+
+export type ProtocolMigrationKind = "identity_adapter" | "semantic_adapter" | "data_migration";
 
 export type ProtocolPrincipal = {
   "assistant_id": string;
@@ -1773,6 +1842,21 @@ export type ProtocolPrincipal = {
   "kind": "package";
   "package_id": string;
 };
+
+export type ProtocolSchemaKind = "json_schema" | "wit_world" | "other";
+
+export interface ProtocolSchemaReference {
+  "id": string;
+  "kind": ProtocolSchemaKind;
+  "uri": string;
+  "version": string;
+}
+
+export interface ProtocolSelection {
+  "profile"?: null | string;
+  "protocol_id": string;
+  "version": string;
+}
 
 export interface ProxyDeclaration {
   "max_count"?: null | number;

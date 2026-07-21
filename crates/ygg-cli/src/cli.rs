@@ -103,6 +103,21 @@ pub struct ConformanceArgs {
 pub enum ConformanceCommand {
     /// Run the public v1 package conformance test kit.
     Package(crate::commands::conformance_package::ConformancePackageArgs),
+    /// Run the vector set owned by a Protocol Commons descriptor.
+    Protocol(ConformanceProtocolArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ConformanceProtocolArgs {
+    /// Stable Protocol Commons id, for example ygg.change.
+    #[arg(long)]
+    pub protocol: String,
+    /// Optional registered production implementation id.
+    #[arg(long)]
+    pub implementation: Option<String>,
+    /// Emit the typed conformance report as JSON.
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -542,6 +557,34 @@ pub(crate) enum CapabilityCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_protocol_conformance_report_args() {
+        let cli = Cli::try_parse_from([
+            "ygg",
+            "conformance",
+            "protocol",
+            "--protocol",
+            "ygg.change",
+            "--implementation",
+            "ygg.runtime.change-proposal",
+            "--json",
+        ])
+        .expect("parse protocol conformance command");
+        let Command::Conformance(ConformanceArgs {
+            command: Some(ConformanceCommand::Protocol(args)),
+            ..
+        }) = cli.command
+        else {
+            panic!("expected protocol conformance command");
+        };
+        assert_eq!(args.protocol, "ygg.change");
+        assert_eq!(
+            args.implementation.as_deref(),
+            Some("ygg.runtime.change-proposal")
+        );
+        assert!(args.json);
+    }
 
     #[test]
     fn host_profile_execute_default_disabled() {

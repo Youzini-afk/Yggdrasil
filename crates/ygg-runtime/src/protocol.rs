@@ -9,12 +9,13 @@ use schemars::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
+use ygg_core::ProtocolDescriptor;
 
 use crate::{
     contract_aliases, contract_layers, contract_methods, contract_profiles, contract_versions,
-    resolve_contract_method, ContractLayerInfo, ContractMaturity, ContractMethod,
-    ContractProfileInfo, ContractSelection, ContractVersionInfo, CONTRACT_REGISTRY_VERSION,
-    DEFAULT_CONTRACT_PROFILE,
+    protocol_descriptors, resolve_contract_method, ContractLayerInfo, ContractMaturity,
+    ContractMethod, ContractProfileInfo, ContractSelection, ContractVersionInfo,
+    CONTRACT_REGISTRY_VERSION, DEFAULT_CONTRACT_PROFILE, PROTOCOL_COMMONS_REGISTRY_VERSION,
 };
 
 // ---------------------------------------------------------------------------
@@ -684,6 +685,10 @@ pub struct HostInfo {
     pub aliases: Option<&'static [crate::ContractAlias]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contract_methods: Option<&'static [ContractMethod]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protocol_commons_registry_version: Option<&'static str>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protocols: Option<&'static [ProtocolDescriptor]>,
 }
 
 pub const KERNEL_PROTOCOL_VERSION: &str = "0.1.0";
@@ -1111,6 +1116,8 @@ pub fn host_info() -> HostInfo {
         maturity: Some(ContractMaturity::Experimental),
         aliases: Some(contract_aliases()),
         contract_methods: Some(contract_methods()),
+        protocol_commons_registry_version: Some(PROTOCOL_COMMONS_REGISTRY_VERSION),
+        protocols: Some(protocol_descriptors()),
     }
 }
 

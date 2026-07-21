@@ -8,6 +8,7 @@ pub mod pi;
 pub mod project_registry;
 pub mod project_secret;
 pub mod protocol;
+pub mod protocol_commons;
 pub mod redaction;
 pub mod runtime;
 pub mod schema;
@@ -49,6 +50,13 @@ pub use protocol::{
     host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolContext, ProtocolError,
     ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS,
     KERNEL_PROTOCOL_VERSION,
+};
+pub use protocol_commons::{
+    negotiate_protocols, protocol_descriptor, protocol_descriptors, validate_protocol_registry,
+    CHANGE_DEFAULT_PROFILE, CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION,
+    PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_PROTOCOL_ID, SHELL_PROTOCOL_PROFILE,
+    SHELL_PROTOCOL_VERSION, WORLD_BUNDLE_EXPERIMENTAL_PROFILE, WORLD_BUNDLE_PROTOCOL_ID,
+    WORLD_BUNDLE_PROTOCOL_VERSION,
 };
 pub use redaction::{
     redact_effect_value, redact_secrets_in_value, scan_effect_value_for_raw_secrets,
@@ -95,3 +103,9 @@ pub use secret::{
 };
 pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, SubprocessSupervisor};
 pub use tavern::TAVERN_COMPAT_DEFERRED;
+pub use ygg_core::{
+    NegotiatedProtocol, ProtocolAuthorityRequirement, ProtocolCompatibilityProfile,
+    ProtocolConformanceVector, ProtocolDescriptor, ProtocolDocumentReference,
+    ProtocolImplementationClaim, ProtocolMaturity, ProtocolMigration, ProtocolMigrationKind,
+    ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
+};

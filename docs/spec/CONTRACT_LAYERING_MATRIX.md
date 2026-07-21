@@ -41,9 +41,10 @@
 
 - 代码中有 80 个 `KernelMethod`、80 个 method schema。
 - 代码、schema 与 `EVENT_KIND_REGISTRY.md` 均有 59 个 kernel event，包含 `kernel/v1/deployment.health`。
-- 有 14 个顶层 schema；Phase 2 新增 `contract-selection.schema.json`，Phase 4 新增 `artifact-descriptor.schema.json`，Phase 5 新增 EffectReceipt 与四个 Change primitives schema。
+- 有 15 个顶层 schema；Phase 2 新增 `contract-selection.schema.json`，Phase 4 新增 `artifact-descriptor.schema.json`，Phase 5 新增 EffectReceipt 与四个 Change primitives schema，Phase 6 新增 `protocol-descriptor.schema.json`。
 - `KernelMethod::status()`、Contract 文档状态和 actual dispatch 的已知漂移已对齐，并由测试约束。
 - Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter 已落地；Phase 3 已为 Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 发布 36 条 canonical/legacy 双栈。
+- Experimental Protocol Commons 注册表已发布 Change、Shell Default 与 World Bundle descriptor，在 dispatch 前协商显式协议/Profile，并分离 protocol、implementation 与 package 报告。
 - Web 默认仍发送 legacy `kernel.v1.*` method ID；生成 SDK 已从 schema metadata 生成 canonical client 与显式 legacy wrapper，并在生成前校验所有 wire ID、函数名与 operation ID 全局唯一。
 
 因此迁移的第一要求不是删除旧代码，而是建立可测试的兼容路由。
@@ -273,13 +274,14 @@
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | host deployment health；补入 v1 registry |
 
-## 14 个顶层 schema
+## 15 个顶层 schema
 
 | 当前 schema | 目标层 | 处置 | 目标形状 |
 |---|---:|---|---|
 | `event-envelope.schema.json` | `S` | 重塑 | journal envelope + object refs + explicit causation/receipt refs；保留原始 v1 envelope |
 | `protocol-context.schema.json` | `S` | 强化 | authenticated principal、contract/profile negotiation、trace 与 parent invocation |
 | `contract-selection.schema.json` | `S` | 保留 | 显式 profile 与逐 layer version requirement；不允许静默降级 |
+| `protocol-descriptor.schema.json` | `C` | 新增 | 共享语义、生命周期/错误、权限、向量、Profile、迁移与实现声明 |
 | `artifact-descriptor.schema.json` | `S` | 新增 | 开放 artifact type、SHA-256 digest、size、references 与 annotations；bytes 位于 ObjectStore |
 | `effect-receipt.schema.json` | `S` | 新增 | 内容寻址 terminal evidence；引用 input/output/component/authority/policy/approval/parents |
 | `intent.schema.json` | `C` | 新增 | principal goal 与 target scope；不等同于 proposal 或 command |

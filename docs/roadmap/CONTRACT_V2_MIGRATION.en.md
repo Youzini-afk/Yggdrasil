@@ -43,7 +43,9 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 - [x] Phase 2: implement the Experimental Contract Registry, centralized aliases, explicit profile/version negotiation, and the generated SDK/conformance chain.
 - [x] Phase 3: add owner-namespace dual stacks for the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection; all 36 legacy aliases still reach the original handlers.
 - [x] Phase 4: implement the SHA-256 ObjectStore, ArtifactDescriptor, asset adapter, legacy FNV event migration, and an independent persistent object directory.
-- [ ] Phases 5–9: receipt/change primitives, Protocol Commons, component identity, World Bundle, and client/deprecation migration.
+- [x] Phase 5: implement receipt/change primitives, historical replay/re-execution, terminal effect coverage, and the Proposal adapter.
+- [x] Phase 6: establish the Protocol Commons descriptor registry, protocol/profile negotiation, and separate protocol/implementation reports.
+- [ ] Phases 7–9: component identity, World Bundle, and client/deprecation migration.
 
 ## Immediate freeze line
 
@@ -193,7 +195,7 @@ Acceptance:
 - denied/cancelled/timeout/partial/success all have distinguishable terminal receipts;
 - raw-secret scanning covers receipt and adapter output.
 
-Implementation result (2026-07-21): all deliverables and acceptance items above are implemented. See [`EFFECT_RECEIPTS.md`](../spec/EFFECT_RECEIPTS.en.md) and [`CHANGE_WORKFLOW.md`](../spec/CHANGE_WORKFLOW.en.md). The schema set now contains 14 top-level / 153 total files, every documented terminal event schema exposes the additive receipt descriptor, and CI performs structural additive-only validation against the base schemas. Executable evidence covers provider/executor-free replay, branch re-execution, change authority plus CAS-guarded commit/rejection/failure, outbound/stream/WebSocket timeout and cancellation semantics, actively monitored/restart-deduplicated exec receipts, missing objects, and strict raw-secret redaction.
+Implementation result (2026-07-21): all deliverables and acceptance items above are implemented. See [`EFFECT_RECEIPTS.md`](../spec/EFFECT_RECEIPTS.en.md) and [`CHANGE_WORKFLOW.md`](../spec/CHANGE_WORKFLOW.en.md). At the Phase 5 boundary the schema set contained 14 top-level / 153 total files, every documented terminal event schema exposed the additive receipt descriptor, and CI performed structural additive-only validation against the base schemas. Executable evidence covers provider/executor-free replay, branch re-execution, change authority plus CAS-guarded commit/rejection/failure, outbound/stream/WebSocket timeout and cancellation semantics, actively monitored/restart-deduplicated exec receipts, missing objects, and strict raw-secret redaction.
 
 ### 6. Establish Protocol Commons scaffolding
 
@@ -228,6 +230,8 @@ Acceptance:
 - protocol conformance and package/implementation conformance are reported separately;
 - official and third-party implementations use identical vectors;
 - a protocol major mismatch has an explicit adapter or rejection and does not rely on schemas merely parsing.
+
+Implementation result (2026-07-21): the repository now publishes [`PROTOCOL_COMMONS.md`](../spec/PROTOCOL_COMMONS.en.md) and `protocol-descriptor.schema.json`. `host.info` advertises exactly the Change, Shell Default, and World Bundle Experimental descriptors. `ContractSelection.protocols[]` negotiates exact protocol/profile versions before dispatch, reports the declared Proposal adapter, and rejects an unsupported major with a structured `protocol_major_mismatch`. `ygg conformance protocol` emits a `ProtocolConformanceReport` or `ImplementationConformanceReport`, while `ygg conformance package` retains its separate package report. Change and Shell reports execute their protocol-owned vectors; registry validation requires official and third-party claims to use the identical required vector IDs.
 
 ### 7. Separate package envelope from component identity
 
