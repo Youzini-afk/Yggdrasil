@@ -361,9 +361,9 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::alias_equivalent
         ),
         c!(
-            "protocol.deprecated_alias_diagnostic",
-            ["protocol", "legacy", "deprecation", "protocol:ygg.contract"],
-            crate::conformance::protocol::deprecated_alias_diagnostic
+            "protocol.legacy_adapter_lifecycle",
+            ["protocol", "legacy", "adapter", "protocol:ygg.contract"],
+            crate::conformance::protocol::legacy_adapter_lifecycle
         ),
         c!(
             "protocol.layered_namespace_smoke",

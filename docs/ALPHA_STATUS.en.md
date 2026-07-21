@@ -47,7 +47,7 @@ The platform substrate is in place. From here, real project deployment, human te
 
 - A canonical request / response envelope carrying a host-bound principal context. Callers can't claim to be a package or admin.
 - The same dispatcher handles HTTP `POST /rpc` and host JSON-RPC stdio (`ygg host-stdio`).
-- Contract Registry `0.4.0` begins measured deprecation: all 36 aliases still resolve centrally, while `host.info` and `host.target.list` are Candidate and their `kernel.v1.*` aliases carry a documented window through `0.5.0`. HTTP, host stdio, and subprocess reverse stdio emit additive diagnostics; generated SDKs queue those warnings; `ygg contract migrate` previews boundary-aware migrations and uses atomic write/rollback. Web now sends canonical IDs in production.
+- Contract Registry `0.5.0` completes the first real Deprecated → Legacy Adapter transition: all 36 aliases still resolve centrally; `host.info` and `host.target.list` are Candidate, while their `kernel.v1.*` aliases retain the `0.4.0` deprecation history and are frozen as identity Legacy Adapters from `0.5.0`. They accept security fixes and data-reading compatibility but no new field semantics. HTTP, host stdio, and subprocess reverse stdio emit additive lifecycle diagnostics; generated SDKs queue those warnings; `ygg contract migrate` previews boundary-aware migrations and uses atomic write/rollback. Web sends canonical IDs in production.
 - Event subscription via SSE, with `after_sequence` replay and live tailing.
 - Profile-driven `ygg host serve` autoloads packages and exposes both `/rpc` and SSE.
 - TCP transport is reserved for later. WASM and remote entries are first-class manifest forms; execution is deferred.

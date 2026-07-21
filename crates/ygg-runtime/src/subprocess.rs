@@ -698,9 +698,13 @@ mod tests {
         assert!(canonical.get("diagnostics").is_none());
         assert_eq!(
             legacy["diagnostics"][0]["code"],
-            "ygg.contract.alias.deprecated"
+            "ygg.contract.alias.legacy_adapter"
         );
         assert_eq!(legacy["diagnostics"][0]["replacement"], "host.info");
+        assert_eq!(legacy["diagnostics"][0]["maturity"], "legacy_adapter");
+        assert!(legacy["diagnostics"][0]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("no new field semantics")));
     }
 
     #[tokio::test]
@@ -748,7 +752,7 @@ mod tests {
         );
         assert_eq!(
             malformed["diagnostics"][0]["code"],
-            "ygg.contract.alias.deprecated"
+            "ygg.contract.alias.legacy_adapter"
         );
     }
 }

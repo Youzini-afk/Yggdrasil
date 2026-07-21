@@ -4719,40 +4719,66 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rpc_host_info_returns_protocol_envelope() -> anyhow::Result<()> {
-        let response = app()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/rpc")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        json!({"id": "1", "method": "kernel.v1.host.info", "params": {}})
-                            .to_string(),
-                    ))?,
-            )
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
-        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-        assert_eq!(value["id"], "1");
-        assert!(value["result"]["supported_transports"].is_array());
-        assert_eq!(
-            value["result"]["default_profile"],
-            ygg_runtime::DEFAULT_CONTRACT_PROFILE
-        );
-        assert!(value["result"]["aliases"]
-            .as_array()
-            .is_some_and(|aliases| {
-                aliases.iter().any(|alias| {
-                    alias["id"] == "kernel.v1.host.info" && alias["canonical_id"] == "host.info"
-                })
-            }));
-        assert_eq!(
-            value["diagnostics"][0]["code"],
-            "ygg.contract.alias.deprecated"
-        );
-        assert_eq!(value["diagnostics"][0]["replacement"], "host.info");
+    async fn rpc_legacy_adapters_preserve_results_and_emit_envelope_diagnostics(
+    ) -> anyhow::Result<()> {
+        async fn call_rpc(
+            id: &str,
+            method: &str,
+            params: serde_json::Value,
+        ) -> anyhow::Result<serde_json::Value> {
+            let response = app()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/rpc")
+                        .header("content-type", "application/json")
+                        .body(Body::from(
+                            json!({"id": id, "method": method, "params": params}).to_string(),
+                        ))?,
+                )
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+            Ok(serde_json::from_slice(&bytes)?)
+        }
+
+        for (canonical_id, legacy_id) in [
+            ("host.info", "kernel.v1.host.info"),
+            ("host.target.list", "kernel.v1.target.list"),
+        ] {
+            let canonical = call_rpc("canonical", canonical_id, json!({})).await?;
+            let legacy = call_rpc("legacy", legacy_id, json!({})).await?;
+
+            assert_eq!(canonical["result"], legacy["result"]);
+            assert!(canonical.get("diagnostics").is_none());
+            assert!(legacy["result"].get("diagnostics").is_none());
+            assert_eq!(
+                legacy["diagnostics"][0]["code"],
+                "ygg.contract.alias.legacy_adapter"
+            );
+            assert_eq!(legacy["diagnostics"][0]["requested_id"], legacy_id);
+            assert_eq!(legacy["diagnostics"][0]["canonical_id"], canonical_id);
+            assert_eq!(legacy["diagnostics"][0]["replacement"], canonical_id);
+            assert_eq!(legacy["diagnostics"][0]["maturity"], "legacy_adapter");
+            assert!(legacy["diagnostics"][0]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("no new field semantics")));
+
+            if canonical_id == "host.info" {
+                assert!(legacy["result"]["supported_transports"].is_array());
+                assert_eq!(
+                    legacy["result"]["default_profile"],
+                    ygg_runtime::DEFAULT_CONTRACT_PROFILE
+                );
+                assert!(legacy["result"]["aliases"]
+                    .as_array()
+                    .is_some_and(|aliases| {
+                        aliases.iter().any(|alias| {
+                            alias["id"] == legacy_id && alias["canonical_id"] == canonical_id
+                        })
+                    }));
+            }
+        }
         Ok(())
     }
 
@@ -4771,7 +4797,7 @@ mod tests {
                 .headers()
                 .get("x-yggdrasil-contract-diagnostic")
                 .and_then(|value| value.to_str().ok()),
-            Some("ygg.contract.alias.deprecated")
+            Some("ygg.contract.alias.legacy_adapter")
         );
         assert_eq!(
             response
@@ -4823,7 +4849,7 @@ mod tests {
         assert_eq!(value["error"]["code"], "kernel/v1/error/invalid_request");
         assert_eq!(
             value["diagnostics"][0]["code"],
-            "ygg.contract.alias.deprecated"
+            "ygg.contract.alias.legacy_adapter"
         );
         Ok(())
     }

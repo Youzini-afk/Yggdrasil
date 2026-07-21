@@ -47,7 +47,7 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 - [x] Phase 6: establish the Protocol Commons descriptor registry, protocol/profile negotiation, and separate protocol/implementation reports.
 - [x] Phase 7: separate package envelopes from component identity, trust evidence, and composition pins.
 - [x] Phase 8: prove cross-host portability, offline replay, re-execution branching, and shell independence with a real World Bundle.
-- [ ] Phase 9: migrate clients and complete one real Deprecated → Legacy Adapter transition.
+- [x] Phase 9: migrate clients and complete one real Deprecated → Legacy Adapter transition.
 
 ## Immediate freeze line
 
@@ -328,6 +328,14 @@ plus explicit legacy wrappers, and `ygg contract migrate` provides preview/write
 client is the first real project migrated: 74 occurrences across its protocol client, Surface bridge,
 bundle resolver, tests, and guide now use registered canonical IDs.
 
+Phase 9B implementation result (2026-07-21): Contract Registry `0.5.0` transitions those two legacy
+aliases from Deprecated to Legacy Adapter while retaining their `deprecated_in`, replacement, and
+`support_until` history. Runtime and conformance freeze them as bidirectional identity adapters that
+share the canonical handler and schemas, with lossless unknown-field tests proving that they gain no
+independent field semantics. HTTP RPC, host stdio, and subprocess reverse stdio continue to preserve
+result equivalence and add `ygg.contract.alias.legacy_adapter` only in the envelope or headers. All
+nine phases and the final completion criterion are now satisfied.
+
 After entering Legacy Adapter, an old method accepts only security fixes and data-reading compatibility, not new field semantics.
 
 ## Conformance reorganization
@@ -340,7 +348,7 @@ Retain the existing named-case/tag runner and add these suites:
 | `host` | Host behavior for project, exec, port, proxy, secret, deployment |
 | `protocol:<id>` | Shared semantics, state machines, errors, behavioral vectors |
 | `shell:<profile>` | Descriptor mapping, bridge authority, shell independence |
-| `legacy` | Alias equivalence, lossless conversion, support windows, deprecated diagnostics |
+| `legacy` | Alias equivalence, lossless conversion, support windows, Legacy Adapter lifecycle diagnostics |
 | `portability` | Cross-host bundle, offline replay, preservation of unknown artifacts |
 
 Stable substrate release gates include the portability suite, not only single-host unit tests.
@@ -358,3 +366,6 @@ Completion is not “every `kernel.v1.*` method was renamed.” It requires all 
 - Foreign Capsule no longer claims full ecosystem equality;
 - World Bundle passes cross-host, offline-replay, and shell-independence tests;
 - at least one wrong abstraction completes a real Deprecated → Legacy Adapter migration.
+
+Registry `0.5.0` satisfies the final item through `kernel.v1.host.info` and
+`kernel.v1.target.list`; this migration plan is complete.

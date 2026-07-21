@@ -10,15 +10,16 @@ use ygg_core::{
 };
 use ygg_runtime::{
     contract_diagnostics, contract_method, negotiate_contract, protocol_descriptor,
-    ContractMaturity, ContractOwnerLayer, ContractSelection, ContractVersionRequirement,
-    DeploymentReconcileSource, EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore,
-    KernelMethod, LocalExecExecutor, LocalExecExecutorConfig, LocalExecLogsRequest,
-    LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
-    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
-    PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProtocolSelection,
-    ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore, CHANGE_DEFAULT_PROFILE,
-    CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION, CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE,
-    PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_DEFAULT_PROFILE,
+    resolve_contract_method, ContractAdapter, ContractMaturity, ContractOwnerLayer,
+    ContractSelection, ContractVersionRequirement, DeploymentReconcileSource, EventStore,
+    ExecStatus, ExecStatusKind, InMemoryEventStore, KernelMethod, LocalExecExecutor,
+    LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse, LocalExecStartRequest,
+    LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse, LocalExecStopRequest,
+    LocalExecStopResponse, ManagedContainerReport, PortLeaseStatusKind, ProtocolContext,
+    ProtocolPrincipal, ProtocolSelection, ProxyRouteStatusKind, Runtime, RuntimeConfig,
+    SqliteEventStore, CHANGE_DEFAULT_PROFILE, CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION,
+    CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE, PROTOCOL_COMMONS_REGISTRY_VERSION,
+    SHELL_DEFAULT_PROFILE,
 };
 
 use super::fixtures::*;
@@ -299,7 +300,10 @@ pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn deprecated_alias_diagnostic() -> anyhow::Result<()> {
+pub(crate) async fn legacy_adapter_lifecycle() -> anyhow::Result<()> {
+    let request = json!({"future_unknown_field": {"must": "remain lossless"}});
+    let response = json!({"future_unknown_field": [1, 2, 3]});
+
     for (method, legacy_id, canonical_id) in [
         (KernelMethod::HostInfo, "kernel.v1.host.info", "host.info"),
         (
@@ -314,13 +318,31 @@ pub(crate) async fn deprecated_alias_diagnostic() -> anyhow::Result<()> {
             .aliases
             .first()
             .ok_or_else(|| anyhow::anyhow!("{legacy_id} alias missing"))?;
-        anyhow::ensure!(alias.maturity == ContractMaturity::Deprecated);
+        anyhow::ensure!(alias.maturity == ContractMaturity::LegacyAdapter);
+        anyhow::ensure!(alias.request_adapter == ContractAdapter::Identity);
+        anyhow::ensure!(alias.response_adapter == ContractAdapter::Identity);
         anyhow::ensure!(alias.replacement.as_deref() == Some(canonical_id));
         anyhow::ensure!(alias.support_until.as_deref() == Some("ygg.contract.registry@0.5.0"));
 
+        let canonical = resolve_contract_method(canonical_id)?;
+        let legacy = resolve_contract_method(legacy_id)?;
+        anyhow::ensure!(legacy.method == canonical.method);
+        anyhow::ensure!(legacy.contract.request_schema == canonical.contract.request_schema);
+        anyhow::ensure!(legacy.contract.response_schema == canonical.contract.response_schema);
+        let adapted_request = legacy
+            .adapt_request(request.clone())
+            .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
+        let adapted_response = legacy
+            .adapt_response(response.clone())
+            .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
+        anyhow::ensure!(adapted_request == request);
+        anyhow::ensure!(adapted_response == response);
+
         let diagnostics = contract_diagnostics(legacy_id);
         anyhow::ensure!(diagnostics.len() == 1);
-        anyhow::ensure!(diagnostics[0].code == "ygg.contract.alias.deprecated");
+        anyhow::ensure!(diagnostics[0].code == "ygg.contract.alias.legacy_adapter");
+        anyhow::ensure!(diagnostics[0].maturity == ContractMaturity::LegacyAdapter);
+        anyhow::ensure!(diagnostics[0].message.contains("no new field semantics"));
         anyhow::ensure!(diagnostics[0].replacement.as_deref() == Some(canonical_id));
         anyhow::ensure!(contract_diagnostics(canonical_id).is_empty());
     }

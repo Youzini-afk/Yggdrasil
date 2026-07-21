@@ -8,7 +8,7 @@ Method schemas carry `x-yggdrasil-contract` metadata. Generated source-level met
 the canonical wire ID, while explicit legacy wrappers preserve old wire IDs. Both SDKs support
 exact profile/layer-version selection; transports that cannot carry a selection fail rather than
 silently downgrading. The generated `ContractDiagnostic` and `ProtocolResponse` types describe
-additive transport-level deprecation warnings. TypeScript HTTP/stdio transports expose
+additive transport-level lifecycle warnings, including Deprecated and Legacy Adapter states. TypeScript HTTP/stdio transports expose
 `drainContractDiagnostics()`, and Rust transports may implement `drain_contract_diagnostics()`.
 
 Three distribution channels — pick what fits your workflow:

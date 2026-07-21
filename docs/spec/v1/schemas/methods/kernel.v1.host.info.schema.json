@@ -704,7 +704,7 @@
         "deprecated_in": "ygg.contract.registry@0.4.0",
         "id": "kernel.v1.host.info",
         "introduced_in": "kernel.v1@0.1.0",
-        "maturity": "deprecated",
+        "maturity": "legacy_adapter",
         "replacement": "host.info",
         "request_adapter": "identity",
         "response_adapter": "identity",

@@ -15,4 +15,5 @@ The SDK does not expose kernel internals and should remain usable by official an
 Prefer canonical Contract Registry IDs when one is advertised. If a reverse response contains an
 optional `diagnostics` array, the SDK queues it across later stream and non-diagnostic frames without
 changing the resolved result; call `kernelClient.drainContractDiagnostics()` to consume the
-migration warnings.
+migration warnings. A Legacy Adapter warning means the old ID remains an identity compatibility
+route but receives no new field semantics.

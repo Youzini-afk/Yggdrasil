@@ -733,7 +733,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn host_stdio_attaches_deprecation_diagnostics_without_changing_the_result() {
+    async fn host_stdio_attaches_legacy_adapter_diagnostics_without_changing_the_result() {
         let runtime = Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
@@ -755,7 +755,17 @@ mod tests {
         assert_eq!(canonical.result, legacy.result);
         assert!(canonical.diagnostics.is_empty());
         assert_eq!(legacy.diagnostics.len(), 1);
-        assert_eq!(legacy.diagnostics[0].code, "ygg.contract.alias.deprecated");
+        assert_eq!(
+            legacy.diagnostics[0].code,
+            "ygg.contract.alias.legacy_adapter"
+        );
+        assert_eq!(
+            legacy.diagnostics[0].maturity,
+            ygg_runtime::ContractMaturity::LegacyAdapter
+        );
+        assert!(legacy.diagnostics[0]
+            .message
+            .contains("no new field semantics"));
 
         let malformed_contract = host_stdio_response(
             &runtime,
@@ -770,7 +780,7 @@ mod tests {
         );
         assert_eq!(
             malformed_contract.diagnostics[0].code,
-            "ygg.contract.alias.deprecated"
+            "ygg.contract.alias.legacy_adapter"
         );
     }
 }

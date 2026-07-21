@@ -47,7 +47,7 @@
 
 - 规范的请求 / 响应信封，自带 host 绑定的身份上下文。调用方不能自己声称是某个能力包或 admin。
 - 同一份 dispatcher 同时承载 HTTP `POST /rpc` 和 host JSON-RPC stdio (`ygg host-stdio`)。
-- Contract Registry `0.4.0` 已开始可验证弃用：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 已是 Candidate，其 `kernel.v1.*` alias 的窗口明确到 `0.5.0`。HTTP、host stdio 与 subprocess reverse stdio 返回 additive diagnostics，生成 SDK 以队列保留警告；`ygg contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
+- Contract Registry `0.5.0` 已完成第一次真实 Deprecated → Legacy Adapter 转换：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 是 Candidate，其 `kernel.v1.*` alias 保留 `0.4.0` 弃用历史并从 `0.5.0` 起冻结为 identity Legacy Adapter。它们只接受安全修复和数据读取兼容，不增加新字段语义；HTTP、host stdio 与 subprocess reverse stdio 返回 additive lifecycle diagnostics，生成 SDK 以队列保留警告；`ygg contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
 - 基于 profile 的 `ygg host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
 - TCP 传输留作后续工作；WASM 与远程入口在清单中已是一等形式，执行延后。

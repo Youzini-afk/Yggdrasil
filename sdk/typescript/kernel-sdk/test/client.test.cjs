@@ -19,12 +19,12 @@ async function main() {
             : [],
           diagnostics: body.method === "kernel.v1.host.info"
             ? [{
-              code: "ygg.contract.alias.deprecated",
+              code: "ygg.contract.alias.legacy_adapter",
               severity: "warning",
               requested_id: "kernel.v1.host.info",
               canonical_id: "host.info",
-              maturity: "deprecated",
-              message: "migrate",
+              maturity: "legacy_adapter",
+              message: "use host.info; no new field semantics will be added",
               replacement: "host.info",
             }]
             : undefined,
@@ -48,7 +48,10 @@ async function main() {
     await client.invoke("host.target.list", {});
     await client.invoke("kernel.v1.host.info", {});
     await client.invoke("host.target.list", {});
-    assert.equal(client.drainContractDiagnostics()[0].replacement, "host.info");
+    const diagnostic = client.drainContractDiagnostics()[0];
+    assert.equal(diagnostic.code, "ygg.contract.alias.legacy_adapter");
+    assert.equal(diagnostic.maturity, "legacy_adapter");
+    assert.equal(diagnostic.replacement, "host.info");
     assert.deepEqual(client.drainContractDiagnostics(), []);
 
     assert.deepEqual(requests, [

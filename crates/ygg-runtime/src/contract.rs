@@ -9,7 +9,7 @@ use ygg_core::{NegotiatedProtocol, ProtocolSelection};
 
 use crate::{negotiate_protocols, KernelMethod, MethodStatus, ProtocolError};
 
-pub const CONTRACT_REGISTRY_VERSION: &str = "0.4.0";
+pub const CONTRACT_REGISTRY_VERSION: &str = "0.5.0";
 pub const CONTRACT_LAYER_VERSION: &str = "0.1.0";
 pub const DEFAULT_CONTRACT_PROFILE: &str = "ygg.contract.default/v1";
 pub const SHELL_DEFAULT_PROFILE: &str = "ygg.shell.default/v1";
@@ -509,21 +509,17 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
     let aliases = if canonical_id == legacy_id {
         Vec::new()
     } else {
-        let phase_nine_migration = is_phase_nine_migration(method);
+        let phase_nine_lifecycle = is_phase_nine_lifecycle_alias(method);
         vec![ContractAlias {
             id: legacy_id.to_string(),
             canonical_id: canonical_id.to_string(),
-            maturity: if phase_nine_migration {
-                ContractMaturity::Deprecated
-            } else {
-                ContractMaturity::LegacyAdapter
-            },
+            maturity: ContractMaturity::LegacyAdapter,
             request_adapter: ContractAdapter::Identity,
             response_adapter: ContractAdapter::Identity,
             introduced_in: "kernel.v1@0.1.0".to_string(),
-            deprecated_in: phase_nine_migration.then(|| PHASE_NINE_DEPRECATED_IN.to_string()),
+            deprecated_in: phase_nine_lifecycle.then(|| PHASE_NINE_DEPRECATED_IN.to_string()),
             replacement: Some(canonical_id.to_string()),
-            support_until: phase_nine_migration.then(|| PHASE_NINE_SUPPORT_UNTIL.to_string()),
+            support_until: phase_nine_lifecycle.then(|| PHASE_NINE_SUPPORT_UNTIL.to_string()),
         }]
     };
     let schema = format!("https://yggdrasil.dev/spec/v1/methods/{legacy_id}.schema.json");
@@ -531,7 +527,7 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
         canonical_id: canonical_id.to_string(),
         aliases,
         owner_layer: owner_layer(method),
-        maturity: if is_phase_nine_migration(method) {
+        maturity: if is_phase_nine_lifecycle_alias(method) {
             ContractMaturity::Candidate
         } else {
             ContractMaturity::Experimental
@@ -549,7 +545,7 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
     }
 }
 
-fn is_phase_nine_migration(method: KernelMethod) -> bool {
+fn is_phase_nine_lifecycle_alias(method: KernelMethod) -> bool {
     matches!(method, KernelMethod::HostInfo | KernelMethod::TargetList)
 }
 
@@ -809,12 +805,13 @@ mod tests {
     }
 
     #[test]
-    fn phase_nine_deprecation_has_a_complete_support_window() {
+    fn phase_nine_aliases_complete_the_legacy_adapter_transition() {
+        assert_eq!(CONTRACT_REGISTRY_VERSION, "0.5.0");
         for method in [KernelMethod::HostInfo, KernelMethod::TargetList] {
             let contract = contract_method(method);
             assert_eq!(contract.maturity, ContractMaturity::Candidate);
             let alias = contract.aliases.first().expect("tracked legacy alias");
-            assert_eq!(alias.maturity, ContractMaturity::Deprecated);
+            assert_eq!(alias.maturity, ContractMaturity::LegacyAdapter);
             assert_eq!(
                 alias.deprecated_in.as_deref(),
                 Some(PHASE_NINE_DEPRECATED_IN)
@@ -831,6 +828,45 @@ mod tests {
     }
 
     #[test]
+    fn phase_nine_legacy_adapters_freeze_wire_field_semantics() {
+        let request = json!({
+            "known": "value",
+            "future_unknown_field": { "must": "remain lossless" }
+        });
+        let response = json!({
+            "result": true,
+            "future_unknown_field": [1, 2, 3]
+        });
+
+        for method in [KernelMethod::HostInfo, KernelMethod::TargetList] {
+            let contract = contract_method(method);
+            let alias = contract.aliases.first().expect("tracked legacy alias");
+            let canonical = resolve_contract_method(&contract.canonical_id).unwrap();
+            let legacy = resolve_contract_method(&alias.id).unwrap();
+
+            assert_eq!(alias.maturity, ContractMaturity::LegacyAdapter);
+            assert_eq!(alias.request_adapter, ContractAdapter::Identity);
+            assert_eq!(alias.response_adapter, ContractAdapter::Identity);
+            assert_eq!(legacy.method, canonical.method);
+            assert_eq!(
+                legacy.contract.request_schema,
+                canonical.contract.request_schema
+            );
+            assert_eq!(
+                legacy.contract.response_schema,
+                canonical.contract.response_schema
+            );
+            assert_eq!(canonical.adapt_request(request.clone()).unwrap(), request);
+            assert_eq!(
+                canonical.adapt_response(response.clone()).unwrap(),
+                response
+            );
+            assert_eq!(legacy.adapt_request(request.clone()).unwrap(), request);
+            assert_eq!(legacy.adapt_response(response.clone()).unwrap(), response);
+        }
+    }
+
+    #[test]
     fn diagnostics_are_emitted_only_for_lifecycle_tracked_aliases() {
         assert!(contract_diagnostics("host.info").is_empty());
         assert!(contract_diagnostics("kernel.v1.project.list").is_empty());
@@ -838,11 +874,12 @@ mod tests {
         let diagnostics = contract_diagnostics("kernel.v1.host.info");
         assert_eq!(diagnostics.len(), 1);
         let diagnostic = &diagnostics[0];
-        assert_eq!(diagnostic.code, "ygg.contract.alias.deprecated");
+        assert_eq!(diagnostic.code, "ygg.contract.alias.legacy_adapter");
         assert_eq!(diagnostic.severity, "warning");
         assert_eq!(diagnostic.requested_id, "kernel.v1.host.info");
         assert_eq!(diagnostic.canonical_id, "host.info");
-        assert_eq!(diagnostic.maturity, ContractMaturity::Deprecated);
+        assert_eq!(diagnostic.maturity, ContractMaturity::LegacyAdapter);
+        assert!(diagnostic.message.contains("no new field semantics"));
         assert_eq!(
             diagnostic.support_until.as_deref(),
             Some(PHASE_NINE_SUPPORT_UNTIL)

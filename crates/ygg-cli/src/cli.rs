@@ -149,7 +149,7 @@ pub enum ContractCommand {
         /// Emit a machine-readable migration report.
         #[arg(long)]
         json: bool,
-        /// Proactively migrate every registered alias, including aliases not yet Deprecated.
+        /// Proactively migrate every registered alias, including aliases without lifecycle metadata.
         #[arg(long)]
         all_aliases: bool,
     },

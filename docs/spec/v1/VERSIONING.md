@@ -20,4 +20,4 @@
 
 ## 协商
 
-新客户端调用 canonical `host.info`，除历史 method/status 字段外，还应读取 `contract_registry_version`、`contract_methods`、`aliases`、profiles 与 protocol descriptors。旧客户端仍可调用 `kernel.v1.host.info`；Registry `0.4.0` 将该 alias 标记为 Deprecated，并支持到 `ygg.contract.registry@0.5.0`，同时返回迁移诊断。需要某个方法的客户端应显式选择受支持的 contract/profile、优先使用 host 发布的 canonical ID，并在版本不支持时拒绝继续，而不是猜测或静默降级。
+新客户端调用 canonical `host.info`，除历史 method/status 字段外，还应读取 `contract_registry_version`、`contract_methods`、`aliases`、profiles 与 protocol descriptors。旧客户端仍可调用 `kernel.v1.host.info`；Registry `0.4.0` 将该 alias 标记为 Deprecated，Registry `0.5.0` 再将它转换为 identity Legacy Adapter，并保留原支持窗口 metadata 与迁移诊断。该 adapter 只接受安全修复和数据读取兼容，不增加新字段语义。需要某个方法的客户端应显式选择受支持的 contract/profile、优先使用 host 发布的 canonical ID，并在版本不支持时拒绝继续，而不是猜测或静默降级。

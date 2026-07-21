@@ -228,7 +228,7 @@ fn migrate_path(path: &Path, write: bool, all_aliases: bool) -> Result<ContractM
         scope: if all_aliases {
             "all_registered_aliases"
         } else {
-            "deprecated_aliases"
+            "lifecycle_tracked_aliases"
         }
         .to_string(),
         scanned_files,
@@ -420,7 +420,7 @@ mod tests {
 
         let preview = migrate_path(temp.path(), false, false)?;
         assert_eq!(preview.mode, "preview");
-        assert_eq!(preview.scope, "deprecated_aliases");
+        assert_eq!(preview.scope, "lifecycle_tracked_aliases");
         assert_eq!(preview.changed_files, 1);
         assert_eq!(preview.replacement_count, 2);
         assert!(fs::read_to_string(&source)?.contains("kernel.v1.host.info"));

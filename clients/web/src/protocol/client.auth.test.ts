@@ -211,12 +211,12 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       id: body.id,
       result: [],
       diagnostics: [{
-        code: "ygg.contract.alias.deprecated",
+        code: "ygg.contract.alias.legacy_adapter",
         severity: "warning",
         requested_id: "kernel.v1.target.list",
         canonical_id: "host.target.list",
-        maturity: "deprecated",
-        message: "migrate to host.target.list",
+        maturity: "legacy_adapter",
+        message: "use host.target.list; no new field semantics will be added",
         deprecated_in: "ygg.contract.registry@0.4.0",
         replacement: "host.target.list",
         support_until: "ygg.contract.registry@0.5.0",
@@ -378,7 +378,10 @@ assertDeepEqual((capturedRequests[4] as { params?: Record<string, unknown> }).pa
 capturedRequests.length = 0;
 await protocolClient.call("kernel.v1.target.list");
 await protocolClient.listTargets();
-assertEqual(protocolClient.drainContractDiagnostics()[0]?.replacement, "host.target.list");
+const legacyAdapterDiagnostic = protocolClient.drainContractDiagnostics()[0];
+assertEqual(legacyAdapterDiagnostic?.code, "ygg.contract.alias.legacy_adapter");
+assertEqual(legacyAdapterDiagnostic?.maturity, "legacy_adapter");
+assertEqual(legacyAdapterDiagnostic?.replacement, "host.target.list");
 assertDeepEqual(protocolClient.drainContractDiagnostics(), []);
 
 capturedRequests.length = 0;

@@ -35,7 +35,7 @@ test("kernelClient.sendKernelRequest unary roundtrip", async () => {
   }
 });
 
-test("kernelClient exposes contract deprecation diagnostics", async () => {
+test("kernelClient exposes contract legacy-adapter diagnostics", async () => {
   const capture = captureStdout();
   try {
     kernelClient.drainContractDiagnostics();
@@ -46,12 +46,12 @@ test("kernelClient exposes contract deprecation diagnostics", async () => {
       id: frame.id,
       result: { protocol_version: "0.1.0" },
       diagnostics: [{
-        code: "ygg.contract.alias.deprecated",
+        code: "ygg.contract.alias.legacy_adapter",
         severity: "warning",
         requested_id: "kernel.v1.host.info",
         canonical_id: "host.info",
-        maturity: "deprecated",
-        message: "migrate",
+        maturity: "legacy_adapter",
+        message: "use host.info; no new field semantics will be added",
         replacement: "host.info",
       }],
     });
@@ -60,7 +60,10 @@ test("kernelClient exposes contract deprecation diagnostics", async () => {
     const followupFrame = JSON.parse(capture.writes[1]);
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: followupFrame.id, result: { ok: true } });
     await followup;
-    assert.equal(kernelClient.drainContractDiagnostics()[0]?.replacement, "host.info");
+    const diagnostic = kernelClient.drainContractDiagnostics()[0];
+    assert.equal(diagnostic?.code, "ygg.contract.alias.legacy_adapter");
+    assert.equal(diagnostic?.maturity, "legacy_adapter");
+    assert.equal(diagnostic?.replacement, "host.info");
     assert.deepEqual(kernelClient.drainContractDiagnostics(), []);
   } finally {
     capture.restore();

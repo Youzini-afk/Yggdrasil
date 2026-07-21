@@ -29,7 +29,7 @@ Alias 不创建新 handler、principal、permission 或 audit 分支。
 - introduced / deprecated / replacement metadata；
 - 当前实现状态与 streaming 标记。
 
-Registry `0.4.0` 当前发布 36 条 identity alias：
+Registry `0.5.0` 当前发布 36 条 identity alias：
 
 | Canonical | Legacy alias | Owner |
 |---|---|---|
@@ -102,18 +102,24 @@ additive optional 字段：
 
 Schema、SDK 与 OpenAPI 必须通过生成器更新，不手工修改生成物。
 
-## Deprecated alias 与诊断
+## Legacy Adapter 转换与诊断
 
-Registry `0.4.0` 开始第一个可验证的弃用窗口：
+Registry `0.4.0` 开始第一个可验证的弃用窗口，`0.5.0` 完成第一次真实的
+`Deprecated → Legacy Adapter` 转换：
 
-| Legacy alias | Replacement | Replacement maturity | Deprecated in | Supported through |
-|---|---|---|---|---|
-| `kernel.v1.host.info` | `host.info` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
-| `kernel.v1.target.list` | `host.target.list` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+| Legacy alias | 当前成熟度 | Replacement | Replacement maturity | Deprecated in | Legacy Adapter from |
+|---|---|---|---|---|---|
+| `kernel.v1.host.info` | Legacy Adapter | `host.info` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+| `kernel.v1.target.list` | Legacy Adapter | `host.target.list` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
 
-旧 ID 与 canonical ID 仍进入同一个 handler，method result 完全一致。HTTP RPC、host stdio
-和 subprocess reverse stdio 在调用受跟踪的 Deprecated alias 时，会附加可选的顶层
-`diagnostics` 数组。兼容路由 `GET /kernel/v1/host.info` 通过
+历史 `deprecated_in`、`replacement` 与 `support_until` metadata 保留。旧 ID 与 canonical ID
+仍进入同一个 handler、共享同一 request/response schema，并通过 identity adapter 保持 method
+result 完全一致。进入 Legacy Adapter 后，旧 ID 只接受安全修复和数据读取兼容，不再增加新字段
+语义。
+
+HTTP RPC、host stdio 和 subprocess reverse stdio 在调用受跟踪的 Legacy Adapter alias 时，
+会附加 code 为 `ygg.contract.alias.legacy_adapter` 的可选顶层 `diagnostics` 数组。兼容路由
+`GET /kernel/v1/host.info` 通过
 `x-yggdrasil-contract-*` response header 和指向 `/rpc` 的 `Link` 发布同一策略。
 Replacement header 的值是 canonical method ID，而不是 URL；应通过 `POST /rpc` 调用。
 诊断只用于迁移提示，不改变 method payload 或 error mapping；即使 contract selection
@@ -125,7 +131,7 @@ Replacement header 的值是 canonical method ID，而不是 URL；应通过 `PO
 ygg contract migrate PATH --json
 ```
 
-默认只迁移已发布 deprecation window 的 alias；增加 `--all-aliases` 才会主动迁移全部
+默认只迁移带已发布生命周期/deprecation metadata 的 alias；增加 `--all-aliases` 才会主动迁移全部
 registered alias，且应先审阅 preview 再加 `--write`。替换要求完整 contract-ID 边界；扫描器
 只接受保守的源码/Markdown 扩展名白名单，并逐项报告不支持、非 UTF-8 或超限文件，以及所有
 被排除的 symlink、构建产物和依赖/vendor 目录。写入使用同目录 staging 与原子替换；若后续
