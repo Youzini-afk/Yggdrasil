@@ -33,6 +33,14 @@ fn echo_rust_inproc_passes_package_conformance() {
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json report");
     assert_eq!(report["summary"]["failed"], 0);
     assert_eq!(report["checks"][0]["status"], "Pass");
+    assert!(report["package_envelope"]["artifact"]["digest"]
+        .as_str()
+        .unwrap_or_default()
+        .starts_with("sha256:"));
+    assert_eq!(report["components"][0]["claim_status"], "legacy_adapted");
+    assert_eq!(report["components"][0]["trust_class"], "trusted_native");
+    assert_eq!(report["components"][0]["composability_guaranteed"], true);
+    assert_eq!(report["components"][0]["portability_guaranteed"], false);
 }
 
 #[test]
@@ -58,6 +66,14 @@ fn path_b_self_contained_passes_package_conformance() {
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json report");
     assert_eq!(report["package_id"], "examples/path-b-app");
     assert_eq!(report["summary"]["failed"], 0);
+    assert_eq!(report["components"][0]["claim_status"], "foreign_capsule");
+    assert_eq!(report["components"][0]["trust_class"], "foreign_capsule");
+    assert_eq!(report["components"][0]["composability_guaranteed"], false);
+    assert_eq!(report["components"][0]["portability_guaranteed"], false);
+    assert!(report["components"][0]["guarantee"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("not guaranteed"));
 }
 
 #[test]

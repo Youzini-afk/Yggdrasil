@@ -65,6 +65,17 @@ pub(crate) async fn resolve_plan_local_source() -> anyhow::Result<()> {
         .as_str()
         .unwrap_or("")
         .starts_with("sha256:"));
+    anyhow::ensure!(plan["packages"][0]["package_envelope_digest"]
+        .as_str()
+        .unwrap_or("")
+        .starts_with("sha256:"));
+    anyhow::ensure!(
+        plan["packages"][0]["component_pins"]
+            .as_array()
+            .context("component_pins")?
+            .len()
+            == 1
+    );
     Ok(())
 }
 
@@ -269,8 +280,28 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
     .await?;
     anyhow::ensure!(checked.output["ok"] == json!(true));
 
-    let lockfile = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
-    let lockfile: ygg_core::Lockfile = toml::from_str(&lockfile)?;
+    let lockfile_path = tmp.path().join("profiles/default.lock.toml");
+    let lockfile_text = fs::read_to_string(&lockfile_path)?;
+    let lockfile: ygg_core::Lockfile = toml::from_str(&lockfile_text)?;
+    anyhow::ensure!(lockfile.package.iter().all(|entry| {
+        entry.package_envelope_digest.is_some() && entry.component_pins.len() == 1
+    }));
+    let mut pin_drift = lockfile.clone();
+    pin_drift.package[0].component_pins[0].digest = format!("sha256:{}", "f".repeat(64));
+    fs::write(&lockfile_path, toml::to_string_pretty(&pin_drift)?)?;
+    let checked = invoke(
+        &rt,
+        "official/install-lab/check_lockfile",
+        json!({ "data_dir": tmp.path() }),
+    )
+    .await?;
+    anyhow::ensure!(checked.output["ok"] == json!(false));
+    anyhow::ensure!(checked.output["drift"]
+        .as_array()
+        .context("component drift array")?
+        .iter()
+        .any(|entry| entry["kind"] == json!("component_pins")));
+    fs::write(&lockfile_path, &lockfile_text)?;
     let surface_store = lockfile
         .package
         .iter()
@@ -322,6 +353,27 @@ pub(crate) async fn execute_plan_local() -> anyhow::Result<()> {
         .as_str()
         .unwrap_or("")
         .contains("fixture/pkg-local"));
+    let lockfile_text = out.output["lockfile"]
+        .as_str()
+        .context("serialized lockfile")?;
+    let mut lockfile: ygg_core::Lockfile = toml::from_str(lockfile_text)?;
+    lockfile.package[0].component_pins[0].digest = format!("sha256:{}", "e".repeat(64));
+    let replanned = invoke(
+        &rt,
+        "official/install-lab/resolve_plan",
+        json!({
+            "root_url": fixture_path("pkg-local"),
+            "lockfile": toml::to_string_pretty(&lockfile)?,
+        }),
+    )
+    .await?;
+    anyhow::ensure!(
+        replanned.output["plan"]["integrity_summary"]["drift_detected"]
+            .as_array()
+            .context("resolve-plan drift")?
+            .iter()
+            .any(|entry| entry["kind"] == json!("component_pins"))
+    );
     Ok(())
 }
 

@@ -10,7 +10,8 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use ygg_core::{
-    ArtifactDescriptor, CapHandleId, CapabilityDescriptor, CapabilityId, EffectReplayMode,
+    ArtifactDescriptor, CapHandleId, CapabilityDescriptor, CapabilityId, ComponentBoundaryClaims,
+    ComponentClaimStatus, ComponentDescriptor, ComponentTrustClass, EffectReplayMode,
     HookSubscription, PackageId,
 };
 
@@ -18,6 +19,18 @@ use ygg_core::{
 pub struct RegisteredCapability {
     pub descriptor: CapabilityDescriptor,
     pub provider_package_id: PackageId,
+    #[serde(default)]
+    pub provider_component_id: String,
+    #[serde(default)]
+    pub provider_component_digest: String,
+    #[serde(default)]
+    pub provider_behavior_digest: String,
+    #[serde(default)]
+    pub provider_trust_class: ComponentTrustClass,
+    #[serde(default)]
+    pub provider_claim_status: ComponentClaimStatus,
+    #[serde(default)]
+    pub provider_enforced_boundaries: ComponentBoundaryClaims,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -47,6 +60,14 @@ pub struct CapabilityInvocationRequest {
 pub struct CapabilityInvocationResult {
     pub capability_id: CapabilityId,
     pub provider_package_id: PackageId,
+    #[serde(default)]
+    pub provider_component_id: String,
+    #[serde(default)]
+    pub provider_component_digest: String,
+    #[serde(default)]
+    pub provider_behavior_digest: String,
+    #[serde(default)]
+    pub provider_trust_class: ComponentTrustClass,
     pub output: Value,
     pub duration_ms: u64,
     #[schemars(schema_with = "uuid_schema")]
@@ -71,6 +92,42 @@ pub struct CapabilityFabric {
 }
 
 impl CapabilityFabric {
+    pub async fn register_component(
+        &self,
+        package_id: &PackageId,
+        component: &ComponentDescriptor,
+        descriptors: &[CapabilityDescriptor],
+    ) -> anyhow::Result<()> {
+        for descriptor in descriptors {
+            anyhow::ensure!(
+                component.capability_ids.contains(&descriptor.id),
+                "component '{}' does not claim capability '{}'",
+                component.component_id,
+                descriptor.id
+            );
+        }
+        let mut providers = self.providers.write().await;
+        for descriptor in descriptors {
+            providers
+                .entry(descriptor.id.clone())
+                .or_default()
+                .push(RegisteredCapability {
+                    descriptor: descriptor.clone(),
+                    provider_package_id: package_id.clone(),
+                    provider_component_id: component.component_id.clone(),
+                    provider_component_digest: component.artifact.digest.clone(),
+                    provider_behavior_digest: component.behavior.digest.clone(),
+                    provider_trust_class: component.trust_class,
+                    provider_claim_status: component.claim_status,
+                    provider_enforced_boundaries: component.enforced_boundaries.clone(),
+                });
+        }
+        Ok(())
+    }
+
+    /// Compatibility adapter for embedders that still register raw package
+    /// capabilities. Such providers are deliberately marked as foreign until
+    /// they supply a component descriptor.
     pub async fn register_package(
         &self,
         package_id: &PackageId,
@@ -84,6 +141,12 @@ impl CapabilityFabric {
                 .push(RegisteredCapability {
                     descriptor: descriptor.clone(),
                     provider_package_id: package_id.clone(),
+                    provider_component_id: format!("{package_id}/component/default"),
+                    provider_component_digest: format!("sha256:{}", "0".repeat(64)),
+                    provider_behavior_digest: format!("sha256:{}", "0".repeat(64)),
+                    provider_trust_class: ComponentTrustClass::ForeignCapsule,
+                    provider_claim_status: ComponentClaimStatus::ForeignCapsule,
+                    provider_enforced_boundaries: ComponentBoundaryClaims::default(),
                 });
         }
     }
@@ -109,6 +172,7 @@ impl CapabilityFabric {
                 .id
                 .cmp(&b.descriptor.id)
                 .then(a.provider_package_id.cmp(&b.provider_package_id))
+                .then(a.provider_component_id.cmp(&b.provider_component_id))
         });
         values
     }

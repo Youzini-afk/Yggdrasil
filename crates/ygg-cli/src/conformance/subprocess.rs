@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use serde_json::json;
 use ygg_core::{CapHandleId, CapabilityPermissions, PermissionSet};
-use ygg_runtime::{CapabilityInvocationRequest, EventStore};
+use ygg_runtime::{
+    AppendEventRequest, CapabilityInvocationRequest, EventStore, OpenSessionRequest,
+    OutboundRequest, ProtocolPrincipal,
+};
 
 use super::fixtures::*;
 use crate::commands::manifest;
@@ -111,6 +114,10 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
         loaded.payload["contract_mode"] == json!("none"),
         "Path B audit payload must show contract_mode none"
     );
+    anyhow::ensure!(
+        runtime.handles().list_for(&record.id).await.is_empty(),
+        "Foreign Capsule must not receive v1 capability bindings"
+    );
 
     runtime
         .load_package(echo_package(
@@ -118,7 +125,7 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
             "examples/path-b-provider/echo",
         ))
         .await?;
-    let result = runtime
+    let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
             capability_id: Some("examples/path-b-provider/echo".to_string()),
@@ -128,11 +135,42 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
             session_id: None,
             input: json!({"path_b": true}),
         })
-        .await?;
+        .await
+        .expect_err("Foreign Capsule must not receive kernel capability authority");
     anyhow::ensure!(
-        result.output == json!({"path_b": true}),
-        "Path B caller should invoke without manifest permission denial"
+        denied.to_string().contains("Foreign Capsule"),
+        "Path B denial should identify the Foreign Capsule boundary: {denied}"
     );
+
+    let session = runtime.open_session(OpenSessionRequest::default()).await?;
+    let event_denied = runtime
+        .append_event(AppendEventRequest {
+            session_id: session.id,
+            writer_package_id: record.id.clone(),
+            kind: "examples/path-b-app/event".to_string(),
+            payload: json!({}),
+            metadata: json!({}),
+        })
+        .await
+        .expect_err("Foreign Capsule must not receive event authority");
+    anyhow::ensure!(event_denied.to_string().contains("not allowed"));
+
+    let network_denied = runtime
+        .check_and_audit_outbound(OutboundRequest {
+            principal: ProtocolPrincipal::Package {
+                package_id: record.id.clone(),
+            },
+            package_id: record.id.clone(),
+            capability_id: "examples/path-b-app/outbound".to_string(),
+            destination_host: "example.com".to_string(),
+            method: "GET".to_string(),
+            purpose: None,
+            secret_refs_used: Vec::new(),
+            correlation_id: None,
+        })
+        .await
+        .expect_err("Foreign Capsule must not receive network authority");
+    anyhow::ensure!(network_denied.to_string().contains("Foreign Capsule"));
     Ok(())
 }
 

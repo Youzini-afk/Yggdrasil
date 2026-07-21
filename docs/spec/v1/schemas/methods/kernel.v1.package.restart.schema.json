@@ -1,5 +1,42 @@
 {
   "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
     "AssetPermissions": {
       "properties": {
         "read": {
@@ -78,6 +115,175 @@
         "version"
       ],
       "type": "object"
+    },
+    "ComponentBoundaryClaims": {
+      "properties": {
+        "filesystem_isolation": {
+          "type": "boolean"
+        },
+        "network_isolation": {
+          "type": "boolean"
+        },
+        "no_code_execution": {
+          "type": "boolean"
+        },
+        "process_failure_isolation": {
+          "type": "boolean"
+        },
+        "remote_identity": {
+          "type": "boolean"
+        },
+        "resource_limits_enforced": {
+          "type": "boolean"
+        },
+        "revocation_enforced": {
+          "type": "boolean"
+        },
+        "tenancy_isolation": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "filesystem_isolation",
+        "network_isolation",
+        "no_code_execution",
+        "process_failure_isolation",
+        "remote_identity",
+        "resource_limits_enforced",
+        "revocation_enforced",
+        "tenancy_isolation"
+      ],
+      "type": "object"
+    },
+    "ComponentClaimStatus": {
+      "enum": [
+        "declared",
+        "legacy_adapted",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
+    "ComponentDeclaration": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "capability_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "content_roots": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "protocol_implementations": {
+          "items": {
+            "$ref": "#/$defs/ProtocolImplementationDeclaration"
+          },
+          "type": "array"
+        },
+        "surface_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ComponentDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "behavior": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "capability_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "claim_status": {
+          "$ref": "#/$defs/ComponentClaimStatus"
+        },
+        "component_id": {
+          "type": "string"
+        },
+        "content_roots": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "enforced_boundaries": {
+          "$ref": "#/$defs/ComponentBoundaryClaims"
+        },
+        "entry_kind": {
+          "type": "string"
+        },
+        "protocol_implementations": {
+          "items": {
+            "$ref": "#/$defs/PackagedProtocolDescriptor"
+          },
+          "type": "array"
+        },
+        "surfaces": {
+          "items": {
+            "$ref": "#/$defs/PackagedSurfaceDescriptor"
+          },
+          "type": "array"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/ComponentTrustClass"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact",
+        "behavior",
+        "capability_ids",
+        "claim_status",
+        "component_id",
+        "enforced_boundaries",
+        "entry_kind",
+        "trust_class",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ComponentTrustClass": {
+      "enum": [
+        "sandboxed_component",
+        "isolated_process",
+        "remote_boundary",
+        "trusted_native",
+        "static_resource",
+        "foreign_capsule"
+      ],
+      "type": "string"
     },
     "ContractMode": {
       "oneOf": [
@@ -291,6 +497,17 @@
         }
       ],
       "properties": {
+        "component": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentDeclaration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component."
+        },
         "contract": {
           "allOf": [
             {
@@ -466,6 +683,21 @@
       },
       "type": "object"
     },
+    "NamedPackageArtifact": {
+      "properties": {
+        "descriptor": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "descriptor",
+        "id"
+      ],
+      "type": "object"
+    },
     "NetworkDeclaration": {
       "description": "A single network access declaration in a package manifest.\n\nEach entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.",
       "properties": {
@@ -579,6 +811,60 @@
       "required": [
         "id",
         "source"
+      ],
+      "type": "object"
+    },
+    "PackageEnvelopeDescriptor": {
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/NamedPackageArtifact"
+          },
+          "type": "array"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ComponentDescriptor"
+          },
+          "type": "array"
+        },
+        "content_roots": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "manifest": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "package_version": {
+          "type": "string"
+        },
+        "protocols": {
+          "items": {
+            "$ref": "#/$defs/PackagedProtocolDescriptor"
+          },
+          "type": "array"
+        },
+        "surfaces": {
+          "items": {
+            "$ref": "#/$defs/PackagedSurfaceDescriptor"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "artifact",
+        "components",
+        "manifest",
+        "package_id",
+        "package_version"
       ],
       "type": "object"
     },
@@ -808,6 +1094,40 @@
       ],
       "type": "string"
     },
+    "PackagedProtocolDescriptor": {
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "implementation": {
+          "$ref": "#/$defs/ProtocolImplementationDeclaration"
+        }
+      },
+      "required": [
+        "artifact",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "PackagedSurfaceDescriptor": {
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "surface_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact",
+        "surface_id",
+        "version"
+      ],
+      "type": "object"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -979,6 +1299,33 @@
       },
       "type": "object"
     },
+    "ProtocolImplementationDeclaration": {
+      "properties": {
+        "conformance_vectors": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
     "ProxyDeclaration": {
       "properties": {
         "max_count": {
@@ -1083,6 +1430,29 @@
           "minimum": 0.0,
           "type": "integer"
         },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ComponentDescriptor"
+          },
+          "type": "array"
+        },
+        "enforced_boundaries": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ComponentBoundaryClaims"
+            }
+          ],
+          "default": {
+            "filesystem_isolation": false,
+            "network_isolation": false,
+            "no_code_execution": false,
+            "process_failure_isolation": false,
+            "remote_identity": false,
+            "resource_limits_enforced": false,
+            "revocation_enforced": false,
+            "tenancy_isolation": false
+          }
+        },
         "entry_kind": {
           "type": "string"
         },
@@ -1116,8 +1486,27 @@
         "manifest": {
           "$ref": "#/$defs/PackageManifest"
         },
+        "package_envelope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PackageEnvelopeDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "state": {
           "$ref": "#/$defs/PackageState"
+        },
+        "trust_class": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ComponentTrustClass"
+            }
+          ],
+          "default": "foreign_capsule",
+          "description": "Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule."
         },
         "trust_level": {
           "$ref": "#/$defs/TrustLevel"

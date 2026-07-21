@@ -5,7 +5,8 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
-    LockEntry, LockRequirement, LockSource, Lockfile, PackageEntry, PackageManifest, ProjectId,
+    package_envelope_for_manifest, protocol_profile_pins_for_envelope, ComponentLockPin, LockEntry,
+    LockRequirement, LockSource, Lockfile, PackageEntry, PackageManifest, ProjectId,
 };
 
 use crate::inproc::invoke_capability_from_inproc;
@@ -296,6 +297,10 @@ pub(super) async fn list_installed(input: Value) -> Result<Value> {
                 "granted_secrets": entry.granted_secrets,
                 "tree_hash": entry.tree_hash,
                 "manifest_hash": entry.manifest_hash,
+                "package_envelope_digest": entry.package_envelope_digest,
+                "component_pins": entry.component_pins,
+                "protocol_profile_pins": entry.protocol_profile_pins,
+                "content_roots": entry.content_roots,
                 "manifest_relative_path": entry.manifest_relative_path,
             })
         })
@@ -349,6 +354,52 @@ pub(super) async fn check_lockfile(input: Value) -> Result<Value> {
                 Err(error) => {
                     drift.push(json!({ "id": entry.id, "kind": "surface_bundle_hash", "expected": expected, "actual": error.to_string() }));
                 }
+            }
+        }
+        if entry.package_envelope_digest.is_some()
+            || !entry.component_pins.is_empty()
+            || !entry.protocol_profile_pins.is_empty()
+            || !entry.content_roots.is_empty()
+        {
+            let manifest = parse_manifest_at(&manifest_path)?;
+            let envelope = package_envelope_for_manifest(&manifest)?;
+            if entry.package_envelope_digest.as_deref() != Some(envelope.artifact.digest.as_str()) {
+                drift.push(json!({
+                    "id": entry.id,
+                    "kind": "package_envelope_digest",
+                    "expected": entry.package_envelope_digest,
+                    "actual": envelope.artifact.digest,
+                }));
+            }
+            let component_pins = envelope
+                .components
+                .iter()
+                .map(ComponentLockPin::from_descriptor)
+                .collect::<Vec<_>>();
+            if entry.component_pins != component_pins {
+                drift.push(json!({
+                    "id": entry.id,
+                    "kind": "component_pins",
+                    "expected": entry.component_pins,
+                    "actual": component_pins,
+                }));
+            }
+            let protocol_profile_pins = protocol_profile_pins_for_envelope(&envelope);
+            if entry.protocol_profile_pins != protocol_profile_pins {
+                drift.push(json!({
+                    "id": entry.id,
+                    "kind": "protocol_profile_pins",
+                    "expected": entry.protocol_profile_pins,
+                    "actual": protocol_profile_pins,
+                }));
+            }
+            if entry.content_roots != envelope.content_roots {
+                drift.push(json!({
+                    "id": entry.id,
+                    "kind": "content_roots",
+                    "expected": entry.content_roots,
+                    "actual": envelope.content_roots,
+                }));
             }
         }
         let tree_hash = compute_tree_hash(&store).await?;
@@ -616,6 +667,10 @@ fn build_lockfile(
             tree_hash: pkg.tree_hash.clone(),
             manifest_hash: pkg.manifest_hash.clone(),
             surface_bundle_hash: pkg.surface_bundle_hash.clone(),
+            package_envelope_digest: pkg.package_envelope_digest.clone(),
+            component_pins: pkg.component_pins.clone(),
+            protocol_profile_pins: pkg.protocol_profile_pins.clone(),
+            content_roots: pkg.content_roots.clone(),
             signed: pkg.signed,
             signed_by: pkg.signed_by.clone(),
             installed_at_store: installed_at_store.to_string_lossy().to_string(),

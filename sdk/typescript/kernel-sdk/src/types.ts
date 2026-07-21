@@ -133,7 +133,13 @@ export interface CapabilityDescriptor {
 
 export type CapabilityDiscoverResult = Array<{
   "descriptor": CapabilityDescriptor;
+  "provider_behavior_digest"?: string;
+  "provider_claim_status"?: ComponentClaimStatus;
+  "provider_component_digest"?: string;
+  "provider_component_id"?: string;
+  "provider_enforced_boundaries"?: ComponentBoundaryClaims;
   "provider_package_id": string;
+  "provider_trust_class"?: ComponentTrustClass;
 }>;
 
 export interface CapabilityFailedPayload {
@@ -171,7 +177,11 @@ export interface CapabilityInvocationResult {
   "correlation_id": string;
   "duration_ms": number;
   "output": unknown;
+  "provider_behavior_digest"?: string;
+  "provider_component_digest"?: string;
+  "provider_component_id"?: string;
   "provider_package_id": string;
+  "provider_trust_class"?: ComponentTrustClass;
   "receipt"?: ArtifactDescriptor | null;
   "replay_mode"?: EffectReplayMode | null;
 }
@@ -234,6 +244,61 @@ export interface ChangeSet {
   "operations"?: Array<ChangeOperation>;
   "preconditions"?: Array<ChangePrecondition>;
   "required_authority"?: Array<string>;
+}
+
+export interface ComponentBoundaryClaims {
+  "filesystem_isolation": boolean;
+  "network_isolation": boolean;
+  "no_code_execution": boolean;
+  "process_failure_isolation": boolean;
+  "remote_identity": boolean;
+  "resource_limits_enforced": boolean;
+  "revocation_enforced": boolean;
+  "tenancy_isolation": boolean;
+}
+
+export type ComponentClaimStatus = "declared" | "legacy_adapted" | "foreign_capsule";
+
+export interface ComponentDeclaration {
+  "annotations"?: Record<string, unknown>;
+  "capability_ids"?: Array<string>;
+  "content_roots"?: Array<ArtifactDescriptor>;
+  "id": string;
+  "protocol_implementations"?: Array<ProtocolImplementationDeclaration>;
+  "surface_ids"?: Array<string>;
+  "version": string;
+}
+
+export interface ComponentDescriptor {
+  "annotations"?: Record<string, unknown>;
+  "artifact": ArtifactDescriptor;
+  "behavior": ArtifactDescriptor;
+  "capability_ids": Array<string>;
+  "claim_status": ComponentClaimStatus;
+  "component_id": string;
+  "content_roots"?: Array<ArtifactDescriptor>;
+  "enforced_boundaries": ComponentBoundaryClaims;
+  "entry_kind": string;
+  "protocol_implementations"?: Array<PackagedProtocolDescriptor>;
+  "surfaces"?: Array<PackagedSurfaceDescriptor>;
+  "trust_class": ComponentTrustClass;
+  "version": string;
+}
+
+export interface ComponentLockPin {
+  "behavior_digest": string;
+  "component_id": string;
+  "digest": string;
+  "trust_class": ComponentTrustClass;
+}
+
+export type ComponentTrustClass = "sandboxed_component" | "isolated_process" | "remote_boundary" | "trusted_native" | "static_resource" | "foreign_capsule";
+
+export interface CompositionLock {
+  "components": Array<ComponentLockPin>;
+  "content_roots": Array<ArtifactDescriptor>;
+  "protocol_profiles": Array<ProtocolProfilePin>;
+  "schema": string;
 }
 
 export type ContractAdapter = "identity";
@@ -778,6 +843,11 @@ export interface LocalExecStopResponse {
 
 export type MethodStatus = "implemented" | "partial" | "planned";
 
+export interface NamedPackageArtifact {
+  "descriptor": ArtifactDescriptor;
+  "id": string;
+}
+
 /**
  * A single network access declaration in a package manifest.
  *
@@ -1264,6 +1334,18 @@ export interface PackageDependency {
 
 export type PackageDescribeResult = null;
 
+export interface PackageEnvelopeDescriptor {
+  "artifact": ArtifactDescriptor;
+  "artifacts"?: Array<NamedPackageArtifact>;
+  "components": Array<ComponentDescriptor>;
+  "content_roots"?: Array<ArtifactDescriptor>;
+  "manifest": ArtifactDescriptor;
+  "package_id": string;
+  "package_version": string;
+  "protocols"?: Array<PackagedProtocolDescriptor>;
+  "surfaces"?: Array<PackagedSurfaceDescriptor>;
+}
+
 export interface PackageFailureSummary {
   "exit_code"?: null | string;
   "failed_at": string;
@@ -1298,6 +1380,8 @@ export interface PackageLifecyclePayload {
 
 export type PackageListResult = Array<{
   "capability_count": number;
+  "components"?: Array<ComponentDescriptor>;
+  "enforced_boundaries"?: ComponentBoundaryClaims;
   "entry_kind": string;
   "extension_point_count": number;
   "hook_count": number;
@@ -1305,7 +1389,12 @@ export type PackageListResult = Array<{
   "last_failure"?: PackageFailureSummary | null;
   "loaded_at": string;
   "manifest": PackageManifest;
+  "package_envelope"?: PackageEnvelopeDescriptor | null;
   "state": PackageState;
+  /**
+   * Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
+   */
+  "trust_class"?: ComponentTrustClass;
   "trust_level": TrustLevel;
   "updated_at": string;
   "version": string;
@@ -1343,6 +1432,8 @@ export interface PackagePermissions {
 
 export interface PackageRecord {
   "capability_count": number;
+  "components"?: Array<ComponentDescriptor>;
+  "enforced_boundaries"?: ComponentBoundaryClaims;
   "entry_kind": string;
   "extension_point_count": number;
   "hook_count": number;
@@ -1350,13 +1441,29 @@ export interface PackageRecord {
   "last_failure"?: PackageFailureSummary | null;
   "loaded_at": string;
   "manifest": PackageManifest;
+  "package_envelope"?: PackageEnvelopeDescriptor | null;
   "state": PackageState;
+  /**
+   * Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
+   */
+  "trust_class"?: ComponentTrustClass;
   "trust_level": TrustLevel;
   "updated_at": string;
   "version": string;
 }
 
 export type PackageState = "discovered" | "loading" | "starting" | "ready" | "degraded" | "stopping" | "stopped" | "unloaded";
+
+export interface PackagedProtocolDescriptor {
+  "artifact": ArtifactDescriptor;
+  "implementation": ProtocolImplementationDeclaration;
+}
+
+export interface PackagedSurfaceDescriptor {
+  "artifact": ArtifactDescriptor;
+  "surface_id": string;
+  "version": string;
+}
 
 export type PermissionAuditResult = Array<{
   "id": string;
@@ -1805,6 +1912,13 @@ export interface ProtocolImplementationClaim {
   "version": string;
 }
 
+export interface ProtocolImplementationDeclaration {
+  "conformance_vectors"?: Array<string>;
+  "profiles"?: Array<string>;
+  "protocol_id": string;
+  "version": string;
+}
+
 export type ProtocolMaturity = "experimental" | "candidate" | "stable" | "deprecated" | "legacy_adapter";
 
 export interface ProtocolMethod {
@@ -1842,6 +1956,12 @@ export type ProtocolPrincipal = {
   "kind": "package";
   "package_id": string;
 };
+
+export interface ProtocolProfilePin {
+  "profile": string;
+  "protocol_id": string;
+  "version": string;
+}
 
 export type ProtocolSchemaKind = "json_schema" | "wit_world" | "other";
 

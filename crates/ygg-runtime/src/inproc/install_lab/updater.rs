@@ -337,6 +337,10 @@ fn changed_package_ids(
                 || entry.manifest_hash != planned.manifest_hash
                 || entry.commit != planned.commit_sha
                 || entry.surface_bundle_hash != planned.surface_bundle_hash
+                || entry.package_envelope_digest != planned.package_envelope_digest
+                || entry.component_pins != planned.component_pins
+                || entry.protocol_profile_pins != planned.protocol_profile_pins
+                || entry.content_roots != planned.content_roots
             {
                 changed.insert(entry.id.clone());
             }
@@ -423,6 +427,10 @@ fn planned_from_lock_entry(entry: &LockEntry) -> Result<PlannedPackage> {
         manifest_hash: entry.manifest_hash.clone(),
         tree_hash: entry.tree_hash.clone(),
         surface_bundle_hash: entry.surface_bundle_hash.clone(),
+        package_envelope_digest: entry.package_envelope_digest.clone(),
+        component_pins: entry.component_pins.clone(),
+        protocol_profile_pins: entry.protocol_profile_pins.clone(),
+        content_roots: entry.content_roots.clone(),
         manifest_relative_path: entry.manifest_relative_path.clone(),
         signed: entry.signed,
         signed_by: entry.signed_by.clone(),

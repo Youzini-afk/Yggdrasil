@@ -808,3 +808,142 @@ required_capabilities:
     fs::remove_dir_all(root)?;
     Ok(())
 }
+
+pub(crate) async fn component_identity_independent_of_package_envelope() -> anyhow::Result<()> {
+    let declaration = phase7_component_declaration();
+    let first = ygg_core::package_envelope_for_manifest(&phase7_manifest(
+        "vendor/one",
+        ygg_core::ContractMode::V1,
+        Some(declaration.clone()),
+    ))?;
+    let second = ygg_core::package_envelope_for_manifest(&phase7_manifest(
+        "vendor/two",
+        ygg_core::ContractMode::V1,
+        Some(declaration),
+    ))?;
+    anyhow::ensure!(
+        first.artifact.digest != second.artifact.digest,
+        "different packages must have different envelope digests"
+    );
+    anyhow::ensure!(
+        first.components[0].component_id == second.components[0].component_id,
+        "component identity changed across package envelopes"
+    );
+    anyhow::ensure!(
+        first.components[0].behavior.digest == second.components[0].behavior.digest,
+        "behavior claim changed across package envelopes"
+    );
+    Ok(())
+}
+
+pub(crate) async fn component_replacement_preserves_content_roots() -> anyhow::Result<()> {
+    let root = ygg_core::ArtifactDescriptor {
+        artifact_type_uri: "urn:yggdrasil:world-content:v1".to_string(),
+        media_type: "application/octet-stream".to_string(),
+        digest: format!("sha256:{}", "a".repeat(64)),
+        size_bytes: 1,
+        references: Vec::new(),
+        annotations: Default::default(),
+    };
+    let mut lock = ygg_core::CompositionLock::new(
+        vec![ygg_core::ComponentLockPin {
+            component_id: "org.example/component".to_string(),
+            digest: format!("sha256:{}", "b".repeat(64)),
+            behavior_digest: format!("sha256:{}", "c".repeat(64)),
+            trust_class: ygg_core::ComponentTrustClass::IsolatedProcess,
+        }],
+        Vec::new(),
+        vec![root.clone()],
+    )?;
+    lock.replace_component(
+        "org.example/component",
+        ygg_core::ComponentLockPin {
+            component_id: "org.example/replacement".to_string(),
+            digest: format!("sha256:{}", "d".repeat(64)),
+            behavior_digest: format!("sha256:{}", "e".repeat(64)),
+            trust_class: ygg_core::ComponentTrustClass::SandboxedComponent,
+        },
+    )?;
+    anyhow::ensure!(
+        lock.content_roots == vec![root],
+        "component replacement mutated content roots"
+    );
+    Ok(())
+}
+
+pub(crate) async fn contract_none_is_foreign_capsule() -> anyhow::Result<()> {
+    let manifest = phase7_manifest("vendor/foreign", ygg_core::ContractMode::None, None);
+    let runtime = ygg_runtime::Runtime::new(
+        std::sync::Arc::new(ygg_runtime::InMemoryEventStore::default()),
+        ygg_runtime::RuntimeConfig::default(),
+    );
+    let record = runtime.load_package(manifest.clone()).await?;
+    anyhow::ensure!(
+        record.state == ygg_runtime::PackageState::Ready,
+        "Foreign Capsule did not reach ready state"
+    );
+    anyhow::ensure!(
+        record.trust_class == ygg_core::ComponentTrustClass::ForeignCapsule,
+        "contract:none did not map to the Foreign Capsule trust class"
+    );
+    let check = ygg_core::conformance::check_component_identity_and_trust(&manifest);
+    anyhow::ensure!(
+        check.status == ygg_core::CheckStatus::Warning,
+        "Foreign Capsule conformance must be an explicit warning"
+    );
+    let details = check.details.unwrap_or_default();
+    anyhow::ensure!(
+        details.contains("composability and portability are not guaranteed"),
+        "Foreign Capsule report omitted its composability/portability limitation"
+    );
+    runtime.unload_package(&record.id).await?;
+    Ok(())
+}
+
+fn phase7_component_declaration() -> ygg_core::ComponentDeclaration {
+    ygg_core::ComponentDeclaration {
+        id: "org.example/reference-component".to_string(),
+        version: "1.0.0".to_string(),
+        capability_ids: Vec::new(),
+        protocol_implementations: vec![ygg_core::ProtocolImplementationDeclaration {
+            protocol_id: "ygg.change".to_string(),
+            version: "1.0.0".to_string(),
+            profiles: vec!["ygg.change/default/v1".to_string()],
+            conformance_vectors: vec!["proposal.lifecycle_apply".to_string()],
+        }],
+        content_roots: Vec::new(),
+        surface_ids: Vec::new(),
+        annotations: Default::default(),
+    }
+}
+
+fn phase7_manifest(
+    package_id: &str,
+    contract: ygg_core::ContractMode,
+    component: Option<ygg_core::ComponentDeclaration>,
+) -> ygg_core::PackageManifest {
+    ygg_core::PackageManifest {
+        schema_version: 1,
+        id: package_id.to_string(),
+        version: "1.0.0".to_string(),
+        display_name: None,
+        description: None,
+        author: None,
+        license: None,
+        entry: ygg_core::EntryDescriptor {
+            kind: ygg_core::PackageEntry::RustInproc {
+                crate_ref: "phase7_reference".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+            contract,
+            component,
+        },
+        provides: Vec::new(),
+        consumes: Vec::new(),
+        requires: Vec::new(),
+        contributes: ygg_core::PackageContributions::default(),
+        permissions: ygg_core::PermissionSet::default(),
+        sandbox_policy: ygg_core::SandboxPolicy::default(),
+    }
+}

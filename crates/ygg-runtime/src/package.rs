@@ -4,7 +4,11 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use ygg_core::{PackageEntry, PackageId, PackageManifest, RedactionState};
+use ygg_core::{
+    package_envelope_for_manifest, ComponentBoundaryClaims, ComponentDescriptor,
+    ComponentTrustClass, PackageEntry, PackageEnvelopeDescriptor, PackageId, PackageManifest,
+    RedactionState,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -26,6 +30,16 @@ pub struct PackageRecord {
     pub state: PackageState,
     pub entry_kind: String,
     pub trust_level: TrustLevel,
+    /// Canonical Contract v2 trust classification. Unlike `trust_level`, this
+    /// distinguishes `contract:none` as a foreign capsule.
+    #[serde(default)]
+    pub trust_class: ComponentTrustClass,
+    #[serde(default)]
+    pub enforced_boundaries: ComponentBoundaryClaims,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_envelope: Option<PackageEnvelopeDescriptor>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<ComponentDescriptor>,
     pub capability_count: usize,
     pub hook_count: usize,
     pub extension_point_count: usize,
@@ -53,14 +67,23 @@ pub struct PackageFailureSummary {
 }
 
 impl PackageRecord {
-    pub fn ready(manifest: PackageManifest) -> Self {
+    pub fn ready(manifest: PackageManifest) -> anyhow::Result<Self> {
         let now = Utc::now();
-        Self {
+        let package_envelope = package_envelope_for_manifest(&manifest)?;
+        let components = package_envelope.components.clone();
+        let primary_component = components
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("package '{}' has no component", manifest.id))?;
+        Ok(Self {
             id: manifest.id.clone(),
             version: manifest.version.clone(),
             state: PackageState::Ready,
             entry_kind: entry_kind(&manifest.entry.kind).to_string(),
             trust_level: trust_level(&manifest.entry.kind),
+            trust_class: primary_component.trust_class,
+            enforced_boundaries: primary_component.enforced_boundaries.clone(),
+            package_envelope: Some(package_envelope),
+            components,
             capability_count: manifest.provides.len(),
             hook_count: manifest.contributes.hooks.len(),
             extension_point_count: manifest.contributes.extension_points.len(),
@@ -68,7 +91,7 @@ impl PackageRecord {
             updated_at: now,
             last_failure: None,
             manifest,
-        }
+        })
     }
 }
 
@@ -143,7 +166,7 @@ impl PackageRegistry {
         if packages.contains_key(&manifest.id) {
             anyhow::bail!("package '{}' is already loaded", manifest.id);
         }
-        let record = PackageRecord::ready(manifest);
+        let record = PackageRecord::ready(manifest)?;
         packages.insert(record.id.clone(), record.clone());
         Ok(record)
     }

@@ -5,6 +5,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::{ArtifactDescriptor, ComponentLockPin, CompositionLock, ProtocolProfilePin};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lockfile {
     /// Schema identifier; must be "yggdrasil.lock.v1"
@@ -64,6 +66,23 @@ pub struct LockEntry {
     /// built `dist/` output now also participates in the tree hash.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surface_bundle_hash: Option<String>,
+
+    /// Digest of the logical package envelope. This is independent from the
+    /// install tree hash and pins the manifest-to-component composition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_envelope_digest: Option<String>,
+
+    /// Independently replaceable component identities carried by the package.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub component_pins: Vec<ComponentLockPin>,
+
+    /// Protocol profiles selected for those components.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub protocol_profile_pins: Vec<ProtocolProfilePin>,
+
+    /// Content-addressed roots intentionally kept separate from component pins.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_roots: Vec<ArtifactDescriptor>,
 
     /// Whether the source was GPG-signed and verified
     pub signed: bool,
@@ -143,9 +162,46 @@ impl Lockfile {
                     pkg.id
                 );
             }
+            if let Some(digest) = &pkg.package_envelope_digest {
+                validate_complete_sha256(digest).map_err(|reason| {
+                    anyhow::anyhow!("invalid package_envelope_digest for {}: {reason}", pkg.id)
+                })?;
+            }
+            if !pkg.component_pins.is_empty()
+                || !pkg.protocol_profile_pins.is_empty()
+                || !pkg.content_roots.is_empty()
+            {
+                anyhow::ensure!(
+                    pkg.package_envelope_digest.is_some(),
+                    "composition pins for {} require package_envelope_digest",
+                    pkg.id
+                );
+                CompositionLock::new(
+                    pkg.component_pins.clone(),
+                    pkg.protocol_profile_pins.clone(),
+                    pkg.content_roots.clone(),
+                )
+                .map_err(|error| {
+                    anyhow::anyhow!("invalid composition pins for {}: {error}", pkg.id)
+                })?;
+            }
         }
         Ok(())
     }
+}
+
+fn validate_complete_sha256(digest: &str) -> anyhow::Result<()> {
+    let Some(hex) = digest.strip_prefix("sha256:") else {
+        anyhow::bail!("must start with sha256:");
+    };
+    anyhow::ensure!(
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        "must contain exactly 64 lowercase hexadecimal characters"
+    );
+    Ok(())
 }
 
 #[cfg(test)]
@@ -164,6 +220,10 @@ mod tests {
             tree_hash: "sha256:tree".to_string(),
             manifest_hash: "sha256:manifest".to_string(),
             surface_bundle_hash: None,
+            package_envelope_digest: None,
+            component_pins: Vec::new(),
+            protocol_profile_pins: Vec::new(),
+            content_roots: Vec::new(),
             signed: true,
             signed_by: Some("0123456789ABCDEF0123456789ABCDEF01234567".to_string()),
             installed_at_store: "/nix/store/ygg/vendor-tool".to_string(),
@@ -266,5 +326,56 @@ mod tests {
             .validate()
             .expect_err("manifest hash should be rejected");
         assert!(err.to_string().contains("invalid manifest_hash format"));
+    }
+
+    #[test]
+    fn composition_pins_round_trip_and_validate() {
+        let mut lockfile = Lockfile::new("default", "sha256:profile");
+        let mut entry = git_entry();
+        entry.package_envelope_digest = Some(format!("sha256:{}", "a".repeat(64)));
+        entry.component_pins = vec![ComponentLockPin {
+            component_id: "org.example/component".to_string(),
+            digest: format!("sha256:{}", "b".repeat(64)),
+            behavior_digest: format!("sha256:{}", "c".repeat(64)),
+            trust_class: crate::ComponentTrustClass::IsolatedProcess,
+        }];
+        entry.protocol_profile_pins = vec![ProtocolProfilePin {
+            protocol_id: "ygg.change".to_string(),
+            version: "1.0.0".to_string(),
+            profile: "ygg.change/default/v1".to_string(),
+        }];
+        entry.content_roots = vec![ArtifactDescriptor {
+            artifact_type_uri: "urn:test:content".to_string(),
+            media_type: "application/octet-stream".to_string(),
+            digest: format!("sha256:{}", "d".repeat(64)),
+            size_bytes: 1,
+            references: Vec::new(),
+            annotations: Default::default(),
+        }];
+        lockfile.package.push(entry);
+        lockfile.validate().expect("composition pins validate");
+
+        let encoded = toml::to_string(&lockfile).expect("serialize pins");
+        let decoded: Lockfile = toml::from_str(&encoded).expect("deserialize pins");
+        assert_eq!(
+            decoded.package[0].package_envelope_digest,
+            lockfile.package[0].package_envelope_digest
+        );
+        assert_eq!(decoded.package[0].component_pins.len(), 1);
+        assert_eq!(decoded.package[0].protocol_profile_pins.len(), 1);
+        assert_eq!(decoded.package[0].content_roots.len(), 1);
+        decoded.validate().expect("round-trip pins validate");
+    }
+
+    #[test]
+    fn malformed_composition_digest_is_rejected() {
+        let mut lockfile = Lockfile::new("default", "sha256:profile");
+        let mut entry = git_entry();
+        entry.package_envelope_digest = Some("sha256:short".to_string());
+        lockfile.package.push(entry);
+        let error = lockfile
+            .validate()
+            .expect_err("short envelope digest must fail");
+        assert!(error.to_string().contains("package_envelope_digest"));
     }
 }

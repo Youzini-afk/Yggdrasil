@@ -32,7 +32,8 @@ where
             crate_ref, symbol, ..
         } = &manifest.entry.kind
         {
-            if !manifest.provides.is_empty()
+            if manifest.entry.contract == ContractMode::V1
+                && !manifest.provides.is_empty()
                 && self
                     .config
                     .inproc_packages
@@ -61,18 +62,24 @@ where
             record.manifest.entry.kind,
             PackageEntry::SurfaceBundle { .. }
         );
-        if !is_surface_bundle {
+        let participates_in_contract =
+            !is_surface_bundle && record.manifest.entry.contract == ContractMode::V1;
+        if participates_in_contract {
+            let component = record
+                .components
+                .first()
+                .ok_or_else(|| anyhow::anyhow!("package '{}' has no component", record.id))?;
             self.capabilities
-                .register_package(&record.id, &record.manifest.provides)
-                .await;
+                .register_component(&record.id, component, &record.manifest.provides)
+                .await?;
             self.extensions
                 .register_package(&record.id, &record.manifest.contributes.hooks)
                 .await;
         }
-        let bindings = if is_surface_bundle {
-            HashMap::new()
-        } else {
+        let bindings = if participates_in_contract {
             self.mint_package_bindings(&record.manifest).await
+        } else {
+            HashMap::new()
         };
         match &record.manifest.entry.kind {
             PackageEntry::Subprocess { .. } => {
@@ -95,10 +102,6 @@ where
                         .unwrap_or_else(|| record.clone());
                     self.capabilities.unregister_package(&record.id).await;
                     self.extensions.unregister_package(&record.id).await;
-                    self.capabilities.unregister_package(&record.id).await;
-                    self.extensions.unregister_package(&record.id).await;
-                    self.capabilities.unregister_package(&record.id).await;
-                    self.extensions.unregister_package(&record.id).await;
                     self.append_package_degraded_event(&degraded, &error.to_string())
                         .await?;
                     return Err(error);
@@ -115,6 +118,8 @@ where
                 if let Some(package) = self.config.inproc_packages.lookup(crate_ref, symbol) {
                     let env = crate::KernelEnv {
                         package_id: record.id.clone(),
+                        component_id: record.components[0].component_id.clone(),
+                        component_digest: record.components[0].artifact.digest.clone(),
                         bindings,
                         handles: self.handles.clone(),
                     };
@@ -169,6 +174,9 @@ where
         &self,
         manifest: &PackageManifest,
     ) -> HashMap<String, CapHandleId> {
+        if manifest.entry.contract == ContractMode::None {
+            return HashMap::new();
+        }
         let mut bindings = HashMap::new();
         for cap_id in &manifest.permissions.capabilities.invoke {
             let handle_id = self
@@ -414,6 +422,15 @@ where
             "version": record.version,
             "state": record.state,
             "entry_kind": record.entry_kind,
+            "package_envelope_digest": record.package_envelope.as_ref().map(|envelope| &envelope.artifact.digest),
+            "components": record.components.iter().map(|component| json!({
+                "component_id": component.component_id,
+                "component_digest": component.artifact.digest,
+                "behavior_digest": component.behavior.digest,
+                "trust_class": component.trust_class,
+                "claim_status": component.claim_status,
+                "enforced_boundaries": component.enforced_boundaries,
+            })).collect::<Vec<_>>(),
             "contract_mode": match record.manifest.entry.contract {
                 ContractMode::V1 => "v1",
                 ContractMode::None => "none",

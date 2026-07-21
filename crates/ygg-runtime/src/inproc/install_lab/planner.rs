@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use uuid::Uuid;
-use ygg_core::{DependencySource, Lockfile, PackageDependency, PackageManifest, PermissionSet};
+use ygg_core::{
+    DependencySource, LockEntry, Lockfile, PackageDependency, PackageManifest, PermissionSet,
+};
 
 use super::executor::{
     compute_file_hash, compute_manifest_hash, compute_tree_hash, invoke_package_capability,
@@ -81,22 +83,60 @@ pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
         )?,
     }
 
-    let mut lock_map = HashMap::new();
+    let mut lock_map = HashMap::<String, LockEntry>::new();
     if let Some(lockfile) = input.lockfile.as_deref() {
         let lock: Lockfile = toml::from_str(lockfile).context("failed to parse lockfile TOML")?;
+        lock.validate().context("invalid lockfile")?;
         for entry in lock.package {
-            lock_map.insert(entry.id, entry.manifest_hash);
+            lock_map.insert(entry.id.clone(), entry);
         }
     }
     let mut drift = Vec::new();
     for pkg in &packages {
         if let Some(expected) = lock_map.get(&pkg.id) {
-            if expected != &pkg.manifest_hash {
+            if expected.manifest_hash != pkg.manifest_hash {
                 drift.push(json!({
                     "id": pkg.id,
                     "kind": "manifest_hash",
-                    "expected": expected,
+                    "expected": expected.manifest_hash,
                     "actual": pkg.manifest_hash,
+                }));
+            }
+            if expected.package_envelope_digest.is_some()
+                && expected.package_envelope_digest != pkg.package_envelope_digest
+            {
+                drift.push(json!({
+                    "id": pkg.id,
+                    "kind": "package_envelope_digest",
+                    "expected": expected.package_envelope_digest,
+                    "actual": pkg.package_envelope_digest,
+                }));
+            }
+            if !expected.component_pins.is_empty() && expected.component_pins != pkg.component_pins
+            {
+                drift.push(json!({
+                    "id": pkg.id,
+                    "kind": "component_pins",
+                    "expected": expected.component_pins,
+                    "actual": pkg.component_pins,
+                }));
+            }
+            if !expected.protocol_profile_pins.is_empty()
+                && expected.protocol_profile_pins != pkg.protocol_profile_pins
+            {
+                drift.push(json!({
+                    "id": pkg.id,
+                    "kind": "protocol_profile_pins",
+                    "expected": expected.protocol_profile_pins,
+                    "actual": pkg.protocol_profile_pins,
+                }));
+            }
+            if !expected.content_roots.is_empty() && expected.content_roots != pkg.content_roots {
+                drift.push(json!({
+                    "id": pkg.id,
+                    "kind": "content_roots",
+                    "expected": expected.content_roots,
+                    "actual": pkg.content_roots,
                 }));
             }
         }
@@ -166,7 +206,7 @@ fn resolve_project_packages(
             Some(relative),
             source.signed(),
             None,
-        );
+        )?;
         attach_conformance(&mut planned, package_root, strict_conformance)?;
         push_resolved_package(
             planned,
@@ -379,7 +419,7 @@ fn resolve_local_package(path: PathBuf, strict_conformance: bool) -> Result<Plan
         None,
         false,
         None,
-    );
+    )?;
     attach_conformance(&mut planned, &path, strict_conformance)?;
     Ok(planned)
 }
@@ -465,7 +505,7 @@ async fn resolve_git_package(
             None,
             signed,
             None,
-        );
+        )?;
         attach_conformance(&mut planned, &tmp, strict_conformance)?;
         Ok(ResolvedPackages {
             packages: vec![planned],
@@ -490,9 +530,23 @@ fn planned_from_manifest(
     manifest_relative_path: Option<String>,
     signed: bool,
     signed_by: Option<String>,
-) -> PlannedPackage {
+) -> Result<PlannedPackage> {
+    if manifest.entry.component.is_some() {
+        manifest
+            .validate_basic()
+            .context("invalid explicit component declaration")?;
+    }
     let surface_bundle_hash = compute_surface_bundle_hash(manifest, base_dir);
-    PlannedPackage {
+    let package_envelope = ygg_core::package_envelope_for_manifest(manifest)?;
+    let package_envelope_digest = Some(package_envelope.artifact.digest.clone());
+    let component_pins = package_envelope
+        .components
+        .iter()
+        .map(ygg_core::ComponentLockPin::from_descriptor)
+        .collect();
+    let protocol_profile_pins = ygg_core::protocol_profile_pins_for_envelope(&package_envelope);
+    let content_roots = package_envelope.content_roots.clone();
+    Ok(PlannedPackage {
         id: manifest.id.clone(),
         version: manifest.version.clone(),
         source,
@@ -503,6 +557,10 @@ fn planned_from_manifest(
         manifest_hash,
         tree_hash,
         surface_bundle_hash,
+        package_envelope_digest,
+        component_pins,
+        protocol_profile_pins,
+        content_roots,
         manifest_relative_path,
         signed,
         signed_by,
@@ -513,7 +571,7 @@ fn planned_from_manifest(
             .map(|req| planned_requirement(req, base_dir))
             .collect(),
         conformance: None,
-    }
+    })
 }
 
 fn compute_surface_bundle_hash(manifest: &PackageManifest, base_dir: &Path) -> Option<String> {

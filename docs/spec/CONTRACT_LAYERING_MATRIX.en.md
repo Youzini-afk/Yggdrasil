@@ -42,7 +42,7 @@ Dispositions:
 
 - Code contains 80 `KernelMethod` variants and 80 method schemas.
 - Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
-- There are 15 top-level schemas. Phase 2 added `contract-selection.schema.json`, Phase 4 added `artifact-descriptor.schema.json`, Phase 5 added EffectReceipt plus four Change primitive schemas, and Phase 6 added `protocol-descriptor.schema.json`.
+- There are 18 top-level schemas. Phase 2 added `contract-selection.schema.json`, Phase 4 added `artifact-descriptor.schema.json`, Phase 5 added EffectReceipt plus four Change primitive schemas, Phase 6 added `protocol-descriptor.schema.json`, and Phase 7 added component, package-envelope, and composition-lock schemas.
 - Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
 - The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. Phase 3 publishes 36 canonical/legacy dual-stack routes across the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection.
 - The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports.
@@ -275,7 +275,7 @@ The first migration requirement is therefore a testable compatibility router, no
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | Host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | Host deployment health; add to v1 registry |
 
-## 15 top-level schemas
+## 18 top-level schemas
 
 | Current schema | Target | Disposition | Target shape |
 |---|---:|---|---|
@@ -283,6 +283,9 @@ The first migration requirement is therefore a testable compatibility router, no
 | `protocol-context.schema.json` | `S` | Strengthen | Authenticated principal, contract/profile negotiation, trace, and parent invocation |
 | `contract-selection.schema.json` | `S` | Retain | Explicit profile and per-layer version requirements; no silent downgrade |
 | `protocol-descriptor.schema.json` | `C` | Add | Shared semantics, lifecycle/errors, authority, vectors, profiles, migrations, and implementation claims |
+| `component-descriptor.schema.json` | `S` | Add | Independent implementation identity, behavior digest, trust class, enforced-boundary claims, and references |
+| `package-envelope-descriptor.schema.json` | `H` | Add | Retrieval/install envelope joining the manifest to independently addressed components and artifacts |
+| `composition-lock.schema.json` | `C` | Add | Separately pinned component artifacts, protocol profiles, and immutable content roots |
 | `artifact-descriptor.schema.json` | `S` | Add | Open artifact type, SHA-256 digest, size, references, and annotations; bytes live in ObjectStore |
 | `effect-receipt.schema.json` | `S` | Add | Content-addressed terminal evidence referencing input/output/component/authority/policy/approval/parents |
 | `intent.schema.json` | `C` | Add | Principal goal and target scope; distinct from a proposal or command |

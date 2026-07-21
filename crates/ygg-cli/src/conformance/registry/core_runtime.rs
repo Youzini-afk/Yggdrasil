@@ -481,6 +481,21 @@ pub(super) fn composition_cases() -> Vec<ConformanceCase> {
             crate::conformance::generated::composition_descriptor_v2
         ),
         c!(
+            "composition.component_identity_independent_of_package_envelope",
+            ["composition", "phase7"],
+            crate::conformance::generated::component_identity_independent_of_package_envelope
+        ),
+        c!(
+            "composition.component_replacement_preserves_content_roots",
+            ["composition", "phase7"],
+            crate::conformance::generated::component_replacement_preserves_content_roots
+        ),
+        c!(
+            "composition.contract_none_is_foreign_capsule",
+            ["composition", "phase7"],
+            crate::conformance::generated::contract_none_is_foreign_capsule
+        ),
+        c!(
             "official.composition_lab",
             ["official", "composition", "slow"],
             crate::conformance::official_labs::composition_lab

@@ -41,6 +41,17 @@
       "format": "uint128",
       "type": "string"
     },
+    "ComponentTrustClass": {
+      "enum": [
+        "sandboxed_component",
+        "isolated_process",
+        "remote_boundary",
+        "trusted_native",
+        "static_resource",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
     "EffectReplayMode": {
       "enum": [
         "live",
@@ -145,8 +156,28 @@
           "type": "integer"
         },
         "output": true,
+        "provider_behavior_digest": {
+          "default": "",
+          "type": "string"
+        },
+        "provider_component_digest": {
+          "default": "",
+          "type": "string"
+        },
+        "provider_component_id": {
+          "default": "",
+          "type": "string"
+        },
         "provider_package_id": {
           "type": "string"
+        },
+        "provider_trust_class": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ComponentTrustClass"
+            }
+          ],
+          "default": "foreign_capsule"
         },
         "receipt": {
           "anyOf": [

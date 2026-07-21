@@ -18,7 +18,10 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::timeout;
-use ygg_core::{CapHandleId, PackageEntry, PackageId, PackageManifest, SubprocessTransport};
+use ygg_core::{
+    package_envelope_for_manifest, CapHandleId, ContractMode, PackageEntry, PackageId,
+    PackageManifest, PermissionSet, SubprocessTransport,
+};
 
 use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolError, Runtime};
 
@@ -113,6 +116,20 @@ impl SubprocessSupervisor {
 
         let handshake_timeout =
             Duration::from_millis(manifest.sandbox_policy.wall_clock_ms.min(5_000));
+        let package_envelope = package_envelope_for_manifest(manifest)?;
+        let participates_in_contract = manifest.entry.contract == ContractMode::V1;
+        let permissions = participates_in_contract
+            .then(|| manifest.permissions.clone())
+            .unwrap_or_else(PermissionSet::default);
+        let capabilities = if participates_in_contract {
+            manifest
+                .provides
+                .iter()
+                .map(|capability| capability.id.clone())
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
         let request = json!({
             "jsonrpc": "2.0",
             "id": "handshake-1",
@@ -121,8 +138,12 @@ impl SubprocessSupervisor {
                 "protocol_version": crate::KERNEL_PROTOCOL_VERSION,
                 "package_id": manifest.id,
                 "manifest_version": manifest.version,
-                "permissions": manifest.permissions,
-                "capabilities": manifest.provides.iter().map(|capability| capability.id.clone()).collect::<Vec<_>>(),
+                "contract_mode": manifest.entry.contract,
+                "foreign_capsule": !participates_in_contract,
+                "package_envelope_digest": package_envelope.artifact.digest,
+                "components": package_envelope.components,
+                "permissions": permissions,
+                "capabilities": capabilities,
                 "bindings": bindings,
             }
         });

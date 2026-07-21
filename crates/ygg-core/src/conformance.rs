@@ -7,7 +7,10 @@ use jsonschema::JSONSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::PackageManifest;
+use crate::{
+    package_envelope_for_manifest, ComponentBoundaryClaims, ComponentClaimStatus,
+    ComponentTrustClass, PackageEnvelopeDescriptor, PackageManifest,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageConformanceReport {
@@ -16,6 +19,10 @@ pub struct PackageConformanceReport {
     pub contract_version: String,
     pub checks: Vec<CheckResult>,
     pub summary: ConformanceSummary,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_envelope: Option<PackageEnvelopeDescriptor>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<PackageComponentConformance>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub transitive_reports: Vec<PackageConformanceReport>,
 }
@@ -27,6 +34,19 @@ pub struct ProtocolConformanceReport {
     pub profile: String,
     pub vector_results: Vec<CheckResult>,
     pub summary: ConformanceSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageComponentConformance {
+    pub component_id: String,
+    pub component_digest: String,
+    pub behavior_digest: String,
+    pub trust_class: ComponentTrustClass,
+    pub claim_status: ComponentClaimStatus,
+    pub enforced_boundaries: ComponentBoundaryClaims,
+    pub composability_guaranteed: bool,
+    pub portability_guaranteed: bool,
+    pub guarantee: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,9 +137,14 @@ pub async fn run_checks(
 
     if let Some(manifest) = manifest.as_ref() {
         checks.push(check_manifest_declarations_consistent(manifest));
+        checks.push(check_component_identity_and_trust(manifest));
     } else {
         checks.push(skip(
             "manifest.declarations_consistent",
+            "manifest schema invalid",
+        ));
+        checks.push(skip(
+            "component.identity_and_trust",
             "manifest schema invalid",
         ));
     }
@@ -150,6 +175,13 @@ pub async fn run_checks(
         ));
     }
 
+    let package_envelope = manifest
+        .as_ref()
+        .and_then(|manifest| package_envelope_for_manifest(manifest).ok());
+    let components = package_envelope
+        .as_ref()
+        .map(component_conformance_records)
+        .unwrap_or_default();
     let summary = summarize(&checks);
     Ok(PackageConformanceReport {
         package_id,
@@ -157,6 +189,8 @@ pub async fn run_checks(
         contract_version: contract.to_string(),
         checks,
         summary,
+        package_envelope,
+        components,
         transitive_reports: Vec::new(),
     })
 }
@@ -254,13 +288,23 @@ fn schema_path() -> PathBuf {
 pub fn check_manifest_declarations_consistent(manifest: &PackageManifest) -> CheckResult {
     let mut failures = Vec::new();
     let mut warnings = Vec::new();
-    let namespace = format!("{}/", manifest.id);
+    if let Err(error) = manifest.validate_basic() {
+        failures.push(error.to_string());
+    }
+    let mut owners = vec![manifest.id.as_str()];
+    if let Some(component) = &manifest.entry.component {
+        owners.push(component.id.as_str());
+    }
 
     for cap in &manifest.provides {
-        if !cap.id.starts_with(&namespace) {
+        if !owners.iter().any(|owner| {
+            cap.id
+                .strip_prefix(owner)
+                .is_some_and(|rest| rest.starts_with('/'))
+        }) {
             failures.push(format!(
-                "provided capability '{}' is not under package id namespace '{}'",
-                cap.id, manifest.id
+                "provided capability '{}' is not under package or component namespace",
+                cap.id
             ));
         }
     }
@@ -308,6 +352,85 @@ pub fn check_manifest_declarations_consistent(manifest: &PackageManifest) -> Che
     } else {
         pass("manifest.declarations_consistent", None)
     }
+}
+
+pub fn check_component_identity_and_trust(manifest: &PackageManifest) -> CheckResult {
+    let envelope = match package_envelope_for_manifest(manifest) {
+        Ok(envelope) => envelope,
+        Err(error) => return fail("component.identity_and_trust", error.to_string()),
+    };
+    let Some(component) = envelope.components.first() else {
+        return fail(
+            "component.identity_and_trust",
+            "package has no component descriptor",
+        );
+    };
+    match component.claim_status {
+        ComponentClaimStatus::Declared => pass(
+            "component.identity_and_trust",
+            Some(format!(
+                "declared component '{}' is independently addressable as {} with trust class {:?}",
+                component.component_id, component.artifact.digest, component.trust_class
+            )),
+        ),
+        ComponentClaimStatus::LegacyAdapted => warning(
+            "component.identity_and_trust",
+            format!(
+                "component '{}' uses a package-scoped legacy identity; package-contract composability is retained, but cross-package portability is not guaranteed",
+                component.component_id
+            ),
+        ),
+        ComponentClaimStatus::ForeignCapsule => warning(
+            "component.identity_and_trust",
+            format!(
+                "component '{}' is a Foreign Capsule; it may be hosted, but composability and portability are not guaranteed",
+                component.component_id
+            ),
+        ),
+    }
+}
+
+fn component_conformance_records(
+    envelope: &PackageEnvelopeDescriptor,
+) -> Vec<PackageComponentConformance> {
+    envelope
+        .components
+        .iter()
+        .map(|component| {
+            let (composability_guaranteed, portability_guaranteed, guarantee) =
+                match component.claim_status {
+                    ComponentClaimStatus::Declared => (
+                        true,
+                        false,
+                        "explicit component identity and behavior claims are independently pinned; portability requires a separate passing implementation-conformance report"
+                            .to_string(),
+                    ),
+                    ComponentClaimStatus::LegacyAdapted => (
+                        true,
+                        false,
+                        "package-contract composability is retained; cross-package portability is not guaranteed"
+                            .to_string(),
+                    ),
+                    ComponentClaimStatus::ForeignCapsule => (
+                        false,
+                        false,
+                        "host startup is supported; composability and portability are not guaranteed"
+                            .to_string(),
+                    ),
+                };
+            PackageComponentConformance {
+                component_id: component.component_id.clone(),
+                component_digest: component.artifact.digest.clone(),
+                behavior_digest: component.behavior.digest.clone(),
+                trust_class: component.trust_class,
+                claim_status: component.claim_status,
+                enforced_boundaries: component.enforced_boundaries.clone(),
+                composability_guaranteed,
+                portability_guaranteed,
+                guarantee,
+            }
+        })
+        .collect()
 }
 
 pub fn summarize(checks: &[CheckResult]) -> ConformanceSummary {

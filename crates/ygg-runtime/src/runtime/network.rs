@@ -229,8 +229,11 @@ where
 
         let decision = if contract_none {
             NetworkPolicyDecision {
-                allowed: true,
-                denial_reason: None,
+                allowed: false,
+                denial_reason: Some(
+                    "Foreign Capsule is self-contained and receives no kernel network authority"
+                        .to_string(),
+                ),
                 matched_declaration: None,
             }
         } else {

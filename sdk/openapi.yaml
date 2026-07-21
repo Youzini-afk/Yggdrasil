@@ -347,8 +347,37 @@ components:
         properties:
           descriptor:
             $ref: '#/components/schemas/CapabilityDescriptor'
+          provider_behavior_digest:
+            default: ''
+            type: string
+          provider_claim_status:
+            allOf:
+            - $ref: '#/components/schemas/ComponentClaimStatus'
+            default: foreign_capsule
+          provider_component_digest:
+            default: ''
+            type: string
+          provider_component_id:
+            default: ''
+            type: string
+          provider_enforced_boundaries:
+            allOf:
+            - $ref: '#/components/schemas/ComponentBoundaryClaims'
+            default:
+              filesystem_isolation: false
+              network_isolation: false
+              no_code_execution: false
+              process_failure_isolation: false
+              remote_identity: false
+              resource_limits_enforced: false
+              revocation_enforced: false
+              tenancy_isolation: false
           provider_package_id:
             type: string
+          provider_trust_class:
+            allOf:
+            - $ref: '#/components/schemas/ComponentTrustClass'
+            default: foreign_capsule
         required:
         - descriptor
         - provider_package_id
@@ -442,8 +471,21 @@ components:
           minimum: 0.0
           type: integer
         output: true
+        provider_behavior_digest:
+          default: ''
+          type: string
+        provider_component_digest:
+          default: ''
+          type: string
+        provider_component_id:
+          default: ''
+          type: string
         provider_package_id:
           type: string
+        provider_trust_class:
+          allOf:
+          - $ref: '#/components/schemas/ComponentTrustClass'
+          default: foreign_capsule
         receipt:
           anyOf:
           - $ref: '#/components/schemas/ArtifactDescriptor'
@@ -621,6 +663,168 @@ components:
       - id
       - intent_id
       title: ChangeSet
+      type: object
+    ComponentBoundaryClaims:
+      properties:
+        filesystem_isolation:
+          type: boolean
+        network_isolation:
+          type: boolean
+        no_code_execution:
+          type: boolean
+        process_failure_isolation:
+          type: boolean
+        remote_identity:
+          type: boolean
+        resource_limits_enforced:
+          type: boolean
+        revocation_enforced:
+          type: boolean
+        tenancy_isolation:
+          type: boolean
+      required:
+      - filesystem_isolation
+      - network_isolation
+      - no_code_execution
+      - process_failure_isolation
+      - remote_identity
+      - resource_limits_enforced
+      - revocation_enforced
+      - tenancy_isolation
+      type: object
+    ComponentClaimStatus:
+      enum:
+      - declared
+      - legacy_adapted
+      - foreign_capsule
+      type: string
+    ComponentDeclaration:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        capability_ids:
+          items:
+            type: string
+          type: array
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        id:
+          type: string
+        protocol_implementations:
+          items:
+            $ref: '#/components/schemas/ProtocolImplementationDeclaration'
+          type: array
+        surface_ids:
+          items:
+            type: string
+          type: array
+        version:
+          type: string
+      required:
+      - id
+      - version
+      type: object
+    ComponentDescriptor:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        behavior:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        capability_ids:
+          items:
+            type: string
+          type: array
+        claim_status:
+          $ref: '#/components/schemas/ComponentClaimStatus'
+        component_id:
+          type: string
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        enforced_boundaries:
+          $ref: '#/components/schemas/ComponentBoundaryClaims'
+        entry_kind:
+          type: string
+        protocol_implementations:
+          items:
+            $ref: '#/components/schemas/PackagedProtocolDescriptor'
+          type: array
+        surfaces:
+          items:
+            $ref: '#/components/schemas/PackagedSurfaceDescriptor'
+          type: array
+        trust_class:
+          $ref: '#/components/schemas/ComponentTrustClass'
+        version:
+          type: string
+      required:
+      - artifact
+      - behavior
+      - capability_ids
+      - claim_status
+      - component_id
+      - enforced_boundaries
+      - entry_kind
+      - trust_class
+      - version
+      title: ComponentDescriptor
+      type: object
+    ComponentLockPin:
+      properties:
+        behavior_digest:
+          type: string
+        component_id:
+          type: string
+        digest:
+          type: string
+        trust_class:
+          $ref: '#/components/schemas/ComponentTrustClass'
+      required:
+      - behavior_digest
+      - component_id
+      - digest
+      - trust_class
+      type: object
+    ComponentTrustClass:
+      enum:
+      - sandboxed_component
+      - isolated_process
+      - remote_boundary
+      - trusted_native
+      - static_resource
+      - foreign_capsule
+      type: string
+    CompositionLock:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        components:
+          items:
+            $ref: '#/components/schemas/ComponentLockPin'
+          type: array
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        protocol_profiles:
+          items:
+            $ref: '#/components/schemas/ProtocolProfilePin'
+          type: array
+        schema:
+          type: string
+      required:
+      - components
+      - content_roots
+      - protocol_profiles
+      - schema
+      title: CompositionLock
       type: object
     ContractAdapter:
       enum:
@@ -1157,6 +1361,11 @@ components:
         - kind
         type: object
       properties:
+        component:
+          anyOf:
+          - $ref: '#/components/schemas/ComponentDeclaration'
+          - type: 'null'
+          description: Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.
         contract:
           allOf:
           - $ref: '#/components/schemas/ContractMode'
@@ -2145,6 +2354,16 @@ components:
       - partial
       - planned
       type: string
+    NamedPackageArtifact:
+      properties:
+        descriptor:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        id:
+          type: string
+      required:
+      - descriptor
+      - id
+      type: object
     NetworkDeclaration:
       description: |-
         A single network access declaration in a package manifest.
@@ -3013,6 +3232,45 @@ components:
       type: object
     PackageDescribeResult:
       type: 'null'
+    PackageEnvelopeDescriptor:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        artifacts:
+          items:
+            $ref: '#/components/schemas/NamedPackageArtifact'
+          type: array
+        components:
+          items:
+            $ref: '#/components/schemas/ComponentDescriptor'
+          type: array
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        manifest:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        package_id:
+          type: string
+        package_version:
+          type: string
+        protocols:
+          items:
+            $ref: '#/components/schemas/PackagedProtocolDescriptor'
+          type: array
+        surfaces:
+          items:
+            $ref: '#/components/schemas/PackagedSurfaceDescriptor'
+          type: array
+      required:
+      - artifact
+      - components
+      - manifest
+      - package_id
+      - package_version
+      title: PackageEnvelopeDescriptor
+      type: object
     PackageFailureSummary:
       properties:
         exit_code:
@@ -3114,6 +3372,22 @@ components:
             format: uint
             minimum: 0.0
             type: integer
+          components:
+            items:
+              $ref: '#/components/schemas/ComponentDescriptor'
+            type: array
+          enforced_boundaries:
+            allOf:
+            - $ref: '#/components/schemas/ComponentBoundaryClaims'
+            default:
+              filesystem_isolation: false
+              network_isolation: false
+              no_code_execution: false
+              process_failure_isolation: false
+              remote_identity: false
+              resource_limits_enforced: false
+              revocation_enforced: false
+              tenancy_isolation: false
           entry_kind:
             type: string
           extension_point_count:
@@ -3135,8 +3409,17 @@ components:
             type: string
           manifest:
             $ref: '#/components/schemas/PackageManifest'
+          package_envelope:
+            anyOf:
+            - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+            - type: 'null'
           state:
             $ref: '#/components/schemas/PackageState'
+          trust_class:
+            allOf:
+            - $ref: '#/components/schemas/ComponentTrustClass'
+            default: foreign_capsule
+            description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
           trust_level:
             $ref: '#/components/schemas/TrustLevel'
           updated_at:
@@ -3293,6 +3576,22 @@ components:
           format: uint
           minimum: 0.0
           type: integer
+        components:
+          items:
+            $ref: '#/components/schemas/ComponentDescriptor'
+          type: array
+        enforced_boundaries:
+          allOf:
+          - $ref: '#/components/schemas/ComponentBoundaryClaims'
+          default:
+            filesystem_isolation: false
+            network_isolation: false
+            no_code_execution: false
+            process_failure_isolation: false
+            remote_identity: false
+            resource_limits_enforced: false
+            revocation_enforced: false
+            tenancy_isolation: false
         entry_kind:
           type: string
         extension_point_count:
@@ -3314,8 +3613,17 @@ components:
           type: string
         manifest:
           $ref: '#/components/schemas/PackageManifest'
+        package_envelope:
+          anyOf:
+          - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+          - type: 'null'
         state:
           $ref: '#/components/schemas/PackageState'
+        trust_class:
+          allOf:
+          - $ref: '#/components/schemas/ComponentTrustClass'
+          default: foreign_capsule
+          description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
         trust_level:
           $ref: '#/components/schemas/TrustLevel'
         updated_at:
@@ -3348,6 +3656,29 @@ components:
       - stopped
       - unloaded
       type: string
+    PackagedProtocolDescriptor:
+      properties:
+        artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        implementation:
+          $ref: '#/components/schemas/ProtocolImplementationDeclaration'
+      required:
+      - artifact
+      - implementation
+      type: object
+    PackagedSurfaceDescriptor:
+      properties:
+        artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        surface_id:
+          type: string
+        version:
+          type: string
+      required:
+      - artifact
+      - surface_id
+      - version
+      type: object
     PermissionAuditResult:
       items:
         $schema: https://json-schema.org/draft/2020-12/schema
@@ -4684,6 +5015,24 @@ components:
       - provider
       - version
       type: object
+    ProtocolImplementationDeclaration:
+      properties:
+        conformance_vectors:
+          items:
+            type: string
+          type: array
+        profiles:
+          items:
+            type: string
+          type: array
+        protocol_id:
+          type: string
+        version:
+          type: string
+      required:
+      - protocol_id
+      - version
+      type: object
     ProtocolMaturity:
       enum:
       - experimental
@@ -4799,6 +5148,19 @@ components:
         required:
         - kind
         type: object
+    ProtocolProfilePin:
+      properties:
+        profile:
+          type: string
+        protocol_id:
+          type: string
+        version:
+          type: string
+      required:
+      - profile
+      - protocol_id
+      - version
+      type: object
     ProtocolSchemaKind:
       enum:
       - json_schema
@@ -9751,8 +10113,37 @@ paths:
                       properties:
                         descriptor:
                           $ref: '#/components/schemas/CapabilityDescriptor'
+                        provider_behavior_digest:
+                          default: ''
+                          type: string
+                        provider_claim_status:
+                          allOf:
+                          - $ref: '#/components/schemas/ComponentClaimStatus'
+                          default: foreign_capsule
+                        provider_component_digest:
+                          default: ''
+                          type: string
+                        provider_component_id:
+                          default: ''
+                          type: string
+                        provider_enforced_boundaries:
+                          allOf:
+                          - $ref: '#/components/schemas/ComponentBoundaryClaims'
+                          default:
+                            filesystem_isolation: false
+                            network_isolation: false
+                            no_code_execution: false
+                            process_failure_isolation: false
+                            remote_identity: false
+                            resource_limits_enforced: false
+                            revocation_enforced: false
+                            tenancy_isolation: false
                         provider_package_id:
                           type: string
+                        provider_trust_class:
+                          allOf:
+                          - $ref: '#/components/schemas/ComponentTrustClass'
+                          default: foreign_capsule
                       required:
                       - descriptor
                       - provider_package_id
@@ -9869,8 +10260,21 @@ paths:
                         minimum: 0.0
                         type: integer
                       output: true
+                      provider_behavior_digest:
+                        default: ''
+                        type: string
+                      provider_component_digest:
+                        default: ''
+                        type: string
+                      provider_component_id:
+                        default: ''
+                        type: string
                       provider_package_id:
                         type: string
+                      provider_trust_class:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentTrustClass'
+                        default: foreign_capsule
                       receipt:
                         anyOf:
                         - $ref: '#/components/schemas/ArtifactDescriptor'
@@ -12205,6 +12609,22 @@ paths:
                           format: uint
                           minimum: 0.0
                           type: integer
+                        components:
+                          items:
+                            $ref: '#/components/schemas/ComponentDescriptor'
+                          type: array
+                        enforced_boundaries:
+                          allOf:
+                          - $ref: '#/components/schemas/ComponentBoundaryClaims'
+                          default:
+                            filesystem_isolation: false
+                            network_isolation: false
+                            no_code_execution: false
+                            process_failure_isolation: false
+                            remote_identity: false
+                            resource_limits_enforced: false
+                            revocation_enforced: false
+                            tenancy_isolation: false
                         entry_kind:
                           type: string
                         extension_point_count:
@@ -12226,8 +12646,17 @@ paths:
                           type: string
                         manifest:
                           $ref: '#/components/schemas/PackageManifest'
+                        package_envelope:
+                          anyOf:
+                          - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+                          - type: 'null'
                         state:
                           $ref: '#/components/schemas/PackageState'
+                        trust_class:
+                          allOf:
+                          - $ref: '#/components/schemas/ComponentTrustClass'
+                          default: foreign_capsule
+                          description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
                         trust_level:
                           $ref: '#/components/schemas/TrustLevel'
                         updated_at:
@@ -12415,6 +12844,22 @@ paths:
                         format: uint
                         minimum: 0.0
                         type: integer
+                      components:
+                        items:
+                          $ref: '#/components/schemas/ComponentDescriptor'
+                        type: array
+                      enforced_boundaries:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentBoundaryClaims'
+                        default:
+                          filesystem_isolation: false
+                          network_isolation: false
+                          no_code_execution: false
+                          process_failure_isolation: false
+                          remote_identity: false
+                          resource_limits_enforced: false
+                          revocation_enforced: false
+                          tenancy_isolation: false
                       entry_kind:
                         type: string
                       extension_point_count:
@@ -12436,8 +12881,17 @@ paths:
                         type: string
                       manifest:
                         $ref: '#/components/schemas/PackageManifest'
+                      package_envelope:
+                        anyOf:
+                        - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+                        - type: 'null'
                       state:
                         $ref: '#/components/schemas/PackageState'
+                      trust_class:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentTrustClass'
+                        default: foreign_capsule
+                        description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
                       trust_level:
                         $ref: '#/components/schemas/TrustLevel'
                       updated_at:
@@ -12617,6 +13071,22 @@ paths:
                         format: uint
                         minimum: 0.0
                         type: integer
+                      components:
+                        items:
+                          $ref: '#/components/schemas/ComponentDescriptor'
+                        type: array
+                      enforced_boundaries:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentBoundaryClaims'
+                        default:
+                          filesystem_isolation: false
+                          network_isolation: false
+                          no_code_execution: false
+                          process_failure_isolation: false
+                          remote_identity: false
+                          resource_limits_enforced: false
+                          revocation_enforced: false
+                          tenancy_isolation: false
                       entry_kind:
                         type: string
                       extension_point_count:
@@ -12638,8 +13108,17 @@ paths:
                         type: string
                       manifest:
                         $ref: '#/components/schemas/PackageManifest'
+                      package_envelope:
+                        anyOf:
+                        - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+                        - type: 'null'
                       state:
                         $ref: '#/components/schemas/PackageState'
+                      trust_class:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentTrustClass'
+                        default: foreign_capsule
+                        description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
                       trust_level:
                         $ref: '#/components/schemas/TrustLevel'
                       updated_at:
@@ -12735,6 +13214,22 @@ paths:
                         format: uint
                         minimum: 0.0
                         type: integer
+                      components:
+                        items:
+                          $ref: '#/components/schemas/ComponentDescriptor'
+                        type: array
+                      enforced_boundaries:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentBoundaryClaims'
+                        default:
+                          filesystem_isolation: false
+                          network_isolation: false
+                          no_code_execution: false
+                          process_failure_isolation: false
+                          remote_identity: false
+                          resource_limits_enforced: false
+                          revocation_enforced: false
+                          tenancy_isolation: false
                       entry_kind:
                         type: string
                       extension_point_count:
@@ -12756,8 +13251,17 @@ paths:
                         type: string
                       manifest:
                         $ref: '#/components/schemas/PackageManifest'
+                      package_envelope:
+                        anyOf:
+                        - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+                        - type: 'null'
                       state:
                         $ref: '#/components/schemas/PackageState'
+                      trust_class:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentTrustClass'
+                        default: foreign_capsule
+                        description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
                       trust_level:
                         $ref: '#/components/schemas/TrustLevel'
                       updated_at:
@@ -12853,6 +13357,22 @@ paths:
                         format: uint
                         minimum: 0.0
                         type: integer
+                      components:
+                        items:
+                          $ref: '#/components/schemas/ComponentDescriptor'
+                        type: array
+                      enforced_boundaries:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentBoundaryClaims'
+                        default:
+                          filesystem_isolation: false
+                          network_isolation: false
+                          no_code_execution: false
+                          process_failure_isolation: false
+                          remote_identity: false
+                          resource_limits_enforced: false
+                          revocation_enforced: false
+                          tenancy_isolation: false
                       entry_kind:
                         type: string
                       extension_point_count:
@@ -12874,8 +13394,17 @@ paths:
                         type: string
                       manifest:
                         $ref: '#/components/schemas/PackageManifest'
+                      package_envelope:
+                        anyOf:
+                        - $ref: '#/components/schemas/PackageEnvelopeDescriptor'
+                        - type: 'null'
                       state:
                         $ref: '#/components/schemas/PackageState'
+                      trust_class:
+                        allOf:
+                        - $ref: '#/components/schemas/ComponentTrustClass'
+                        default: foreign_capsule
+                        description: Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
                       trust_level:
                         $ref: '#/components/schemas/TrustLevel'
                       updated_at:

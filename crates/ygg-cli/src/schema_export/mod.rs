@@ -65,6 +65,18 @@ pub fn export_all() -> anyhow::Result<()> {
         &schema_value::<ArtifactDescriptor>(),
     )?;
     write_json(
+        out.join("component-descriptor.schema.json"),
+        &schema_value::<ComponentDescriptor>(),
+    )?;
+    write_json(
+        out.join("package-envelope-descriptor.schema.json"),
+        &schema_value::<PackageEnvelopeDescriptor>(),
+    )?;
+    write_json(
+        out.join("composition-lock.schema.json"),
+        &schema_value::<CompositionLock>(),
+    )?;
+    write_json(
         out.join("effect-receipt.schema.json"),
         &schema_value::<EffectReceipt>(),
     )?;

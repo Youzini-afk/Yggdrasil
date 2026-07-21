@@ -46,8 +46,7 @@ where
                     .await,
                 self.packages.permissions(&request.writer_package_id).await,
             ) {
-                (true, _) => {}
-                (_, Some(permissions)) if permissions.events.append => {}
+                (false, Some(permissions)) if permissions.events.append => {}
                 _ => {
                     self.audit_permission_denied(
                         &request.session_id,
@@ -203,8 +202,7 @@ where
                 self.is_contract_none_package(caller).await,
                 self.packages.permissions(caller).await,
             ) {
-                (true, _) => {}
-                (_, Some(permissions)) if permissions.events.read => {}
+                (false, Some(permissions)) if permissions.events.read => {}
                 _ => {
                     self.audit_permission_denied(session_id, caller, "events.read")
                         .await?;
@@ -225,8 +223,7 @@ where
                 self.is_contract_none_package(caller).await,
                 self.packages.permissions(caller).await,
             ) {
-                (true, _) => {}
-                (_, Some(permissions)) if permissions.events.read => {}
+                (false, Some(permissions)) if permissions.events.read => {}
                 _ => {
                     self.audit_permission_denied(&request.session_id, caller, "events.read")
                         .await?;

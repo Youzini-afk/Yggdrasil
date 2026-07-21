@@ -60,6 +60,8 @@ pub struct InprocInvocation {
 #[derive(Clone)]
 pub struct KernelEnv {
     pub package_id: PackageId,
+    pub component_id: String,
+    pub component_digest: String,
     pub bindings: HashMap<String, CapHandleId>,
     pub handles: Arc<HandleTable>,
 }

@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
+use crate::component::ComponentDeclaration;
 use crate::ids::{CapabilityId, ExtensionPointId, PackageId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -44,6 +45,10 @@ pub struct EntryDescriptor {
     /// enforcement.
     #[serde(default)]
     pub contract: ContractMode,
+    /// Optional identity for the executable/static component carried by this
+    /// package envelope. Legacy manifests synthesize a package-scoped component.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component: Option<ComponentDeclaration>,
 }
 
 impl std::ops::Deref for EntryDescriptor {
@@ -65,6 +70,7 @@ impl EntryDescriptor {
         Self {
             kind,
             contract: ContractMode::V1,
+            component: None,
         }
     }
 
@@ -72,6 +78,7 @@ impl EntryDescriptor {
         Self {
             kind,
             contract: ContractMode::None,
+            component: None,
         }
     }
 }
@@ -517,6 +524,7 @@ impl PackageManifest {
     pub fn validate_basic(&self) -> Result<(), ManifestError> {
         validate_package_id(&self.id)?;
         validate_semver_like(&self.version)?;
+        self.validate_component_declaration()?;
         for capability in &self.provides {
             validate_namespaced_id(&capability.id)?;
             validate_semver_like(&capability.version)?;
@@ -597,6 +605,181 @@ impl PackageManifest {
         }
         if matches!(self.entry.kind, PackageEntry::SurfaceBundle { .. }) {
             self.validate_static_surface_bundle()?;
+        }
+        Ok(())
+    }
+
+    fn validate_component_declaration(&self) -> Result<(), ManifestError> {
+        let Some(component) = &self.entry.component else {
+            return Ok(());
+        };
+        validate_namespaced_id(&component.id)
+            .map_err(|_| invalid_component(&component.id, "id must be namespaced"))?;
+        validate_semver_like(&component.version)
+            .map_err(|_| invalid_component(&component.id, "version must be semantic x.y.z"))?;
+
+        let provided = self
+            .provides
+            .iter()
+            .map(|capability| capability.id.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared = component
+            .capability_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        if declared.len() != component.capability_ids.len() {
+            return Err(invalid_component(
+                &component.id,
+                "capability_ids must not contain duplicates",
+            ));
+        }
+        for capability_id in &component.capability_ids {
+            validate_namespaced_id(capability_id).map_err(|_| {
+                invalid_component(
+                    &component.id,
+                    format!("invalid capability id '{capability_id}'"),
+                )
+            })?;
+        }
+        if !component.capability_ids.is_empty() && declared != provided {
+            return Err(invalid_component(
+                &component.id,
+                "capability_ids must exactly match the package provides set",
+            ));
+        }
+
+        let contributed_surfaces = self
+            .contributes
+            .surfaces
+            .iter()
+            .map(|surface| surface.id.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared_surfaces = component
+            .surface_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        if declared_surfaces.len() != component.surface_ids.len() {
+            return Err(invalid_component(
+                &component.id,
+                "surface_ids must not contain duplicates",
+            ));
+        }
+        for surface_id in &component.surface_ids {
+            validate_namespaced_id(surface_id).map_err(|_| {
+                invalid_component(&component.id, format!("invalid surface id '{surface_id}'"))
+            })?;
+        }
+        if !component.surface_ids.is_empty() && declared_surfaces != contributed_surfaces {
+            return Err(invalid_component(
+                &component.id,
+                "surface_ids must exactly match the package surface contribution set",
+            ));
+        }
+
+        let mut protocols = std::collections::BTreeSet::new();
+        for protocol in &component.protocol_implementations {
+            if protocol.protocol_id.trim().is_empty() {
+                return Err(invalid_component(
+                    &component.id,
+                    "protocol_id must not be empty",
+                ));
+            }
+            validate_semver_like(&protocol.version).map_err(|_| {
+                invalid_component(
+                    &component.id,
+                    format!(
+                        "protocol '{}' version must be semantic x.y.z",
+                        protocol.protocol_id
+                    ),
+                )
+            })?;
+            if !protocols.insert((protocol.protocol_id.as_str(), protocol.version.as_str())) {
+                return Err(invalid_component(
+                    &component.id,
+                    format!(
+                        "duplicate protocol implementation '{}@{}'",
+                        protocol.protocol_id, protocol.version
+                    ),
+                ));
+            }
+            let unique_profiles = protocol
+                .profiles
+                .iter()
+                .map(String::as_str)
+                .collect::<std::collections::BTreeSet<_>>();
+            if unique_profiles.len() != protocol.profiles.len() {
+                return Err(invalid_component(
+                    &component.id,
+                    format!(
+                        "protocol '{}' profiles must not contain duplicates",
+                        protocol.protocol_id
+                    ),
+                ));
+            }
+            for profile in &protocol.profiles {
+                if profile.trim().is_empty() {
+                    return Err(invalid_component(
+                        &component.id,
+                        format!("protocol '{}' has an empty profile", protocol.protocol_id),
+                    ));
+                }
+            }
+            let unique_vectors = protocol
+                .conformance_vectors
+                .iter()
+                .map(String::as_str)
+                .collect::<std::collections::BTreeSet<_>>();
+            if unique_vectors.len() != protocol.conformance_vectors.len() {
+                return Err(invalid_component(
+                    &component.id,
+                    format!(
+                        "protocol '{}' conformance vectors must not contain duplicates",
+                        protocol.protocol_id
+                    ),
+                ));
+            }
+            for vector in &protocol.conformance_vectors {
+                if vector.trim().is_empty() {
+                    return Err(invalid_component(
+                        &component.id,
+                        format!(
+                            "protocol '{}' has an empty conformance vector",
+                            protocol.protocol_id
+                        ),
+                    ));
+                }
+            }
+        }
+        if self.entry.contract == ContractMode::None
+            && !component.protocol_implementations.is_empty()
+        {
+            return Err(invalid_component(
+                &component.id,
+                "contract:none is a foreign capsule and cannot claim protocol conformance",
+            ));
+        }
+        let mut content_roots = std::collections::BTreeSet::new();
+        for root in &component.content_roots {
+            if root.artifact_type_uri.trim().is_empty() || root.media_type.trim().is_empty() {
+                return Err(invalid_component(
+                    &component.id,
+                    "content roots require artifact_type_uri and media_type",
+                ));
+            }
+            validate_sha256_digest(&root.digest).map_err(|reason| {
+                invalid_component(
+                    &component.id,
+                    format!("invalid content root '{}': {reason}", root.digest),
+                )
+            })?;
+            if !content_roots.insert(root.digest.as_str()) {
+                return Err(invalid_component(
+                    &component.id,
+                    format!("duplicate content root '{}'", root.digest),
+                ));
+            }
         }
         Ok(())
     }
@@ -696,11 +879,23 @@ pub enum ManifestError {
     InvalidSurfaceBundleAuthority(String),
     #[error("invalid shell descriptor metadata for surface {surface_id}: {reason}")]
     InvalidShellDescriptorMetadata { surface_id: String, reason: String },
+    #[error("invalid component declaration for {component_id}: {reason}")]
+    InvalidComponentDeclaration {
+        component_id: String,
+        reason: String,
+    },
 }
 
 fn invalid_shell_descriptor_metadata(surface_id: &str, reason: impl Into<String>) -> ManifestError {
     ManifestError::InvalidShellDescriptorMetadata {
         surface_id: surface_id.to_string(),
+        reason: reason.into(),
+    }
+}
+
+fn invalid_component(component_id: &str, reason: impl Into<String>) -> ManifestError {
+    ManifestError::InvalidComponentDeclaration {
+        component_id: component_id.to_string(),
         reason: reason.into(),
     }
 }
@@ -729,6 +924,20 @@ fn validate_semver_constraint(version: &str) -> Result<(), ManifestError> {
     semver::VersionReq::parse(version)
         .map(|_| ())
         .map_err(|_| ManifestError::InvalidVersion(version.to_string()))
+}
+
+fn validate_sha256_digest(digest: &str) -> Result<(), String> {
+    let Some(hex) = digest.strip_prefix("sha256:") else {
+        return Err("digest must use the sha256: prefix".to_string());
+    };
+    if hex.len() != 64
+        || !hex
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err("digest must contain exactly 64 lowercase hexadecimal characters".to_string());
+    }
+    Ok(())
 }
 
 fn validate_dependency_source(source: &DependencySource) -> Result<(), ManifestError> {
@@ -860,7 +1069,7 @@ fn validate_shell_descriptor_metadata(
         }
     }
     if let Some(capability_id) = &surface.capability_id {
-        validate_package_owned_id(&manifest.id, capability_id).map_err(|reason| {
+        validate_manifest_owned_id(manifest, capability_id).map_err(|reason| {
             invalid_shell_descriptor_metadata(&surface.id, format!("capability_id {reason}"))
         })?;
     }
@@ -868,7 +1077,7 @@ fn validate_shell_descriptor_metadata(
         let surface_id = surface_id.as_str().ok_or_else(|| {
             invalid_shell_descriptor_metadata(&surface.id, "surface_id must be a string")
         })?;
-        validate_package_owned_id(&manifest.id, surface_id).map_err(|reason| {
+        validate_manifest_owned_id(manifest, surface_id).map_err(|reason| {
             invalid_shell_descriptor_metadata(&surface.id, format!("surface_id {reason}"))
         })?;
     }
@@ -966,6 +1175,18 @@ fn validate_package_owned_id(package_id: &str, id: &str) -> Result<(), String> {
         .filter(|rest| rest.starts_with('/'))
         .map(|_| ())
         .ok_or_else(|| "must belong to the package id".to_string())
+}
+
+fn validate_manifest_owned_id(manifest: &PackageManifest, id: &str) -> Result<(), String> {
+    if validate_package_owned_id(&manifest.id, id).is_ok() {
+        return Ok(());
+    }
+    if let Some(component) = &manifest.entry.component {
+        if validate_package_owned_id(&component.id, id).is_ok() {
+            return Ok(());
+        }
+    }
+    Err("must belong to the package id or declared component id".to_string())
 }
 
 fn validate_network_method(method: &str) -> Result<(), ManifestError> {

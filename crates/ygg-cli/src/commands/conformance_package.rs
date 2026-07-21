@@ -81,6 +81,19 @@ fn print_human(report: &PackageConformanceReport) {
             .display()
     );
     println!("Contract: {}\n", report.contract_version);
+    if let Some(envelope) = &report.package_envelope {
+        println!("Package envelope: {}", envelope.artifact.digest);
+    }
+    for component in &report.components {
+        println!(
+            "Component: {}  trust={:?}  claim={:?}",
+            component.component_id, component.trust_class, component.claim_status
+        );
+        println!("Guarantee: {}", component.guarantee);
+    }
+    if !report.components.is_empty() {
+        println!();
+    }
     for (idx, check) in report.checks.iter().enumerate() {
         let detail = check
             .details

@@ -1,6 +1,7 @@
 pub mod asset;
 pub mod capability_handle;
 pub mod change;
+pub mod component;
 pub mod conformance;
 pub mod effect;
 pub mod event;
@@ -20,9 +21,19 @@ pub use change::{
     PolicyDecision, PolicyDecisionOutcome, CHANGE_COMMIT_TYPE_URI, CHANGE_SET_TYPE_URI,
     INTENT_TYPE_URI,
 };
+pub use component::{
+    component_descriptors_for_manifest, component_trust_class, package_envelope_for_manifest,
+    protocol_profile_pins_for_envelope, ComponentBoundaryClaims, ComponentClaimStatus,
+    ComponentDeclaration, ComponentDescriptor, ComponentLockPin, ComponentTrustClass,
+    CompositionLock, NamedPackageArtifact, PackageEnvelopeDescriptor, PackagedProtocolDescriptor,
+    PackagedSurfaceDescriptor, ProtocolImplementationDeclaration, ProtocolProfilePin,
+    COMPONENT_BEHAVIOR_TYPE_URI, COMPONENT_DESCRIPTOR_TYPE_URI, PACKAGED_PROTOCOL_TYPE_URI,
+    PACKAGED_SURFACE_TYPE_URI, PACKAGE_ENTRY_TYPE_URI, PACKAGE_ENVELOPE_TYPE_URI,
+    PACKAGE_MANIFEST_TYPE_URI, SCHEMA_CONTRIBUTION_TYPE_URI,
+};
 pub use conformance::{
     CheckResult, CheckStatus, ConformanceSummary, ImplementationConformanceReport,
-    PackageConformanceReport, ProtocolConformanceReport, SubReport,
+    PackageComponentConformance, PackageConformanceReport, ProtocolConformanceReport, SubReport,
 };
 pub use effect::{
     EffectReceipt, EffectReplayMode, EffectScope, EffectTerminalStatus, PrincipalIdentity,

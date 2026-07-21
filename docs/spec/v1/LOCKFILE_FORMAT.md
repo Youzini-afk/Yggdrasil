@@ -133,6 +133,22 @@ schema = "yggdrasil.lock.v1"
 
 字符串。Package manifest 规范化后的 SHA-256。用于检测 package manifest 内容是否在同一 commit 或路径下发生变化。
 
+### `package_envelope_digest`
+
+可选字符串。逻辑 package envelope 的完整 SHA-256 digest。它不同于 `tree_hash`，锁定 manifest、component、protocol、content root、surface 与辅助 artifact 之间的关系。
+
+### `component_pins`
+
+可选数组。每个 pin 记录独立 component ID、component artifact digest、behavior digest 与 trust class。Composition 因此不需要把 package ID 当作 component ID。
+
+### `protocol_profile_pins`
+
+可选数组。锁定 component 实现的精确 protocol ID、version 与 profile 选择。
+
+### `content_roots`
+
+可选的完整 `ArtifactDescriptor` 数组。Content root 与 component pin 分离，因此替换实现不会隐式替换不可变 world/project/media 数据。
+
 ### `signed`
 
 布尔值。表示来源是否经过 GPG 签名验证。它记录安装时验证结果，不会自动授予额外权限。
@@ -189,7 +205,8 @@ schema = "yggdrasil.lock.v1"
 2. 对每个 `LockEntry`：
    a. 验证 store 路径存在；
    b. 重新计算 `manifest_hash`，与 lockfile 比对；
-   c. 重新计算 `tree_hash`，与 lockfile 比对；
+   c. 在字段存在时重新派生 package-envelope digest、component pin、protocol-profile pin 与 content root；
+   d. 重新计算 `tree_hash`，与 lockfile 比对；
 3. 报告任何漂移。
 
 非零退出码用于 CI：漂移 = 失败。

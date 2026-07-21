@@ -10,18 +10,12 @@ pub mod error {
     pub struct ConversionError(::std::borrow::Cow<'static, str>);
     impl ::std::error::Error for ConversionError {}
     impl ::std::fmt::Display for ConversionError {
-        fn fmt(
-            &self,
-            f: &mut ::std::fmt::Formatter<'_>,
-        ) -> Result<(), ::std::fmt::Error> {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
             ::std::fmt::Display::fmt(&self.0, f)
         }
     }
     impl ::std::fmt::Debug for ConversionError {
-        fn fmt(
-            &self,
-            f: &mut ::std::fmt::Formatter<'_>,
-        ) -> Result<(), ::std::fmt::Error> {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
             ::std::fmt::Debug::fmt(&self.0, f)
         }
     }
@@ -693,15 +687,7 @@ pub struct CapHandle {
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    Clone,
-    Debug,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd
+    ::serde::Deserialize, ::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd,
 )]
 #[serde(transparent)]
 pub struct CapHandleId(pub ::std::string::String);
@@ -849,9 +835,7 @@ pub struct CapRevokeParams {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct CapRevokeResult(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct CapRevokeResult(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for CapRevokeResult {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -859,16 +843,16 @@ impl ::std::ops::Deref for CapRevokeResult {
     }
 }
 impl ::std::convert::From<CapRevokeResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: CapRevokeResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for CapRevokeResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for CapRevokeResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -1036,8 +1020,53 @@ pub struct CapabilityDescriptor {
 ///      "descriptor": {
 ///        "$ref": "#/definitions/CapabilityDescriptor"
 ///      },
+///      "provider_behavior_digest": {
+///        "default": "",
+///        "type": "string"
+///      },
+///      "provider_claim_status": {
+///        "default": "foreign_capsule",
+///        "allOf": [
+///          {
+///            "$ref": "#/definitions/ComponentClaimStatus"
+///          }
+///        ]
+///      },
+///      "provider_component_digest": {
+///        "default": "",
+///        "type": "string"
+///      },
+///      "provider_component_id": {
+///        "default": "",
+///        "type": "string"
+///      },
+///      "provider_enforced_boundaries": {
+///        "default": {
+///          "filesystem_isolation": false,
+///          "network_isolation": false,
+///          "no_code_execution": false,
+///          "process_failure_isolation": false,
+///          "remote_identity": false,
+///          "resource_limits_enforced": false,
+///          "revocation_enforced": false,
+///          "tenancy_isolation": false
+///        },
+///        "allOf": [
+///          {
+///            "$ref": "#/definitions/ComponentBoundaryClaims"
+///          }
+///        ]
+///      },
 ///      "provider_package_id": {
 ///        "type": "string"
+///      },
+///      "provider_trust_class": {
+///        "default": "foreign_capsule",
+///        "allOf": [
+///          {
+///            "$ref": "#/definitions/ComponentTrustClass"
+///          }
+///        ]
 ///      }
 ///    }
 ///  }
@@ -1055,13 +1084,15 @@ impl ::std::ops::Deref for CapabilityDiscoverResult {
     }
 }
 impl ::std::convert::From<CapabilityDiscoverResult>
-for ::std::vec::Vec<CapabilityDiscoverResultItem> {
+    for ::std::vec::Vec<CapabilityDiscoverResultItem>
+{
     fn from(value: CapabilityDiscoverResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::std::vec::Vec<CapabilityDiscoverResultItem>>
-for CapabilityDiscoverResult {
+    for CapabilityDiscoverResult
+{
     fn from(value: ::std::vec::Vec<CapabilityDiscoverResultItem>) -> Self {
         Self(value)
     }
@@ -1081,8 +1112,53 @@ for CapabilityDiscoverResult {
 ///    "descriptor": {
 ///      "$ref": "#/definitions/CapabilityDescriptor"
 ///    },
+///    "provider_behavior_digest": {
+///      "default": "",
+///      "type": "string"
+///    },
+///    "provider_claim_status": {
+///      "default": "foreign_capsule",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentClaimStatus"
+///        }
+///      ]
+///    },
+///    "provider_component_digest": {
+///      "default": "",
+///      "type": "string"
+///    },
+///    "provider_component_id": {
+///      "default": "",
+///      "type": "string"
+///    },
+///    "provider_enforced_boundaries": {
+///      "default": {
+///        "filesystem_isolation": false,
+///        "network_isolation": false,
+///        "no_code_execution": false,
+///        "process_failure_isolation": false,
+///        "remote_identity": false,
+///        "resource_limits_enforced": false,
+///        "revocation_enforced": false,
+///        "tenancy_isolation": false
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentBoundaryClaims"
+///        }
+///      ]
+///    },
 ///    "provider_package_id": {
 ///      "type": "string"
+///    },
+///    "provider_trust_class": {
+///      "default": "foreign_capsule",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentTrustClass"
+///        }
+///      ]
 ///    }
 ///  }
 ///}
@@ -1092,7 +1168,19 @@ for CapabilityDiscoverResult {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct CapabilityDiscoverResultItem {
     pub descriptor: CapabilityDescriptor,
+    #[serde(default)]
+    pub provider_behavior_digest: ::std::string::String,
+    #[serde(default = "defaults::capability_discover_result_item_provider_claim_status")]
+    pub provider_claim_status: ComponentClaimStatus,
+    #[serde(default)]
+    pub provider_component_digest: ::std::string::String,
+    #[serde(default)]
+    pub provider_component_id: ::std::string::String,
+    #[serde(default = "defaults::capability_discover_result_item_provider_enforced_boundaries")]
+    pub provider_enforced_boundaries: ComponentBoundaryClaims,
     pub provider_package_id: ::std::string::String,
+    #[serde(default = "defaults::capability_discover_result_item_provider_trust_class")]
+    pub provider_trust_class: ComponentTrustClass,
 }
 ///`CapabilityFailedPayload`
 ///
@@ -1349,8 +1437,28 @@ impl ::std::default::Default for CapabilityInvocationRequest {
 ///      "minimum": 0.0
 ///    },
 ///    "output": true,
+///    "provider_behavior_digest": {
+///      "default": "",
+///      "type": "string"
+///    },
+///    "provider_component_digest": {
+///      "default": "",
+///      "type": "string"
+///    },
+///    "provider_component_id": {
+///      "default": "",
+///      "type": "string"
+///    },
 ///    "provider_package_id": {
 ///      "type": "string"
+///    },
+///    "provider_trust_class": {
+///      "default": "foreign_capsule",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentTrustClass"
+///        }
+///      ]
 ///    },
 ///    "receipt": {
 ///      "anyOf": [
@@ -1384,7 +1492,15 @@ pub struct CapabilityInvocationResult {
     pub correlation_id: ::uuid::Uuid,
     pub duration_ms: u64,
     pub output: ::serde_json::Value,
+    #[serde(default)]
+    pub provider_behavior_digest: ::std::string::String,
+    #[serde(default)]
+    pub provider_component_digest: ::std::string::String,
+    #[serde(default)]
+    pub provider_component_id: ::std::string::String,
     pub provider_package_id: ::std::string::String,
+    #[serde(default = "defaults::capability_invocation_result_provider_trust_class")]
+    pub provider_trust_class: ComponentTrustClass,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub receipt: ::std::option::Option<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -1414,16 +1530,16 @@ impl ::std::ops::Deref for CapabilityInvokedPayload {
     }
 }
 impl ::std::convert::From<CapabilityInvokedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: CapabilityInvokedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for CapabilityInvokedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for CapabilityInvokedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -1455,7 +1571,9 @@ pub struct CapabilityPermissions {
 }
 impl ::std::default::Default for CapabilityPermissions {
     fn default() -> Self {
-        Self { invoke: Default::default() }
+        Self {
+            invoke: Default::default(),
+        }
     }
 }
 ///`CapabilityRequirement`
@@ -1547,16 +1665,16 @@ impl ::std::ops::Deref for CapabilityStreamResult {
     }
 }
 impl ::std::convert::From<CapabilityStreamResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: CapabilityStreamResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for CapabilityStreamResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for CapabilityStreamResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -1682,7 +1800,7 @@ pub struct ChangeCommit {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ChangeCommitStatus {
     #[serde(rename = "committed")]
@@ -1703,9 +1821,7 @@ impl ::std::fmt::Display for ChangeCommitStatus {
 }
 impl ::std::str::FromStr for ChangeCommitStatus {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "committed" => Ok(Self::Committed),
             "failed" => Ok(Self::Failed),
@@ -1716,9 +1832,7 @@ impl ::std::str::FromStr for ChangeCommitStatus {
 }
 impl ::std::convert::TryFrom<&str> for ChangeCommitStatus {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -1903,6 +2017,491 @@ pub struct ChangeSet {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub required_authority: ::std::vec::Vec<::std::string::String>,
 }
+///`ComponentBoundaryClaims`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentBoundaryClaims",
+///  "type": "object",
+///  "required": [
+///    "filesystem_isolation",
+///    "network_isolation",
+///    "no_code_execution",
+///    "process_failure_isolation",
+///    "remote_identity",
+///    "resource_limits_enforced",
+///    "revocation_enforced",
+///    "tenancy_isolation"
+///  ],
+///  "properties": {
+///    "filesystem_isolation": {
+///      "type": "boolean"
+///    },
+///    "network_isolation": {
+///      "type": "boolean"
+///    },
+///    "no_code_execution": {
+///      "type": "boolean"
+///    },
+///    "process_failure_isolation": {
+///      "type": "boolean"
+///    },
+///    "remote_identity": {
+///      "type": "boolean"
+///    },
+///    "resource_limits_enforced": {
+///      "type": "boolean"
+///    },
+///    "revocation_enforced": {
+///      "type": "boolean"
+///    },
+///    "tenancy_isolation": {
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ComponentBoundaryClaims {
+    pub filesystem_isolation: bool,
+    pub network_isolation: bool,
+    pub no_code_execution: bool,
+    pub process_failure_isolation: bool,
+    pub remote_identity: bool,
+    pub resource_limits_enforced: bool,
+    pub revocation_enforced: bool,
+    pub tenancy_isolation: bool,
+}
+///`ComponentClaimStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentClaimStatus",
+///  "type": "string",
+///  "enum": [
+///    "declared",
+///    "legacy_adapted",
+///    "foreign_capsule"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum ComponentClaimStatus {
+    #[serde(rename = "declared")]
+    Declared,
+    #[serde(rename = "legacy_adapted")]
+    LegacyAdapted,
+    #[serde(rename = "foreign_capsule")]
+    ForeignCapsule,
+}
+impl ::std::fmt::Display for ComponentClaimStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Declared => f.write_str("declared"),
+            Self::LegacyAdapted => f.write_str("legacy_adapted"),
+            Self::ForeignCapsule => f.write_str("foreign_capsule"),
+        }
+    }
+}
+impl ::std::str::FromStr for ComponentClaimStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "declared" => Ok(Self::Declared),
+            "legacy_adapted" => Ok(Self::LegacyAdapted),
+            "foreign_capsule" => Ok(Self::ForeignCapsule),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ComponentClaimStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ComponentClaimStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ComponentClaimStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ComponentDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentDeclaration",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "version"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "capability_ids": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "protocol_implementations": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolImplementationDeclaration"
+///      }
+///    },
+///    "surface_ids": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ComponentDeclaration {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capability_ids: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_implementations: ::std::vec::Vec<ProtocolImplementationDeclaration>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub surface_ids: ::std::vec::Vec<::std::string::String>,
+    pub version: ::std::string::String,
+}
+///`ComponentDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentDescriptor",
+///  "type": "object",
+///  "required": [
+///    "artifact",
+///    "behavior",
+///    "capability_ids",
+///    "claim_status",
+///    "component_id",
+///    "enforced_boundaries",
+///    "entry_kind",
+///    "trust_class",
+///    "version"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "behavior": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "capability_ids": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "claim_status": {
+///      "$ref": "#/definitions/ComponentClaimStatus"
+///    },
+///    "component_id": {
+///      "type": "string"
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "enforced_boundaries": {
+///      "$ref": "#/definitions/ComponentBoundaryClaims"
+///    },
+///    "entry_kind": {
+///      "type": "string"
+///    },
+///    "protocol_implementations": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackagedProtocolDescriptor"
+///      }
+///    },
+///    "surfaces": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackagedSurfaceDescriptor"
+///      }
+///    },
+///    "trust_class": {
+///      "$ref": "#/definitions/ComponentTrustClass"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ComponentDescriptor {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact: ArtifactDescriptor,
+    pub behavior: ArtifactDescriptor,
+    pub capability_ids: ::std::vec::Vec<::std::string::String>,
+    pub claim_status: ComponentClaimStatus,
+    pub component_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    pub enforced_boundaries: ComponentBoundaryClaims,
+    pub entry_kind: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_implementations: ::std::vec::Vec<PackagedProtocolDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub surfaces: ::std::vec::Vec<PackagedSurfaceDescriptor>,
+    pub trust_class: ComponentTrustClass,
+    pub version: ::std::string::String,
+}
+///`ComponentLockPin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentLockPin",
+///  "type": "object",
+///  "required": [
+///    "behavior_digest",
+///    "component_id",
+///    "digest",
+///    "trust_class"
+///  ],
+///  "properties": {
+///    "behavior_digest": {
+///      "type": "string"
+///    },
+///    "component_id": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "trust_class": {
+///      "$ref": "#/definitions/ComponentTrustClass"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ComponentLockPin {
+    pub behavior_digest: ::std::string::String,
+    pub component_id: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub trust_class: ComponentTrustClass,
+}
+///`ComponentTrustClass`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentTrustClass",
+///  "type": "string",
+///  "enum": [
+///    "sandboxed_component",
+///    "isolated_process",
+///    "remote_boundary",
+///    "trusted_native",
+///    "static_resource",
+///    "foreign_capsule"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum ComponentTrustClass {
+    #[serde(rename = "sandboxed_component")]
+    SandboxedComponent,
+    #[serde(rename = "isolated_process")]
+    IsolatedProcess,
+    #[serde(rename = "remote_boundary")]
+    RemoteBoundary,
+    #[serde(rename = "trusted_native")]
+    TrustedNative,
+    #[serde(rename = "static_resource")]
+    StaticResource,
+    #[serde(rename = "foreign_capsule")]
+    ForeignCapsule,
+}
+impl ::std::fmt::Display for ComponentTrustClass {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::SandboxedComponent => f.write_str("sandboxed_component"),
+            Self::IsolatedProcess => f.write_str("isolated_process"),
+            Self::RemoteBoundary => f.write_str("remote_boundary"),
+            Self::TrustedNative => f.write_str("trusted_native"),
+            Self::StaticResource => f.write_str("static_resource"),
+            Self::ForeignCapsule => f.write_str("foreign_capsule"),
+        }
+    }
+}
+impl ::std::str::FromStr for ComponentTrustClass {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "sandboxed_component" => Ok(Self::SandboxedComponent),
+            "isolated_process" => Ok(Self::IsolatedProcess),
+            "remote_boundary" => Ok(Self::RemoteBoundary),
+            "trusted_native" => Ok(Self::TrustedNative),
+            "static_resource" => Ok(Self::StaticResource),
+            "foreign_capsule" => Ok(Self::ForeignCapsule),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ComponentTrustClass {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ComponentTrustClass {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ComponentTrustClass {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`CompositionLock`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "CompositionLock",
+///  "type": "object",
+///  "required": [
+///    "components",
+///    "content_roots",
+///    "protocol_profiles",
+///    "schema"
+///  ],
+///  "properties": {
+///    "components": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ComponentLockPin"
+///      }
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "protocol_profiles": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolProfilePin"
+///      }
+///    },
+///    "schema": {
+///      "type": "string"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct CompositionLock {
+    pub components: ::std::vec::Vec<ComponentLockPin>,
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    pub protocol_profiles: ::std::vec::Vec<ProtocolProfilePin>,
+    pub schema: ::std::string::String,
+}
 ///`ContractAdapter`
 ///
 /// <details><summary>JSON schema</summary>
@@ -1928,7 +2527,7 @@ pub struct ChangeSet {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ContractAdapter {
     #[serde(rename = "identity")]
@@ -1943,9 +2542,7 @@ impl ::std::fmt::Display for ContractAdapter {
 }
 impl ::std::str::FromStr for ContractAdapter {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "identity" => Ok(Self::Identity),
             _ => Err("invalid value".into()),
@@ -1954,9 +2551,7 @@ impl ::std::str::FromStr for ContractAdapter {
 }
 impl ::std::convert::TryFrom<&str> for ContractAdapter {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -2112,7 +2707,7 @@ pub struct ContractLayerInfo {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ContractMaturity {
     #[serde(rename = "experimental")]
@@ -2139,9 +2734,7 @@ impl ::std::fmt::Display for ContractMaturity {
 }
 impl ::std::str::FromStr for ContractMaturity {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "experimental" => Ok(Self::Experimental),
             "candidate" => Ok(Self::Candidate),
@@ -2154,9 +2747,7 @@ impl ::std::str::FromStr for ContractMaturity {
 }
 impl ::std::convert::TryFrom<&str> for ContractMaturity {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -2306,7 +2897,7 @@ pub struct ContractMethod {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ContractMode {
     ///Path A: full v1 contract enforcement (default).
@@ -2326,9 +2917,7 @@ impl ::std::fmt::Display for ContractMode {
 }
 impl ::std::str::FromStr for ContractMode {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "v1" => Ok(Self::V1),
             "none" => Ok(Self::None),
@@ -2338,9 +2927,7 @@ impl ::std::str::FromStr for ContractMode {
 }
 impl ::std::convert::TryFrom<&str> for ContractMode {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -2390,7 +2977,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ContractMode {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ContractOwnerLayer {
     #[serde(rename = "substrate")]
@@ -2420,9 +3007,7 @@ impl ::std::fmt::Display for ContractOwnerLayer {
 }
 impl ::std::str::FromStr for ContractOwnerLayer {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "substrate" => Ok(Self::Substrate),
             "host" => Ok(Self::Host),
@@ -2436,9 +3021,7 @@ impl ::std::str::FromStr for ContractOwnerLayer {
 }
 impl ::std::convert::TryFrom<&str> for ContractOwnerLayer {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3120,7 +3703,7 @@ pub struct EffectReceipt {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EffectReplayMode {
     #[serde(rename = "live")]
@@ -3141,9 +3724,7 @@ impl ::std::fmt::Display for EffectReplayMode {
 }
 impl ::std::str::FromStr for EffectReplayMode {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "live" => Ok(Self::Live),
             "historical" => Ok(Self::Historical),
@@ -3154,9 +3735,7 @@ impl ::std::str::FromStr for EffectReplayMode {
 }
 impl ::std::convert::TryFrom<&str> for EffectReplayMode {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3247,7 +3826,7 @@ impl ::std::default::Default for EffectScope {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EffectTerminalStatus {
     #[serde(rename = "succeeded")]
@@ -3277,9 +3856,7 @@ impl ::std::fmt::Display for EffectTerminalStatus {
 }
 impl ::std::str::FromStr for EffectTerminalStatus {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "succeeded" => Ok(Self::Succeeded),
             "denied" => Ok(Self::Denied),
@@ -3293,9 +3870,7 @@ impl ::std::str::FromStr for EffectTerminalStatus {
 }
 impl ::std::convert::TryFrom<&str> for EffectTerminalStatus {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3330,9 +3905,7 @@ impl ::std::convert::TryFrom<::std::string::String> for EffectTerminalStatus {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct EmptyParams(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct EmptyParams(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for EmptyParams {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -3340,16 +3913,16 @@ impl ::std::ops::Deref for EmptyParams {
     }
 }
 impl ::std::convert::From<EmptyParams>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: EmptyParams) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for EmptyParams {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for EmptyParams
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -3492,6 +4065,17 @@ for EmptyParams {
 ///    }
 ///  ],
 ///  "properties": {
+///    "component": {
+///      "description": "Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ComponentDeclaration"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "contract": {
 ///      "description": "Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.",
 ///      "default": "v1",
@@ -3511,6 +4095,9 @@ for EmptyParams {
 pub enum EntryDescriptor {
     Variant0 {
         abi_version: u16,
+        ///Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        component: ::std::option::Option<ComponentDeclaration>,
         ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
         #[serde(default = "defaults::entry_descriptor_variant0_contract")]
         contract: ContractMode,
@@ -3520,6 +4107,9 @@ pub enum EntryDescriptor {
     },
     Variant1 {
         command: ::std::vec::Vec<::std::string::String>,
+        ///Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        component: ::std::option::Option<ComponentDeclaration>,
         ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
         #[serde(default = "defaults::entry_descriptor_variant1_contract")]
         contract: ContractMode,
@@ -3529,6 +4119,9 @@ pub enum EntryDescriptor {
     },
     Variant2 {
         abi_version: u16,
+        ///Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        component: ::std::option::Option<ComponentDeclaration>,
         ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
         #[serde(default = "defaults::entry_descriptor_variant2_contract")]
         contract: ContractMode,
@@ -3538,6 +4131,9 @@ pub enum EntryDescriptor {
     },
     Variant3 {
         auth: RemoteAuth,
+        ///Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        component: ::std::option::Option<ComponentDeclaration>,
         ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
         #[serde(default = "defaults::entry_descriptor_variant3_contract")]
         contract: ContractMode,
@@ -3546,6 +4142,9 @@ pub enum EntryDescriptor {
     },
     Variant4 {
         bundle: ::std::string::String,
+        ///Optional identity for the executable/static component carried by this package envelope. Legacy manifests synthesize a package-scoped component.
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        component: ::std::option::Option<ComponentDeclaration>,
         ///Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
         #[serde(default = "defaults::entry_descriptor_variant4_contract")]
         contract: ContractMode,
@@ -3576,7 +4175,7 @@ pub enum EntryDescriptor {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EntryDescriptorVariant0Kind {
     #[serde(rename = "rust_inproc")]
@@ -3591,9 +4190,7 @@ impl ::std::fmt::Display for EntryDescriptorVariant0Kind {
 }
 impl ::std::str::FromStr for EntryDescriptorVariant0Kind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "rust_inproc" => Ok(Self::RustInproc),
             _ => Err("invalid value".into()),
@@ -3602,9 +4199,7 @@ impl ::std::str::FromStr for EntryDescriptorVariant0Kind {
 }
 impl ::std::convert::TryFrom<&str> for EntryDescriptorVariant0Kind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3648,7 +4243,7 @@ impl ::std::convert::TryFrom<::std::string::String> for EntryDescriptorVariant0K
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EntryDescriptorVariant1Kind {
     #[serde(rename = "subprocess")]
@@ -3663,9 +4258,7 @@ impl ::std::fmt::Display for EntryDescriptorVariant1Kind {
 }
 impl ::std::str::FromStr for EntryDescriptorVariant1Kind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "subprocess" => Ok(Self::Subprocess),
             _ => Err("invalid value".into()),
@@ -3674,9 +4267,7 @@ impl ::std::str::FromStr for EntryDescriptorVariant1Kind {
 }
 impl ::std::convert::TryFrom<&str> for EntryDescriptorVariant1Kind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3720,7 +4311,7 @@ impl ::std::convert::TryFrom<::std::string::String> for EntryDescriptorVariant1K
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EntryDescriptorVariant2Kind {
     #[serde(rename = "wasm")]
@@ -3735,9 +4326,7 @@ impl ::std::fmt::Display for EntryDescriptorVariant2Kind {
 }
 impl ::std::str::FromStr for EntryDescriptorVariant2Kind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "wasm" => Ok(Self::Wasm),
             _ => Err("invalid value".into()),
@@ -3746,9 +4335,7 @@ impl ::std::str::FromStr for EntryDescriptorVariant2Kind {
 }
 impl ::std::convert::TryFrom<&str> for EntryDescriptorVariant2Kind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3792,7 +4379,7 @@ impl ::std::convert::TryFrom<::std::string::String> for EntryDescriptorVariant2K
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EntryDescriptorVariant3Kind {
     #[serde(rename = "remote")]
@@ -3807,9 +4394,7 @@ impl ::std::fmt::Display for EntryDescriptorVariant3Kind {
 }
 impl ::std::str::FromStr for EntryDescriptorVariant3Kind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "remote" => Ok(Self::Remote),
             _ => Err("invalid value".into()),
@@ -3818,9 +4403,7 @@ impl ::std::str::FromStr for EntryDescriptorVariant3Kind {
 }
 impl ::std::convert::TryFrom<&str> for EntryDescriptorVariant3Kind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -3864,7 +4447,7 @@ impl ::std::convert::TryFrom<::std::string::String> for EntryDescriptorVariant3K
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum EntryDescriptorVariant4Kind {
     #[serde(rename = "surface_bundle")]
@@ -3879,9 +4462,7 @@ impl ::std::fmt::Display for EntryDescriptorVariant4Kind {
 }
 impl ::std::str::FromStr for EntryDescriptorVariant4Kind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "surface_bundle" => Ok(Self::SurfaceBundle),
             _ => Err("invalid value".into()),
@@ -3890,9 +4471,7 @@ impl ::std::str::FromStr for EntryDescriptorVariant4Kind {
 }
 impl ::std::convert::TryFrom<&str> for EntryDescriptorVariant4Kind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -4754,7 +5333,7 @@ pub struct ExecIdParams {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ExecLifecyclePolicy {
     #[serde(rename = "stop_on_session_close")]
@@ -4775,9 +5354,7 @@ impl ::std::fmt::Display for ExecLifecyclePolicy {
 }
 impl ::std::str::FromStr for ExecLifecyclePolicy {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "stop_on_session_close" => Ok(Self::StopOnSessionClose),
             "keep_alive" => Ok(Self::KeepAlive),
@@ -4788,9 +5365,7 @@ impl ::std::str::FromStr for ExecLifecyclePolicy {
 }
 impl ::std::convert::TryFrom<&str> for ExecLifecyclePolicy {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -4824,9 +5399,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecLifecyclePolicy {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct ExecRequestPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct ExecRequestPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for ExecRequestPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -4834,16 +5407,16 @@ impl ::std::ops::Deref for ExecRequestPayload {
     }
 }
 impl ::std::convert::From<ExecRequestPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: ExecRequestPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ExecRequestPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for ExecRequestPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -4928,9 +5501,7 @@ impl ::std::default::Default for ExecResourceLimits {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct ExecStartedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct ExecStartedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for ExecStartedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -4938,16 +5509,16 @@ impl ::std::ops::Deref for ExecStartedPayload {
     }
 }
 impl ::std::convert::From<ExecStartedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: ExecStartedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ExecStartedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for ExecStartedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -5044,7 +5615,7 @@ pub struct ExecStatus {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ExecStatusKind {
     #[serde(rename = "pending")]
@@ -5077,9 +5648,7 @@ impl ::std::fmt::Display for ExecStatusKind {
 }
 impl ::std::str::FromStr for ExecStatusKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "pending" => Ok(Self::Pending),
             "running" => Ok(Self::Running),
@@ -5094,9 +5663,7 @@ impl ::std::str::FromStr for ExecStatusKind {
 }
 impl ::std::convert::TryFrom<&str> for ExecStatusKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -5320,7 +5887,7 @@ pub struct ExecutionTarget {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ExecutionTargetCapability {
     #[serde(rename = "local_exec")]
@@ -5344,9 +5911,7 @@ impl ::std::fmt::Display for ExecutionTargetCapability {
 }
 impl ::std::str::FromStr for ExecutionTargetCapability {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "local_exec" => Ok(Self::LocalExec),
             "port_lease" => Ok(Self::PortLease),
@@ -5358,9 +5923,7 @@ impl ::std::str::FromStr for ExecutionTargetCapability {
 }
 impl ::std::convert::TryFrom<&str> for ExecutionTargetCapability {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -5405,7 +5968,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapabilit
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ExecutionTargetReachability {
     #[serde(rename = "local_host")]
@@ -5420,9 +5983,7 @@ impl ::std::fmt::Display for ExecutionTargetReachability {
 }
 impl ::std::str::FromStr for ExecutionTargetReachability {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "local_host" => Ok(Self::LocalHost),
             _ => Err("invalid value".into()),
@@ -5431,9 +5992,7 @@ impl ::std::str::FromStr for ExecutionTargetReachability {
 }
 impl ::std::convert::TryFrom<&str> for ExecutionTargetReachability {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -5479,7 +6038,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachabil
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ExecutionTargetStatusKind {
     #[serde(rename = "available")]
@@ -5497,9 +6056,7 @@ impl ::std::fmt::Display for ExecutionTargetStatusKind {
 }
 impl ::std::str::FromStr for ExecutionTargetStatusKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "available" => Ok(Self::Available),
             "unavailable" => Ok(Self::Unavailable),
@@ -5509,9 +6066,7 @@ impl ::std::str::FromStr for ExecutionTargetStatusKind {
 }
 impl ::std::convert::TryFrom<&str> for ExecutionTargetStatusKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -5576,7 +6131,7 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetStatusKin
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ExecutorKind {
     ///All outbound is denied; no network performed.
@@ -5600,9 +6155,7 @@ impl ::std::fmt::Display for ExecutorKind {
 }
 impl ::std::str::FromStr for ExecutorKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "deny_all" => Ok(Self::DenyAll),
             "fake" => Ok(Self::Fake),
@@ -5613,9 +6166,7 @@ impl ::std::str::FromStr for ExecutorKind {
 }
 impl ::std::convert::TryFrom<&str> for ExecutorKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -5739,14 +6290,12 @@ impl ::std::ops::Deref for ExtensionPointListResult {
         &self.0
     }
 }
-impl ::std::convert::From<ExtensionPointListResult>
-for ::std::vec::Vec<::std::string::String> {
+impl ::std::convert::From<ExtensionPointListResult> for ::std::vec::Vec<::std::string::String> {
     fn from(value: ExtensionPointListResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<::std::string::String>>
-for ExtensionPointListResult {
+impl ::std::convert::From<::std::vec::Vec<::std::string::String>> for ExtensionPointListResult {
     fn from(value: ::std::vec::Vec<::std::string::String>) -> Self {
         Self(value)
     }
@@ -5876,7 +6425,7 @@ impl ::std::default::Default for FilesystemPermissions {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum FrameKind {
     #[serde(rename = "text")]
@@ -5894,9 +6443,7 @@ impl ::std::fmt::Display for FrameKind {
 }
 impl ::std::str::FromStr for FrameKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "text" => Ok(Self::Text),
             "binary" => Ok(Self::Binary),
@@ -5906,9 +6453,7 @@ impl ::std::str::FromStr for FrameKind {
 }
 impl ::std::convert::TryFrom<&str> for FrameKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -6185,7 +6730,7 @@ pub struct HookSubscription {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum HookTiming {
     #[serde(rename = "sync")]
@@ -6203,9 +6748,7 @@ impl ::std::fmt::Display for HookTiming {
 }
 impl ::std::str::FromStr for HookTiming {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "sync" => Ok(Self::Sync),
             "async" => Ok(Self::Async),
@@ -6215,9 +6758,7 @@ impl ::std::str::FromStr for HookTiming {
 }
 impl ::std::convert::TryFrom<&str> for HookTiming {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -6251,9 +6792,7 @@ impl ::std::convert::TryFrom<::std::string::String> for HookTiming {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct HostDiagnosticsResult(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct HostDiagnosticsResult(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for HostDiagnosticsResult {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -6261,16 +6800,16 @@ impl ::std::ops::Deref for HostDiagnosticsResult {
     }
 }
 impl ::std::convert::From<HostDiagnosticsResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: HostDiagnosticsResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for HostDiagnosticsResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for HostDiagnosticsResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -6819,7 +7358,7 @@ pub struct LocalExecLogLine {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum LocalExecLogStream {
     #[serde(rename = "stdout")]
@@ -6840,9 +7379,7 @@ impl ::std::fmt::Display for LocalExecLogStream {
 }
 impl ::std::str::FromStr for LocalExecLogStream {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "stdout" => Ok(Self::Stdout),
             "stderr" => Ok(Self::Stderr),
@@ -6853,9 +7390,7 @@ impl ::std::str::FromStr for LocalExecLogStream {
 }
 impl ::std::convert::TryFrom<&str> for LocalExecLogStream {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -7106,7 +7641,10 @@ pub struct LocalExecStartRequest {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub cwd: ::std::option::Option<::std::string::String>,
     ///Explicit environment to pass to the child. The live executor clears the inherited environment and forwards only keys allowed by host policy.
-    #[serde(default, skip_serializing_if = ":: std :: collections :: HashMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
+    )]
     pub env: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     #[serde(default = "defaults::local_exec_start_request_lifecycle")]
     pub lifecycle: ExecLifecyclePolicy,
@@ -7290,7 +7828,7 @@ pub struct LocalExecStopResponse {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum MethodStatus {
     #[serde(rename = "implemented")]
@@ -7311,9 +7849,7 @@ impl ::std::fmt::Display for MethodStatus {
 }
 impl ::std::str::FromStr for MethodStatus {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "implemented" => Ok(Self::Implemented),
             "partial" => Ok(Self::Partial),
@@ -7324,9 +7860,7 @@ impl ::std::str::FromStr for MethodStatus {
 }
 impl ::std::convert::TryFrom<&str> for MethodStatus {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -7345,6 +7879,35 @@ impl ::std::convert::TryFrom<::std::string::String> for MethodStatus {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`NamedPackageArtifact`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NamedPackageArtifact",
+///  "type": "object",
+///  "required": [
+///    "descriptor",
+///    "id"
+///  ],
+///  "properties": {
+///    "descriptor": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct NamedPackageArtifact {
+    pub descriptor: ArtifactDescriptor,
+    pub id: ::std::string::String,
 }
 /**A single network access declaration in a package manifest.
 
@@ -7978,14 +8541,12 @@ impl ::std::ops::Deref for OutboundAuditResult {
         &self.0
     }
 }
-impl ::std::convert::From<OutboundAuditResult>
-for ::std::vec::Vec<OutboundAuditResultItem> {
+impl ::std::convert::From<OutboundAuditResult> for ::std::vec::Vec<OutboundAuditResultItem> {
     fn from(value: OutboundAuditResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<OutboundAuditResultItem>>
-for OutboundAuditResult {
+impl ::std::convert::From<::std::vec::Vec<OutboundAuditResultItem>> for OutboundAuditResult {
     fn from(value: ::std::vec::Vec<OutboundAuditResultItem>) -> Self {
         Self(value)
     }
@@ -9002,16 +9563,10 @@ pub struct OutboundWebSocketOpenRequest {
     pub path: ::std::option::Option<::std::string::String>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub purpose: ::std::option::Option<::std::string::String>,
-    pub secret_headers: ::std::collections::HashMap<
-        ::std::string::String,
-        ::std::string::String,
-    >,
+    pub secret_headers: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     pub secret_refs: ::std::vec::Vec<::std::string::String>,
     ///Pre-resolved headers (raw); secrets injected in handshake. Static-only.
-    pub static_headers: ::std::collections::HashMap<
-        ::std::string::String,
-        ::std::string::String,
-    >,
+    pub static_headers: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     pub subprotocols: ::std::vec::Vec<::std::string::String>,
 }
 ///`OutboundWebSocketSendParams`
@@ -9114,16 +9669,16 @@ impl ::std::ops::Deref for OutboundWebsocketCloseResult {
     }
 }
 impl ::std::convert::From<OutboundWebsocketCloseResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: OutboundWebsocketCloseResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketCloseResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for OutboundWebsocketCloseResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -9278,16 +9833,16 @@ impl ::std::ops::Deref for OutboundWebsocketErrorPayload {
     }
 }
 impl ::std::convert::From<OutboundWebsocketErrorPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: OutboundWebsocketErrorPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketErrorPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for OutboundWebsocketErrorPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -9315,16 +9870,16 @@ impl ::std::ops::Deref for OutboundWebsocketFramePayload {
     }
 }
 impl ::std::convert::From<OutboundWebsocketFramePayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: OutboundWebsocketFramePayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketFramePayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for OutboundWebsocketFramePayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -9352,16 +9907,16 @@ impl ::std::ops::Deref for OutboundWebsocketOpenResult {
     }
 }
 impl ::std::convert::From<OutboundWebsocketOpenResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: OutboundWebsocketOpenResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketOpenResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for OutboundWebsocketOpenResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -9389,16 +9944,16 @@ impl ::std::ops::Deref for OutboundWebsocketOpenedPayload {
     }
 }
 impl ::std::convert::From<OutboundWebsocketOpenedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: OutboundWebsocketOpenedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketOpenedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for OutboundWebsocketOpenedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -9426,16 +9981,16 @@ impl ::std::ops::Deref for OutboundWebsocketSendResult {
     }
 }
 impl ::std::convert::From<OutboundWebsocketSendResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: OutboundWebsocketSendResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketSendResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for OutboundWebsocketSendResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -9647,6 +10202,86 @@ impl ::std::convert::From<()> for PackageDescribeResult {
     fn from(value: ()) -> Self {
         Self(value)
     }
+}
+///`PackageEnvelopeDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PackageEnvelopeDescriptor",
+///  "type": "object",
+///  "required": [
+///    "artifact",
+///    "components",
+///    "manifest",
+///    "package_id",
+///    "package_version"
+///  ],
+///  "properties": {
+///    "artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "artifacts": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NamedPackageArtifact"
+///      }
+///    },
+///    "components": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ComponentDescriptor"
+///      }
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "manifest": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "package_version": {
+///      "type": "string"
+///    },
+///    "protocols": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackagedProtocolDescriptor"
+///      }
+///    },
+///    "surfaces": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackagedSurfaceDescriptor"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackageEnvelopeDescriptor {
+    pub artifact: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub artifacts: ::std::vec::Vec<NamedPackageArtifact>,
+    pub components: ::std::vec::Vec<ComponentDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    pub manifest: ArtifactDescriptor,
+    pub package_id: ::std::string::String,
+    pub package_version: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocols: ::std::vec::Vec<PackagedProtocolDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub surfaces: ::std::vec::Vec<PackagedSurfaceDescriptor>,
 }
 ///`PackageFailureSummary`
 ///
@@ -9865,6 +10500,29 @@ pub struct PackageLifecyclePayload {
 ///        "format": "uint",
 ///        "minimum": 0.0
 ///      },
+///      "components": {
+///        "type": "array",
+///        "items": {
+///          "$ref": "#/definitions/ComponentDescriptor"
+///        }
+///      },
+///      "enforced_boundaries": {
+///        "default": {
+///          "filesystem_isolation": false,
+///          "network_isolation": false,
+///          "no_code_execution": false,
+///          "process_failure_isolation": false,
+///          "remote_identity": false,
+///          "resource_limits_enforced": false,
+///          "revocation_enforced": false,
+///          "tenancy_isolation": false
+///        },
+///        "allOf": [
+///          {
+///            "$ref": "#/definitions/ComponentBoundaryClaims"
+///          }
+///        ]
+///      },
 ///      "entry_kind": {
 ///        "type": "string"
 ///      },
@@ -9898,8 +10556,27 @@ pub struct PackageLifecyclePayload {
 ///      "manifest": {
 ///        "$ref": "#/definitions/PackageManifest"
 ///      },
+///      "package_envelope": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/PackageEnvelopeDescriptor"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
 ///      "state": {
 ///        "$ref": "#/definitions/PackageState"
+///      },
+///      "trust_class": {
+///        "description": "Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.",
+///        "default": "foreign_capsule",
+///        "allOf": [
+///          {
+///            "$ref": "#/definitions/ComponentTrustClass"
+///          }
+///        ]
 ///      },
 ///      "trust_level": {
 ///        "$ref": "#/definitions/TrustLevel"
@@ -9962,6 +10639,29 @@ impl ::std::convert::From<::std::vec::Vec<PackageListResultItem>> for PackageLis
 ///      "format": "uint",
 ///      "minimum": 0.0
 ///    },
+///    "components": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ComponentDescriptor"
+///      }
+///    },
+///    "enforced_boundaries": {
+///      "default": {
+///        "filesystem_isolation": false,
+///        "network_isolation": false,
+///        "no_code_execution": false,
+///        "process_failure_isolation": false,
+///        "remote_identity": false,
+///        "resource_limits_enforced": false,
+///        "revocation_enforced": false,
+///        "tenancy_isolation": false
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentBoundaryClaims"
+///        }
+///      ]
+///    },
 ///    "entry_kind": {
 ///      "type": "string"
 ///    },
@@ -9995,8 +10695,27 @@ impl ::std::convert::From<::std::vec::Vec<PackageListResultItem>> for PackageLis
 ///    "manifest": {
 ///      "$ref": "#/definitions/PackageManifest"
 ///    },
+///    "package_envelope": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageEnvelopeDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "state": {
 ///      "$ref": "#/definitions/PackageState"
+///    },
+///    "trust_class": {
+///      "description": "Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.",
+///      "default": "foreign_capsule",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentTrustClass"
+///        }
+///      ]
 ///    },
 ///    "trust_level": {
 ///      "$ref": "#/definitions/TrustLevel"
@@ -10016,6 +10735,10 @@ impl ::std::convert::From<::std::vec::Vec<PackageListResultItem>> for PackageLis
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct PackageListResultItem {
     pub capability_count: u32,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub components: ::std::vec::Vec<ComponentDescriptor>,
+    #[serde(default = "defaults::package_list_result_item_enforced_boundaries")]
+    pub enforced_boundaries: ComponentBoundaryClaims,
     pub entry_kind: ::std::string::String,
     pub extension_point_count: u32,
     pub hook_count: u32,
@@ -10024,7 +10747,12 @@ pub struct PackageListResultItem {
     pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub package_envelope: ::std::option::Option<PackageEnvelopeDescriptor>,
     pub state: PackageState,
+    ///Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
+    #[serde(default = "defaults::package_list_result_item_trust_class")]
+    pub trust_class: ComponentTrustClass,
     pub trust_level: TrustLevel,
     pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub version: ::std::string::String,
@@ -10321,7 +11049,9 @@ pub struct PackagePermissions {
 }
 impl ::std::default::Default for PackagePermissions {
     fn default() -> Self {
-        Self { call: Default::default() }
+        Self {
+            call: Default::default(),
+        }
     }
 }
 ///`PackageRecord`
@@ -10350,6 +11080,29 @@ impl ::std::default::Default for PackagePermissions {
 ///      "type": "integer",
 ///      "format": "uint",
 ///      "minimum": 0.0
+///    },
+///    "components": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ComponentDescriptor"
+///      }
+///    },
+///    "enforced_boundaries": {
+///      "default": {
+///        "filesystem_isolation": false,
+///        "network_isolation": false,
+///        "no_code_execution": false,
+///        "process_failure_isolation": false,
+///        "remote_identity": false,
+///        "resource_limits_enforced": false,
+///        "revocation_enforced": false,
+///        "tenancy_isolation": false
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentBoundaryClaims"
+///        }
+///      ]
 ///    },
 ///    "entry_kind": {
 ///      "type": "string"
@@ -10384,8 +11137,27 @@ impl ::std::default::Default for PackagePermissions {
 ///    "manifest": {
 ///      "$ref": "#/definitions/PackageManifest"
 ///    },
+///    "package_envelope": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PackageEnvelopeDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "state": {
 ///      "$ref": "#/definitions/PackageState"
+///    },
+///    "trust_class": {
+///      "description": "Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.",
+///      "default": "foreign_capsule",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ComponentTrustClass"
+///        }
+///      ]
 ///    },
 ///    "trust_level": {
 ///      "$ref": "#/definitions/TrustLevel"
@@ -10406,6 +11178,10 @@ impl ::std::default::Default for PackagePermissions {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct PackageRecord {
     pub capability_count: u32,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub components: ::std::vec::Vec<ComponentDescriptor>,
+    #[serde(default = "defaults::package_record_enforced_boundaries")]
+    pub enforced_boundaries: ComponentBoundaryClaims,
     pub entry_kind: ::std::string::String,
     pub extension_point_count: u32,
     pub hook_count: u32,
@@ -10414,7 +11190,12 @@ pub struct PackageRecord {
     pub last_failure: ::std::option::Option<PackageFailureSummary>,
     pub loaded_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub manifest: PackageManifest,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub package_envelope: ::std::option::Option<PackageEnvelopeDescriptor>,
     pub state: PackageState,
+    ///Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
+    #[serde(default = "defaults::package_record_trust_class")]
+    pub trust_class: ComponentTrustClass,
     pub trust_level: TrustLevel,
     pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
     pub version: ::std::string::String,
@@ -10451,7 +11232,7 @@ pub struct PackageRecord {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum PackageState {
     #[serde(rename = "discovered")]
@@ -10487,9 +11268,7 @@ impl ::std::fmt::Display for PackageState {
 }
 impl ::std::str::FromStr for PackageState {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "discovered" => Ok(Self::Discovered),
             "loading" => Ok(Self::Loading),
@@ -10505,9 +11284,7 @@ impl ::std::str::FromStr for PackageState {
 }
 impl ::std::convert::TryFrom<&str> for PackageState {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -10526,6 +11303,69 @@ impl ::std::convert::TryFrom<::std::string::String> for PackageState {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`PackagedProtocolDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PackagedProtocolDescriptor",
+///  "type": "object",
+///  "required": [
+///    "artifact",
+///    "implementation"
+///  ],
+///  "properties": {
+///    "artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "implementation": {
+///      "$ref": "#/definitions/ProtocolImplementationDeclaration"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackagedProtocolDescriptor {
+    pub artifact: ArtifactDescriptor,
+    pub implementation: ProtocolImplementationDeclaration,
+}
+///`PackagedSurfaceDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PackagedSurfaceDescriptor",
+///  "type": "object",
+///  "required": [
+///    "artifact",
+///    "surface_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "surface_id": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PackagedSurfaceDescriptor {
+    pub artifact: ArtifactDescriptor,
+    pub surface_id: ::std::string::String,
+    pub version: ::std::string::String,
 }
 ///`PermissionAuditResult`
 ///
@@ -10593,14 +11433,12 @@ impl ::std::ops::Deref for PermissionAuditResult {
         &self.0
     }
 }
-impl ::std::convert::From<PermissionAuditResult>
-for ::std::vec::Vec<PermissionAuditResultItem> {
+impl ::std::convert::From<PermissionAuditResult> for ::std::vec::Vec<PermissionAuditResultItem> {
     fn from(value: PermissionAuditResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<PermissionAuditResultItem>>
-for PermissionAuditResult {
+impl ::std::convert::From<::std::vec::Vec<PermissionAuditResultItem>> for PermissionAuditResult {
     fn from(value: ::std::vec::Vec<PermissionAuditResultItem>) -> Self {
         Self(value)
     }
@@ -10925,14 +11763,12 @@ impl ::std::ops::Deref for PermissionListResult {
         &self.0
     }
 }
-impl ::std::convert::From<PermissionListResult>
-for ::std::vec::Vec<PermissionListResultItem> {
+impl ::std::convert::From<PermissionListResult> for ::std::vec::Vec<PermissionListResultItem> {
     fn from(value: PermissionListResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<PermissionListResultItem>>
-for PermissionListResult {
+impl ::std::convert::From<::std::vec::Vec<PermissionListResultItem>> for PermissionListResult {
     fn from(value: ::std::vec::Vec<PermissionListResultItem>) -> Self {
         Self(value)
     }
@@ -11170,9 +12006,9 @@ pub struct PermissionSet {
     pub proxy: ProxyPermissions,
     /**Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
 
-The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
+    The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
 
-Default: empty vec (no secret refs allowed; backward compatible).*/
+    Default: empty vec (no secret refs allowed; backward compatible).*/
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub secret_refs: ::std::vec::Vec<::std::string::String>,
 }
@@ -11300,7 +12136,7 @@ pub struct PolicyDecision {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum PolicyDecisionOutcome {
     #[serde(rename = "allowed")]
@@ -11321,9 +12157,7 @@ impl ::std::fmt::Display for PolicyDecisionOutcome {
 }
 impl ::std::str::FromStr for PolicyDecisionOutcome {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "allowed" => Ok(Self::Allowed),
             "denied" => Ok(Self::Denied),
@@ -11334,9 +12168,7 @@ impl ::std::str::FromStr for PolicyDecisionOutcome {
 }
 impl ::std::convert::TryFrom<&str> for PolicyDecisionOutcome {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -11381,7 +12213,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PolicyDecisionOutcome {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum PortBindScope {
     #[serde(rename = "loopback_only")]
@@ -11396,9 +12228,7 @@ impl ::std::fmt::Display for PortBindScope {
 }
 impl ::std::str::FromStr for PortBindScope {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "loopback_only" => Ok(Self::LoopbackOnly),
             _ => Err("invalid value".into()),
@@ -11407,9 +12237,7 @@ impl ::std::str::FromStr for PortBindScope {
 }
 impl ::std::convert::TryFrom<&str> for PortBindScope {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -11487,9 +12315,7 @@ pub struct PortDeclaration {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct PortDeniedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct PortDeniedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for PortDeniedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -11497,16 +12323,16 @@ impl ::std::ops::Deref for PortDeniedPayload {
     }
 }
 impl ::std::convert::From<PortDeniedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: PortDeniedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for PortDeniedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for PortDeniedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -11698,7 +12524,7 @@ pub struct PortLeaseResponse {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum PortLeaseStatusKind {
     #[serde(rename = "active")]
@@ -11719,9 +12545,7 @@ impl ::std::fmt::Display for PortLeaseStatusKind {
 }
 impl ::std::str::FromStr for PortLeaseStatusKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
             "reserved" => Ok(Self::Reserved),
@@ -11732,9 +12556,7 @@ impl ::std::str::FromStr for PortLeaseStatusKind {
 }
 impl ::std::convert::TryFrom<&str> for PortLeaseStatusKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -11768,9 +12590,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct PortLeasedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct PortLeasedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for PortLeasedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -11778,16 +12598,16 @@ impl ::std::ops::Deref for PortLeasedPayload {
     }
 }
 impl ::std::convert::From<PortLeasedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: PortLeasedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for PortLeasedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for PortLeasedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -11994,7 +12814,7 @@ impl ::std::default::Default for PortPermissions {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum PortProtocol {
     #[serde(rename = "tcp")]
@@ -12012,9 +12832,7 @@ impl ::std::fmt::Display for PortProtocol {
 }
 impl ::std::str::FromStr for PortProtocol {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "tcp" => Ok(Self::Tcp),
             "udp" => Ok(Self::Udp),
@@ -12024,9 +12842,7 @@ impl ::std::str::FromStr for PortProtocol {
 }
 impl ::std::convert::TryFrom<&str> for PortProtocol {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -12060,9 +12876,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct PortReleasedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct PortReleasedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for PortReleasedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -12070,16 +12884,16 @@ impl ::std::ops::Deref for PortReleasedPayload {
     }
 }
 impl ::std::convert::From<PortReleasedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: PortReleasedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for PortReleasedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for PortReleasedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -12475,7 +13289,7 @@ pub struct ProjectGetResult {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProjectGetResultState {
     ///Installed but not running.
@@ -12515,9 +13329,7 @@ impl ::std::fmt::Display for ProjectGetResultState {
 }
 impl ::std::str::FromStr for ProjectGetResultState {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "installed" => Ok(Self::Installed),
             "stopped" => Ok(Self::Stopped),
@@ -12532,9 +13344,7 @@ impl ::std::str::FromStr for ProjectGetResultState {
 }
 impl ::std::convert::TryFrom<&str> for ProjectGetResultState {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -13119,7 +13929,7 @@ pub struct ProjectStartResult {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProjectState {
     ///Installed but not running.
@@ -13159,9 +13969,7 @@ impl ::std::fmt::Display for ProjectState {
 }
 impl ::std::str::FromStr for ProjectState {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "installed" => Ok(Self::Installed),
             "stopped" => Ok(Self::Stopped),
@@ -13176,9 +13984,7 @@ impl ::std::str::FromStr for ProjectState {
 }
 impl ::std::convert::TryFrom<&str> for ProjectState {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -13426,7 +14232,7 @@ pub struct ProjectStorageSummarySchema {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProjectType {
     ///Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.
@@ -13450,9 +14256,7 @@ impl ::std::fmt::Display for ProjectType {
 }
 impl ::std::str::FromStr for ProjectType {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "yggdrasil_native" => Ok(Self::YggdrasilNative),
             "external_wrapped" => Ok(Self::ExternalWrapped),
@@ -13463,9 +14267,7 @@ impl ::std::str::FromStr for ProjectType {
 }
 impl ::std::convert::TryFrom<&str> for ProjectType {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -13600,14 +14402,12 @@ impl ::std::ops::Deref for ProjectionListResult {
         &self.0
     }
 }
-impl ::std::convert::From<ProjectionListResult>
-for ::std::vec::Vec<ProjectionListResultItem> {
+impl ::std::convert::From<ProjectionListResult> for ::std::vec::Vec<ProjectionListResultItem> {
     fn from(value: ProjectionListResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<ProjectionListResultItem>>
-for ProjectionListResult {
+impl ::std::convert::From<::std::vec::Vec<ProjectionListResultItem>> for ProjectionListResult {
     fn from(value: ::std::vec::Vec<ProjectionListResultItem>) -> Self {
         Self(value)
     }
@@ -13898,14 +14698,12 @@ impl ::std::ops::Deref for ProposalListResult {
         &self.0
     }
 }
-impl ::std::convert::From<ProposalListResult>
-for ::std::vec::Vec<ProposalListResultItem> {
+impl ::std::convert::From<ProposalListResult> for ::std::vec::Vec<ProposalListResultItem> {
     fn from(value: ProposalListResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<ProposalListResultItem>>
-for ProposalListResult {
+impl ::std::convert::From<::std::vec::Vec<ProposalListResultItem>> for ProposalListResult {
     fn from(value: ::std::vec::Vec<ProposalListResultItem>) -> Self {
         Self(value)
     }
@@ -14363,7 +15161,7 @@ impl ::std::default::Default for ProposalRecord {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProposalStatus {
     #[serde(rename = "created")]
@@ -14396,9 +15194,7 @@ impl ::std::fmt::Display for ProposalStatus {
 }
 impl ::std::str::FromStr for ProposalStatus {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "created" => Ok(Self::Created),
             "approved" => Ok(Self::Approved),
@@ -14413,9 +15209,7 @@ impl ::std::str::FromStr for ProposalStatus {
 }
 impl ::std::convert::TryFrom<&str> for ProposalStatus {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -14817,6 +15611,51 @@ pub struct ProtocolImplementationClaim {
     pub test_only: bool,
     pub version: ::std::string::String,
 }
+///`ProtocolImplementationDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolImplementationDeclaration",
+///  "type": "object",
+///  "required": [
+///    "protocol_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "conformance_vectors": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "profiles": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "protocol_id": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolImplementationDeclaration {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub conformance_vectors: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub profiles: ::std::vec::Vec<::std::string::String>,
+    pub protocol_id: ::std::string::String,
+    pub version: ::std::string::String,
+}
 ///`ProtocolMaturity`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14846,7 +15685,7 @@ pub struct ProtocolImplementationClaim {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProtocolMaturity {
     #[serde(rename = "experimental")]
@@ -14873,9 +15712,7 @@ impl ::std::fmt::Display for ProtocolMaturity {
 }
 impl ::std::str::FromStr for ProtocolMaturity {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "experimental" => Ok(Self::Experimental),
             "candidate" => Ok(Self::Candidate),
@@ -14888,9 +15725,7 @@ impl ::std::str::FromStr for ProtocolMaturity {
 }
 impl ::std::convert::TryFrom<&str> for ProtocolMaturity {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -15025,7 +15860,7 @@ pub struct ProtocolMigration {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProtocolMigrationKind {
     #[serde(rename = "identity_adapter")]
@@ -15046,9 +15881,7 @@ impl ::std::fmt::Display for ProtocolMigrationKind {
 }
 impl ::std::str::FromStr for ProtocolMigrationKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "identity_adapter" => Ok(Self::IdentityAdapter),
             "semantic_adapter" => Ok(Self::SemanticAdapter),
@@ -15059,9 +15892,7 @@ impl ::std::str::FromStr for ProtocolMigrationKind {
 }
 impl ::std::convert::TryFrom<&str> for ProtocolMigrationKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -15216,6 +16047,40 @@ pub enum ProtocolPrincipal {
     #[serde(rename = "anonymous")]
     Anonymous,
 }
+///`ProtocolProfilePin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolProfilePin",
+///  "type": "object",
+///  "required": [
+///    "profile",
+///    "protocol_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "profile": {
+///      "type": "string"
+///    },
+///    "protocol_id": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolProfilePin {
+    pub profile: ::std::string::String,
+    pub protocol_id: ::std::string::String,
+    pub version: ::std::string::String,
+}
 ///`ProtocolSchemaKind`
 ///
 /// <details><summary>JSON schema</summary>
@@ -15243,7 +16108,7 @@ pub enum ProtocolPrincipal {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProtocolSchemaKind {
     #[serde(rename = "json_schema")]
@@ -15264,9 +16129,7 @@ impl ::std::fmt::Display for ProtocolSchemaKind {
 }
 impl ::std::str::FromStr for ProtocolSchemaKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "json_schema" => Ok(Self::JsonSchema),
             "wit_world" => Ok(Self::WitWorld),
@@ -15277,9 +16140,7 @@ impl ::std::str::FromStr for ProtocolSchemaKind {
 }
 impl ::std::convert::TryFrom<&str> for ProtocolSchemaKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -15434,9 +16295,7 @@ impl ::std::default::Default for ProxyDeclaration {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct ProxyDeniedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct ProxyDeniedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for ProxyDeniedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -15444,16 +16303,16 @@ impl ::std::ops::Deref for ProxyDeniedPayload {
     }
 }
 impl ::std::convert::From<ProxyDeniedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: ProxyDeniedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ProxyDeniedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for ProxyDeniedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -15647,7 +16506,7 @@ impl ::std::default::Default for ProxyPermissions {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProxyProtocol {
     #[serde(rename = "http")]
@@ -15665,9 +16524,7 @@ impl ::std::fmt::Display for ProxyProtocol {
 }
 impl ::std::str::FromStr for ProxyProtocol {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "http" => Ok(Self::Http),
             "websocket" => Ok(Self::Websocket),
@@ -15677,9 +16534,7 @@ impl ::std::str::FromStr for ProxyProtocol {
 }
 impl ::std::convert::TryFrom<&str> for ProxyProtocol {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -15723,16 +16578,16 @@ impl ::std::ops::Deref for ProxyRegisteredPayload {
     }
 }
 impl ::std::convert::From<ProxyRegisteredPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: ProxyRegisteredPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ProxyRegisteredPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for ProxyRegisteredPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -15910,7 +16765,7 @@ pub struct ProxyRouteRegisterResponse {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ProxyRouteStatusKind {
     #[serde(rename = "active")]
@@ -15931,9 +16786,7 @@ impl ::std::fmt::Display for ProxyRouteStatusKind {
 }
 impl ::std::str::FromStr for ProxyRouteStatusKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "active" => Ok(Self::Active),
             "stale" => Ok(Self::Stale),
@@ -15944,9 +16797,7 @@ impl ::std::str::FromStr for ProxyRouteStatusKind {
 }
 impl ::std::convert::TryFrom<&str> for ProxyRouteStatusKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -16019,16 +16870,16 @@ impl ::std::ops::Deref for ProxyUnregisteredPayload {
     }
 }
 impl ::std::convert::From<ProxyUnregisteredPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: ProxyUnregisteredPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ProxyUnregisteredPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for ProxyUnregisteredPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -16119,7 +16970,7 @@ pub struct ReadinessProbe {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum ReadinessProbeKind {
     #[serde(rename = "none")]
@@ -16140,9 +16991,7 @@ impl ::std::fmt::Display for ReadinessProbeKind {
 }
 impl ::std::str::FromStr for ReadinessProbeKind {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "none" => Ok(Self::None),
             "tcp_port" => Ok(Self::TcpPort),
@@ -16153,9 +17002,7 @@ impl ::std::str::FromStr for ReadinessProbeKind {
 }
 impl ::std::convert::TryFrom<&str> for ReadinessProbeKind {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -16236,7 +17083,7 @@ Every outbound request carries one of these states to indicate whether raw body/
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum RedactionState {
     ///Raw data was not captured (default).
@@ -16268,9 +17115,7 @@ impl ::std::fmt::Display for RedactionState {
 }
 impl ::std::str::FromStr for RedactionState {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "not_captured" => Ok(Self::NotCaptured),
             "redacted" => Ok(Self::Redacted),
@@ -16283,9 +17128,7 @@ impl ::std::str::FromStr for RedactionState {
 }
 impl ::std::convert::TryFrom<&str> for RedactionState {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -16535,13 +17378,15 @@ impl ::std::ops::Deref for SessionBranchListResult {
     }
 }
 impl ::std::convert::From<SessionBranchListResult>
-for ::std::vec::Vec<SessionBranchListResultItem> {
+    for ::std::vec::Vec<SessionBranchListResultItem>
+{
     fn from(value: SessionBranchListResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::std::vec::Vec<SessionBranchListResultItem>>
-for SessionBranchListResult {
+    for SessionBranchListResult
+{
     fn from(value: ::std::vec::Vec<SessionBranchListResultItem>) -> Self {
         Self(value)
     }
@@ -16636,9 +17481,7 @@ pub struct SessionCloseParams {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct SessionClosedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct SessionClosedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for SessionClosedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -16646,16 +17489,16 @@ impl ::std::ops::Deref for SessionClosedPayload {
     }
 }
 impl ::std::convert::From<SessionClosedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: SessionClosedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for SessionClosedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for SessionClosedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -16764,9 +17607,7 @@ impl ::std::convert::From<()> for SessionListResult {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct SessionOpenedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct SessionOpenedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for SessionOpenedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -16774,16 +17615,16 @@ impl ::std::ops::Deref for SessionOpenedPayload {
     }
 }
 impl ::std::convert::From<SessionOpenedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: SessionOpenedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for SessionOpenedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for SessionOpenedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -16813,7 +17654,7 @@ for SessionOpenedPayload {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum SessionStatus {
     #[serde(rename = "open")]
@@ -16831,9 +17672,7 @@ impl ::std::fmt::Display for SessionStatus {
 }
 impl ::std::str::FromStr for SessionStatus {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "open" => Ok(Self::Open),
             "closed" => Ok(Self::Closed),
@@ -16843,9 +17682,7 @@ impl ::std::str::FromStr for SessionStatus {
 }
 impl ::std::convert::TryFrom<&str> for SessionStatus {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -16891,7 +17728,7 @@ impl ::std::convert::TryFrom<::std::string::String> for SessionStatus {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum StorageMeasurementStateSchema {
     #[serde(rename = "measured")]
@@ -16909,9 +17746,7 @@ impl ::std::fmt::Display for StorageMeasurementStateSchema {
 }
 impl ::std::str::FromStr for StorageMeasurementStateSchema {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "measured" => Ok(Self::Measured),
             "unknown" => Ok(Self::Unknown),
@@ -16921,9 +17756,7 @@ impl ::std::str::FromStr for StorageMeasurementStateSchema {
 }
 impl ::std::convert::TryFrom<&str> for StorageMeasurementStateSchema {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -16988,7 +17821,7 @@ impl ::std::convert::TryFrom<::std::string::String> for StorageMeasurementStateS
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum StreamFormat {
     ///Server-Sent Events (`text/event-stream`). Parses `data: ...\n\n` events.
@@ -17012,9 +17845,7 @@ impl ::std::fmt::Display for StreamFormat {
 }
 impl ::std::str::FromStr for StreamFormat {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "sse" => Ok(Self::Sse),
             "ndjson" => Ok(Self::Ndjson),
@@ -17025,9 +17856,7 @@ impl ::std::str::FromStr for StreamFormat {
 }
 impl ::std::convert::TryFrom<&str> for StreamFormat {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -17405,7 +18234,7 @@ pub struct StreamFrameEnvelope2Receipt {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum StreamFrameType {
     ///First frame of a streaming invocation.
@@ -17445,9 +18274,7 @@ impl ::std::fmt::Display for StreamFrameType {
 }
 impl ::std::str::FromStr for StreamFrameType {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "start" => Ok(Self::Start),
             "chunk" => Ok(Self::Chunk),
@@ -17462,9 +18289,7 @@ impl ::std::str::FromStr for StreamFrameType {
 }
 impl ::std::convert::TryFrom<&str> for StreamFrameType {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -17529,7 +18354,7 @@ impl ::std::convert::TryFrom<::std::string::String> for StreamFrameType {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum StreamStartStatus {
     ///Stream started successfully.
@@ -17553,9 +18378,7 @@ impl ::std::fmt::Display for StreamStartStatus {
 }
 impl ::std::str::FromStr for StreamStartStatus {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "ok" => Ok(Self::Ok),
             "denied" => Ok(Self::Denied),
@@ -17566,9 +18389,7 @@ impl ::std::str::FromStr for StreamStartStatus {
 }
 impl ::std::convert::TryFrom<&str> for StreamStartStatus {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -17602,9 +18423,7 @@ impl ::std::convert::TryFrom<::std::string::String> for StreamStartStatus {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(transparent)]
-pub struct StreamStartedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
+pub struct StreamStartedPayload(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
 impl ::std::ops::Deref for StreamStartedPayload {
     type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
     fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
@@ -17612,16 +18431,16 @@ impl ::std::ops::Deref for StreamStartedPayload {
     }
 }
 impl ::std::convert::From<StreamStartedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: StreamStartedPayload) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for StreamStartedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for StreamStartedPayload
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -17685,7 +18504,7 @@ pub struct SubprocessLogLine {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum SubprocessTransport {
     #[serde(rename = "json_rpc_stdio")]
@@ -17703,9 +18522,7 @@ impl ::std::fmt::Display for SubprocessTransport {
 }
 impl ::std::str::FromStr for SubprocessTransport {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "json_rpc_stdio" => Ok(Self::JsonRpcStdio),
             "json_rpc_tcp" => Ok(Self::JsonRpcTcp),
@@ -17715,9 +18532,7 @@ impl ::std::str::FromStr for SubprocessTransport {
 }
 impl ::std::convert::TryFrom<&str> for SubprocessTransport {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -17809,7 +18624,7 @@ impl ::std::default::Default for SurfaceActivation {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum SurfaceApprovalPolicy {
     #[serde(rename = "none")]
@@ -17830,9 +18645,7 @@ impl ::std::fmt::Display for SurfaceApprovalPolicy {
 }
 impl ::std::str::FromStr for SurfaceApprovalPolicy {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "none" => Ok(Self::None),
             "user_approval" => Ok(Self::UserApproval),
@@ -17843,9 +18656,7 @@ impl ::std::str::FromStr for SurfaceApprovalPolicy {
 }
 impl ::std::convert::TryFrom<&str> for SurfaceApprovalPolicy {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -17891,7 +18702,7 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceApprovalPolicy {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum SurfaceBundleSourceSchema {
     #[serde(rename = "installed_project")]
@@ -17909,9 +18720,7 @@ impl ::std::fmt::Display for SurfaceBundleSourceSchema {
 }
 impl ::std::str::FromStr for SurfaceBundleSourceSchema {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "installed_project" => Ok(Self::InstalledProject),
             "dev_path" => Ok(Self::DevPath),
@@ -17921,9 +18730,7 @@ impl ::std::str::FromStr for SurfaceBundleSourceSchema {
 }
 impl ::std::convert::TryFrom<&str> for SurfaceBundleSourceSchema {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -18073,16 +18880,16 @@ impl ::std::ops::Deref for SurfaceContributionDescribeResult {
     }
 }
 impl ::std::convert::From<SurfaceContributionDescribeResult>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
+    for ::serde_json::Map<::std::string::String, ::serde_json::Value>
+{
     fn from(value: SurfaceContributionDescribeResult) -> Self {
         value.0
     }
 }
 impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for SurfaceContributionDescribeResult {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
+    for SurfaceContributionDescribeResult
+{
+    fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
 }
@@ -18107,14 +18914,12 @@ impl ::std::ops::Deref for SurfaceContributionListResult {
         &self.0
     }
 }
-impl ::std::convert::From<SurfaceContributionListResult>
-for ::std::vec::Vec<::serde_json::Value> {
+impl ::std::convert::From<SurfaceContributionListResult> for ::std::vec::Vec<::serde_json::Value> {
     fn from(value: SurfaceContributionListResult) -> Self {
         value.0
     }
 }
-impl ::std::convert::From<::std::vec::Vec<::serde_json::Value>>
-for SurfaceContributionListResult {
+impl ::std::convert::From<::std::vec::Vec<::serde_json::Value>> for SurfaceContributionListResult {
     fn from(value: ::std::vec::Vec<::serde_json::Value>) -> Self {
         Self(value)
     }
@@ -18172,7 +18977,9 @@ pub struct SurfaceListParams {
 }
 impl ::std::default::Default for SurfaceListParams {
     fn default() -> Self {
-        Self { slot: Default::default() }
+        Self {
+            slot: Default::default(),
+        }
     }
 }
 ///`SurfacePermissionRequirement`
@@ -18343,7 +19150,7 @@ pub struct SurfaceResolveBundleResult {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum SurfaceRisk {
     #[serde(rename = "low")]
@@ -18364,9 +19171,7 @@ impl ::std::fmt::Display for SurfaceRisk {
 }
 impl ::std::str::FromStr for SurfaceRisk {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "low" => Ok(Self::Low),
             "medium" => Ok(Self::Medium),
@@ -18377,9 +19182,7 @@ impl ::std::str::FromStr for SurfaceRisk {
 }
 impl ::std::convert::TryFrom<&str> for SurfaceRisk {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -18431,7 +19234,7 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceRisk {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum SurfaceSlot {
     #[serde(rename = "experience_entry")]
@@ -18467,9 +19270,7 @@ impl ::std::fmt::Display for SurfaceSlot {
 }
 impl ::std::str::FromStr for SurfaceSlot {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "experience_entry" => Ok(Self::ExperienceEntry),
             "home_card" => Ok(Self::HomeCard),
@@ -18485,9 +19286,7 @@ impl ::std::str::FromStr for SurfaceSlot {
 }
 impl ::std::convert::TryFrom<&str> for SurfaceSlot {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -18703,7 +19502,7 @@ pub struct TighteningSuggestion {
     Hash,
     Ord,
     PartialEq,
-    PartialOrd
+    PartialOrd,
 )]
 pub enum TrustLevel {
     #[serde(rename = "trusted_inproc")]
@@ -18730,9 +19529,7 @@ impl ::std::fmt::Display for TrustLevel {
 }
 impl ::std::str::FromStr for TrustLevel {
     type Err = self::error::ConversionError;
-    fn from_str(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "trusted_inproc" => Ok(Self::TrustedInproc),
             "process_isolated" => Ok(Self::ProcessIsolated),
@@ -18745,9 +19542,7 @@ impl ::std::str::FromStr for TrustLevel {
 }
 impl ::std::convert::TryFrom<&str> for TrustLevel {
     type Error = self::error::ConversionError;
-    fn try_from(
-        value: &str,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
 }
@@ -18917,8 +19712,33 @@ pub mod defaults {
     pub(super) fn capability_descriptor_output_schema() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
+    pub(super) fn capability_discover_result_item_provider_claim_status(
+    ) -> super::ComponentClaimStatus {
+        super::ComponentClaimStatus::ForeignCapsule
+    }
+    pub(super) fn capability_discover_result_item_provider_enforced_boundaries(
+    ) -> super::ComponentBoundaryClaims {
+        super::ComponentBoundaryClaims {
+            filesystem_isolation: false,
+            network_isolation: false,
+            no_code_execution: false,
+            process_failure_isolation: false,
+            remote_identity: false,
+            resource_limits_enforced: false,
+            revocation_enforced: false,
+            tenancy_isolation: false,
+        }
+    }
+    pub(super) fn capability_discover_result_item_provider_trust_class(
+    ) -> super::ComponentTrustClass {
+        super::ComponentTrustClass::ForeignCapsule
+    }
     pub(super) fn capability_invocation_request_input() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn capability_invocation_result_provider_trust_class() -> super::ComponentTrustClass
+    {
+        super::ComponentTrustClass::ForeignCapsule
     }
     pub(super) fn change_commit_commit_type_uri() -> ::std::string::String {
         "urn:yggdrasil:change-commit:v1".to_string()
@@ -19063,6 +19883,21 @@ pub mod defaults {
     pub(super) fn outbound_stream_summary_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
+    pub(super) fn package_list_result_item_enforced_boundaries() -> super::ComponentBoundaryClaims {
+        super::ComponentBoundaryClaims {
+            filesystem_isolation: false,
+            network_isolation: false,
+            no_code_execution: false,
+            process_failure_isolation: false,
+            remote_identity: false,
+            resource_limits_enforced: false,
+            revocation_enforced: false,
+            tenancy_isolation: false,
+        }
+    }
+    pub(super) fn package_list_result_item_trust_class() -> super::ComponentTrustClass {
+        super::ComponentTrustClass::ForeignCapsule
+    }
     pub(super) fn package_manifest_contributes() -> super::PackageContributions {
         super::PackageContributions {
             extension_points: vec![],
@@ -19077,9 +19912,7 @@ pub mod defaults {
                 read: false,
                 write: false,
             },
-            capabilities: super::CapabilityPermissions {
-                invoke: vec![],
-            },
+            capabilities: super::CapabilityPermissions { invoke: vec![] },
             events: super::EventPermissions {
                 append: false,
                 read: false,
@@ -19096,9 +19929,7 @@ pub mod defaults {
                 declarations: vec![],
                 hosts: vec![],
             },
-            packages: super::PackagePermissions {
-                call: vec![],
-            },
+            packages: super::PackagePermissions { call: vec![] },
             ports: super::PortPermissions {
                 declarations: vec![],
                 max_count: ::std::option::Option::None,
@@ -19117,6 +19948,21 @@ pub mod defaults {
             wall_clock_ms: 30000_u64,
         }
     }
+    pub(super) fn package_record_enforced_boundaries() -> super::ComponentBoundaryClaims {
+        super::ComponentBoundaryClaims {
+            filesystem_isolation: false,
+            network_isolation: false,
+            no_code_execution: false,
+            process_failure_isolation: false,
+            remote_identity: false,
+            resource_limits_enforced: false,
+            revocation_enforced: false,
+            tenancy_isolation: false,
+        }
+    }
+    pub(super) fn package_record_trust_class() -> super::ComponentTrustClass {
+        super::ComponentTrustClass::ForeignCapsule
+    }
     pub(super) fn permission_audit_result_item_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -19127,9 +19973,7 @@ pub mod defaults {
         }
     }
     pub(super) fn permission_set_capabilities() -> super::CapabilityPermissions {
-        super::CapabilityPermissions {
-            invoke: vec![],
-        }
+        super::CapabilityPermissions { invoke: vec![] }
     }
     pub(super) fn permission_set_events() -> super::EventPermissions {
         super::EventPermissions {
@@ -19156,9 +20000,7 @@ pub mod defaults {
         }
     }
     pub(super) fn permission_set_packages() -> super::PackagePermissions {
-        super::PackagePermissions {
-            call: vec![],
-        }
+        super::PackagePermissions { call: vec![] }
     }
     pub(super) fn permission_set_ports() -> super::PortPermissions {
         super::PortPermissions {
@@ -19254,8 +20096,7 @@ pub mod defaults {
         super::SurfaceActivation {
             input_schema: ::serde_json::from_str::<::serde_json::Value>("null").unwrap(),
             launch_capability_id: ::std::option::Option::None,
-            session_template: ::serde_json::from_str::<::serde_json::Value>("null")
-                .unwrap(),
+            session_template: ::serde_json::from_str::<::serde_json::Value>("null").unwrap(),
         }
     }
     pub(super) fn surface_contribution_metadata() -> ::serde_json::Value {

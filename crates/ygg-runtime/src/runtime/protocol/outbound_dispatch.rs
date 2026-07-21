@@ -123,7 +123,13 @@ where
         // Any secret_ref used in top-level `secret_refs` or in
         // `secret_headers` must be declared in the caller package's
         // `permissions.secret_refs`. Undeclared refs → fail-closed.
-        if !all_secret_refs.is_empty() && !self.is_contract_none_package(&package_id).await {
+        if !all_secret_refs.is_empty() {
+            if self.is_contract_none_package(&package_id).await {
+                anyhow::bail!(
+                    "Foreign Capsule package '{}' cannot resolve kernel secret references",
+                    package_id
+                );
+            }
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
                     "kernel.v1.outbound.execute package '{}' is not loaded",
@@ -330,7 +336,13 @@ where
         }
 
         // Y2: enforce manifest declarations for secret refs
-        if !all_secret_refs.is_empty() && !self.is_contract_none_package(&package_id).await {
+        if !all_secret_refs.is_empty() {
+            if self.is_contract_none_package(&package_id).await {
+                anyhow::bail!(
+                    "Foreign Capsule package '{}' cannot resolve kernel secret references",
+                    package_id
+                );
+            }
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
                     "kernel.v1.outbound.stream package '{}' is not loaded",
@@ -797,7 +809,13 @@ where
             }
         }
 
-        if !all_secret_refs.is_empty() && !self.is_contract_none_package(&package_id).await {
+        if !all_secret_refs.is_empty() {
+            if self.is_contract_none_package(&package_id).await {
+                anyhow::bail!(
+                    "Foreign Capsule package '{}' cannot resolve kernel secret references",
+                    package_id
+                );
+            }
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
                     "kernel.v1.outbound.websocket.open package '{}' is not loaded",

@@ -116,6 +116,7 @@ where
                         correlation_id,
                         None,
                         Some(error.to_string()),
+                        None,
                     )
                     .await?;
                 self.emit_capability_failed(
@@ -171,6 +172,7 @@ where
                         correlation_id,
                         Some(result.output.clone()),
                         None,
+                        Some(&result),
                     )
                     .await?;
                 result.receipt = Some(receipt.clone());
@@ -181,6 +183,11 @@ where
                     json!({
                         "correlation_id": correlation_id,
                         "capability_id": capability_id,
+                        "provider_package_id": result.provider_package_id,
+                        "provider_component_id": result.provider_component_id,
+                        "provider_component_digest": result.provider_component_digest,
+                        "provider_behavior_digest": result.provider_behavior_digest,
+                        "provider_trust_class": result.provider_trust_class,
                         "duration_ms": result.duration_ms,
                         "completed_at": chrono::Utc::now(),
                         "receipt": receipt,
@@ -204,6 +211,7 @@ where
                         correlation_id,
                         None,
                         Some(error.to_string()),
+                        None,
                     )
                     .await?;
                 self.emit_capability_failed(
@@ -235,6 +243,7 @@ where
         correlation_id: Uuid,
         output: Option<Value>,
         error: Option<String>,
+        provider_identity: Option<&CapabilityInvocationResult>,
     ) -> anyhow::Result<ArtifactDescriptor> {
         let resolved_provider = provider_package_id
             .map(str::to_string)
@@ -287,6 +296,10 @@ where
         request.actual = json!({
             "capability_id": capability_id,
             "provider_package_id": resolved_provider,
+            "provider_component_id": provider_identity.map(|result| &result.provider_component_id),
+            "provider_component_digest": provider_identity.map(|result| &result.provider_component_digest),
+            "provider_behavior_digest": provider_identity.map(|result| &result.provider_behavior_digest),
+            "provider_trust_class": provider_identity.map(|result| result.provider_trust_class),
             "status": status,
             "error_present": error.is_some(),
         });
@@ -297,6 +310,25 @@ where
         &self,
         request: &CapabilityInvocationRequest,
     ) -> anyhow::Result<(CapabilityId, Option<String>, CapHandleId)> {
+        if let Some(caller) = &request.caller_package_id {
+            if self.is_contract_none_package(caller).await {
+                let capability_id = request.capability_id.clone().unwrap_or_else(|| {
+                    request.handle.map_or_else(
+                        || "unknown".to_string(),
+                        |handle| format!("handle:{}", handle.0),
+                    )
+                });
+                self.audit_permission_denied(
+                    &capability_event_session_id(&capability_id),
+                    caller,
+                    "capabilities.invoke",
+                )
+                .await?;
+                anyhow::bail!(
+                    "Foreign Capsule package '{caller}' is self-contained and cannot invoke kernel capabilities"
+                );
+            }
+        }
         if let Some(handle_id) = request.handle {
             let handle = self
                 .handles
@@ -322,21 +354,18 @@ where
             .clone()
             .ok_or_else(|| anyhow::anyhow!("capability invoke requires handle or capability_id"))?;
         if let Some(caller) = &request.caller_package_id {
-            let allowed = if self.is_contract_none_package(caller).await {
-                true
-            } else {
-                self.packages
-                    .permissions(caller)
-                    .await
-                    .map(|permissions| {
-                        permissions.capabilities.invoke.iter().any(|pattern| {
-                            pattern == "*"
-                                || pattern == &capability_id
-                                || capability_id.starts_with(pattern.trim_end_matches('*'))
-                        })
+            let allowed = self
+                .packages
+                .permissions(caller)
+                .await
+                .map(|permissions| {
+                    permissions.capabilities.invoke.iter().any(|pattern| {
+                        pattern == "*"
+                            || pattern == &capability_id
+                            || capability_id.starts_with(pattern.trim_end_matches('*'))
                     })
-                    .unwrap_or(false)
-            };
+                })
+                .unwrap_or(false);
             if !allowed {
                 self.audit_permission_denied(
                     &capability_event_session_id(&capability_id),
@@ -449,6 +478,10 @@ where
         let result = CapabilityInvocationResult {
             capability_id: provider.descriptor.id,
             provider_package_id: provider.provider_package_id,
+            provider_component_id: provider.provider_component_id,
+            provider_component_digest: provider.provider_component_digest,
+            provider_behavior_digest: provider.provider_behavior_digest,
+            provider_trust_class: provider.provider_trust_class,
             output,
             duration_ms: elapsed_ms(started),
             correlation_id,
@@ -670,6 +703,7 @@ where
                             correlation_id,
                             None,
                             Some(error.to_string()),
+                            None,
                         )
                         .await?;
                     self.emit_capability_failed(
@@ -720,11 +754,44 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("recorded capability provider is missing"))?
             .to_string();
+        let provider_component_id = replay
+            .receipt
+            .actual
+            .get("provider_component_id")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{provider_package_id}/component/default"));
+        let provider_component_digest = replay
+            .receipt
+            .actual
+            .get("provider_component_digest")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let provider_behavior_digest = replay
+            .receipt
+            .actual
+            .get("provider_behavior_digest")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let provider_trust_class = replay
+            .receipt
+            .actual
+            .get("provider_trust_class")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?
+            .unwrap_or_default();
         let correlation_id = Uuid::parse_str(&replay.receipt.trace_id)
             .map_err(|error| anyhow::anyhow!("recorded capability trace id is invalid: {error}"))?;
         Ok(CapabilityInvocationResult {
             capability_id,
             provider_package_id,
+            provider_component_id,
+            provider_component_digest,
+            provider_behavior_digest,
+            provider_trust_class,
             output: replay.outputs.into_iter().next().unwrap_or(Value::Null),
             duration_ms: replay.receipt.latency_ms,
             correlation_id,
@@ -903,6 +970,20 @@ mod tests {
             })
             .await?;
 
+        let discovered = runtime.discover_capabilities().await;
+        assert_eq!(discovered.len(), 1);
+        assert_eq!(
+            discovered[0].provider_component_id,
+            "example/echo/component/default"
+        );
+        assert!(discovered[0]
+            .provider_component_digest
+            .starts_with("sha256:"));
+        assert_eq!(
+            discovered[0].provider_trust_class,
+            ygg_core::ComponentTrustClass::TrustedNative
+        );
+
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
@@ -915,6 +996,18 @@ mod tests {
             })
             .await?;
         assert_eq!(result.output, json!({"ping": true}));
+        assert_eq!(
+            result.provider_component_id,
+            "example/echo/component/default"
+        );
+        assert_eq!(
+            result.provider_component_digest,
+            discovered[0].provider_component_digest
+        );
+        assert_eq!(
+            result.provider_behavior_digest,
+            discovered[0].provider_behavior_digest
+        );
         Ok(())
     }
 
@@ -1102,12 +1195,30 @@ mod tests {
             .clone()
             .ok_or_else(|| anyhow::anyhow!("capability receipt missing"))?;
         assert_eq!(original.replay_mode, Some(EffectReplayMode::Live));
+        assert!(!original.provider_component_id.is_empty());
+        assert!(original.provider_component_digest.starts_with("sha256:"));
 
         runtime.unload_package(&"example/echo".to_string()).await?;
         let historical = runtime
             .replay_capability_receipt(&original_receipt.digest)
             .await?;
         assert_eq!(historical.output, json!({"value": 7}));
+        assert_eq!(
+            historical.provider_component_id,
+            original.provider_component_id
+        );
+        assert_eq!(
+            historical.provider_component_digest,
+            original.provider_component_digest
+        );
+        assert_eq!(
+            historical.provider_behavior_digest,
+            original.provider_behavior_digest
+        );
+        assert_eq!(
+            historical.provider_trust_class,
+            original.provider_trust_class
+        );
         assert_eq!(historical.replay_mode, Some(EffectReplayMode::Historical));
         assert_eq!(
             historical.receipt.as_ref().map(|item| item.digest.as_str()),

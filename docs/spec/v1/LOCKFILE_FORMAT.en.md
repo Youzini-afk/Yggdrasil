@@ -133,6 +133,22 @@ String. SHA-256 of the package tree at install time. Readers at least validate t
 
 String. SHA-256 of the canonicalized package manifest. It detects manifest content changes within the same commit or path.
 
+### `package_envelope_digest`
+
+Optional string. Complete SHA-256 digest of the logical package envelope. Unlike `tree_hash`, it pins the relationship among the manifest, components, protocols, content roots, surfaces, and auxiliary artifacts.
+
+### `component_pins`
+
+Optional array. Each pin records an independent component ID, component artifact digest, behavior digest, and trust class. This lets a composition reason about implementation identity without treating the package ID as the component ID.
+
+### `protocol_profile_pins`
+
+Optional array. Exact protocol ID, version, and profile selections implemented by the locked components.
+
+### `content_roots`
+
+Optional array of complete `ArtifactDescriptor` values. Content roots remain separate from component pins so that replacing an implementation does not implicitly replace immutable world/project/media data.
+
 ### `signed`
 
 Boolean. Whether the source was GPG-signed and verified. This records install-time verification and does not grant extra authority by itself.
@@ -189,7 +205,8 @@ This lets tools answer why a package was installed, which constraint caused the 
 2. for each `LockEntry`:
    a. verify the store path exists;
    b. recompute `manifest_hash` and compare it with the lockfile;
-   c. recompute `tree_hash` and compare it with the lockfile;
+   c. re-derive the package-envelope digest, component pins, protocol-profile pins, and content roots when present;
+   d. recompute `tree_hash` and compare it with the lockfile;
 3. report any drift.
 
 Non-zero exit codes are for CI: drift = failure.

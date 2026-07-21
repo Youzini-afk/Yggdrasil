@@ -45,7 +45,8 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 - [x] Phase 4: implement the SHA-256 ObjectStore, ArtifactDescriptor, asset adapter, legacy FNV event migration, and an independent persistent object directory.
 - [x] Phase 5: implement receipt/change primitives, historical replay/re-execution, terminal effect coverage, and the Proposal adapter.
 - [x] Phase 6: establish the Protocol Commons descriptor registry, protocol/profile negotiation, and separate protocol/implementation reports.
-- [ ] Phases 7–9: component identity, World Bundle, and client/deprecation migration.
+- [x] Phase 7: separate package envelopes from component identity, trust evidence, and composition pins.
+- [ ] Phases 8–9: World Bundle and client/deprecation migration.
 
 ## Immediate freeze line
 
@@ -256,6 +257,8 @@ Acceptance:
 - one protocol implementation can ship in different packages while preserving component identity/behavior claims;
 - replacing a component does not change content roots;
 - Foreign Capsule can start, while conformance clearly reports that composability and portability are not guaranteed.
+
+Implementation result (2026-07-21): the repository now publishes [`COMPONENT_IDENTITY.md`](../spec/COMPONENT_IDENTITY.en.md) plus component, package-envelope, and composition-lock schemas. Explicit component IDs and behavior digests are independent from `PackageManifest.id`; package records, lifecycle events, capability discovery/results/receipts, `KernelEnv`, and subprocess handshakes carry component evidence and conservative boundary claims. Install plans and lockfiles pin the envelope digest, component/behavior digests, protocol profiles, and content roots, and lock checking reports each drift independently. Legacy manifests receive a package-scoped adapter identity. `contract:none` is always a Foreign Capsule, cannot claim protocol conformance, can still start on supported Path B entries, and reports that composability and portability are not guaranteed.
 
 ### 8. Prove the boundary with a real World Bundle
 

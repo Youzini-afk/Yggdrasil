@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use ygg_core::{conformance::PackageConformanceReport, ProjectDescriptor};
+use ygg_core::{
+    conformance::PackageConformanceReport, ArtifactDescriptor, ComponentLockPin, ProjectDescriptor,
+    ProtocolProfilePin,
+};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct ResolvePlanInput {
@@ -157,6 +160,14 @@ pub(super) struct PlannedPackage {
     pub(super) tree_hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) surface_bundle_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) package_envelope_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) component_pins: Vec<ComponentLockPin>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) protocol_profile_pins: Vec<ProtocolProfilePin>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) content_roots: Vec<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) manifest_relative_path: Option<String>,
     pub(super) signed: bool,
