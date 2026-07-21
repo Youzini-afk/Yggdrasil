@@ -24,6 +24,9 @@ const TOP_LEVEL_SCHEMAS: &[&str] = &[
     "policy-decision.schema.json",
     "protocol-context.schema.json",
     "protocol-descriptor.schema.json",
+    "world-bundle.schema.json",
+    "world-head.schema.json",
+    "world-journal-range.schema.json",
 ];
 
 fn main() -> anyhow::Result<()> {

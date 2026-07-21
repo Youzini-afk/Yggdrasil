@@ -63,10 +63,11 @@ pub use redaction::{
     scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult,
 };
 pub use runtime::{
-    check_network_policy, content_address, is_secret_header_name, is_static_header_allowed,
-    legacy_content_address, standard_asset_metadata, AppendEventRequest, ArtifactCommitRequest,
-    AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord, CancelSignal,
-    CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
+    audit_world_bundle_archive, check_network_policy, content_address, is_secret_header_name,
+    is_static_header_allowed, legacy_content_address, replay_world_bundle_archive,
+    standard_asset_metadata, verify_world_bundle_archive, AppendEventRequest,
+    ArtifactCommitRequest, AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord,
+    CancelSignal, CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
     DenyAllOutboundExecutor, DenyAllWebSocketExecutor, DeploymentHealthEventPayload,
     DeploymentHealthProbe, DeploymentReconcileSource, DeploymentReconcileSummary,
     EffectReplayResult, EmptyReconcileSource, EventListRequest, ExecCommand, ExecId,
@@ -93,7 +94,9 @@ pub use runtime::{
     RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
     SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter, StreamFormat, StreamRegistry,
     StreamStartStatus, TighteningSuggestion, UnusedAuthority, UsedAuthority, WebSocketEvent,
-    WebSocketExecutor, WebSocketFramePayload, ACTIVE_PROJECT_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE,
+    WebSocketExecutor, WebSocketFramePayload, WorldBundleAuditReport, WorldBundleExportRequest,
+    WorldBundleImportResult, WorldBundleReceiptReplay, WorldBundleReplayResult,
+    WorldJournalSelection, ACTIVE_PROJECT_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE,
     EFFECT_VALUE_MEDIA_TYPE, GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;

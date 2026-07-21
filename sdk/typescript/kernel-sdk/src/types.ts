@@ -2331,6 +2331,67 @@ export interface UsedAuthority {
   "secret_refs_used": Record<string, number>;
 }
 
+export interface WorldBundleArchive {
+  "archive_format": string;
+  "bundle_descriptor": ArtifactDescriptor;
+  "manifest": WorldBundleManifest;
+  "objects": Array<WorldBundleObject>;
+}
+
+export interface WorldBundleManifest {
+  "annotations"?: Record<string, unknown>;
+  "bundle_type_uri": string;
+  "composition_lock": ArtifactDescriptor;
+  "effect_receipts"?: Array<ArtifactDescriptor>;
+  "journal_ranges": Array<WorldJournalRange>;
+  "lineage": Array<WorldLineageEntry>;
+  "object_descriptors": Array<ArtifactDescriptor>;
+  "original_v1_envelopes": Array<ArtifactDescriptor>;
+  "policy_refs"?: Array<ArtifactDescriptor>;
+  "protocol_id": string;
+  "protocol_profile": string;
+  "protocol_profiles": Array<ProtocolProfilePin>;
+  "protocol_version": string;
+  "schema_version": number;
+  "world_head": ArtifactDescriptor;
+  "world_id": string;
+}
+
+export interface WorldBundleObject {
+  "data_base64": string;
+  "descriptor": ArtifactDescriptor;
+}
+
+export interface WorldHead {
+  "annotations"?: Record<string, unknown>;
+  "composition_lock": ArtifactDescriptor;
+  "effect_receipts"?: Array<ArtifactDescriptor>;
+  "head_type_uri": string;
+  "history_root": ArtifactDescriptor;
+  "parent_heads"?: Array<ArtifactDescriptor>;
+  "policy_root"?: ArtifactDescriptor | null;
+  "protocol_profiles": Array<ProtocolProfilePin>;
+  "provenance_root": ArtifactDescriptor;
+  "schema_version": number;
+  "state_root": ArtifactDescriptor;
+  "world_id": string;
+}
+
+export interface WorldJournalRange {
+  "envelope_refs": Array<ArtifactDescriptor>;
+  "first_sequence": number;
+  "last_sequence": number;
+  "session_id": string;
+}
+
+export interface WorldLineageEntry {
+  "annotations"?: Record<string, unknown>;
+  "effect_receipts"?: Array<ArtifactDescriptor>;
+  "head": ArtifactDescriptor;
+  "parent_heads"?: Array<ArtifactDescriptor>;
+  "relation": string;
+}
+
 export type PackageManifest2 = PackageManifest;
 
 export type PermissionSet2 = PermissionSet;

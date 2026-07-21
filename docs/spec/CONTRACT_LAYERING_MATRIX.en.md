@@ -42,10 +42,10 @@ Dispositions:
 
 - Code contains 80 `KernelMethod` variants and 80 method schemas.
 - Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
-- There are 18 top-level schemas. Phase 2 added `contract-selection.schema.json`, Phase 4 added `artifact-descriptor.schema.json`, Phase 5 added EffectReceipt plus four Change primitive schemas, Phase 6 added `protocol-descriptor.schema.json`, and Phase 7 added component, package-envelope, and composition-lock schemas.
+- There are 21 top-level schemas. Phase 2 added `contract-selection.schema.json`, Phase 4 added `artifact-descriptor.schema.json`, Phase 5 added EffectReceipt plus four Change primitive schemas, Phase 6 added `protocol-descriptor.schema.json`, Phase 7 added component, package-envelope, and composition-lock schemas, and Phase 8 added World Bundle, World Head, and journal-range schemas.
 - Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
 - The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. Phase 3 publishes 36 canonical/legacy dual-stack routes across the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection.
-- The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports.
+- The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports. The concrete World Bundle archive and all five portability vectors now back the `ygg.runtime.world-bundle` implementation claim.
 - The Web client still defaults to legacy `kernel.v1.*` IDs; generated SDKs derive canonical clients and explicit legacy wrappers from schema metadata and reject duplicate wire IDs, function names, or operation IDs before generation.
 
 The first migration requirement is therefore a testable compatibility router, not code deletion.
@@ -275,7 +275,7 @@ The first migration requirement is therefore a testable compatibility router, no
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | Host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | Host deployment health; add to v1 registry |
 
-## 18 top-level schemas
+## 21 top-level schemas
 
 | Current schema | Target | Disposition | Target shape |
 |---|---:|---|---|
@@ -286,6 +286,9 @@ The first migration requirement is therefore a testable compatibility router, no
 | `component-descriptor.schema.json` | `S` | Add | Independent implementation identity, behavior digest, trust class, enforced-boundary claims, and references |
 | `package-envelope-descriptor.schema.json` | `H` | Add | Retrieval/install envelope joining the manifest to independently addressed components and artifacts |
 | `composition-lock.schema.json` | `C` | Add | Separately pinned component artifacts, protocol profiles, and immutable content roots |
+| `world-bundle.schema.json` | `C` | Add | Portable manifest, exact v1 envelopes, object inventory, receipts, policies, lineage, and inline transport objects |
+| `world-head.schema.json` | `C` | Add | Protocol-defined state/history/composition/policy/provenance roots and parent heads |
+| `world-journal-range.schema.json` | `S` | Add | Contiguous per-session sequence range with content-addressed original event envelopes |
 | `artifact-descriptor.schema.json` | `S` | Add | Open artifact type, SHA-256 digest, size, references, and annotations; bytes live in ObjectStore |
 | `effect-receipt.schema.json` | `S` | Add | Content-addressed terminal evidence referencing input/output/component/authority/policy/approval/parents |
 | `intent.schema.json` | `C` | Add | Principal goal and target scope; distinct from a proposal or command |

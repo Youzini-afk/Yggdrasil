@@ -285,7 +285,7 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 157 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 160 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -461,7 +461,7 @@ A v1 implementation must at least prove:
 
 1. 80 method schemas export.
 2. 59 event schemas validate.
-3. 18 top-level schemas validate.
+3. 21 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
 6. Invoke instrumentation emits lifecycle events.

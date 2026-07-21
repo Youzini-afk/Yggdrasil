@@ -46,7 +46,8 @@
 - [x] Phase 5：建立 receipt/change primitives、历史回放/重执行、terminal effect 覆盖和 Proposal adapter。
 - [x] Phase 6：建立 Protocol Commons 描述符注册表、协议/Profile 协商以及独立的协议/实现报告。
 - [x] Phase 7：分离 package envelope、component identity、trust evidence 与 composition pin。
-- [ ] Phase 8–9：World Bundle 与客户端弃用迁移。
+- [x] Phase 8：用真实 World Bundle 证明跨 host、离线回放、重执行分支与 Shell 独立性。
+- [ ] Phase 9：迁移客户端，并完成一个真实 Deprecated → Legacy Adapter 转换。
 
 ## 立即冻结线
 
@@ -288,6 +289,8 @@ WorldBundle
 4. 不加载原组件、不启用网络和模型，完成历史审计与确定性重放。
 5. 安装不同实现后重新执行一个步骤，生成新 branch/head。
 6. 用 headless CLI 读取同一世界，证明 Web shell 不是数据依赖。
+
+实现结果（2026-07-21）：仓库现在发布 [`WORLD_BUNDLE.md`](../spec/WORLD_BUNDLE.md) 以及具体 World Bundle、World Head 与 journal-range schema。`official/playable-creation-board` 在 Host A 创建状态、branch 和受控 capability receipt；export 物化原始 v1 envelope 与完整 SHA-256 reference closure；Host B 的独立 SQLite journal 与 filesystem CAS 在不加载原始 Package 的情况下完成 import；historical replay 不调用任何 executor；echo-backed 替代实现生成 content roots 不变的 child branch/head；`ygg world-bundle verify|audit|replay|import` 证明 Shell-independent 访问。`ygg.world.bundle/experimental/v1` 的五条向量全部通过，因此 `ygg.runtime.world-bundle` 已注册为 production implementation claim。
 
 失败条件：
 

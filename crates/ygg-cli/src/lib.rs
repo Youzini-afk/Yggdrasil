@@ -7,12 +7,12 @@ pub mod templates;
 
 use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, HostCommand,
-    ManifestCommand, PackageCommand, PerfCommand,
+    ManifestCommand, PackageCommand, PerfCommand, WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
     capability, composition, conformance_package, demo, host, install as install_command,
-    list_installed, lockfile, manifest, package, perf, project, uninstall, update,
+    list_installed, lockfile, manifest, package, perf, project, uninstall, update, world_bundle,
 };
 
 pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
@@ -28,15 +28,17 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                 data_dir,
                 access_token,
                 app_base_domain,
-            } => host::host_serve(
-                http,
-                profile,
-                static_dir,
-                data_dir,
-                access_token,
-                app_base_domain,
-            )
-            .await,
+            } => {
+                host::host_serve(
+                    http,
+                    profile,
+                    static_dir,
+                    data_dir,
+                    access_token,
+                    app_base_domain,
+                )
+                .await
+            }
         },
         Command::HostStdio => host::host_stdio().await,
         Command::Manifest { command } => match command {
@@ -123,6 +125,16 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                 })
                 .await
             }
+        },
+        Command::WorldBundle { command } => match command {
+            WorldBundleCommand::Verify { path, json } => world_bundle::verify(path, json).await,
+            WorldBundleCommand::Audit { path, json } => world_bundle::audit(path, json).await,
+            WorldBundleCommand::Replay { path, json } => world_bundle::replay(path, json).await,
+            WorldBundleCommand::Import {
+                path,
+                data_dir,
+                json,
+            } => world_bundle::import(path, data_dir, json).await,
         },
     }
 }

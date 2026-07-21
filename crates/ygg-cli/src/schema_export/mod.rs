@@ -77,6 +77,18 @@ pub fn export_all() -> anyhow::Result<()> {
         &schema_value::<CompositionLock>(),
     )?;
     write_json(
+        out.join("world-bundle.schema.json"),
+        &schema_value::<WorldBundleArchive>(),
+    )?;
+    write_json(
+        out.join("world-head.schema.json"),
+        &schema_value::<WorldHead>(),
+    )?;
+    write_json(
+        out.join("world-journal-range.schema.json"),
+        &schema_value::<WorldJournalRange>(),
+    )?;
+    write_json(
         out.join("effect-receipt.schema.json"),
         &schema_value::<EffectReceipt>(),
     )?;

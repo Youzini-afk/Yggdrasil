@@ -6033,6 +6033,194 @@ components:
       - network_hosts_used
       - secret_refs_used
       type: object
+    WorldBundleArchive:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        archive_format:
+          type: string
+        bundle_descriptor:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        manifest:
+          $ref: '#/components/schemas/WorldBundleManifest'
+        objects:
+          items:
+            $ref: '#/components/schemas/WorldBundleObject'
+          type: array
+      required:
+      - archive_format
+      - bundle_descriptor
+      - manifest
+      - objects
+      title: WorldBundleArchive
+      type: object
+    WorldBundleManifest:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        bundle_type_uri:
+          type: string
+        composition_lock:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        effect_receipts:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        journal_ranges:
+          items:
+            $ref: '#/components/schemas/WorldJournalRange'
+          type: array
+        lineage:
+          items:
+            $ref: '#/components/schemas/WorldLineageEntry'
+          type: array
+        object_descriptors:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        original_v1_envelopes:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        policy_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        protocol_id:
+          type: string
+        protocol_profile:
+          type: string
+        protocol_profiles:
+          items:
+            $ref: '#/components/schemas/ProtocolProfilePin'
+          type: array
+        protocol_version:
+          type: string
+        schema_version:
+          format: uint16
+          minimum: 0.0
+          type: integer
+        world_head:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        world_id:
+          type: string
+      required:
+      - bundle_type_uri
+      - composition_lock
+      - journal_ranges
+      - lineage
+      - object_descriptors
+      - original_v1_envelopes
+      - protocol_id
+      - protocol_profile
+      - protocol_profiles
+      - protocol_version
+      - schema_version
+      - world_head
+      - world_id
+      type: object
+    WorldBundleObject:
+      properties:
+        data_base64:
+          type: string
+        descriptor:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+      required:
+      - data_base64
+      - descriptor
+      type: object
+    WorldHead:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        composition_lock:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        effect_receipts:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        head_type_uri:
+          type: string
+        history_root:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        parent_heads:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        policy_root:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        protocol_profiles:
+          items:
+            $ref: '#/components/schemas/ProtocolProfilePin'
+          type: array
+        provenance_root:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        schema_version:
+          format: uint16
+          minimum: 0.0
+          type: integer
+        state_root:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        world_id:
+          type: string
+      required:
+      - composition_lock
+      - head_type_uri
+      - history_root
+      - protocol_profiles
+      - provenance_root
+      - schema_version
+      - state_root
+      - world_id
+      title: WorldHead
+      type: object
+    WorldJournalRange:
+      properties:
+        envelope_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        first_sequence:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        last_sequence:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        session_id:
+          type: string
+      required:
+      - envelope_refs
+      - first_sequence
+      - last_sequence
+      - session_id
+      type: object
+    WorldLineageEntry:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        effect_receipts:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        head:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        parent_heads:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        relation:
+          type: string
+      required:
+      - head
+      - relation
+      type: object
 info:
   description: Generated from docs/spec/v1/schemas/. JSON-RPC methods are exposed as typed /rpc/{method} operations for code generators.
   title: Yggdrasil Kernel RPC API

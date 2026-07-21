@@ -13,3 +13,4 @@ pub(crate) mod perf;
 pub mod project;
 pub mod uninstall;
 pub mod update;
+pub(crate) mod world_bundle;

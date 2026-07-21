@@ -107,6 +107,36 @@ pub enum ConformanceCommand {
     Protocol(ConformanceProtocolArgs),
 }
 
+#[derive(Debug, Subcommand)]
+pub enum WorldBundleCommand {
+    /// Verify the archive descriptor, every object digest, and the full reference closure.
+    Verify {
+        path: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Read and summarize a bundle without loading its original packages or a Web shell.
+    Audit {
+        path: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Deterministically replay recorded envelopes and receipt outputs without executors.
+    Replay {
+        path: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Import a verified bundle into a fresh SQLite journal and filesystem object store.
+    Import {
+        path: PathBuf,
+        #[arg(long)]
+        data_dir: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 #[derive(Debug, Args)]
 pub struct ConformanceProtocolArgs {
     /// Stable Protocol Commons id, for example ygg.change.
@@ -202,6 +232,11 @@ pub(crate) enum Command {
     Perf {
         #[command(subcommand)]
         command: PerfCommand,
+    },
+    /// Verify, audit, replay, or import an Experimental World Bundle.
+    WorldBundle {
+        #[command(subcommand)]
+        command: WorldBundleCommand,
     },
 }
 
@@ -584,6 +619,26 @@ mod tests {
             Some("ygg.runtime.change-proposal")
         );
         assert!(args.json);
+    }
+
+    #[test]
+    fn parses_world_bundle_headless_audit() {
+        let cli = Cli::try_parse_from([
+            "ygg",
+            "world-bundle",
+            "audit",
+            "portable-world.json",
+            "--json",
+        ])
+        .expect("parse World Bundle audit command");
+        let Command::WorldBundle {
+            command: WorldBundleCommand::Audit { path, json },
+        } = cli.command
+        else {
+            panic!("expected World Bundle audit command");
+        };
+        assert_eq!(path, PathBuf::from("portable-world.json"));
+        assert!(json);
     }
 
     #[test]

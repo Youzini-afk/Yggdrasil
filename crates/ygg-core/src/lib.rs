@@ -13,6 +13,7 @@ pub mod project;
 pub mod protocol_descriptor;
 pub mod secret_ref;
 pub mod session;
+pub mod world_bundle;
 
 pub use asset::{ArtifactDescriptor, AssetRecord};
 pub use capability_handle::{CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope};
@@ -100,3 +101,14 @@ pub use secret_ref::{
     SECRET_FIELD_NAMES, SECRET_REF_PREFIX,
 };
 pub use session::{KernelSession, SessionStatus};
+pub use world_bundle::{
+    canonical_json_bytes, sha256_digest as world_bundle_sha256_digest, validate_sha256,
+    WorldBundleArchive, WorldBundleManifest, WorldBundleObject, WorldHead, WorldJournalRange,
+    WorldLineageEntry, WORLD_BUNDLE_ARCHIVE_FORMAT, WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+    WORLD_BUNDLE_MEDIA_TYPE, WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION,
+    WORLD_BUNDLE_TYPE_URI, WORLD_COMPOSITION_LOCK_MEDIA_TYPE, WORLD_COMPOSITION_LOCK_TYPE_URI,
+    WORLD_EVENT_ENVELOPE_MEDIA_TYPE, WORLD_EVENT_ENVELOPE_TYPE_URI, WORLD_HEAD_MEDIA_TYPE,
+    WORLD_HEAD_TYPE_URI, WORLD_JOURNAL_INDEX_MEDIA_TYPE, WORLD_JOURNAL_INDEX_TYPE_URI,
+    WORLD_POLICY_INDEX_MEDIA_TYPE, WORLD_POLICY_INDEX_TYPE_URI, WORLD_PROVENANCE_MEDIA_TYPE,
+    WORLD_PROVENANCE_TYPE_URI,
+};

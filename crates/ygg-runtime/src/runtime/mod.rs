@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use ygg_core::{
     project::ProjectId, ArtifactDescriptor, AssetRecord, EventEnvelope, KernelSession, PackageId,
     SessionId, SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_COMPLETED,
@@ -44,6 +44,7 @@ mod remote;
 mod session;
 mod streaming;
 mod wasm;
+mod world_bundle;
 
 // Re-export public types so old paths like ygg_runtime::runtime::AssetPutRequest keep working.
 pub use self::artifacts::{ArtifactCommitRequest, GENERIC_BLOB_ARTIFACT_TYPE_URI};
@@ -99,6 +100,11 @@ pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};
 pub use self::session::OpenSessionRequest;
 pub use self::streaming::StreamRegistry;
+pub use self::world_bundle::{
+    audit_world_bundle_archive, replay_world_bundle_archive, verify_world_bundle_archive,
+    WorldBundleAuditReport, WorldBundleExportRequest, WorldBundleImportResult,
+    WorldBundleReceiptReplay, WorldBundleReplayResult, WorldJournalSelection,
+};
 
 tokio::task_local! {
     pub static ACTIVE_PROJECT_SCOPE: ProjectScopeContext;
@@ -179,6 +185,13 @@ pub(crate) struct StoredAsset {
     pub record: AssetRecord,
 }
 
+struct HydratedSubstrateState {
+    assets: HashMap<String, StoredAsset>,
+    branches: HashMap<String, BranchRecord>,
+    projections: HashMap<String, ProjectionDefinition>,
+    grants: HashMap<String, PermissionGrantRecord>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
 pub struct DeploymentReconcileSummary {
     pub execs_failed: usize,
@@ -225,6 +238,7 @@ where
     pub(crate) grants: Arc<RwLock<HashMap<String, PermissionGrantRecord>>>,
     pub(crate) proposals: Arc<RwLock<HashMap<String, ProposalRecord>>>,
     pub(crate) streams: Arc<StreamRegistry>,
+    pub(crate) world_bundle_import_lock: Arc<Mutex<()>>,
     pub(crate) config: RuntimeConfig,
 }
 
@@ -247,6 +261,7 @@ where
             grants: self.grants.clone(),
             proposals: self.proposals.clone(),
             streams: self.streams.clone(),
+            world_bundle_import_lock: self.world_bundle_import_lock.clone(),
             config: self.config.clone(),
         }
     }
@@ -271,6 +286,7 @@ where
             grants: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
             streams: Arc::new(StreamRegistry::default()),
+            world_bundle_import_lock: Arc::new(Mutex::new(())),
             config,
         }
     }
@@ -431,6 +447,15 @@ where
 
     pub async fn hydrate_substrate_from_events(&self) -> anyhow::Result<()> {
         let events = self.store.list_all().await?;
+        let state = self.build_substrate_state(&events).await?;
+        self.apply_substrate_state(state).await;
+        Ok(())
+    }
+
+    async fn build_substrate_state(
+        &self,
+        events: &[EventEnvelope],
+    ) -> anyhow::Result<HydratedSubstrateState> {
         let mut assets = HashMap::new();
         let mut branches = HashMap::new();
         let mut projections = HashMap::new();
@@ -438,7 +463,7 @@ where
         for event in events {
             match event.kind.as_str() {
                 EVENT_ASSET_PUT => {
-                    let record = self.hydrate_asset_event(&event).await?;
+                    let record = self.hydrate_asset_event(event).await?;
                     assets.insert(record.id.clone(), StoredAsset { record });
                 }
                 EVENT_SESSION_FORKED => {
@@ -464,11 +489,26 @@ where
                 _ => {}
             }
         }
-        *self.assets.write().await = assets;
-        *self.branches.write().await = branches;
-        *self.projections.write().await = projections;
-        *self.grants.write().await = grants;
-        Ok(())
+        Ok(HydratedSubstrateState {
+            assets,
+            branches,
+            projections,
+            grants,
+        })
+    }
+
+    async fn apply_substrate_state(&self, state: HydratedSubstrateState) {
+        *self.assets.write().await = state.assets;
+        *self.branches.write().await = state.branches;
+        *self.projections.write().await = state.projections;
+        *self.grants.write().await = state.grants;
+    }
+
+    async fn merge_substrate_state(&self, state: HydratedSubstrateState) {
+        self.assets.write().await.extend(state.assets);
+        self.branches.write().await.extend(state.branches);
+        self.projections.write().await.extend(state.projections);
+        self.grants.write().await.extend(state.grants);
     }
 
     pub async fn hydrate_deployment_from_events(&self) -> anyhow::Result<()> {

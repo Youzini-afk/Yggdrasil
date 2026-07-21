@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, TransactionBehavior};
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, RwLock};
 use ygg_core::{EventEnvelope, EventKind, EventSequence, PackageId, SessionId};
@@ -59,6 +59,36 @@ pub trait EventStore: Send + Sync + 'static {
     /// Prefer `append_with_sequence` for runtime use; this method
     /// exists for replay, admin tooling, and test fixtures.
     async fn append(&self, event: EventEnvelope) -> anyhow::Result<()>;
+
+    /// Whether this backend can atomically append a pre-validated event batch.
+    /// Portable imports use the stronger empty-session operation below.
+    fn supports_atomic_batch_append(&self) -> bool {
+        false
+    }
+
+    /// Atomically append pre-constructed envelopes or fail without appending any.
+    /// Backends that do not implement a real transaction must leave the default
+    /// fail-closed behavior in place.
+    async fn append_batch_atomic(&self, _events: &[EventEnvelope]) -> anyhow::Result<()> {
+        anyhow::bail!("event store does not support atomic batch append")
+    }
+
+    /// Whether this backend can atomically require a set of sessions to be empty
+    /// and append a pre-validated batch in the same transaction.
+    fn supports_atomic_empty_session_batch_append(&self) -> bool {
+        false
+    }
+
+    /// Atomically reject when any required session already contains an event, or
+    /// append the complete batch. Portable imports use this stronger operation so
+    /// an emptiness check cannot race with another writer.
+    async fn append_batch_atomic_if_sessions_empty(
+        &self,
+        _events: &[EventEnvelope],
+        _required_empty_sessions: &[SessionId],
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("event store does not support atomic empty-session batch append")
+    }
 
     /// List all events across all sessions, ordered by
     /// `(timestamp, session_id, sequence)`.
@@ -234,6 +264,71 @@ impl EventStore for SqliteEventStore {
             ],
         )?;
         let _ = self.tx.send(event);
+        Ok(())
+    }
+
+    fn supports_atomic_batch_append(&self) -> bool {
+        true
+    }
+
+    async fn append_batch_atomic(&self, events: &[EventEnvelope]) -> anyhow::Result<()> {
+        self.append_batch_atomic_if_sessions_empty(events, &[])
+            .await
+    }
+
+    fn supports_atomic_empty_session_batch_append(&self) -> bool {
+        true
+    }
+
+    async fn append_batch_atomic_if_sessions_empty(
+        &self,
+        events: &[EventEnvelope],
+        required_empty_sessions: &[SessionId],
+    ) -> anyhow::Result<()> {
+        let serialized = events
+            .iter()
+            .map(|event| {
+                Ok((
+                    event,
+                    serde_json::to_string(&event.payload)?,
+                    serde_json::to_string(&event.metadata)?,
+                ))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let mut conn = self.conn.lock().await;
+        let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for session_id in required_empty_sessions {
+            let contains_event: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM events WHERE session_id = ?1)",
+                params![session_id],
+                |row| row.get(0),
+            )?;
+            anyhow::ensure!(
+                !contains_event,
+                "event batch requires empty session '{session_id}'"
+            );
+        }
+        for (event, payload, metadata) in serialized {
+            transaction.execute(
+                "INSERT INTO events (id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    event.id,
+                    event.session_id,
+                    event.sequence as i64,
+                    event.timestamp.to_rfc3339(),
+                    event.writer_package_id,
+                    event.kind,
+                    event.schema_version as i64,
+                    payload,
+                    metadata,
+                ],
+            )?;
+        }
+        transaction.commit()?;
+        for event in events {
+            let _ = self.tx.send(event.clone());
+        }
         Ok(())
     }
 
@@ -625,6 +720,64 @@ impl EventStore for InMemoryEventStore {
             .or_default()
             .push(event.clone());
         let _ = self.tx.send(event);
+        Ok(())
+    }
+
+    fn supports_atomic_batch_append(&self) -> bool {
+        true
+    }
+
+    async fn append_batch_atomic(&self, events: &[EventEnvelope]) -> anyhow::Result<()> {
+        self.append_batch_atomic_if_sessions_empty(events, &[])
+            .await
+    }
+
+    fn supports_atomic_empty_session_batch_append(&self) -> bool {
+        true
+    }
+
+    async fn append_batch_atomic_if_sessions_empty(
+        &self,
+        events: &[EventEnvelope],
+        required_empty_sessions: &[SessionId],
+    ) -> anyhow::Result<()> {
+        let mut map = self.events.write().await;
+        for session_id in required_empty_sessions {
+            anyhow::ensure!(
+                map.get(session_id).is_none_or(Vec::is_empty),
+                "event batch requires empty session '{session_id}'"
+            );
+        }
+        let mut candidate = map.clone();
+        let mut ids = candidate
+            .values()
+            .flat_map(|events| events.iter().map(|event| event.id.clone()))
+            .collect::<std::collections::BTreeSet<_>>();
+        for event in events {
+            anyhow::ensure!(
+                ids.insert(event.id.clone()),
+                "duplicate event id '{}'",
+                event.id
+            );
+            let session = candidate.entry(event.session_id.clone()).or_default();
+            anyhow::ensure!(
+                !session
+                    .iter()
+                    .any(|existing| existing.sequence == event.sequence),
+                "duplicate event position '{}:{}'",
+                event.session_id,
+                event.sequence
+            );
+            session.push(event.clone());
+        }
+        for events in candidate.values_mut() {
+            events.sort_by_key(|event| event.sequence);
+        }
+        *map = candidate;
+        drop(map);
+        for event in events {
+            let _ = self.tx.send(event.clone());
+        }
         Ok(())
     }
 

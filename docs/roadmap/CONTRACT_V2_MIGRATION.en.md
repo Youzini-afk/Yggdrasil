@@ -46,7 +46,8 @@ Target boundaries are defined in [`CONSTITUTION_V2.md`](../architecture/CONSTITU
 - [x] Phase 5: implement receipt/change primitives, historical replay/re-execution, terminal effect coverage, and the Proposal adapter.
 - [x] Phase 6: establish the Protocol Commons descriptor registry, protocol/profile negotiation, and separate protocol/implementation reports.
 - [x] Phase 7: separate package envelopes from component identity, trust evidence, and composition pins.
-- [ ] Phases 8–9: World Bundle and client/deprecation migration.
+- [x] Phase 8: prove cross-host portability, offline replay, re-execution branching, and shell independence with a real World Bundle.
+- [ ] Phase 9: migrate clients and complete one real Deprecated → Legacy Adapter transition.
 
 ## Immediate freeze line
 
@@ -288,6 +289,8 @@ Acceptance flow:
 4. Without loading the original component or enabling network/model access, audit and replay history deterministically.
 5. Install a different implementation, re-execute one step, and create a new branch/head.
 6. Read the same world through a headless CLI to prove the Web shell is not a data dependency.
+
+Implementation result (2026-07-21): the repository now publishes [`WORLD_BUNDLE.md`](../spec/WORLD_BUNDLE.en.md) plus concrete World Bundle, World Head, and journal-range schemas. `official/playable-creation-board` creates state, a branch, and controlled capability receipts on Host A; export materializes exact v1 envelopes and the full SHA-256 reference closure; an independent SQLite journal and filesystem CAS on Host B import without loading the original package; historical replay invokes no executor; an echo-backed replacement implementation produces a child branch/head with unchanged content roots; and `ygg world-bundle verify|audit|replay|import` proves shell-independent access. All five `ygg.world.bundle/experimental/v1` vectors pass, so `ygg.runtime.world-bundle` is now a registered production implementation claim.
 
 Failure conditions:
 

@@ -480,6 +480,33 @@ fn shell_protocol_descriptor() -> ProtocolDescriptor {
 }
 
 fn world_bundle_protocol_descriptor() -> ProtocolDescriptor {
+    let vectors = vec![
+        vector(
+            "world_bundle.reference_closure",
+            "Every referenced object is present and digest verified.",
+            WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "world_bundle.cross_host_import",
+            "A fresh host imports the same objects, lineage, envelopes, and receipts.",
+            WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "world_bundle.offline_replay",
+            "Historical replay succeeds with providers and outbound executors disabled.",
+            WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "world_bundle.reexecution_branch",
+            "A different implementation re-executes on a new causal branch.",
+            WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "world_bundle.shell_independence",
+            "A headless client reads the same world without Web-shell state.",
+            WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+        ),
+    ];
     ProtocolDescriptor {
         descriptor_type_uri: PROTOCOL_DESCRIPTOR_TYPE_URI.to_string(),
         protocol_id: WORLD_BUNDLE_PROTOCOL_ID.to_string(),
@@ -489,6 +516,9 @@ fn world_bundle_protocol_descriptor() -> ProtocolDescriptor {
             ("artifact-descriptor", "artifact-descriptor.schema.json"),
             ("event-envelope", "event-envelope.schema.json"),
             ("effect-receipt", "effect-receipt.schema.json"),
+            ("world-bundle", "world-bundle.schema.json"),
+            ("world-head", "world-head.schema.json"),
+            ("world-journal-range", "world-journal-range.schema.json"),
         ]
         .into_iter()
         .map(|(id, filename)| json_schema(id, filename))
@@ -508,40 +538,21 @@ fn world_bundle_protocol_descriptor() -> ProtocolDescriptor {
                 "reexecute_on_branch".to_string(),
             ],
         }],
-        conformance_vectors: vec![
-            vector(
-                "world_bundle.reference_closure",
-                "Every referenced object is present and digest verified.",
-                WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
-            ),
-            vector(
-                "world_bundle.cross_host_import",
-                "A fresh host imports the same objects, lineage, envelopes, and receipts.",
-                WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
-            ),
-            vector(
-                "world_bundle.offline_replay",
-                "Historical replay succeeds with providers and outbound executors disabled.",
-                WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
-            ),
-            vector(
-                "world_bundle.reexecution_branch",
-                "A different implementation re-executes on a new causal branch.",
-                WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
-            ),
-            vector(
-                "world_bundle.shell_independence",
-                "A headless client reads the same world without Web-shell state.",
-                WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
-            ),
-        ],
+        conformance_vectors: vectors.clone(),
         compatibility_profiles: vec![profile(
             WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
             WORLD_BUNDLE_PROTOCOL_VERSION,
             "Portable object, journal, receipt, lineage, policy, and composition closure.",
         )],
         migrations: Vec::new(),
-        conforming_implementations: Vec::new(),
+        conforming_implementations: vec![ProtocolImplementationClaim {
+            implementation_id: "ygg.runtime.world-bundle".to_string(),
+            provider: "ygg-runtime".to_string(),
+            version: WORLD_BUNDLE_PROTOCOL_VERSION.to_string(),
+            profiles: vec![WORLD_BUNDLE_EXPERIMENTAL_PROFILE.to_string()],
+            conformance_vectors: vectors.iter().map(|vector| vector.id.clone()).collect(),
+            test_only: false,
+        }],
     }
 }
 

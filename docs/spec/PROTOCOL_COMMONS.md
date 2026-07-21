@@ -78,9 +78,9 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 
 ## World Bundle Experimental Profile
 
-`ygg.world.bundle/experimental/v1` 定义可移植性证明目标，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor 与 EffectReceipt。具体 Bundle Schema 与引用闭包实现由 Phase 8 完成。
+`ygg.world.bundle/experimental/v1` 定义可移植性证明目标，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor、EffectReceipt，以及具体的 [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) archive/head/journal schema。
 
-描述符已预留五个必需向量：引用闭包、跨主机导入、离线回放、新分支重执行和 Shell 独立性。在五项全部通过前，不列出任何一致性生产实现。
+五个必需向量覆盖引用闭包、跨主机导入、离线回放、新分支重执行和 Shell 独立性。它们现已用真实 `official/playable-creation-board` 压力源全部通过，因此 `ygg.runtime.world-bundle` 已注册为第一个一致性 production implementation claim。
 
 ## World Bundle 生命周期
 

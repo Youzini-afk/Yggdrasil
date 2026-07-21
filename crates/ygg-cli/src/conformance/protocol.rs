@@ -93,6 +93,35 @@ pub(crate) async fn protocol_commons_advertised() -> anyhow::Result<()> {
             implementation.implementation_id
         );
     }
+    let world = protocol_descriptor("ygg.world.bundle")
+        .ok_or_else(|| anyhow::anyhow!("World Bundle descriptor missing"))?;
+    let world_required = world
+        .conformance_vectors
+        .iter()
+        .filter(|vector| vector.required)
+        .map(|vector| vector.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let world_runtime = world
+        .conforming_implementations
+        .iter()
+        .find(|implementation| implementation.implementation_id == "ygg.runtime.world-bundle")
+        .ok_or_else(|| anyhow::anyhow!("World Bundle runtime implementation claim missing"))?;
+    anyhow::ensure!(
+        world_runtime
+            .conformance_vectors
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>()
+            == world_required,
+        "World Bundle runtime does not claim the complete protocol vector set"
+    );
+    anyhow::ensure!(
+        world
+            .schemas
+            .iter()
+            .any(|schema| schema.id == "world-bundle"),
+        "World Bundle descriptor does not publish its concrete archive schema"
+    );
     Ok(())
 }
 

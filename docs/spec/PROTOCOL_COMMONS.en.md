@@ -78,9 +78,9 @@ The current lifecycle and bridge error model are documented in [`SURFACE_HOSTING
 
 ## World Bundle Experimental profile
 
-`ygg.world.bundle/experimental/v1` defines the portability proof target without adding `World` to the substrate. Its descriptor references event envelopes, artifact descriptors, and effect receipts. The concrete bundle schema and reference-closure implementation are delivered by Phase 8.
+`ygg.world.bundle/experimental/v1` defines the portability proof target without adding `World` to the substrate. Its descriptor references event envelopes, artifact descriptors, effect receipts, and the concrete [`WORLD_BUNDLE.md`](WORLD_BUNDLE.en.md) archive/head/journal schemas.
 
-Required vectors are already reserved for reference closure, cross-host import, offline replay, re-execution on a new branch, and shell independence. Until all five vectors pass, the descriptor lists no conforming production implementation.
+The required vectors cover reference closure, cross-host import, offline replay, re-execution on a new branch, and shell independence. All five now pass against the real `official/playable-creation-board` pressure source, so `ygg.runtime.world-bundle` is registered as the first conforming production implementation claim.
 
 ## World Bundle lifecycle
 

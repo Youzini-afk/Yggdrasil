@@ -436,6 +436,36 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
     ]
 }
 
+pub(super) fn world_bundle_cases() -> Vec<ConformanceCase> {
+    vec![
+        c!(
+            "world_bundle.reference_closure",
+            ["protocol", "portability", "world_bundle"],
+            crate::conformance::world_bundle::reference_closure
+        ),
+        c!(
+            "world_bundle.cross_host_import",
+            ["protocol", "portability", "world_bundle", "sqlite"],
+            crate::conformance::world_bundle::cross_host_import
+        ),
+        c!(
+            "world_bundle.offline_replay",
+            ["protocol", "portability", "world_bundle", "receipt"],
+            crate::conformance::world_bundle::offline_replay
+        ),
+        c!(
+            "world_bundle.reexecution_branch",
+            ["protocol", "portability", "world_bundle", "branch"],
+            crate::conformance::world_bundle::reexecution_branch
+        ),
+        c!(
+            "world_bundle.shell_independence",
+            ["protocol", "portability", "world_bundle", "cli-smoke"],
+            crate::conformance::world_bundle::shell_independence
+        ),
+    ]
+}
+
 pub(super) fn hooks_cases() -> Vec<ConformanceCase> {
     vec![
         // --- hooks ---

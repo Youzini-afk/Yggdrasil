@@ -41,10 +41,10 @@
 
 - 代码中有 80 个 `KernelMethod`、80 个 method schema。
 - 代码、schema 与 `EVENT_KIND_REGISTRY.md` 均有 59 个 kernel event，包含 `kernel/v1/deployment.health`。
-- 有 18 个顶层 schema；Phase 2 新增 `contract-selection.schema.json`，Phase 4 新增 `artifact-descriptor.schema.json`，Phase 5 新增 EffectReceipt 与四个 Change primitives schema，Phase 6 新增 `protocol-descriptor.schema.json`，Phase 7 新增 component、package-envelope 与 composition-lock schema。
+- 有 21 个顶层 schema；Phase 2 新增 `contract-selection.schema.json`，Phase 4 新增 `artifact-descriptor.schema.json`，Phase 5 新增 EffectReceipt 与四个 Change primitives schema，Phase 6 新增 `protocol-descriptor.schema.json`，Phase 7 新增 component、package-envelope 与 composition-lock schema，Phase 8 新增 World Bundle、World Head 与 journal-range schema。
 - `KernelMethod::status()`、Contract 文档状态和 actual dispatch 的已知漂移已对齐，并由测试约束。
 - Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter 已落地；Phase 3 已为 Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 发布 36 条 canonical/legacy 双栈。
-- Experimental Protocol Commons 注册表已发布 Change、Shell Default 与 World Bundle descriptor，在 dispatch 前协商显式协议/Profile，并分离 protocol、implementation 与 package 报告。
+- Experimental Protocol Commons 注册表已发布 Change、Shell Default 与 World Bundle descriptor，在 dispatch 前协商显式协议/Profile，并分离 protocol、implementation 与 package 报告；具体 World Bundle archive 与五条 portability 向量现在支撑 `ygg.runtime.world-bundle` implementation claim。
 - Web 默认仍发送 legacy `kernel.v1.*` method ID；生成 SDK 已从 schema metadata 生成 canonical client 与显式 legacy wrapper，并在生成前校验所有 wire ID、函数名与 operation ID 全局唯一。
 
 因此迁移的第一要求不是删除旧代码，而是建立可测试的兼容路由。
@@ -274,7 +274,7 @@
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | host deployment health；补入 v1 registry |
 
-## 18 个顶层 schema
+## 21 个顶层 schema
 
 | 当前 schema | 目标层 | 处置 | 目标形状 |
 |---|---:|---|---|
@@ -285,6 +285,9 @@
 | `component-descriptor.schema.json` | `S` | 新增 | 独立实现 identity、behavior digest、trust class、强制边界声明与引用 |
 | `package-envelope-descriptor.schema.json` | `H` | 新增 | 将 manifest 与独立寻址 component/artifact 连接起来的获取/安装 envelope |
 | `composition-lock.schema.json` | `C` | 新增 | 分别锁定 component artifact、protocol profile 与不可变 content root |
+| `world-bundle.schema.json` | `C` | 新增 | 可移植 manifest、原始 v1 envelope、object inventory、receipt、policy、lineage 与内联传输对象 |
+| `world-head.schema.json` | `C` | 新增 | 协议定义的 state/history/composition/policy/provenance root 与 parent head |
+| `world-journal-range.schema.json` | `S` | 新增 | session 内连续 sequence range 与内容寻址的原始 event envelope |
 | `artifact-descriptor.schema.json` | `S` | 新增 | 开放 artifact type、SHA-256 digest、size、references 与 annotations；bytes 位于 ObjectStore |
 | `effect-receipt.schema.json` | `S` | 新增 | 内容寻址 terminal evidence；引用 input/output/component/authority/policy/approval/parents |
 | `intent.schema.json` | `C` | 新增 | principal goal 与 target scope；不等同于 proposal 或 command |
